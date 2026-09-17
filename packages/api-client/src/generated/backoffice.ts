@@ -24,17 +24,628 @@ import type {
 } from '@tanstack/react-query';
 
 import { http } from '../http';
-export type UpdateStaffUserRequestRole = typeof UpdateStaffUserRequestRole[keyof typeof UpdateStaffUserRequestRole];
+/**
+ * @nullable
+ */
+export type AccountHolderRelationshipToPrimary = typeof AccountHolderRelationshipToPrimary[keyof typeof AccountHolderRelationshipToPrimary] | null;
 
 
-export const UpdateStaffUserRequestRole = {
+export const AccountHolderRelationshipToPrimary = {
+  SPOUSE: 'SPOUSE',
+  CHILD: 'CHILD',
+  PARENT: 'PARENT',
+  SIBLING: 'SIBLING',
+  OTHER: 'OTHER',
+} as const;
+
+/**
+ * @nullable
+ */
+export type AccountHolderOccupation = typeof AccountHolderOccupation[keyof typeof AccountHolderOccupation] | null;
+
+
+export const AccountHolderOccupation = {
+  SALARIED: 'SALARIED',
+  BUSINESS_OWNER: 'BUSINESS_OWNER',
+  HOMEMAKER: 'HOMEMAKER',
+  RETIRED: 'RETIRED',
+  STUDENT: 'STUDENT',
+  OTHER: 'OTHER',
+} as const;
+
+export interface Employer {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  companyName: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  country: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  position: string | null;
+}
+
+export interface Business {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  companyName: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  country: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  entityType: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     * @nullable
+     */
+  natureOfBusiness: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 60
+     * @nullable
+     * @items.minLength 0
+     * @items.maxLength 2
+     */
+  countriesOfBusiness: string[] | null;
+}
+
+export interface Address {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  line1: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  line2: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  city: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  state: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 20
+     * @nullable
+     */
+  postalCode: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  country: string | null;
+}
+
+export interface AccountHolder {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  fullName: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  forenames: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  surname: string | null;
+  /** @nullable */
+  relationshipToPrimary: AccountHolderRelationshipToPrimary;
+  /** @nullable */
+  dateOfBirth: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  idNumber: string | null;
+  /** @nullable */
+  idExpiry: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  nationality: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  countryOfBirth: string | null;
+  /** @nullable */
+  otherNationality: boolean | null;
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  otherNationalityCountry: string | null;
+  /** @nullable */
+  occupation: AccountHolderOccupation;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  occupationOther: string | null;
+  employer: Employer | null;
+  business: Business | null;
+  /**
+     * @minLength 0
+     * @maxLength 20
+     * @nullable
+     */
+  phone: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 320
+     * @nullable
+     */
+  email: string | null;
+  residentialAddress: Address | null;
+  /** @nullable */
+  mailingSameAsResidential: boolean | null;
+  mailingAddress: Address | null;
+  secondaryMailingAddress: Address | null;
+}
+
+/**
+ * @nullable
+ */
+export type EntityDetailsOrganisationType = typeof EntityDetailsOrganisationType[keyof typeof EntityDetailsOrganisationType] | null;
+
+
+export const EntityDetailsOrganisationType = {
+  PIC: 'PIC',
+  TRUST_OR_FOUNDATION: 'TRUST_OR_FOUNDATION',
+  TRADING_COMPANY: 'TRADING_COMPANY',
+  OTHER: 'OTHER',
+} as const;
+
+export interface EntityDetails {
+  /**
+     * @minLength 0
+     * @maxLength 300
+     * @nullable
+     */
+  legalName: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  countryOfIncorporation: string | null;
+  /** @nullable */
+  dateOfIncorporation: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 60
+     * @nullable
+     */
+  registrationNumber: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     * @nullable
+     */
+  natureOfBusiness: string | null;
+  /** @nullable */
+  regulated: boolean | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  regulatorName: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 60
+     * @nullable
+     * @items.minLength 0
+     * @items.maxLength 2
+     */
+  countriesOfBusiness: string[] | null;
+  /** @nullable */
+  organisationType: EntityDetailsOrganisationType;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  organisationTypeOther: string | null;
+  registeredAddress: Address | null;
+}
+
+/**
+ * @nullable
+ */
+export type OnboardingApplicationClientType = typeof OnboardingApplicationClientType[keyof typeof OnboardingApplicationClientType] | null;
+
+
+export const OnboardingApplicationClientType = {
+  INDIVIDUAL: 'INDIVIDUAL',
+  ENTITY: 'ENTITY',
+} as const;
+
+export interface OnboardingApplication {
+  /** @nullable */
+  clientType: OnboardingApplicationClientType;
+  /** @nullable */
+  relationshipManagerId: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 4
+     * @nullable
+     */
+  holders: AccountHolder[] | null;
+  entity: EntityDetails | null;
+}
+
+export type CaseSummaryClientType = typeof CaseSummaryClientType[keyof typeof CaseSummaryClientType];
+
+
+export const CaseSummaryClientType = {
+  INDIVIDUAL: 'INDIVIDUAL',
+  ENTITY: 'ENTITY',
+} as const;
+
+export interface StaffMember {
+  id: string;
+  fullName: string;
+}
+
+export type CaseSummaryStatus = typeof CaseSummaryStatus[keyof typeof CaseSummaryStatus];
+
+
+export const CaseSummaryStatus = {
+  IN_PROCESS: 'IN_PROCESS',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+export interface CaseSummary {
+  id: string;
+  clientName: string;
+  clientType: CaseSummaryClientType;
+  accountHolders: number;
+  /** @nullable */
+  countryCode: string | null;
+  relationshipManager: StaffMember | null;
+  startedAt: string;
+  updatedAt: string;
+  currentStage: string;
+  completedSteps: number;
+  totalSteps: number;
+  status: CaseSummaryStatus;
+  submitted: boolean;
+}
+
+export interface CaseDetail {
+  summary: CaseSummary;
+  application: OnboardingApplication;
+  /** @nullable */
+  submittedAt: string | null;
+}
+
+export interface UpdateFxRateRequest {
+  /** @exclusiveMinimum 0 */
+  unitsPerUsd: number;
+}
+
+/**
+ * @nullable
+ */
+export type FxRateRowSource = typeof FxRateRowSource[keyof typeof FxRateRowSource] | null;
+
+
+export const FxRateRowSource = {
+  MANUAL: 'MANUAL',
+  FEED: 'FEED',
+} as const;
+
+export interface FxRateRow {
+  code: string;
+  name: string;
+  /** @nullable */
+  unitsPerUsd: number | null;
+  /** @nullable */
+  usdPerUnit: number | null;
+  /** @nullable */
+  source: FxRateRowSource;
+  /** @nullable */
+  asOf: string | null;
+  /** @nullable */
+  recordedBy: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type FieldChoiceStandardField = typeof FieldChoiceStandardField[keyof typeof FieldChoiceStandardField] | null;
+
+
+export const FieldChoiceStandardField = {
+  ACCOUNT_NUMBER: 'ACCOUNT_NUMBER',
+  INSTRUMENT_ID: 'INSTRUMENT_ID',
+  INSTRUMENT_NAME: 'INSTRUMENT_NAME',
+  ASSET_CLASS: 'ASSET_CLASS',
+  QUANTITY: 'QUANTITY',
+  MARKET_PRICE: 'MARKET_PRICE',
+  MARKET_VALUE: 'MARKET_VALUE',
+  CURRENCY: 'CURRENCY',
+  VALUATION_DATE: 'VALUATION_DATE',
+  ACCRUED_INTEREST: 'ACCRUED_INTEREST',
+  COST_PRICE: 'COST_PRICE',
+  TRADE_DATE: 'TRADE_DATE',
+  SETTLEMENT_DATE: 'SETTLEMENT_DATE',
+  TRANSACTION_TYPE: 'TRANSACTION_TYPE',
+  AMOUNT: 'AMOUNT',
+  DESCRIPTION: 'DESCRIPTION',
+} as const;
+
+export type FieldChoiceTransform = typeof FieldChoiceTransform[keyof typeof FieldChoiceTransform];
+
+
+export const FieldChoiceTransform = {
+  NONE: 'NONE',
+  TRIM: 'TRIM',
+  TRIM_LEADING_ZEROS: 'TRIM_LEADING_ZEROS',
+  TITLE_CASE: 'TITLE_CASE',
+  UPPER_CASE: 'UPPER_CASE',
+  DECIMAL_2: 'DECIMAL_2',
+  DECIMAL_4: 'DECIMAL_4',
+  ISIN_PASSTHROUGH: 'ISIN_PASSTHROUGH',
+  ISO_4217_CHECK: 'ISO_4217_CHECK',
+  DATE_YYYYMMDD: 'DATE_YYYYMMDD',
+  DATE_DD_MM_YYYY: 'DATE_DD_MM_YYYY',
+  ASSET_CLASS_LOOKUP: 'ASSET_CLASS_LOOKUP',
+} as const;
+
+export interface FieldChoice {
+  id: string;
+  /** @nullable */
+  standardField: FieldChoiceStandardField;
+  transform: FieldChoiceTransform;
+  ignored: boolean;
+}
+
+export interface SaveMappingRequest {
+  fields: FieldChoice[];
+  alertOnFormatChange: boolean;
+}
+
+/**
+ * @nullable
+ */
+export type MappedFieldStandardField = typeof MappedFieldStandardField[keyof typeof MappedFieldStandardField] | null;
+
+
+export const MappedFieldStandardField = {
+  ACCOUNT_NUMBER: 'ACCOUNT_NUMBER',
+  INSTRUMENT_ID: 'INSTRUMENT_ID',
+  INSTRUMENT_NAME: 'INSTRUMENT_NAME',
+  ASSET_CLASS: 'ASSET_CLASS',
+  QUANTITY: 'QUANTITY',
+  MARKET_PRICE: 'MARKET_PRICE',
+  MARKET_VALUE: 'MARKET_VALUE',
+  CURRENCY: 'CURRENCY',
+  VALUATION_DATE: 'VALUATION_DATE',
+  ACCRUED_INTEREST: 'ACCRUED_INTEREST',
+  COST_PRICE: 'COST_PRICE',
+  TRADE_DATE: 'TRADE_DATE',
+  SETTLEMENT_DATE: 'SETTLEMENT_DATE',
+  TRANSACTION_TYPE: 'TRANSACTION_TYPE',
+  AMOUNT: 'AMOUNT',
+  DESCRIPTION: 'DESCRIPTION',
+} as const;
+
+export type MappedFieldTransform = typeof MappedFieldTransform[keyof typeof MappedFieldTransform];
+
+
+export const MappedFieldTransform = {
+  NONE: 'NONE',
+  TRIM: 'TRIM',
+  TRIM_LEADING_ZEROS: 'TRIM_LEADING_ZEROS',
+  TITLE_CASE: 'TITLE_CASE',
+  UPPER_CASE: 'UPPER_CASE',
+  DECIMAL_2: 'DECIMAL_2',
+  DECIMAL_4: 'DECIMAL_4',
+  ISIN_PASSTHROUGH: 'ISIN_PASSTHROUGH',
+  ISO_4217_CHECK: 'ISO_4217_CHECK',
+  DATE_YYYYMMDD: 'DATE_YYYYMMDD',
+  DATE_DD_MM_YYYY: 'DATE_DD_MM_YYYY',
+  ASSET_CLASS_LOOKUP: 'ASSET_CLASS_LOOKUP',
+} as const;
+
+export type MappedFieldState = typeof MappedFieldState[keyof typeof MappedFieldState];
+
+
+export const MappedFieldState = {
+  MAPPED: 'MAPPED',
+  UNMAPPED: 'UNMAPPED',
+  IGNORED: 'IGNORED',
+} as const;
+
+export interface MappedField {
+  id: string;
+  incomingField: string;
+  /** @nullable */
+  sampleValue: string | null;
+  /** @nullable */
+  standardField: MappedFieldStandardField;
+  transform: MappedFieldTransform;
+  state: MappedFieldState;
+}
+
+export interface MappingCounts {
+  total: number;
+  mapped: number;
+  unmapped: number;
+  ignored: number;
+}
+
+export interface BankMapping {
+  bankId: string;
+  bankName: string;
+  countryCode: string;
+  fields: MappedField[];
+  alertOnFormatChange: boolean;
+  version: number;
+  counts: MappingCounts;
+}
+
+export interface RenameTemplateRequest {
+  /**
+     * @minLength 0
+     * @maxLength 120
+     */
+  name: string;
+}
+
+export interface VersionView {
+  version: number;
+  subject: string;
+  body: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface TemplateDetail {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  versions: VersionView[];
+}
+
+export type BankRequestConnectionType = typeof BankRequestConnectionType[keyof typeof BankRequestConnectionType];
+
+
+export const BankRequestConnectionType = {
+  SFTP: 'SFTP',
+  REST_API: 'REST_API',
+  MANUAL_UPLOAD: 'MANUAL_UPLOAD',
+} as const;
+
+export type BankRequestSchedule = typeof BankRequestSchedule[keyof typeof BankRequestSchedule];
+
+
+export const BankRequestSchedule = {
+  HOURLY: 'HOURLY',
+  EVERY_6_HOURS: 'EVERY_6_HOURS',
+  TWICE_A_DAY: 'TWICE_A_DAY',
+  ONCE_A_DAY: 'ONCE_A_DAY',
+  ON_UPLOAD: 'ON_UPLOAD',
+} as const;
+
+export interface BankRequest {
+  /**
+     * @minLength 0
+     * @maxLength 120
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @pattern ^[A-Za-z]{6}[A-Za-z0-9]{2}([A-Za-z0-9]{3})?$
+     */
+  bic: string;
+  /** @minLength 1 */
+  countryCode: string;
+  connectionType: BankRequestConnectionType;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  endpoint: string | null;
+  schedule: BankRequestSchedule;
+}
+
+export type BankViewConnectionType = typeof BankViewConnectionType[keyof typeof BankViewConnectionType];
+
+
+export const BankViewConnectionType = {
+  SFTP: 'SFTP',
+  REST_API: 'REST_API',
+  MANUAL_UPLOAD: 'MANUAL_UPLOAD',
+} as const;
+
+export type BankViewSchedule = typeof BankViewSchedule[keyof typeof BankViewSchedule];
+
+
+export const BankViewSchedule = {
+  HOURLY: 'HOURLY',
+  EVERY_6_HOURS: 'EVERY_6_HOURS',
+  TWICE_A_DAY: 'TWICE_A_DAY',
+  ONCE_A_DAY: 'ONCE_A_DAY',
+  ON_UPLOAD: 'ON_UPLOAD',
+} as const;
+
+export interface BankView {
+  id: string;
+  name: string;
+  bic: string;
+  countryCode: string;
+  connectionType: BankViewConnectionType;
+  /** @nullable */
+  endpoint: string | null;
+  schedule: BankViewSchedule;
+  enabled: boolean;
+  linkedAccounts: number;
+  /** @nullable */
+  lastSyncAt: string | null;
+}
+
+export type StaffUserRequestRolesItem = typeof StaffUserRequestRolesItem[keyof typeof StaffUserRequestRolesItem];
+
+
+export const StaffUserRequestRolesItem = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
 } as const;
 
-export interface UpdateStaffUserRequest {
+export interface StaffUserRequest {
   /**
      * @minLength 0
      * @maxLength 200
@@ -45,12 +656,42 @@ export interface UpdateStaffUserRequest {
      * @maxLength 320
      */
   email: string;
+  /** @minLength 1 */
+  phone: string;
+  /** @minItems 1 */
+  roles: StaffUserRequestRolesItem[];
   /**
-     * @nullable
-     * @pattern ^$|^\+[1-9][0-9]{6,14}$
+     * @minLength 0
+     * @maxLength 60
      */
-  phone: string | null;
-  role: UpdateStaffUserRequestRole;
+  nationality: string;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     */
+  residentialAddress: string;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     */
+  designation: string;
+  employmentStart: string;
+  reportsToId: string;
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  licenceNumber: string;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     */
+  nationalId: string;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     */
+  passportNumber: string;
 }
 
 export type ActivityEntryOutcome = typeof ActivityEntryOutcome[keyof typeof ActivityEntryOutcome];
@@ -72,14 +713,25 @@ export interface ActivityEntry {
   ipAddress: string | null;
 }
 
-export type StaffUserDetailRole = typeof StaffUserDetailRole[keyof typeof StaffUserDetailRole];
+export interface ProfileCompleteness {
+  filled: number;
+  total: number;
+}
+
+export interface StaffReference {
+  id: string;
+  fullName: string;
+}
+
+export type StaffUserDetailRolesItem = typeof StaffUserDetailRolesItem[keyof typeof StaffUserDetailRolesItem];
 
 
-export const StaffUserDetailRole = {
+export const StaffUserDetailRolesItem = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
 } as const;
 
 export type StaffUserDetailStatus = typeof StaffUserDetailStatus[keyof typeof StaffUserDetailStatus];
@@ -97,7 +749,7 @@ export interface StaffUserDetail {
   email: string;
   /** @nullable */
   phone: string | null;
-  role: StaffUserDetailRole;
+  roles: StaffUserDetailRolesItem[];
   status: StaffUserDetailStatus;
   mustChangePassword: boolean;
   /** @nullable */
@@ -108,6 +760,23 @@ export interface StaffUserDetail {
   updatedAt: string;
   /** @nullable */
   deactivatedAt: string | null;
+  /** @nullable */
+  nationality: string | null;
+  /** @nullable */
+  residentialAddress: string | null;
+  /** @nullable */
+  designation: string | null;
+  /** @nullable */
+  employmentStart: string | null;
+  reportsTo: StaffReference | null;
+  /** @nullable */
+  licenceNumber: string | null;
+  /** @nullable */
+  nationalId: string | null;
+  /** @nullable */
+  passportNumber: string | null;
+  completeness: ProfileCompleteness;
+  assignedClients: number;
   recentActivity: ActivityEntry[];
 }
 
@@ -133,9 +802,11 @@ export const PermissionGrantPermission = {
   VIEW_CUSTOMER_PROFILE: 'VIEW_CUSTOMER_PROFILE',
   EXPORT_CUSTOMER_DATA: 'EXPORT_CUSTOMER_DATA',
   SEND_PROPOSALS: 'SEND_PROPOSALS',
+  ONBOARD_CLIENTS: 'ONBOARD_CLIENTS',
   APPROVE_ONBOARDING: 'APPROVE_ONBOARDING',
   MANAGE_BANK_FEEDS: 'MANAGE_BANK_FEEDS',
   MANAGE_USERS_AND_ROLES: 'MANAGE_USERS_AND_ROLES',
+  MANAGE_CONFIGURATION: 'MANAGE_CONFIGURATION',
   VIEW_AUDIT_LOG: 'VIEW_AUDIT_LOG',
 } as const;
 
@@ -165,6 +836,7 @@ export const RoleAccessViewRole = {
   ADVISOR: 'ADVISOR',
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
 } as const;
 
 export interface RoleAccessView {
@@ -173,21 +845,120 @@ export interface RoleAccessView {
   grants: PermissionGrant[];
 }
 
-export type StaffProfileRole = typeof StaffProfileRole[keyof typeof StaffProfileRole];
+export interface AddCurrencyRequest {
+  /**
+     * @minLength 1
+     * @pattern ^[A-Za-z]{3}$
+     */
+  code: string;
+}
+
+export interface AddIncomingFieldRequest {
+  /**
+     * @minLength 0
+     * @maxLength 100
+     */
+  incomingField: string;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  sampleValue: string | null;
+}
+
+export interface CreateTemplateRequest {
+  /**
+     * @minLength 0
+     * @maxLength 120
+     */
+  name: string;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     */
+  description: string;
+}
+
+export interface TemplateContent {
+  /**
+     * @minLength 0
+     * @maxLength 300
+     */
+  subject: string;
+  /**
+     * @minLength 0
+     * @maxLength 50000
+     */
+  body: string;
+}
+
+export interface PreviewRequest {
+  /**
+     * @minLength 0
+     * @maxLength 300
+     */
+  subject: string;
+  /**
+     * @minLength 0
+     * @maxLength 50000
+     */
+  body: string;
+}
+
+export interface Preview {
+  subject: string;
+  body: string;
+  unknownPlaceholders: string[];
+}
+
+export type EnterWorkspaceRequestRole = typeof EnterWorkspaceRequestRole[keyof typeof EnterWorkspaceRequestRole];
 
 
-export const StaffProfileRole = {
+export const EnterWorkspaceRequestRole = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+} as const;
+
+export interface EnterWorkspaceRequest {
+  role: EnterWorkspaceRequestRole;
+}
+
+export type StaffProfileRolesItem = typeof StaffProfileRolesItem[keyof typeof StaffProfileRolesItem];
+
+
+export const StaffProfileRolesItem = {
+  ADMIN: 'ADMIN',
+  ADVISOR: 'ADVISOR',
+  COMPLIANCE: 'COMPLIANCE',
+  OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+} as const;
+
+/**
+ * @nullable
+ */
+export type StaffProfileActiveRole = typeof StaffProfileActiveRole[keyof typeof StaffProfileActiveRole] | null;
+
+
+export const StaffProfileActiveRole = {
+  ADMIN: 'ADMIN',
+  ADVISOR: 'ADVISOR',
+  COMPLIANCE: 'COMPLIANCE',
+  OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
 } as const;
 
 export interface StaffProfile {
   id: string;
   fullName: string;
   email: string;
-  role: StaffProfileRole;
+  roles: StaffProfileRolesItem[];
+  /** @nullable */
+  activeRole: StaffProfileActiveRole;
   mustChangePassword: boolean;
   permissions: string[];
 }
@@ -224,35 +995,6 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
-export type CreateStaffUserRequestRole = typeof CreateStaffUserRequestRole[keyof typeof CreateStaffUserRequestRole];
-
-
-export const CreateStaffUserRequestRole = {
-  ADMIN: 'ADMIN',
-  ADVISOR: 'ADVISOR',
-  COMPLIANCE: 'COMPLIANCE',
-  OPERATIONS: 'OPERATIONS',
-} as const;
-
-export interface CreateStaffUserRequest {
-  /**
-     * @minLength 0
-     * @maxLength 200
-     */
-  fullName: string;
-  /**
-     * @minLength 0
-     * @maxLength 320
-     */
-  email: string;
-  /**
-     * @nullable
-     * @pattern ^$|^\+[1-9][0-9]{6,14}$
-     */
-  phone: string | null;
-  role: CreateStaffUserRequestRole;
-}
-
 export interface StaffUserCreated {
   user: StaffUserDetail;
   temporaryPassword: string;
@@ -260,6 +1002,119 @@ export interface StaffUserCreated {
 
 export interface TemporaryPassword {
   temporaryPassword: string;
+}
+
+export interface CasePage {
+  items: CaseSummary[];
+  page: number;
+  size: number;
+  totalItems: number;
+}
+
+export interface FxRateTable {
+  reportingCurrency: string;
+  feedConnected: boolean;
+  rates: FxRateRow[];
+}
+
+export interface BankMappingSummary {
+  bankId: string;
+  bankName: string;
+  countryCode: string;
+  enabled: boolean;
+  unmappedFields: number;
+}
+
+export interface MappingSummary {
+  unmappedFields: number;
+  banks: BankMappingSummary[];
+}
+
+export type StandardFieldOptionField = typeof StandardFieldOptionField[keyof typeof StandardFieldOptionField];
+
+
+export const StandardFieldOptionField = {
+  ACCOUNT_NUMBER: 'ACCOUNT_NUMBER',
+  INSTRUMENT_ID: 'INSTRUMENT_ID',
+  INSTRUMENT_NAME: 'INSTRUMENT_NAME',
+  ASSET_CLASS: 'ASSET_CLASS',
+  QUANTITY: 'QUANTITY',
+  MARKET_PRICE: 'MARKET_PRICE',
+  MARKET_VALUE: 'MARKET_VALUE',
+  CURRENCY: 'CURRENCY',
+  VALUATION_DATE: 'VALUATION_DATE',
+  ACCRUED_INTEREST: 'ACCRUED_INTEREST',
+  COST_PRICE: 'COST_PRICE',
+  TRADE_DATE: 'TRADE_DATE',
+  SETTLEMENT_DATE: 'SETTLEMENT_DATE',
+  TRANSACTION_TYPE: 'TRANSACTION_TYPE',
+  AMOUNT: 'AMOUNT',
+  DESCRIPTION: 'DESCRIPTION',
+} as const;
+
+export interface StandardFieldOption {
+  field: StandardFieldOptionField;
+  label: string;
+}
+
+export type TransformOptionTransform = typeof TransformOptionTransform[keyof typeof TransformOptionTransform];
+
+
+export const TransformOptionTransform = {
+  NONE: 'NONE',
+  TRIM: 'TRIM',
+  TRIM_LEADING_ZEROS: 'TRIM_LEADING_ZEROS',
+  TITLE_CASE: 'TITLE_CASE',
+  UPPER_CASE: 'UPPER_CASE',
+  DECIMAL_2: 'DECIMAL_2',
+  DECIMAL_4: 'DECIMAL_4',
+  ISIN_PASSTHROUGH: 'ISIN_PASSTHROUGH',
+  ISO_4217_CHECK: 'ISO_4217_CHECK',
+  DATE_YYYYMMDD: 'DATE_YYYYMMDD',
+  DATE_DD_MM_YYYY: 'DATE_DD_MM_YYYY',
+  ASSET_CLASS_LOOKUP: 'ASSET_CLASS_LOOKUP',
+} as const;
+
+export interface TransformOption {
+  transform: TransformOptionTransform;
+  label: string;
+}
+
+export interface MappingOptions {
+  standardFields: StandardFieldOption[];
+  transforms: TransformOption[];
+}
+
+export interface TemplateSummary {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  /** @nullable */
+  currentVersion: number | null;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface Placeholder {
+  name: string;
+  sample: string;
+}
+
+export interface BankCounts {
+  total: number;
+  live: number;
+  disabled: number;
+  countries: number;
+  linkedAccounts: number;
+  feedsNeedingAttention: number;
+  /** @nullable */
+  oldestSuccessfulSyncAt: string | null;
+}
+
+export interface BankList {
+  items: BankView[];
+  counts: BankCounts;
 }
 
 export type AuditLogEntryActorType = typeof AuditLogEntryActorType[keyof typeof AuditLogEntryActorType];
@@ -310,14 +1165,15 @@ export interface StaffUserCounts {
   deactivated: number;
 }
 
-export type StaffUserSummaryRole = typeof StaffUserSummaryRole[keyof typeof StaffUserSummaryRole];
+export type StaffUserSummaryRolesItem = typeof StaffUserSummaryRolesItem[keyof typeof StaffUserSummaryRolesItem];
 
 
-export const StaffUserSummaryRole = {
+export const StaffUserSummaryRolesItem = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
 } as const;
 
 export type StaffUserSummaryStatus = typeof StaffUserSummaryStatus[keyof typeof StaffUserSummaryStatus];
@@ -335,7 +1191,7 @@ export interface StaffUserSummary {
   email: string;
   /** @nullable */
   phone: string | null;
-  role: StaffUserSummaryRole;
+  roles: StaffUserSummaryRolesItem[];
   status: StaffUserSummaryStatus;
   /** @nullable */
   lastActiveAt: string | null;
@@ -373,9 +1229,11 @@ export const PermissionOptionPermission = {
   VIEW_CUSTOMER_PROFILE: 'VIEW_CUSTOMER_PROFILE',
   EXPORT_CUSTOMER_DATA: 'EXPORT_CUSTOMER_DATA',
   SEND_PROPOSALS: 'SEND_PROPOSALS',
+  ONBOARD_CLIENTS: 'ONBOARD_CLIENTS',
   APPROVE_ONBOARDING: 'APPROVE_ONBOARDING',
   MANAGE_BANK_FEEDS: 'MANAGE_BANK_FEEDS',
   MANAGE_USERS_AND_ROLES: 'MANAGE_USERS_AND_ROLES',
+  MANAGE_CONFIGURATION: 'MANAGE_CONFIGURATION',
   VIEW_AUDIT_LOG: 'VIEW_AUDIT_LOG',
 } as const;
 
@@ -403,6 +1261,25 @@ export interface PermissionMatrix {
   roles: RoleAccessView[];
 }
 
+export type ListOnboardingCasesParams = {
+status?: ListOnboardingCasesStatus;
+query?: string;
+page?: number;
+size?: number;
+};
+
+export type ListOnboardingCasesStatus = typeof ListOnboardingCasesStatus[keyof typeof ListOnboardingCasesStatus];
+
+
+export const ListOnboardingCasesStatus = {
+  IN_PROCESS: 'IN_PROCESS',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+export type ListSupportedBanksParams = {
+enabled?: boolean;
+};
+
 export type ListStaffUsersParams = {
 query?: string;
 role?: ListStaffUsersRole;
@@ -419,6 +1296,7 @@ export const ListStaffUsersRole = {
   ADVISOR: 'ADVISOR',
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
 } as const;
 
 export type ListStaffUsersStatus = typeof ListStaffUsersStatus[keyof typeof ListStaffUsersStatus];
@@ -478,6 +1356,7 @@ export const ExportStaffUsersRole = {
   ADVISOR: 'ADVISOR',
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
 } as const;
 
 export type ExportStaffUsersStatus = typeof ExportStaffUsersStatus[keyof typeof ExportStaffUsersStatus];
@@ -507,6 +1386,611 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetOnboardingCaseUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/onboarding/cases/${id}`
+}
+
+export const getOnboardingCase = async (id: string, options?: Parameters<typeof http>[1]): Promise<CaseDetail> => {
+
+  return http<CaseDetail>(getGetOnboardingCaseUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOnboardingCaseQueryKey = (id: string,) => {
+    return [
+    `/api/backoffice/onboarding/cases/${id}`
+    ] as const;
+    }
+
+
+export const getGetOnboardingCaseQueryOptions = <TData = Awaited<ReturnType<typeof getOnboardingCase>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOnboardingCase>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOnboardingCaseQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOnboardingCase>>> = ({ signal }) => getOnboardingCase(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOnboardingCase>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetOnboardingCaseQueryResult = NonNullable<Awaited<ReturnType<typeof getOnboardingCase>>>
+export type GetOnboardingCaseQueryError = unknown
+
+
+export function useGetOnboardingCase<TData = Awaited<ReturnType<typeof getOnboardingCase>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOnboardingCase>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOnboardingCase>>,
+          TError,
+          Awaited<ReturnType<typeof getOnboardingCase>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOnboardingCase<TData = Awaited<ReturnType<typeof getOnboardingCase>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOnboardingCase>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOnboardingCase>>,
+          TError,
+          Awaited<ReturnType<typeof getOnboardingCase>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOnboardingCase<TData = Awaited<ReturnType<typeof getOnboardingCase>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOnboardingCase>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetOnboardingCase<TData = Awaited<ReturnType<typeof getOnboardingCase>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOnboardingCase>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetOnboardingCaseQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveOnboardingDraftUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/onboarding/cases/${id}`
+}
+
+export const saveOnboardingDraft = async (id: string,
+    onboardingApplication: OnboardingApplication, options?: Parameters<typeof http>[1]): Promise<CaseDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<CaseDetail>(getSaveOnboardingDraftUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(onboardingApplication)
+  }
+);}
+
+
+
+
+
+export const getSaveOnboardingDraftMutationKey = () => ['saveOnboardingDraft'] as const;
+
+export const getSaveOnboardingDraftMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveOnboardingDraft>>, TError,SaveOnboardingDraftMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveOnboardingDraft>>, TError,SaveOnboardingDraftMutationVariables, TContext> => {
+
+const mutationKey = getSaveOnboardingDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveOnboardingDraft>>, SaveOnboardingDraftMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  saveOnboardingDraft(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveOnboardingDraftMutationResult = NonNullable<Awaited<ReturnType<typeof saveOnboardingDraft>>>
+    export type SaveOnboardingDraftMutationBody = OnboardingApplication
+    export type SaveOnboardingDraftMutationError = unknown
+    export type SaveOnboardingDraftMutationVariables = {id: string;data: OnboardingApplication}
+
+    export const useSaveOnboardingDraft = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveOnboardingDraft>>, TError,SaveOnboardingDraftMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveOnboardingDraft>>,
+        TError,
+        SaveOnboardingDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveOnboardingDraftMutationOptions(options), queryClient);
+    }
+
+export const getUpdateFxRateUrl = (code: string,) => {
+
+
+
+
+  return `/api/backoffice/config/fx-rates/${code}`
+}
+
+export const updateFxRate = async (code: string,
+    updateFxRateRequest: UpdateFxRateRequest, options?: Parameters<typeof http>[1]): Promise<FxRateRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<FxRateRow>(getUpdateFxRateUrl(code),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateFxRateRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateFxRateMutationKey = () => ['updateFxRate'] as const;
+
+export const getUpdateFxRateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFxRate>>, TError,UpdateFxRateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFxRate>>, TError,UpdateFxRateMutationVariables, TContext> => {
+
+const mutationKey = getUpdateFxRateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFxRate>>, UpdateFxRateMutationVariables> = (props) => {
+          const {code,data} = props ?? {};
+
+          return  updateFxRate(code,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFxRateMutationResult = NonNullable<Awaited<ReturnType<typeof updateFxRate>>>
+    export type UpdateFxRateMutationBody = UpdateFxRateRequest
+    export type UpdateFxRateMutationError = unknown
+    export type UpdateFxRateMutationVariables = {code: string;data: UpdateFxRateRequest}
+
+    export const useUpdateFxRate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFxRate>>, TError,UpdateFxRateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateFxRate>>,
+        TError,
+        UpdateFxRateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateFxRateMutationOptions(options), queryClient);
+    }
+
+export const getGetBankFieldMappingUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/config/field-mapping/banks/${bankId}`
+}
+
+export const getBankFieldMapping = async (bankId: string, options?: Parameters<typeof http>[1]): Promise<BankMapping> => {
+
+  return http<BankMapping>(getGetBankFieldMappingUrl(bankId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankFieldMappingQueryKey = (bankId: string,) => {
+    return [
+    `/api/backoffice/config/field-mapping/banks/${bankId}`
+    ] as const;
+    }
+
+
+export const getGetBankFieldMappingQueryOptions = <TData = Awaited<ReturnType<typeof getBankFieldMapping>>, TError = unknown>(bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankFieldMapping>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankFieldMappingQueryKey(bankId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankFieldMapping>>> = ({ signal }) => getBankFieldMapping(bankId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bankId !== null && bankId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankFieldMapping>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetBankFieldMappingQueryResult = NonNullable<Awaited<ReturnType<typeof getBankFieldMapping>>>
+export type GetBankFieldMappingQueryError = unknown
+
+
+export function useGetBankFieldMapping<TData = Awaited<ReturnType<typeof getBankFieldMapping>>, TError = unknown>(
+ bankId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankFieldMapping>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBankFieldMapping>>,
+          TError,
+          Awaited<ReturnType<typeof getBankFieldMapping>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBankFieldMapping<TData = Awaited<ReturnType<typeof getBankFieldMapping>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankFieldMapping>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBankFieldMapping>>,
+          TError,
+          Awaited<ReturnType<typeof getBankFieldMapping>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBankFieldMapping<TData = Awaited<ReturnType<typeof getBankFieldMapping>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankFieldMapping>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetBankFieldMapping<TData = Awaited<ReturnType<typeof getBankFieldMapping>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankFieldMapping>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetBankFieldMappingQueryOptions(bankId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveBankFieldMappingUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/config/field-mapping/banks/${bankId}`
+}
+
+export const saveBankFieldMapping = async (bankId: string,
+    saveMappingRequest: SaveMappingRequest, options?: Parameters<typeof http>[1]): Promise<BankMapping> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<BankMapping>(getSaveBankFieldMappingUrl(bankId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saveMappingRequest)
+  }
+);}
+
+
+
+
+
+export const getSaveBankFieldMappingMutationKey = () => ['saveBankFieldMapping'] as const;
+
+export const getSaveBankFieldMappingMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveBankFieldMapping>>, TError,SaveBankFieldMappingMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveBankFieldMapping>>, TError,SaveBankFieldMappingMutationVariables, TContext> => {
+
+const mutationKey = getSaveBankFieldMappingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveBankFieldMapping>>, SaveBankFieldMappingMutationVariables> = (props) => {
+          const {bankId,data} = props ?? {};
+
+          return  saveBankFieldMapping(bankId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveBankFieldMappingMutationResult = NonNullable<Awaited<ReturnType<typeof saveBankFieldMapping>>>
+    export type SaveBankFieldMappingMutationBody = SaveMappingRequest
+    export type SaveBankFieldMappingMutationError = unknown
+    export type SaveBankFieldMappingMutationVariables = {bankId: string;data: SaveMappingRequest}
+
+    export const useSaveBankFieldMapping = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveBankFieldMapping>>, TError,SaveBankFieldMappingMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveBankFieldMapping>>,
+        TError,
+        SaveBankFieldMappingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveBankFieldMappingMutationOptions(options), queryClient);
+    }
+
+export const getRenameEmailTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/config/email-templates/${id}/name`
+}
+
+export const renameEmailTemplate = async (id: string,
+    renameTemplateRequest: RenameTemplateRequest, options?: Parameters<typeof http>[1]): Promise<TemplateDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<TemplateDetail>(getRenameEmailTemplateUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(renameTemplateRequest)
+  }
+);}
+
+
+
+
+
+export const getRenameEmailTemplateMutationKey = () => ['renameEmailTemplate'] as const;
+
+export const getRenameEmailTemplateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameEmailTemplate>>, TError,RenameEmailTemplateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof renameEmailTemplate>>, TError,RenameEmailTemplateMutationVariables, TContext> => {
+
+const mutationKey = getRenameEmailTemplateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renameEmailTemplate>>, RenameEmailTemplateMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  renameEmailTemplate(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenameEmailTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof renameEmailTemplate>>>
+    export type RenameEmailTemplateMutationBody = RenameTemplateRequest
+    export type RenameEmailTemplateMutationError = unknown
+    export type RenameEmailTemplateMutationVariables = {id: string;data: RenameTemplateRequest}
+
+    export const useRenameEmailTemplate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameEmailTemplate>>, TError,RenameEmailTemplateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof renameEmailTemplate>>,
+        TError,
+        RenameEmailTemplateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRenameEmailTemplateMutationOptions(options), queryClient);
+    }
+
+export const getUpdateSupportedBankUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/config/banks/${id}`
+}
+
+export const updateSupportedBank = async (id: string,
+    bankRequest: BankRequest, options?: Parameters<typeof http>[1]): Promise<BankView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<BankView>(getUpdateSupportedBankUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bankRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateSupportedBankMutationKey = () => ['updateSupportedBank'] as const;
+
+export const getUpdateSupportedBankMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSupportedBank>>, TError,UpdateSupportedBankMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSupportedBank>>, TError,UpdateSupportedBankMutationVariables, TContext> => {
+
+const mutationKey = getUpdateSupportedBankMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSupportedBank>>, UpdateSupportedBankMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateSupportedBank(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSupportedBankMutationResult = NonNullable<Awaited<ReturnType<typeof updateSupportedBank>>>
+    export type UpdateSupportedBankMutationBody = BankRequest
+    export type UpdateSupportedBankMutationError = unknown
+    export type UpdateSupportedBankMutationVariables = {id: string;data: BankRequest}
+
+    export const useUpdateSupportedBank = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSupportedBank>>, TError,UpdateSupportedBankMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateSupportedBank>>,
+        TError,
+        UpdateSupportedBankMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateSupportedBankMutationOptions(options), queryClient);
+    }
 
 export const getGetStaffUserUrl = (id: string,) => {
 
@@ -612,7 +2096,7 @@ export const getUpdateStaffUserUrl = (id: string,) => {
 }
 
 export const updateStaffUser = async (id: string,
-    updateStaffUserRequest: UpdateStaffUserRequest, options?: Parameters<typeof http>[1]): Promise<StaffUserDetail> => {
+    staffUserRequest: StaffUserRequest, options?: Parameters<typeof http>[1]): Promise<StaffUserDetail> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -633,7 +2117,7 @@ return http<StaffUserDetail>(getUpdateStaffUserUrl(id),
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(updateStaffUserRequest)
+    body: JSON.stringify(staffUserRequest)
   }
 );}
 
@@ -671,9 +2155,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type UpdateStaffUserMutationResult = NonNullable<Awaited<ReturnType<typeof updateStaffUser>>>
-    export type UpdateStaffUserMutationBody = UpdateStaffUserRequest
+    export type UpdateStaffUserMutationBody = StaffUserRequest
     export type UpdateStaffUserMutationError = unknown
-    export type UpdateStaffUserMutationVariables = {id: string;data: UpdateStaffUserRequest}
+    export type UpdateStaffUserMutationVariables = {id: string;data: StaffUserRequest}
 
     export const useUpdateStaffUser = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStaffUser>>, TError,UpdateStaffUserMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -686,8 +2170,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateStaffUserMutationOptions(options), queryClient);
     }
 
-export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'APPROVE_ONBOARDING' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_AUDIT_LOG',) => {
+export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',) => {
 
 
 
@@ -695,8 +2179,8 @@ export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIAN
   return `/api/backoffice/admin/roles/${role}/permissions/${permission}`
 }
 
-export const updateRolePermission = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'APPROVE_ONBOARDING' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_AUDIT_LOG',
+export const updateRolePermission = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',
     updateRolePermissionRequest: UpdateRolePermissionRequest, options?: Parameters<typeof http>[1]): Promise<RoleAccessView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -758,7 +2242,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateRolePermissionMutationResult = NonNullable<Awaited<ReturnType<typeof updateRolePermission>>>
     export type UpdateRolePermissionMutationBody = UpdateRolePermissionRequest
     export type UpdateRolePermissionMutationError = unknown
-    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'APPROVE_ONBOARDING' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
+    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
 
     export const useUpdateRolePermission = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRolePermission>>, TError,UpdateRolePermissionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -769,6 +2253,1335 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdateRolePermissionMutationOptions(options), queryClient);
+    }
+
+export const getListOnboardingCasesUrl = (params?: ListOnboardingCasesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/onboarding/cases?${stringifiedParams}` : `/api/backoffice/onboarding/cases`
+}
+
+export const listOnboardingCases = async (params?: ListOnboardingCasesParams, options?: Parameters<typeof http>[1]): Promise<CasePage> => {
+
+  return http<CasePage>(getListOnboardingCasesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOnboardingCasesQueryKey = (params?: ListOnboardingCasesParams,) => {
+    return [
+    `/api/backoffice/onboarding/cases`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListOnboardingCasesQueryOptions = <TData = Awaited<ReturnType<typeof listOnboardingCases>>, TError = unknown>(params?: ListOnboardingCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOnboardingCases>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOnboardingCasesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOnboardingCases>>> = ({ signal }) => listOnboardingCases(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOnboardingCases>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListOnboardingCasesQueryResult = NonNullable<Awaited<ReturnType<typeof listOnboardingCases>>>
+export type ListOnboardingCasesQueryError = unknown
+
+
+export function useListOnboardingCases<TData = Awaited<ReturnType<typeof listOnboardingCases>>, TError = unknown>(
+ params: undefined |  ListOnboardingCasesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOnboardingCases>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOnboardingCases>>,
+          TError,
+          Awaited<ReturnType<typeof listOnboardingCases>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOnboardingCases<TData = Awaited<ReturnType<typeof listOnboardingCases>>, TError = unknown>(
+ params?: ListOnboardingCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOnboardingCases>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOnboardingCases>>,
+          TError,
+          Awaited<ReturnType<typeof listOnboardingCases>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOnboardingCases<TData = Awaited<ReturnType<typeof listOnboardingCases>>, TError = unknown>(
+ params?: ListOnboardingCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOnboardingCases>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListOnboardingCases<TData = Awaited<ReturnType<typeof listOnboardingCases>>, TError = unknown>(
+ params?: ListOnboardingCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOnboardingCases>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListOnboardingCasesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartOnboardingCaseUrl = () => {
+
+
+
+
+  return `/api/backoffice/onboarding/cases`
+}
+
+export const startOnboardingCase = async (onboardingApplication: OnboardingApplication, options?: Parameters<typeof http>[1]): Promise<CaseDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<CaseDetail>(getStartOnboardingCaseUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(onboardingApplication)
+  }
+);}
+
+
+
+
+
+export const getStartOnboardingCaseMutationKey = () => ['startOnboardingCase'] as const;
+
+export const getStartOnboardingCaseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startOnboardingCase>>, TError,StartOnboardingCaseMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof startOnboardingCase>>, TError,StartOnboardingCaseMutationVariables, TContext> => {
+
+const mutationKey = getStartOnboardingCaseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startOnboardingCase>>, StartOnboardingCaseMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startOnboardingCase(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartOnboardingCaseMutationResult = NonNullable<Awaited<ReturnType<typeof startOnboardingCase>>>
+    export type StartOnboardingCaseMutationBody = OnboardingApplication
+    export type StartOnboardingCaseMutationError = unknown
+    export type StartOnboardingCaseMutationVariables = {data: OnboardingApplication}
+
+    export const useStartOnboardingCase = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startOnboardingCase>>, TError,StartOnboardingCaseMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof startOnboardingCase>>,
+        TError,
+        StartOnboardingCaseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartOnboardingCaseMutationOptions(options), queryClient);
+    }
+
+export const getSubmitOnboardingCaseUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/onboarding/cases/${id}/submit`
+}
+
+export const submitOnboardingCase = async (id: string,
+    onboardingApplication: OnboardingApplication, options?: Parameters<typeof http>[1]): Promise<CaseDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<CaseDetail>(getSubmitOnboardingCaseUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(onboardingApplication)
+  }
+);}
+
+
+
+
+
+export const getSubmitOnboardingCaseMutationKey = () => ['submitOnboardingCase'] as const;
+
+export const getSubmitOnboardingCaseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitOnboardingCase>>, TError,SubmitOnboardingCaseMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitOnboardingCase>>, TError,SubmitOnboardingCaseMutationVariables, TContext> => {
+
+const mutationKey = getSubmitOnboardingCaseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitOnboardingCase>>, SubmitOnboardingCaseMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  submitOnboardingCase(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitOnboardingCaseMutationResult = NonNullable<Awaited<ReturnType<typeof submitOnboardingCase>>>
+    export type SubmitOnboardingCaseMutationBody = OnboardingApplication
+    export type SubmitOnboardingCaseMutationError = unknown
+    export type SubmitOnboardingCaseMutationVariables = {id: string;data: OnboardingApplication}
+
+    export const useSubmitOnboardingCase = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitOnboardingCase>>, TError,SubmitOnboardingCaseMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof submitOnboardingCase>>,
+        TError,
+        SubmitOnboardingCaseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitOnboardingCaseMutationOptions(options), queryClient);
+    }
+
+export const getAddCurrencyUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/fx-rates/currencies`
+}
+
+export const addCurrency = async (addCurrencyRequest: AddCurrencyRequest, options?: Parameters<typeof http>[1]): Promise<FxRateRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<FxRateRow>(getAddCurrencyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(addCurrencyRequest)
+  }
+);}
+
+
+
+
+
+export const getAddCurrencyMutationKey = () => ['addCurrency'] as const;
+
+export const getAddCurrencyMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addCurrency>>, TError,AddCurrencyMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof addCurrency>>, TError,AddCurrencyMutationVariables, TContext> => {
+
+const mutationKey = getAddCurrencyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addCurrency>>, AddCurrencyMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  addCurrency(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddCurrencyMutationResult = NonNullable<Awaited<ReturnType<typeof addCurrency>>>
+    export type AddCurrencyMutationBody = AddCurrencyRequest
+    export type AddCurrencyMutationError = unknown
+    export type AddCurrencyMutationVariables = {data: AddCurrencyRequest}
+
+    export const useAddCurrency = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addCurrency>>, TError,AddCurrencyMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addCurrency>>,
+        TError,
+        AddCurrencyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddCurrencyMutationOptions(options), queryClient);
+    }
+
+export const getAddIncomingFieldUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/config/field-mapping/banks/${bankId}/fields`
+}
+
+export const addIncomingField = async (bankId: string,
+    addIncomingFieldRequest: AddIncomingFieldRequest, options?: Parameters<typeof http>[1]): Promise<MappedField> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MappedField>(getAddIncomingFieldUrl(bankId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(addIncomingFieldRequest)
+  }
+);}
+
+
+
+
+
+export const getAddIncomingFieldMutationKey = () => ['addIncomingField'] as const;
+
+export const getAddIncomingFieldMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addIncomingField>>, TError,AddIncomingFieldMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof addIncomingField>>, TError,AddIncomingFieldMutationVariables, TContext> => {
+
+const mutationKey = getAddIncomingFieldMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addIncomingField>>, AddIncomingFieldMutationVariables> = (props) => {
+          const {bankId,data} = props ?? {};
+
+          return  addIncomingField(bankId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddIncomingFieldMutationResult = NonNullable<Awaited<ReturnType<typeof addIncomingField>>>
+    export type AddIncomingFieldMutationBody = AddIncomingFieldRequest
+    export type AddIncomingFieldMutationError = unknown
+    export type AddIncomingFieldMutationVariables = {bankId: string;data: AddIncomingFieldRequest}
+
+    export const useAddIncomingField = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addIncomingField>>, TError,AddIncomingFieldMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addIncomingField>>,
+        TError,
+        AddIncomingFieldMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddIncomingFieldMutationOptions(options), queryClient);
+    }
+
+export const getListEmailTemplatesUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/email-templates`
+}
+
+export const listEmailTemplates = async ( options?: Parameters<typeof http>[1]): Promise<TemplateSummary[]> => {
+
+  return http<TemplateSummary[]>(getListEmailTemplatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEmailTemplatesQueryKey = () => {
+    return [
+    `/api/backoffice/config/email-templates`
+    ] as const;
+    }
+
+
+export const getListEmailTemplatesQueryOptions = <TData = Awaited<ReturnType<typeof listEmailTemplates>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailTemplates>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEmailTemplatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmailTemplates>>> = ({ signal }) => listEmailTemplates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEmailTemplates>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListEmailTemplatesQueryResult = NonNullable<Awaited<ReturnType<typeof listEmailTemplates>>>
+export type ListEmailTemplatesQueryError = unknown
+
+
+export function useListEmailTemplates<TData = Awaited<ReturnType<typeof listEmailTemplates>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailTemplates>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEmailTemplates>>,
+          TError,
+          Awaited<ReturnType<typeof listEmailTemplates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListEmailTemplates<TData = Awaited<ReturnType<typeof listEmailTemplates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailTemplates>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEmailTemplates>>,
+          TError,
+          Awaited<ReturnType<typeof listEmailTemplates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListEmailTemplates<TData = Awaited<ReturnType<typeof listEmailTemplates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailTemplates>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListEmailTemplates<TData = Awaited<ReturnType<typeof listEmailTemplates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailTemplates>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListEmailTemplatesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateEmailTemplateUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/email-templates`
+}
+
+export const createEmailTemplate = async (createTemplateRequest: CreateTemplateRequest, options?: Parameters<typeof http>[1]): Promise<TemplateDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<TemplateDetail>(getCreateEmailTemplateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createTemplateRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateEmailTemplateMutationKey = () => ['createEmailTemplate'] as const;
+
+export const getCreateEmailTemplateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEmailTemplate>>, TError,CreateEmailTemplateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEmailTemplate>>, TError,CreateEmailTemplateMutationVariables, TContext> => {
+
+const mutationKey = getCreateEmailTemplateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEmailTemplate>>, CreateEmailTemplateMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createEmailTemplate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateEmailTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof createEmailTemplate>>>
+    export type CreateEmailTemplateMutationBody = CreateTemplateRequest
+    export type CreateEmailTemplateMutationError = unknown
+    export type CreateEmailTemplateMutationVariables = {data: CreateTemplateRequest}
+
+    export const useCreateEmailTemplate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEmailTemplate>>, TError,CreateEmailTemplateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createEmailTemplate>>,
+        TError,
+        CreateEmailTemplateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateEmailTemplateMutationOptions(options), queryClient);
+    }
+
+export const getSaveEmailTemplateVersionUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/config/email-templates/${id}/versions`
+}
+
+export const saveEmailTemplateVersion = async (id: string,
+    templateContent: TemplateContent, options?: Parameters<typeof http>[1]): Promise<TemplateDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<TemplateDetail>(getSaveEmailTemplateVersionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(templateContent)
+  }
+);}
+
+
+
+
+
+export const getSaveEmailTemplateVersionMutationKey = () => ['saveEmailTemplateVersion'] as const;
+
+export const getSaveEmailTemplateVersionMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveEmailTemplateVersion>>, TError,SaveEmailTemplateVersionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveEmailTemplateVersion>>, TError,SaveEmailTemplateVersionMutationVariables, TContext> => {
+
+const mutationKey = getSaveEmailTemplateVersionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveEmailTemplateVersion>>, SaveEmailTemplateVersionMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  saveEmailTemplateVersion(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveEmailTemplateVersionMutationResult = NonNullable<Awaited<ReturnType<typeof saveEmailTemplateVersion>>>
+    export type SaveEmailTemplateVersionMutationBody = TemplateContent
+    export type SaveEmailTemplateVersionMutationError = unknown
+    export type SaveEmailTemplateVersionMutationVariables = {id: string;data: TemplateContent}
+
+    export const useSaveEmailTemplateVersion = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveEmailTemplateVersion>>, TError,SaveEmailTemplateVersionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveEmailTemplateVersion>>,
+        TError,
+        SaveEmailTemplateVersionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveEmailTemplateVersionMutationOptions(options), queryClient);
+    }
+
+export const getRestoreEmailTemplateVersionUrl = (id: string,
+    version: number,) => {
+
+
+
+
+  return `/api/backoffice/config/email-templates/${id}/versions/${version}/restore`
+}
+
+export const restoreEmailTemplateVersion = async (id: string,
+    version: number, options?: Parameters<typeof http>[1]): Promise<TemplateDetail> => {
+
+  return http<TemplateDetail>(getRestoreEmailTemplateVersionUrl(id,version),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreEmailTemplateVersionMutationKey = () => ['restoreEmailTemplateVersion'] as const;
+
+export const getRestoreEmailTemplateVersionMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreEmailTemplateVersion>>, TError,RestoreEmailTemplateVersionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreEmailTemplateVersion>>, TError,RestoreEmailTemplateVersionMutationVariables, TContext> => {
+
+const mutationKey = getRestoreEmailTemplateVersionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreEmailTemplateVersion>>, RestoreEmailTemplateVersionMutationVariables> = (props) => {
+          const {id,version} = props ?? {};
+
+          return  restoreEmailTemplateVersion(id,version,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreEmailTemplateVersionMutationResult = NonNullable<Awaited<ReturnType<typeof restoreEmailTemplateVersion>>>
+
+    export type RestoreEmailTemplateVersionMutationError = unknown
+    export type RestoreEmailTemplateVersionMutationVariables = {id: string;version: number}
+
+    export const useRestoreEmailTemplateVersion = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreEmailTemplateVersion>>, TError,RestoreEmailTemplateVersionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreEmailTemplateVersion>>,
+        TError,
+        RestoreEmailTemplateVersionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRestoreEmailTemplateVersionMutationOptions(options), queryClient);
+    }
+
+export const getSendTestEmailUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/config/email-templates/${id}/test-email`
+}
+
+export const sendTestEmail = async (id: string,
+    templateContent: TemplateContent, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<void>(getSendTestEmailUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(templateContent)
+  }
+);}
+
+
+
+
+
+export const getSendTestEmailMutationKey = () => ['sendTestEmail'] as const;
+
+export const getSendTestEmailMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTestEmail>>, TError,SendTestEmailMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendTestEmail>>, TError,SendTestEmailMutationVariables, TContext> => {
+
+const mutationKey = getSendTestEmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendTestEmail>>, SendTestEmailMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  sendTestEmail(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendTestEmailMutationResult = NonNullable<Awaited<ReturnType<typeof sendTestEmail>>>
+    export type SendTestEmailMutationBody = TemplateContent
+    export type SendTestEmailMutationError = unknown
+    export type SendTestEmailMutationVariables = {id: string;data: TemplateContent}
+
+    export const useSendTestEmail = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTestEmail>>, TError,SendTestEmailMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendTestEmail>>,
+        TError,
+        SendTestEmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendTestEmailMutationOptions(options), queryClient);
+    }
+
+export const getPreviewEmailTemplateUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/email-templates/preview`
+}
+
+export const previewEmailTemplate = async (previewRequest: PreviewRequest, options?: Parameters<typeof http>[1]): Promise<Preview> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<Preview>(getPreviewEmailTemplateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(previewRequest)
+  }
+);}
+
+
+
+
+
+export const getPreviewEmailTemplateMutationKey = () => ['previewEmailTemplate'] as const;
+
+export const getPreviewEmailTemplateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewEmailTemplate>>, TError,PreviewEmailTemplateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewEmailTemplate>>, TError,PreviewEmailTemplateMutationVariables, TContext> => {
+
+const mutationKey = getPreviewEmailTemplateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewEmailTemplate>>, PreviewEmailTemplateMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewEmailTemplate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewEmailTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof previewEmailTemplate>>>
+    export type PreviewEmailTemplateMutationBody = PreviewRequest
+    export type PreviewEmailTemplateMutationError = unknown
+    export type PreviewEmailTemplateMutationVariables = {data: PreviewRequest}
+
+    export const usePreviewEmailTemplate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewEmailTemplate>>, TError,PreviewEmailTemplateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof previewEmailTemplate>>,
+        TError,
+        PreviewEmailTemplateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPreviewEmailTemplateMutationOptions(options), queryClient);
+    }
+
+export const getListSupportedBanksUrl = (params?: ListSupportedBanksParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/config/banks?${stringifiedParams}` : `/api/backoffice/config/banks`
+}
+
+export const listSupportedBanks = async (params?: ListSupportedBanksParams, options?: Parameters<typeof http>[1]): Promise<BankList> => {
+
+  return http<BankList>(getListSupportedBanksUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSupportedBanksQueryKey = (params?: ListSupportedBanksParams,) => {
+    return [
+    `/api/backoffice/config/banks`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSupportedBanksQueryOptions = <TData = Awaited<ReturnType<typeof listSupportedBanks>>, TError = unknown>(params?: ListSupportedBanksParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupportedBanks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSupportedBanksQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSupportedBanks>>> = ({ signal }) => listSupportedBanks(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSupportedBanks>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSupportedBanksQueryResult = NonNullable<Awaited<ReturnType<typeof listSupportedBanks>>>
+export type ListSupportedBanksQueryError = unknown
+
+
+export function useListSupportedBanks<TData = Awaited<ReturnType<typeof listSupportedBanks>>, TError = unknown>(
+ params: undefined |  ListSupportedBanksParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupportedBanks>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSupportedBanks>>,
+          TError,
+          Awaited<ReturnType<typeof listSupportedBanks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSupportedBanks<TData = Awaited<ReturnType<typeof listSupportedBanks>>, TError = unknown>(
+ params?: ListSupportedBanksParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupportedBanks>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSupportedBanks>>,
+          TError,
+          Awaited<ReturnType<typeof listSupportedBanks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSupportedBanks<TData = Awaited<ReturnType<typeof listSupportedBanks>>, TError = unknown>(
+ params?: ListSupportedBanksParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupportedBanks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListSupportedBanks<TData = Awaited<ReturnType<typeof listSupportedBanks>>, TError = unknown>(
+ params?: ListSupportedBanksParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupportedBanks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSupportedBanksQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddSupportedBankUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/banks`
+}
+
+export const addSupportedBank = async (bankRequest: BankRequest, options?: Parameters<typeof http>[1]): Promise<BankView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<BankView>(getAddSupportedBankUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bankRequest)
+  }
+);}
+
+
+
+
+
+export const getAddSupportedBankMutationKey = () => ['addSupportedBank'] as const;
+
+export const getAddSupportedBankMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addSupportedBank>>, TError,AddSupportedBankMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof addSupportedBank>>, TError,AddSupportedBankMutationVariables, TContext> => {
+
+const mutationKey = getAddSupportedBankMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addSupportedBank>>, AddSupportedBankMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  addSupportedBank(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddSupportedBankMutationResult = NonNullable<Awaited<ReturnType<typeof addSupportedBank>>>
+    export type AddSupportedBankMutationBody = BankRequest
+    export type AddSupportedBankMutationError = unknown
+    export type AddSupportedBankMutationVariables = {data: BankRequest}
+
+    export const useAddSupportedBank = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addSupportedBank>>, TError,AddSupportedBankMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addSupportedBank>>,
+        TError,
+        AddSupportedBankMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddSupportedBankMutationOptions(options), queryClient);
+    }
+
+export const getEnableSupportedBankUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/config/banks/${id}/enable`
+}
+
+export const enableSupportedBank = async (id: string, options?: Parameters<typeof http>[1]): Promise<BankView> => {
+
+  return http<BankView>(getEnableSupportedBankUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEnableSupportedBankMutationKey = () => ['enableSupportedBank'] as const;
+
+export const getEnableSupportedBankMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enableSupportedBank>>, TError,EnableSupportedBankMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof enableSupportedBank>>, TError,EnableSupportedBankMutationVariables, TContext> => {
+
+const mutationKey = getEnableSupportedBankMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enableSupportedBank>>, EnableSupportedBankMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  enableSupportedBank(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnableSupportedBankMutationResult = NonNullable<Awaited<ReturnType<typeof enableSupportedBank>>>
+
+    export type EnableSupportedBankMutationError = unknown
+    export type EnableSupportedBankMutationVariables = {id: string}
+
+    export const useEnableSupportedBank = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enableSupportedBank>>, TError,EnableSupportedBankMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof enableSupportedBank>>,
+        TError,
+        EnableSupportedBankMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEnableSupportedBankMutationOptions(options), queryClient);
+    }
+
+export const getDisableSupportedBankUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/config/banks/${id}/disable`
+}
+
+export const disableSupportedBank = async (id: string, options?: Parameters<typeof http>[1]): Promise<BankView> => {
+
+  return http<BankView>(getDisableSupportedBankUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisableSupportedBankMutationKey = () => ['disableSupportedBank'] as const;
+
+export const getDisableSupportedBankMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disableSupportedBank>>, TError,DisableSupportedBankMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof disableSupportedBank>>, TError,DisableSupportedBankMutationVariables, TContext> => {
+
+const mutationKey = getDisableSupportedBankMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disableSupportedBank>>, DisableSupportedBankMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  disableSupportedBank(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisableSupportedBankMutationResult = NonNullable<Awaited<ReturnType<typeof disableSupportedBank>>>
+
+    export type DisableSupportedBankMutationError = unknown
+    export type DisableSupportedBankMutationVariables = {id: string}
+
+    export const useDisableSupportedBank = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disableSupportedBank>>, TError,DisableSupportedBankMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof disableSupportedBank>>,
+        TError,
+        DisableSupportedBankMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDisableSupportedBankMutationOptions(options), queryClient);
+    }
+
+export const getEnterWorkspaceUrl = () => {
+
+
+
+
+  return `/api/backoffice/auth/workspace`
+}
+
+export const enterWorkspace = async (enterWorkspaceRequest: EnterWorkspaceRequest, options?: Parameters<typeof http>[1]): Promise<StaffProfile> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<StaffProfile>(getEnterWorkspaceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(enterWorkspaceRequest)
+  }
+);}
+
+
+
+
+
+export const getEnterWorkspaceMutationKey = () => ['enterWorkspace'] as const;
+
+export const getEnterWorkspaceMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enterWorkspace>>, TError,EnterWorkspaceMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof enterWorkspace>>, TError,EnterWorkspaceMutationVariables, TContext> => {
+
+const mutationKey = getEnterWorkspaceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enterWorkspace>>, EnterWorkspaceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  enterWorkspace(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnterWorkspaceMutationResult = NonNullable<Awaited<ReturnType<typeof enterWorkspace>>>
+    export type EnterWorkspaceMutationBody = EnterWorkspaceRequest
+    export type EnterWorkspaceMutationError = unknown
+    export type EnterWorkspaceMutationVariables = {data: EnterWorkspaceRequest}
+
+    export const useEnterWorkspace = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enterWorkspace>>, TError,EnterWorkspaceMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof enterWorkspace>>,
+        TError,
+        EnterWorkspaceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEnterWorkspaceMutationOptions(options), queryClient);
     }
 
 export const getRefreshUrl = () => {
@@ -1181,7 +3994,7 @@ export const getCreateStaffUserUrl = () => {
   return `/api/backoffice/admin/users`
 }
 
-export const createStaffUser = async (createStaffUserRequest: CreateStaffUserRequest, options?: Parameters<typeof http>[1]): Promise<StaffUserCreated> => {
+export const createStaffUser = async (staffUserRequest: StaffUserRequest, options?: Parameters<typeof http>[1]): Promise<StaffUserCreated> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -1202,7 +4015,7 @@ return http<StaffUserCreated>(getCreateStaffUserUrl(),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(createStaffUserRequest)
+    body: JSON.stringify(staffUserRequest)
   }
 );}
 
@@ -1240,9 +4053,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateStaffUserMutationResult = NonNullable<Awaited<ReturnType<typeof createStaffUser>>>
-    export type CreateStaffUserMutationBody = CreateStaffUserRequest
+    export type CreateStaffUserMutationBody = StaffUserRequest
     export type CreateStaffUserMutationError = unknown
-    export type CreateStaffUserMutationVariables = {data: CreateStaffUserRequest}
+    export type CreateStaffUserMutationVariables = {data: StaffUserRequest}
 
     export const useCreateStaffUser = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStaffUser>>, TError,CreateStaffUserMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -1390,6 +4203,956 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getDeactivateStaffUserMutationOptions(options), queryClient);
     }
+
+export const getListRelationshipManagersUrl = () => {
+
+
+
+
+  return `/api/backoffice/onboarding/relationship-managers`
+}
+
+export const listRelationshipManagers = async ( options?: Parameters<typeof http>[1]): Promise<StaffMember[]> => {
+
+  return http<StaffMember[]>(getListRelationshipManagersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRelationshipManagersQueryKey = () => {
+    return [
+    `/api/backoffice/onboarding/relationship-managers`
+    ] as const;
+    }
+
+
+export const getListRelationshipManagersQueryOptions = <TData = Awaited<ReturnType<typeof listRelationshipManagers>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRelationshipManagers>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRelationshipManagersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRelationshipManagers>>> = ({ signal }) => listRelationshipManagers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRelationshipManagers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListRelationshipManagersQueryResult = NonNullable<Awaited<ReturnType<typeof listRelationshipManagers>>>
+export type ListRelationshipManagersQueryError = unknown
+
+
+export function useListRelationshipManagers<TData = Awaited<ReturnType<typeof listRelationshipManagers>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRelationshipManagers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRelationshipManagers>>,
+          TError,
+          Awaited<ReturnType<typeof listRelationshipManagers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRelationshipManagers<TData = Awaited<ReturnType<typeof listRelationshipManagers>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRelationshipManagers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRelationshipManagers>>,
+          TError,
+          Awaited<ReturnType<typeof listRelationshipManagers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRelationshipManagers<TData = Awaited<ReturnType<typeof listRelationshipManagers>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRelationshipManagers>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListRelationshipManagers<TData = Awaited<ReturnType<typeof listRelationshipManagers>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRelationshipManagers>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListRelationshipManagersQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListFxRatesUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/fx-rates`
+}
+
+export const listFxRates = async ( options?: Parameters<typeof http>[1]): Promise<FxRateTable> => {
+
+  return http<FxRateTable>(getListFxRatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFxRatesQueryKey = () => {
+    return [
+    `/api/backoffice/config/fx-rates`
+    ] as const;
+    }
+
+
+export const getListFxRatesQueryOptions = <TData = Awaited<ReturnType<typeof listFxRates>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFxRates>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFxRatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFxRates>>> = ({ signal }) => listFxRates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFxRates>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListFxRatesQueryResult = NonNullable<Awaited<ReturnType<typeof listFxRates>>>
+export type ListFxRatesQueryError = unknown
+
+
+export function useListFxRates<TData = Awaited<ReturnType<typeof listFxRates>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFxRates>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFxRates>>,
+          TError,
+          Awaited<ReturnType<typeof listFxRates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFxRates<TData = Awaited<ReturnType<typeof listFxRates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFxRates>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFxRates>>,
+          TError,
+          Awaited<ReturnType<typeof listFxRates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFxRates<TData = Awaited<ReturnType<typeof listFxRates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFxRates>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListFxRates<TData = Awaited<ReturnType<typeof listFxRates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFxRates>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListFxRatesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportFxRatesUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/fx-rates/export`
+}
+
+export const exportFxRates = async ( options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getExportFxRatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportFxRatesQueryKey = () => {
+    return [
+    `/api/backoffice/config/fx-rates/export`
+    ] as const;
+    }
+
+
+export const getExportFxRatesQueryOptions = <TData = Awaited<ReturnType<typeof exportFxRates>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportFxRates>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportFxRatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportFxRates>>> = ({ signal }) => exportFxRates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportFxRates>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportFxRatesQueryResult = NonNullable<Awaited<ReturnType<typeof exportFxRates>>>
+export type ExportFxRatesQueryError = unknown
+
+
+export function useExportFxRates<TData = Awaited<ReturnType<typeof exportFxRates>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportFxRates>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportFxRates>>,
+          TError,
+          Awaited<ReturnType<typeof exportFxRates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportFxRates<TData = Awaited<ReturnType<typeof exportFxRates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportFxRates>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportFxRates>>,
+          TError,
+          Awaited<ReturnType<typeof exportFxRates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportFxRates<TData = Awaited<ReturnType<typeof exportFxRates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportFxRates>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportFxRates<TData = Awaited<ReturnType<typeof exportFxRates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportFxRates>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportFxRatesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetFieldMappingSummaryUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/field-mapping/summary`
+}
+
+export const getFieldMappingSummary = async ( options?: Parameters<typeof http>[1]): Promise<MappingSummary> => {
+
+  return http<MappingSummary>(getGetFieldMappingSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFieldMappingSummaryQueryKey = () => {
+    return [
+    `/api/backoffice/config/field-mapping/summary`
+    ] as const;
+    }
+
+
+export const getGetFieldMappingSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getFieldMappingSummary>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldMappingSummary>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFieldMappingSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFieldMappingSummary>>> = ({ signal }) => getFieldMappingSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFieldMappingSummary>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFieldMappingSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getFieldMappingSummary>>>
+export type GetFieldMappingSummaryQueryError = unknown
+
+
+export function useGetFieldMappingSummary<TData = Awaited<ReturnType<typeof getFieldMappingSummary>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldMappingSummary>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFieldMappingSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getFieldMappingSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFieldMappingSummary<TData = Awaited<ReturnType<typeof getFieldMappingSummary>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldMappingSummary>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFieldMappingSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getFieldMappingSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFieldMappingSummary<TData = Awaited<ReturnType<typeof getFieldMappingSummary>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldMappingSummary>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetFieldMappingSummary<TData = Awaited<ReturnType<typeof getFieldMappingSummary>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldMappingSummary>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFieldMappingSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetFieldMappingOptionsUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/field-mapping/options`
+}
+
+export const getFieldMappingOptions = async ( options?: Parameters<typeof http>[1]): Promise<MappingOptions> => {
+
+  return http<MappingOptions>(getGetFieldMappingOptionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFieldMappingOptionsQueryKey = () => {
+    return [
+    `/api/backoffice/config/field-mapping/options`
+    ] as const;
+    }
+
+
+export const getGetFieldMappingOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getFieldMappingOptions>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldMappingOptions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFieldMappingOptionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFieldMappingOptions>>> = ({ signal }) => getFieldMappingOptions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFieldMappingOptions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFieldMappingOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getFieldMappingOptions>>>
+export type GetFieldMappingOptionsQueryError = unknown
+
+
+export function useGetFieldMappingOptions<TData = Awaited<ReturnType<typeof getFieldMappingOptions>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldMappingOptions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFieldMappingOptions>>,
+          TError,
+          Awaited<ReturnType<typeof getFieldMappingOptions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFieldMappingOptions<TData = Awaited<ReturnType<typeof getFieldMappingOptions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldMappingOptions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFieldMappingOptions>>,
+          TError,
+          Awaited<ReturnType<typeof getFieldMappingOptions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFieldMappingOptions<TData = Awaited<ReturnType<typeof getFieldMappingOptions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldMappingOptions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetFieldMappingOptions<TData = Awaited<ReturnType<typeof getFieldMappingOptions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFieldMappingOptions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFieldMappingOptionsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportBankFieldMappingUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/config/field-mapping/banks/${bankId}/export`
+}
+
+export const exportBankFieldMapping = async (bankId: string, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getExportBankFieldMappingUrl(bankId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportBankFieldMappingQueryKey = (bankId: string,) => {
+    return [
+    `/api/backoffice/config/field-mapping/banks/${bankId}/export`
+    ] as const;
+    }
+
+
+export const getExportBankFieldMappingQueryOptions = <TData = Awaited<ReturnType<typeof exportBankFieldMapping>>, TError = unknown>(bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportBankFieldMapping>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportBankFieldMappingQueryKey(bankId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportBankFieldMapping>>> = ({ signal }) => exportBankFieldMapping(bankId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bankId !== null && bankId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportBankFieldMapping>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportBankFieldMappingQueryResult = NonNullable<Awaited<ReturnType<typeof exportBankFieldMapping>>>
+export type ExportBankFieldMappingQueryError = unknown
+
+
+export function useExportBankFieldMapping<TData = Awaited<ReturnType<typeof exportBankFieldMapping>>, TError = unknown>(
+ bankId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportBankFieldMapping>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportBankFieldMapping>>,
+          TError,
+          Awaited<ReturnType<typeof exportBankFieldMapping>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportBankFieldMapping<TData = Awaited<ReturnType<typeof exportBankFieldMapping>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportBankFieldMapping>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportBankFieldMapping>>,
+          TError,
+          Awaited<ReturnType<typeof exportBankFieldMapping>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportBankFieldMapping<TData = Awaited<ReturnType<typeof exportBankFieldMapping>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportBankFieldMapping>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportBankFieldMapping<TData = Awaited<ReturnType<typeof exportBankFieldMapping>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportBankFieldMapping>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportBankFieldMappingQueryOptions(bankId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetEmailTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/config/email-templates/${id}`
+}
+
+export const getEmailTemplate = async (id: string, options?: Parameters<typeof http>[1]): Promise<TemplateDetail> => {
+
+  return http<TemplateDetail>(getGetEmailTemplateUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmailTemplateQueryKey = (id: string,) => {
+    return [
+    `/api/backoffice/config/email-templates/${id}`
+    ] as const;
+    }
+
+
+export const getGetEmailTemplateQueryOptions = <TData = Awaited<ReturnType<typeof getEmailTemplate>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailTemplate>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmailTemplateQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmailTemplate>>> = ({ signal }) => getEmailTemplate(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmailTemplate>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetEmailTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof getEmailTemplate>>>
+export type GetEmailTemplateQueryError = unknown
+
+
+export function useGetEmailTemplate<TData = Awaited<ReturnType<typeof getEmailTemplate>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailTemplate>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEmailTemplate>>,
+          TError,
+          Awaited<ReturnType<typeof getEmailTemplate>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEmailTemplate<TData = Awaited<ReturnType<typeof getEmailTemplate>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailTemplate>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEmailTemplate>>,
+          TError,
+          Awaited<ReturnType<typeof getEmailTemplate>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEmailTemplate<TData = Awaited<ReturnType<typeof getEmailTemplate>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailTemplate>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetEmailTemplate<TData = Awaited<ReturnType<typeof getEmailTemplate>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailTemplate>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetEmailTemplateQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListEmailPlaceholdersUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/email-templates/placeholders`
+}
+
+export const listEmailPlaceholders = async ( options?: Parameters<typeof http>[1]): Promise<Placeholder[]> => {
+
+  return http<Placeholder[]>(getListEmailPlaceholdersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEmailPlaceholdersQueryKey = () => {
+    return [
+    `/api/backoffice/config/email-templates/placeholders`
+    ] as const;
+    }
+
+
+export const getListEmailPlaceholdersQueryOptions = <TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEmailPlaceholdersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmailPlaceholders>>> = ({ signal }) => listEmailPlaceholders({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListEmailPlaceholdersQueryResult = NonNullable<Awaited<ReturnType<typeof listEmailPlaceholders>>>
+export type ListEmailPlaceholdersQueryError = unknown
+
+
+export function useListEmailPlaceholders<TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEmailPlaceholders>>,
+          TError,
+          Awaited<ReturnType<typeof listEmailPlaceholders>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListEmailPlaceholders<TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEmailPlaceholders>>,
+          TError,
+          Awaited<ReturnType<typeof listEmailPlaceholders>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListEmailPlaceholders<TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListEmailPlaceholders<TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListEmailPlaceholdersQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportEmailTemplatesUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/email-templates/export`
+}
+
+export const exportEmailTemplates = async ( options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getExportEmailTemplatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportEmailTemplatesQueryKey = () => {
+    return [
+    `/api/backoffice/config/email-templates/export`
+    ] as const;
+    }
+
+
+export const getExportEmailTemplatesQueryOptions = <TData = Awaited<ReturnType<typeof exportEmailTemplates>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportEmailTemplates>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportEmailTemplatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportEmailTemplates>>> = ({ signal }) => exportEmailTemplates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportEmailTemplates>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportEmailTemplatesQueryResult = NonNullable<Awaited<ReturnType<typeof exportEmailTemplates>>>
+export type ExportEmailTemplatesQueryError = unknown
+
+
+export function useExportEmailTemplates<TData = Awaited<ReturnType<typeof exportEmailTemplates>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportEmailTemplates>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportEmailTemplates>>,
+          TError,
+          Awaited<ReturnType<typeof exportEmailTemplates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportEmailTemplates<TData = Awaited<ReturnType<typeof exportEmailTemplates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportEmailTemplates>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportEmailTemplates>>,
+          TError,
+          Awaited<ReturnType<typeof exportEmailTemplates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportEmailTemplates<TData = Awaited<ReturnType<typeof exportEmailTemplates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportEmailTemplates>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportEmailTemplates<TData = Awaited<ReturnType<typeof exportEmailTemplates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportEmailTemplates>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportEmailTemplatesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportSupportedBanksUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/banks/export`
+}
+
+export const exportSupportedBanks = async ( options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getExportSupportedBanksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportSupportedBanksQueryKey = () => {
+    return [
+    `/api/backoffice/config/banks/export`
+    ] as const;
+    }
+
+
+export const getExportSupportedBanksQueryOptions = <TData = Awaited<ReturnType<typeof exportSupportedBanks>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupportedBanks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportSupportedBanksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportSupportedBanks>>> = ({ signal }) => exportSupportedBanks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportSupportedBanks>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportSupportedBanksQueryResult = NonNullable<Awaited<ReturnType<typeof exportSupportedBanks>>>
+export type ExportSupportedBanksQueryError = unknown
+
+
+export function useExportSupportedBanks<TData = Awaited<ReturnType<typeof exportSupportedBanks>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupportedBanks>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportSupportedBanks>>,
+          TError,
+          Awaited<ReturnType<typeof exportSupportedBanks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportSupportedBanks<TData = Awaited<ReturnType<typeof exportSupportedBanks>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupportedBanks>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportSupportedBanks>>,
+          TError,
+          Awaited<ReturnType<typeof exportSupportedBanks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportSupportedBanks<TData = Awaited<ReturnType<typeof exportSupportedBanks>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupportedBanks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportSupportedBanks<TData = Awaited<ReturnType<typeof exportSupportedBanks>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupportedBanks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportSupportedBanksQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetCurrentStaffUrl = () => {
 
@@ -1690,6 +5453,101 @@ export function useExportAuditEvents<TData = Awaited<ReturnType<typeof exportAud
 
 
 
+export const getExportStaffUserUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/admin/users/${id}/export`
+}
+
+export const exportStaffUser = async (id: string, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getExportStaffUserUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportStaffUserQueryKey = (id: string,) => {
+    return [
+    `/api/backoffice/admin/users/${id}/export`
+    ] as const;
+    }
+
+
+export const getExportStaffUserQueryOptions = <TData = Awaited<ReturnType<typeof exportStaffUser>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportStaffUser>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportStaffUserQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportStaffUser>>> = ({ signal }) => exportStaffUser(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportStaffUser>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportStaffUserQueryResult = NonNullable<Awaited<ReturnType<typeof exportStaffUser>>>
+export type ExportStaffUserQueryError = unknown
+
+
+export function useExportStaffUser<TData = Awaited<ReturnType<typeof exportStaffUser>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportStaffUser>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportStaffUser>>,
+          TError,
+          Awaited<ReturnType<typeof exportStaffUser>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportStaffUser<TData = Awaited<ReturnType<typeof exportStaffUser>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportStaffUser>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportStaffUser>>,
+          TError,
+          Awaited<ReturnType<typeof exportStaffUser>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportStaffUser<TData = Awaited<ReturnType<typeof exportStaffUser>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportStaffUser>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportStaffUser<TData = Awaited<ReturnType<typeof exportStaffUser>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportStaffUser>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportStaffUserQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getExportStaffUsersUrl = (params?: ExportStaffUsersParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -1780,6 +5638,101 @@ export function useExportStaffUsers<TData = Awaited<ReturnType<typeof exportStaf
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getExportStaffUsersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListStaffDirectoryUrl = () => {
+
+
+
+
+  return `/api/backoffice/admin/users/directory`
+}
+
+export const listStaffDirectory = async ( options?: Parameters<typeof http>[1]): Promise<StaffReference[]> => {
+
+  return http<StaffReference[]>(getListStaffDirectoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStaffDirectoryQueryKey = () => {
+    return [
+    `/api/backoffice/admin/users/directory`
+    ] as const;
+    }
+
+
+export const getListStaffDirectoryQueryOptions = <TData = Awaited<ReturnType<typeof listStaffDirectory>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffDirectory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStaffDirectoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStaffDirectory>>> = ({ signal }) => listStaffDirectory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStaffDirectory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListStaffDirectoryQueryResult = NonNullable<Awaited<ReturnType<typeof listStaffDirectory>>>
+export type ListStaffDirectoryQueryError = unknown
+
+
+export function useListStaffDirectory<TData = Awaited<ReturnType<typeof listStaffDirectory>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffDirectory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStaffDirectory>>,
+          TError,
+          Awaited<ReturnType<typeof listStaffDirectory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStaffDirectory<TData = Awaited<ReturnType<typeof listStaffDirectory>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffDirectory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStaffDirectory>>,
+          TError,
+          Awaited<ReturnType<typeof listStaffDirectory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStaffDirectory<TData = Awaited<ReturnType<typeof listStaffDirectory>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffDirectory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListStaffDirectory<TData = Awaited<ReturnType<typeof listStaffDirectory>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffDirectory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListStaffDirectoryQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1975,3 +5928,79 @@ export function useExportPermissionMatrix<TData = Awaited<ReturnType<typeof expo
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
+export const getRemoveIncomingFieldUrl = (bankId: string,
+    fieldId: string,) => {
+
+
+
+
+  return `/api/backoffice/config/field-mapping/banks/${bankId}/fields/${fieldId}`
+}
+
+export const removeIncomingField = async (bankId: string,
+    fieldId: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getRemoveIncomingFieldUrl(bankId,fieldId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveIncomingFieldMutationKey = () => ['removeIncomingField'] as const;
+
+export const getRemoveIncomingFieldMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeIncomingField>>, TError,RemoveIncomingFieldMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeIncomingField>>, TError,RemoveIncomingFieldMutationVariables, TContext> => {
+
+const mutationKey = getRemoveIncomingFieldMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeIncomingField>>, RemoveIncomingFieldMutationVariables> = (props) => {
+          const {bankId,fieldId} = props ?? {};
+
+          return  removeIncomingField(bankId,fieldId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveIncomingFieldMutationResult = NonNullable<Awaited<ReturnType<typeof removeIncomingField>>>
+
+    export type RemoveIncomingFieldMutationError = unknown
+    export type RemoveIncomingFieldMutationVariables = {bankId: string;fieldId: string}
+
+    export const useRemoveIncomingField = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeIncomingField>>, TError,RemoveIncomingFieldMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeIncomingField>>,
+        TError,
+        RemoveIncomingFieldMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveIncomingFieldMutationOptions(options), queryClient);
+    }

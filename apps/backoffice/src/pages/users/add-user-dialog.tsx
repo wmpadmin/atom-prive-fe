@@ -2,14 +2,18 @@ import type { ApiError } from "@atomprive/api-client";
 import {
   getListStaffUsersQueryKey,
   useCreateStaffUser,
+  useListStaffDirectory,
+  type StaffReference,
   type StaffUserCreated,
   type StaffUserDetail,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, describedBy, Dialog, Field, SelectInput, TextInput } from "@atomprive/ui";
+import { Button, Dialog } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
-import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
-import { roleLabels, roles, type StaffRole } from "../../lib/labels";
+import { noErrors, toFormErrors } from "../../lib/api-errors";
+import type { StaffRole } from "../../lib/labels";
+import { focusFirstError, readStaffProfile, useStaffProfileForm } from "./staff-profile";
+import { StaffFormFooter, StaffProfileFields } from "./staff-profile-fields";
 import { TemporaryPasswordBox } from "./temporary-password-box";
 
 interface AddUserDialogProps {
@@ -32,12 +36,13 @@ export function AddUserDialog({ open, onClose, onAdded }: AddUserDialogProps) {
   return (
     <Dialog
       open={open}
+      size={created ? "md" : "lg"}
       onClose={close}
       title={created ? "User added" : "Add Staff User"}
       description={
         created
           ? `${created.user.fullName} can sign in now with this temporary password.`
-          : "They sign in with a temporary password and choose their own straight away. Every change is written to the audit trail."
+          : "Fields marked * are required. They sign in with a temporary password and choose their own straight away. Every change is written to the audit trail."
       }
     >
       {/* Mounted only while open, so every opening starts with a blank form. */}
@@ -58,7 +63,10 @@ export function AddUserDialog({ open, onClose, onAdded }: AddUserDialogProps) {
 
 function AddUserForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: (created: StaffUserCreated) => void }) {
   const queryClient = useQueryClient();
-  const [errors, setErrors] = useState<FormErrors>(noErrors);
+  const [roles, setRoles] = useState<StaffRole[]>(["ADVISOR"]);
+  const [reportsToId, setReportsToId] = useState("");
+  const { formRef, errors, setErrors, setFieldError, fieldChanged, incomplete, handleChange, showIncomplete } = useStaffProfileForm(roles, reportsToId);
+  const directory = useListStaffDirectory<StaffReference[], ApiError>();
 
   const createUser = useCreateStaffUser<ApiError>({
     mutation: {
@@ -66,56 +74,52 @@ function AddUserForm({ onCancel, onCreated }: { onCancel: () => void; onCreated:
         await queryClient.invalidateQueries({ queryKey: getListStaffUsersQueryKey() });
         onCreated(created);
       },
-      onError: (error) => setErrors(toFormErrors(error)),
+      onError: (error) => {
+        const failed = toFormErrors(error);
+        setErrors(failed);
+        focusFirstError(formRef.current, failed.fields);
+      },
     },
   });
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const { data, missing } = readStaffProfile(event.currentTarget, roles, reportsToId);
+    if (Object.keys(missing).length > 0) {
+      showIncomplete();
+      return;
+    }
     setErrors(noErrors);
-    createUser.mutate({
-      data: {
-        fullName: String(form.get("fullName")),
-        email: String(form.get("email")),
-        phone: String(form.get("phone")).replace(/\s+/g, "") || null,
-        role: String(form.get("role")) as StaffRole,
-      },
-    });
+    createUser.mutate({ data });
   }
 
-  const { fields } = errors;
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {errors.form && <Alert tone="danger">{errors.form}</Alert>}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="fullName" label="Full name" error={fields.fullName}>
-          <TextInput {...describedBy("fullName", fields.fullName)} name="fullName" placeholder="e.g. Asha Rao" autoComplete="off" required />
-        </Field>
-        <Field id="phone" label="Phone" error={fields.phone}>
-          <TextInput {...describedBy("phone", fields.phone)} name="phone" type="tel" placeholder="+65 9123 4567" autoComplete="off" />
-        </Field>
-      </div>
-      <Field id="email" label="Work email" error={fields.email}>
-        <TextInput {...describedBy("email", fields.email)} name="email" type="email" placeholder="name@atomprive.com" autoComplete="off" required />
-      </Field>
-      <Field id="role" label="Role" error={fields.role} className="sm:w-1/2">
-        <SelectInput {...describedBy("role", fields.role)} name="role" defaultValue="ADVISOR" required>
-          {roles.map((role) => (
-            <option key={role} value={role}>
-              {roleLabels[role]}
-            </option>
-          ))}
-        </SelectInput>
-      </Field>
-      <div className="flex justify-end gap-3 pt-2">
-        <Button variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={createUser.isPending}>
-          {createUser.isPending ? "Creating…" : "Create user"}
-        </Button>
-      </div>
+    // Checked here rather than by the browser, so every message can show at once.
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      onChange={handleChange}
+      noValidate
+      className="max-h-[70vh] space-y-6 overflow-y-auto pr-1"
+    >
+      <StaffProfileFields
+        errors={errors.fields}
+        onFieldError={setFieldError}
+        onFieldChange={fieldChanged}
+        roles={roles}
+        onRolesChange={setRoles}
+        reportsToId={reportsToId}
+        onReportsToChange={setReportsToId}
+        managers={directory.data ?? []}
+      />
+      <StaffFormFooter
+        incomplete={incomplete}
+        error={errors.form}
+        pending={createUser.isPending}
+        submitLabel="Create user"
+        pendingLabel="Creating…"
+        onCancel={onCancel}
+      />
     </form>
   );
 }

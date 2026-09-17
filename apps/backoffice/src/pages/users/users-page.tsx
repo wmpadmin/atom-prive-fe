@@ -7,7 +7,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { downloadTextFile } from "../../lib/download";
-import { formatRelative, roleLabels, roles, statusLabels, statuses, type StaffRole, type StaffStatus } from "../../lib/labels";
+import { formatRelative, roleLabels, roleList, roles, statusLabels, statuses, type StaffRole, type StaffStatus } from "../../lib/labels";
+import { formatMobileNumber } from "../../lib/mobile-numbers";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
 import { AddUserDialog } from "./add-user-dialog";
 import { DeactivateUserDialog } from "./deactivate-user-dialog";
@@ -63,7 +64,7 @@ export function UsersPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[26px] font-bold">Manage staff users</h1>
+          <h1 className="text-[1.625rem] font-bold">Manage staff users</h1>
           <p className="mt-1 text-sm text-ink-muted">
             Create, edit and deactivate accounts. Every change is written to the audit trail.
           </p>
@@ -137,7 +138,7 @@ export function UsersPage() {
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-y border-line text-left text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
+              <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">User</th>
                 <th scope="col" className="px-4 py-3">Phone</th>
                 <th scope="col" className="px-4 py-3">Role</th>
@@ -178,8 +179,8 @@ export function UsersPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{user.phone ?? "—"}</td>
-                  <td className="px-4 py-3 text-ink-soft">{roleLabels[user.role]}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatMobileNumber(user.phone) ?? "—"}</td>
+                  <td className="px-4 py-3 text-ink-soft">{roleList(user.roles)}</td>
                   <td className="px-4 py-3 text-ink-muted">—</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={user.status} />

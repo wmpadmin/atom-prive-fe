@@ -53,7 +53,7 @@ export function RolesPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[26px] font-bold">Permission matrix</h1>
+          <h1 className="text-[1.625rem] font-bold">Permission matrix</h1>
           <p className="mt-1 text-sm text-ink-muted">
             Defines what each role may access — customer fields, exports, proposal sends. Changes apply on next request.
           </p>
@@ -106,7 +106,7 @@ function RoleCapabilities({ matrix }: { matrix: PermissionMatrix }) {
         const label = matrix.permissions.find((option) => option.permission === permission)?.label ?? permission;
         setSaved({ tone: "success", message: `Saved: ${updated.name} · ${label} is now ${levelLabels[data.level]}.` });
         // Changing your own role's access changes what you can do here too.
-        if (updated.role === user.role) void reloadUser();
+        if (updated.role === user.activeRole) void reloadUser();
       },
       onError: (error) => {
         setSaved({ tone: "danger", message: error.message });

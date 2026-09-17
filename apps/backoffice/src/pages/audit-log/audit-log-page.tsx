@@ -89,7 +89,7 @@ export function AuditLogPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[26px] font-bold">Audit log</h1>
+          <h1 className="text-[1.625rem] font-bold">Audit log</h1>
           <p className="mt-1 text-sm text-ink-muted">
             Who logged in, viewed which customer and exported what. Searchable by user, action and date.
           </p>
@@ -208,7 +208,7 @@ export function AuditLogPage() {
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-y border-line text-left text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
+              <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">Actor</th>
                 <th scope="col" className="px-4 py-3">Action</th>
                 <th scope="col" className="px-4 py-3">Target</th>
@@ -284,7 +284,9 @@ function EventRow({ event }: { event: AuditLogEntry }) {
 
 function actorDescription(event: AuditLogEntry) {
   if (event.actorType === "SYSTEM") return "Automatic";
-  return event.actorRole ? roleLabel(event.actorRole) : "No matching account";
+  if (event.actorRole) return roleLabel(event.actorRole);
+  // Staff holding several roles haven't picked one yet when they sign in.
+  return event.actorName ? "Staff" : "No matching account";
 }
 
 /**

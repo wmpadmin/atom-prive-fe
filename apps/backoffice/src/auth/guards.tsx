@@ -15,6 +15,10 @@ export function RequireSignIn() {
   if (state.user.mustChangePassword && location.pathname !== "/change-password") {
     return <Navigate to="/change-password" replace />;
   }
+  // Someone holding several roles picks one before anything else.
+  if (!state.user.mustChangePassword && state.user.activeRole === null && location.pathname !== "/workspace") {
+    return <Navigate to="/workspace" replace />;
+  }
   return <Outlet />;
 }
 

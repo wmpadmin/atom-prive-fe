@@ -5,11 +5,11 @@ export function AuthLayout({ heading, children }: { heading: string; children: R
   return (
     <div className="grid min-h-screen font-sans lg:grid-cols-2">
       <div className="hidden flex-col justify-between bg-linear-to-b from-brand-900 to-brand-950 p-12 text-white lg:flex">
-        <p className="text-xl font-bold">Atom Privé</p>
+        <span aria-hidden="true" />
         <div className="space-y-3">
           <p className="text-xs font-semibold tracking-widest text-slate-300 uppercase">Back-office</p>
           <h1 className="text-4xl font-bold">{heading}</h1>
-          <p className="max-w-sm text-slate-300">For Admin, Advisor, Compliance and Operations teams.</p>
+          <p className="max-w-sm text-slate-300">For every back-office team: Admin, Advisors, Compliance, Operations and Portfolio Managers.</p>
         </div>
         <p className="text-xs text-slate-400">Every sign-in is recorded in the audit trail.</p>
       </div>

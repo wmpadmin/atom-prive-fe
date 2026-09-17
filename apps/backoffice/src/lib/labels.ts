@@ -1,6 +1,6 @@
-import type { StaffUserSummaryRole, StaffUserSummaryStatus } from "@atomprive/api-client/backoffice";
+import type { StaffUserSummaryRolesItem, StaffUserSummaryStatus } from "@atomprive/api-client/backoffice";
 
-export type StaffRole = StaffUserSummaryRole;
+export type StaffRole = StaffUserSummaryRolesItem;
 export type StaffStatus = StaffUserSummaryStatus;
 
 // Matches the staff_role table; the Permission matrix screen reads names from the API instead.
@@ -9,9 +9,15 @@ export const roleLabels: Record<StaffRole, string> = {
   ADVISOR: "Advisor",
   COMPLIANCE: "Compliance",
   OPERATIONS: "Operations",
+  PORTFOLIO_MANAGER: "Portfolio Manager",
 };
 
 export const roles = Object.keys(roleLabels) as StaffRole[];
+
+/** Every role someone holds, e.g. "Advisor, Compliance". */
+export function roleList(held: StaffRole[]) {
+  return held.map((role) => roleLabels[role]).join(", ");
+}
 
 export const statusLabels: Record<StaffStatus, string> = {
   ACTIVE: "Active",
