@@ -1,5 +1,5 @@
 import { configureAuth } from "@atomprive/api-client";
-import { getCurrentStaff, logout, refresh, type SignInResponse } from "@atomprive/api-client/backoffice";
+import { getCurrentStaff, logout, refresh, type SignInResponse, type StaffProfile } from "@atomprive/api-client/backoffice";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { SessionContext, type SessionState } from "./session";
@@ -40,14 +40,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return refreshInFlight;
   }, [applySignIn, clearSession]);
 
+  const applyProfile = useCallback((user: StaffProfile) => {
+    setState((current) => (current.status === "signedIn" ? { status: "signedIn", user } : current));
+  }, []);
+
   const reloadUser = useCallback(async () => {
     try {
-      const user = await getCurrentStaff();
-      setState((current) => (current.status === "signedIn" ? { status: "signedIn", user } : current));
+      applyProfile(await getCurrentStaff());
     } catch {
       // Keep what's on screen; if the session has ended, the refresh attempt has already signed the user out.
     }
-  }, []);
+  }, [applyProfile]);
 
   useEffect(() => {
     configureAuth({ getAccessToken: () => accessToken, refreshAccessToken, onForbidden: () => void reloadUser() });
@@ -63,6 +66,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [clearSession]);
 
-  const session = useMemo(() => ({ state, applySignIn, signOut, reloadUser }), [state, applySignIn, signOut, reloadUser]);
+  const session = useMemo(
+    () => ({ state, applySignIn, signOut, reloadUser, applyProfile }),
+    [state, applySignIn, signOut, reloadUser, applyProfile],
+  );
   return <SessionContext value={session}>{children}</SessionContext>;
 }

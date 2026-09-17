@@ -1,78 +1,55 @@
 import type { ApiError } from "@atomprive/api-client";
 import {
   getListStaffUsersQueryKey,
-  useCreateStaffUser,
   useListStaffDirectory,
+  useUpdateStaffUser,
   type StaffReference,
-  type StaffUserCreated,
   type StaffUserDetail,
 } from "@atomprive/api-client/backoffice";
-import { Button, Dialog } from "@atomprive/ui";
+import { Dialog } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { noErrors, toFormErrors } from "../../lib/api-errors";
 import type { StaffRole } from "../../lib/labels";
 import { focusFirstError, readStaffProfile, useStaffProfileForm } from "./staff-profile";
 import { StaffFormFooter, StaffProfileFields } from "./staff-profile-fields";
-import { TemporaryPasswordBox } from "./temporary-password-box";
 
-interface AddUserDialogProps {
-  open: boolean;
+interface EditStaffDialogProps {
+  /** The staff member to edit; the dialog is closed while this is null. */
+  user: StaffUserDetail | null;
+  isSelf: boolean;
   onClose: () => void;
-  onAdded: (user: StaffUserDetail) => void;
+  onSaved: (user: StaffUserDetail, rolesChanged: boolean) => void;
 }
 
-export function AddUserDialog({ open, onClose, onAdded }: AddUserDialogProps) {
-  const [created, setCreated] = useState<StaffUserCreated | null>(null);
-
-  function close() {
-    if (created) {
-      onAdded(created.user);
-    }
-    setCreated(null);
-    onClose();
-  }
-
+export function EditStaffDialog({ user, isSelf, onClose, onSaved }: EditStaffDialogProps) {
   return (
     <Dialog
-      open={open}
-      size={created ? "md" : "lg"}
-      onClose={close}
-      title={created ? "User added" : "Add Staff User"}
-      description={
-        created
-          ? `${created.user.fullName} can sign in now with this temporary password.`
-          : "Fields marked * are required. They sign in with a temporary password and choose their own straight away. Every change is written to the audit trail."
-      }
+      open={user !== null}
+      size="lg"
+      onClose={onClose}
+      title={user ? `Edit ${user.fullName}` : "Edit staff member"}
+      description="Fields marked * are required. Every change is written to the audit trail. PAN ID / EID and passport numbers are stored encrypted."
     >
-      {/* Mounted only while open, so every opening starts with a blank form. */}
-      {open &&
-        (created ? (
-          <div className="space-y-5">
-            <TemporaryPasswordBox email={created.user.email} password={created.temporaryPassword} />
-            <div className="flex justify-end">
-              <Button onClick={close}>Done</Button>
-            </div>
-          </div>
-        ) : (
-          <AddUserForm onCancel={close} onCreated={setCreated} />
-        ))}
+      {/* Mounted only while open, so every opening starts from the saved details. */}
+      {user && <EditStaffForm user={user} isSelf={isSelf} onCancel={onClose} onSaved={onSaved} />}
     </Dialog>
   );
 }
 
-function AddUserForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: (created: StaffUserCreated) => void }) {
+function EditStaffForm({ user, isSelf, onCancel, onSaved }: { user: StaffUserDetail; isSelf: boolean; onCancel: () => void; onSaved: EditStaffDialogProps["onSaved"] }) {
   const queryClient = useQueryClient();
-  const [roles, setRoles] = useState<StaffRole[]>(["ADVISOR"]);
-  const [reportsToId, setReportsToId] = useState("");
+  const [roles, setRoles] = useState<StaffRole[]>(user.roles);
+  // Controlled, so the saved manager stays selected while the staff list is still loading.
+  const [reportsToId, setReportsToId] = useState(user.reportsTo?.id ?? "");
   const { formRef, errors, setErrors, setFieldError, fieldChanged, incomplete, handleChange, showIncomplete } = useStaffProfileForm(roles, reportsToId);
   const directory = useListStaffDirectory<StaffReference[], ApiError>();
 
-  const createUser = useCreateStaffUser<ApiError>({
+  const update = useUpdateStaffUser<ApiError>({
     mutation: {
-      onSuccess: async (created) => {
+      onSuccess: async (updated) => {
         await queryClient.invalidateQueries({ queryKey: getListStaffUsersQueryKey() });
-        onCreated(created);
+        onSaved(updated, updated.roles.join() !== user.roles.join());
       },
       onError: (error) => {
         const failed = toFormErrors(error);
@@ -90,9 +67,13 @@ function AddUserForm({ onCancel, onCreated }: { onCancel: () => void; onCreated:
       return;
     }
     setErrors(noErrors);
-    createUser.mutate({ data });
+    update.mutate({ id: user.id, data });
   }
 
+  const loaded = (directory.data ?? []).filter((person) => person.id !== user.id);
+  // The current manager is listed even if they've since been deactivated and left out of the directory.
+  const managers =
+    user.reportsTo && !loaded.some((person) => person.id === user.reportsTo?.id) ? [user.reportsTo, ...loaded] : loaded;
   return (
     // Checked here rather than by the browser, so every message can show at once.
     <form
@@ -103,21 +84,24 @@ function AddUserForm({ onCancel, onCreated }: { onCancel: () => void; onCreated:
       className="max-h-[70vh] space-y-6 overflow-y-auto pr-1"
     >
       <StaffProfileFields
+        user={user}
         errors={errors.fields}
         onFieldError={setFieldError}
         onFieldChange={fieldChanged}
         roles={roles}
         onRolesChange={setRoles}
+        rolesDisabled={isSelf}
+        rolesHint={isSelf ? "You can't change your own roles." : "Changing roles signs the user out of every device."}
         reportsToId={reportsToId}
         onReportsToChange={setReportsToId}
-        managers={directory.data ?? []}
+        managers={managers}
       />
       <StaffFormFooter
         incomplete={incomplete}
         error={errors.form}
-        pending={createUser.isPending}
-        submitLabel="Create user"
-        pendingLabel="Creating…"
+        pending={update.isPending}
+        submitLabel="Save changes"
+        pendingLabel="Saving…"
         onCancel={onCancel}
       />
     </form>

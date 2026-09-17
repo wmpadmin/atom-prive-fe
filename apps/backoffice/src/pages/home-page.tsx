@@ -9,13 +9,16 @@ export function HomePage() {
   if (hasAuthority(user, "MANAGE_USERS_AND_ROLES:VIEW")) {
     return <Navigate to="/users" replace />;
   }
+  if (hasAuthority(user, "ONBOARD_CLIENTS:VIEW")) {
+    return <Navigate to="/onboarding" replace />;
+  }
   if (hasAuthority(user, "VIEW_AUDIT_LOG:VIEW")) {
     return <Navigate to="/audit-log" replace />;
   }
   return (
     <Card title={`Welcome, ${user.fullName}`}>
       <p className="text-sm text-slate-600">
-        You're signed in as {roleLabels[user.role]}. Your screens will appear in the menu as they're released.
+        You're signed in as {user.activeRole ? roleLabels[user.activeRole] : "staff"}. Your screens will appear in the menu as they're released.
       </p>
     </Card>
   );

@@ -14,7 +14,7 @@ const badgeTones: Record<Tone, string> = {
 /** Status pill, e.g. Active, Invited, Deactivated. */
 export function Badge({ tone = "neutral", children }: { tone?: Tone; children: ReactNode }) {
   return (
-    <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold", badgeTones[tone])}>
+    <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap", badgeTones[tone])}>
       {children}
     </span>
   );

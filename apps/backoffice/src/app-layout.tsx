@@ -1,5 +1,5 @@
 import { Avatar, cn } from "@atomprive/ui";
-import { ChevronDown, KeyRound, Landmark, LogOut, ShieldCheck, Users, type LucideIcon } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, KeyRound, Landmark, LogOut, ShieldCheck, SlidersHorizontal, UserPlus, Users, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
@@ -8,8 +8,10 @@ import { hasAuthority, type Authority } from "./lib/permissions";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
 const allNavigation: { to: string; label: string; icon: LucideIcon; authority: Authority }[] = [
+  { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: "ONBOARD_CLIENTS:VIEW" },
   { to: "/users", label: "Manage staff users", icon: Users, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
   { to: "/roles", label: "Permission matrix", icon: ShieldCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
+  { to: "/config", label: "Config data", icon: SlidersHorizontal, authority: "MANAGE_CONFIGURATION:VIEW" },
   { to: "/audit-log", label: "Audit log", icon: Landmark, authority: "VIEW_AUDIT_LOG:VIEW" },
 ];
 
@@ -20,12 +22,7 @@ export function AppLayout() {
   return (
     <div className="flex min-h-screen bg-canvas font-sans text-ink">
       <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-line bg-sidebar px-4 py-6">
-        <Link to="/" className="flex items-center gap-2.5 px-2">
-          <span className="grid size-9 place-items-center rounded-xl bg-brand-900 text-sm font-bold text-white">A</span>
-          <span className="text-lg font-bold">Atom Privé</span>
-        </Link>
-
-        <nav aria-label="Back-office" className="mt-8">
+        <nav aria-label="Back-office" className="mt-14">
           <ul className="space-y-1">
             {navigation.map(({ to, label, icon: Icon }) => (
               <li key={to}>
@@ -38,7 +35,7 @@ export function AppLayout() {
                     )
                   }
                 >
-                  <Icon className="size-[18px]" aria-hidden="true" />
+                  <Icon className="size-4.5" aria-hidden="true" />
                   {label}
                 </NavLink>
               </li>
@@ -49,7 +46,7 @@ export function AppLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-20 items-center justify-between gap-4 px-8">
-          <p className="text-2xl font-bold">{roleLabels[user.role]}</p>
+          <p className="text-2xl font-bold">{user.activeRole ? roleLabels[user.activeRole] : ""}</p>
           <UserMenu />
         </header>
         <main className="flex-1 px-8 pb-10">
@@ -92,13 +89,24 @@ function UserMenu() {
       >
         <span className="text-right leading-tight">
           <span className="block text-sm font-semibold">{user.fullName}</span>
-          <span className="block text-xs text-ink-muted">{roleLabels[user.role]}</span>
+          <span className="block text-xs text-ink-muted">{user.activeRole ? roleLabels[user.activeRole] : ""}</span>
         </span>
         <Avatar name={user.fullName} tone="navy" className="size-10" />
         <ChevronDown className="size-4 text-ink-muted" aria-hidden="true" />
       </button>
       {open && (
         <div role="menu" className="absolute right-0 z-10 mt-2 w-52 rounded-xl border border-line bg-white p-1.5 shadow-lg">
+          {user.roles.length > 1 && (
+            <Link
+              role="menuitem"
+              to="/workspace"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink-soft hover:bg-slate-50"
+            >
+              <ArrowLeftRight className="size-4" aria-hidden="true" />
+              Switch workspace
+            </Link>
+          )}
           <Link
             role="menuitem"
             to="/change-password"

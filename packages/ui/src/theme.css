@@ -3,8 +3,16 @@
  * Typography comes from the Figma style guide (Plus Jakarta Sans). Colours were matched by eye to the
  * Figma "Manage staff users" screen; swap in exact values from Figma Dev Mode when available.
  */
+@import "react-day-picker/style.css";
+
 @theme {
   --font-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* Text below Tailwind's text-xs: counters, chips and uppercase labels */
+  --text-3xs: 0.625rem;
+  --text-3xs--line-height: 1.5;
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1.5;
 
   /* Navy: brand panels and the signed-in user's avatar */
   --color-brand-950: #051634;
@@ -43,4 +51,31 @@
   --color-access-none: #e5484d;
   --color-access-none-soft: #fdeced;
   --color-access-none-ink: #b4232a;
+}
+
+/* The date picker's calendar (react-day-picker), in the platform's colours and sized in rem so it scales with the page. */
+.rdp-root {
+  --rdp-accent-color: var(--color-primary-600);
+  --rdp-accent-background-color: var(--color-primary-50);
+  --rdp-day-height: 2.5rem;
+  --rdp-day-width: 2.5rem;
+  --rdp-day_button-height: 2.25rem;
+  --rdp-day_button-width: 2.25rem;
+  --rdp-day_button-border-radius: 0.5rem;
+  --rdp-selected-border: 2px solid var(--color-primary-600);
+  --rdp-today-color: var(--color-primary-600);
+  --rdp-nav-height: 2.5rem;
+  --rdp-nav_button-height: 2.25rem;
+  --rdp-nav_button-width: 2.25rem;
+  font-size: var(--text-sm);
+}
+
+.rdp-selected .rdp-day_button {
+  background-color: var(--color-primary-600);
+  color: white;
+}
+
+.rdp-month_caption {
+  font-size: var(--text-sm);
+  font-weight: 600;
 }

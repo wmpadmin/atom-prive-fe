@@ -1,33 +1,45 @@
-import type { ApiError } from "@atomprive/api-client";
-import {
-  getGetStaffUserQueryKey,
-  getListStaffUsersQueryKey,
-  useGetStaffUser,
-  useUpdateStaffUser,
-  type StaffUserDetail,
-} from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, Card, describedBy, Field, SelectInput, TextInput } from "@atomprive/ui";
+import { ApiError } from "@atomprive/api-client";
+import { exportStaffUser, getGetStaffUserQueryKey, useGetStaffUser, type StaffUserDetail } from "@atomprive/api-client/backoffice";
+import { Alert, Avatar, Badge, Button, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, KeyRound, Power } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { ChevronLeft, Download, FileText, PencilLine, ScrollText, Search } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
-import { formatDateTime, formatRelative, roleLabels, roles, type StaffRole } from "../../lib/labels";
+import { downloadTextFile } from "../../lib/download";
+import { formatDateTime, formatRelative, roleList, statusLabels } from "../../lib/labels";
+import { countryName } from "../../lib/countries";
+import { formatMobileNumber } from "../../lib/mobile-numbers";
 import { DeactivateUserDialog } from "./deactivate-user-dialog";
+import { EditStaffDialog } from "./edit-staff-dialog";
 import { ResetPasswordDialog } from "./reset-password-dialog";
-import { StatusBadge } from "./status-badge";
 
 type Notice = { tone: "success" | "danger"; message: string };
+type Tab = "overview" | "declarations" | "documents" | "activity";
 
+const tabs: { id: Tab; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "declarations", label: "Declarations" },
+  { id: "documents", label: "Documents" },
+  { id: "activity", label: "Activity" },
+];
+
+/** Dates without a time, such as an employment start, are shown as stored rather than shifted by time zone. */
+const calendarDate = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+
+/** Everything about one staff member: profile, access, clients and activity (#74). */
 export function UserDetailPage() {
   const { userId = "" } = useParams();
   const currentUser = useStaffUser();
+  const queryClient = useQueryClient();
   const detail = useGetStaffUser<StaffUserDetail, ApiError>(userId);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [dialog, setDialog] = useState<"edit" | "reset" | "deactivate" | null>(null);
   const [notice, setNotice] = useState<Notice>();
+  const [exporting, setExporting] = useState(false);
 
   if (detail.isPending) {
-    return <p className="text-sm text-ink-muted">Loading user…</p>;
+    return <p className="text-sm text-ink-muted">Loading staff member…</p>;
   }
   if (detail.isError) {
     return <Alert tone="danger">{detail.error.message}</Alert>;
@@ -35,188 +47,296 @@ export function UserDetailPage() {
 
   const user = detail.data;
   const isSelf = user.id === currentUser.id;
+  const deactivated = user.status === "DEACTIVATED";
+
+  async function exportProfile() {
+    setExporting(true);
+    setNotice(undefined);
+    try {
+      const csv = await exportStaffUser(user.id);
+      const name = user.fullName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      downloadTextFile(`staff-${name}-${new Date().toISOString().slice(0, 10)}.csv`, csv, "text/csv;charset=utf-8");
+    } catch (caught) {
+      setNotice({ tone: "danger", message: caught instanceof ApiError ? caught.message : "Couldn't export. Try again." });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
-    <div className="space-y-6">
-      <Link to="/users" className="inline-flex items-center gap-1 text-sm text-ink-muted hover:text-ink">
-        <ChevronLeft className="size-4" aria-hidden="true" />
-        Manage staff users
+    <div className="space-y-5">
+      <Link to="/users" className="inline-flex items-center gap-2 text-[1.625rem] font-bold hover:text-primary-700">
+        <ChevronLeft className="size-6" aria-hidden="true" />
+        Staff detail view
       </Link>
-
-      <header className="flex flex-wrap items-center gap-4">
-        <Avatar name={user.fullName} className="size-14 text-base" />
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-[26px] font-bold">{user.fullName}</h1>
-            <StatusBadge status={user.status} />
-          </div>
-          <p className="text-sm text-ink-muted">
-            {roleLabels[user.role]} · {user.email}
-            {isSelf && " · You"}
-          </p>
-        </div>
-      </header>
 
       {notice && <Alert tone={notice.tone}>{notice.message}</Alert>}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          {/* Remounts after each save so the form shows what the server stored. */}
-          <DetailsForm key={user.updatedAt} user={user} isSelf={isSelf} onNotice={setNotice} />
-          <RecentActivity user={user} />
+      <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-white px-6 py-5">
+        <div className="flex min-w-0 items-center gap-4">
+          <Avatar name={user.fullName} className="size-16 rounded-2xl text-xl" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-3xl font-bold">{user.fullName}</h1>
+              {isSelf && <Badge tone="info">You</Badge>}
+              {deactivated && <Badge>Deactivated</Badge>}
+            </div>
+            <p className="truncate text-ink-soft">{user.email}</p>
+          </div>
         </div>
-        <AccessCard user={user} isSelf={isSelf} onNotice={setNotice} />
+        <div className="flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={() => void exportProfile()} disabled={exporting}>
+            <Download aria-hidden="true" />
+            {exporting ? "Exporting…" : "Export"}
+          </Button>
+          {!deactivated && (
+            <Button
+              variant="danger-soft"
+              disabled={isSelf}
+              title={isSelf ? "You can't deactivate your own account" : undefined}
+              onClick={() => setDialog("deactivate")}
+            >
+              Deactivate
+            </Button>
+          )}
+          <Button onClick={() => setDialog("edit")} disabled={deactivated}>
+            <PencilLine aria-hidden="true" />
+            Edit
+          </Button>
+        </div>
+      </section>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label="Assigned clients">
+          {user.assignedClients} {user.assignedClients === 1 ? "client" : "clients"}
+        </Stat>
+        <Stat label="Tracker completeness">
+          {user.completeness.filled}/{user.completeness.total} fields
+        </Stat>
+        <Stat label="All declarations" muted>
+          None yet
+        </Stat>
+        <Stat label="Last active">{formatRelative(user.lastActiveAt)}</Stat>
       </div>
-    </div>
-  );
-}
 
-interface SectionProps {
-  user: StaffUserDetail;
-  isSelf: boolean;
-  onNotice: (notice: Notice | undefined) => void;
-}
+      <div role="tablist" aria-label="Staff details" className="inline-flex max-w-full flex-wrap gap-1 rounded-xl border border-line bg-white p-1">
+        {tabs.map((option) => (
+          <button
+            key={option.id}
+            id={`staff-tab-${option.id}`}
+            type="button"
+            role="tab"
+            aria-selected={tab === option.id}
+            aria-controls="staff-panel"
+            onClick={() => setTab(option.id)}
+            className={cn(
+              "rounded-lg px-7 py-2 text-sm font-medium transition-colors",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
+              tab === option.id ? "bg-primary-600 text-white" : "text-ink-soft hover:bg-slate-50",
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
 
-function DetailsForm({ user, isSelf, onNotice }: SectionProps) {
-  const queryClient = useQueryClient();
-  const [errors, setErrors] = useState<FormErrors>(noErrors);
+      <div id="staff-panel" role="tabpanel" aria-labelledby={`staff-tab-${tab}`} className="space-y-5">
+        {tab === "overview" && (
+          <>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <InfoCard title="Contact">
+                <Info label="Work email" value={user.email} />
+                <Info label="Mobile" value={formatMobileNumber(user.phone)} />
+                <Info label="Nationality" value={user.nationality && countryName(user.nationality)} />
+                <Info label="Residential address" value={user.residentialAddress} />
+              </InfoCard>
+              <InfoCard title="Employment">
+                <Info label="Designation" value={user.designation} />
+                <Info label="Employment start" value={user.employmentStart && calendarDate.format(new Date(user.employmentStart))} />
+                <Info
+                  label="Reporting to"
+                  value={
+                    user.reportsTo && (
+                      <Link to={`/users/${user.reportsTo.id}`} className="hover:text-primary-700">
+                        {user.reportsTo.fullName}
+                      </Link>
+                    )
+                  }
+                />
+                <Info label="Licence number" value={user.licenceNumber} />
+              </InfoCard>
+              <InfoCard title="Access & identity">
+                <Info label="Role" value={roleList(user.roles)} />
+                <Info
+                  label="Account status"
+                  value={`${statusLabels[user.status]}${user.mustChangePassword && !deactivated ? " · temporary password" : ""}`}
+                />
+                <Info label="PAN ID / EID" value={user.nationalId} />
+                <Info label="Passport number" value={user.passportNumber} />
+                {!isSelf && !deactivated && (
+                  <button type="button" onClick={() => setDialog("reset")} className="text-sm font-semibold text-primary-600 hover:text-primary-700">
+                    Reset password
+                  </button>
+                )}
+              </InfoCard>
+            </div>
+            <AssignedClients />
+          </>
+        )}
+        {tab === "declarations" && (
+          <EmptyPanel icon={<ScrollText />} title="No declarations yet">
+            Declarations this person signs, such as conflicts of interest, will appear here.
+          </EmptyPanel>
+        )}
+        {tab === "documents" && (
+          <EmptyPanel icon={<FileText />} title="No documents yet">
+            Documents kept for this person, such as their licence and ID copies, will appear here.
+          </EmptyPanel>
+        )}
+        {tab === "activity" && <RecentActivity user={user} />}
+      </div>
 
-  const updateUser = useUpdateStaffUser<ApiError>({
-    mutation: {
-      onSuccess: async (updated) => {
-        const roleChanged = updated.role !== user.role;
-        queryClient.setQueryData(getGetStaffUserQueryKey(user.id), updated);
-        await queryClient.invalidateQueries({ queryKey: getListStaffUsersQueryKey() });
-        onNotice({
-          tone: "success",
-          message: roleChanged ? "Saved. The role change signed them out of every device." : "Saved.",
-        });
-      },
-      onError: (error) => setErrors(toFormErrors(error)),
-    },
-  });
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    setErrors(noErrors);
-    onNotice(undefined);
-    updateUser.mutate({
-      id: user.id,
-      data: {
-        fullName: String(form.get("fullName")),
-        email: String(form.get("email")),
-        phone: String(form.get("phone")).replace(/\s+/g, "") || null,
-        role: String(form.get("role")) as StaffRole,
-      },
-    });
-  }
-
-  const { fields } = errors;
-  return (
-    <Card title="Details" description="Changing the role signs the user out of every device.">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {errors.form && <Alert tone="danger">{errors.form}</Alert>}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="fullName" label="Full name" error={fields.fullName}>
-            <TextInput {...describedBy("fullName", fields.fullName)} name="fullName" defaultValue={user.fullName} required />
-          </Field>
-          <Field id="phone" label="Phone" error={fields.phone}>
-            <TextInput {...describedBy("phone", fields.phone)} name="phone" type="tel" placeholder="+65 9123 4567" defaultValue={user.phone ?? ""} />
-          </Field>
-          <Field id="email" label="Work email" error={fields.email}>
-            <TextInput {...describedBy("email", fields.email)} name="email" type="email" defaultValue={user.email} required />
-          </Field>
-          <Field id="role" label="Role" hint={isSelf ? "You can't change your own role." : undefined} error={fields.role}>
-            <SelectInput {...describedBy("role", fields.role)} name="role" defaultValue={user.role} disabled={isSelf}>
-              {roles.map((role) => (
-                <option key={role} value={role}>
-                  {roleLabels[role]}
-                </option>
-              ))}
-            </SelectInput>
-            {/* A disabled select isn't submitted, so send the current role explicitly. */}
-            {isSelf && <input type="hidden" name="role" value={user.role} />}
-          </Field>
-        </div>
-        <div className="flex justify-end">
-          <Button type="submit" disabled={updateUser.isPending || user.status === "DEACTIVATED"}>
-            {updateUser.isPending ? "Saving…" : "Save changes"}
-          </Button>
-        </div>
-      </form>
-    </Card>
-  );
-}
-
-function AccessCard({ user, isSelf, onNotice }: SectionProps) {
-  const [dialog, setDialog] = useState<"reset" | "deactivate" | null>(null);
-
-  return (
-    <Card title="Access">
-      <dl className="space-y-3 text-sm">
-        <Row label="Last active" value={formatRelative(user.lastActiveAt)} />
-        <Row label="Last sign-in" value={formatDateTime(user.lastLoginAt)} />
-        <Row label="Password" value={user.mustChangePassword ? "Temporary, change at next sign-in" : "Set by the user"} />
-        <Row label="Added" value={formatDateTime(user.createdAt)} />
-        {user.deactivatedAt && <Row label="Deactivated" value={formatDateTime(user.deactivatedAt)} />}
-      </dl>
-
-      {!isSelf && user.status !== "DEACTIVATED" && (
-        <div className="mt-5 flex flex-col gap-2 border-t border-line pt-4">
-          <Button variant="secondary" onClick={() => setDialog("reset")}>
-            <KeyRound aria-hidden="true" />
-            Reset password
-          </Button>
-          <Button variant="danger" onClick={() => setDialog("deactivate")}>
-            <Power aria-hidden="true" />
-            Deactivate user
-          </Button>
-        </div>
-      )}
-
+      <EditStaffDialog
+        user={dialog === "edit" ? user : null}
+        isSelf={isSelf}
+        onClose={() => setDialog(null)}
+        onSaved={(updated, rolesChanged) => {
+          queryClient.setQueryData(getGetStaffUserQueryKey(user.id), updated);
+          setDialog(null);
+          setNotice({ tone: "success", message: rolesChanged ? "Saved. The role change signed them out of every device." : "Saved." });
+        }}
+      />
       <ResetPasswordDialog user={user} open={dialog === "reset"} onClose={() => setDialog(null)} />
       <DeactivateUserDialog
         user={dialog === "deactivate" ? user : null}
         onClose={() => setDialog(null)}
         onDeactivated={() => {
           setDialog(null);
-          onNotice({ tone: "success", message: "User deactivated and signed out everywhere." });
+          setNotice({ tone: "success", message: `${user.fullName} is deactivated and signed out everywhere.` });
         }}
       />
-    </Card>
+    </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Stat({ label, muted, children }: { label: string; muted?: boolean; children: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-ink-muted">{label}</dt>
-      <dd className="text-right font-medium">{value}</dd>
+    <div className="rounded-2xl border border-line bg-white px-6 py-5">
+      <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
+      <p className={cn("mt-1 text-2xl font-bold", muted && "text-ink-muted")}>{children}</p>
     </div>
+  );
+}
+
+function InfoCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-4 rounded-2xl border border-line bg-white px-6 py-5">
+      <h2 className="text-xs font-semibold tracking-wider text-primary-600 uppercase">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function Info({ label, value }: { label: string; value: ReactNode }) {
+  const missing = value === null || value === undefined || value === "";
+  return (
+    <div>
+      <p className="text-2xs font-medium tracking-wide text-ink-muted uppercase">{label}</p>
+      <p className={cn("mt-0.5 font-medium break-words whitespace-pre-line", missing && "text-ink-muted")}>{missing ? "—" : value}</p>
+    </div>
+  );
+}
+
+/** Clients come with the customer module; until then the table shows how it will look, with nothing in it. */
+function AssignedClients() {
+  return (
+    <section aria-labelledby="assigned-clients-title" className="rounded-2xl border border-line bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-5 pb-4">
+        <div>
+          <h2 id="assigned-clients-title" className="text-base font-bold">
+            Assigned Clients
+          </h2>
+          <p className="text-xs text-ink-muted">Clients this person looks after.</p>
+        </div>
+        <label className="relative w-full max-w-sm">
+          <span className="sr-only">Search clients</span>
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+          <input
+            type="search"
+            disabled
+            placeholder="Search clients"
+            className="block h-10 w-full rounded-lg border border-line bg-white pr-3 pl-9 text-sm placeholder:text-slate-400 disabled:bg-slate-50"
+          />
+        </label>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              <th scope="col" className="py-3 pr-4 pl-6">Client name</th>
+              <th scope="col" className="px-4 py-3">Phone</th>
+              <th scope="col" className="px-4 py-3">Geography</th>
+              <th scope="col" className="px-4 py-3">Top allocation</th>
+              <th scope="col" className="px-4 py-3">KYC</th>
+              <th scope="col" className="py-3 pr-6 pl-4 text-right">Net worth</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colSpan={6} className="px-6 py-10 text-center text-ink-muted">
+                No clients assigned yet. Clients can be assigned once client accounts are in the platform.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function EmptyPanel({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <section className="grid place-items-center rounded-2xl border border-dashed border-line bg-white px-6 py-14 text-center">
+      <span className="grid size-11 place-items-center rounded-xl bg-primary-50 text-primary-600 [&_svg]:size-5" aria-hidden="true">
+        {icon}
+      </span>
+      <p className="mt-3 font-semibold">{title}</p>
+      <p className="mt-1 max-w-md text-sm text-ink-muted">{children}</p>
+    </section>
   );
 }
 
 function RecentActivity({ user }: { user: StaffUserDetail }) {
   return (
-    <Card title="Recent activity" description="What this user did, newest first (up to 20 entries).">
+    <section aria-labelledby="activity-title" className="rounded-2xl border border-line bg-white">
+      <div className="flex flex-wrap items-end justify-between gap-3 px-6 pt-5 pb-4">
+        <div>
+          <h2 id="activity-title" className="text-base font-bold">
+            Recent activity
+          </h2>
+          <p className="text-xs text-ink-muted">What this person did, newest first (up to 20 entries).</p>
+        </div>
+        <p className="text-xs text-ink-muted">
+          Last sign-in {formatDateTime(user.lastLoginAt)} · Added {formatDateTime(user.createdAt)}
+        </p>
+      </div>
       {user.recentActivity.length === 0 ? (
-        <p className="text-sm text-ink-muted">No activity yet.</p>
+        <p className="px-6 pb-6 text-sm text-ink-muted">No activity yet.</p>
       ) : (
-        <div className="-mx-5 -mb-4 overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-y border-line text-left text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
-                <th scope="col" className="px-5 py-3">When</th>
-                <th scope="col" className="px-5 py-3">Activity</th>
-                <th scope="col" className="px-5 py-3">IP address</th>
+              <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                <th scope="col" className="px-6 py-3">When</th>
+                <th scope="col" className="px-6 py-3">Activity</th>
+                <th scope="col" className="px-6 py-3">IP address</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {user.recentActivity.map((entry, index) => (
                 <tr key={`${entry.occurredAt}-${index}`}>
-                  <td className="px-5 py-3 whitespace-nowrap text-ink-soft">{formatDateTime(entry.occurredAt)}</td>
-                  <td className="px-5 py-3">
+                  <td className="px-6 py-3 whitespace-nowrap text-ink-soft">{formatDateTime(entry.occurredAt)}</td>
+                  <td className="px-6 py-3">
                     {entry.actionLabel}
                     {entry.targetLabel && <span className="text-ink-muted"> · {entry.targetLabel}</span>}
                     {entry.outcome === "FAILURE" && (
@@ -225,13 +345,13 @@ function RecentActivity({ user }: { user: StaffUserDetail }) {
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-3 font-mono text-xs text-ink-muted">{entry.ipAddress ?? "—"}</td>
+                  <td className="px-6 py-3 font-mono text-xs text-ink-muted">{entry.ipAddress ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-    </Card>
+    </section>
   );
 }

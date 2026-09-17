@@ -11,6 +11,8 @@ export interface Session {
   /** Store the tokens from a sign-in, refresh or password change. */
   applySignIn: (response: SignInResponse) => void;
   signOut: () => Promise<void>;
+  /** Replaces the signed-in user's profile, e.g. after they pick a workspace. */
+  applyProfile: (user: StaffProfile) => void;
   /** Fetches the user's current permissions, which an Admin may have changed since sign-in (#75). */
   reloadUser: () => Promise<void>;
 }
