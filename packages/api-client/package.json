@@ -1,0 +1,23 @@
+{
+  "name": "@atomprive/api-client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./portal": "./src/generated/portal.ts",
+    "./backoffice": "./src/generated/backoffice.ts"
+  },
+  "scripts": {
+    "generate": "orval",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.100.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.100.0",
+    "orval": "^8.33.0",
+    "typescript": "~6.0.2"
+  }
+}

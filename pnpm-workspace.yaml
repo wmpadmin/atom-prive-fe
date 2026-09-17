@@ -1,0 +1,6 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  # Installs esbuild's native binary (used when Orval loads its TypeScript config).
+  esbuild: true

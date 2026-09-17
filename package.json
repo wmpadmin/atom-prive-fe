@@ -1,0 +1,19 @@
+{
+  "name": "atomprive-frontend",
+  "private": true,
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev:portal": "pnpm --filter @atomprive/portal dev",
+    "dev:backoffice": "pnpm --filter @atomprive/backoffice dev",
+    "build": "pnpm --filter \"./apps/*\" build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "oxlint apps packages",
+    "api:generate": "pnpm --filter @atomprive/api-client generate"
+  },
+  "devDependencies": {
+    "oxlint": "^1.81.0"
+  }
+}
