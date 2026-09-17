@@ -1,5 +1,5 @@
 import { Avatar, cn } from "@atomprive/ui";
-import { ChevronDown, KeyRound, LogOut, ShieldCheck, Users, type LucideIcon } from "lucide-react";
+import { ChevronDown, KeyRound, Landmark, LogOut, ShieldCheck, Users, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
@@ -10,6 +10,7 @@ import { hasAuthority, type Authority } from "./lib/permissions";
 const allNavigation: { to: string; label: string; icon: LucideIcon; authority: Authority }[] = [
   { to: "/users", label: "Manage staff users", icon: Users, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
   { to: "/roles", label: "Permission matrix", icon: ShieldCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
+  { to: "/audit-log", label: "Audit log", icon: Landmark, authority: "VIEW_AUDIT_LOG:VIEW" },
 ];
 
 export function AppLayout() {

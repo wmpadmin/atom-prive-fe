@@ -9,6 +9,9 @@ export function HomePage() {
   if (hasAuthority(user, "MANAGE_USERS_AND_ROLES:VIEW")) {
     return <Navigate to="/users" replace />;
   }
+  if (hasAuthority(user, "VIEW_AUDIT_LOG:VIEW")) {
+    return <Navigate to="/audit-log" replace />;
+  }
   return (
     <Card title={`Welcome, ${user.fullName}`}>
       <p className="text-sm text-slate-600">
