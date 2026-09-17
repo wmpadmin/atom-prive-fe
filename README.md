@@ -15,6 +15,7 @@ Frontend for the Atom Privé wealth management platform: a React 19 and TypeScri
 - Choosing a new password at first sign-in, with a live checklist of the password rules (#2, #74)
 - Manage staff users and the user detail page, as designed in Figma (#74)
 - Permission matrix, as designed in Figma (#75)
+- Audit log with search, role, result and date filters, and CSV export, as designed in Figma (#82)
 - Menu items and screens only shown to people allowed to use them (#85)
 
 ## Prerequisites

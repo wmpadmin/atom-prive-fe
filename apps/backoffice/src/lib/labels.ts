@@ -21,23 +21,9 @@ export const statusLabels: Record<StaffStatus, string> = {
 
 export const statuses = Object.keys(statusLabels) as StaffStatus[];
 
-const actionLabels: Record<string, string> = {
-  "staff.login.succeeded": "Signed in",
-  "staff.login.failed": "Failed sign-in attempt",
-  "staff.logout": "Signed out",
-  "staff.password.changed": "Changed their password",
-  "staff.user.created": "Added a user",
-  "staff.user.updated": "Updated a user",
-  "staff.user.deactivated": "Deactivated a user",
-  "staff.user.password_reset": "Reset a user's password",
-  "staff.users.exported": "Exported the staff list",
-  "staff.role.permission_changed": "Changed a role's access",
-  "staff.role.permissions_changed": "Changed role permissions",
-  "staff.roles.exported": "Exported the permission matrix",
-};
-
-export function actionLabel(action: string) {
-  return actionLabels[action] ?? action;
+/** A role code from the API as shown on screen, including roles this list doesn't have yet ("FAMILY_MEMBER" → "Family member"). */
+export function roleLabel(code: string) {
+  return roleLabels[code as StaffRole] ?? code.charAt(0) + code.slice(1).toLowerCase().replaceAll("_", " ");
 }
 
 const dateTime = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" });

@@ -6,14 +6,14 @@ import {
   useUpdateStaffUser,
   type StaffUserDetail,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Button, Card, describedBy, Field, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, Card, describedBy, Field, SelectInput, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, KeyRound, Power } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
-import { actionLabel, formatDateTime, formatRelative, roleLabels, roles, type StaffRole } from "../../lib/labels";
+import { formatDateTime, formatRelative, roleLabels, roles, type StaffRole } from "../../lib/labels";
 import { DeactivateUserDialog } from "./deactivate-user-dialog";
 import { ResetPasswordDialog } from "./reset-password-dialog";
 import { StatusBadge } from "./status-badge";
@@ -216,7 +216,15 @@ function RecentActivity({ user }: { user: StaffUserDetail }) {
               {user.recentActivity.map((entry, index) => (
                 <tr key={`${entry.occurredAt}-${index}`}>
                   <td className="px-5 py-3 whitespace-nowrap text-ink-soft">{formatDateTime(entry.occurredAt)}</td>
-                  <td className="px-5 py-3">{actionLabel(entry.action)}</td>
+                  <td className="px-5 py-3">
+                    {entry.actionLabel}
+                    {entry.targetLabel && <span className="text-ink-muted"> · {entry.targetLabel}</span>}
+                    {entry.outcome === "FAILURE" && (
+                      <span className="ml-2">
+                        <Badge tone="danger">Failed</Badge>
+                      </span>
+                    )}
+                  </td>
                   <td className="px-5 py-3 font-mono text-xs text-ink-muted">{entry.ipAddress ?? "—"}</td>
                 </tr>
               ))}

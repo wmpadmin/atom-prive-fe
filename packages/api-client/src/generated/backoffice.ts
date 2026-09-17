@@ -53,13 +53,21 @@ export interface UpdateStaffUserRequest {
   role: UpdateStaffUserRequestRole;
 }
 
+export type ActivityEntryOutcome = typeof ActivityEntryOutcome[keyof typeof ActivityEntryOutcome];
+
+
+export const ActivityEntryOutcome = {
+  SUCCESS: 'SUCCESS',
+  FAILURE: 'FAILURE',
+} as const;
+
 export interface ActivityEntry {
   occurredAt: string;
   action: string;
+  actionLabel: string;
   /** @nullable */
-  targetType: string | null;
-  /** @nullable */
-  targetId: string | null;
+  targetLabel: string | null;
+  outcome: ActivityEntryOutcome;
   /** @nullable */
   ipAddress: string | null;
 }
@@ -254,6 +262,47 @@ export interface TemporaryPassword {
   temporaryPassword: string;
 }
 
+export type AuditLogEntryActorType = typeof AuditLogEntryActorType[keyof typeof AuditLogEntryActorType];
+
+
+export const AuditLogEntryActorType = {
+  CUSTOMER: 'CUSTOMER',
+  STAFF: 'STAFF',
+  SYSTEM: 'SYSTEM',
+} as const;
+
+export type AuditLogEntryOutcome = typeof AuditLogEntryOutcome[keyof typeof AuditLogEntryOutcome];
+
+
+export const AuditLogEntryOutcome = {
+  SUCCESS: 'SUCCESS',
+  FAILURE: 'FAILURE',
+} as const;
+
+export interface AuditLogEntry {
+  id: string;
+  occurredAt: string;
+  actorType: AuditLogEntryActorType;
+  /** @nullable */
+  actorName: string | null;
+  /** @nullable */
+  actorRole: string | null;
+  action: string;
+  actionLabel: string;
+  /** @nullable */
+  targetLabel: string | null;
+  outcome: AuditLogEntryOutcome;
+  /** @nullable */
+  ipAddress: string | null;
+}
+
+export interface AuditLogPage {
+  items: AuditLogEntry[];
+  page: number;
+  size: number;
+  totalItems: number;
+}
+
 export interface StaffUserCounts {
   total: number;
   active: number;
@@ -379,6 +428,40 @@ export const ListStaffUsersStatus = {
   INVITED: 'INVITED',
   ACTIVE: 'ACTIVE',
   DEACTIVATED: 'DEACTIVATED',
+} as const;
+
+export type ListAuditEventsParams = {
+query?: string;
+role?: string;
+outcome?: ListAuditEventsOutcome;
+from?: string;
+to?: string;
+page?: number;
+size?: number;
+};
+
+export type ListAuditEventsOutcome = typeof ListAuditEventsOutcome[keyof typeof ListAuditEventsOutcome];
+
+
+export const ListAuditEventsOutcome = {
+  SUCCESS: 'SUCCESS',
+  FAILURE: 'FAILURE',
+} as const;
+
+export type ExportAuditEventsParams = {
+query?: string;
+role?: string;
+outcome?: ExportAuditEventsOutcome;
+from?: string;
+to?: string;
+};
+
+export type ExportAuditEventsOutcome = typeof ExportAuditEventsOutcome[keyof typeof ExportAuditEventsOutcome];
+
+
+export const ExportAuditEventsOutcome = {
+  SUCCESS: 'SUCCESS',
+  FAILURE: 'FAILURE',
 } as const;
 
 export type ExportStaffUsersParams = {
@@ -1391,6 +1474,210 @@ export function useGetCurrentStaff<TData = Awaited<ReturnType<typeof getCurrentS
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetCurrentStaffQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAuditEventsUrl = (params?: ListAuditEventsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/audit-log?${stringifiedParams}` : `/api/backoffice/audit-log`
+}
+
+export const listAuditEvents = async (params?: ListAuditEventsParams, options?: Parameters<typeof http>[1]): Promise<AuditLogPage> => {
+
+  return http<AuditLogPage>(getListAuditEventsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAuditEventsQueryKey = (params?: ListAuditEventsParams,) => {
+    return [
+    `/api/backoffice/audit-log`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAuditEventsQueryOptions = <TData = Awaited<ReturnType<typeof listAuditEvents>>, TError = unknown>(params?: ListAuditEventsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditEvents>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAuditEventsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditEvents>>> = ({ signal }) => listAuditEvents(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAuditEvents>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAuditEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditEvents>>>
+export type ListAuditEventsQueryError = unknown
+
+
+export function useListAuditEvents<TData = Awaited<ReturnType<typeof listAuditEvents>>, TError = unknown>(
+ params: undefined |  ListAuditEventsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditEvents>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAuditEvents>>,
+          TError,
+          Awaited<ReturnType<typeof listAuditEvents>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAuditEvents<TData = Awaited<ReturnType<typeof listAuditEvents>>, TError = unknown>(
+ params?: ListAuditEventsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditEvents>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAuditEvents>>,
+          TError,
+          Awaited<ReturnType<typeof listAuditEvents>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAuditEvents<TData = Awaited<ReturnType<typeof listAuditEvents>>, TError = unknown>(
+ params?: ListAuditEventsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditEvents>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListAuditEvents<TData = Awaited<ReturnType<typeof listAuditEvents>>, TError = unknown>(
+ params?: ListAuditEventsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditEvents>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListAuditEventsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportAuditEventsUrl = (params?: ExportAuditEventsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/audit-log/export?${stringifiedParams}` : `/api/backoffice/audit-log/export`
+}
+
+export const exportAuditEvents = async (params?: ExportAuditEventsParams, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getExportAuditEventsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportAuditEventsQueryKey = (params?: ExportAuditEventsParams,) => {
+    return [
+    `/api/backoffice/audit-log/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportAuditEventsQueryOptions = <TData = Awaited<ReturnType<typeof exportAuditEvents>>, TError = unknown>(params?: ExportAuditEventsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditEvents>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportAuditEventsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAuditEvents>>> = ({ signal }) => exportAuditEvents(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportAuditEvents>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportAuditEventsQueryResult = NonNullable<Awaited<ReturnType<typeof exportAuditEvents>>>
+export type ExportAuditEventsQueryError = unknown
+
+
+export function useExportAuditEvents<TData = Awaited<ReturnType<typeof exportAuditEvents>>, TError = unknown>(
+ params: undefined |  ExportAuditEventsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditEvents>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportAuditEvents>>,
+          TError,
+          Awaited<ReturnType<typeof exportAuditEvents>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportAuditEvents<TData = Awaited<ReturnType<typeof exportAuditEvents>>, TError = unknown>(
+ params?: ExportAuditEventsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditEvents>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportAuditEvents>>,
+          TError,
+          Awaited<ReturnType<typeof exportAuditEvents>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportAuditEvents<TData = Awaited<ReturnType<typeof exportAuditEvents>>, TError = unknown>(
+ params?: ExportAuditEventsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditEvents>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportAuditEvents<TData = Awaited<ReturnType<typeof exportAuditEvents>>, TError = unknown>(
+ params?: ExportAuditEventsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditEvents>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportAuditEventsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
