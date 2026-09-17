@@ -1,0 +1,46 @@
+/*
+ * Shared design tokens for the portal and the back-office.
+ * Typography comes from the Figma style guide (Plus Jakarta Sans). Colours were matched by eye to the
+ * Figma "Manage staff users" screen; swap in exact values from Figma Dev Mode when available.
+ */
+@theme {
+  --font-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* Navy: brand panels and the signed-in user's avatar */
+  --color-brand-950: #051634;
+  --color-brand-900: #0b2a5b;
+  --color-brand-50: #eef3fa;
+
+  /* Blue: primary actions, active navigation, icon tiles */
+  --color-primary-50: #eaf1fd;
+  --color-primary-100: #d8e5fb;
+  --color-primary-600: #1d6ee8;
+  --color-primary-700: #175ac4;
+
+  /* Surfaces and lines */
+  --color-canvas: #edf2f8;
+  --color-sidebar: #f6f8fc;
+  --color-line: #e3e9f1;
+
+  /* Text */
+  --color-ink: #0f172a;
+  --color-ink-soft: #334155;
+  --color-ink-muted: #64748b;
+
+  /* Access levels on the Permission matrix: legend dot, control background, control text */
+  --color-access-full: #22a05a;
+  --color-access-full-soft: #e8f7ee;
+  --color-access-full-ink: #16784a;
+  --color-access-view: #f28a1c;
+  --color-access-view-soft: #fef1e2;
+  --color-access-view-ink: #b35309;
+  --color-access-own: #8c8c24;
+  --color-access-own-soft: #f3f3de;
+  --color-access-own-ink: #5f5f14;
+  --color-access-assigned: #1d6ee8;
+  --color-access-assigned-soft: #eaf1fd;
+  --color-access-assigned-ink: #175ac4;
+  --color-access-none: #e5484d;
+  --color-access-none-soft: #fdeced;
+  --color-access-none-ink: #b4232a;
+}
