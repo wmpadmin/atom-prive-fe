@@ -6,6 +6,9 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    // Bind IPv4 loopback: Node resolves "localhost" to ::1 first on macOS, which
+    // leaves http://127.0.0.1 refusing connections.
+    host: "127.0.0.1",
     port: 5173,
     strictPort: true,
     proxy: {

@@ -12,7 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { noErrors, toFormErrors } from "../../lib/api-errors";
 import type { StaffRole } from "../../lib/labels";
-import { focusFirstError, readStaffProfile, useStaffProfileForm } from "./staff-profile";
+import { errorsToShow, focusFirstError, readStaffProfile, useStaffProfileForm } from "./staff-profile";
 import { StaffFormFooter, StaffProfileFields } from "./staff-profile-fields";
 import { TemporaryPasswordBox } from "./temporary-password-box";
 
@@ -75,7 +75,7 @@ function AddUserForm({ onCancel, onCreated }: { onCancel: () => void; onCreated:
         onCreated(created);
       },
       onError: (error) => {
-        const failed = toFormErrors(error);
+        const failed = errorsToShow(formRef.current, toFormErrors(error));
         setErrors(failed);
         focusFirstError(formRef.current, failed.fields);
       },

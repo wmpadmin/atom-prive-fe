@@ -2,7 +2,7 @@ import { Card } from "@atomprive/ui";
 import { Navigate } from "react-router";
 import { useStaffUser } from "../auth/session";
 import { roleLabels } from "../lib/labels";
-import { hasAuthority } from "../lib/permissions";
+import { advisesClients, hasAuthority } from "../lib/permissions";
 
 export function HomePage() {
   const user = useStaffUser();
@@ -14,6 +14,9 @@ export function HomePage() {
   }
   if (hasAuthority(user, "VIEW_AUDIT_LOG:VIEW")) {
     return <Navigate to="/audit-log" replace />;
+  }
+  if (advisesClients(user)) {
+    return <Navigate to="/my-clients" replace />;
   }
   return (
     <Card title={`Welcome, ${user.fullName}`}>

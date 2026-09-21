@@ -4,7 +4,10 @@ import { noErrors, type FormErrors } from "../../lib/api-errors";
 import type { StaffRole } from "../../lib/labels";
 import { checkMobileNumber, invalidMobileMessage, mobileCountry } from "../../lib/mobile-numbers";
 
-/** Every detail is required to add or edit a staff member, in the order the form shows them. The API sends the same messages. */
+/**
+ * Every detail is required to add or edit a staff member, in the order the form shows them, except who they report to,
+ * which Admins don't have. The API sends the same messages.
+ */
 const requiredMessages = {
   fullName: "Enter their full name.",
   email: "Enter their work email.",
@@ -36,8 +39,11 @@ export function readStaffProfile(form: HTMLFormElement, roles: StaffRole[], repo
     nationality: text("nationality"),
     residentialAddress: text("residentialAddress"),
     designation: text("designation"),
+    // The declarations register shows these two; neither is asked for, so a blank one stays blank.
+    department: text("department") || null,
+    employeeId: text("employeeId") || null,
     employmentStart: text("employmentStart"),
-    reportsToId,
+    reportsToId: reportsToId || null,
     licenceNumber: text("licenceNumber"),
     nationalId: text("nationalId"),
     passportNumber: text("passportNumber"),
@@ -46,11 +52,25 @@ export function readStaffProfile(form: HTMLFormElement, roles: StaffRole[], repo
   for (const field of Object.keys(requiredMessages) as ProfileField[]) {
     if (field === "phone" && mobile.problem === "invalid") {
       missing.phone = invalidMobileMessage(country);
-    } else if (data[field].length === 0) {
+    } else if (field === "reportsToId" && roles.includes("ADMIN")) {
+      // Admins run the firm, so they report to nobody.
+    } else if ((data[field] ?? "").length === 0) {
       missing[field] = requiredMessages[field];
     }
   }
   return { data, missing };
+}
+
+/**
+ * What the server refused, ready to show. Problems about fields the form doesn't show — such as the manager an Admin
+ * doesn't have — are said at the top instead, so nothing is refused silently.
+ */
+export function errorsToShow(form: HTMLFormElement | null, errors: FormErrors): FormErrors {
+  const hidden = Object.entries(errors.fields).filter(([name]) => !form?.elements.namedItem(name));
+  if (hidden.length === 0) {
+    return errors;
+  }
+  return { ...errors, form: errors.form ?? hidden.map(([, message]) => message).join(" ") };
 }
 
 /** Puts the cursor in the first field with a problem, which may be scrolled out of view in a long form. */

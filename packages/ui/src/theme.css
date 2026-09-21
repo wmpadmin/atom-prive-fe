@@ -6,7 +6,10 @@
 @import "react-day-picker/style.css";
 
 @theme {
-  --font-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  /* The client's own forms mark their headings with emoji, so the stack ends with a face that has them. */
+  --font-sans:
+    "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
 
   /* Text below Tailwind's text-xs: counters, chips and uppercase labels */
   --text-3xs: 0.625rem;

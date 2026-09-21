@@ -1,5 +1,6 @@
 import type { CaseSummary } from "@atomprive/api-client/backoffice";
 import { countryName } from "../../lib/countries";
+import { categoryLabels, categoryOf } from "./case-category";
 
 export type CaseStatus = CaseSummary["status"];
 
@@ -12,8 +13,8 @@ export const caseStatuses = Object.keys(caseStatusLabels) as CaseStatus[];
 
 /** What's shown under the client's name, such as "Individual · Joint · India". */
 export function caseSubtitle(summary: CaseSummary) {
-  const parts = [summary.clientType === "ENTITY" ? "Entity" : "Individual"];
-  if (summary.clientType === "INDIVIDUAL" && summary.accountHolders > 1) parts.push("Joint");
+  // One category, not two: an individual application becomes joint the moment a second holder is added.
+  const parts = [categoryLabels[categoryOf(summary)]];
   if (summary.countryCode) parts.push(countryName(summary.countryCode));
   return parts.join(" · ");
 }
@@ -27,11 +28,6 @@ export function initialsOf(name: string) {
     .join("");
 }
 
-const day = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
-
-export function formatDay(value: string) {
-  return day.format(new Date(value));
-}
 
 /** The case list as it was left, with its search, filter and page, for links back to it from a case. */
 export function listHref(state: unknown) {

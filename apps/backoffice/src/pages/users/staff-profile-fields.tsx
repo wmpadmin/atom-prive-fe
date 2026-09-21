@@ -19,7 +19,6 @@ interface StaffProfileFieldsProps {
   onFieldChange: (field: string) => void;
   roles: StaffRole[];
   onRolesChange: (roles: StaffRole[]) => void;
-  rolesDisabled?: boolean;
   rolesHint?: string;
   reportsToId: string;
   onReportsToChange: (id: string) => void;
@@ -35,7 +34,6 @@ export function StaffProfileFields({
   onFieldChange,
   roles,
   onRolesChange,
-  rolesDisabled,
   rolesHint,
   reportsToId,
   onReportsToChange,
@@ -94,24 +92,27 @@ export function StaffProfileFields({
             required
           />
         </Field>
-        <Field id="reportsToId" label="Reporting to" required error={fields.reportsToId}>
-          <SelectInput
-            {...describedBy("reportsToId", fields.reportsToId)}
-            name="reportsToId"
-            value={reportsToId}
-            onChange={(event) => onReportsToChange(event.target.value)}
-            required
-          >
-            <option value="" disabled>
-              Choose a person
-            </option>
-            {managers.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.fullName}
+        {/* Admins run the firm, so they report to nobody. */}
+        {!roles.includes("ADMIN") && (
+          <Field id="reportsToId" label="Reporting to" required error={fields.reportsToId}>
+            <SelectInput
+              {...describedBy("reportsToId", fields.reportsToId)}
+              name="reportsToId"
+              value={reportsToId}
+              onChange={(event) => onReportsToChange(event.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Choose a person
               </option>
-            ))}
-          </SelectInput>
-        </Field>
+              {managers.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.fullName}
+                </option>
+              ))}
+            </SelectInput>
+          </Field>
+        )}
         <Field id="licenceNumber" label="Licence number" required error={fields.licenceNumber}>
           <TextInput {...describedBy("licenceNumber", fields.licenceNumber)} name="licenceNumber" placeholder="CMS-FA-204" defaultValue={user?.licenceNumber ?? ""} required />
         </Field>
@@ -119,7 +120,7 @@ export function StaffProfileFields({
 
       <Section title="Access & identity">
         <div className="sm:col-span-2">
-          <RolePicker required value={roles} onChange={onRolesChange} disabled={rolesDisabled} hint={rolesHint} error={fields.roles} />
+          <RolePicker required value={roles} onChange={onRolesChange} hint={rolesHint} error={fields.roles} />
         </div>
         <Field id="nationalId" label="PAN ID / EID" required error={fields.nationalId}>
           <TextInput {...describedBy("nationalId", fields.nationalId)} name="nationalId" autoComplete="off" defaultValue={user?.nationalId ?? ""} className="uppercase" required />

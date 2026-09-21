@@ -266,6 +266,8 @@ export function reviewApplication(application: FormApplication, managers: StaffM
     return { problems, steps };
   }
 
+  // Each holder becomes a customer who signs in with their email, so no two can share one.
+  const emails = new Set<string>();
   application.holders.forEach((holder, index) => {
     const at = `holders[${index}].`;
     const group = holderGroup(index);
@@ -322,10 +324,29 @@ export function reviewApplication(application: FormApplication, managers: StaffM
       }
       if (blank(holder.email)) problem(`${at}email`, "Enter their email address.");
       else if (!email.test((holder.email ?? "").trim())) problem(`${at}email`, "Enter a valid email address, such as name@example.com.");
+      else if (emails.has((holder.email ?? "").trim().toLowerCase())) problem(`${at}email`, "Each account holder needs their own email address.");
+      else emails.add((holder.email ?? "").trim().toLowerCase());
       address(holder.residentialAddress, `${at}residentialAddress.`);
       if (!holder.mailingSameAsResidential) address(holder.mailingAddress, `${at}mailingAddress.`);
       if (holder.secondaryMailingAddress) address(holder.secondaryMailingAddress, `${at}secondaryMailingAddress.`);
     });
   });
   return { problems, steps };
+}
+
+const personalFields = new Set(["fullName", "forenames", "surname", "relationshipToPrimary", "dateOfBirth", "idNumber", "idExpiry", "nationality", "countryOfBirth", "otherNationality", "otherNationalityCountry"]);
+const occupationFields = new Set(["occupation", "occupationOther", "employer", "business"]);
+const businessFields = new Set(["regulated", "regulatorName", "countriesOfBusiness", "organisationType", "organisationTypeOther"]);
+
+/** The step a field is on, such as "holder-1-contact" for "holders[1].email", to show where a problem is. */
+export function stepOfField(field: string) {
+  const holder = /^holders\[(\d+)\]\.(\w+)/.exec(field);
+  if (holder) {
+    const [, index, name = ""] = holder;
+    return `holder-${index}-${personalFields.has(name) ? "personal" : occupationFields.has(name) ? "occupation" : "contact"}`;
+  }
+  const entity = /^entity\.(\w+)/.exec(field)?.[1];
+  if (entity === "registeredAddress") return "entity-address";
+  if (entity) return businessFields.has(entity) ? "entity-business" : "entity-details";
+  return "client";
 }

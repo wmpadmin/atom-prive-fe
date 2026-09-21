@@ -7,16 +7,19 @@ import {
   type CaseDetail,
   type StaffMember,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar } from "@atomprive/ui";
+import { Alert, Avatar, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { formatDate } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
 import { newApplication, toForm } from "./application";
 import { ApplicationSummary } from "./application-summary";
-import { caseSubtitle, formatDay, listHref } from "./case-labels";
+import { CaseDocumentsTab } from "./case-documents-tab";
+import { CaseSignOff, SignOffNotice } from "./case-sign-off";
+import { caseSubtitle, listHref } from "./case-labels";
 import { CaseStatusBadge, ClientMark, ProgressMeter } from "./case-parts";
 import { OnboardingWizard } from "./onboarding-wizard";
 
@@ -70,7 +73,8 @@ export function OnboardingCasePage() {
     );
   }
   const justSubmitted = (location.state as { submitted?: boolean } | null)?.submitted === true;
-  return <CaseOverview detail={detail} justSubmitted={justSubmitted} canChange={canChange} backTo={backTo} />;
+  const openAt = (location.state as { tab?: "client" | "documents" } | null)?.tab ?? "client";
+  return <CaseOverview detail={detail} justSubmitted={justSubmitted} canChange={canChange} backTo={backTo} openAt={openAt} />;
 }
 
 function BackLink({ to }: { to: string }) {
@@ -83,9 +87,10 @@ function BackLink({ to }: { to: string }) {
 }
 
 /** A case as it stands, for submitted cases and for people who can only view onboarding. */
-function CaseOverview({ detail, justSubmitted, canChange, backTo }: { detail: CaseDetail; justSubmitted: boolean; canChange: boolean; backTo: string }) {
+function CaseOverview({ detail, justSubmitted, canChange, backTo, openAt }: { detail: CaseDetail; justSubmitted: boolean; canChange: boolean; backTo: string; openAt: "client" | "documents" }) {
   const { summary } = detail;
   const manager = summary.relationshipManager;
+  const [tab, setTab] = useState<"client" | "documents">(openAt);
 
   return (
     <div className="space-y-6">
@@ -99,9 +104,36 @@ function CaseOverview({ detail, justSubmitted, canChange, backTo }: { detail: Ca
               <p className="mt-0.5 text-sm text-ink-muted">{caseSubtitle(summary)}</p>
             </div>
           </div>
-          <CaseStatusBadge status={summary.status} />
+          <div className="flex flex-wrap items-center gap-3">
+            <CaseStatusBadge status={summary.status} />
+            <CaseSignOff detail={detail} canChange={canChange} />
+          </div>
+        </div>
+        <div role="tablist" aria-label="Case" className="flex gap-1 border-b border-line">
+          {([["client", "Client view"], ["documents", "Client documents"]] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={cn(
+                "-mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
+                tab === id ? "border-primary-600 text-primary-700" : "border-transparent text-ink-muted hover:text-ink",
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </header>
+
+      <SignOffNotice detail={detail} />
+
+      {tab === "documents" && <CaseDocumentsTab detail={detail} canChange={canChange} />}
+      {tab === "client" && (
+        <>
 
       {justSubmitted && summary.submitted && (
         <Alert tone="success">Details submitted. The next stage is collecting the client's documents.</Alert>
@@ -125,8 +157,8 @@ function CaseOverview({ detail, justSubmitted, canChange, backTo }: { detail: Ca
             "Not chosen yet"
           )}
         </Fact>
-        <Fact label="Started">{formatDay(summary.startedAt)}</Fact>
-        <Fact label="Submitted">{detail.submittedAt ? formatDay(detail.submittedAt) : "Not yet"}</Fact>
+        <Fact label="Started">{formatDate(summary.startedAt)}</Fact>
+        <Fact label="Submitted">{detail.submittedAt ? formatDate(detail.submittedAt) : "Not yet"}</Fact>
         <Fact label="Current stage">
           <span className="block">{summary.currentStage}</span>
           <ProgressMeter done={summary.completedSteps} total={summary.totalSteps} className="mt-2" />
@@ -144,6 +176,8 @@ function CaseOverview({ detail, justSubmitted, canChange, backTo }: { detail: Ca
         </div>
         <ApplicationSummary application={toForm(detail.application)} managers={manager ? [manager] : []} />
       </section>
+        </>
+      )}
     </div>
   );
 }

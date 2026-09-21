@@ -1,5 +1,23 @@
 import { Avatar, cn } from "@atomprive/ui";
-import { ArrowLeftRight, ChevronDown, KeyRound, Landmark, LogOut, ShieldCheck, SlidersHorizontal, UserPlus, Users, type LucideIcon } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ChevronDown,
+  ClipboardCheck,
+  Contact,
+  FileSignature,
+  FileText,
+  KeyRound,
+  Landmark,
+  LogOut,
+  Mail,
+  RefreshCw,
+  ShieldCheck,
+  SlidersHorizontal,
+  UserPlus,
+  Users,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
@@ -8,11 +26,20 @@ import { hasAuthority, type Authority } from "./lib/permissions";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
 const allNavigation: { to: string; label: string; icon: LucideIcon; authority: Authority }[] = [
+  { to: "/clients", label: "All clients", icon: Contact, authority: "VIEW_ALL_CLIENTS:VIEW" },
+  { to: "/my-clients", label: "My clients", icon: Contact, authority: "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS" },
+  { to: "/proposals", label: "Proposals", icon: FileSignature, authority: "SEND_PROPOSALS:OWN_CLIENTS" },
   { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: "ONBOARD_CLIENTS:VIEW" },
+  { to: "/forms", label: "Forms", icon: FileText, authority: "ONBOARD_CLIENTS:VIEW" },
+  { to: "/staff-declarations", label: "Staff declarations", icon: ClipboardCheck, authority: "ONBOARD_CLIENTS:VIEW" },
   { to: "/users", label: "Manage staff users", icon: Users, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
   { to: "/roles", label: "Permission matrix", icon: ShieldCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
   { to: "/config", label: "Config data", icon: SlidersHorizontal, authority: "MANAGE_CONFIGURATION:VIEW" },
+  { to: "/bank-syncs", label: "Bank syncs", icon: RefreshCw, authority: "MANAGE_BANK_FEEDS:VIEW" },
+  { to: "/notifications", label: "Notification log", icon: Mail, authority: "MANAGE_CONFIGURATION:VIEW" },
   { to: "/audit-log", label: "Audit log", icon: Landmark, authority: "VIEW_AUDIT_LOG:VIEW" },
+  { to: "/family-access", label: "Family access trail", icon: UsersRound, authority: "VIEW_AUDIT_LOG:VIEW" },
+  { to: "/proposal-trail", label: "Proposal trail", icon: FileSignature, authority: "VIEW_AUDIT_LOG:VIEW" },
 ];
 
 export function AppLayout() {
@@ -91,7 +118,7 @@ function UserMenu() {
           <span className="block text-sm font-semibold">{user.fullName}</span>
           <span className="block text-xs text-ink-muted">{user.activeRole ? roleLabels[user.activeRole] : ""}</span>
         </span>
-        <Avatar name={user.fullName} tone="navy" className="size-10" />
+        <Avatar name={user.fullName} className="size-10" />
         <ChevronDown className="size-4 text-ink-muted" aria-hidden="true" />
       </button>
       {open && (
