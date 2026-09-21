@@ -3,12 +3,14 @@ import {
   exportStaffUser,
   getGetStaffUserQueryKey,
   useGetStaffUser,
+  useForStaff,
   useResetStaffUserAuthenticator,
+  type StaffDeclarations,
   type StaffUserDetail,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, cn, Pagination } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Download, FileText, PencilLine, ScrollText, Search } from "lucide-react";
+import { ChevronLeft, Download, FileText, PencilLine, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -19,6 +21,7 @@ import { formatDateTime, formatRelative, roleList, statusLabels } from "../../li
 import { countryName } from "../../lib/countries";
 import { formatMobileNumber } from "../../lib/mobile-numbers";
 import { ConfirmDialog } from "../config/confirm-dialog";
+import { DeclarationsProgress, DeclarationsTable } from "../staff-declarations/declarations-table";
 import { DeactivateUserDialog } from "./deactivate-user-dialog";
 import { EditStaffDialog } from "./edit-staff-dialog";
 import { ResetPasswordDialog } from "./reset-password-dialog";
@@ -42,6 +45,8 @@ export function UserDetailPage() {
   const currentUser = useStaffUser();
   const queryClient = useQueryClient();
   const detail = useGetStaffUser<StaffUserDetail, ApiError>(userId);
+  // The nine everyone at the firm signs, so their standing is on their own record and not only on the register.
+  const declarations = useForStaff<StaffDeclarations, ApiError>(userId, { query: { enabled: Boolean(userId) } });
   const [tab, setTab] = useState<Tab>("overview");
   const [dialog, setDialog] = useState<"edit" | "reset" | "reset-authenticator" | "deactivate" | null>(null);
   const [notice, setNotice] = useState<Notice>();
@@ -134,8 +139,12 @@ export function UserDetailPage() {
         <Stat label="Tracker completeness">
           {user.completeness.filled}/{user.completeness.total} fields
         </Stat>
-        <Stat label="All declarations" muted>
-          None yet
+        <Stat label="All declarations" muted={!declarations.data}>
+          {declarations.data
+            ? `${declarations.data.employee.signed} of ${declarations.data.employee.total} signed`
+            : declarations.isError
+              ? "Unavailable"
+              : "—"}
         </Stat>
         <Stat label="Last active">{formatRelative(user.lastActiveAt)}</Stat>
       </div>
@@ -213,11 +222,7 @@ export function UserDetailPage() {
             <AssignedClients />
           </>
         )}
-        {tab === "declarations" && (
-          <EmptyPanel icon={<ScrollText />} title="No declarations yet">
-            Declarations this person signs, such as conflicts of interest, will appear here.
-          </EmptyPanel>
-        )}
+        {tab === "declarations" && <Declarations held={declarations.data} problem={declarations.error?.message} />}
         {tab === "documents" && (
           <EmptyPanel icon={<FileText />} title="No documents yet">
             Documents kept for this person, such as their licence and ID copies, will appear here.
@@ -255,6 +260,34 @@ export function UserDetailPage() {
         }}
       />
     </div>
+  );
+}
+
+/** All nine of this person's declarations, read-only: they are signed by the person themselves. */
+function Declarations({ held, problem }: { held?: StaffDeclarations; problem?: string }) {
+  if (problem) return <Alert tone="danger">{problem}</Alert>;
+  if (!held) return <p className="text-sm text-ink-muted">Loading their declarations…</p>;
+  return (
+    <section className="space-y-4 rounded-2xl border border-line bg-white px-6 py-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-bold text-ink">Declarations</h2>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            All nine mandatory declarations · each one is signed by them, in the portal
+          </p>
+        </div>
+        <p className="text-sm font-semibold text-ink">
+          {held.employee.signed} of {held.employee.total} signed
+        </p>
+      </div>
+      <DeclarationsProgress
+        signed={held.employee.signed}
+        total={held.employee.total}
+        outstanding={held.outstanding}
+        oldestOverdueSince={held.oldestOverdueSince}
+      />
+      <DeclarationsTable declarations={held.declarations} />
+    </section>
   );
 }
 
