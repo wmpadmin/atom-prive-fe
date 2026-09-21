@@ -15,6 +15,8 @@ import { ClientsPage } from "./pages/clients/clients-page";
 import { DocumentPage } from "./pages/forms/document-page";
 import { FormPage } from "./pages/forms/form-page";
 import { FormsPage } from "./pages/forms/forms-page";
+import { MyDeclarationPage } from "./pages/my-declarations/my-declaration-page";
+import { MyDeclarationsPage } from "./pages/my-declarations/my-declarations-page";
 import { StaffDeclarationsPage } from "./pages/staff-declarations/staff-declarations-page";
 import { HomePage } from "./pages/home-page";
 import { OPENS_CLIENT_FILES, WRITES_PROPOSALS } from "./lib/permissions";
@@ -42,6 +44,9 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { index: true, element: <HomePage /> },
+          // Everyone at the firm signs the same nine, so their own need no permission beyond being signed in.
+          { path: "my-declarations", element: <MyDeclarationsPage /> },
+          { path: "my-declarations/:kind", element: <MyDeclarationPage /> },
           {
             element: <RequireAuthority authority="VIEW_ALL_CLIENTS:VIEW" />,
             children: [

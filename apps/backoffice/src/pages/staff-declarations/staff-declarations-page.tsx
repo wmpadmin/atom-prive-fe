@@ -1,16 +1,22 @@
 import type { ApiError } from "@atomprive/api-client";
 import {
+  exportRegister,
   useForStaff,
   useListRegister,
+  useRemindOne,
+  useSendReminders,
+  type Reminders,
   type Register,
   type RegisterRow,
   type RegisterRowStanding,
   type StaffDeclarations,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, TextInput, cn } from "@atomprive/ui";
-import { Search } from "lucide-react";
+import { Download, Mail, Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { downloadTextFile } from "../../lib/download";
 import { formatDate } from "../../lib/labels";
+import { DeclarationsProgress, DeclarationsTable } from "./declarations-table";
 
 const MISSING = "—";
 
@@ -19,6 +25,34 @@ const standingLabels: Record<RegisterRowStanding, string> = {
   PENDING: "Pending",
   UNSIGNED: "Unsigned",
 };
+
+/** What to say when one person has been asked for what is outstanding from them. */
+function toldOne(told: Reminders): { tone: "success" | "info" | "danger"; message: string } {
+  if (told.noWording) return toldThem(told);
+  if (told.owing === 0) return { tone: "success", message: "They have signed all nine, so nothing was asked of them." };
+  if (told.failed > 0) return { tone: "danger", message: "That didn't go — the mail server refused it." };
+  return { tone: "success", message: "Asked them for what is still outstanding." };
+}
+
+/** What to say about a round of reminders, including when the firm hasn't written the email yet. */
+function toldThem(result: Reminders): { tone: "success" | "info" | "danger"; message: string } {
+  if (result.noWording) {
+    return {
+      tone: "info",
+      message:
+        "Nothing was sent: the reminder email is still a draft. Write it under Configuration → Email templates → Declarations outstanding, and it will go out from then on.",
+    };
+  }
+  if (result.owing === 0) return { tone: "success", message: "Nobody has anything outstanding, so nobody was written to." };
+  const people = `${result.sent} ${result.sent === 1 ? "person" : "people"}`;
+  if (result.failed > 0) {
+    return {
+      tone: "danger",
+      message: `Reminded ${people}. ${result.failed} didn't go — the mail server refused them.`,
+    };
+  }
+  return { tone: "success", message: `Reminded ${people} with declarations outstanding.` };
+}
 
 function standingTone(standing: RegisterRowStanding) {
   return standing === "SIGNED" ? "success" : standing === "PENDING" ? "warning" : "danger";
@@ -37,6 +71,9 @@ export function StaffDeclarationsPage() {
   const [query, setQuery] = useState("");
   const [only, setOnly] = useState<RegisterRowStanding | "ALL">("ALL");
   const [chosen, setChosen] = useState<string>();
+  const [notice, setNotice] = useState<{ tone: "success" | "info" | "danger"; message: string }>();
+  const [exporting, setExporting] = useState(false);
+  const reminders = useSendReminders<ApiError>();
 
   const register = useListRegister<Register, ApiError>();
   // Held steady between renders so the counting and filtering below only redo themselves when it changes.
@@ -62,6 +99,33 @@ export function StaffDeclarationsPage() {
     });
   }, [employees, only, query]);
 
+  const outstandingAcross = register.data?.outstanding ?? 0;
+
+  /** The register as a sheet: every employee against every one of the nine. */
+  async function exportTheRegister() {
+    setNotice(undefined);
+    setExporting(true);
+    try {
+      const csv = await exportRegister();
+      downloadTextFile(`staff-declarations-${new Date().toISOString().slice(0, 10)}.csv`, csv, "text/csv");
+    }
+    catch (caught) {
+      setNotice({ tone: "danger", message: caught instanceof Error ? caught.message : "The export didn't run." });
+    }
+    finally {
+      setExporting(false);
+    }
+  }
+
+  /** Writes to everyone who still owes the firm a declaration, in the firm's own words. */
+  function remind() {
+    setNotice(undefined);
+    reminders.mutate(undefined, {
+      onSuccess: (result: Reminders) => setNotice(toldThem(result)),
+      onError: (caught) => setNotice({ tone: "danger", message: caught.message }),
+    });
+  }
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -72,8 +136,23 @@ export function StaffDeclarationsPage() {
             on their renewal cycle.
           </p>
         </div>
+        <div className="flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={() => void exportTheRegister()} disabled={exporting || !register.data}>
+            <Download aria-hidden="true" />
+            {exporting ? "Exporting…" : "Export register"}
+          </Button>
+          <Button
+            onClick={remind}
+            disabled={reminders.isPending || outstandingAcross === 0}
+            title={outstandingAcross === 0 ? "Nobody has anything outstanding" : undefined}
+          >
+            <Mail aria-hidden="true" />
+            {reminders.isPending ? "Sending…" : "Send reminders"}
+          </Button>
+        </div>
       </header>
 
+      {notice && <Alert tone={notice.tone}>{notice.message}</Alert>}
       {register.isError && <Alert tone="danger">{register.error.message}</Alert>}
 
       <div className="grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)] xl:grid-cols-[24rem_minmax(0,1fr)]">
@@ -151,16 +230,16 @@ export function StaffDeclarationsPage() {
         </section>
 
         <div className="space-y-6">
-          {detail.data ? <StaffPanel held={detail.data} /> : <p className="text-sm text-ink-muted">Loading…</p>}
+          {detail.data ? <StaffPanel held={detail.data} onTold={(told) => setNotice(toldOne(told))} /> : <p className="text-sm text-ink-muted">Loading…</p>}
         </div>
       </div>
     </div>
   );
 }
 
-function StaffPanel({ held }: { held: StaffDeclarations }) {
+function StaffPanel({ held, onTold }: { held: StaffDeclarations; onTold: (told: Reminders) => void }) {
   const { employee, declarations, outstanding, oldestOverdueSince } = held;
-  const share = employee.total === 0 ? 0 : Math.round((employee.signed / employee.total) * 100);
+  const ask = useRemindOne<ApiError>();
   return (
     <>
       <section className="rounded-2xl border border-line bg-white p-5">
@@ -187,20 +266,12 @@ function StaffPanel({ held }: { held: StaffDeclarations }) {
         </div>
 
         <div className="mt-4">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-canvas">
-            <div
-              className={cn("h-full rounded-full", share === 100 ? "bg-emerald-500" : "bg-amber-400")}
-              style={{ width: `${share}%` }}
-            />
-          </div>
-          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted">
-            <span>
-              {outstanding === 0
-                ? "Nothing outstanding."
-                : `${outstanding} outstanding${oldestOverdueSince ? ` · oldest overdue since ${formatDate(oldestOverdueSince)}` : ""}`}
-            </span>
-            <span>{share}%</span>
-          </div>
+          <DeclarationsProgress
+            signed={employee.signed}
+            total={employee.total}
+            outstanding={outstanding}
+            oldestOverdueSince={oldestOverdueSince}
+          />
         </div>
       </section>
 
@@ -212,45 +283,18 @@ function StaffPanel({ held }: { held: StaffDeclarations }) {
             </h2>
             <p className="mt-0.5 text-xs text-ink-muted">All nine mandatory declarations · signed copies held on file</p>
           </div>
-          <Button variant="secondary" size="sm" disabled={outstanding === 0}>
-            Request outstanding
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={outstanding === 0 || ask.isPending}
+            onClick={() => ask.mutate({ staffUserId: employee.id }, { onSuccess: onTold })}
+          >
+            {ask.isPending ? "Asking…" : "Request outstanding"}
           </Button>
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[40rem] border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-line text-2xs tracking-wider text-ink-muted uppercase">
-                <th scope="col" className="w-10 py-2 text-left font-semibold" />
-                <th scope="col" className="py-2 text-left font-semibold">Declaration</th>
-                <th scope="col" className="py-2 text-left font-semibold">Status</th>
-                <th scope="col" className="py-2 text-left font-semibold">Signed date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {declarations.map((one, at) => (
-                <tr key={one.kind}>
-                  <td className="py-3 align-top">
-                    <span className="grid size-6 place-items-center rounded-full bg-canvas text-2xs font-semibold text-ink-muted">
-                      {at + 1}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4 align-top">
-                    <span className="block font-semibold text-ink">{one.title}</span>
-                    {/* The cycle, as the firm sets it. The day it fell due is said once, where it is overdue. */}
-                    <span className={cn("block text-xs", one.overdue && !one.signed ? "text-red-600" : "text-ink-muted")}>
-                      {one.schedule}
-                      {one.overdue && !one.signed && one.dueOn ? ` · overdue since ${formatDate(one.dueOn)}` : ""}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4 align-top">
-                    <Badge tone={one.signed ? "success" : "danger"}>{one.signed ? "Signed" : "Unsigned"}</Badge>
-                  </td>
-                  <td className="py-3 align-top text-ink">{one.signedOn ? formatDate(one.signedOn) : MISSING}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="mt-4">
+          <DeclarationsTable declarations={declarations} />
         </div>
       </section>
     </>

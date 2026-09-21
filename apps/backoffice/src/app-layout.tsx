@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ClipboardCheck,
   Contact,
+  FileCheck,
   FileSignature,
   FileText,
   KeyRound,
@@ -25,13 +26,15 @@ import { roleLabels } from "./lib/labels";
 import { hasAuthority, type Authority } from "./lib/permissions";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
-const allNavigation: { to: string; label: string; icon: LucideIcon; authority: Authority }[] = [
+// A null authority is a screen everyone signed in can reach, such as their own declarations.
+const allNavigation: { to: string; label: string; icon: LucideIcon; authority: Authority | null }[] = [
   { to: "/clients", label: "All clients", icon: Contact, authority: "VIEW_ALL_CLIENTS:VIEW" },
   { to: "/my-clients", label: "My clients", icon: Contact, authority: "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS" },
   { to: "/proposals", label: "Proposals", icon: FileSignature, authority: "SEND_PROPOSALS:OWN_CLIENTS" },
   { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: "ONBOARD_CLIENTS:VIEW" },
   { to: "/forms", label: "Forms", icon: FileText, authority: "ONBOARD_CLIENTS:VIEW" },
   { to: "/staff-declarations", label: "Staff declarations", icon: ClipboardCheck, authority: "ONBOARD_CLIENTS:VIEW" },
+  { to: "/my-declarations", label: "My declarations", icon: FileCheck, authority: null },
   { to: "/users", label: "Manage staff users", icon: Users, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
   { to: "/roles", label: "Permission matrix", icon: ShieldCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
   { to: "/config", label: "Config data", icon: SlidersHorizontal, authority: "MANAGE_CONFIGURATION:VIEW" },
@@ -44,7 +47,7 @@ const allNavigation: { to: string; label: string; icon: LucideIcon; authority: A
 
 export function AppLayout() {
   const user = useStaffUser();
-  const navigation = allNavigation.filter((item) => hasAuthority(user, item.authority));
+  const navigation = allNavigation.filter((item) => item.authority === null || hasAuthority(user, item.authority));
 
   return (
     <div className="flex min-h-screen bg-canvas font-sans text-ink">

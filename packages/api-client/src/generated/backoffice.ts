@@ -486,6 +486,75 @@ export interface CaseDetail {
   clients: ClientBrief[];
 }
 
+export type JsonNodeNodeType = typeof JsonNodeNodeType[keyof typeof JsonNodeNodeType];
+
+
+export const JsonNodeNodeType = {
+  ARRAY: 'ARRAY',
+  BINARY: 'BINARY',
+  BOOLEAN: 'BOOLEAN',
+  MISSING: 'MISSING',
+  NULL: 'NULL',
+  NUMBER: 'NUMBER',
+  OBJECT: 'OBJECT',
+  POJO: 'POJO',
+  STRING: 'STRING',
+} as const;
+
+export interface JsonNode {
+  floatingPointNumber?: boolean;
+  number?: boolean;
+  container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
+  nodeType?: JsonNodeNodeType;
+  string?: boolean;
+  integralNumber?: boolean;
+  pojo?: boolean;
+  short?: boolean;
+  int?: boolean;
+  long?: boolean;
+  double?: boolean;
+  bigDecimal?: boolean;
+  bigInteger?: boolean;
+  /** @deprecated */
+  textual?: boolean;
+  boolean?: boolean;
+  binary?: boolean;
+  empty?: boolean;
+  array?: boolean;
+  null?: boolean;
+  object?: boolean;
+  float?: boolean;
+  embeddedValue?: boolean;
+}
+
+export type MyDeclarationKind = typeof MyDeclarationKind[keyof typeof MyDeclarationKind];
+
+
+export const MyDeclarationKind = {
+  CONFLICT_OF_INTEREST: 'CONFLICT_OF_INTEREST',
+  AML_PROCEDURES_CERTIFICATION: 'AML_PROCEDURES_CERTIFICATION',
+  AUTHORISED_INDIVIDUALS: 'AUTHORISED_INDIVIDUALS',
+  COMPLIANCE_MANUAL_CERTIFICATION: 'COMPLIANCE_MANUAL_CERTIFICATION',
+  OUTSIDE_INTERESTS: 'OUTSIDE_INTERESTS',
+  DFSA_CONDUCT_PRINCIPLES: 'DFSA_CONDUCT_PRINCIPLES',
+  DATA_CONSENT: 'DATA_CONSENT',
+  FIT_AND_PROPER: 'FIT_AND_PROPER',
+  PERSONAL_ACCOUNT_DEALING: 'PERSONAL_ACCOUNT_DEALING',
+} as const;
+
+export interface MyDeclaration {
+  kind: MyDeclarationKind;
+  title: string;
+  schedule: string;
+  answers: JsonNode;
+  signed: boolean;
+  /** @nullable */
+  signedOn: string | null;
+  complete: boolean;
+}
+
 export type SaveFormRequestAnswers = {[key: string]: unknown};
 
 export interface SaveFormRequest {
@@ -1304,6 +1373,13 @@ export interface RoleAccessView {
   grants: PermissionGrant[];
 }
 
+export interface Reminders {
+  sent: number;
+  owing: number;
+  failed: number;
+  noWording: boolean;
+}
+
 export interface SignOffDecision {
   approved: boolean;
   /** @nullable */
@@ -1795,6 +1871,33 @@ export interface DeliveryPage {
   size: number;
   totalItems: number;
   failedToday: number;
+}
+
+export type MyDeclarationRowKind = typeof MyDeclarationRowKind[keyof typeof MyDeclarationRowKind];
+
+
+export const MyDeclarationRowKind = {
+  CONFLICT_OF_INTEREST: 'CONFLICT_OF_INTEREST',
+  AML_PROCEDURES_CERTIFICATION: 'AML_PROCEDURES_CERTIFICATION',
+  AUTHORISED_INDIVIDUALS: 'AUTHORISED_INDIVIDUALS',
+  COMPLIANCE_MANUAL_CERTIFICATION: 'COMPLIANCE_MANUAL_CERTIFICATION',
+  OUTSIDE_INTERESTS: 'OUTSIDE_INTERESTS',
+  DFSA_CONDUCT_PRINCIPLES: 'DFSA_CONDUCT_PRINCIPLES',
+  DATA_CONSENT: 'DATA_CONSENT',
+  FIT_AND_PROPER: 'FIT_AND_PROPER',
+  PERSONAL_ACCOUNT_DEALING: 'PERSONAL_ACCOUNT_DEALING',
+} as const;
+
+export interface MyDeclarationRow {
+  kind: MyDeclarationRowKind;
+  title: string;
+  schedule: string;
+  signed: boolean;
+  /** @nullable */
+  signedOn: string | null;
+  /** @nullable */
+  dueOn: string | null;
+  overdue: boolean;
 }
 
 export interface FormPage {
@@ -2968,6 +3071,184 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSaveOnboardingDraftMutationOptions(options), queryClient);
+    }
+
+export const getOpenMineUrl = (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',) => {
+
+
+
+
+  return `/api/backoffice/my-declarations/${kind}`
+}
+
+export const openMine = async (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING', options?: Parameters<typeof http>[1]): Promise<MyDeclaration> => {
+
+  return http<MyDeclaration>(getOpenMineUrl(kind),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getOpenMineQueryKey = (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',) => {
+    return [
+    `/api/backoffice/my-declarations/${kind}`
+    ] as const;
+    }
+
+
+export const getOpenMineQueryOptions = <TData = Awaited<ReturnType<typeof openMine>>, TError = unknown>(kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING', options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof openMine>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getOpenMineQueryKey(kind);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof openMine>>> = ({ signal }) => openMine(kind, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: kind !== null && kind !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof openMine>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type OpenMineQueryResult = NonNullable<Awaited<ReturnType<typeof openMine>>>
+export type OpenMineQueryError = unknown
+
+
+export function useOpenMine<TData = Awaited<ReturnType<typeof openMine>>, TError = unknown>(
+ kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING', options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof openMine>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof openMine>>,
+          TError,
+          Awaited<ReturnType<typeof openMine>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useOpenMine<TData = Awaited<ReturnType<typeof openMine>>, TError = unknown>(
+ kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING', options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof openMine>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof openMine>>,
+          TError,
+          Awaited<ReturnType<typeof openMine>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useOpenMine<TData = Awaited<ReturnType<typeof openMine>>, TError = unknown>(
+ kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING', options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof openMine>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useOpenMine<TData = Awaited<ReturnType<typeof openMine>>, TError = unknown>(
+ kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING', options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof openMine>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getOpenMineQueryOptions(kind,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveMineUrl = (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',) => {
+
+
+
+
+  return `/api/backoffice/my-declarations/${kind}`
+}
+
+export const saveMine = async (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',
+    jsonNode: JsonNode, options?: Parameters<typeof http>[1]): Promise<MyDeclaration> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MyDeclaration>(getSaveMineUrl(kind),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(jsonNode)
+  }
+);}
+
+
+
+
+
+export const getSaveMineMutationKey = () => ['saveMine'] as const;
+
+export const getSaveMineMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveMine>>, TError,SaveMineMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveMine>>, TError,SaveMineMutationVariables, TContext> => {
+
+const mutationKey = getSaveMineMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveMine>>, SaveMineMutationVariables> = (props) => {
+          const {kind,data} = props ?? {};
+
+          return  saveMine(kind,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveMineMutationResult = NonNullable<Awaited<ReturnType<typeof saveMine>>>
+    export type SaveMineMutationBody = JsonNode
+    export type SaveMineMutationError = unknown
+    export type SaveMineMutationVariables = {kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING';data: JsonNode}
+
+    export const useSaveMine = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveMine>>, TError,SaveMineMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveMine>>,
+        TError,
+        SaveMineMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveMineMutationOptions(options), queryClient);
     }
 
 export const getGetFormUrl = (id: string,) => {
@@ -4184,6 +4465,142 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateRolePermissionMutationOptions(options), queryClient);
     }
 
+export const getRemindOneUrl = (staffUserId: string,) => {
+
+
+
+
+  return `/api/backoffice/staff-declarations/${staffUserId}/reminders`
+}
+
+export const remindOne = async (staffUserId: string, options?: Parameters<typeof http>[1]): Promise<Reminders> => {
+
+  return http<Reminders>(getRemindOneUrl(staffUserId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemindOneMutationKey = () => ['remindOne'] as const;
+
+export const getRemindOneMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof remindOne>>, TError,RemindOneMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof remindOne>>, TError,RemindOneMutationVariables, TContext> => {
+
+const mutationKey = getRemindOneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof remindOne>>, RemindOneMutationVariables> = (props) => {
+          const {staffUserId} = props ?? {};
+
+          return  remindOne(staffUserId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemindOneMutationResult = NonNullable<Awaited<ReturnType<typeof remindOne>>>
+
+    export type RemindOneMutationError = unknown
+    export type RemindOneMutationVariables = {staffUserId: string}
+
+    export const useRemindOne = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof remindOne>>, TError,RemindOneMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof remindOne>>,
+        TError,
+        RemindOneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemindOneMutationOptions(options), queryClient);
+    }
+
+export const getSendRemindersUrl = () => {
+
+
+
+
+  return `/api/backoffice/staff-declarations/reminders`
+}
+
+export const sendReminders = async ( options?: Parameters<typeof http>[1]): Promise<Reminders> => {
+
+  return http<Reminders>(getSendRemindersUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSendRemindersMutationKey = () => ['sendReminders'] as const;
+
+export const getSendRemindersMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendReminders>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendReminders>>, TError,void, TContext> => {
+
+const mutationKey = getSendRemindersMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendReminders>>, void> = () => {
+
+
+          return  sendReminders(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendRemindersMutationResult = NonNullable<Awaited<ReturnType<typeof sendReminders>>>
+
+    export type SendRemindersMutationError = unknown
+
+
+    export const useSendReminders = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendReminders>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendReminders>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSendRemindersMutationOptions(options), queryClient);
+    }
+
 export const getListProposalsUrl = (params?: ListProposalsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -4920,6 +5337,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDecideCaseSignOffMutationOptions(options), queryClient);
+    }
+
+export const getSignMineUrl = (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',) => {
+
+
+
+
+  return `/api/backoffice/my-declarations/${kind}/sign`
+}
+
+export const signMine = async (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',
+    jsonNode: JsonNode, options?: Parameters<typeof http>[1]): Promise<MyDeclaration> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MyDeclaration>(getSignMineUrl(kind),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(jsonNode)
+  }
+);}
+
+
+
+
+
+export const getSignMineMutationKey = () => ['signMine'] as const;
+
+export const getSignMineMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signMine>>, TError,SignMineMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof signMine>>, TError,SignMineMutationVariables, TContext> => {
+
+const mutationKey = getSignMineMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof signMine>>, SignMineMutationVariables> = (props) => {
+          const {kind,data} = props ?? {};
+
+          return  signMine(kind,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SignMineMutationResult = NonNullable<Awaited<ReturnType<typeof signMine>>>
+    export type SignMineMutationBody = JsonNode
+    export type SignMineMutationError = unknown
+    export type SignMineMutationVariables = {kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING';data: JsonNode}
+
+    export const useSignMine = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signMine>>, TError,SignMineMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof signMine>>,
+        TError,
+        SignMineMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSignMineMutationOptions(options), queryClient);
     }
 
 export const getListFormsUrl = (params?: ListFormsParams,) => {
@@ -7887,6 +8387,101 @@ export function useForStaff<TData = Awaited<ReturnType<typeof forStaff>>, TError
 
 
 
+export const getExportRegisterUrl = () => {
+
+
+
+
+  return `/api/backoffice/staff-declarations/export`
+}
+
+export const exportRegister = async ( options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getExportRegisterUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportRegisterQueryKey = () => {
+    return [
+    `/api/backoffice/staff-declarations/export`
+    ] as const;
+    }
+
+
+export const getExportRegisterQueryOptions = <TData = Awaited<ReturnType<typeof exportRegister>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportRegister>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportRegisterQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportRegister>>> = ({ signal }) => exportRegister({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportRegister>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportRegisterQueryResult = NonNullable<Awaited<ReturnType<typeof exportRegister>>>
+export type ExportRegisterQueryError = unknown
+
+
+export function useExportRegister<TData = Awaited<ReturnType<typeof exportRegister>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportRegister>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportRegister>>,
+          TError,
+          Awaited<ReturnType<typeof exportRegister>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportRegister<TData = Awaited<ReturnType<typeof exportRegister>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportRegister>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportRegister>>,
+          TError,
+          Awaited<ReturnType<typeof exportRegister>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportRegister<TData = Awaited<ReturnType<typeof exportRegister>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportRegister>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportRegister<TData = Awaited<ReturnType<typeof exportRegister>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportRegister>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportRegisterQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListRelationshipManagersUrl = () => {
 
 
@@ -8072,6 +8667,101 @@ export function useListDeliveries<TData = Awaited<ReturnType<typeof listDeliveri
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListDeliveriesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMineUrl = () => {
+
+
+
+
+  return `/api/backoffice/my-declarations`
+}
+
+export const listMine = async ( options?: Parameters<typeof http>[1]): Promise<MyDeclarationRow[]> => {
+
+  return http<MyDeclarationRow[]>(getListMineUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMineQueryKey = () => {
+    return [
+    `/api/backoffice/my-declarations`
+    ] as const;
+    }
+
+
+export const getListMineQueryOptions = <TData = Awaited<ReturnType<typeof listMine>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMine>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMineQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMine>>> = ({ signal }) => listMine({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMine>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMineQueryResult = NonNullable<Awaited<ReturnType<typeof listMine>>>
+export type ListMineQueryError = unknown
+
+
+export function useListMine<TData = Awaited<ReturnType<typeof listMine>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMine>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMine>>,
+          TError,
+          Awaited<ReturnType<typeof listMine>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMine<TData = Awaited<ReturnType<typeof listMine>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMine>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMine>>,
+          TError,
+          Awaited<ReturnType<typeof listMine>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMine<TData = Awaited<ReturnType<typeof listMine>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMine>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMine<TData = Awaited<ReturnType<typeof listMine>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMine>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMineQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

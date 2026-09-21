@@ -142,10 +142,18 @@ export function Tick({
 
   return (
     <div
+      // The whole line is the box: picking it is clicking anywhere on it, not hunting for the circle.
+      onClick={(event) => {
+        if (disabled) return;
+        // A blank to write on, or the label of the box itself, is its own: it is written on or already picks
+        // the line, so a click that lands on one is left alone.
+        if ((event.target as HTMLElement).closest("input, textarea, select, button, a, label")) return;
+        onChange(kind === "checkbox" ? !checked : true);
+      }}
       className={cn(
         "rounded-xl border transition-colors",
         checked ? "border-primary-600 bg-primary-50/70" : "border-line bg-white hover:border-primary-100",
-        disabled && "border-line bg-slate-50 hover:border-line",
+        disabled ? "border-line bg-slate-50 hover:border-line" : "cursor-pointer",
       )}
     >
       <div className="flex items-start gap-3 p-3.5">
