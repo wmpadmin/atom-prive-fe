@@ -6,8 +6,8 @@ import {
   type CaseDetail,
   type StaffMember,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, cn } from "@atomprive/ui";
-import { Check, ChevronLeft, ChevronRight, UserPlus, X } from "lucide-react";
+import { Alert, Badge, Button, cn } from "@atomprive/ui";
+import { Check, ChevronLeft, ChevronRight, Lock, UserPlus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useBlocker, useNavigate } from "react-router";
 import { toFormErrors } from "../../lib/api-errors";
@@ -17,6 +17,7 @@ import {
   holderGroup,
   MAX_HOLDERS,
   reviewApplication,
+  stepOfField,
   tidy,
   type FormApplication,
   type FormEntity,
@@ -24,6 +25,7 @@ import {
   type ReviewStep,
 } from "./application";
 import { ApplicationSummary } from "./application-summary";
+import { categoryBeingEntered, categoryLabels } from "./case-category";
 import {
   BusinessRegulationStep,
   ClientTypeStep,
@@ -78,6 +80,8 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
   const index = Math.max(0, steps.findIndex((step) => step.id === currentId));
   const current = steps[index] ?? REVIEW;
   const everyStepComplete = review.steps.every((step) => step.complete);
+  // Entity, Individual or Joint, which is what decides the pack of forms they will be asked for.
+  const category = categoryBeingEntered(application);
 
   const dirty = JSON.stringify(application) !== savedJson;
   // Read when someone navigates away, which can happen before a save has re-rendered the page.
@@ -123,6 +127,9 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
     setServerErrors(errors.fields);
     setTouched((seen) => new Set([...seen, ...Object.keys(errors.fields)]));
     setFormError(errors.form ?? fallback);
+    // Opens the step with the first problem the server found, such as an email another customer already has.
+    const first = Object.keys(errors.fields)[0];
+    if (first) setCurrentId(stepOfField(first));
     window.scrollTo({ top: 0 });
   }
 
@@ -206,8 +213,18 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
             <ChevronLeft aria-hidden="true" className="size-4" />
             Client onboarding
           </Link>
-          <h1 className="mt-1 text-[1.625rem] font-bold">Onboard a new client</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <h1 className="text-[1.625rem] font-bold">Onboard a new client</h1>
+            {category && <Badge tone="info">{categoryLabels[category]}</Badge>}
+          </div>
           <p className="mt-1 text-sm text-ink-muted">Enter the details as verified from the client's NRIC, passport or company documents. Fields marked * are required.</p>
+          {category && (
+            <p className="mt-1 text-xs text-ink-muted">
+              {category === "JOINT"
+                ? "A second account holder makes this a joint account, so their forms come from the Joint pack."
+                : `Their forms will come from the ${categoryLabels[category]} pack.`}
+            </p>
+          )}
         </div>
         <p className="text-xs text-ink-muted">{dirty ? "Unsaved changes" : caseId ? "All changes saved" : ""}</p>
       </header>
@@ -227,7 +244,7 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
             <p className="text-2xs font-semibold tracking-wider text-primary-600 uppercase">
               Step {index + 1} of {steps.length} · {current.group}
             </p>
-            <h2 id="step-title" className="mt-1 text-lg font-bold">
+            <h2 id="step-title" className="mt-1 text-2xl leading-tight font-bold">
               {current.label}
             </h2>
             <p className="mt-0.5 text-sm text-ink-muted">{descriptions[kind]}</p>
@@ -307,6 +324,12 @@ interface StepperProps {
 }
 
 function Stepper({ steps, currentId, onSelect, canAddHolder, onAddHolder, onRemoveHolder }: StepperProps) {
+  // The form is filled in order: a step only opens once every step before it is complete. "Review & submit" is
+  // never complete, so once the real steps are done it is the last one open and everything can be reached.
+  const firstUnfinished = steps.findIndex((step) => !step.complete);
+  const openUpTo = firstUnfinished === -1 ? steps.length - 1 : firstUnfinished;
+  // A new account holder's steps go on the end, so there is nothing unfinished left to jump over.
+  const canAddHolderNow = canAddHolder && openUpTo === steps.length - 1;
   const groups: { name: string; holder: number | null; steps: (ReviewStep & { number: number })[] }[] = [];
   steps.forEach((step, position) => {
     const last = groups.at(-1);
@@ -338,16 +361,21 @@ function Stepper({ steps, currentId, onSelect, canAddHolder, onAddHolder, onRemo
           <ol className="space-y-0.5">
             {group.steps.map((step) => {
               const current = step.id === currentId;
+              // The step being shown always stays reachable, even if a change has just left an earlier one unfinished.
+              const locked = step.number - 1 > openUpTo && !current;
               return (
                 <li key={step.id}>
                   <button
                     type="button"
                     aria-current={current ? "step" : undefined}
+                    disabled={locked}
+                    title={locked ? "Finish the steps before this one first." : undefined}
                     onClick={() => onSelect(step.id)}
                     className={cn(
                       "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
-                      current ? "bg-primary-50 font-semibold text-primary-700" : "text-ink-soft hover:bg-slate-50",
+                      current ? "bg-primary-50 font-semibold text-primary-700" : "text-ink-soft",
+                      locked ? "cursor-not-allowed text-ink-muted opacity-55" : !current && "hover:bg-slate-50",
                     )}
                   >
                     <span
@@ -360,7 +388,10 @@ function Stepper({ steps, currentId, onSelect, canAddHolder, onAddHolder, onRemo
                       {step.complete ? <Check className="size-3.5" strokeWidth={3} /> : step.number}
                     </span>
                     <span className="min-w-0 flex-1">{step.label}</span>
-                    <span className="sr-only">{step.complete ? "(complete)" : "(to do)"}</span>
+                    {locked && <Lock aria-hidden="true" className="size-3.5 shrink-0" />}
+                    <span className="sr-only">
+                      {step.complete ? "(complete)" : locked ? "(locked until the steps before it are done)" : "(to do)"}
+                    </span>
                   </button>
                 </li>
               );
@@ -370,7 +401,14 @@ function Stepper({ steps, currentId, onSelect, canAddHolder, onAddHolder, onRemo
             <button
               type="button"
               onClick={onAddHolder}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line px-3 py-2 text-sm font-semibold text-primary-600 transition-colors hover:border-primary-600 hover:bg-primary-50"
+              disabled={!canAddHolderNow}
+              title={canAddHolderNow ? undefined : "Finish this account holder's details first."}
+              className={cn(
+                "mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line px-3 py-2 text-sm font-semibold transition-colors",
+                canAddHolderNow
+                  ? "text-primary-600 hover:border-primary-600 hover:bg-primary-50"
+                  : "cursor-not-allowed text-ink-muted opacity-55",
+              )}
             >
               <UserPlus aria-hidden="true" className="size-4" />
               Add account holder

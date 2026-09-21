@@ -1,10 +1,11 @@
 import { ApiError } from "@atomprive/api-client";
 import { exportStaffUsers, useListStaffUsers, type StaffUserPage } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Button, IconButton, SelectInput, StatCard, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Button, IconButton, Pagination, SelectInput, StatCard, TextInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { Ban, ChevronLeft, ChevronRight, CircleCheck, Download, Mail, Pencil, Plus, Power, Search, Users } from "lucide-react";
+import { Ban, CircleCheck, Download, Mail, Pencil, Plus, Power, Search, Users } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { useStaffUser } from "../../auth/session";
 import { downloadTextFile } from "../../lib/download";
 import { formatRelative, roleLabels, roleList, roles, statusLabels, statuses, type StaffRole, type StaffStatus } from "../../lib/labels";
@@ -14,7 +15,6 @@ import { AddUserDialog } from "./add-user-dialog";
 import { DeactivateUserDialog } from "./deactivate-user-dialog";
 import { StatusBadge } from "./status-badge";
 
-const PAGE_SIZE = 10;
 
 export function UsersPage() {
   const currentUser = useStaffUser();
@@ -23,11 +23,18 @@ export function UsersPage() {
   const [role, setRole] = useState<StaffRole | "">("");
   const [status, setStatus] = useState<StaffStatus | "">("");
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+
+  // A different page size starts again at the first page, so the rows on screen always match the summary.
+  function changePageSize(size: number) {
+    setPageSize(size);
+    setPage(0);
+  }
   const query = useDebouncedValue(search.trim());
 
   const filters = { query: query || undefined, role: role || undefined, status: status || undefined };
   const staff = useListStaffUsers<StaffUserPage, ApiError>(
-    { ...filters, page, size: PAGE_SIZE },
+    { ...filters, page, size: pageSize },
     { query: { placeholderData: keepPreviousData } },
   );
 
@@ -57,8 +64,6 @@ export function UsersPage() {
   const counts = staff.data?.counts;
   const rows = staff.data?.items ?? [];
   const total = staff.data?.totalItems ?? 0;
-  const firstRow = total === 0 ? 0 : page * PAGE_SIZE + 1;
-  const lastRow = Math.min((page + 1) * PAGE_SIZE, total);
 
   return (
     <div className="space-y-6">
@@ -112,7 +117,7 @@ export function UsersPage() {
             </label>
             <label>
               <span className="sr-only">Role</span>
-              <SelectInput id="staff-role" value={role} onChange={(event) => changeFilter(() => setRole(event.target.value as StaffRole | ""))} className="w-36">
+              <SelectInput id="staff-role" value={role} onChange={(event) => changeFilter(() => setRole(event.target.value as StaffRole | ""))} className="w-auto">
                 <option value="">All roles</option>
                 {roles.map((option) => (
                   <option key={option} value={option}>
@@ -123,7 +128,7 @@ export function UsersPage() {
             </label>
             <label>
               <span className="sr-only">Status</span>
-              <SelectInput id="staff-status" value={status} onChange={(event) => changeFilter(() => setStatus(event.target.value as StaffStatus | ""))} className="w-36">
+              <SelectInput id="staff-status" value={status} onChange={(event) => changeFilter(() => setStatus(event.target.value as StaffStatus | ""))} className="w-auto">
                 <option value="">Status</option>
                 {statuses.map((option) => (
                   <option key={option} value={option}>
@@ -167,12 +172,17 @@ export function UsersPage() {
                 </tr>
               )}
               {rows.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-50/60">
+                // The row opens the staff member, the same as their name and the pencil beside it do.
+                <tr
+                  key={user.id}
+                  onClick={() => void navigate(`/users/${user.id}`)}
+                  className="cursor-pointer hover:bg-slate-50/60"
+                >
                   <td className="py-3 pr-4 pl-5">
                     <div className="flex items-center gap-3">
                       <Avatar name={user.fullName} />
                       <div className="min-w-0">
-                        <Link to={`/users/${user.id}`} className="block truncate font-semibold hover:text-primary-600">
+                        <Link to={`/users/${user.id}`} onClick={(event) => event.stopPropagation()} className="block truncate font-semibold hover:text-primary-600">
                           {user.fullName}
                         </Link>
                         <p className="truncate text-xs text-ink-muted">{user.email}</p>
@@ -189,14 +199,18 @@ export function UsersPage() {
                   <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(user.lastActiveAt)}</td>
                   <td className="py-3 pr-5 pl-4">
                     <div className="flex justify-end gap-2">
-                      <IconButton label={`Edit ${user.fullName}`} onClick={() => navigate(`/users/${user.id}`)}>
+                      <IconButton label={`Edit ${user.fullName}`} onClick={(event) => { event.stopPropagation(); void navigate(`/users/${user.id}`); }}>
                         <Pencil />
                       </IconButton>
                       <IconButton
                         label={`Deactivate ${user.fullName}`}
                         tone="danger"
                         disabled={user.status === "DEACTIVATED" || user.id === currentUser.id}
-                        onClick={() => setDeactivating({ id: user.id, fullName: user.fullName })}
+                        onClick={(event) => {
+                          // Deactivating is its own thing to do, not a way into the staff member's page.
+                          event.stopPropagation();
+                          setDeactivating({ id: user.id, fullName: user.fullName });
+                        }}
                       >
                         <Power />
                       </IconButton>
@@ -207,21 +221,21 @@ export function UsersPage() {
             </tbody>
           </table>
         </div>
-      </section>
 
-      <footer className="flex items-center justify-between px-1">
-        <p className="text-sm text-ink-muted">
-          {total === 0 ? "No accounts" : `Showing ${firstRow}–${lastRow} of ${total} accounts`}
-        </p>
-        <div className="flex gap-2">
-          <IconButton label="Previous page" className="bg-white" disabled={page === 0} onClick={() => setPage(page - 1)}>
-            <ChevronLeft />
-          </IconButton>
-          <IconButton label="Next page" className="bg-white" disabled={lastRow >= total} onClick={() => setPage(page + 1)}>
-            <ChevronRight />
-          </IconButton>
-        </div>
-      </footer>
+        {total > 0 && (
+          <div className="border-t border-line px-5 py-3">
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              totalItems={total}
+              onPageChange={setPage}
+              pageSizes={PAGE_SIZES}
+              onPageSizeChange={changePageSize}
+              noun={["account", "accounts"]}
+            />
+          </div>
+        )}
+      </section>
 
       <AddUserDialog
         open={adding}

@@ -4,6 +4,10 @@ export interface Problem {
   detail?: string;
   /** Field name to message, present on validation failures. */
   errors?: Record<string, string>;
+  /** Tries left before sign-in locks, on a refused authenticator code. */
+  attemptsLeft?: number;
+  /** When a locked sign-in can be tried again. */
+  lockedUntil?: string;
 }
 
 /** Thrown for any non-2xx response so TanStack Query treats it as an error. */
@@ -72,6 +76,10 @@ function send(url: string, options: RequestInit) {
   if (token && !isPublicAuthEndpoint(url)) {
     headers.set("Authorization", `Bearer ${token}`);
   }
+  // An uploaded file carries its own boundary, which only the browser can write.
+  if (options.body instanceof FormData) {
+    headers.delete("Content-Type");
+  }
   return fetch(url, { ...options, headers, credentials: "include" });
 }
 
@@ -81,4 +89,19 @@ async function readProblem(response: Response): Promise<Problem> {
   } catch {
     return { status: response.status };
   }
+}
+
+/**
+ * A file from the API — an attached document, say — fetched with the session's token. Generated hooks parse
+ * what comes back as JSON or text, which a PDF or a photograph is neither of.
+ */
+export async function httpFile(url: string): Promise<Blob> {
+  let response = await send(url, {});
+  if (response.status === 401 && (await auth.refreshAccessToken())) {
+    response = await send(url, {});
+  }
+  if (!response.ok) {
+    throw new ApiError(response.status, await readProblem(response));
+  }
+  return response.blob();
 }

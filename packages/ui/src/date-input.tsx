@@ -1,4 +1,4 @@
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, X } from "lucide-react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { DayPicker } from "react-day-picker";
 import { cn } from "./cn";
@@ -24,12 +24,18 @@ interface DateInputProps {
   name: string;
   /** A saved date, yyyy-mm-dd. */
   defaultValue?: string | null;
+  /** The date shown, yyyy-mm-dd, for a date kept elsewhere, such as a filter in the address; "" for none. */
+  value?: string | null;
+  /** Offers a button that clears the date, calling onChange with "". */
+  clearable?: boolean;
   /** Earliest date that can be chosen. */
   min: Date;
   /** Latest date that can be chosen. */
   max: Date;
   placeholder?: string;
   required?: boolean;
+  /** The line is printed but not open to write on yet, because of an answer above it. */
+  disabled?: boolean;
   /** Called with the chosen date, yyyy-mm-dd. */
   onChange?: (value: string) => void;
   "aria-invalid"?: boolean;
@@ -40,11 +46,12 @@ interface DateInputProps {
  * A date field that opens a calendar, with month and year lists for jumping back years at a time. It looks the
  * same in every browser, unlike the browser's own date box, and only dates from min to max can be chosen.
  */
-export function DateInput({ id, name, defaultValue, min, max, placeholder = "Choose a date", required, onChange, ...aria }: DateInputProps) {
+export function DateInput({ id, name, defaultValue, value: shownValue, clearable, min, max, placeholder = "Choose a date", required, disabled, onChange, ...aria }: DateInputProps) {
   const calendarId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
-  const [value, setValue] = useState(() => parseDate(defaultValue));
+  const [chosen, setChosen] = useState(() => parseDate(defaultValue));
+  const value = shownValue === undefined ? chosen : parseDate(shownValue);
   const [open, setOpen] = useState(false);
 
   // The calendar floats above everything, dialogs included, so it's placed by the button here, and follows
@@ -72,30 +79,57 @@ export function DateInput({ id, name, defaultValue, min, max, placeholder = "Cho
   function choose(date: Date | undefined) {
     // Clicking the chosen day again would clear it; a required date stays chosen instead.
     if (!date) return;
-    setValue(date);
+    setChosen(date);
     onChange?.(toIsoDate(date));
     calendarRef.current?.hidePopover();
+  }
+
+  function clear() {
+    setChosen(undefined);
+    onChange?.("");
+    buttonRef.current?.focus();
   }
 
   const today = new Date();
   const firstMonthShown = value ?? (today > max ? max : today < min ? min : today);
 
+  const trigger = (
+    <button
+      ref={buttonRef}
+      id={id}
+      type="button"
+      popoverTarget={disabled ? undefined : calendarId}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-required={required}
+      disabled={disabled}
+      {...aria}
+      className={cn(controlClasses, "flex items-center justify-between gap-2 text-left", !value && "text-slate-400")}
+    >
+      <span className="truncate">{value ? shown.format(value) : placeholder}</span>
+      <CalendarDays aria-hidden="true" className={cn("size-4 shrink-0 text-ink-muted", clearable && value && "invisible")} />
+    </button>
+  );
+
   return (
     <>
-      <button
-        ref={buttonRef}
-        id={id}
-        type="button"
-        popoverTarget={calendarId}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-required={required}
-        {...aria}
-        className={cn(controlClasses, "flex items-center justify-between gap-2 text-left", !value && "text-slate-400")}
-      >
-        <span>{value ? shown.format(value) : placeholder}</span>
-        <CalendarDays aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
-      </button>
+      {clearable ? (
+        <div className="relative">
+          {trigger}
+          {value && (
+            <button
+              type="button"
+              aria-label="Clear the date"
+              onClick={clear}
+              className="absolute top-1/2 right-2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-ink-muted hover:bg-slate-100 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary-600"
+            >
+              <X aria-hidden="true" className="size-3.5" />
+            </button>
+          )}
+        </div>
+      ) : (
+        trigger
+      )}
       <input type="hidden" name={name} value={value ? toIsoDate(value) : ""} />
       <div
         ref={calendarRef}

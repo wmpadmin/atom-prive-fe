@@ -1,1 +1,1 @@
-export { ApiError, configureAuth, http, type Problem } from "./http";
+export { ApiError, configureAuth, http, httpFile, type Problem } from "./http";

@@ -13,12 +13,14 @@ import {
   type MappingOptions,
   type MappingSummary,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, cn, IconButton, SelectInput } from "@atomprive/ui";
+import { Alert, Badge, Button, cn, IconButton, Pagination, SelectInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { countryName } from "../../lib/countries";
+import { PAGE_SIZES } from "../../lib/page-sizes";
+import { usePagedRows } from "../../lib/use-paged-rows";
 import { AddFieldDialog } from "./add-field-dialog";
 import { ConfirmDialog } from "./confirm-dialog";
 
@@ -58,7 +60,7 @@ export function FieldMappingTab() {
               id="mapping-bank"
               value={bankId}
               onChange={(event) => (dirty ? setSwitchingTo(event.target.value) : selectBank(event.target.value))}
-              className="h-9 w-80 bg-slate-50 text-xs font-semibold"
+              className="h-9 w-auto bg-slate-50 text-xs font-semibold"
             >
               {banks.map((bank) => (
                 <option key={bank.bankId} value={bank.bankId}>
@@ -143,6 +145,8 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
       onError: (error) => setNotice({ tone: "danger", message: error.message }),
     },
   });
+
+  const paged = usePagedRows(mapping.data?.fields ?? [], 15);
 
   if (mapping.isPending) return <p className="mt-6 text-sm text-ink-muted">Loading mapping…</p>;
   if (mapping.isError) {
@@ -231,7 +235,9 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
                 </td>
               </tr>
             )}
-            {bank.fields.map((field, index) => {
+            {paged.shown.map((field, indexOnPage) => {
+              // choices runs alongside every field, so the row needs its place in the whole list, not on the page.
+              const index = paged.page * paged.pageSize + indexOnPage;
               const choice = choices[index];
               const unmapped = !choice.ignored && !choice.standardField;
               const selectValue = choice.ignored ? "__ignored" : (choice.standardField ?? "");
@@ -272,7 +278,7 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
                         value={choice.transform}
                         disabled={!choice.standardField || choice.ignored}
                         onChange={(event) => choose(field, { transform: event.target.value as FieldChoice["transform"] })}
-                        className="h-9 w-48 text-xs"
+                        className="h-9 w-auto text-xs"
                       >
                         {options.transforms.map((option) => (
                           <option key={option.transform} value={option.transform}>
@@ -307,6 +313,20 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
           </tbody>
         </table>
       </div>
+
+      {paged.totalItems > 0 && (
+        <div className="mt-2 border-t border-line px-1 py-3">
+          <Pagination
+            page={paged.page}
+            pageSize={paged.pageSize}
+            totalItems={paged.totalItems}
+            onPageChange={paged.setPage}
+            pageSizes={PAGE_SIZES}
+            onPageSizeChange={paged.setPageSize}
+            noun={["incoming field", "incoming fields"]}
+          />
+        </div>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
         <p className="text-xs text-ink-muted">

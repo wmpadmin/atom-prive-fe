@@ -16,7 +16,7 @@ import {
   type OrganisationType,
   type Relationship,
 } from "./application";
-import { AddressFields, CountriesField, CountryField, DateField, FollowUp, FormSection, TextField, type FieldFor } from "./form-parts";
+import { AddressFields, CountriesField, CountryField, DateField, FollowUp, FormSection, TextField, type FieldFor } from "../../components/form-fields";
 
 const yesNo = [
   { value: "yes" as const, label: "Yes" },
@@ -232,7 +232,7 @@ export function ContactStep({ index, holder, onChange, field }: HolderStepProps)
       </FormSection>
 
       <FormSection title="Residential address" description="The address where they live now.">
-        <AddressFields at={`${at}residentialAddress.`} value={holder.residentialAddress} onChange={(residentialAddress) => onChange({ residentialAddress })} field={field} />
+        <AddressFields at={`${at}residentialAddress.`} value={holder.residentialAddress} onChange={(residentialAddress) => onChange({ residentialAddress })} field={field} insistOnLine2 />
       </FormSection>
 
       <FormSection title="Mailing address">
@@ -246,7 +246,7 @@ export function ContactStep({ index, holder, onChange, field }: HolderStepProps)
           Same as the residential address
         </label>
         {!holder.mailingSameAsResidential && (
-          <AddressFields at={`${at}mailingAddress.`} value={holder.mailingAddress} onChange={(mailingAddress) => onChange({ mailingAddress })} field={field} />
+          <AddressFields at={`${at}mailingAddress.`} value={holder.mailingAddress} onChange={(mailingAddress) => onChange({ mailingAddress })} field={field} insistOnLine2 />
         )}
       </FormSection>
 
@@ -260,7 +260,7 @@ export function ContactStep({ index, holder, onChange, field }: HolderStepProps)
             </button>
           }
         >
-          <AddressFields at={`${at}secondaryMailingAddress.`} value={holder.secondaryMailingAddress} onChange={(secondaryMailingAddress) => onChange({ secondaryMailingAddress })} field={field} />
+          <AddressFields at={`${at}secondaryMailingAddress.`} value={holder.secondaryMailingAddress} onChange={(secondaryMailingAddress) => onChange({ secondaryMailingAddress })} field={field} insistOnLine2 />
         </FormSection>
       ) : (
         <button
@@ -362,7 +362,7 @@ export function BusinessRegulationStep({ entity, onChange, field }: EntityStepPr
 export function RegisteredAddressStep({ entity, onChange, field }: EntityStepProps) {
   return (
     <FormSection title="Registered address" description="The entity's registered office.">
-      <AddressFields at="entity.registeredAddress." value={entity.registeredAddress} onChange={(registeredAddress) => onChange({ registeredAddress })} field={field} />
+      <AddressFields at="entity.registeredAddress." value={entity.registeredAddress} onChange={(registeredAddress) => onChange({ registeredAddress })} field={field} insistOnLine2 />
     </FormSection>
   );
 }

@@ -1,15 +1,24 @@
 import { ApiError } from "@atomprive/api-client";
-import { exportStaffUser, getGetStaffUserQueryKey, useGetStaffUser, type StaffUserDetail } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, cn } from "@atomprive/ui";
+import {
+  exportStaffUser,
+  getGetStaffUserQueryKey,
+  useGetStaffUser,
+  useResetStaffUserAuthenticator,
+  type StaffUserDetail,
+} from "@atomprive/api-client/backoffice";
+import { Alert, Avatar, Badge, Button, cn, Pagination } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Download, FileText, PencilLine, ScrollText, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { downloadTextFile } from "../../lib/download";
+import { PAGE_SIZES } from "../../lib/page-sizes";
+import { usePagedRows } from "../../lib/use-paged-rows";
 import { formatDateTime, formatRelative, roleList, statusLabels } from "../../lib/labels";
 import { countryName } from "../../lib/countries";
 import { formatMobileNumber } from "../../lib/mobile-numbers";
+import { ConfirmDialog } from "../config/confirm-dialog";
 import { DeactivateUserDialog } from "./deactivate-user-dialog";
 import { EditStaffDialog } from "./edit-staff-dialog";
 import { ResetPasswordDialog } from "./reset-password-dialog";
@@ -34,9 +43,21 @@ export function UserDetailPage() {
   const queryClient = useQueryClient();
   const detail = useGetStaffUser<StaffUserDetail, ApiError>(userId);
   const [tab, setTab] = useState<Tab>("overview");
-  const [dialog, setDialog] = useState<"edit" | "reset" | "deactivate" | null>(null);
+  const [dialog, setDialog] = useState<"edit" | "reset" | "reset-authenticator" | "deactivate" | null>(null);
   const [notice, setNotice] = useState<Notice>();
   const [exporting, setExporting] = useState(false);
+  const resetAuthenticator = useResetStaffUserAuthenticator<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        setDialog(null);
+        setNotice({ tone: "success", message: "Authenticator reset. They scan a new QR code at their next sign-in." });
+      },
+      onError: (caught) => {
+        setDialog(null);
+        setNotice({ tone: "danger", message: caught.message });
+      },
+    },
+  });
 
   if (detail.isPending) {
     return <p className="text-sm text-ink-muted">Loading staff member…</p>;
@@ -77,7 +98,7 @@ export function UserDetailPage() {
           <Avatar name={user.fullName} className="size-16 rounded-2xl text-xl" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-3xl font-bold">{user.fullName}</h1>
+              <h1 className="text-[1.625rem] font-bold">{user.fullName}</h1>
               {isSelf && <Badge tone="info">You</Badge>}
               {deactivated && <Badge>Deactivated</Badge>}
             </div>
@@ -174,9 +195,18 @@ export function UserDetailPage() {
                 <Info label="PAN ID / EID" value={user.nationalId} />
                 <Info label="Passport number" value={user.passportNumber} />
                 {!isSelf && !deactivated && (
-                  <button type="button" onClick={() => setDialog("reset")} className="text-sm font-semibold text-primary-600 hover:text-primary-700">
-                    Reset password
-                  </button>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1">
+                    <button type="button" onClick={() => setDialog("reset")} className="text-sm font-semibold text-primary-600 hover:text-primary-700">
+                      Reset password
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDialog("reset-authenticator")}
+                      className="text-sm font-semibold text-primary-600 hover:text-primary-700"
+                    >
+                      Reset authenticator
+                    </button>
+                  </div>
                 )}
               </InfoCard>
             </div>
@@ -207,6 +237,15 @@ export function UserDetailPage() {
         }}
       />
       <ResetPasswordDialog user={user} open={dialog === "reset"} onClose={() => setDialog(null)} />
+      <ConfirmDialog
+        open={dialog === "reset-authenticator"}
+        title={`Reset the authenticator for ${user.fullName}?`}
+        description="For a lost or replaced phone. They scan a new QR code the next time they sign in, and any hour-long lock is lifted."
+        confirmLabel={resetAuthenticator.isPending ? "Resetting…" : "Reset authenticator"}
+        busy={resetAuthenticator.isPending}
+        onConfirm={() => resetAuthenticator.mutate({ id: user.id })}
+        onClose={() => setDialog(null)}
+      />
       <DeactivateUserDialog
         user={dialog === "deactivate" ? user : null}
         onClose={() => setDialog(null)}
@@ -307,6 +346,7 @@ function EmptyPanel({ icon, title, children }: { icon: ReactNode; title: string;
 }
 
 function RecentActivity({ user }: { user: StaffUserDetail }) {
+  const paged = usePagedRows(user.recentActivity, 10);
   return (
     <section aria-labelledby="activity-title" className="rounded-2xl border border-line bg-white">
       <div className="flex flex-wrap items-end justify-between gap-3 px-6 pt-5 pb-4">
@@ -333,7 +373,7 @@ function RecentActivity({ user }: { user: StaffUserDetail }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {user.recentActivity.map((entry, index) => (
+              {paged.shown.map((entry, index) => (
                 <tr key={`${entry.occurredAt}-${index}`}>
                   <td className="px-6 py-3 whitespace-nowrap text-ink-soft">{formatDateTime(entry.occurredAt)}</td>
                   <td className="px-6 py-3">
@@ -350,6 +390,19 @@ function RecentActivity({ user }: { user: StaffUserDetail }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {paged.totalItems > 0 && (
+        <div className="border-t border-line px-6 py-3">
+          <Pagination
+            page={paged.page}
+            pageSize={paged.pageSize}
+            totalItems={paged.totalItems}
+            onPageChange={paged.setPage}
+            pageSizes={PAGE_SIZES}
+            onPageSizeChange={paged.setPageSize}
+            noun={["entry", "entries"]}
+          />
         </div>
       )}
     </section>

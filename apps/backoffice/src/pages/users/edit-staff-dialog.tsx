@@ -11,7 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { noErrors, toFormErrors } from "../../lib/api-errors";
 import type { StaffRole } from "../../lib/labels";
-import { focusFirstError, readStaffProfile, useStaffProfileForm } from "./staff-profile";
+import { errorsToShow, focusFirstError, readStaffProfile, useStaffProfileForm } from "./staff-profile";
 import { StaffFormFooter, StaffProfileFields } from "./staff-profile-fields";
 
 interface EditStaffDialogProps {
@@ -52,7 +52,7 @@ function EditStaffForm({ user, isSelf, onCancel, onSaved }: { user: StaffUserDet
         onSaved(updated, updated.roles.join() !== user.roles.join());
       },
       onError: (error) => {
-        const failed = toFormErrors(error);
+        const failed = errorsToShow(formRef.current, toFormErrors(error));
         setErrors(failed);
         focusFirstError(formRef.current, failed.fields);
       },
@@ -90,8 +90,7 @@ function EditStaffForm({ user, isSelf, onCancel, onSaved }: { user: StaffUserDet
         onFieldChange={fieldChanged}
         roles={roles}
         onRolesChange={setRoles}
-        rolesDisabled={isSelf}
-        rolesHint={isSelf ? "You can't change your own roles." : "Changing roles signs the user out of every device."}
+        rolesHint={isSelf ? "Changing your own roles signs you out of every device." : "Changing roles signs the user out of every device."}
         reportsToId={reportsToId}
         onReportsToChange={setReportsToId}
         managers={managers}

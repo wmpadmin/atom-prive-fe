@@ -2,6 +2,7 @@ import { configureAuth } from "@atomprive/api-client";
 import { getCurrentStaff, logout, refresh, type SignInResponse, type StaffProfile } from "@atomprive/api-client/backoffice";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { forgetGoogleAccount } from "../pages/sign-in/google-identity";
 import { SessionContext, type SessionState } from "./session";
 
 // Kept in memory only: never in localStorage, where injected scripts could read it.
@@ -62,6 +63,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       await logout();
     } finally {
+      // So the next person at this machine is asked which Google account to use, rather than let straight back in.
+      forgetGoogleAccount();
       clearSession();
     }
   }, [clearSession]);

@@ -33,6 +33,7 @@ export function roleLabel(code: string) {
 }
 
 const dateTime = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" });
+const day = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
 const dateOnly = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" });
 
 export function formatDateTime(value: string | null | undefined, fallback = "Never") {
@@ -50,4 +51,16 @@ export function formatRelative(value: string | null | undefined, fallback = "Nev
   const days = Math.floor(hours / 24);
   if (days < 7) return days === 1 ? "Yesterday" : `${days} days ago`;
   return dateOnly.format(new Date(value));
+}
+
+/** "17 Sept 2026". */
+export function formatDate(value: string) {
+  return day.format(new Date(value));
+}
+
+/** A file size as people read it, for a document attached to a form. */
+export function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

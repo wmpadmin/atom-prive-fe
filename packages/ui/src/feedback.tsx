@@ -22,6 +22,8 @@ export function Badge({ tone = "neutral", children }: { tone?: Tone; children: R
 
 const alertTones = {
   danger: "border-red-200 bg-red-50 text-red-800",
+  /** Something needs attention but nothing has gone wrong, such as a proposal sent back for changes. */
+  warning: "border-amber-200 bg-amber-50 text-amber-900",
   success: "border-emerald-200 bg-emerald-50 text-emerald-800",
   info: "border-primary-100 bg-primary-50 text-primary-700",
 };
@@ -73,13 +75,8 @@ export function StatCard({ icon, value, label }: { icon: ReactNode; value: React
   );
 }
 
-const avatarTones = {
-  warm: "bg-[#3b2418] text-orange-400",
-  navy: "bg-brand-900 text-white",
-};
-
-/** Initials in a circle; people have no profile photos in the back-office yet. */
-export function Avatar({ name, tone = "warm", className }: { name: string; tone?: keyof typeof avatarTones; className?: string }) {
+/** Initials in a circle, the same for staff and clients; nobody has a profile photo in the back-office yet. */
+export function Avatar({ name, className }: { name: string; className?: string }) {
   const initials = name
     .split(/\s+/)
     .filter(Boolean)
@@ -89,7 +86,7 @@ export function Avatar({ name, tone = "warm", className }: { name: string; tone?
   return (
     <span
       aria-hidden="true"
-      className={cn("grid size-9 shrink-0 place-items-center rounded-full text-xs font-bold", avatarTones[tone], className)}
+      className={cn("grid size-9 shrink-0 place-items-center rounded-full bg-brand-900 text-xs font-bold text-primary-600", className)}
     >
       {initials || "?"}
     </span>

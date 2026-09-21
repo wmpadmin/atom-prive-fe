@@ -8,11 +8,13 @@ import {
   type BankList,
   type BankView,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, SelectInput } from "@atomprive/ui";
+import { Alert, Badge, Button, Pagination, SelectInput } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { countryName } from "../../lib/countries";
+import { PAGE_SIZES } from "../../lib/page-sizes";
+import { usePagedRows } from "../../lib/use-paged-rows";
 import { formatRelative } from "../../lib/labels";
 import { BankDialog } from "./bank-dialog";
 import { connectionLabels, scheduleLabels } from "./config-labels";
@@ -64,6 +66,7 @@ export function BanksTab() {
 
   const counts = banks.data?.counts;
   const rows = banks.data?.items ?? [];
+  const paged = usePagedRows(rows, 10);
 
   return (
     <section aria-labelledby="banks-title" className="rounded-2xl border border-line bg-white p-5">
@@ -83,7 +86,8 @@ export function BanksTab() {
               id="bank-filter"
               value={filter}
               onChange={(event) => setFilter(event.target.value as Filter)}
-              className="h-8 w-32 text-xs"
+              // Sized to its longest option: a fixed width clipped "Disabled" behind the chevron.
+              className="h-8 w-auto text-xs"
             >
               <option value="">All banks</option>
               <option value="live">Live</option>
@@ -150,7 +154,7 @@ export function BanksTab() {
                 </td>
               </tr>
             )}
-            {rows.map((bank) => (
+            {paged.shown.map((bank) => (
               <tr key={bank.id} className="hover:bg-slate-50/60">
                 <td className="py-3 pr-4 pl-5">
                   <div className="flex items-center gap-3">
@@ -198,12 +202,22 @@ export function BanksTab() {
         </table>
       </div>
 
-      {counts && (
-        <p className="mt-4 text-xs text-ink-muted">
-          Showing {rows.length} of {counts.total} {counts.total === 1 ? "bank" : "banks"} · disabling a bank pauses its
-          syncs but keeps all historical data
-        </p>
+      {rows.length > 0 && (
+        <div className="mt-2 border-t border-line px-1 py-3">
+          <Pagination
+            page={paged.page}
+            pageSize={paged.pageSize}
+            totalItems={paged.totalItems}
+            onPageChange={paged.setPage}
+            pageSizes={PAGE_SIZES}
+            onPageSizeChange={paged.setPageSize}
+            noun={["bank", "banks"]}
+          />
+        </div>
       )}
+      <p className="mt-2 text-xs text-ink-muted">
+        Disabling a bank pauses its syncs but keeps all historical data.
+      </p>
 
       <BankDialog
         bank={editing}
@@ -231,9 +245,9 @@ export function BanksTab() {
 function Stat({ label, value, children }: { label: string; value: ReactNode; children: ReactNode }) {
   return (
     <div className="rounded-xl border border-line px-4 py-3">
-      <p className="text-3xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
-      <p className="mt-1 text-xl font-bold tabular-nums">{value}</p>
-      <p className="text-2xs text-ink-muted">{children}</p>
+      <p className="text-xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
+      <p className="mt-1 text-3xl font-bold tabular-nums">{value}</p>
+      <p className="text-xs text-ink-muted">{children}</p>
     </div>
   );
 }

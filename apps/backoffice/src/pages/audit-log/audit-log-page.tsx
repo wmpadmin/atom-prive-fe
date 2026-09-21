@@ -8,15 +8,15 @@ import {
   type ListAuditEventsOutcome,
   type ListAuditEventsParams,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, IconButton, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, Pagination, SelectInput, TextInput } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Download, Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import { useState } from "react";
 import { downloadTextFile } from "../../lib/download";
 import { formatDateTime, formatRelative, roleLabel, roleLabels, roles, type StaffRole } from "../../lib/labels";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
 
-const PAGE_SIZE = 10;
 
 type Period = "24h" | "7d" | "30d" | "90d" | "all" | "custom";
 
@@ -34,7 +34,22 @@ const outcomeLabels: Record<ListAuditEventsOutcome, string> = { SUCCESS: "Succes
 const dateOnly = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" });
 
 /** Who logged in, what changed and what was exported (#82). Admin and Compliance by default. */
-export function AuditLogPage() {
+interface AuditLogPageProps {
+  /** Narrows the log to one kind of event, e.g. "access." for the family access trail. */
+  actionPrefix?: string;
+  title?: string;
+  description?: string;
+}
+
+/**
+ * The audit trail, whole or narrowed. The family access and proposal trails are this same screen pointed at their
+ * own actions, so searching, filtering and the CSV export work the same way on all three.
+ */
+export function AuditLogPage({
+  actionPrefix,
+  title = "Audit log",
+  description = "Who logged in, viewed which customer and exported what. Searchable by user, action and date.",
+}: AuditLogPageProps = {}) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [role, setRole] = useState<StaffRole | "">("");
@@ -44,18 +59,26 @@ export function AuditLogPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+
+  // A different page size starts again at the first page, so the rows on screen always match the summary.
+  function changePageSize(size: number) {
+    setPageSize(size);
+    setPage(0);
+  }
   const [notice, setNotice] = useState<string>();
   const [exporting, setExporting] = useState(false);
   const query = useDebouncedValue(search.trim());
 
   const filters: ListAuditEventsParams = {
+    actionPrefix,
     query: query || undefined,
     role: role || undefined,
     outcome: outcome || undefined,
     ...timeRange(period, fromDate, toDate),
   };
   const events = useListAuditEvents<AuditEventPage, ApiError>(
-    { ...filters, page, size: PAGE_SIZE },
+    { ...filters, page, size: pageSize },
     { query: { placeholderData: keepPreviousData } },
   );
 
@@ -81,18 +104,14 @@ export function AuditLogPage() {
 
   const rows = events.data?.items ?? [];
   const total = events.data?.totalItems ?? 0;
-  const firstRow = total === 0 ? 0 : page * PAGE_SIZE + 1;
-  const lastRow = Math.min((page + 1) * PAGE_SIZE, total);
   const filtered = Boolean(query || role || outcome);
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[1.625rem] font-bold">Audit log</h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Who logged in, viewed which customer and exported what. Searchable by user, action and date.
-          </p>
+          <h1 className="text-[1.625rem] font-bold">{title}</h1>
+          <p className="mt-1 text-sm text-ink-muted">{description}</p>
         </div>
         <Button variant="secondary" onClick={() => void exportCsv()} disabled={exporting}>
           <Download aria-hidden="true" />
@@ -127,7 +146,7 @@ export function AuditLogPage() {
                   value={fromDate}
                   max={toDate || undefined}
                   onChange={(event) => changeFilter(() => setFromDate(event.target.value))}
-                  className="w-40"
+                  className="w-auto"
                 />
               </label>
               <label className="flex items-center gap-2 text-xs text-ink-muted">
@@ -138,7 +157,7 @@ export function AuditLogPage() {
                   value={toDate}
                   min={fromDate || undefined}
                   onChange={(event) => changeFilter(() => setToDate(event.target.value))}
-                  className="w-40"
+                  className="w-auto"
                 />
               </label>
             </>
@@ -149,7 +168,7 @@ export function AuditLogPage() {
               id="audit-period"
               value={period}
               onChange={(event) => changeFilter(() => setPeriod(event.target.value as Period))}
-              className="w-40"
+              className="w-auto"
             >
               {Object.entries(periods).map(([value, option]) => (
                 <option key={value} value={value}>
@@ -164,7 +183,7 @@ export function AuditLogPage() {
               id="audit-role"
               value={role}
               onChange={(event) => changeFilter(() => setRole(event.target.value as StaffRole | ""))}
-              className="w-36"
+              className="w-auto"
             >
               <option value="">All roles</option>
               {roles.map((option) => (
@@ -180,7 +199,7 @@ export function AuditLogPage() {
               id="audit-outcome"
               value={outcome}
               onChange={(event) => changeFilter(() => setOutcome(event.target.value as ListAuditEventsOutcome | ""))}
-              className="w-36"
+              className="w-auto"
             >
               <option value="">Status</option>
               {Object.entries(outcomeLabels).map(([value, label]) => (
@@ -235,21 +254,21 @@ export function AuditLogPage() {
             </tbody>
           </table>
         </div>
-      </section>
 
-      <footer className="flex items-center justify-between px-1">
-        <p className="text-sm text-ink-muted">
-          {total === 0 ? "No events" : `Showing ${firstRow}–${lastRow} of ${total.toLocaleString("en-GB")} events`}
-        </p>
-        <div className="flex gap-2">
-          <IconButton label="Previous page" className="bg-white" disabled={page === 0} onClick={() => setPage(page - 1)}>
-            <ChevronLeft />
-          </IconButton>
-          <IconButton label="Next page" className="bg-white" disabled={lastRow >= total} onClick={() => setPage(page + 1)}>
-            <ChevronRight />
-          </IconButton>
-        </div>
-      </footer>
+        {total > 0 && (
+          <div className="border-t border-line px-5 py-3">
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              totalItems={total}
+              onPageChange={setPage}
+              pageSizes={PAGE_SIZES}
+              onPageSizeChange={changePageSize}
+              noun={["event", "events"]}
+            />
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -261,7 +280,7 @@ function EventRow({ event }: { event: AuditLogEntry }) {
     <tr className="hover:bg-slate-50/60">
       <td className="py-3 pr-4 pl-5">
         <div className="flex items-center gap-3">
-          <Avatar name={actor} tone="navy" />
+          <Avatar name={actor} />
           <div className="min-w-0">
             <p className="truncate font-semibold">{actor}</p>
             <p className="truncate text-xs text-ink-muted">{actorDescription(event)}</p>

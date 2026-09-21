@@ -7,11 +7,13 @@ import {
   type FxRateRow,
   type FxRateTable,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, describedBy, Dialog, Field, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Badge, Button, describedBy, Dialog, Field, Pagination, SelectInput, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { PAGE_SIZES } from "../../lib/page-sizes";
+import { usePagedRows } from "../../lib/use-paged-rows";
 import { formatUtc } from "./config-labels";
 
 type Notice = { tone: "success" | "danger"; message: string };
@@ -31,6 +33,7 @@ export function FxRatesTab() {
   }
 
   const table = rates.data;
+  const paged = usePagedRows(table?.rates ?? [], 10);
   return (
     <section aria-labelledby="fx-title" className="rounded-2xl border border-line bg-white p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -89,7 +92,7 @@ export function FxRatesTab() {
                 <td colSpan={6} className="px-5 py-8 text-center text-ink-muted">Loading rates…</td>
               </tr>
             )}
-            {table?.rates.map((rate) => (
+            {paged.shown.map((rate) => (
               <tr key={rate.code} className="hover:bg-slate-50/60">
                 <td className="py-3 pr-4 pl-5">
                   <div className="flex items-center gap-3">
@@ -147,10 +150,22 @@ export function FxRatesTab() {
         </table>
       </div>
 
+      {paged.totalItems > 0 && (
+        <div className="mt-2 border-t border-line px-1 py-3">
+          <Pagination
+            page={paged.page}
+            pageSize={paged.pageSize}
+            totalItems={paged.totalItems}
+            onPageChange={paged.setPage}
+            pageSizes={PAGE_SIZES}
+            onPageSizeChange={paged.setPageSize}
+            noun={["currency", "currencies"]}
+          />
+        </div>
+      )}
       {table && (
-        <p className="mt-4 text-xs text-ink-muted">
-          {table.rates.length} {table.rates.length === 1 ? "currency" : "currencies"} · reporting currency{" "}
-          {table.reportingCurrency} · each rate change is kept, with who made it and when
+        <p className="mt-2 text-xs text-ink-muted">
+          Reporting currency {table.reportingCurrency} · each rate change is kept, with who made it and when.
         </p>
       )}
 

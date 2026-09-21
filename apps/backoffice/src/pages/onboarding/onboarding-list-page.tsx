@@ -3,16 +3,16 @@ import { useListOnboardingCases, type CasePage } from "@atomprive/api-client/bac
 import { Alert, Avatar, Button, cn, Pagination, SelectInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { BellRing, ChevronRight, Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { formatRelative } from "../../lib/labels";
+import { formatDate, formatRelative } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
-import { caseStatusLabels, caseStatuses, caseSubtitle, formatDay, type CaseStatus } from "./case-labels";
+import { PAGE_SIZES } from "../../lib/page-sizes";
+import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
+import { caseStatusLabels, caseStatuses, caseSubtitle, type CaseStatus } from "./case-labels";
 import { CaseStatusBadge, ClientMark, ProgressMeter } from "./case-parts";
 import { CaseSearch } from "./case-search";
 
-const PAGE_SIZES = [10, 25, 50];
 
 /** The search, filter and page live in the address (?q=kapoor&status=IN_PROCESS&page=2), so they survive opening a case. */
 function readFilters(params: URLSearchParams): { query: string; status: CaseStatus | ""; size: number; page: number } {
@@ -32,61 +32,22 @@ export function OnboardingListPage() {
   const canChange = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE");
   const navigate = useNavigate();
   const location = useLocation();
-  const [params, setParams] = useSearchParams();
+  const { params, update } = useListAddress();
   const { query, status, size, page } = readFilters(params);
-
-  // What's typed shows straight away; the address, and so the results, follow once typing pauses.
-  const [search, setSearch] = useState(query);
-  const [shownQuery, setShownQuery] = useState(query);
-  if (query !== shownQuery) {
-    // The address changed some other way, such as the menu link clearing the search.
-    setShownQuery(query);
-    if (query !== search.trim()) setSearch(query);
-  }
-  const typingTimer = useRef<number>(undefined);
-  useEffect(() => () => window.clearTimeout(typingTimer.current), []);
+  const typed = useTypedSearch(query, update);
 
   const cases = useListOnboardingCases<CasePage, ApiError>(
     { query: query || undefined, status: status || undefined, page, size },
     { query: { placeholderData: keepPreviousData } },
   );
 
-  /** Changes the address; any change other than the page starts again from the first page. */
-  function update(changes: Record<string, string | number | null>) {
-    setParams(
-      (current) => {
-        const next = new URLSearchParams(current);
-        if (!("page" in changes)) next.delete("page");
-        for (const [key, value] of Object.entries(changes)) {
-          if (value === null || value === "") next.delete(key);
-          else next.set(key, String(value));
-        }
-        return next;
-      },
-      { replace: true },
-    );
-  }
-
-  function changeSearch(value: string) {
-    setSearch(value);
-    window.clearTimeout(typingTimer.current);
-    typingTimer.current = window.setTimeout(() => update({ q: value.trim() }), 300);
-  }
-
-  /** Filters by the text straight away, such as when Enter is pressed or a relationship manager is picked. */
-  function applySearch(value: string) {
-    window.clearTimeout(typingTimer.current);
-    setSearch(value);
-    update({ q: value.trim() });
-  }
-
   /** Opens a suggested case; going back returns to the list filtered by what was typed. */
   function openCase(id: string) {
-    window.clearTimeout(typingTimer.current);
+    typed.cancel();
     const next = new URLSearchParams(params);
-    if (search.trim() !== query) {
+    if (typed.search.trim() !== query) {
       next.delete("page");
-      if (search.trim()) next.set("q", search.trim());
+      if (typed.search.trim()) next.set("q", typed.search.trim());
       else next.delete("q");
     }
     const list = next.toString();
@@ -94,8 +55,7 @@ export function OnboardingListPage() {
   }
 
   function clearFilters() {
-    window.clearTimeout(typingTimer.current);
-    setSearch("");
+    typed.clear();
     update({ q: null, status: null });
   }
 
@@ -147,10 +107,10 @@ export function OnboardingListPage() {
             <p className="text-xs text-ink-muted">Newest first</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <CaseSearch value={search} status={status} onChange={changeSearch} onSearch={applySearch} onOpenCase={openCase} />
+            <CaseSearch value={typed.search} status={status} onChange={typed.change} onSearch={typed.apply} onOpenCase={openCase} />
             <label>
               <span className="sr-only">Status</span>
-              <SelectInput id="onboarding-status" value={status} onChange={(event) => update({ status: event.target.value })} className="w-40">
+              <SelectInput id="onboarding-status" value={status} onChange={(event) => update({ status: event.target.value })} className="w-auto">
                 <option value="">All statuses</option>
                 {caseStatuses.map((option) => (
                   <option key={option} value={option}>
@@ -202,12 +162,17 @@ export function OnboardingListPage() {
                 </tr>
               )}
               {rows.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/60">
+                // The row opens the case, the same as its name and its Open button do.
+                <tr
+                  key={item.id}
+                  onClick={() => openCase(item.id)}
+                  className="cursor-pointer hover:bg-slate-50/60"
+                >
                   <td className="py-3 pr-4 pl-5">
                     <div className="flex items-center gap-3">
                       <ClientMark name={item.clientName} />
                       <div className="min-w-0">
-                        <Link to={`/onboarding/${item.id}`} state={fromList} className="block truncate font-semibold hover:text-primary-600">
+                        <Link to={`/onboarding/${item.id}`} state={fromList} onClick={(event) => event.stopPropagation()} className="block truncate font-semibold hover:text-primary-600">
                           {item.clientName}
                         </Link>
                         <p className="truncate text-xs text-ink-muted">{caseSubtitle(item)}</p>
@@ -224,7 +189,7 @@ export function OnboardingListPage() {
                       <span className="text-ink-muted">Not chosen yet</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatDay(item.startedAt)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatDate(item.startedAt)}</td>
                   <td className="px-4 py-3">
                     <p className="font-medium whitespace-nowrap text-ink">{item.currentStage}</p>
                     {!item.submitted && <p className="text-xs whitespace-nowrap text-ink-muted">Draft · {formatRelative(item.updatedAt)}</p>}
@@ -239,6 +204,7 @@ export function OnboardingListPage() {
                     <Link
                       to={`/onboarding/${item.id}`}
                       state={fromList}
+                      onClick={(event) => event.stopPropagation()}
                       aria-label={`Open ${item.clientName}`}
                       className="inline-flex h-8 items-center gap-1 rounded-lg border border-line bg-white px-3 text-xs font-semibold text-ink shadow-xs transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
                     >

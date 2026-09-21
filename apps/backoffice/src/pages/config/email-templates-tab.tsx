@@ -24,6 +24,8 @@ import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { formatDay } from "./config-labels";
 import { ConfirmDialog } from "./confirm-dialog";
+import { placeholderValues, readPreviewClient, rememberPreviewClient, type PreviewClient } from "./preview-client";
+import { SelectClientDialog } from "./select-client-dialog";
 
 type Notice = { tone: "success" | "danger"; message: string };
 type Mode = "edit" | "preview" | "versions";
@@ -157,6 +159,14 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
   const [notice, setNotice] = useState<Notice>();
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [renaming, setRenaming] = useState(false);
+  // Which client the preview and test email stand in for; kept so it survives moving between templates.
+  const [previewClient, setPreviewClient] = useState<PreviewClient | null>(readPreviewClient);
+  const [pickingClient, setPickingClient] = useState(false);
+
+  function chooseClient(client: PreviewClient | null) {
+    setPreviewClient(client);
+    rememberPreviewClient(client);
+  }
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const placeholders = useListEmailPlaceholders<Placeholder[], ApiError>();
   const dirty = subject !== (current?.subject ?? "") || body !== (current?.body ?? "");
@@ -214,26 +224,42 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
     event.preventDefault();
     setErrors(noErrors);
     setNotice(undefined);
-    save.mutate({ id: template.id, data: { subject, body } });
+    // The wording is saved as typed; the picked client only stands in for previews and test emails.
+    save.mutate({ id: template.id, data: { subject, body, values: null } });
   }
 
-  const content = { subject, body };
+  // The picked client's details go with the wording, so the preview and the test email read the same way.
+  const values = placeholderValues(previewClient);
+  const content = { subject, body, values };
   const hasContent = subject.trim() !== "" && body.trim() !== "";
 
   return (
     <section aria-labelledby="template-name" className="rounded-2xl border border-line bg-white p-5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-primary-50 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Avatar name="Vikram Mehta" tone="navy" />
-          <div>
-            <p className="text-sm font-semibold">Vikram Mehta</p>
-            <p className="text-xs text-ink-muted">Sample client C1420 · Advisor Priya Nair</p>
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar name={previewClient?.fullName ?? "Vikram Mehta"} />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{previewClient?.fullName ?? "Vikram Mehta"}</p>
+            <p className="truncate text-xs text-ink-muted">
+              {previewClient
+                ? `${previewClient.code} · Previewing as this client · ${previewClient.advisorName ? `Advisor ${previewClient.advisorName}` : "No advisor yet"}`
+                : "Sample client C1420 · Advisor Priya Nair"}
+            </p>
           </div>
         </div>
-        <Button size="sm" disabled title="Available once client accounts are in the platform">
-          Select client
-        </Button>
+        <div className="flex items-center gap-2">
+          {previewClient && (
+            <Button size="sm" variant="ghost" onClick={() => chooseClient(null)}>
+              Use the sample
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setPickingClient(true)}>
+            {previewClient ? "Change client" : "Select client"}
+          </Button>
+        </div>
       </div>
+
+      <SelectClientDialog open={pickingClient} onClose={() => setPickingClient(false)} onChoose={chooseClient} />
 
       <div className="mt-5 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -321,7 +347,7 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
         </form>
       )}
 
-      {mode === "preview" && <PreviewPanel subject={subject} body={body} />}
+      {mode === "preview" && <PreviewPanel subject={subject} body={body} values={values} />}
 
       {mode === "versions" && (
         <div className="mt-4">
@@ -466,13 +492,22 @@ function RenameTemplateForm({ template, onCancel, onRenamed }: { template: Templ
   );
 }
 
-function PreviewPanel({ subject, body }: { subject: string; body: string }) {
+interface PreviewPanelProps {
+  subject: string;
+  body: string;
+  /** The picked client's details, or null to fill the placeholders with samples. */
+  values: Record<string, string> | null;
+}
+
+function PreviewPanel({ subject, body, values }: PreviewPanelProps) {
   const preview = usePreviewEmailTemplate<ApiError>();
   const { mutate } = preview;
+  // The values are rebuilt on each render, so the effect watches what is in them rather than the object itself.
+  const valuesKey = JSON.stringify(values ?? null);
 
   useEffect(() => {
-    mutate({ data: { subject, body } });
-  }, [mutate, subject, body]);
+    mutate({ data: { subject, body, values: JSON.parse(valuesKey) as Record<string, string> | null } });
+  }, [mutate, subject, body, valuesKey]);
 
   if (preview.isError) {
     return (
@@ -499,7 +534,11 @@ function PreviewPanel({ subject, body }: { subject: string; body: string }) {
           {rendered ? rendered.body || "Nothing to preview yet." : "Loading preview…"}
         </p>
       </div>
-      <p className="text-xs text-ink-muted">Placeholders are filled in with sample values here and in test emails.</p>
+      <p className="text-xs text-ink-muted">
+        {values
+          ? "Filled in with the picked client's details here and in test emails. Anything they can't fill, such as a reference or proposal, keeps its sample value."
+          : "Placeholders are filled in with sample values here and in test emails. Pick a client above to see a real one."}
+      </p>
     </div>
   );
 }
