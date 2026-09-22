@@ -502,14 +502,14 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
+  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -903,6 +903,7 @@ export interface FxRateRow {
   asOf: string | null;
   /** @nullable */
   recordedBy: string | null;
+  publishedByFeed: boolean;
 }
 
 /**
@@ -1447,6 +1448,16 @@ export interface AdvisorAssignment {
   unchanged: number;
   /** @nullable */
   email: AdvisorAssignmentEmail;
+}
+
+export interface FeedPull {
+  /** @nullable */
+  publishedOn: string | null;
+  recorded: string[];
+  alreadyHeld: string[];
+  notPublished: string[];
+  /** @nullable */
+  problem: string | null;
 }
 
 export interface AddCurrencyRequest {
@@ -2058,7 +2069,36 @@ export interface CustomerPage {
 export interface FxRateTable {
   reportingCurrency: string;
   feedConnected: boolean;
+  /** @nullable */
+  feedName: string | null;
+  /** @nullable */
+  feedPublishedOn: string | null;
   rates: FxRateRow[];
+}
+
+export type FxRateHistoryRowSource = typeof FxRateHistoryRowSource[keyof typeof FxRateHistoryRowSource];
+
+
+export const FxRateHistoryRowSource = {
+  MANUAL: 'MANUAL',
+  FEED: 'FEED',
+} as const;
+
+export interface FxRateHistoryRow {
+  asOf: string;
+  code: string;
+  name: string;
+  unitsPerUsd: number;
+  usdPerUnit: number;
+  source: FxRateHistoryRowSource;
+  /** @nullable */
+  recordedBy: string | null;
+  recordedAt: string;
+}
+
+export interface FxRateHistory {
+  days: number;
+  rates: FxRateHistoryRow[];
 }
 
 export interface BankMappingSummary {
@@ -2553,6 +2593,10 @@ export const ListMyClientsKycStatus = {
   REJECTED: 'REJECTED',
   EXPIRED: 'EXPIRED',
 } as const;
+
+export type ListFxRateHistoryParams = {
+code?: string;
+};
 
 export type ListAuditEventsParams = {
 query?: string;
@@ -5851,6 +5895,74 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAssignAdvisorMutationOptions(options), queryClient);
+    }
+
+export const getRefreshFxRatesUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/fx-rates/refresh`
+}
+
+export const refreshFxRates = async ( options?: Parameters<typeof http>[1]): Promise<FeedPull> => {
+
+  return http<FeedPull>(getRefreshFxRatesUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRefreshFxRatesMutationKey = () => ['refreshFxRates'] as const;
+
+export const getRefreshFxRatesMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshFxRates>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshFxRates>>, TError,void, TContext> => {
+
+const mutationKey = getRefreshFxRatesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshFxRates>>, void> = () => {
+
+
+          return  refreshFxRates(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshFxRatesMutationResult = NonNullable<Awaited<ReturnType<typeof refreshFxRates>>>
+
+    export type RefreshFxRatesMutationError = unknown
+
+
+    export const useRefreshFxRates = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshFxRates>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof refreshFxRates>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRefreshFxRatesMutationOptions(options), queryClient);
     }
 
 export const getAddCurrencyUrl = () => {
@@ -9848,6 +9960,108 @@ export function useListFxRates<TData = Awaited<ReturnType<typeof listFxRates>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListFxRatesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListFxRateHistoryUrl = (params?: ListFxRateHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/config/fx-rates/history?${stringifiedParams}` : `/api/backoffice/config/fx-rates/history`
+}
+
+export const listFxRateHistory = async (params?: ListFxRateHistoryParams, options?: Parameters<typeof http>[1]): Promise<FxRateHistory> => {
+
+  return http<FxRateHistory>(getListFxRateHistoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFxRateHistoryQueryKey = (params?: ListFxRateHistoryParams,) => {
+    return [
+    `/api/backoffice/config/fx-rates/history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListFxRateHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listFxRateHistory>>, TError = unknown>(params?: ListFxRateHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFxRateHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFxRateHistoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFxRateHistory>>> = ({ signal }) => listFxRateHistory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFxRateHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListFxRateHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof listFxRateHistory>>>
+export type ListFxRateHistoryQueryError = unknown
+
+
+export function useListFxRateHistory<TData = Awaited<ReturnType<typeof listFxRateHistory>>, TError = unknown>(
+ params: undefined |  ListFxRateHistoryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFxRateHistory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFxRateHistory>>,
+          TError,
+          Awaited<ReturnType<typeof listFxRateHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFxRateHistory<TData = Awaited<ReturnType<typeof listFxRateHistory>>, TError = unknown>(
+ params?: ListFxRateHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFxRateHistory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFxRateHistory>>,
+          TError,
+          Awaited<ReturnType<typeof listFxRateHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFxRateHistory<TData = Awaited<ReturnType<typeof listFxRateHistory>>, TError = unknown>(
+ params?: ListFxRateHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFxRateHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListFxRateHistory<TData = Awaited<ReturnType<typeof listFxRateHistory>>, TError = unknown>(
+ params?: ListFxRateHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFxRateHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListFxRateHistoryQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
