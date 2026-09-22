@@ -1,22 +1,55 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  getListFxRateHistoryQueryKey,
   getListFxRatesQueryKey,
   useAddCurrency,
+  useListFxRateHistory,
   useListFxRates,
+  useRefreshFxRates,
   useUpdateFxRate,
+  type FeedPull,
+  type FxRateHistory,
   type FxRateRow,
   type FxRateTable,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, describedBy, Dialog, Field, Pagination, SelectInput, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { usePagedRows } from "../../lib/use-paged-rows";
 import { formatUtc } from "./config-labels";
 
-type Notice = { tone: "success" | "danger"; message: string };
+type Notice = { tone: "success" | "info" | "danger"; message: string };
+
+const day = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+
+/** A day the rates are for, as the feed dates them: the day itself, never shifted by the reader's time zone. */
+function formatDay(date: string) {
+  const parsed = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  return parsed ? day.format(new Date(Date.UTC(Number(parsed[1]), Number(parsed[2]) - 1, Number(parsed[3])))) : date;
+}
+
+/** What to say about a pull, whether it brought anything back or not. */
+function pulled(result: FeedPull, feedName: string): Notice {
+  if (result.problem) {
+    return { tone: "danger", message: `${feedName}: ${result.problem} The rates already on record stand.` };
+  }
+  const forDay = result.publishedOn ? formatDay(result.publishedOn) : "today";
+  const missing = result.notPublished;
+  const left =
+    missing.length > 0
+      ? ` ${missing.join(", ")} ${missing.length === 1 ? "isn't" : "aren't"} published by the feed, so ${missing.length === 1 ? "it's" : "they're"} unchanged.`
+      : "";
+  if (result.recorded.length === 0) {
+    return { tone: "info", message: `Nothing new: the rates for ${forDay} were already on record.${left}` };
+  }
+  return {
+    tone: "success",
+    message: `Recorded ${result.recorded.length} rate${result.recorded.length === 1 ? "" : "s"} for ${forDay}: ${result.recorded.join(", ")}.${left}`,
+  };
+}
 
 const currencyNames = new Intl.DisplayNames(["en-GB"], { type: "currency" });
 
@@ -27,9 +60,24 @@ export function FxRatesTab() {
   const [updating, setUpdating] = useState<FxRateRow | null>(null);
   const [adding, setAdding] = useState(false);
   const [notice, setNotice] = useState<Notice>();
+  const [showHistory, setShowHistory] = useState(false);
+  const pull = useRefreshFxRates<ApiError>();
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: getListFxRatesQueryKey() });
+    await queryClient.invalidateQueries({ queryKey: getListFxRateHistoryQueryKey() });
+  }
+
+  /** Pulls today's rates now, rather than waiting for the daily pull. */
+  function pullNow() {
+    setNotice(undefined);
+    pull.mutate(undefined, {
+      onSuccess: (result: FeedPull) => {
+        setNotice(pulled(result, rates.data?.feedName ?? "The rate feed"));
+        void refresh();
+      },
+      onError: (caught) => setNotice({ tone: "danger", message: caught.message }),
+    });
   }
 
   const table = rates.data;
@@ -51,8 +99,18 @@ export function FxRatesTab() {
           {table && (
             <span className="inline-flex items-center gap-2 rounded-lg border border-line bg-slate-50 px-3 py-1.5 text-xs text-ink-soft">
               <span aria-hidden="true" className={`size-2 rounded-full ${table.feedConnected ? "bg-emerald-500" : "bg-slate-400"}`} />
-              {table.feedConnected ? "Rate feed connected" : "No rate feed connected · rates entered by hand"}
+              {table.feedConnected
+                ? table.feedPublishedOn
+                  ? `${table.feedName} · rates for ${formatDay(table.feedPublishedOn)}`
+                  : `${table.feedName} · not pulled yet`
+                : "No rate feed connected · rates entered by hand"}
             </span>
+          )}
+          {table?.feedConnected && (
+            <Button size="sm" variant="secondary" onClick={pullNow} disabled={pull.isPending}>
+              <RefreshCw aria-hidden="true" />
+              {pull.isPending ? "Refreshing…" : "Refresh rates"}
+            </Button>
           )}
           <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
             <Plus aria-hidden="true" />
@@ -126,7 +184,13 @@ export function FxRatesTab() {
                   {rate.source === null ? (
                     <span className="text-ink-muted">—</span>
                   ) : (
-                    <Badge>{rate.source === "FEED" ? "Rate feed" : "Entered by hand"}</Badge>
+                    <Badge tone={rate.source === "FEED" ? "info" : "neutral"}>
+                      {rate.source === "FEED" ? "Rate feed" : "Entered by hand"}
+                    </Badge>
+                  )}
+                  {/* Said once the feed has run: before that, nothing is known about what it covers. */}
+                  {table?.feedPublishedOn && !rate.publishedByFeed && (
+                    <p className="mt-1 text-2xs text-ink-muted">Not published by {table.feedName} · kept by hand</p>
                   )}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
@@ -134,7 +198,9 @@ export function FxRatesTab() {
                     <span className="text-ink-muted">—</span>
                   ) : (
                     <>
-                      <p className="text-ink-soft tabular-nums">{formatUtc(rate.asOf)}</p>
+                      <p className="text-ink-soft tabular-nums">
+                        {rate.source === "FEED" ? formatDay(rate.asOf.slice(0, 10)) : formatUtc(rate.asOf)}
+                      </p>
                       {rate.recordedBy && <p className="text-2xs text-ink-muted">by {rate.recordedBy}</p>}
                     </>
                   )}
@@ -168,6 +234,17 @@ export function FxRatesTab() {
           Reporting currency {table.reportingCurrency} · each rate change is kept, with who made it and when.
         </p>
       )}
+
+      <div className="mt-4 border-t border-line pt-4">
+        <button
+          type="button"
+          onClick={() => setShowHistory((shown) => !shown)}
+          className="text-sm font-semibold text-primary-700 hover:underline"
+        >
+          {showHistory ? "Hide stored rates" : "View stored rates by date"}
+        </button>
+        {showHistory && <RateHistory codes={(table?.rates ?? []).map((rate) => rate.code)} />}
+      </div>
 
       <UpdateRateDialog
         rate={updating}
@@ -300,6 +377,106 @@ function AddCurrencyForm({ existing, onCancel, onAdded }: { existing: string[]; 
 }
 
 /** Rates as quoted: 1.3142 SGD per USD, 147.26 JPY per USD. */
+/**
+ * Every rate the platform has stored, newest day first, with where each came from. Rates are never overwritten,
+ * so this is the record of what the platform held on any given day.
+ */
+function RateHistory({ codes }: { codes: string[] }) {
+  const [code, setCode] = useState("");
+  const history = useListFxRateHistory<FxRateHistory, ApiError>(code ? { code } : undefined);
+  const rows = history.data?.rates ?? [];
+  const paged = usePagedRows(rows, 10);
+
+  return (
+    <div className="mt-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-ink">Stored rates</h3>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            {history.data
+              ? `${rows.length} rate${rows.length === 1 ? "" : "s"} across ${history.data.days} day${history.data.days === 1 ? "" : "s"}`
+              : "Loading…"}
+          </p>
+        </div>
+        <Field id="history-code" label="Currency">
+          <SelectInput id="history-code" value={code} onChange={(event) => setCode(event.target.value)}>
+            <option value="">Every currency</option>
+            {codes.map((one) => (
+              <option key={one} value={one}>
+                {one}
+              </option>
+            ))}
+          </SelectInput>
+        </Field>
+      </div>
+
+      {history.isError && (
+        <div className="mt-3">
+          <Alert tone="danger">{history.error.message}</Alert>
+        </div>
+      )}
+
+      <div className="-mx-5 mt-3 overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              <th scope="col" className="py-2.5 pr-4 pl-5">Date</th>
+              <th scope="col" className="px-4 py-2.5">Currency</th>
+              <th scope="col" className="px-4 py-2.5">Rate</th>
+              <th scope="col" className="px-4 py-2.5">1 unit in USD</th>
+              <th scope="col" className="px-4 py-2.5">Source</th>
+              <th scope="col" className="py-2.5 pr-5 pl-4">Recorded</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {rows.length === 0 && !history.isPending && (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center text-ink-muted">
+                  No rates stored yet. Refresh the rates, or set one by hand.
+                </td>
+              </tr>
+            )}
+            {paged.shown.map((row) => (
+              <tr key={`${row.asOf}.${row.code}.${row.recordedAt}`} className="hover:bg-slate-50/60">
+                <td className="py-2.5 pr-4 pl-5 font-semibold whitespace-nowrap tabular-nums">{formatDay(row.asOf)}</td>
+                <td className="px-4 py-2.5">
+                  <span className="font-semibold">{row.code}</span>
+                  <span className="ml-2 text-2xs text-ink-muted">{row.name}</span>
+                </td>
+                <td className="px-4 py-2.5 tabular-nums">{formatRate(row.unitsPerUsd)}</td>
+                <td className="px-4 py-2.5 text-primary-600 tabular-nums">{formatConverted(row.usdPerUnit)}</td>
+                <td className="px-4 py-2.5">
+                  <Badge tone={row.source === "FEED" ? "info" : "neutral"}>
+                    {row.source === "FEED" ? "Rate feed" : "Entered by hand"}
+                  </Badge>
+                </td>
+                <td className="py-2.5 pr-5 pl-4 whitespace-nowrap">
+                  <p className="text-ink-soft tabular-nums">{formatUtc(row.recordedAt)}</p>
+                  {row.recordedBy && <p className="text-2xs text-ink-muted">by {row.recordedBy}</p>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {paged.totalItems > 0 && (
+        <div className="mt-2 border-t border-line px-1 py-3">
+          <Pagination
+            page={paged.page}
+            pageSize={paged.pageSize}
+            totalItems={paged.totalItems}
+            onPageChange={paged.setPage}
+            pageSizes={PAGE_SIZES}
+            onPageSizeChange={paged.setPageSize}
+            noun={["rate", "rates"]}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function formatRate(value: number) {
   return value >= 100 ? value.toFixed(2) : value.toFixed(4);
 }
