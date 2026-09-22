@@ -148,6 +148,10 @@ export function ActivityPanel({ activity }: { activity: ClientEvent[] }) {
               {event.description}
               {event.byWhom && <span className="font-normal text-ink-muted"> · {event.byWhom}</span>}
               {event.theirRole && <span className="font-normal text-ink-muted"> ({roleLabel(event.theirRole)})</span>}
+              {/* Done for the client rather than to them, which is most of what the back office does here. */}
+              {event.onBehalfOf && (
+                <span className="font-normal text-ink-muted"> on behalf of {event.onBehalfOf}</span>
+              )}
             </p>
             <p className="text-xs whitespace-nowrap text-ink-muted tabular-nums">{formatDateTime(event.occurredAt)}</p>
           </li>
