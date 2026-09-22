@@ -288,7 +288,12 @@ function EventRow({ event }: { event: AuditLogEntry }) {
         </div>
       </td>
       <td className="px-4 py-3 text-ink-soft">{event.actionLabel}</td>
-      <td className="px-4 py-3 text-ink-soft">{event.targetLabel ?? "—"}</td>
+      <td className="px-4 py-3 text-ink-soft">
+        {event.targetLabel ?? "—"}
+        {event.onBehalfOf && (
+          <span className="block text-xs text-ink-muted">on behalf of {event.onBehalfOf}</span>
+        )}
+      </td>
       <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
         <time dateTime={event.occurredAt} title={event.ipAddress ? `${when} from ${event.ipAddress}` : when}>
           {formatRelative(event.occurredAt)}

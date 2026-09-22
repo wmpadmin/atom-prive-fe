@@ -145,6 +145,10 @@ function FilledForm<T>({ kit, detail, caseId }: { kit: FormKit<T>; detail: FormD
     () => new Set([review.steps.find((step) => !step.complete)?.group ?? REVIEW.group]),
   );
   const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set());
+  // Which parts have actually been opened and moved on from. A part that asks nothing, or that the client's own
+  // record already answers, is complete before anybody has looked at it; ticking it then says work has been done
+  // that nobody has done. The tick waits until the part has been through.
+  const [seen, setSeen] = useState<ReadonlySet<string>>(() => new Set());
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string>();
   const [justSaved, setJustSaved] = useState(false);
@@ -154,6 +158,9 @@ function FilledForm<T>({ kit, detail, caseId }: { kit: FormKit<T>; detail: FormD
   const index = Math.max(0, steps.findIndex((step) => step.id === currentId));
   const current = steps[index] ?? REVIEW;
   const everythingDone = review.steps.every((step) => step.complete);
+  // The rail shows a tick only where the part is both answered and has been read through; everything else —
+  // which part opens first, what is left to answer, and whether it can be submitted — goes on the answers alone.
+  const shownSteps = steps.map((step) => ({ ...step, complete: step.complete && seen.has(step.id) }));
   // What was typed about the firm is part of what is saved, so changing it counts as a change to the form.
   const dirty = JSON.stringify(value) !== savedJson || JSON.stringify(firmEdits) !== savedFirmJson;
 
@@ -219,6 +226,8 @@ function FilledForm<T>({ kit, detail, caseId }: { kit: FormKit<T>; detail: FormD
   function goTo(id: string) {
     setFormError(undefined);
     setJustSaved(false);
+    // Leaving a part is what counts as having read it, whether by Continue, Back, or the rail.
+    setSeen((already) => new Set(already).add(currentId));
     setCurrentId(id);
     const group = steps.find((step) => step.id === id)?.group;
     if (group && kit.guidance[group] && !guidanceSeen.has(group)) {
@@ -361,7 +370,7 @@ function FilledForm<T>({ kit, detail, caseId }: { kit: FormKit<T>; detail: FormD
 
       <div className="grid items-start gap-6 lg:grid-cols-[18rem_1fr]">
         <StepRail
-          steps={steps}
+          steps={shownSteps}
           currentId={current.id}
           onSelect={goTo}
           hints={{ ...kit.descriptions, [REVIEW.id]: CHECK_IT_OVER }}

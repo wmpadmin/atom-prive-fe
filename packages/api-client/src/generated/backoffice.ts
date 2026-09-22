@@ -504,7 +504,6 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
-  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
@@ -521,6 +520,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -810,6 +810,8 @@ export interface ClientEvent {
   byWhom: string | null;
   /** @nullable */
   theirRole: string | null;
+  /** @nullable */
+  onBehalfOf: string | null;
 }
 
 export type CustomerRowType = typeof CustomerRowType[keyof typeof CustomerRowType];
@@ -2239,6 +2241,8 @@ export interface AuditLogEntry {
   outcome: AuditLogEntryOutcome;
   /** @nullable */
   ipAddress: string | null;
+  /** @nullable */
+  onBehalfOf: string | null;
 }
 
 export interface AuditLogPage {

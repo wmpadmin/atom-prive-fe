@@ -60,7 +60,16 @@ export function ChecklistStep({
                   on ? "border-primary-600 bg-primary-50/70" : "border-line bg-white hover:border-primary-100",
                 )}
               >
-                <div className="flex items-start gap-3 p-3.5">
+                <div
+                  // The whole line ticks it off, not just the box: the text, the bullets under it, the space
+                  // around them. A click that lands on the attachment below, or on the text itself, is left to
+                  // what it hit — the label already ticks the box, and the file controls are their own.
+                  onClick={(event) => {
+                    if ((event.target as HTMLElement).closest("input, button, a, label")) return;
+                    tick(item.id, !on);
+                  }}
+                  className="flex cursor-pointer items-start gap-3 p-3.5"
+                >
                   <input
                     type="checkbox"
                     id={item.id}
