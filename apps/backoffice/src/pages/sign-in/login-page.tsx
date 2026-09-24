@@ -44,13 +44,26 @@ export function LoginPage() {
     setError(message);
   }, []);
 
-  const askForCode = useCallback((challenge: MfaChallengeResponse) => {
-    setStep(
-      challenge.setUpRequired
-        ? { name: "setup", challengeToken: challenge.challengeToken }
-        : { name: "code", challengeToken: challenge.challengeToken, justSetUp: false },
-    );
-  }, []);
+  /**
+   * What the password step led to. Normally it leads to the authenticator code; where the firm has switched
+   * the code off, the password finishes sign-in on its own and an access token comes straight back.
+   */
+  const afterPassword = useCallback(
+    (outcome: MfaChallengeResponse | SignInResponse) => {
+      if ("accessToken" in outcome) {
+        applySignIn(outcome);
+        const from = (location.state as { from?: string } | null)?.from;
+        navigate(outcome.user.mustChangePassword ? "/change-password" : (from ?? "/"), { replace: true });
+        return;
+      }
+      setStep(
+        outcome.setUpRequired
+          ? { name: "setup", challengeToken: outcome.challengeToken }
+          : { name: "code", challengeToken: outcome.challengeToken, justSetUp: false },
+      );
+    },
+    [applySignIn, location.state, navigate],
+  );
 
   const signInFailed = useCallback((caught: unknown) => {
     if (caught instanceof ApiError) {
@@ -65,14 +78,14 @@ export function LoginPage() {
       setSubmitting(true);
       setError(undefined);
       try {
-        askForCode(await signInWithGoogle({ credential }));
+        afterPassword(await signInWithGoogle({ credential }));
       } catch (caught) {
         signInFailed(caught);
       } finally {
         setSubmitting(false);
       }
     },
-    [askForCode, signInFailed],
+    [afterPassword, signInFailed],
   );
 
   if (state.status === "signedIn") {
@@ -85,7 +98,7 @@ export function LoginPage() {
     setSubmitting(true);
     setError(undefined);
     try {
-      askForCode(await login({ email: String(form.get("email")), password: String(form.get("password")) }));
+      afterPassword(await login({ email: String(form.get("email")), password: String(form.get("password")) }));
     } catch (caught) {
       signInFailed(caught);
     } finally {

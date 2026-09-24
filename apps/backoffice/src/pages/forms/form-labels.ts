@@ -1,4 +1,5 @@
-import type { CatalogueEntryCategoriesItem, FormRowStatus } from "@atomprive/api-client/backoffice";
+import type { CaseFormRow, CatalogueEntryCategoriesItem, FormRowStatus } from "@atomprive/api-client/backoffice";
+import { formatDate } from "../../lib/labels";
 
 /**
  * Where a form has got to. Nobody sets this by hand: it follows what has been filled in, and once the form is with
@@ -22,3 +23,15 @@ export const categoryLabels: Record<CatalogueEntryCategoriesItem, string> = {
   JOINT: "Joint",
   INDIVIDUAL: "Individual",
 };
+
+/** The line under a form's name, saying where it has got to. */
+export function progressLine(form: CaseFormRow) {
+  if (form.status === "SUBMITTED") {
+    return `Completed · Submitted ${form.submittedAt ? formatDate(form.submittedAt) : ""}`.trim();
+  }
+  if (form.status === "NOT_STARTED") {
+    return "Pending completion · Not started";
+  }
+  const requested = form.requestedOn ? ` · Requested ${formatDate(form.requestedOn)}` : "";
+  return form.status === "WAITING_ON_CLIENT" ? `Awaiting client signature${requested}` : `Pending completion${requested}`;
+}

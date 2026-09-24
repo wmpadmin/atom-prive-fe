@@ -6,7 +6,7 @@ import { BellRing, ChevronRight, Plus } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatDate, formatRelative } from "../../lib/labels";
-import { hasAuthority } from "../../lib/permissions";
+import { hasAnyAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { caseStatusLabels, caseStatuses, caseSubtitle, type CaseStatus } from "./case-labels";
@@ -29,7 +29,7 @@ function readFilters(params: URLSearchParams): { query: string; status: CaseStat
 
 export function OnboardingListPage() {
   const user = useStaffUser();
-  const canChange = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE");
+  const canChange = hasAnyAuthority(user, ...ONBOARDS_CLIENTS_CHANGE);
   const navigate = useNavigate();
   const location = useLocation();
   const { params, update } = useListAddress();

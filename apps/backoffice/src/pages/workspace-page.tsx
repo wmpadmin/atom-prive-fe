@@ -1,14 +1,15 @@
 import { ApiError } from "@atomprive/api-client";
-import { useEnterWorkspace, type StaffProfileRolesItem } from "@atomprive/api-client/backoffice";
+import { useEnterWorkspace } from "@atomprive/api-client/backoffice";
 import { Alert, Badge } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, ChartColumn, ChartLine, Settings, Shield, ShieldCheck, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router";
 import { useSession, useStaffUser } from "../auth/session";
+import { workspacesIn, type WorkspaceRole } from "../lib/labels";
 
 /** How each role's workspace is introduced, in the wording of the design. */
-const workspaces: Record<StaffProfileRolesItem, { name: string; description: string; icon: LucideIcon }> = {
+const workspaces: Record<WorkspaceRole, { name: string; description: string; icon: LucideIcon }> = {
   ADMIN: { name: "Admin", description: "Users, roles & permissions, and platform configuration.", icon: ShieldCheck },
   ADVISOR: {
     name: "Relationship Advisor",
@@ -53,7 +54,8 @@ export function WorkspacePage() {
   });
 
   // Someone with a single role has nothing to choose.
-  if (user.roles.length === 1 && user.activeRole) {
+  const choices = workspacesIn(user.roles);
+  if (choices.length === 1 && user.activeRole) {
     return <Navigate to="/" replace />;
   }
 
@@ -89,7 +91,7 @@ export function WorkspacePage() {
             </div>
           )}
           <ul className="space-y-4">
-            {user.roles.map((role) => {
+            {choices.map((role) => {
               const workspace = workspaces[role];
               const Icon = workspace.icon;
               const entering = enter.isPending && enter.variables?.data.role === role;
