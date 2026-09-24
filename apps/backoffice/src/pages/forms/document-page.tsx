@@ -2,11 +2,15 @@ import { ApiError } from "@atomprive/api-client";
 import {
   getListCaseFormsQueryKey,
   useChangeCaseForm,
+  useGetCustomer,
   useGetDocumentText,
   useGetOnboardingCase,
   useListCaseForms,
+  useListClientChecklist,
   type CaseDetail,
   type CaseFormRow,
+  type ClientChecklist,
+  type CustomerDetail,
   type DocumentGap,
   type DocumentText,
   type DocumentTextKind,
@@ -56,7 +60,10 @@ function named(label: string, details: Record<string, string>, printed: Record<s
  * details — from their record wherever we already know them — and then send it.
  */
 export function DocumentPage() {
-  const { caseId = "", kind = "" } = useParams();
+  const { caseId = "", kind = "", clientId = "" } = useParams();
+  // Reached from the client list rather than from a case: the wording still reads, but sending it
+  // out belongs to the case, so there is nothing to send from here.
+  const fromClient = Boolean(clientId);
   const user = useStaffUser();
   const canChange = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE");
   const queryClient = useQueryClient();
@@ -70,15 +77,17 @@ export function DocumentPage() {
   // nothing; ticking them before anybody has opened them reads as work already done.
   const [read, setRead] = useState<ReadonlySet<string>>(new Set());
 
-  const onboarding = useGetOnboardingCase<CaseDetail, ApiError>(caseId);
+  const onboarding = useGetOnboardingCase<CaseDetail, ApiError>(caseId, { query: { enabled: !fromClient } });
   const category = onboarding.data ? categoryOf(onboarding.data.summary) : undefined;
   const rows = useListCaseForms<CaseFormRow[], ApiError>(
     caseId,
     { category: category ?? "ENTITY" },
-    { query: { enabled: Boolean(category) } },
+    { query: { enabled: !fromClient && Boolean(category) } },
   );
-  const row = rows.data?.find((held) => held.kind === kind);
-  const client = onboarding.data?.clients[0];
+  const customer = useGetCustomer<CustomerDetail, ApiError>(clientId, { query: { enabled: fromClient } });
+  const checklist = useListClientChecklist<ClientChecklist, ApiError>(clientId, { query: { enabled: fromClient } });
+  const row = (fromClient ? checklist.data?.forms : rows.data)?.find((held) => held.kind === kind);
+  const client = fromClient ? customer.data?.client : onboarding.data?.clients[0];
   const wording = useGetDocumentText<DocumentText, ApiError>(
     kind as DocumentTextKind,
     { customerId: client?.id },
@@ -118,7 +127,7 @@ export function DocumentPage() {
     [wording.data],
   );
 
-  const backTo = `/onboarding/${caseId}`;
+  const backTo = fromClient ? `/clients/${clientId}` : `/onboarding/${caseId}`;
   if (!wording.data) {
     return (
       <div className="space-y-4">
@@ -136,7 +145,8 @@ export function DocumentPage() {
   const signed = row?.status === "SUBMITTED";
   const missing = wording.data.gaps.filter((gap) => !details[gap.key]?.trim());
   const shownDue = dueOn || (row?.dueOn ?? "");
-  const writable = canChange && !signed;
+  // Sending is recorded against the onboarding case, so from a client the wording only reads.
+  const writable = canChange && !signed && !fromClient;
 
   // A part is ticked once it has been read through and the details it leaves a gap for are all in. Most parts
   // leave no gap at all, so reading them is the whole of it; a tick before that says work nobody has done.

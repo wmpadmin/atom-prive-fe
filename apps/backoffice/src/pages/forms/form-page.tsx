@@ -52,13 +52,13 @@ const CHECK_IT_OVER = "Check every section. Once it is submitted, the form can't
 export function FormPage() {
   // Opened from a case's checklist, the form sits under that case: Back goes to the checklist, and the menu
   // still says Client onboarding.
-  const { formId = "", caseId: cameFromCase } = useParams();
+  const { formId = "", caseId: cameFromCase, clientId: cameFromClient } = useParams();
   const detail = useGetForm<FormDetail, ApiError>(formId);
 
   if (!detail.data) {
     return (
       <div className="space-y-4">
-        <BackLink caseId={cameFromCase} />
+        <BackLink caseId={cameFromCase} clientId={cameFromClient} />
         {detail.isError ? (
           <Alert tone="danger">{detail.error.status === 404 ? "This form doesn't exist." : detail.error.message}</Alert>
         ) : (
@@ -72,38 +72,38 @@ export function FormPage() {
   const key = `${formId}:${detail.data.summary.status}`;
   switch (detail.data.summary.kind) {
     case "CUSTOMER_DUE_DILIGENCE_ENTITY":
-      return <FilledForm key={key} kit={dueDiligenceKit} detail={detail.data} caseId={cameFromCase} />;
+      return <FilledForm key={key} kit={dueDiligenceKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     case "FATCA_CRS_ENTITY":
-      return <FilledForm key={key} kit={fatcaCrsKit} detail={detail.data} caseId={cameFromCase} />;
+      return <FilledForm key={key} kit={fatcaCrsKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     // The joint pack holds the self-certification twice, one copy per account holder; it is the same form.
     case "FATCA_CRS_INDIVIDUAL":
     case "FATCA_CRS_SECOND_HOLDER":
-      return <FilledForm key={key} kit={fatcaCrsIndividualKit} detail={detail.data} caseId={cameFromCase} />;
+      return <FilledForm key={key} kit={fatcaCrsIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     case "CUSTOMER_DUE_DILIGENCE_INDIVIDUAL":
-      return <FilledForm key={key} kit={dueDiligenceIndividualKit} detail={detail.data} caseId={cameFromCase} />;
+      return <FilledForm key={key} kit={dueDiligenceIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     // The joint pack holds the identification form once per holder; it is the same form.
     case "CUSTOMER_IDENTIFICATION_INDIVIDUAL":
     case "CUSTOMER_IDENTIFICATION_SECOND_HOLDER":
-      return <FilledForm key={key} kit={customerIdentificationKit} detail={detail.data} caseId={cameFromCase} />;
+      return <FilledForm key={key} kit={customerIdentificationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     case "PROFESSIONAL_CLIENT_CONFIRMATION_JOINT":
-      return <FilledForm key={key} kit={professionalClientConfirmationKit} detail={detail.data} caseId={cameFromCase} />;
+      return <FilledForm key={key} kit={professionalClientConfirmationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     case "INVESTMENT_RISK_PROFILE":
-      return <FilledForm key={key} kit={riskProfileKit} detail={detail.data} caseId={cameFromCase} />;
+      return <FilledForm key={key} kit={riskProfileKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     case "CLIENT_CLASSIFICATION":
-      return <FilledForm key={key} kit={clientClassificationKit} detail={detail.data} caseId={cameFromCase} />;
+      return <FilledForm key={key} kit={clientClassificationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     case "DFSA_ONBOARDING_CHECKLIST_ENTITY":
-      return <FilledForm key={key} kit={dfsaChecklistKit} detail={detail.data} caseId={cameFromCase} />;
+      return <FilledForm key={key} kit={dfsaChecklistKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     case "ACCOUNT_OPENING_INDIVIDUAL":
-      return <FilledForm key={key} kit={accountOpeningIndividualKit} detail={detail.data} caseId={cameFromCase} />;
+      return <FilledForm key={key} kit={accountOpeningIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     case "DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL":
-      return <FilledForm key={key} kit={dfsaChecklistIndividualKit} detail={detail.data} caseId={cameFromCase} />;
+      return <FilledForm key={key} kit={dfsaChecklistIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     default:
-      return <FilledForm key={key} kit={accountOpeningKit} detail={detail.data} caseId={cameFromCase} />;
+      return <FilledForm key={key} kit={accountOpeningKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
   }
 }
 
 /** The wizard itself: the same rail, saving and sending whichever form of the pack is being filled in. */
-function FilledForm<T>({ kit, detail, caseId }: { kit: FormKit<T>; detail: FormDetail; caseId?: string }) {
+function FilledForm<T>({ kit, detail, caseId, clientId }: { kit: FormKit<T>; detail: FormDetail; caseId?: string; clientId?: string }) {
   const queryClient = useQueryClient();
   const signed = detail.summary.status === "SUBMITTED";
   // Once it has gone to the client it is a record of what was sent, so it is read-only until it is filled in again.
@@ -298,7 +298,7 @@ function FilledForm<T>({ kit, detail, caseId }: { kit: FormKit<T>; detail: FormD
 
   const header = (
     <header className="space-y-3">
-      <BackLink caseId={caseId} />
+      <BackLink caseId={caseId} clientId={clientId} />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-line bg-white px-5 py-3.5">
         <h1 className="text-base font-bold">{detail.summary.formTitle}</h1>
         <span aria-hidden="true" className="hidden h-5 w-px bg-line sm:block" />
@@ -526,15 +526,18 @@ function FirmDetails({
   );
 }
 
-function BackLink({ caseId }: { caseId?: string }) {
+function BackLink({ caseId, clientId }: { caseId?: string; clientId?: string }) {
+  // Back goes where the form was opened from: the case, the client, or the forms list.
+  const to = caseId ? `/onboarding/${caseId}` : clientId ? `/clients/${clientId}` : "/forms";
+  const onAClient = Boolean(caseId || clientId);
   return (
     <Link
-      to={caseId ? `/onboarding/${caseId}` : "/forms"}
-      state={caseId ? { tab: "documents" } : undefined}
+      to={to}
+      state={onAClient ? { tab: "documents" } : undefined}
       className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700"
     >
       <ChevronLeft aria-hidden="true" className="size-4" />
-      {caseId ? "Client documents" : "Forms"}
+      {onAClient ? "Client documents" : "Forms"}
     </Link>
   );
 }

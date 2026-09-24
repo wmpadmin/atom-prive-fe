@@ -120,7 +120,14 @@ export function StaffProfileFields({
 
       <Section title="Access & identity">
         <div className="sm:col-span-2">
-          <RolePicker required value={roles} onChange={onRolesChange} hint={rolesHint} error={fields.roles} />
+          <RolePicker
+            required
+            value={roles}
+            onChange={onRolesChange}
+            hint={rolesHint}
+            error={fields.roles}
+            editing={user?.id}
+          />
         </div>
         <Field id="nationalId" label="PAN ID / EID" required error={fields.nationalId}>
           <TextInput {...describedBy("nationalId", fields.nationalId)} name="nationalId" autoComplete="off" defaultValue={user?.nationalId ?? ""} className="uppercase" required />

@@ -12,6 +12,8 @@ import { ChangePasswordPage } from "./pages/change-password-page";
 import { ConfigPage } from "./pages/config/config-page";
 import { ClientPage } from "./pages/clients/client-page";
 import { ClientsPage } from "./pages/clients/clients-page";
+import { ClientKycPage } from "./pages/kyc/client-kyc-page";
+import { KycReviewPage } from "./pages/kyc/kyc-review-page";
 import { DocumentPage } from "./pages/forms/document-page";
 import { FormPage } from "./pages/forms/form-page";
 import { FormsPage } from "./pages/forms/forms-page";
@@ -19,7 +21,13 @@ import { MyDeclarationPage } from "./pages/my-declarations/my-declaration-page";
 import { MyDeclarationsPage } from "./pages/my-declarations/my-declarations-page";
 import { StaffDeclarationsPage } from "./pages/staff-declarations/staff-declarations-page";
 import { HomePage } from "./pages/home-page";
-import { OPENS_CLIENT_FILES, WRITES_PROPOSALS } from "./lib/permissions";
+import {
+  ONBOARDS_CLIENTS,
+  OPENS_CLIENT_DOCUMENTS,
+  OPENS_CLIENT_FILES,
+  UPLOADS_CLIENT_DOCUMENTS,
+  WRITES_PROPOSALS,
+} from "./lib/permissions";
 import { ForgotPasswordPage } from "./pages/sign-in/forgot-password-page";
 import { LoginPage } from "./pages/sign-in/login-page";
 import { ResetPasswordPage } from "./pages/sign-in/reset-password-page";
@@ -29,6 +37,9 @@ import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
 import { UsersPage } from "./pages/users/users-page";
 import { WorkspacePage } from "./pages/workspace-page";
+import { SignaturePackPage } from "./pages/to-sign/signature-pack-page";
+import { ToSignPage } from "./pages/to-sign/to-sign-page";
+import { ClientDocumentsPage } from "./pages/client-documents/client-documents-page";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -54,7 +65,6 @@ export const router = createBrowserRouter([
               // back in app-layout.tsx to show it again.
               { path: "dashboard", element: <DashboardPage /> },
               { path: "clients", element: <ClientsPage /> },
-              { path: "bank-syncs", element: <SyncRunsPage /> },
               { path: "notifications", element: <DeliveriesPage /> },
               {
                 path: "family-access",
@@ -80,6 +90,27 @@ export const router = createBrowserRouter([
             ],
           },
           {
+            // KYC review is Compliance's, and Compliance have no sight of every client, so it cannot sit under
+            // VIEW_ALL_CLIENTS. Operations may look at where a client's papers have got to; only Compliance decide.
+            element: <RequireAuthority authority="APPROVE_ONBOARDING:VIEW" />,
+            children: [
+              { path: "kyc", element: <KycReviewPage /> },
+              // Compliance read the client's case here rather than under Client onboarding, which is
+              // Operations' own screen and closed to them.
+              { path: "kyc/cases/:caseId", element: <OnboardingCasePage /> },
+            ],
+          },
+          {
+            // A client's papers are opened both by Compliance, who decide on them, and by the advisor who
+            // puts them on file.
+            element: <RequireAuthority authority={OPENS_CLIENT_DOCUMENTS} />,
+            children: [{ path: "kyc/:customerId", element: <ClientKycPage /> }],
+          },
+          {
+            element: <RequireAuthority authority={UPLOADS_CLIENT_DOCUMENTS} />,
+            children: [{ path: "client-documents", element: <ClientDocumentsPage /> }],
+          },
+          {
             // Looking after clients of your own is not the same as seeing every client: an advisor has only the
             // first, so these can't sit under VIEW_ALL_CLIENTS or every advisor screen bounces back home.
             element: <RequireAuthority authority={OPENS_CLIENT_FILES} />,
@@ -97,11 +128,39 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            element: <RequireAuthority authority="ONBOARD_CLIENTS:VIEW" />,
+            // The bank feeds are the head's: staff work from what has come in, not from the connections.
+            element: <RequireAuthority authority="MANAGE_BANK_FEEDS:VIEW" />,
+            children: [{ path: "bank-syncs", element: <SyncRunsPage /> }],
+          },
+          {
+            // Filling a client's forms is its own job, separate from onboarding them.
+            element: <RequireAuthority authority="FILL_CLIENT_FORMS:VIEW" />,
             children: [
               { path: "forms", element: <FormsPage /> },
-              { path: "staff-declarations", element: <StaffDeclarationsPage /> },
               { path: "forms/:formId", element: <FormPage /> },
+              // The same two screens reached from a client rather than a case, so Back returns to the client.
+              { path: "clients/:clientId/forms/:formId", element: <FormPage /> },
+              { path: "clients/:clientId/documents/:kind", element: <DocumentPage /> },
+            ],
+          },
+          {
+            // The firm-wide register of declarations is oversight, so it follows managing staff.
+            element: <RequireAuthority authority="MANAGE_USERS_AND_ROLES:VIEW" />,
+            children: [{ path: "staff-declarations", element: <StaffDeclarationsPage /> }],
+          },
+          {
+            // Signing is the advisor's half of a pack; Operations follow the same packs from a client's file.
+            element: <RequireAuthority authority={ONBOARDS_CLIENTS} />,
+            children: [
+              { path: "to-sign", element: <ToSignPage /> },
+              { path: "to-sign/:packId", element: <SignaturePackPage /> },
+            ],
+          },
+          {
+            // Onboarding is Operations' and the advisor's alike; the advisor is held to their own clients
+            // by the API, which answers another advisor's case as though it were not there.
+            element: <RequireAuthority authority={ONBOARDS_CLIENTS} />,
+            children: [
               { path: "onboarding", element: <OnboardingListPage /> },
               // A form opened from a case's checklist lives under that case, so the menu keeps saying
               // Client onboarding and Back knows where to return to even after a refresh.

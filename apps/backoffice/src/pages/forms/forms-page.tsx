@@ -22,8 +22,8 @@ export function FormsPage() {
       <header>
         <h1 className="text-[1.625rem] font-bold">Forms</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Every form a client signs when their account is opened. Each one is asked for on the client's onboarding case,
-          under Client documents.
+          Every form a client signs when their account is opened. To fill one in, open the client and start it from
+          their Documents tab.
         </p>
       </header>
 

@@ -9,12 +9,13 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, cn, DateInput, Dialog, Field } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, Minus, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { formatDate } from "../../lib/labels";
-import { formStatus } from "../forms/form-labels";
+import { DueDate, Mark } from "../forms/checklist-parts";
+import { formStatus, progressLine } from "../forms/form-labels";
 import { categoryLabels, categoryOf, dueLabel } from "./case-category";
+import { readyToSend } from "./ready-to-send";
+import { SendToSignBar } from "./send-to-sign-bar";
 
 
 
@@ -24,18 +25,6 @@ import { categoryLabels, categoryOf, dueLabel } from "./case-category";
  */
 function tracked(form: CaseFormRow) {
   return form.status === "WAITING_ON_CLIENT";
-}
-
-/** The line under a form's name, saying where it has got to. */
-function progressLine(form: CaseFormRow) {
-  if (form.status === "SUBMITTED") {
-    return `Completed · Submitted ${form.submittedAt ? formatDate(form.submittedAt) : ""}`.trim();
-  }
-  if (form.status === "NOT_STARTED") {
-    return "Pending completion · Not started";
-  }
-  const requested = form.requestedOn ? ` · Requested ${formatDate(form.requestedOn)}` : "";
-  return form.status === "WAITING_ON_CLIENT" ? `Awaiting client signature${requested}` : `Pending completion${requested}`;
 }
 
 function today() {
@@ -55,6 +44,8 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [changing, setChanging] = useState<CaseFormRow | null>(null);
+  // Which forms are chosen to go out together. One is a single form; several are one pack.
+  const [chosen, setChosen] = useState<string[]>([]);
 
   const forms = useListCaseForms<CaseFormRow[], ApiError>(caseId, { category }, { query: { enabled: Boolean(client) } });
   const open = useStartForm<ApiError>();
@@ -70,6 +61,12 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
 
   const rows = forms.data ?? [];
   const done = rows.filter((form) => form.status === "SUBMITTED").length;
+  const sendable = rows.filter(readyToSend);
+  const picked = sendable.filter((form) => chosen.includes(form.kind));
+
+  function choose(kind: string, wanted: boolean) {
+    setChosen((held) => (wanted ? [...held, kind] : held.filter((one) => one !== kind)));
+  }
 
   /**
    * What this row's Action does. The whole row does it too: a form in a list is opened by clicking the form,
@@ -119,6 +116,11 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              {canChange && sendable.length > 0 && (
+                <th scope="col" className="w-10 py-3 pr-0 pl-6">
+                  <span className="sr-only">Choose to send</span>
+                </th>
+              )}
               <th scope="col" className="py-3 pr-4 pl-6">Forms</th>
               <th scope="col" className="px-4 py-3">Due date</th>
               <th scope="col" className="px-4 py-3">Status</th>
@@ -128,12 +130,12 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
           <tbody className="divide-y divide-line">
             {forms.isPending && (
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-ink-muted">Loading the checklist…</td>
+                <td colSpan={5} className="px-6 py-8 text-center text-ink-muted">Loading the checklist…</td>
               </tr>
             )}
             {!forms.isPending && rows.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-6 py-10 text-center text-ink-muted">
+                <td colSpan={5} className="px-6 py-10 text-center text-ink-muted">
                   No form is in the {categoryLabels[category]} pack yet. Put one there from the Forms screen.
                 </td>
               </tr>
@@ -148,6 +150,21 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
                   onClick={openRow}
                   className={cn(waiting && "bg-amber-50/50", openRow && "cursor-pointer hover:bg-slate-50")}
                 >
+                  {canChange && sendable.length > 0 && (
+                    <td className="py-3 pr-0 pl-6">
+                      {readyToSend(form) && (
+                        <input
+                          type="checkbox"
+                          aria-label={`Send ${form.title} to be signed`}
+                          checked={chosen.includes(form.kind)}
+                          // The row opens the form behind it; the tick only chooses it.
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => choose(form.kind, event.target.checked)}
+                          className="size-4 rounded border-line text-primary-600"
+                        />
+                      )}
+                    </td>
+                  )}
                   <td className="py-3 pr-4 pl-6">
                     <div className="flex items-start gap-3">
                       <Mark status={form.status} />
@@ -214,6 +231,18 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
         </table>
       </div>
 
+      {canChange && (
+        <SendToSignBar
+          caseId={caseId}
+          chosen={picked}
+          forms={rows}
+          onSent={() => {
+            setChosen([]);
+            void refresh();
+          }}
+        />
+      )}
+
       <FormProgressDialog
         form={changing}
         caseId={caseId}
@@ -225,40 +254,6 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
         }}
       />
     </section>
-  );
-}
-
-function Mark({ status }: { status: CaseFormRow["status"] }) {
-  const shared = "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full";
-  if (status === "SUBMITTED") {
-    return (
-      <span aria-hidden="true" className={cn(shared, "bg-emerald-100 text-emerald-700")}>
-        <Check className="size-3.5" strokeWidth={3} />
-      </span>
-    );
-  }
-  if (status === "WAITING_ON_CLIENT") {
-    return (
-      <span aria-hidden="true" className={cn(shared, "bg-amber-100 text-amber-700")}>
-        <TriangleAlert className="size-3.5" />
-      </span>
-    );
-  }
-  return (
-    <span aria-hidden="true" className={cn(shared, "bg-slate-100 text-ink-muted")}>
-      <Minus className="size-3.5" />
-    </span>
-  );
-}
-
-function DueDate({ dueOn, due }: { dueOn: string | null; due: ReturnType<typeof dueLabel> }) {
-  return (
-    <>
-      <span className="block font-semibold">{dueOn ? formatDate(dueOn) : "—"}</span>
-      <span className={cn("block text-xs", due.tone === "late" ? "text-red-600" : due.tone === "warn" ? "text-amber-600" : "text-ink-muted")}>
-        {due.text}
-      </span>
-    </>
   );
 }
 

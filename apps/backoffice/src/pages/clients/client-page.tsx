@@ -14,20 +14,21 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatDate, formatRelative } from "../../lib/labels";
-import { hasAuthority } from "../../lib/permissions";
+import { hasAnyAuthority, hasAuthority } from "../../lib/permissions";
 import { ConfirmDialog } from "../config/confirm-dialog";
 import { AssignAdvisorDialog } from "./assign-advisor-dialog";
 import { EditClientDialog } from "./edit-client-dialog";
 import {
   ActivityPanel,
   BankAccountsPanel,
-  DocumentsPanel,
   FamilyPanel,
   HoldingsPanel,
   ProposalsPanel,
   TransactionsPanel,
 } from "./client-file-panels";
 import { assignmentNotice, clientsHref, clientTypeLabels, kycStatusLabels, kycStatusTones } from "./client-labels";
+import { ClientAccessPanel } from "./client-access-panel";
+import { ClientFormsPanel } from "./client-forms-panel";
 
 type Tab = "overview" | "family" | "banks" | "holdings" | "transactions" | "proposals" | "documents" | "activity";
 
@@ -47,8 +48,12 @@ export function ClientPage() {
   const { clientId = "" } = useParams();
   const user = useStaffUser();
   const canAssign = hasAuthority(user, "ASSIGN_ADVISORS:CHANGE");
-  // Everyone with access reads the file; only full access to every client can correct it.
-  const canEdit = hasAuthority(user, "VIEW_ALL_CLIENTS:CHANGE");
+  // Whoever runs a team decides who on it sees this client, and so who reads their documents.
+  const setsAccess = hasAuthority(user, "ASSIGN_WORK:CHANGE");
+  // Everyone with access reads the file. Correcting it belongs to whoever manages the client's record:
+  // an Admin, a head, or Compliance — not an officer who is there to fill the forms in.
+  const canEdit = hasAnyAuthority(user, "MANAGE_USERS_AND_ROLES:CHANGE", "ASSIGN_WORK:CHANGE",
+    "APPROVE_ONBOARDING:CHANGE");
   const location = useLocation();
   // The same file opens from All clients and from My clients. Back goes where they came from: an advisor has no
   // All clients screen to return to.
@@ -151,6 +156,8 @@ export function ClientPage() {
           <Fact label="Last login">{formatRelative(client.lastLoginAt, "Never")}</Fact>
         </dl>
 
+        {setsAccess && <ClientAccessPanel clientId={clientId} />}
+
         <section aria-labelledby="advisors-title" className="rounded-2xl border border-line bg-white">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-6 py-5">
             <div>
@@ -204,7 +211,7 @@ export function ClientPage() {
       {tab === "holdings" && <HoldingsPanel />}
       {tab === "transactions" && <TransactionsPanel />}
       {tab === "proposals" && <ProposalsPanel />}
-      {tab === "documents" && <DocumentsPanel />}
+      {tab === "documents" && <ClientFormsPanel client={client} />}
       {tab === "activity" && <ActivityPanel activity={activity} />}
 
       <EditClientDialog

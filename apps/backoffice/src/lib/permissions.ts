@@ -31,6 +31,28 @@ export const OPENS_CLIENT_FILES: Authority[] = [
   "VIEW_ALL_CLIENTS:VIEW",
 ];
 
+/**
+ * Enough to follow onboarding cases, the same set ClientOnboardingController lets through: Operations, who
+ * follow every case, and an advisor, who follows the clients they look after themselves.
+ */
+export const ONBOARDS_CLIENTS: Authority[] = ["ONBOARD_CLIENTS:VIEW", "ONBOARD_CLIENTS:OWN_CLIENTS"];
+
+/**
+ * Enough to enter and submit a client's details. Operations do it for every client; an advisor does it for
+ * the clients they look after themselves. Filling in the client's forms is Operations' alone — that stays
+ * ONBOARD_CLIENTS:CHANGE.
+ */
+export const ONBOARDS_CLIENTS_CHANGE: Authority[] = ["ONBOARD_CLIENTS:CHANGE", "ONBOARD_CLIENTS:OWN_CLIENTS"];
+
+/** Enough to put a client's papers on file: Compliance for any client, an advisor for their own. */
+export const UPLOADS_CLIENT_DOCUMENTS: Authority[] = [
+  "UPLOAD_CLIENT_DOCUMENTS:CHANGE",
+  "UPLOAD_CLIENT_DOCUMENTS:OWN_CLIENTS",
+];
+
+/** Enough to open a client's papers: whoever decides on them, and whoever puts them on file. */
+export const OPENS_CLIENT_DOCUMENTS: Authority[] = ["APPROVE_ONBOARDING:VIEW", ...UPLOADS_CLIENT_DOCUMENTS];
+
 /** Enough to write proposals, the same set ProposalController lets through. */
 export const WRITES_PROPOSALS: Authority[] = ["SEND_PROPOSALS:OWN_CLIENTS", "SEND_PROPOSALS:ASSIGNED", "SEND_PROPOSALS:CHANGE"];
 

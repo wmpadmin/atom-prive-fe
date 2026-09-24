@@ -14,10 +14,11 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatDate } from "../../lib/labels";
-import { hasAuthority } from "../../lib/permissions";
+import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
 import { newApplication, toForm } from "./application";
 import { ApplicationSummary } from "./application-summary";
 import { CaseDocumentsTab } from "./case-documents-tab";
+import type { SentForSignOff } from "@atomprive/api-client/backoffice";
 import { CaseSignOff, SignOffNotice } from "./case-sign-off";
 import { caseSubtitle, listHref } from "./case-labels";
 import { CaseStatusBadge, ClientMark, ProgressMeter } from "./case-parts";
@@ -28,19 +29,23 @@ export function OnboardingCasePage() {
   const { caseId = "new" } = useParams();
   const isNew = caseId === "new";
   const user = useStaffUser();
-  const canChange = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE");
+  // Entering the client's details is the advisor's too, for their own clients; filling in the client's forms
+  // stays Operations' work, so the two are asked separately.
+  const canOnboard = hasAnyAuthority(user, ...ONBOARDS_CLIENTS_CHANGE);
+  const canFillForms = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE");
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
 
   const saved = useGetOnboardingCase<CaseDetail, ApiError>(caseId, { query: { enabled: !isNew } });
   const detail = isNew ? undefined : saved.data;
-  const editing = canChange && (isNew || detail?.summary.submitted === false);
+  const editing = canOnboard && (isNew || detail?.summary.submitted === false);
   const managers = useListRelationshipManagers<StaffMember[], ApiError>({ query: { enabled: editing } });
   const initial = useMemo(() => (detail ? toForm(detail.application) : newApplication()), [detail]);
   // The list's search and page, remembered when the case was opened, so going back returns to them.
   const list = (location.state as { list?: string } | null)?.list;
-  const backTo = listHref(location.state);
+  const fromKyc = location.pathname.startsWith("/kyc");
+  const backTo = fromKyc ? "/kyc" : listHref(location.state);
 
   function handleSaved(result: CaseDetail, submitted: boolean) {
     const id = result.summary.id;
@@ -52,7 +57,7 @@ export function OnboardingCasePage() {
     }
   }
 
-  if (isNew && !canChange) {
+  if (isNew && !canOnboard) {
     return <Navigate to={backTo} replace />;
   }
   if (editing) {
@@ -74,7 +79,16 @@ export function OnboardingCasePage() {
   }
   const justSubmitted = (location.state as { submitted?: boolean } | null)?.submitted === true;
   const openAt = (location.state as { tab?: "client" | "documents" } | null)?.tab ?? "client";
-  return <CaseOverview detail={detail} justSubmitted={justSubmitted} canChange={canChange} backTo={backTo} openAt={openAt} />;
+  return (
+    <CaseOverview
+      detail={detail}
+      justSubmitted={justSubmitted}
+      canOnboard={canOnboard}
+      canFillForms={canFillForms}
+      backTo={backTo}
+      openAt={openAt}
+    />
+  );
 }
 
 function BackLink({ to }: { to: string }) {
@@ -87,10 +101,26 @@ function BackLink({ to }: { to: string }) {
 }
 
 /** A case as it stands, for submitted cases and for people who can only view onboarding. */
-function CaseOverview({ detail, justSubmitted, canChange, backTo, openAt }: { detail: CaseDetail; justSubmitted: boolean; canChange: boolean; backTo: string; openAt: "client" | "documents" }) {
+function CaseOverview({
+  detail,
+  justSubmitted,
+  canOnboard,
+  canFillForms,
+  backTo,
+  openAt,
+}: {
+  detail: CaseDetail;
+  justSubmitted: boolean;
+  canOnboard: boolean;
+  canFillForms: boolean;
+  backTo: string;
+  openAt: "client" | "documents";
+}) {
   const { summary } = detail;
   const manager = summary.relationshipManager;
   const [tab, setTab] = useState<"client" | "documents">(openAt);
+  /** What came of writing to Compliance, known only just after the case is sent to them. */
+  const [told, setTold] = useState<SentForSignOff>();
 
   return (
     <div className="space-y-6">
@@ -106,7 +136,7 @@ function CaseOverview({ detail, justSubmitted, canChange, backTo, openAt }: { de
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <CaseStatusBadge status={summary.status} />
-            <CaseSignOff detail={detail} canChange={canChange} />
+            <CaseSignOff detail={detail} canChange={canOnboard} onSent={setTold} />
           </div>
         </div>
         <div role="tablist" aria-label="Case" className="flex gap-1 border-b border-line">
@@ -129,9 +159,9 @@ function CaseOverview({ detail, justSubmitted, canChange, backTo, openAt }: { de
         </div>
       </header>
 
-      <SignOffNotice detail={detail} />
+      <SignOffNotice detail={detail} told={told} />
 
-      {tab === "documents" && <CaseDocumentsTab detail={detail} canChange={canChange} />}
+      {tab === "documents" && <CaseDocumentsTab detail={detail} canChange={canFillForms} />}
       {tab === "client" && (
         <>
 
@@ -140,7 +170,7 @@ function CaseOverview({ detail, justSubmitted, canChange, backTo, openAt }: { de
       )}
       {!summary.submitted && (
         <Alert tone="info">
-          {canChange
+          {canOnboard
             ? "This application is still a draft."
             : "This application is still a draft. Operations fills in and submits the client's details."}
         </Alert>

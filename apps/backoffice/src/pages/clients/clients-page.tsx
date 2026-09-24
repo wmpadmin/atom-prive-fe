@@ -1,9 +1,18 @@
 import { ApiError } from "@atomprive/api-client";
-import { useListCustomerAdvisors, useListCustomers, type CustomerPage, type StaffMember } from "@atomprive/api-client/backoffice";
+import {
+  useListCustomerAdvisors,
+  useListCustomers,
+  useListMyClients,
+  useListProposals,
+  type CustomerPage,
+  type ProposalPage,
+  type ProposalRow,
+  type StaffMember,
+} from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, cn, DateInput, Pagination, SelectInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Download, UserRoundCog } from "lucide-react";
-import { useState, type MouseEvent } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { ColumnPicker } from "../../components/column-picker";
@@ -11,6 +20,7 @@ import { formatDate, formatRelative } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
+import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
 import { AdvisorChips } from "./advisor-chips";
 import { AssignAdvisorDialog, type ClientToAssign } from "./assign-advisor-dialog";
 import { assignmentNotice, clientTypeLabels, kycStatuses, kycStatusLabels, kycStatusTones, type KycStatus } from "./client-labels";
@@ -30,6 +40,7 @@ const COLUMNS = [
   { id: "kyc", label: "KYC status" },
   { id: "banks", label: "Linked banks" },
   { id: "advisors", label: "Advisors" },
+  { id: "proposal", label: "Proposal" },
   { id: "lastLogin", label: "Last login" },
   { id: "action", label: "Action" },
   { id: "portfolio", label: "Portfolio" },
@@ -107,10 +118,16 @@ function localDay(day: string, addDays = 0) {
   return new Date(year!, month! - 1, date! + addDays);
 }
 
-/** Every client registered with the firm, for Admins: Operations onboard them. */
-export function ClientsPage() {
+/**
+ * The client list. Admins and Compliance see every client registered with the firm; an advisor sees the same
+ * list, showing only the clients assigned to them. It is one screen either way: the same columns, the same
+ * search and the same filters, so nobody has to learn two of them.
+ */
+export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const user = useStaffUser();
-  const canAssign = hasAuthority(user, "ASSIGN_ADVISORS:CHANGE");
+  const canAssign = !mine && hasAuthority(user, "ASSIGN_ADVISORS:CHANGE");
+  // An advisor's list is their own, so a client of theirs opens under their own part of the app.
+  const opensAt = mine ? "/my-clients" : "/clients";
   const location = useLocation();
   const navigate = useNavigate();
   const { params, update } = useListAddress();
@@ -134,11 +151,35 @@ export function ClientsPage() {
     registeredFrom: from ? localDay(from).toISOString() : undefined,
     registeredTo: to ? localDay(to, 1).toISOString() : undefined,
   };
-  const customers = useListCustomers<CustomerPage, ApiError>(
+  const everyClient = useListCustomers<CustomerPage, ApiError>(
     { ...filters, query: query || undefined, page, size },
-    { query: { placeholderData: keepPreviousData } },
+    { query: { enabled: !mine, placeholderData: keepPreviousData } },
   );
-  const advisors = useListCustomerAdvisors<StaffMember[], ApiError>({ query: { staleTime: 5 * 60_000 } });
+  // The advisor's own list is the same list, narrowed by the API to the clients assigned to them.
+  const myClients = useListMyClients<CustomerPage, ApiError>(
+    { kycStatus: filters.kycStatus, registeredFrom: filters.registeredFrom, registeredTo: filters.registeredTo,
+      query: query || undefined, page, size },
+    { query: { enabled: mine, placeholderData: keepPreviousData } },
+  );
+  const customers = mine ? myClients : everyClient;
+  // Filtering by advisor is for somebody choosing between advisors; an advisor's own list has only them.
+  const advisors = useListCustomerAdvisors<StaffMember[], ApiError>({
+    query: { enabled: !mine, staleTime: 5 * 60_000 },
+  });
+  // Where each of their clients' advice stands. An advisor's own proposals, newest first, so the first one for
+  // a client is where that client has got to. Proposals and clients are separate parts of the platform and
+  // neither owns the other's list, so they are put together here rather than in the API.
+  const proposals = useListProposals<ProposalPage, ApiError>(
+    { page: 0, size: 200 },
+    { query: { enabled: mine, staleTime: 60_000 } },
+  );
+  const newestProposal = useMemo(() => {
+    const byClient = new Map<string, ProposalRow>();
+    for (const proposal of proposals.data?.items ?? []) {
+      if (!byClient.has(proposal.customerId)) byClient.set(proposal.customerId, proposal);
+    }
+    return byClient;
+  }, [proposals.data]);
 
   function clearFilters() {
     typed.clear();
@@ -151,8 +192,10 @@ export function ClientsPage() {
   const filtered = query !== "" || kycStatus !== "" || advisorId !== "" || from !== "" || to !== "";
   const today = new Date();
   // Assigning is the only action there is, so people who can't assign aren't offered that column.
-  const offered = COLUMNS.filter((column) => column.id !== "action" || canAssign);
-  const shows = (id: ColumnId) => columns.has(id) && (id !== "action" || canAssign);
+  // The proposal a client is considering is their advisor's business; the firm-wide list has its own screen for it.
+  const offeredHere = (id: ColumnId) => (id === "action" ? canAssign : id === "proposal" ? mine : true);
+  const offered = COLUMNS.filter((column) => offeredHere(column.id));
+  const shows = (id: ColumnId) => columns.has(id) && offeredHere(id);
   const columnCount = 1 + (canAssign ? 1 : 0) + offered.filter((column) => columns.has(column.id)).length;
 
   // A page that no longer exists shows the last page instead.
@@ -167,9 +210,11 @@ export function ClientsPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[1.625rem] font-bold">All clients</h1>
+          <h1 className="text-[1.625rem] font-bold">{mine ? "My clients" : "All clients"}</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Every client registered with the firm, with their code, KYC status, advisors and last login.
+            {mine
+              ? "The clients assigned to you, with their code, KYC status, advisors and last login."
+              : "Every client registered with the firm, with their code, KYC status, advisors and last login."}
           </p>
         </div>
         <ColumnPicker
@@ -212,17 +257,19 @@ export function ClientsPage() {
                 ))}
               </SelectInput>
             </label>
-            <label>
-              <span className="sr-only">Advisor</span>
-              <SelectInput id="client-advisor" value={advisorId} onChange={(event) => update({ advisor: event.target.value })} className="w-auto">
-                <option value="">All advisors</option>
-                {(advisors.data ?? []).map((advisor) => (
-                  <option key={advisor.id} value={advisor.id}>
-                    {advisor.fullName}
-                  </option>
-                ))}
-              </SelectInput>
-            </label>
+            {!mine && (
+              <label>
+                <span className="sr-only">Advisor</span>
+                <SelectInput id="client-advisor" value={advisorId} onChange={(event) => update({ advisor: event.target.value })} className="w-auto">
+                  <option value="">All advisors</option>
+                  {(advisors.data ?? []).map((advisor) => (
+                    <option key={advisor.id} value={advisor.id}>
+                      {advisor.fullName}
+                    </option>
+                  ))}
+                </SelectInput>
+              </label>
+            )}
             <div role="group" aria-label="Registration date" className="flex items-center gap-2">
               <span className="text-sm text-ink-muted" aria-hidden="true">
                 Registered
@@ -306,6 +353,7 @@ export function ClientsPage() {
                   </th>
                 )}
                 {shows("advisors") && <th scope="col" className="px-4 py-3">Advisors</th>}
+                {shows("proposal") && <th scope="col" className="px-4 py-3">Proposal</th>}
                 {shows("lastLogin") && <th scope="col" className="px-4 py-3">Last login</th>}
                 {shows("action") && <th scope="col" className="px-4 py-3">Action</th>}
                 {shows("portfolio") && (
@@ -341,7 +389,7 @@ export function ClientsPage() {
                 // The row opens the client, the same as their name does; what is in the row keeps its own job.
                 <tr
                   key={customer.id}
-                  onClick={() => void navigate(`/clients/${customer.id}`, { state: { list: location.search } })}
+                  onClick={() => void navigate(`${opensAt}/${customer.id}`, { state: { list: location.search } })}
                   className={cn(
                     "cursor-pointer hover:bg-slate-50/60",
                     selected.has(customer.id) && "bg-primary-50/40",
@@ -368,7 +416,7 @@ export function ClientsPage() {
                     <div className="flex items-center gap-3">
                       <Avatar name={customer.fullName} className="size-10" />
                       <div className="min-w-0">
-                        <Link to={`/clients/${customer.id}`} state={{ list: location.search }} onClick={(event) => event.stopPropagation()} className="block truncate font-semibold hover:text-primary-600">
+                        <Link to={`${opensAt}/${customer.id}`} state={{ list: location.search }} onClick={(event) => event.stopPropagation()} className="block truncate font-semibold hover:text-primary-600">
                           {customer.fullName}
                         </Link>
                         {/* Entities have no email of their own, so they say what they are instead. */}
@@ -393,6 +441,11 @@ export function ClientsPage() {
                   {shows("advisors") && (
                     <td className="px-4 py-3">
                       <AdvisorChips advisors={customer.advisors} />
+                    </td>
+                  )}
+                  {shows("proposal") && (
+                    <td className="px-4 py-3">
+                      <LatestProposal proposal={newestProposal.get(customer.id)} />
                     </td>
                   )}
                   {shows("lastLogin") && <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(customer.lastLoginAt, "Never")}</td>}
@@ -477,5 +530,16 @@ function Checkbox({ label, checked, indeterminate = false, disabled, onChange, o
       onChange={(event) => onChange(event.target.checked)}
       className="size-4 cursor-pointer rounded border-line accent-primary-600 disabled:cursor-default"
     />
+  );
+}
+
+/** Where a client's advice stands: the newest proposal their advisor has put to them. */
+function LatestProposal({ proposal }: { proposal: ProposalRow | undefined }) {
+  if (!proposal) return <span className="text-ink-muted">None yet</span>;
+  return (
+    <>
+      <Badge tone={proposalStatusTones[proposal.status]}>{proposalStatusLabels[proposal.status]}</Badge>
+      <span className="mt-1 block font-mono text-2xs text-ink-muted">{proposal.reference}</span>
+    </>
   );
 }
