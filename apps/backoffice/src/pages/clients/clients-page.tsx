@@ -5,6 +5,7 @@ import {
   useListMyClients,
   useListProposals,
   type CustomerPage,
+  type CustomerRow,
   type ProposalPage,
   type ProposalRow,
   type StaffMember,
@@ -29,6 +30,34 @@ import { ClientSearch } from "./client-search";
 
 
 const EARLIEST_REGISTRATION = new Date(2000, 0, 1);
+
+/**
+ * Whoever else holds this client's account. Read through here rather than off the row, so a list served by an
+ * API that predates joint accounts being grouped reads as nobody else rather than bringing the screen down.
+ */
+function heldWith(customer: CustomerRow): CustomerRow["heldWith"] {
+  return customer.heldWith ?? [];
+}
+
+/**
+ * Everyone on the account this row is for. A joint account is one row, so giving that row an advisor means
+ * giving the account one — the holder it happens to open on is not the only person on it.
+ */
+function everyHolderOf(customer: CustomerRow): ClientToAssign[] {
+  return [
+    { id: customer.id, fullName: customer.fullName, advisors: customer.advisors },
+    ...heldWith(customer).map((held) => ({ id: held.id, fullName: held.fullName, advisors: held.advisors })),
+  ];
+}
+
+/** Whoever advises anybody on the account, named once however many holders they look after. */
+function advisorsOn(customer: CustomerRow): StaffMember[] {
+  const byId = new Map(customer.advisors.map((advisor) => [advisor.id, advisor]));
+  for (const held of heldWith(customer)) {
+    for (const advisor of held.advisors ?? []) byId.set(advisor.id, advisor);
+  }
+  return [...byId.values()].sort((one, other) => one.fullName.localeCompare(other.fullName));
+}
 
 const LINKED_BANKS_LATER = "Filled in once bank linking is built";
 
@@ -309,7 +338,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                 <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
                   Clear selection
                 </Button>
-                <Button size="sm" onClick={() => setAssigning(rows.filter((row) => selected.has(row.id)))}>
+                <Button size="sm" onClick={() => setAssigning(rows.filter((row) => selected.has(row.id)).flatMap(everyHolderOf))}>
                   <UserRoundCog aria-hidden="true" />
                   Assign advisor
                 </Button>
@@ -405,8 +434,13 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                         <Link to={`${opensAt}/${customer.id}`} state={{ list: location.search }} onClick={(event) => event.stopPropagation()} className="block truncate font-semibold hover:text-primary-600">
                           {customer.fullName}
                         </Link>
-                        {/* Entities have no email of their own, so they say what they are instead. */}
-                        <p className="truncate text-xs text-ink-muted">{customer.email ?? clientTypeLabels[customer.type]}</p>
+                        {/* A joint account is one row, so the row says who else holds it. Entities have no
+                            email of their own, so they say what they are instead. */}
+                        <p className="truncate text-xs text-ink-muted">
+                          {heldWith(customer).length > 0
+                            ? `with ${heldWith(customer).map((held) => held.fullName).join(", ")}`
+                            : (customer.email ?? clientTypeLabels[customer.type])}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -419,7 +453,18 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                   {shows("registered") && <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatDate(customer.registeredAt)}</td>}
                   {shows("kyc") && (
                     <td className="px-4 py-3">
-                      <Badge tone={kycStatusTones[customer.kycStatus]}>{kycStatusLabels[customer.kycStatus]}</Badge>
+                      {/* Everyone on a joint account keeps their own KYC, so one badge would speak for people
+                          it does not cover. Each holder gets their own, named where they differ. */}
+                      <div className="flex flex-wrap gap-1">
+                        <Badge tone={kycStatusTones[customer.kycStatus]}>{kycStatusLabels[customer.kycStatus]}</Badge>
+                        {heldWith(customer)
+                          .filter((held) => held.kycStatus !== customer.kycStatus)
+                          .map((held) => (
+                            <Badge key={held.id} tone={kycStatusTones[held.kycStatus]}>
+                              {held.fullName.split(" ")[0]}: {kycStatusLabels[held.kycStatus]}
+                            </Badge>
+                          ))}
+                      </div>
                     </td>
                   )}
                   {shows("banks") && (
@@ -429,7 +474,8 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                   )}
                   {shows("advisors") && (
                     <td className="px-4 py-3">
-                      <AdvisorChips advisors={customer.advisors} />
+                      {/* The row is the account, so it shows whoever advises anybody holding it. */}
+                      <AdvisorChips advisors={advisorsOn(customer)} />
                     </td>
                   )}
                   {shows("proposal") && (
@@ -440,7 +486,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                   {shows("lastLogin") && <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(customer.lastLoginAt, "Never")}</td>}
                   {shows("action") && (
                     <td className="px-4 py-3">
-                      <Button variant="secondary" size="sm" onClick={(event) => { event.stopPropagation(); setAssigning([customer]); }}>
+                      <Button variant="secondary" size="sm" onClick={(event) => { event.stopPropagation(); setAssigning(everyHolderOf(customer)); }}>
                         <UserRoundCog aria-hidden="true" />
                         Assign advisor
                       </Button>

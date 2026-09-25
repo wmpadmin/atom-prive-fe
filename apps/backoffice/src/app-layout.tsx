@@ -1,5 +1,6 @@
 import { Avatar, cn } from "@atomprive/ui";
 import {
+  FileCheck2,
   ArrowLeftRight,
   ChevronDown,
   ClipboardCheck,
@@ -46,6 +47,7 @@ const allNavigation: {
   { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: ONBOARDS_CLIENTS, notFor: ["ADMIN"] },
   { to: "/to-sign", label: "To sign", icon: PenLine, authority: "APPROVE_PROPOSALS:OWN_CLIENTS" },
   { to: "/kyc", label: "KYC review", icon: ShieldCheck, authority: "APPROVE_ONBOARDING:CHANGE", notFor: ["ADMIN"] },
+  { to: "/kyc-documents", label: "KYC document review", icon: FileCheck2, authority: "APPROVE_ONBOARDING:CHANGE", notFor: ["ADMIN"] },
   { to: "/client-documents", label: "Client documents", icon: FolderOpen, authority: UPLOADS_CLIENT_DOCUMENTS, notFor: ["ADMIN"] },
   { to: "/forms", label: "Forms", icon: FileText, authority: "FILL_CLIENT_FORMS:VIEW", notFor: ["ADMIN"] },
   { to: "/staff-declarations", label: "Staff declarations", icon: ClipboardCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW", notFor: ["ADMIN"] },

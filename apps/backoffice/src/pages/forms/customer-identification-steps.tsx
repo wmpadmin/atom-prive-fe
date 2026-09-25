@@ -46,7 +46,9 @@ import {
   professionalDetails,
   signoffConfirmations,
   wealthQuestions,
-  type CustomerIdentification,
+  type FirmAnswers,
+  type HolderAnswers,
+  type Lines,
   type PepPerson,
   type Question,
   type ScreeningRow,
@@ -67,11 +69,23 @@ function withFirm(text: string, firmName: string | null, shortName: string | nul
     .replaceAll("{{firmShortName}}", shortName ?? firmName ?? "the firm");
 }
 
-/** What every part of this form is handed: the answers so far, and how to change one of them. */
+/** What every part of this form is handed: the lines of the page it is on, and how to change one of them. */
 export interface AskProps {
-  value: CustomerIdentification;
-  onChange: (patch: Partial<CustomerIdentification>) => void;
+  value: Lines;
+  onChange: (patch: Partial<Lines>) => void;
   field: FieldFor;
+}
+
+/** A part that one account holder answers about themselves. */
+export interface HolderAskProps extends AskProps {
+  value: HolderAnswers;
+  onChange: (patch: Partial<HolderAnswers>) => void;
+}
+
+/** A part the firm fills in once for the account, whoever holds it. */
+export interface FirmAskProps extends AskProps {
+  value: FirmAnswers;
+  onChange: (patch: Partial<FirmAnswers>) => void;
 }
 
 function writing({ value, onChange }: AskProps) {
@@ -200,7 +214,7 @@ function Questions({ questions, at, title, description }: { questions: Question[
 }
 
 /** "Your personal details", and the two questions the form prints under that table. */
-export function PersonalStep(at: AskProps) {
+export function PersonalStep(at: HolderAskProps) {
   return (
     <div className="space-y-6">
       <Questions questions={personalQuestions} at={at} title="Your personal details" />
@@ -350,7 +364,18 @@ export function DeclarationStep(at: AskProps) {
 }
 
 /** "1) Checklist of required identification documents:" — the lines that ask for a copy, and the copy itself. */
-export function DocumentsStep({ at, formId, documents }: { at: AskProps; formId: string; documents: FormDocuments }) {
+export function DocumentsStep({
+  at,
+  where,
+  formId,
+  documents,
+}: {
+  at: HolderAskProps;
+  /** Whose pages these are: each account holder provides their own identification documents. */
+  where: string;
+  formId: string;
+  documents: FormDocuments;
+}) {
   const firmName = useFirmName();
   const shortName = useFirmShortName();
   return (
@@ -358,14 +383,14 @@ export function DocumentsStep({ at, formId, documents }: { at: AskProps; formId:
       <ol className="space-y-3">
         {checklistDocuments.map((document) => {
           const state = at.field(`documents.${document.id}`);
-          const held = documents.files.filter((file) => file.field === documentField(document.id));
+          const held = documents.files.filter((file) => file.field === documentField(where, document.id));
           return (
             <li key={document.id} className="rounded-xl border border-line p-4">
               <div className="flex gap-3">
                 <span className="text-sm font-semibold text-ink-muted">{document.number}</span>
                 <div className="min-w-0 flex-1 space-y-3">
                   <p className="text-sm leading-relaxed text-ink">{withFirm(document.label, firmName, shortName)}</p>
-                  <Documents formId={formId} field={documentField(document.id)} documents={documents} label="Attach the document" />
+                  <Documents formId={formId} field={documentField(where, document.id)} documents={documents} label="Attach the document" />
                   {state.error && held.length === 0 && <p className="text-xs text-red-600">{state.error}</p>}
                 </div>
               </div>
@@ -391,7 +416,7 @@ export function DocumentsStep({ at, formId, documents }: { at: AskProps; formId:
 }
 
 /** "2) Internal sign-off by the relationship manager", and the compliance sign-off under it. */
-export function SignoffStep(at: AskProps) {
+export function SignoffStep(at: FirmAskProps) {
   const { value, field } = at;
   const { say, confirm } = writing(at);
   const agreed = field("signoff.agreed");
@@ -465,7 +490,7 @@ function SignatureBlock({ at, prefix, title }: { at: AskProps; prefix: string; t
 }
 
 /** "Screening Results:" — whether the customer is screened on, and what each screening found. */
-export function ScreeningStep(at: AskProps) {
+export function ScreeningStep(at: FirmAskProps) {
   const { value, field } = at;
   const { say, sayAll } = writing(at);
   const included = field("screening.included");
@@ -546,7 +571,7 @@ export function ScreeningStep(at: AskProps) {
 }
 
 /** The definition the PEP question prints under itself, and the two lines it rules once the answer is Yes. */
-export function PepBlock({ at }: { at: AskProps }) {
+export function PepBlock({ at }: { at: HolderAskProps }) {
   const { value, field } = at;
   const isPep = value.said["personal.pep"] === "YES";
   const change = (which: number, patch: Partial<PepPerson>) =>

@@ -73,8 +73,8 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
    * not by finding the small word at the end of its line.
    */
   function actionOf(form: CaseFormRow): (() => void) | undefined {
-    if (form.status === "SUBMITTED" || !canChange) {
-      // Nothing left to do to it, or nothing this person may do: the row still opens what was filled in.
+    if (form.status === "SUBMITTED" || form.status === "AWAITING_COMPLIANCE" || !canChange) {
+      // Nothing left to do to it here, or nothing this person may do: the row still opens what was filled in.
       return form.formId ? () => void navigate(`/onboarding/${caseId}/forms/${form.formId}`) : undefined;
     }
     if (!form.readyToFill) return () => void navigate(`/onboarding/${caseId}/documents/${form.kind}`);
@@ -142,7 +142,7 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
             )}
             {rows.map((form) => {
               const due = dueLabel(form.dueOn, form.submittedAt);
-              const waiting = form.status === "WAITING_ON_CLIENT";
+              const waiting = form.status === "WAITING_ON_CLIENT" || form.status === "AWAITING_COMPLIANCE";
               const openRow = actionOf(form);
               return (
                 <tr

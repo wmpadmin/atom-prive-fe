@@ -123,7 +123,11 @@ export interface Jurisdiction {
   explanation: string;
 }
 
-export interface FatcaCrsIndividual {
+/**
+ * One account holder's own declaration. A joint account is one form with a part like this for each holder:
+ * their tax residencies and their TIN are their own, so each holder answers for themselves inside it.
+ */
+export interface HolderDeclaration {
   holder: {
     title: HolderTitle | null;
     surname: string;
@@ -152,6 +156,10 @@ export interface FatcaCrsIndividual {
   };
 }
 
+export interface FatcaCrsIndividual {
+  holders: HolderDeclaration[];
+}
+
 function emptyAddress(): HolderAddress {
   return { street: "", town: "", country: "", postalCode: "" };
 }
@@ -160,7 +168,7 @@ export function emptyJurisdiction(): Jurisdiction {
   return { country: "", tin: "", noTinReason: null, explanation: "" };
 }
 
-export function emptyFatcaCrsIndividual(): FatcaCrsIndividual {
+export function emptyHolderDeclaration(): HolderDeclaration {
   return {
     holder: {
       title: null,
@@ -178,11 +186,27 @@ export function emptyFatcaCrsIndividual(): FatcaCrsIndividual {
   };
 }
 
+export function emptyFatcaCrsIndividual(): FatcaCrsIndividual {
+  return { holders: [emptyHolderDeclaration()] };
+}
+
 /** What the API holds, filled out to the whole form so every field has something to type into. */
 export function toFatcaCrsIndividual(saved: FormDetailAnswers | undefined): FatcaCrsIndividual {
   const empty = emptyFatcaCrsIndividual();
   if (!saved) return empty;
   const held = saved as Partial<FatcaCrsIndividual>;
+  const holders = held.holders;
+  if (!holders || holders.length === 0) {
+    // What was saved before a joint account could be answered for on one form: one holder, at the top level.
+    const one = saved as Partial<HolderDeclaration>;
+    return { holders: [filledOut(one)] };
+  }
+  return { holders: holders.map(filledOut) };
+}
+
+/** One holder's part, with every field present so the form never has to check for a missing one. */
+function filledOut(held: Partial<HolderDeclaration>): HolderDeclaration {
+  const empty = emptyHolderDeclaration();
   const rows = held.residence?.jurisdictions;
   return {
     holder: {
@@ -211,68 +235,81 @@ function none(problems: Record<string, string>, prefix: string) {
 /** What is still missing, and which parts that leaves incomplete. The API checks the same things on submit. */
 export function reviewFatcaCrsIndividual(value: FatcaCrsIndividual): FormReview {
   const problems: Record<string, string> = {};
-  const { holder, residence, fatca, declaration } = value;
+  const steps: FormReview["steps"] = [];
 
-  if (!holder.title) problems["holder.title"] = "Choose one.";
-  if (!holder.surname.trim()) problems["holder.surname"] = REQUIRED;
-  if (!holder.firstName.trim()) problems["holder.firstName"] = REQUIRED;
-  if (!holder.dateOfBirth.trim()) problems["holder.dateOfBirth"] = "Choose a date.";
-  if (!holder.placeOfBirth.trim()) problems["holder.placeOfBirth"] = REQUIRED;
-  if (!holder.residential.street.trim()) problems["holder.residential.street"] = REQUIRED;
-  if (!holder.residential.town.trim()) problems["holder.residential.town"] = REQUIRED;
-  if (!holder.residential.country) problems["holder.residential.country"] = "Choose a country.";
-  // A middle name is only asked for by those who have one, and the Mailing Address block is headed "Please
-  // complete only if different from Residential Address", so nothing in it is asked for either.
+  value.holders.forEach((one, at) => {
+    const where = `holders[${at}]`;
+    const { holder, residence, fatca, declaration } = one;
+    // A joint account's second holder and beyond are named on the part, so it is clear whose answers they are.
+    const whose = value.holders.length === 1 ? "" : ` — ${named(holder, at)}`;
 
-  residence.jurisdictions.forEach((row, at) => {
-    const where = `residence.jurisdictions[${at}]`;
-    if (!row.country) problems[`${where}.country`] = "Choose a country.";
-    if (!row.tin.trim() && !row.noTinReason) {
-      problems[`${where}.noTinReason`] = "Give the TIN, or the reason there is none.";
+    if (!holder.title) problems[`${where}.holder.title`] = "Choose one.";
+    if (!holder.surname.trim()) problems[`${where}.holder.surname`] = REQUIRED;
+    if (!holder.firstName.trim()) problems[`${where}.holder.firstName`] = REQUIRED;
+    if (!holder.dateOfBirth.trim()) problems[`${where}.holder.dateOfBirth`] = "Choose a date.";
+    if (!holder.placeOfBirth.trim()) problems[`${where}.holder.placeOfBirth`] = REQUIRED;
+    if (!holder.residential.street.trim()) problems[`${where}.holder.residential.street`] = REQUIRED;
+    if (!holder.residential.town.trim()) problems[`${where}.holder.residential.town`] = REQUIRED;
+    if (!holder.residential.country) problems[`${where}.holder.residential.country`] = "Choose a country.";
+    // A middle name is only asked for by those who have one, and the Mailing Address block is headed "Please
+    // complete only if different from Residential Address", so nothing in it is asked for either.
+
+    residence.jurisdictions.forEach((row, which) => {
+      const at_ = `${where}.residence.jurisdictions[${which}]`;
+      if (!row.country) problems[`${at_}.country`] = "Choose a country.";
+      if (!row.tin.trim() && !row.noTinReason) {
+        problems[`${at_}.noTinReason`] = "Give the TIN, or the reason there is none.";
+      }
+      if (row.noTinReason === "B" && !row.explanation.trim()) problems[`${at_}.explanation`] = REQUIRED;
+    });
+    if (residence.onlyTaxResidentListed === null) {
+      problems[`${where}.residence.onlyTaxResidentListed`] = "Say yes or no.";
     }
-    if (row.noTinReason === "B" && !row.explanation.trim()) problems[`${where}.explanation`] = REQUIRED;
+    if (residence.onlyTaxResidentListed === false && !residence.otherResidenceReason.trim()) {
+      problems[`${where}.residence.otherResidenceReason`] = REQUIRED;
+    }
+
+    if (fatca.usPerson === null) problems[`${where}.fatca.usPerson`] = "Choose one.";
+    if (fatca.usPerson === true && !fatca.usTin.trim()) problems[`${where}.fatca.usTin`] = REQUIRED;
+
+    if (!declaration.confirmed) problems[`${where}.declaration.confirmed`] = "This has to be agreed to.";
+    if (!declaration.printName.trim()) problems[`${where}.declaration.printName`] = REQUIRED;
+    // The client signs after the form reaches them; their name and the date are what is needed here.
+    if (!declaration.signedOn.trim()) problems[`${where}.declaration.signedOn`] = "Choose a date.";
+    // The capacity line is for someone signing who is not the Account Holder, so it is not asked for.
+
+    // Every holder answers the same four parts of the same paper, so the part numbers are the paper's own;
+    // which holder is on screen is said in the heading instead.
+    steps.push(
+      { id: `${where}.holder`, group: "PART 1", label: `Identification of Account Holder${whose}`,
+        complete: none(problems, `${where}.holder.`) },
+      { id: `${where}.residence`, group: "PART 2", label: `Jurisdiction of Residency for Tax Purposes${whose}`,
+        complete: none(problems, `${where}.residence.`) },
+      { id: `${where}.fatca`, group: "PART 3", label: `Jurisdiction of Citizenship${whose}`,
+        complete: none(problems, `${where}.fatca.`) },
+      { id: `${where}.declaration`, group: "PART 4", label: `Declaration and Signature${whose}`,
+        complete: none(problems, `${where}.declaration.`) },
+    );
   });
-  if (residence.onlyTaxResidentListed === null) problems["residence.onlyTaxResidentListed"] = "Say yes or no.";
-  if (residence.onlyTaxResidentListed === false && !residence.otherResidenceReason.trim()) {
-    problems["residence.otherResidenceReason"] = REQUIRED;
-  }
 
-  if (fatca.usPerson === null) problems["fatca.usPerson"] = "Choose one.";
-  if (fatca.usPerson === true && !fatca.usTin.trim()) problems["fatca.usTin"] = REQUIRED;
+  return { problems, steps };
+}
 
-  if (!declaration.confirmed) problems["declaration.confirmed"] = "This has to be agreed to.";
-  if (!declaration.printName.trim()) problems["declaration.printName"] = REQUIRED;
-  // The client signs after the form reaches them; their name and the date are what is needed here.
-  if (!declaration.signedOn.trim()) problems["declaration.signedOn"] = "Choose a date.";
-  // The capacity line is for someone signing who is not the Account Holder, so it is not asked for.
-
-  return {
-    problems,
-    steps: [
-      { id: "holder", group: "PART 1", label: "Identification of Account Holder", complete: none(problems, "holder.") },
-      {
-        id: "residence",
-        group: "PART 2",
-        label: "Jurisdiction of Residency for Tax Purposes",
-        complete: none(problems, "residence."),
-      },
-      { id: "fatca", group: "PART 3", label: "Jurisdiction of Citizenship", complete: none(problems, "fatca.") },
-      {
-        id: "declaration",
-        group: "PART 4",
-        label: "Declaration and Signature",
-        complete: none(problems, "declaration."),
-      },
-    ],
-  };
+/** How a holder is named on their own part before they have a name: by their place on the account. */
+export function named(holder: HolderDeclaration["holder"], at: number): string {
+  const name = [holder.firstName, holder.surname].map((part) => part.trim()).filter(Boolean).join(" ");
+  return name || `holder ${at + 1}`;
 }
 
 /** The part a field belongs to, so a message from the API opens the part that holds it. */
 export function stepOfFatcaCrsIndividualField(field: string): string {
-  if (field.startsWith("residence")) return "residence";
-  if (field.startsWith("fatca")) return "fatca";
-  if (field.startsWith("declaration")) return "declaration";
-  return "holder";
+  const holder = /^holders\[\d+]/.exec(field);
+  const where = holder ? holder[0] : "holders[0]";
+  const rest = field.slice(where.length + 1);
+  if (rest.startsWith("residence")) return `${where}.residence`;
+  if (rest.startsWith("fatca")) return `${where}.fatca`;
+  if (rest.startsWith("declaration")) return `${where}.declaration`;
+  return `${where}.holder`;
 }
 
 /** What the form itself says at the head of each part, shown before that part is filled in. */

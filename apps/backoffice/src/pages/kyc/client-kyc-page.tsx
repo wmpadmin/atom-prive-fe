@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ExternalLink, Plus } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
+import { openApiFile } from "../../lib/download";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
 import { kycStatusLabels, kycStatusTones } from "../clients/client-labels";
 import { useStaffUser } from "../../auth/session";
@@ -196,16 +197,17 @@ export function ClientKycPage() {
                   </td>
                   <td className="py-3 pr-6 pl-4">
                     {/* Served through the API so that every look is recorded against the client. */}
-                    <a
-                      href={`/api${getReadKycDocumentUrl(row.id).replace("/api", "")}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(event) => event.stopPropagation()}
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void openApiFile(`/api${getReadKycDocumentUrl(row.id).replace("/api", "")}`, row.fileName);
+                      }}
                       className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline"
                     >
                       View file
                       <ExternalLink aria-hidden="true" className="size-3.5" />
-                    </a>
+                    </button>
                   </td>
                 </tr>
               ))}

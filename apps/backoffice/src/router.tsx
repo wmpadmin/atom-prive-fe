@@ -13,7 +13,8 @@ import { ConfigPage } from "./pages/config/config-page";
 import { ClientPage } from "./pages/clients/client-page";
 import { ClientsPage } from "./pages/clients/clients-page";
 import { ClientKycPage } from "./pages/kyc/client-kyc-page";
-import { KycReviewPage } from "./pages/kyc/kyc-review-page";
+import { KycDocumentReviewPage } from "./pages/kyc/kyc-documents-page";
+import { KycReviewQueuePage } from "./pages/kyc/kyc-queue-page";
 import { DocumentPage } from "./pages/forms/document-page";
 import { FormPage } from "./pages/forms/form-page";
 import { FormsPage } from "./pages/forms/forms-page";
@@ -95,10 +96,15 @@ export const router = createBrowserRouter([
             // VIEW_ALL_CLIENTS. Operations may look at where a client's papers have got to; only Compliance decide.
             element: <RequireAuthority authority="APPROVE_ONBOARDING:VIEW" />,
             children: [
-              { path: "kyc", element: <KycReviewPage /> },
+              { path: "kyc", element: <KycReviewQueuePage /> },
+              // The papers themselves, reviewed one by one. Its own screen, not a tab on the queue.
+              { path: "kyc-documents", element: <KycDocumentReviewPage /> },
               // Compliance read the client's case here rather than under Client onboarding, which is
               // Operations' own screen and closed to them.
               { path: "kyc/cases/:caseId", element: <OnboardingCasePage /> },
+              // A signed form waiting on their decision. Read here, decided here; the API opens them nothing
+              // that is still being filled in.
+              { path: "kyc/forms/:formId", element: <FormPage /> },
             ],
           },
           {

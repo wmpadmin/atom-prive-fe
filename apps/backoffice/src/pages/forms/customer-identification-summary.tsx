@@ -11,9 +11,13 @@ import {
   experienceQuestions,
   intentionsPart,
   liabilityLines,
+  namedHolder,
   personalPart,
   wealthQuestions,
   type CustomerIdentification,
+  type FirmAnswers,
+  type HolderAnswers,
+  type Lines,
   type Question,
 } from "./customer-identification";
 import { signatureText } from "./made-signature";
@@ -21,7 +25,7 @@ import { signatureText } from "./made-signature";
 const MISSING = "—";
 
 /** What was answered on a line, read back in the form's own words rather than the value behind them. */
-function answerTo(question: Question, value: CustomerIdentification) {
+function answerTo(question: Question, value: Lines) {
   if (question.kind === "many") {
     const chosen = question.options.filter((one) => (value.chose[question.id] ?? []).includes(one.value));
     const other = question.other ? value.said[question.other.id]?.trim() : "";
@@ -46,51 +50,81 @@ export function CustomerIdentificationSummary({
   attachments: AttachedFile[];
   onEdit?: (stepId: string) => void;
 }) {
-  const said = (id: string) => value.said[id]?.trim() || MISSING;
-  const onDate = (id: string) => (value.said[id]?.trim() ? formatDate(value.said[id]!) : MISSING);
+  const alone = value.holders.length === 1;
+  return (
+    <div className="space-y-8">
+      {value.holders.map((holder, at) => (
+        <div key={at} className="space-y-5">
+          {!alone && (
+            <h2 className="text-sm font-bold tracking-wider text-ink-muted uppercase">
+              Account holder {at + 1} — {namedHolder(holder, at)}
+            </h2>
+          )}
+          <OneHolder holder={holder} where={`holders[${at}]`} attachments={attachments} onEdit={onEdit} />
+        </div>
+      ))}
+      <FirmSide firm={value.firm} onEdit={onEdit} />
+    </div>
+  );
+}
+
+/** One account holder's own pages, as they answered them. */
+function OneHolder({
+  holder,
+  where,
+  attachments,
+  onEdit,
+}: {
+  holder: HolderAnswers;
+  where: string;
+  attachments: AttachedFile[];
+  onEdit?: (stepId: string) => void;
+}) {
+  const said = (id: string) => holder.said[id]?.trim() || MISSING;
+  const onDate = (id: string) => (holder.said[id]?.trim() ? formatDate(holder.said[id]!) : MISSING);
   return (
     <div className="space-y-5">
-      <Part title="Your personal details" stepId="personal" onEdit={onEdit}>
-        <Answers questions={personalPart} value={value} />
-        {value.said["personal.pep"] === "YES" &&
-          value.pep
+      <Part title="Personal details" stepId={`${where}.personal`} onEdit={onEdit}>
+        <Answers questions={personalPart} value={holder} />
+        {holder.said["personal.pep"] === "YES" &&
+          holder.pep
             .filter((one) => one.name.trim())
             .map((one, at) => <Fact key={at} label="Politically Exposed Person" value={`${one.name} · ${one.role || MISSING}`} wide />)}
       </Part>
 
-      <Part title="About your business intentions with us" stepId="intentions" onEdit={onEdit}>
-        <Answers questions={intentionsPart} value={value} />
+      <Part title="About your business intentions with us" stepId={`${where}.intentions`} onEdit={onEdit}>
+        <Answers questions={intentionsPart} value={holder} />
       </Part>
 
-      <Part title="About your wealth and origin of funds" stepId="wealth" onEdit={onEdit}>
-        <Answers questions={wealthQuestions} value={value} />
+      <Part title="About your wealth and origin of funds" stepId={`${where}.wealth`} onEdit={onEdit}>
+        <Answers questions={wealthQuestions} value={holder} />
       </Part>
 
-      <Part title="Assets and liabilities" stepId="assets" onEdit={onEdit}>
+      <Part title="Assets and liabilities" stepId={`${where}.assets`} onEdit={onEdit}>
         {[...assetLines, ...liabilityLines, { id: "netAssets", label: "Net Assets" }].map((line) => (
           <Fact
             key={line.id}
             label={line.label}
-            value={`${said(`assets.${line.id}.usd`)}${value.said[`assets.${line.id}.description`]?.trim() ? ` · ${value.said[`assets.${line.id}.description`]}` : ""}`}
+            value={`${said(`assets.${line.id}.usd`)}${holder.said[`assets.${line.id}.description`]?.trim() ? ` · ${holder.said[`assets.${line.id}.description`]}` : ""}`}
             wide
           />
         ))}
       </Part>
 
-      <Part title="Your experience and understanding of financial markets and instruments" stepId="experience" onEdit={onEdit}>
-        <Answers questions={experienceQuestions} value={value} />
+      <Part title="Your experience and understanding of financial markets and instruments" stepId={`${where}.experience`} onEdit={onEdit}>
+        <Answers questions={experienceQuestions} value={holder} />
       </Part>
 
-      <Part title="Declaration" stepId="declaration" onEdit={onEdit}>
-        <Fact label="Declaration" value={value.confirmed["declaration.agreed"] ? "Made" : "Not yet made"} />
+      <Part title="Declaration" stepId={`${where}.declaration`} onEdit={onEdit}>
+        <Fact label="Declaration" value={holder.confirmed["declaration.agreed"] ? "Made" : "Not yet made"} />
         <Fact label="Name" value={said("declaration.name")} />
         <Fact label="Date" value={onDate("declaration.date")} />
         <Fact label="Signature" value={signatureText(said("declaration.signature"))} />
       </Part>
 
-      <Part title="Checklist of required identification documents" stepId="documents" onEdit={onEdit}>
+      <Part title="Checklist of required identification documents" stepId={`${where}.documents`} onEdit={onEdit}>
         {checklistDocuments.map((document) => {
-          const held = attachments.filter((file) => file.field === documentField(document.id));
+          const held = attachments.filter((file) => file.field === documentField(where, document.id));
           return (
             <Fact
               key={document.id}
@@ -105,20 +139,29 @@ export function CustomerIdentificationSummary({
           );
         })}
       </Part>
+    </div>
+  );
+}
 
-      <Part title="Internal sign-off" stepId="signoff" onEdit={onEdit}>
+/** The firm's own page: signed once for the account, whoever holds it. */
+function FirmSide({ firm, onEdit }: { firm: FirmAnswers; onEdit?: (stepId: string) => void }) {
+  const said = (id: string) => firm.said[id]?.trim() || MISSING;
+  const onDate = (id: string) => (firm.said[id]?.trim() ? formatDate(firm.said[id]!) : MISSING);
+  return (
+    <div className="space-y-5">
+      <Part title="Internal sign-off" stepId="firm.signoff" onEdit={onEdit}>
         <Fact label="Contact with the customer" value={`${said("signoff.contactWay")} · ${onDate("signoff.contactOn")} · ${said("signoff.contactPlace")}`} wide />
         <Fact label="Relationship manager" value={`${said("signoff.name")} · ${onDate("signoff.date")} · ${signatureText(said("signoff.signature"))}`} wide />
         <Fact label="Compliance Officer and MLRO" value={`${said("compliance.name")} · ${onDate("compliance.date")} · ${signatureText(said("compliance.signature"))}`} wide />
       </Part>
 
-      <Part title="Screening Results" stepId="screening" onEdit={onEdit}>
+      <Part title="Screening Results" stepId="firm.screening" onEdit={onEdit}>
         <Fact
           label="Included on Ongoing Screening?"
-          value={value.said["screening.included"] === "YES" ? `YES, since ${onDate("screening.since")}` : value.said["screening.included"] === "NO" ? "NO" : MISSING}
+          value={firm.said["screening.included"] === "YES" ? `YES, since ${onDate("screening.since")}` : firm.said["screening.included"] === "NO" ? "NO" : MISSING}
           wide
         />
-        {value.screening
+        {firm.screening
           .filter((row) => row.screenedOn.trim() || row.names.trim() || row.result.trim())
           .map((row, at) => (
             <Fact key={at} label={`Screening ${at + 1}`} value={`${row.screenedOn ? formatDate(row.screenedOn) : MISSING} · ${row.names || MISSING} · ${row.result || MISSING}`} wide />
@@ -128,7 +171,7 @@ export function CustomerIdentificationSummary({
   );
 }
 
-function Answers({ questions, value }: { questions: Question[]; value: CustomerIdentification }) {
+function Answers({ questions, value }: { questions: Question[]; value: Lines }) {
   return (
     <>
       {questions.map((question) => (

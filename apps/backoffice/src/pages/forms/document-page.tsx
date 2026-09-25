@@ -155,8 +155,10 @@ export function DocumentPage() {
     );
   }
 
-  const sent = row?.status === "WAITING_ON_CLIENT" || row?.status === "SUBMITTED";
-  const signed = row?.status === "SUBMITTED";
+  const sent = row?.status === "WAITING_ON_CLIENT" || row?.status === "AWAITING_COMPLIANCE"
+    || row?.status === "SUBMITTED";
+  // Finished, or with Compliance: either way nothing more is typed on it here.
+  const signed = row?.status === "SUBMITTED" || row?.status === "AWAITING_COMPLIANCE";
   const missing = wording.data.gaps.filter((gap) => !details[gap.key]?.trim());
   const shownDue = dueOn || (row?.dueOn ?? "");
   const writable = canChange && !signed;

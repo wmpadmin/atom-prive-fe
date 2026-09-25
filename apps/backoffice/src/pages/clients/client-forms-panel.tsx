@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { hasAuthority } from "../../lib/permissions";
+import { hasAnyAuthority, hasAuthority } from "../../lib/permissions";
 import { DueDate, Mark } from "../forms/checklist-parts";
 import { formStatus, progressLine } from "../forms/form-labels";
 import { categoryLabels, dueLabel } from "../onboarding/case-category";
@@ -25,6 +25,10 @@ import { categoryLabels, dueLabel } from "../onboarding/case-category";
 export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] }) {
   const user = useStaffUser();
   const canFill = hasAuthority(user, "FILL_CLIENT_FORMS:CHANGE");
+  // Compliance follow where the forms have got to without opening any of them: what they decide on is the
+  // papers the client hands over, not the forms the firm fills in.
+  const canOpen = hasAnyAuthority(user, "FILL_CLIENT_FORMS:VIEW", "ONBOARD_CLIENTS:VIEW",
+    "ONBOARD_CLIENTS:OWN_CLIENTS", "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -61,11 +65,12 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
    * What this row's Action does. The whole row does it too: a form in a list is opened by clicking the form,
    * not by finding the small word at the end of its line.
    */
-  function actionOf(form: CaseFormRow): () => void {
+  function actionOf(form: CaseFormRow): (() => void) | undefined {
+    if (!canOpen) return undefined;
     // The agreements and the disclosure are only signed, never filled in here: those open their wording.
     if (!form.readyToFill) return () => void navigate(`/clients/${client.id}/documents/${form.kind}`);
-    if (form.status === "SUBMITTED" || !canFill) {
-      // Nothing left to do to it, or nothing this person may do: the row still opens what was filled in.
+    if (form.status === "SUBMITTED" || form.status === "AWAITING_COMPLIANCE" || !canFill) {
+      // Nothing left to do to it here, or nothing this person may do: the row still opens what was filled in.
       return form.formId
         ? () => void navigate(`/clients/${client.id}/forms/${form.formId}`)
         : () => void navigate(`/clients/${client.id}/documents/${form.kind}`);
@@ -116,19 +121,19 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
             )}
             {rows.map((form) => {
               const due = dueLabel(form.dueOn, form.submittedAt);
-              const waiting = form.status === "WAITING_ON_CLIENT";
+              const waiting = form.status === "WAITING_ON_CLIENT" || form.status === "AWAITING_COMPLIANCE";
               const openRow = actionOf(form);
               return (
                 <tr
                   key={form.kind}
                   onClick={openRow}
-                  className={cn(waiting && "bg-amber-50/50", "cursor-pointer hover:bg-slate-50")}
+                  className={cn(waiting && "bg-amber-50/50", openRow && "cursor-pointer hover:bg-slate-50")}
                 >
                   <td className="py-3 pr-4 pl-6">
                     <div className="flex items-start gap-3">
                       <Mark status={form.status} />
                       <div className="min-w-0">
-                        {form.formId ? (
+                        {form.formId && canOpen ? (
                           <Link
                             to={`/clients/${client.id}/forms/${form.formId}`}
                             onClick={(event) => event.stopPropagation()}
@@ -167,8 +172,15 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
                   </td>
                   <td className="py-3 pr-6 pl-4 text-right whitespace-nowrap">
                     {form.status === "SUBMITTED" ? (
-                      // The client has signed it. There is nothing left to do, and nobody sets this by hand.
+                      // Signed and approved. There is nothing left to do, and nobody sets this by hand.
                       <span className="text-sm font-semibold text-emerald-700">Done</span>
+                    ) : form.status === "AWAITING_COMPLIANCE" ? (
+                      // It is Compliance's now, so Operations have nothing to do until it comes back.
+                      <span className="text-sm font-semibold text-amber-700">With compliance</span>
+                    ) : !openRow ? (
+                      // Compliance see what the row offers without being able to take it: the action reads as
+                      // the thing they may not do, rather than leaving the column blank.
+                      <span className="text-sm font-semibold text-ink-muted">View</span>
                     ) : (
                       // The same thing the row itself does, said in a word, and the way a keyboard reaches it.
                       <button

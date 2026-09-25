@@ -26,7 +26,7 @@ import {
   holderTitles,
   noTinReasons,
   usPersonStatements,
-  type FatcaCrsIndividual,
+  type HolderDeclaration,
   type HolderAddress,
   type HolderTitle,
   type Jurisdiction,
@@ -124,8 +124,8 @@ export function HolderStep({
   onChange,
   field,
 }: {
-  holder: FatcaCrsIndividual["holder"];
-  onChange: (patch: Partial<FatcaCrsIndividual["holder"]>) => void;
+  holder: HolderDeclaration["holder"];
+  onChange: (patch: Partial<HolderDeclaration["holder"]>) => void;
   field: FieldFor;
 }) {
   const title = field("holder.title");
@@ -187,8 +187,8 @@ export function ResidenceStep({
   onChange,
   field,
 }: {
-  residence: FatcaCrsIndividual["residence"];
-  onChange: (patch: Partial<FatcaCrsIndividual["residence"]>) => void;
+  residence: HolderDeclaration["residence"];
+  onChange: (patch: Partial<HolderDeclaration["residence"]>) => void;
   field: FieldFor;
 }) {
   const firmName = useFirmName();
@@ -342,8 +342,8 @@ export function CitizenshipStep({
   onChange,
   field,
 }: {
-  fatca: FatcaCrsIndividual["fatca"];
-  onChange: (patch: Partial<FatcaCrsIndividual["fatca"]>) => void;
+  fatca: HolderDeclaration["fatca"];
+  onChange: (patch: Partial<HolderDeclaration["fatca"]>) => void;
   field: FieldFor;
 }) {
   const chosen = field("fatca.usPerson");
@@ -386,8 +386,8 @@ export function DeclarationStep({
   onChange,
   field,
 }: {
-  declaration: FatcaCrsIndividual["declaration"];
-  onChange: (patch: Partial<FatcaCrsIndividual["declaration"]>) => void;
+  declaration: HolderDeclaration["declaration"];
+  onChange: (patch: Partial<HolderDeclaration["declaration"]>) => void;
   field: FieldFor;
 }) {
   const firmName = useFirmName();
@@ -442,3 +442,8 @@ export function DeclarationStep({
     </div>
   );
 }
+
+/**
+ * Who this part of the form is for, and how to answer for somebody else on the same account. A joint account
+ * is one form: each holder gives their own tax residencies and their own TIN inside it, as the form requires.
+ */

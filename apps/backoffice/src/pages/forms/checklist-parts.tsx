@@ -1,6 +1,6 @@
 import type { CaseFormRow } from "@atomprive/api-client/backoffice";
 import { cn } from "@atomprive/ui";
-import { Check, Minus, TriangleAlert } from "lucide-react";
+import { Check, Minus, RotateCcw, TriangleAlert } from "lucide-react";
 import { formatDate } from "../../lib/labels";
 import { dueLabel } from "../onboarding/case-category";
 
@@ -18,7 +18,14 @@ export function Mark({ status }: { status: CaseFormRow["status"] }) {
       </span>
     );
   }
-  if (status === "WAITING_ON_CLIENT") {
+  if (status === "REJECTED") {
+    return (
+      <span aria-hidden="true" className={cn(shared, "bg-red-100 text-red-700")}>
+        <RotateCcw className="size-3.5" />
+      </span>
+    );
+  }
+  if (status === "WAITING_ON_CLIENT" || status === "AWAITING_COMPLIANCE") {
     return (
       <span aria-hidden="true" className={cn(shared, "bg-amber-100 text-amber-700")}>
         <TriangleAlert className="size-3.5" />
