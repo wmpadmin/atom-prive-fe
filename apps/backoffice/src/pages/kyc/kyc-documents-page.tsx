@@ -1,18 +1,17 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  getReadKycDocumentUrl,
   useListKycDocuments,
-  useListOnboardingCases,
-  type CasePage,
   type KycDocumentRowReviewState,
   type KycQueue,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Pagination, cn } from "@atomprive/ui";
-import { keepPreviousData, type UseQueryResult } from "@tanstack/react-query";
+import { keepPreviousData } from "@tanstack/react-query";
 import { ChevronRight, Download, Plus, Search } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { TextInput } from "@atomprive/ui";
-import { downloadTextFile } from "../../lib/download";
+import { downloadTextFile, openApiFile } from "../../lib/download";
 import { formatRelative } from "../../lib/labels";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { clientLine, fileMark, pageCount, reviewStateLabels, reviewStateTones } from "./kyc-labels";
@@ -22,21 +21,13 @@ import { PickClientDialog } from "./pick-client-dialog";
  * Every KYC document waiting on Compliance, with the client it belongs to. Opening one goes to that client's
  * whole pack, since a paper is judged against the rest of what they have handed over, not on its own (#36).
  */
-export function KycReviewPage() {
+export function KycDocumentReviewPage() {
   const navigate = useNavigate();
   const [state, setState] = useState<KycDocumentRowReviewState>("AWAITING_REVIEW");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [picking, setPicking] = useState(false);
-  /** The queue proper: the clients Operations have handed over. Documents are the other half of the job. */
-  const [showing, setShowing] = useState<"clients" | "documents">("clients");
-
-  const clients = useListOnboardingCases<CasePage, ApiError>(
-    { signOff: "AWAITING", size: 50 },
-    { query: { placeholderData: keepPreviousData } },
-  );
-
   const queue = useListKycDocuments<KycQueue, ApiError>(
     { state, page, size },
     { query: { placeholderData: keepPreviousData } },
@@ -114,31 +105,6 @@ export function KycReviewPage() {
 
       {queue.isError && <Alert tone="danger">{queue.error.message}</Alert>}
 
-      <div role="tablist" aria-label="What to review" className="inline-flex max-w-full flex-wrap gap-1 rounded-xl border border-line bg-white p-1">
-        {([
-          ["clients", `Clients awaiting review${clients.data ? ` (${clients.data.totalItems})` : ""}`],
-          ["documents", "Documents"],
-        ] as const).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={showing === id}
-            onClick={() => setShowing(id)}
-            className={cn(
-              "rounded-lg px-6 py-2 text-sm font-medium transition-colors",
-              showing === id ? "bg-primary-600 text-white" : "text-ink-soft hover:bg-slate-50",
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {showing === "clients" && <ClientsAwaitingReview cases={clients} />}
-
-      {showing === "documents" && (
-      <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Tile
           label="Awaiting review"
@@ -182,7 +148,7 @@ export function KycReviewPage() {
         <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5">
           <div>
             <h2 className="text-base font-bold">{reviewStateLabels[state]}</h2>
-            <p className="mt-0.5 text-xs text-ink-muted">Click a document to open the client's review screen</p>
+            <p className="mt-0.5 text-xs text-ink-muted">Click a document to read it. Review opens the client's pack, where the decision is recorded.</p>
           </div>
           <div className="relative w-72 max-w-full">
             <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted" />
@@ -200,8 +166,8 @@ export function KycReviewPage() {
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                <th scope="col" className="py-3 pr-4 pl-5">Document</th>
-                <th scope="col" className="px-4 py-3">Client</th>
+                <th scope="col" className="py-3 pr-4 pl-5">Client</th>
+                <th scope="col" className="px-4 py-3">Document</th>
                 <th scope="col" className="px-4 py-3">Uploaded</th>
                 <th scope="col" className="px-4 py-3">Pages</th>
                 <th scope="col" className="px-4 py-3">Status</th>
@@ -226,21 +192,10 @@ export function KycReviewPage() {
               {shown.map((row) => (
                 <tr
                   key={row.id}
-                  onClick={() => void navigate(`/kyc/${row.customerId}`)}
+                  onClick={() => void openApiFile(fileHref(row.id), row.fileName)}
                   className="cursor-pointer hover:bg-slate-50/60"
                 >
                   <td className="py-3 pr-4 pl-5">
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-8 w-10 shrink-0 place-items-center rounded-md border border-line bg-slate-50 text-2xs font-bold text-ink-soft">
-                        {fileMark(row.contentType)}
-                      </span>
-                      <div className="min-w-0">
-                        <span className="block truncate font-semibold">{row.fileName}</span>
-                        <span className="block truncate text-xs text-ink-muted">{row.kindTitle}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <Avatar name={row.clientName} />
                       <div className="min-w-0">
@@ -251,16 +206,44 @@ export function KycReviewPage() {
                       </div>
                     </div>
                   </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-8 w-10 shrink-0 place-items-center rounded-md border border-line bg-slate-50 text-2xs font-bold text-ink-soft">
+                        {fileMark(row.contentType)}
+                      </span>
+                      <div className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void openApiFile(fileHref(row.id), row.fileName);
+                          }}
+                          className="block max-w-full truncate text-left font-semibold hover:text-primary-600"
+                        >
+                          {row.fileName}
+                        </button>
+                        <span className="block truncate text-xs text-ink-muted">{row.kindTitle}</span>
+                      </div>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(row.uploadedAt)}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-soft tabular-nums">{pageCount(row.pages)}</td>
                   <td className="px-4 py-3">
                     <Badge tone={reviewStateTones[row.reviewState]}>{reviewStateLabels[row.reviewState]}</Badge>
                   </td>
                   <td className="py-3 pr-5 pl-4 text-right">
-                    <span className="inline-flex items-center gap-1 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        // The row opens the paper; this opens the client's pack, where it is decided on.
+                        event.stopPropagation();
+                        void navigate(`/kyc/${row.customerId}`);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50"
+                    >
                       Review
                       <ChevronRight aria-hidden="true" className="size-3.5" />
-                    </span>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -285,89 +268,14 @@ export function KycReviewPage() {
           </div>
         )}
       </section>
-      </>
-      )}
     </div>
   );
 }
 
-/**
- * The clients Operations have handed over for KYC. This is the queue proper: Operations finish a client's
- * forms, submit them for KYC, and the client lands here for Compliance to review and sign off.
- */
-function ClientsAwaitingReview({ cases }: { cases: UseQueryResult<CasePage, ApiError> }) {
-  const navigate = useNavigate();
-  const rows = cases.data?.items ?? [];
-  return (
-    <section className="rounded-2xl border border-line bg-white">
-      <div className="px-5 pt-5">
-        <h2 className="text-base font-bold">Clients awaiting KYC review</h2>
-        <p className="mt-0.5 text-xs text-ink-muted">
-          Sent over by Operations once the client's forms are in. Open one to read what was submitted and sign it
-          off.
-        </p>
-      </div>
-      <div className="mt-4 overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              <th scope="col" className="py-3 pr-4 pl-5">Client</th>
-              <th scope="col" className="px-4 py-3">Forms</th>
-              <th scope="col" className="px-4 py-3">Relationship manager</th>
-              <th scope="col" className="px-4 py-3">Waiting since</th>
-              <th scope="col" className="py-3 pr-5 pl-4">
-                <span className="sr-only">Review</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {cases.isPending && (
-              <tr>
-                <td colSpan={5} className="px-5 py-10 text-center text-ink-muted">Loading the queue…</td>
-              </tr>
-            )}
-            {cases.data && rows.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-5 py-10 text-center text-ink-muted">
-                  No client is waiting for KYC review. Operations send them over once the forms are in.
-                </td>
-              </tr>
-            )}
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() => void navigate(`/kyc/cases/${row.id}`)}
-                className="cursor-pointer hover:bg-slate-50/60"
-              >
-                <td className="py-3 pr-4 pl-5">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={row.clientName} />
-                    <div className="min-w-0">
-                      <span className="block truncate font-semibold">{row.clientName}</span>
-                      <span className="block truncate text-xs text-ink-muted">
-                        {row.clientType === "ENTITY" ? "Entity" : `${row.accountHolders} account holder${row.accountHolders === 1 ? "" : "s"}`}
-                      </span>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-ink-soft tabular-nums">
-                  {row.completedSteps} of {row.totalSteps}
-                </td>
-                <td className="px-4 py-3 text-ink-soft">{row.relationshipManager?.fullName ?? "—"}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(row.updatedAt)}</td>
-                <td className="py-3 pr-5 pl-4 text-right">
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700">
-                    Review
-                    <ChevronRight aria-hidden="true" className="size-3.5" />
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
+
+/** Where a document is read. It is served through the API, so every look is recorded against the client. */
+function fileHref(documentId: string) {
+  return `/api${getReadKycDocumentUrl(documentId).replace("/api", "")}`;
 }
 
 /** One of the counts across the top, which also chooses what the table below shows. */

@@ -30,10 +30,14 @@ import { AccountOpeningIndividualSummary } from "./account-opening-individual-su
 import {
   customerIdentificationDescriptions,
   customerIdentificationGuidance,
+  emptyHolderAnswers,
+  namedHolder,
   reviewCustomerIdentification,
   stepOfCustomerIdentificationField,
   toCustomerIdentification,
   type CustomerIdentification,
+  type FirmAnswers,
+  type HolderAnswers,
 } from "./customer-identification";
 import {
   AssetsStep,
@@ -75,9 +79,13 @@ import {
   fatcaCrsIndividualGuidance,
   reviewFatcaCrsIndividual,
   stepOfFatcaCrsIndividualField,
+  emptyHolderDeclaration,
+  named,
+  type HolderDeclaration,
   toFatcaCrsIndividual,
   type FatcaCrsIndividual,
 } from "./fatca-crs-individual";
+import { AccountHolders } from "./account-holders";
 import {
   CitizenshipStep,
   DeclarationStep as IndividualSelfCertificationStep,
@@ -363,29 +371,58 @@ export const customerIdentificationKit: FormKit<CustomerIdentification> = {
   guidance: customerIdentificationGuidance,
   summary: (value, attachments) => <CustomerIdentificationSummary value={value} attachments={attachments} />,
   step: ({ id, value, change, field, goTo, formId, documents }) => {
-    const at = { value, onChange: change, field };
-    switch (id) {
-      case "personal":
-        return <PersonalStep {...at} />;
-      case "intentions":
-        return <IntentionsStep {...at} />;
-      case "wealth":
-        return <IdentificationWealthStep {...at} />;
-      case "assets":
-        return <AssetsStep {...at} />;
-      case "experience":
-        return <ExperienceStep {...at} />;
-      case "declaration":
-        return <IdentificationDeclarationStep {...at} />;
-      case "documents":
-        return <DocumentsStep at={at} formId={formId} documents={documents} />;
-      case "signoff":
-        return <SignoffStep {...at} />;
-      case "screening":
-        return <ScreeningStep {...at} />;
-      default:
-        return <CustomerIdentificationSummary value={value} attachments={documents.files} onEdit={goTo} />;
+    // The paper asks for a separate form for each joint holder; the account gets one with a set of pages for
+    // each of them instead. Which set a part belongs to is in its id, so the parts never have to know.
+    const part = id.slice(id.lastIndexOf(".") + 1);
+    if (id.startsWith("firm.")) {
+      const firm = {
+        value: value.firm,
+        field: ((name: string) => field(`firm.${name}`)) as FieldFor,
+        onChange: (patch: Partial<FirmAnswers>) => change({ firm: { ...value.firm, ...patch } }),
+      };
+      if (part === "signoff") return <SignoffStep {...firm} />;
+      if (part === "screening") return <ScreeningStep {...firm} />;
     }
+
+    const at = Number(/^holders\[(\d+)]/.exec(id)?.[1] ?? -1);
+    const one = value.holders[at];
+    if (!one) {
+      return <CustomerIdentificationSummary value={value} attachments={documents.files} onEdit={goTo} />;
+    }
+    const where = `holders[${at}]`;
+    const held = {
+      value: one,
+      field: ((name: string) => field(`${where}.${name}`)) as FieldFor,
+      onChange: (patch: Partial<HolderAnswers>) =>
+        change({ holders: value.holders.map((each, which) => (which === at ? { ...each, ...patch } : each)) }),
+    };
+    const holders = (
+      <AccountHolders
+        names={value.holders.map((each, which) => namedHolder(each, which))}
+        at={at}
+        onAdd={() => {
+          change({ holders: [...value.holders, emptyHolderAnswers()] });
+          // Land on the new holder's first part, so adding one goes straight to filling it in.
+          goTo(`holders[${value.holders.length}].personal`);
+        }}
+        onRemove={() => {
+          change({ holders: value.holders.filter((_, which) => which !== at) });
+          goTo("holders[0].personal");
+        }}
+      />
+    );
+    return (
+      <>
+        {holders}
+        {part === "personal" && <PersonalStep {...held} />}
+        {part === "intentions" && <IntentionsStep {...held} />}
+        {part === "wealth" && <IdentificationWealthStep {...held} />}
+        {part === "assets" && <AssetsStep {...held} />}
+        {part === "experience" && <ExperienceStep {...held} />}
+        {part === "declaration" && <IdentificationDeclarationStep {...held} />}
+        {part === "documents" && <DocumentsStep at={held} where={where} formId={formId} documents={documents} />}
+      </>
+    );
   },
 };
 
@@ -425,18 +462,49 @@ export const fatcaCrsIndividualKit: FormKit<FatcaCrsIndividual> = {
   guidance: fatcaCrsIndividualGuidance,
   summary: (value) => <FatcaCrsIndividualSummary value={value} />,
   step: ({ id, value, change, field, goTo }) => {
-    switch (id) {
-      case "holder":
-        return <FatcaHolderStep holder={value.holder} onChange={(patch) => change({ holder: { ...value.holder, ...patch } })} field={field} />;
-      case "residence":
-        return <IndividualResidenceStep residence={value.residence} onChange={(patch) => change({ residence: { ...value.residence, ...patch } })} field={field} />;
-      case "fatca":
-        return <CitizenshipStep fatca={value.fatca} onChange={(patch) => change({ fatca: { ...value.fatca, ...patch } })} field={field} />;
-      case "declaration":
-        return <IndividualSelfCertificationStep declaration={value.declaration} onChange={(patch) => change({ declaration: { ...value.declaration, ...patch } })} field={field} />;
-      default:
-        return <FatcaCrsIndividualSummary value={value} onEdit={goTo} />;
+    // A joint account is one form with a part for each holder. Which holder a step belongs to is in its id,
+    // so the steps themselves are written for one person and never have to know.
+    const at = Number(/^holders\[(\d+)]/.exec(id)?.[1] ?? -1);
+    const one = value.holders[at];
+    if (!one) {
+      return <FatcaCrsIndividualSummary value={value} onEdit={goTo} />;
     }
+    const scoped: FieldFor = (name) => field(`holders[${at}].${name}`);
+    const patch = (changed: Partial<HolderDeclaration>) =>
+      change({ holders: value.holders.map((held, which) => (which === at ? { ...held, ...changed } : held)) });
+    const holders = (
+      <AccountHolders
+        names={value.holders.map((held, which) => named(held.holder, which))}
+        at={at}
+        onAdd={() => {
+          change({ holders: [...value.holders, emptyHolderDeclaration()] });
+          // Land on the new holder's first part, so adding one goes straight to filling it in.
+          goTo(`holders[${value.holders.length}].holder`);
+        }}
+        onRemove={() => {
+          change({ holders: value.holders.filter((_, which) => which !== at) });
+          goTo(`holders[0].holder`);
+        }}
+      />
+    );
+    const part = id.slice(id.lastIndexOf(".") + 1);
+    return (
+      <>
+        {holders}
+        {part === "holder" && (
+          <FatcaHolderStep holder={one.holder} onChange={(changed) => patch({ holder: { ...one.holder, ...changed } })} field={scoped} />
+        )}
+        {part === "residence" && (
+          <IndividualResidenceStep residence={one.residence} onChange={(changed) => patch({ residence: { ...one.residence, ...changed } })} field={scoped} />
+        )}
+        {part === "fatca" && (
+          <CitizenshipStep fatca={one.fatca} onChange={(changed) => patch({ fatca: { ...one.fatca, ...changed } })} field={scoped} />
+        )}
+        {part === "declaration" && (
+          <IndividualSelfCertificationStep declaration={one.declaration} onChange={(changed) => patch({ declaration: { ...one.declaration, ...changed } })} field={scoped} />
+        )}
+      </>
+    );
   },
 };
 

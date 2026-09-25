@@ -10,6 +10,8 @@ export function formStatus(
   dueOn: string | null,
 ): { label: string; tone: "neutral" | "warning" | "danger" | "success" } {
   if (status === "SUBMITTED") return { label: "Complete", tone: "success" };
+  if (status === "AWAITING_COMPLIANCE") return { label: "With compliance", tone: "warning" };
+  if (status === "REJECTED") return { label: "Sent back", tone: "danger" };
   if (status !== "WAITING_ON_CLIENT") return { label: "Pending", tone: "neutral" };
   // Due at the end of the day it was asked for.
   const overdue = dueOn !== null && new Date(`${dueOn}T23:59:59`) < new Date();
@@ -31,6 +33,13 @@ export function progressLine(form: CaseFormRow) {
   }
   if (form.status === "NOT_STARTED") {
     return "Pending completion · Not started";
+  }
+  if (form.status === "AWAITING_COMPLIANCE") {
+    return "Signed · with compliance to review";
+  }
+  // The reason is what Operations have to act on, so it is the line rather than a note beside it.
+  if (form.status === "REJECTED") {
+    return `Sent back by compliance${form.compliance?.comment ? ` · ${form.compliance.comment}` : ""}`;
   }
   const requested = form.requestedOn ? ` · Requested ${formatDate(form.requestedOn)}` : "";
   return form.status === "WAITING_ON_CLIENT" ? `Awaiting client signature${requested}` : `Pending completion${requested}`;

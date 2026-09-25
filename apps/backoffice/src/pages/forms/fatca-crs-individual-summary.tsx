@@ -5,8 +5,10 @@ import { countryName } from "../../lib/countries";
 import { formatDate } from "../../lib/labels";
 import {
   holderTitles,
+  named,
   type FatcaCrsIndividual,
   type HolderAddress,
+  type HolderDeclaration,
 } from "./fatca-crs-individual";
 import { signatureText } from "./made-signature";
 
@@ -35,11 +37,37 @@ export function FatcaCrsIndividualSummary({
   value: FatcaCrsIndividual;
   onEdit?: (stepId: string) => void;
 }) {
-  const { holder, residence, fatca, declaration } = value;
+  const alone = value.holders.length === 1;
+  return (
+    <div className="space-y-8">
+      {value.holders.map((held, at) => (
+        <div key={at} className="space-y-5">
+          {!alone && (
+            <h2 className="text-sm font-bold tracking-wider text-ink-muted uppercase">
+              Account holder {at + 1} — {named(held.holder, at)}
+            </h2>
+          )}
+          <OneHolder held={held} where={`holders[${at}]`} onEdit={onEdit} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function OneHolder({
+  held,
+  where,
+  onEdit,
+}: {
+  held: HolderDeclaration;
+  where: string;
+  onEdit?: (stepId: string) => void;
+}) {
+  const { holder, residence, fatca, declaration } = held;
   const title = holderTitles.find((one) => one.value === holder.title);
   return (
     <div className="space-y-5">
-      <Part title="PART 1 – Identification of Account Holder" stepId="holder" onEdit={onEdit}>
+      <Part title="PART 1 – Identification of Account Holder" stepId={`${where}.holder`} onEdit={onEdit}>
         <dl className="grid gap-3 sm:grid-cols-2">
           <Fact label="Family Name/ Surname" value={`${title ? `${title.text} ` : ""}${shown(holder.surname)}`} />
           <Fact label="First Name" value={shown(holder.firstName)} />
@@ -51,7 +79,7 @@ export function FatcaCrsIndividualSummary({
         </dl>
       </Part>
 
-      <Part title="PART 2 – Jurisdiction of Residency for Tax Purposes" stepId="residence" onEdit={onEdit}>
+      <Part title="PART 2 – Jurisdiction of Residency for Tax Purposes" stepId={`${where}.residence`} onEdit={onEdit}>
         <ul className="mb-3 space-y-1">
           {residence.jurisdictions.map((row, at) => (
             <li key={at} className="text-sm text-ink">
@@ -72,7 +100,7 @@ export function FatcaCrsIndividualSummary({
         </dl>
       </Part>
 
-      <Part title="PART 3 – Jurisdiction of Citizenship" stepId="fatca" onEdit={onEdit}>
+      <Part title="PART 3 – Jurisdiction of Citizenship" stepId={`${where}.fatca`} onEdit={onEdit}>
         <dl className="grid gap-3 sm:grid-cols-2">
           <Fact
             label="U.S. Person for tax purposes"
@@ -82,7 +110,7 @@ export function FatcaCrsIndividualSummary({
         </dl>
       </Part>
 
-      <Part title="PART 4 – Declaration and Signature" stepId="declaration" onEdit={onEdit}>
+      <Part title="PART 4 – Declaration and Signature" stepId={`${where}.declaration`} onEdit={onEdit}>
         <dl className="grid gap-3 sm:grid-cols-2">
           <Fact label="Declaration" value={declaration.confirmed ? "Made" : "Not yet made"} />
           <Fact label="Print Name" value={shown(declaration.printName)} />

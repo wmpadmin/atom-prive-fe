@@ -439,8 +439,9 @@ export const checklistDocuments = [
   },
 ];
 
-export function documentField(id: string) {
-  return `documents.${id}`;
+/** Where a checklist document is attached. Each holder provides their own, so it is asked of each of them. */
+export function documentField(where: string, id: string) {
+  return `${where}.documents.${id}`;
 }
 
 export const CHECKLIST_NOTE =
@@ -494,16 +495,34 @@ export interface PepPerson {
   role: string;
 }
 
-export interface CustomerIdentification {
+/** The lines of the form that are filled in by typing, ticking or choosing, whoever they are asked of. */
+export interface Lines {
   /** Every line that asks for one thing: text, a date, a country, or the one box that was ticked. */
   said: Record<string, string>;
   /** Every line that prints boxes to tick as many of as apply. */
   chose: Record<string, string[]>;
   /** Every box that is ticked on its own, such as a declaration being made. */
   confirmed: Record<string, boolean>;
+}
+
+/** One account holder's own pages: everything the paper asks the customer about themselves. */
+export interface HolderAnswers extends Lines {
   /** The Name and Function the PEP question rules, twice over. */
   pep: PepPerson[];
+}
+
+/** The firm's own page: the relationship manager's sign-off, Compliance and MLRO, and the screening. */
+export interface FirmAnswers extends Lines {
   screening: ScreeningRow[];
+}
+
+/**
+ * The paper says to use a separate form for each joint holder. The account gets one instead, with a set of
+ * pages for each person holding it and the firm's own page once at the end.
+ */
+export interface CustomerIdentification {
+  holders: HolderAnswers[];
+  firm: FirmAnswers;
 }
 
 export function emptyPepPerson(): PepPerson {
@@ -514,29 +533,66 @@ export function emptyScreeningRow(): ScreeningRow {
   return { screenedOn: "", names: "", result: "" };
 }
 
+export function emptyHolderAnswers(): HolderAnswers {
+  return { said: {}, chose: {}, confirmed: {}, pep: [emptyPepPerson(), emptyPepPerson()] };
+}
+
 export function emptyCustomerIdentification(): CustomerIdentification {
   return {
-    said: {},
-    chose: {},
-    confirmed: {},
-    pep: [emptyPepPerson(), emptyPepPerson()],
-    screening: [emptyScreeningRow()],
+    holders: [emptyHolderAnswers()],
+    firm: { said: {}, chose: {}, confirmed: {}, screening: [emptyScreeningRow()] },
   };
+}
+
+/** Which of the form's lines belong to the firm rather than to the person it is about. */
+const FIRM_LINES = ["signoff.", "compliance.", "screening."];
+
+function firmLine(key: string) {
+  return FIRM_LINES.some((prefix) => key.startsWith(prefix));
+}
+
+function onlyWhere<T>(held: Record<string, T> | undefined, wanted: (key: string) => boolean): Record<string, T> {
+  return Object.fromEntries(Object.entries(held ?? {}).filter(([key]) => wanted(key)));
 }
 
 /** What the API holds, filled out to the whole form so every field has something to type into. */
 export function toCustomerIdentification(saved: FormDetailAnswers | undefined): CustomerIdentification {
   const empty = emptyCustomerIdentification();
   if (!saved) return empty;
-  const held = saved as Partial<CustomerIdentification>;
+  const held = saved as Partial<CustomerIdentification> & Partial<HolderAnswers> & Partial<FirmAnswers>;
   const rows = <T,>(list: T[] | undefined, fallback: T[], fill: () => T) =>
     list && list.length > 0 ? list.map((row) => ({ ...fill(), ...row })) : fallback;
+  // A form saved before the holders were kept apart has everyone's lines and the firm's in the one set of
+  // maps. Which page a line is on is in its own name, so the two are told apart by that.
+  const holders = held.holders?.length
+    ? held.holders.map((one) => ({
+        said: { ...one.said },
+        chose: { ...one.chose },
+        confirmed: { ...one.confirmed },
+        pep: rows(one.pep, emptyHolderAnswers().pep, emptyPepPerson),
+      }))
+    : [
+        {
+          said: onlyWhere(held.said, (key) => !firmLine(key)),
+          chose: onlyWhere(held.chose, (key) => !firmLine(key)),
+          confirmed: onlyWhere(held.confirmed, (key) => !firmLine(key)),
+          pep: rows(held.pep, emptyHolderAnswers().pep, emptyPepPerson),
+        },
+      ];
+  const firm = held.firm ?? {
+    said: onlyWhere(held.said, firmLine),
+    chose: onlyWhere(held.chose, firmLine),
+    confirmed: onlyWhere(held.confirmed, firmLine),
+    screening: held.screening,
+  };
   return {
-    said: { ...held.said },
-    chose: { ...held.chose },
-    confirmed: { ...held.confirmed },
-    pep: rows(held.pep, empty.pep, emptyPepPerson),
-    screening: rows(held.screening, empty.screening, emptyScreeningRow),
+    holders,
+    firm: {
+      said: { ...firm.said },
+      chose: { ...firm.chose },
+      confirmed: { ...firm.confirmed },
+      screening: rows(firm.screening, empty.firm.screening, emptyScreeningRow),
+    },
   };
 }
 
@@ -558,22 +614,28 @@ export const personalPart = [
 
 export const intentionsPart = [...intentionsQuestions, ...privateBankingQuestions];
 
-function check(questions: Question[], value: CustomerIdentification, problems: Record<string, string>) {
+function check(questions: Question[], where: string, value: Lines, problems: Record<string, string>) {
   for (const question of questions) {
+    const at = `${where}.${question.id}`;
     if (question.kind === "many") {
       if ((value.chose[question.id] ?? []).length === 0 && !value.said[question.other?.id ?? ""]?.trim()) {
-        problems[question.id] = "Tick what applies.";
+        problems[at] = "Tick what applies.";
       }
       continue;
     }
     if ("optional" in question && question.optional) continue;
     const said = value.said[question.id]?.trim();
     if (said) continue;
-    if (question.kind === "one") problems[question.id] = "Tick the box that applies.";
-    else if (question.kind === "date") problems[question.id] = "Choose a date.";
-    else if (question.kind === "country") problems[question.id] = "Choose a country.";
-    else problems[question.id] = REQUIRED;
+    if (question.kind === "one") problems[at] = "Tick the box that applies.";
+    else if (question.kind === "date") problems[at] = "Choose a date.";
+    else if (question.kind === "country") problems[at] = "Choose a country.";
+    else problems[at] = REQUIRED;
   }
+}
+
+/** How a holder is named on their own pages before their name is written on them: by their place. */
+export function namedHolder(holder: HolderAnswers, at: number): string {
+  return holder.said["personal.fullName"]?.trim() || `holder ${at + 1}`;
 }
 
 /** What is still missing, and which parts that leaves incomplete. The API checks the same things on submit. */
@@ -582,93 +644,119 @@ export function reviewCustomerIdentification(
   provided: ReadonlySet<string>,
 ): FormReview {
   const problems: Record<string, string> = {};
+  const steps: FormReview["steps"] = [];
 
-  check(personalPart, value, problems);
-  // The two lines the PEP question rules are only asked for once the answer to it is Yes.
-  if (value.said["personal.pep"] === "YES" && !value.pep.some((one) => one.name.trim())) {
-    problems["pep"] = "Name the Politically Exposed Person.";
-  }
-  if (value.said["personal.sensitive"] === "YES" && !value.said["personal.sensitiveDetails"]?.trim()) {
-    problems["personal.sensitiveDetails"] = REQUIRED;
-  }
-  // The introducer's name is only asked for by the box that ends in it.
-  if (value.said["intentions.howLearned"] === "INTRODUCER" && !value.said["intentions.introducerName"]?.trim()) {
-    problems["intentions.introducerName"] = REQUIRED;
-  }
+  value.holders.forEach((holder, at) => {
+    const where = `holders[${at}]`;
+    const whose = value.holders.length === 1 ? "" : ` — ${namedHolder(holder, at)}`;
+    const said = (id: string) => holder.said[id]?.trim();
 
-  check(intentionsPart, value, problems);
-  check(wealthQuestions, value, problems);
-  check(experienceQuestions, value, problems);
-
-  for (const line of [...assetLines, ...liabilityLines]) {
-    if (!value.said[`assets.${line.id}.usd`]?.trim()) problems[`assets.${line.id}.usd`] = REQUIRED;
-  }
-  if (!value.said["assets.netAssets.usd"]?.trim()) problems["assets.netAssets.usd"] = REQUIRED;
-
-  if (!value.confirmed["declaration.agreed"]) problems["declaration.agreed"] = "This has to be agreed to.";
-  for (const [field, says] of [
-    ["declaration.name", REQUIRED],
-    ["declaration.date", "Choose a date."],
-  ] as const) {
-    if (!value.said[field]?.trim()) problems[field] = says;
-  }
-
-  // The checklist asks for the documents themselves, so ticking a line is not answering it.
-  for (const document of checklistDocuments) {
-    if (!provided.has(documentField(document.id))) {
-      problems[`documents.${document.id}`] = "Attach the document.";
+    check(personalPart, where, holder, problems);
+    // The two lines the PEP question rules are only asked for once the answer to it is Yes.
+    if (said("personal.pep") === "YES" && !holder.pep.some((one) => one.name.trim())) {
+      problems[`${where}.pep`] = "Name the Politically Exposed Person.";
     }
-  }
+    if (said("personal.sensitive") === "YES" && !said("personal.sensitiveDetails")) {
+      problems[`${where}.personal.sensitiveDetails`] = REQUIRED;
+    }
+    // The introducer's name is only asked for by the box that ends in it.
+    if (said("intentions.howLearned") === "INTRODUCER" && !said("intentions.introducerName")) {
+      problems[`${where}.intentions.introducerName`] = REQUIRED;
+    }
 
-  if (!value.said["signoff.contactWay"]?.trim()) problems["signoff.contactWay"] = "Tick the box that applies.";
-  if (!value.said["signoff.contactOn"]?.trim()) problems["signoff.contactOn"] = "Choose a date.";
-  if (!value.said["signoff.contactPlace"]?.trim()) problems["signoff.contactPlace"] = REQUIRED;
-  if (!value.confirmed["signoff.agreed"]) problems["signoff.agreed"] = "This has to be confirmed.";
-  for (const who of ["signoff", "compliance"] as const) {
-    if (!value.said[`${who}.name`]?.trim()) problems[`${who}.name`] = REQUIRED;
-    if (!value.said[`${who}.date`]?.trim()) problems[`${who}.date`] = "Choose a date.";
-    if (!value.said[`${who}.signature`]?.trim()) problems[`${who}.signature`] = REQUIRED;
-  }
+    check(intentionsPart, where, holder, problems);
+    check(wealthQuestions, where, holder, problems);
+    check(experienceQuestions, where, holder, problems);
 
-  if (!value.said["screening.included"]?.trim()) problems["screening.included"] = "Tick the box that applies.";
-  if (value.said["screening.included"] === "YES" && !value.said["screening.since"]?.trim()) {
-    problems["screening.since"] = "Choose a date.";
-  }
-  value.screening.forEach((row, at) => {
-    const started = row.screenedOn.trim() || row.names.trim() || row.result.trim();
-    if (!started) return;
-    if (!row.screenedOn.trim()) problems[`screening.rows[${at}].screenedOn`] = "Choose a date.";
-    if (!row.names.trim()) problems[`screening.rows[${at}].names`] = REQUIRED;
-    if (!row.result.trim()) problems[`screening.rows[${at}].result`] = REQUIRED;
+    for (const line of [...assetLines, ...liabilityLines]) {
+      if (!said(`assets.${line.id}.usd`)) problems[`${where}.assets.${line.id}.usd`] = REQUIRED;
+    }
+    if (!said("assets.netAssets.usd")) problems[`${where}.assets.netAssets.usd`] = REQUIRED;
+
+    if (!holder.confirmed["declaration.agreed"]) {
+      problems[`${where}.declaration.agreed`] = "This has to be agreed to.";
+    }
+    for (const [field, says] of [
+      ["declaration.name", REQUIRED],
+      ["declaration.date", "Choose a date."],
+    ] as const) {
+      if (!said(field)) problems[`${where}.${field}`] = says;
+    }
+
+    // The checklist asks for the documents themselves, so ticking a line is not answering it.
+    for (const document of checklistDocuments) {
+      if (!provided.has(documentField(where, document.id))) {
+        problems[`${where}.documents.${document.id}`] = "Attach the document.";
+      }
+    }
+
+    steps.push(
+      { id: `${where}.personal`, group: "—", label: `Personal details${whose}`,
+        complete: none(problems, `${where}.personal.`) && none(problems, `${where}.permanent.`)
+          && none(problems, `${where}.mailing.`) && none(problems, `${where}.contact.`)
+          && none(problems, `${where}.professional.`) && none(problems, `${where}.pep`) },
+      { id: `${where}.intentions`, group: "—", label: `Business intentions with us${whose}`,
+        complete: none(problems, `${where}.intentions.`) },
+      { id: `${where}.wealth`, group: "—", label: `Wealth and origin of funds${whose}`,
+        complete: none(problems, `${where}.wealth.`) },
+      { id: `${where}.assets`, group: "—", label: `Assets and liabilities${whose}`,
+        complete: none(problems, `${where}.assets.`) },
+      { id: `${where}.experience`, group: "—",
+        label: `Experience and understanding of financial markets and instruments${whose}`,
+        complete: none(problems, `${where}.experience.`) },
+      { id: `${where}.declaration`, group: "—", label: `Declaration${whose}`,
+        complete: none(problems, `${where}.declaration.`) },
+      { id: `${where}.documents`, group: "1", label: `Checklist of required identification documents${whose}`,
+        complete: none(problems, `${where}.documents.`) },
+    );
   });
 
-  return {
-    problems,
-    steps: [
-      { id: "personal", group: "—", label: "Your personal details", complete: none(problems, "personal.") && none(problems, "permanent.") && none(problems, "mailing.") && none(problems, "contact.") && none(problems, "professional.") && none(problems, "pep") },
-      { id: "intentions", group: "—", label: "About your business intentions with us", complete: none(problems, "intentions.") },
-      { id: "wealth", group: "—", label: "About your wealth and origin of funds", complete: none(problems, "wealth.") },
-      { id: "assets", group: "—", label: "Assets and liabilities", complete: none(problems, "assets.") },
-      { id: "experience", group: "—", label: "Your experience and understanding of financial markets and instruments", complete: none(problems, "experience.") },
-      { id: "declaration", group: "—", label: "Declaration", complete: none(problems, "declaration.") },
-      { id: "documents", group: "1", label: "Checklist of required identification documents", complete: none(problems, "documents.") },
-      { id: "signoff", group: "2", label: "Internal sign-off by the relationship manager", complete: none(problems, "signoff.") && none(problems, "compliance.") },
-      { id: "screening", group: "—", label: "Screening Results", complete: none(problems, "screening.") },
-    ],
-  };
+  // The firm's own page is signed once for the account, however many people hold it.
+  const firm = value.firm;
+  const firmSaid = (id: string) => firm.said[id]?.trim();
+  if (!firmSaid("signoff.contactWay")) problems["firm.signoff.contactWay"] = "Tick the box that applies.";
+  if (!firmSaid("signoff.contactOn")) problems["firm.signoff.contactOn"] = "Choose a date.";
+  if (!firmSaid("signoff.contactPlace")) problems["firm.signoff.contactPlace"] = REQUIRED;
+  if (!firm.confirmed["signoff.agreed"]) problems["firm.signoff.agreed"] = "This has to be confirmed.";
+  for (const who of ["signoff", "compliance"] as const) {
+    if (!firmSaid(`${who}.name`)) problems[`firm.${who}.name`] = REQUIRED;
+    if (!firmSaid(`${who}.date`)) problems[`firm.${who}.date`] = "Choose a date.";
+    if (!firmSaid(`${who}.signature`)) problems[`firm.${who}.signature`] = REQUIRED;
+  }
+
+  if (!firmSaid("screening.included")) problems["firm.screening.included"] = "Tick the box that applies.";
+  if (firmSaid("screening.included") === "YES" && !firmSaid("screening.since")) {
+    problems["firm.screening.since"] = "Choose a date.";
+  }
+  firm.screening.forEach((row, at) => {
+    const started = row.screenedOn.trim() || row.names.trim() || row.result.trim();
+    if (!started) return;
+    if (!row.screenedOn.trim()) problems[`firm.screening.rows[${at}].screenedOn`] = "Choose a date.";
+    if (!row.names.trim()) problems[`firm.screening.rows[${at}].names`] = REQUIRED;
+    if (!row.result.trim()) problems[`firm.screening.rows[${at}].result`] = REQUIRED;
+  });
+
+  steps.push(
+    { id: "firm.signoff", group: "2", label: "Internal sign-off by the relationship manager",
+      complete: none(problems, "firm.signoff.") && none(problems, "firm.compliance.") },
+    { id: "firm.screening", group: "—", label: "Screening Results",
+      complete: none(problems, "firm.screening.") },
+  );
+
+  return { problems, steps };
 }
 
 /** The part a field belongs to, so a message from the API opens the part that holds it. */
 export function stepOfCustomerIdentificationField(field: string): string {
-  if (field.startsWith("intentions")) return "intentions";
-  if (field.startsWith("wealth")) return "wealth";
-  if (field.startsWith("assets")) return "assets";
-  if (field.startsWith("experience")) return "experience";
-  if (field.startsWith("declaration")) return "declaration";
-  if (field.startsWith("documents")) return "documents";
-  if (field.startsWith("signoff") || field.startsWith("compliance")) return "signoff";
-  if (field.startsWith("screening")) return "screening";
-  return "personal";
+  const holder = /^holders\[\d+]/.exec(field)?.[0];
+  if (!holder) {
+    return field.startsWith("firm.screening") ? "firm.screening" : "firm.signoff";
+  }
+  const line = field.slice(holder.length + 1);
+  for (const part of ["intentions", "wealth", "assets", "experience", "declaration", "documents"]) {
+    if (line.startsWith(part)) return `${holder}.${part}`;
+  }
+  return `${holder}.personal`;
 }
 
 export const customerIdentificationGuidance: Record<string, string> = {
