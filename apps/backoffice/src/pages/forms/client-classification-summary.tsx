@@ -9,6 +9,7 @@ import {
   serviceBasedOptions,
   type ClientClassificationEntity,
 } from "./client-classification";
+import { signatureText } from "./made-signature";
 
 const MISSING = "—";
 
@@ -58,7 +59,7 @@ export function ClientClassificationSummary({
       <Part title="SIGNATURES" stepId="declaration" onEdit={onEdit}>
         <Fact label="Declaration made" value={declaration.confirmed ? "Yes" : "Not yet"} wide />
         {declaration.signers.map((signer, at) => (
-          <Fact key={at} label={`Signed for the CLIENT ${at + 1}`} wide value={`${shown(signer.signature)} · ${shown(signer.name)} · ${shown(signer.title)} · ${signer.signedOn ? formatDate(signer.signedOn) : MISSING}`} />
+          <Fact key={at} label={`Signed for the CLIENT ${at + 1}`} wide value={`${signatureText(shown(signer.signature))} · ${shown(signer.name)} · ${shown(signer.title)} · ${signer.signedOn ? formatDate(signer.signedOn) : MISSING}`} />
         ))}
       </Part>
     </div>

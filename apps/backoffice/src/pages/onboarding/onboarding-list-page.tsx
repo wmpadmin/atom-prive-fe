@@ -1,10 +1,11 @@
 import { ApiError } from "@atomprive/api-client";
 import { useListOnboardingCases, type CasePage } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Button, cn, Pagination, SelectInput } from "@atomprive/ui";
+import { Alert, Avatar, Button, SelectInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { BellRing, ChevronRight, Plus } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
 import { formatDate, formatRelative } from "../../lib/labels";
 import { hasAnyAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
 import { PAGE_SIZES } from "../../lib/page-sizes";
@@ -77,11 +78,10 @@ export function OnboardingListPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[1.625rem] font-bold">Client onboarding</h1>
-          <p className="mt-1 text-sm text-ink-muted">Enter new clients' details and follow each case until the client is onboarded.</p>
-        </div>
+      <ListPageHeader
+        title="Client onboarding"
+        lead="Enter new clients' details and follow each case until the client is onboarded."
+      >
         <div className="flex gap-3">
           <span title="Available once the reminder email's wording is agreed">
             <Button variant="secondary" disabled>
@@ -96,17 +96,14 @@ export function OnboardingListPage() {
             </Button>
           )}
         </div>
-      </header>
+      </ListPageHeader>
 
       {cases.isError && <Alert tone="danger">{cases.error.message}</Alert>}
 
-      <section className="rounded-2xl border border-line bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-4">
-          <div>
-            <h2 className="text-base font-bold">Onboarding cases</h2>
-            <p className="text-xs text-ink-muted">Newest first</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <RecordList
+        caption="Onboarding cases"
+        filters={
+          <>
             <CaseSearch value={typed.search} status={status} onChange={typed.change} onSearch={typed.apply} onOpenCase={openCase} />
             <label>
               <span className="sr-only">Status</span>
@@ -119,48 +116,44 @@ export function OnboardingListPage() {
                 ))}
               </SelectInput>
             </label>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className={cn("min-w-full text-sm transition-opacity", cases.isPlaceholderData && "opacity-60")} aria-busy={cases.isFetching}>
-            <thead>
-              <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                <th scope="col" className="py-3 pr-4 pl-5">Client</th>
-                <th scope="col" className="px-4 py-3">Relationship manager</th>
-                <th scope="col" className="px-4 py-3">Started</th>
-                <th scope="col" className="px-4 py-3">Current stage</th>
-                <th scope="col" className="px-4 py-3">Progress</th>
-                <th scope="col" className="px-4 py-3">Status</th>
-                <th scope="col" className="py-3 pr-5 pl-4 text-right">
-                  <span className="sr-only">Open</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {cases.isPending && (
-                <tr>
-                  <td colSpan={7} className="px-5 py-8 text-center text-ink-muted">Loading cases…</td>
-                </tr>
-              )}
-              {!cases.isPending && rows.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">
-                    {filtered ? (
-                      <>
-                        {emptyMessage(query, status)}{" "}
-                        <button type="button" onClick={clearFilters} className="font-semibold text-primary-600 hover:text-primary-700">
-                          Clear search and filter
-                        </button>
-                      </>
-                    ) : canChange ? (
-                      "No onboarding cases yet. Start the first one with Start onboarding."
-                    ) : (
-                      "No onboarding cases yet."
-                    )}
-                  </td>
-                </tr>
-              )}
+          </>
+        }
+        filtered={filtered}
+        onClear={clearFilters}
+        head={
+          <>
+            <th scope="col" className="py-3 pr-4 pl-5">Client</th>
+            <th scope="col" className="px-4 py-3">Relationship manager</th>
+            <th scope="col" className="px-4 py-3">Started</th>
+            <th scope="col" className="px-4 py-3">Current stage</th>
+            <th scope="col" className="px-4 py-3">Progress</th>
+            <th scope="col" className="px-4 py-3">Status</th>
+            <th scope="col" className="py-3 pr-5 pl-4 text-right">
+              <span className="sr-only">Open</span>
+            </th>
+          </>
+        }
+        columns={7}
+        loading={cases.isPending}
+        loadingLabel="Loading cases…"
+        empty={
+          rows.length > 0 ? undefined : filtered ? (
+            <ClearFiltersLink onClear={clearFilters}>{emptyMessage(query, status)}</ClearFiltersLink>
+          ) : canChange ? (
+            "No onboarding cases yet. Start the first one with Start onboarding."
+          ) : (
+            "No onboarding cases yet."
+          )
+        }
+        stale={cases.isPlaceholderData}
+        busy={cases.isFetching}
+        page={page}
+        size={size}
+        total={total}
+        noun={["case", "cases"]}
+        onPage={(next) => update({ page: next > 0 ? next + 1 : null })}
+        onSize={(next) => update({ size: next === PAGE_SIZES[0] ? null : next })}
+      >
               {rows.map((item) => (
                 // The row opens the case, the same as its name and its Open button do.
                 <tr
@@ -214,27 +207,7 @@ export function OnboardingListPage() {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
-
-        {total > 0 && (
-          <div className="border-t border-line px-5 py-3">
-            <Pagination
-              page={page}
-              pageSize={size}
-              totalItems={total}
-              noun={["case", "cases"]}
-              onPageChange={(next) => {
-                update({ page: next > 0 ? next + 1 : null });
-                window.scrollTo({ top: 0 });
-              }}
-              pageSizes={PAGE_SIZES}
-              onPageSizeChange={(next) => update({ size: next === PAGE_SIZES[0] ? null : next })}
-            />
-          </div>
-        )}
-      </section>
+      </RecordList>
     </div>
   );
 }

@@ -126,7 +126,6 @@ export function StaffProfileFields({
             onChange={onRolesChange}
             hint={rolesHint}
             error={fields.roles}
-            editing={user?.id}
           />
         </div>
         <Field id="nationalId" label="PAN ID / EID" required error={fields.nationalId}>

@@ -7,46 +7,10 @@ export type StaffStatus = StaffUserSummaryStatus;
 export const roleLabels: Record<StaffRole, string> = {
   ADMIN: "Admin",
   ADVISOR: "Advisor",
-  ADVISOR_HEAD: "Head of Advisory",
   COMPLIANCE: "Compliance",
-  COMPLIANCE_HEAD: "Head of Compliance",
   OPERATIONS: "Operations",
-  OPERATIONS_HEAD: "Head of Operations",
   PORTFOLIO_MANAGER: "Portfolio Manager",
-  PORTFOLIO_MANAGER_HEAD: "Head of Product Portfolio",
 };
-
-/** Whoever runs a team. They do the team's ordinary work, with the team's own screens on top. */
-export function runsATeam(held: StaffRole[]) {
-  return held.some((role) => role.endsWith("_HEAD"));
-}
-
-/**
- * The roles somebody actually works in. Running a team is not a workspace of its own: the head signs into
- * their team's, holding the team's powers and the head's together.
- */
-export function workspacesIn(held: StaffRole[]): WorkspaceRole[] {
-  return held.filter((role): role is WorkspaceRole => !role.endsWith("_HEAD"));
-}
-
-/** A role somebody signs in to work in. Running a team is held on top of one of these, never instead. */
-export type WorkspaceRole = Exclude<StaffRole, `${string}_HEAD`>;
-
-/** The team a head role runs. */
-export const headOf: Partial<Record<StaffRole, StaffRole>> = {
-  ADVISOR_HEAD: "ADVISOR",
-  COMPLIANCE_HEAD: "COMPLIANCE",
-  OPERATIONS_HEAD: "OPERATIONS",
-  PORTFOLIO_MANAGER_HEAD: "PORTFOLIO_MANAGER",
-};
-
-/** The four teams a staff member works on, and the head role each one can be given. */
-export const teamRoles = [
-  { team: "ADVISOR", head: "ADVISOR_HEAD" },
-  { team: "OPERATIONS", head: "OPERATIONS_HEAD" },
-  { team: "COMPLIANCE", head: "COMPLIANCE_HEAD" },
-  { team: "PORTFOLIO_MANAGER", head: "PORTFOLIO_MANAGER_HEAD" },
-] as const satisfies readonly { team: StaffRole; head: StaffRole }[];
 
 export const roles = Object.keys(roleLabels) as StaffRole[];
 

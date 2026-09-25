@@ -7,7 +7,7 @@ import {
   DateField,
   FollowUp,
   FormSection as FieldGroup,
-  TextField,
+  SignatureField, TextField,
   type FieldFor,
 } from "../../components/form-fields";
 import {
@@ -421,7 +421,7 @@ export function DeclarationStep({
 
       <FieldGroup>
         <TextField id="declaration.printName" label="Print Name" value={declaration.printName} onChange={(printName) => onChange({ printName })} field={field} />
-        <TextField id="declaration.signature" label="Signature" value={declaration.signature} onChange={(signature) => onChange({ signature })} field={field} placeholder="Type the full name" />
+        <SignatureField id="declaration.signature" label="Signature" value={declaration.signature} onChange={(signature) => onChange({ signature })} field={field} />
         <DateField
           id="declaration.signedOn"
           label="Date"

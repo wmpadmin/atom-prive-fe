@@ -14,6 +14,7 @@ import {
   type DueDiligenceEntity,
   type DueDiligenceShared,
 } from "./customer-due-diligence";
+import { signatureText } from "./made-signature";
 
 const MISSING = "—";
 
@@ -129,7 +130,7 @@ export function SharedDueDiligenceSummary({
       <Part title="MONEY LAUNDERING RISK RATING (MLRR)" stepId="risk" onEdit={onEdit}>
         <Fact label="OVERALL MLRR RISK ASSESSMENT" value={shown(risk.overallMlrr)} wide />
         <Fact label="PEP risk (if applicable):" value={yesNo(risk.politicallyExposed)} />
-        <Fact label="Relationship Manager Name" value={`${shown(risk.relationshipManagerName)} · ${shown(risk.dateAndPlace)} · ${shown(risk.signature)}`} />
+        <Fact label="Relationship Manager Name" value={`${shown(risk.relationshipManagerName)} · ${shown(risk.dateAndPlace)} · ${signatureText(shown(risk.signature))}`} />
         {risk.politicallyExposed === true &&
           pepRows.map((row) => (
             <Fact

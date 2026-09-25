@@ -2,10 +2,10 @@ import type { ApiError } from "@atomprive/api-client";
 import {
   getGetClientAccessQueryKey,
   useGetClientAccess,
-  useListMyTeam,
+  useListStaffToGiveAccessTo,
   useSetClientAccess,
   type ClientAccessView,
-  type TeamMember,
+  type StaffToName,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -19,7 +19,7 @@ import { useState } from "react";
 export function ClientAccessPanel({ clientId }: { clientId: string }) {
   const queryClient = useQueryClient();
   const access = useGetClientAccess<ClientAccessView, ApiError>(clientId);
-  const team = useListMyTeam<TeamMember[], ApiError>();
+  const team = useListStaffToGiveAccessTo<StaffToName[], ApiError>();
   const save = useSetClientAccess<ApiError>();
 
   // Nothing is held here until somebody changes something: until then the panel shows what is on record.
@@ -81,7 +81,7 @@ export function ClientAccessPanel({ clientId }: { clientId: string }) {
         <div className="space-y-2">
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Staff who can see them</p>
           {members.length === 0 ? (
-            <p className="text-sm text-ink-muted">Nobody is on your team yet.</p>
+            <p className="text-sm text-ink-muted">There is nobody to name yet.</p>
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">
               {members.map((member) => (

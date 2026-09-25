@@ -15,6 +15,7 @@ import {
   scoreOf,
   type InvestmentRiskProfileEntity,
 } from "./investment-risk-profile";
+import { signatureText } from "./made-signature";
 
 const MISSING = "—";
 
@@ -27,7 +28,7 @@ function signedBy(rows: { name: string; signedOn: string; signOff: string }[]) {
   const named = rows.filter((row) => row.name.trim());
   if (named.length === 0) return MISSING;
   return named
-    .map((row) => `${row.name} · ${row.signedOn ? formatDate(row.signedOn) : MISSING} · ${shown(row.signOff)}`)
+    .map((row) => `${row.name} · ${row.signedOn ? formatDate(row.signedOn) : MISSING} · ${signatureText(shown(row.signOff))}`)
     .join("\n");
 }
 

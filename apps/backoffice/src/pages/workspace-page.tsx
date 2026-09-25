@@ -6,10 +6,10 @@ import { ArrowRight, ChartColumn, ChartLine, Settings, Shield, ShieldCheck, type
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router";
 import { useSession, useStaffUser } from "../auth/session";
-import { workspacesIn, type WorkspaceRole } from "../lib/labels";
+import type { StaffRole } from "../lib/labels";
 
 /** How each role's workspace is introduced, in the wording of the design. */
-const workspaces: Record<WorkspaceRole, { name: string; description: string; icon: LucideIcon }> = {
+const workspaces: Record<StaffRole, { name: string; description: string; icon: LucideIcon }> = {
   ADMIN: { name: "Admin", description: "Users, roles & permissions, and platform configuration.", icon: ShieldCheck },
   ADVISOR: {
     name: "Relationship Advisor",
@@ -54,7 +54,7 @@ export function WorkspacePage() {
   });
 
   // Someone with a single role has nothing to choose.
-  const choices = workspacesIn(user.roles);
+  const choices = user.roles;
   if (choices.length === 1 && user.activeRole) {
     return <Navigate to="/" replace />;
   }

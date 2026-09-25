@@ -1,7 +1,9 @@
 import type { DocumentBlock, DocumentCell, DocumentGap } from "@atomprive/api-client/backoffice";
 import { cn } from "@atomprive/ui";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { SignatureMark } from "../../components/signature-mark";
 import { namesAPart } from "./document-parts";
+import { madeSignature } from "./made-signature";
 
 interface Filling {
   details: Record<string, string>;
@@ -18,9 +20,69 @@ interface Filling {
   /** How many rows a table that is a list to write on is showing, and how to ask it for more or fewer. */
   listRows?: Record<string, number>;
   onListRows?: (table: string, rows: number) => void;
+  /** Set where this person may sign: the place on the paper, and whose signature the paper asks for there. */
+  onSign?: (spot: string, who: string) => void;
 }
 
 const FillingContext = createContext<Filling>({ details: {}, printed: {}, quiet: new Set(), ticked: {} });
+
+/**
+ * A run of dots, dashes or underscores the paper rules for something to be written on. Long enough not to
+ * catch an ellipsis in a sentence: the pack rules these forty characters wide.
+ */
+const RULE_RUN = /(\.{5,}|\u2026{2,}|_{4,}|[-\u2013\u2014]{4,})/;
+
+/** A line that is nothing but such a rule, which is the paper leaving a whole line to write on. */
+function onlyARule(text: string) {
+  return text.trim() !== "" && text.split(RULE_RUN).every((part) => RULE_RUN.test(part) || part.trim() === "");
+}
+
+/**
+ * Whether the rule at this point is a place to sign, and whose signature the paper asks for. The pack rules a
+ * line and says underneath what goes on it — Full Name, Signature, Capacity of Signatory — and says above it
+ * who is signing.
+ */
+function signedHere(blocks: DocumentBlock[], at: number): string | null {
+  const next = blocks[at + 1];
+  const asksForASignature =
+    (next?.kind === "COLUMNS" && (next.rows[0] ?? []).some((cell) => /^signature$/i.test(cell.text.trim()))) ||
+    /signator/i.test(next?.text ?? "");
+  if (!asksForASignature) return null;
+  for (let back = at - 1; back >= 0 && back > at - 6; back -= 1) {
+    const said = (blocks[back]?.text ?? "").trim();
+    if (/^signed by\b/i.test(said)) return said.replace(/^signed by\s+/i, "").toLowerCase() || "the client";
+  }
+  return /signator/i.test(next?.text ?? "") ? "the firm" : "the client";
+}
+
+/** A cell that is the word alone: the paper heading a column, or labelling the space beside it. */
+const SIGNATURE_LABEL = /^signature\s*\(?s?\)?\s*:?$/i;
+
+/** Words that name the rule after them as the place to sign: "Signature: ______". */
+const SIGNS_WHAT_FOLLOWS = /signature\s*\(?s?\)?\s*:?\s*$/i;
+
+/** A whole line the paper rules to write on: written on where this is a form, left as a rule where it is not. */
+function RuledBlank({ name }: { name: string }) {
+  const { onFill } = useContext(FillingContext);
+  if (onFill) return <Blank name={name} wide />;
+  return <span aria-hidden="true" className="mt-4 block h-6 w-80 max-w-full border-b border-ink-muted/60" />;
+}
+
+/**
+ * Where the paper asks for a signature. Unsigned it is the place to sign, the way a signing tool marks one;
+ * signed it is the signature itself, over the rule the paper ruled.
+ */
+function SignatureSpot({ spot, who, where }: { spot: string; who?: string; where?: "inline" | "cell" }) {
+  const { details, onSign } = useContext(FillingContext);
+  return (
+    <SignatureMark
+      made={madeSignature(details[spot])}
+      who={who}
+      shape={where ?? "block"}
+      onOpen={onSign ? () => onSign(spot, who ?? "the client") : undefined}
+    />
+  );
+}
 
 /** A blank on a form, written in here. It looks like the rule the paper leaves, not like a box on a screen. */
 function Blank({ name, wide, idle }: { name: string; wide?: boolean; idle?: boolean }) {
@@ -87,17 +149,28 @@ function useFilledIn() {
         said.push(gapPiece(piece, `${part}`));
         return;
       }
-      // On a form, the line the paper rules for an answer is written on rather than read.
-      if (!onFill) {
-        said.push(piece);
-        return;
-      }
-      piece.split(/(_{4,})/).forEach((run, which) => {
+      // The paper rules a run of dots or underscores where something is to be written. On a form that rule is
+      // written on; read-only it stays a rule, never the dots themselves.
+      const runs = piece.split(RULE_RUN);
+      runs.forEach((run, which) => {
+        if (!RULE_RUN.test(run)) {
+          said.push(run);
+          return;
+        }
+        // "Signature: ______" is a place to sign, not a blank to type in.
+        if (SIGNS_WHAT_FOLLOWS.test(runs[which - 1] ?? "")) {
+          said.push(<SignatureSpot key={`${part}.${which}`} spot={`${where}.${part}.${which}`} where="inline" />);
+          return;
+        }
         said.push(
-          /^_{4,}$/.test(run) ? (
+          onFill ? (
             <Blank key={`${part}.${which}`} name={`${where}.${part}.${which}`} idle={idle} />
           ) : (
-            run
+            <span
+              key={`${part}.${which}`}
+              aria-hidden="true"
+              className="mx-1 inline-block w-32 max-w-full border-b border-ink-muted/60 align-baseline"
+            />
           ),
         );
       });
@@ -168,6 +241,7 @@ function Cell({
   ticking,
   insteadOf,
   mark,
+  signing,
 }: {
   cell: DocumentCell;
   where: string;
@@ -178,6 +252,8 @@ function Cell({
   ticking?: boolean;
   /** The other boxes this one is an alternative to, such as the rows of a "Select One" column. */
   insteadOf?: string[];
+  /** Where the paper asks for a signature in this cell: in place of what it holds, or after it. */
+  signing?: "instead" | "after" | false;
 }) {
   const filledIn = useFilledIn();
   const { ticked, onTick, onFill } = useContext(FillingContext);
@@ -192,6 +268,16 @@ function Cell({
             only
             onTick={onTick ? (on) => onTick(`${where}.1`, on, insteadOf ?? []) : undefined}
           />
+        </span>
+      );
+    }
+    // A cell the paper leaves for a signature is signed in, not written in.
+    if (signing === "instead") return <SignatureSpot spot={where} where="cell" />;
+    if (signing === "after") {
+      return (
+        <span className="flex flex-wrap items-end gap-x-3 gap-y-1">
+          <span className="shrink-0">{filledIn(cell.text, where)}</span>
+          <SignatureSpot spot={`${where}.sign`} where="inline" />
         </span>
       );
     }
@@ -280,6 +366,39 @@ function Table({ rows: printed, widths, where }: { rows: DocumentCell[][]; width
       return said.length > 0 && said.every((text) => text.length <= 4);
     }),
   );
+  // The columns the paper heads Signature, as the width each heading covers. The pack merges its rows unevenly,
+  // so a cell belongs to that heading when it runs under any part of it, not only when it starts where it does.
+  const signatureSpans = (rows[0] ?? []).flatMap((cell, which) =>
+    SIGNATURE_LABEL.test(cell.text.trim()) ? [[columns[0]![which]!, columns[0]![which]! + cell.across] as const] : [],
+  );
+  const cols = (row: number, which: number) => columns[row]![which]!;
+  const underASignatureHeading = (from: number, across: number) =>
+    signatureSpans.some(([starts, ends]) => from < ends && starts < from + across);
+  /**
+   * Whether the paper asks for a signature here: "instead" where it leaves the space empty, "after" where the
+   * word takes the whole cell and the signature goes beside it.
+   */
+  const signsHere = (row: DocumentCell[], at: number, which: number, from: number): "instead" | "after" | false => {
+    const cell = row[which]!;
+    if (!cell.text.trim()) {
+      if (at > 0 && underASignatureHeading(from, cell.across)) return "instead";
+      for (let back = which - 1; back >= 0; back -= 1) {
+        const said = row[back]!.text.trim();
+        if (said) return SIGNATURE_LABEL.test(said) ? "instead" : false;
+      }
+      return false;
+    }
+    // The word on its own. Where the paper leaves space under it — a column headed "Signature(s)" with the
+    // clients listed below — that space is where they sign, and the heading is only a heading. Where there is
+    // no such space, as on a line reading "Signature:", the signature goes beside the word.
+    if (!SIGNATURE_LABEL.test(cell.text.trim())) {
+      return false;
+    }
+    const spaceBelow = rows.some((other, below) => below > at
+      && other.some((one, which) => !one.text.trim() && cols(below, which) < from + cell.across
+        && from < cols(below, which) + one.across));
+    return spaceBelow ? false : "after";
+  };
   // A column the paper heads "Select One", or "Tick approp box", is one choice down the table.
   const chosenOnce = new Set(
     (rows[0] ?? []).flatMap((cell, which) =>
@@ -360,6 +479,7 @@ function Table({ rows: printed, widths, where }: { rows: DocumentCell[][]; width
                           ticking={chosenOnce.has(from) && at > 0 && !nothingToTick(row, at)}
                           insteadOf={chosenOnce.has(from) ? boxesDown(from, at) : undefined}
                           mark={asList && at > 0 && which === 0 ? `${at})` : undefined}
+                          signing={signsHere(row, at, which, from)}
                         />
                       </td>
                     );
@@ -407,6 +527,7 @@ export function DocumentWording({
   onFill,
   listRows,
   onListRows,
+  onSign,
 }: {
   blocks: DocumentBlock[];
   gaps: DocumentGap[];
@@ -419,6 +540,8 @@ export function DocumentWording({
   /** How many rows each list-to-write-on is showing, and how to ask it for more or fewer. */
   listRows?: Record<string, number>;
   onListRows?: (table: string, rows: number) => void;
+  /** Set where this person may sign, which turns each signature place into one they can sign in. */
+  onSign?: (spot: string, who: string) => void;
 }) {
   const filling = useMemo(
     () => ({
@@ -428,10 +551,11 @@ export function DocumentWording({
       onFill,
       listRows,
       onListRows,
+      onSign,
       printed: Object.fromEntries(gaps.flatMap((gap) => (gap.printed ? [[gap.key, gap.printed]] : []))),
       quiet: new Set(gaps.filter((gap) => gap.about === "FIRM").map((gap) => gap.key)),
     }),
-    [details, gaps, ticked, onTick, onFill, listRows, onListRows],
+    [details, gaps, ticked, onTick, onFill, listRows, onListRows, onSign],
   );
   return (
     <FillingContext.Provider value={filling}>
@@ -588,6 +712,11 @@ function Wording({ blocks }: { blocks: DocumentBlock[] }) {
   return (
     <div className="space-y-3.5">
       {blocks.map((block, at) => {
+        // A line that is nothing but a ruled blank: the place a signature goes, or a rule to write on.
+        if (onlyARule(block.text ?? "")) {
+          const who = signedHere(blocks, at);
+          return who ? <SignatureSpot key={at} spot={`s${at}`} who={who} /> : <RuledBlank key={at} name={`r${at}`} />;
+        }
         const words = said(block, `b${at}`);
         switch (block.kind) {
           case "TITLE":
@@ -687,13 +816,17 @@ function Wording({ blocks }: { blocks: DocumentBlock[] }) {
                 </Heading>
               );
             }
+            // The paper sets some of its signature lines as a label and a colon, with the space left after.
+            const signHere = SIGNATURE_LABEL.test((cells[0]?.text ?? "").trim())
+              && cells.slice(1).every((cell) => !cell.text.replace(/[:\s]/g, ""));
             return (
-              <div key={at} className="flex flex-wrap gap-x-10 gap-y-1 pt-2 text-sm text-ink">
+              <div key={at} className="flex flex-wrap items-end gap-x-10 gap-y-1 pt-2 text-sm text-ink">
                 {cells.map((cell, column) => (
-                  <span key={column} className="min-w-[8rem] flex-1">
+                  <span key={column} className={cn("min-w-[8rem]", signHere ? "shrink-0" : "flex-1")}>
                     {filledIn(cell.text, `c${at}.${column}`)}
                   </span>
                 ))}
+                {signHere && <SignatureSpot spot={`c${at}.sign`} where="inline" />}
               </div>
             );
           }

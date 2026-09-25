@@ -56,6 +56,9 @@ export const OPENS_CLIENT_DOCUMENTS: Authority[] = ["APPROVE_ONBOARDING:VIEW", .
 /** Enough to write proposals, the same set ProposalController lets through. */
 export const WRITES_PROPOSALS: Authority[] = ["SEND_PROPOSALS:OWN_CLIENTS", "SEND_PROPOSALS:ASSIGNED", "SEND_PROPOSALS:CHANGE"];
 
+/** Enough to read proposals: whoever writes them, and Compliance, who oversee the advice the firm gives. */
+export const READS_PROPOSALS: Authority[] = ["SEND_PROPOSALS:VIEW", ...WRITES_PROPOSALS];
+
 /** Whoever may write proposals for their own clients. */
 export function writesProposals(user: StaffProfile) {
   return hasAnyAuthority(user, ...WRITES_PROPOSALS);

@@ -1,5 +1,5 @@
 import { Boxes, Tick, Written } from "../../components/form-boxes";
-import { DateField, FormSection as FieldGroup, TextField, type FieldFor } from "../../components/form-fields";
+import { DateField, FormSection as FieldGroup, SignatureField, TextField, type FieldFor } from "../../components/form-fields";
 import {
   BY_SIGNING,
   familyTies,
@@ -227,7 +227,7 @@ function SignatureBlock({
   return (
     <FieldGroup title={title}>
       <TextField id={`${at}.name`} label="Name" value={value.name} onChange={(name) => set({ name })} field={field} />
-      <TextField id={`${at}.signature`} label="Signature" value={value.signature} onChange={(signature) => set({ signature })} field={field} placeholder="Type the full name" />
+      <SignatureField id={`${at}.signature`} label="Signature" value={value.signature} onChange={(signature) => set({ signature })} field={field} />
       <DateField
         id={`${at}.signedOn`}
         label="Date"

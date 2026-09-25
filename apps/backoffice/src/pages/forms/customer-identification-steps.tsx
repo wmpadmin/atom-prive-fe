@@ -7,7 +7,7 @@ import {
   CountryField,
   DateField,
   FormSection as FieldGroup,
-  TextField,
+  SignatureField, TextField,
   type FieldFor,
 } from "../../components/form-fields";
 import {
@@ -309,7 +309,7 @@ export function DeclarationStep(at: AskProps) {
       <FieldGroup>
         <TextField id="declaration.name" label="Name:" value={value.said["declaration.name"] ?? ""} onChange={(said) => say("declaration.name", said)} field={field} />
         <DateField id="declaration.date" label="Date:" value={value.said["declaration.date"] ?? ""} onChange={(said) => say("declaration.date", said)} field={field} min={yearsFromToday(-2)} max={yearsFromToday(1)} />
-        <TextField id="declaration.signature" label="Signature:" value={value.said["declaration.signature"] ?? ""} onChange={(said) => say("declaration.signature", said)} field={field} placeholder="Type the full name" className="sm:col-span-2" />
+        <SignatureField id="declaration.signature" label="Signature:" value={value.said["declaration.signature"] ?? ""} onChange={(said) => say("declaration.signature", said)} field={field} className="sm:col-span-2" />
       </FieldGroup>
 
       <section className="space-y-3">
@@ -321,7 +321,7 @@ export function DeclarationStep(at: AskProps) {
         <TextField id="firmSide.name" label="Name:" value={value.said["firmSide.name"] ?? ""} onChange={(said) => say("firmSide.name", said)} field={field} optional />
         <TextField id="firmSide.designation" label="Designation:" value={value.said["firmSide.designation"] ?? ""} onChange={(said) => say("firmSide.designation", said)} field={field} optional />
         <DateField id="firmSide.date" label="Date:" value={value.said["firmSide.date"] ?? ""} onChange={(said) => say("firmSide.date", said)} field={field} min={yearsFromToday(-2)} max={yearsFromToday(1)} />
-        <TextField id="firmSide.signature" label="Signature:" value={value.said["firmSide.signature"] ?? ""} onChange={(said) => say("firmSide.signature", said)} field={field} optional />
+        <SignatureField who="the firm" id="firmSide.signature" label="Signature:" value={value.said["firmSide.signature"] ?? ""} onChange={(said) => say("firmSide.signature", said)} field={field} optional />
       </FieldGroup>
 
       <details className="rounded-2xl border border-line px-5 py-4">
@@ -459,7 +459,7 @@ function SignatureBlock({ at, prefix, title }: { at: AskProps; prefix: string; t
     <FieldGroup title={title}>
       <TextField id={`${prefix}.name`} label="Name:" value={value.said[`${prefix}.name`] ?? ""} onChange={(said) => say(`${prefix}.name`, said)} field={field} />
       <DateField id={`${prefix}.date`} label="Date:" value={value.said[`${prefix}.date`] ?? ""} onChange={(said) => say(`${prefix}.date`, said)} field={field} min={yearsFromToday(-2)} max={yearsFromToday(1)} />
-      <TextField id={`${prefix}.signature`} label="Signature:" value={value.said[`${prefix}.signature`] ?? ""} onChange={(said) => say(`${prefix}.signature`, said)} field={field} placeholder="Type the full name" className="sm:col-span-2" />
+      <SignatureField who="the firm" id={`${prefix}.signature`} label="Signature:" value={value.said[`${prefix}.signature`] ?? ""} onChange={(said) => say(`${prefix}.signature`, said)} field={field} className="sm:col-span-2" />
     </FieldGroup>
   );
 }

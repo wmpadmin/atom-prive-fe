@@ -339,7 +339,8 @@ export function reviewAccountOpening(value: AccountOpeningEntity, provided: Read
   if (declarations.signers.length === 0) problems["declarations.signers"] = "Add whoever signs.";
   declarations.signers.forEach((signer, at) => {
     if (!signer.fullName.trim()) problems[`declarations.signers[${at}].fullName`] = REQUIRED;
-    if (!signer.signature.trim()) problems[`declarations.signers[${at}].signature`] = REQUIRED;
+    // The client signs after the form reaches them, so their signature is not what makes the form ready
+    // to send. Their name and the date still are.
     if (!signer.signedOn) problems[`declarations.signers[${at}].signedOn`] = "Choose a date.";
   });
   return {

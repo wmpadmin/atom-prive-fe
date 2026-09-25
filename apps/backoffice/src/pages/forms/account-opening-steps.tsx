@@ -7,7 +7,7 @@ import {
   DateField,
   FollowUp,
   FormSection as FieldGroup,
-  TextField,
+  SignatureField, TextField,
   type FieldFor,
 } from "../../components/form-fields";
 import { Boxes, Tick } from "../../components/form-boxes";
@@ -332,7 +332,7 @@ export function DeclarationsStep({
         {declarations.signers.map((signer, at) => (
           <FollowUp key={at} title={`Authorised Signatory ${at + 1}`}>
             <TextField id={`declarations.signers[${at}].fullName`} label="Full name:" value={signer.fullName} onChange={(fullName) => setSigner(at, { fullName })} field={field} className="sm:col-span-2" />
-            <TextField id={`declarations.signers[${at}].signature`} label="Signature:" value={signer.signature} onChange={(signature) => setSigner(at, { signature })} field={field} placeholder="Type the full name" />
+            <SignatureField id={`declarations.signers[${at}].signature`} label="Signature:" value={signer.signature} onChange={(signature) => setSigner(at, { signature })} field={field} />
             <DateField id={`declarations.signers[${at}].signedOn`} label="Date (DD/MM/YYYY):" value={signer.signedOn} onChange={(signedOn) => setSigner(at, { signedOn })} field={field} min={daysFromToday(-2 * 365)} max={daysFromToday(365)} />
             {declarations.signers.length > 1 && (
               <div className="sm:col-span-2">

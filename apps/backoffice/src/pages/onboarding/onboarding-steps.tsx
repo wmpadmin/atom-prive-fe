@@ -287,10 +287,13 @@ export function EntityDetailsStep({ entity, onChange, field }: EntityStepProps) 
     <div className="space-y-8">
       <FormSection title="Entity" description="As shown on the certificate of incorporation.">
         <TextField id="entity.legalName" label="Full legal name" value={entity.legalName} onChange={(legalName) => onChange({ legalName })} field={field} placeholder="e.g. The Tan Family Office Pte Ltd" className="sm:col-span-2" />
+        <TextField id="entity.legalForm" label="Legal form" value={entity.legalForm} onChange={(legalForm) => onChange({ legalForm })} field={field} placeholder="e.g. Private company limited by shares" optional />
         <CountryField id="entity.countryOfIncorporation" label="Country of incorporation" value={entity.countryOfIncorporation} onChange={(countryOfIncorporation) => onChange({ countryOfIncorporation })} field={field} />
         <DateField id="entity.dateOfIncorporation" label="Date of incorporation" value={entity.dateOfIncorporation} onChange={(dateOfIncorporation) => onChange({ dateOfIncorporation })} field={field} min={new Date(1900, 0, 1)} max={daysFromToday(-1)} />
         <TextField id="entity.registrationNumber" label="Business registration number" value={entity.registrationNumber} onChange={(registrationNumber) => onChange({ registrationNumber })} field={field} placeholder="e.g. 201512345K" />
         <TextField id="entity.natureOfBusiness" label="Nature of the business" value={entity.natureOfBusiness} onChange={(natureOfBusiness) => onChange({ natureOfBusiness })} field={field} placeholder="e.g. Family investment holding" />
+        <CountryField id="entity.taxResidency" label="Tax residency" value={entity.taxResidency} onChange={(taxResidency) => onChange({ taxResidency })} field={field} optional />
+        <TextField id="entity.giin" label="GIIN" value={entity.giin} onChange={(giin) => onChange({ giin })} field={field} placeholder="e.g. S9K3L2.00000.LE.702" optional />
       </FormSection>
     </div>
   );

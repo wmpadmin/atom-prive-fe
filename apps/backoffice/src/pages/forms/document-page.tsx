@@ -1,9 +1,12 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   getListCaseFormsQueryKey,
+  getListClientChecklistQueryKey,
   useChangeCaseForm,
   useGetCustomer,
   useGetDocumentText,
+  useSaveFormDraft,
+  useStartForm,
   useGetOnboardingCase,
   useListCaseForms,
   useListClientChecklist,
@@ -20,13 +23,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, ChevronRight, Send } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
+import { SignHereDialog } from "../../components/sign-here-dialog";
 import { StepRail, type RailStep } from "../../components/step-rail";
 import { useStaffUser } from "../../auth/session";
 import { formatDate } from "../../lib/labels";
-import { hasAuthority } from "../../lib/permissions";
+import { hasAnyAuthority } from "../../lib/permissions";
 import { categoryOf } from "../onboarding/case-category";
 import { partsOf } from "./document-parts";
 import { DocumentWording } from "./document-wording";
+import { madeSignature } from "./made-signature";
+
 import { formStatus } from "./form-labels";
 
 function today() {
@@ -65,7 +71,8 @@ export function DocumentPage() {
   // out belongs to the case, so there is nothing to send from here.
   const fromClient = Boolean(clientId);
   const user = useStaffUser();
-  const canChange = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE");
+  // Operations fill these in and sign them; whoever onboards the client may too.
+  const canChange = hasAnyAuthority(user, "FILL_CLIENT_FORMS:CHANGE", "ONBOARD_CLIENTS:CHANGE");
   const queryClient = useQueryClient();
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [ticks, setTicks] = useState<Record<string, boolean>>({});
@@ -76,6 +83,8 @@ export function DocumentPage() {
   // Which parts have been read through. A document is signed as it stands, so most of its parts ask for
   // nothing; ticking them before anybody has opened them reads as work already done.
   const [read, setRead] = useState<ReadonlySet<string>>(new Set());
+  // The place on the paper being signed, and whose signature it asks for.
+  const [signing, setSigning] = useState<{ spot: string; who: string } | null>(null);
 
   const onboarding = useGetOnboardingCase<CaseDetail, ApiError>(caseId, { query: { enabled: !fromClient } });
   const category = onboarding.data ? categoryOf(onboarding.data.summary) : undefined;
@@ -88,12 +97,17 @@ export function DocumentPage() {
   const checklist = useListClientChecklist<ClientChecklist, ApiError>(clientId, { query: { enabled: fromClient } });
   const row = (fromClient ? checklist.data?.forms : rows.data)?.find((held) => held.kind === kind);
   const client = fromClient ? customer.data?.client : onboarding.data?.clients[0];
+  // Sending is recorded against the application; from a client's own file that is the one they came in on.
+  const sendAgainst = fromClient ? (customer.data?.onboarding?.caseId ?? "") : caseId;
   const wording = useGetDocumentText<DocumentText, ApiError>(
     kind as DocumentTextKind,
     { customerId: client?.id },
     { query: { enabled: Boolean(client) } },
   );
   const change = useChangeCaseForm<ApiError>();
+  // A client's own copy has no case behind it, so what is written on it is kept against the form itself.
+  const open = useStartForm<ApiError>();
+  const keep = useSaveFormDraft<ApiError>();
 
   // What the record already knows, with anything typed here on top.
   const details = useMemo(() => {
@@ -145,8 +159,9 @@ export function DocumentPage() {
   const signed = row?.status === "SUBMITTED";
   const missing = wording.data.gaps.filter((gap) => !details[gap.key]?.trim());
   const shownDue = dueOn || (row?.dueOn ?? "");
-  // Sending is recorded against the onboarding case, so from a client the wording only reads.
-  const writable = canChange && !signed && !fromClient;
+  const writable = canChange && !signed;
+  // A client onboarded before there were cases has no application to record a send against.
+  const sendable = writable && Boolean(sendAgainst);
 
   // A part is ticked once it has been read through and the details it leaves a gap for are all in. Most parts
   // leave no gap at all, so reading them is the whole of it; a tick before that says work nobody has done.
@@ -169,28 +184,46 @@ export function DocumentPage() {
   // What the count under the document is about is the details, not how much of it has been read.
   const answered = parts.filter((one) => one.gaps.length > 0 && filledIn(one)).length;
 
+  const busy = change.isPending || open.isPending || keep.isPending;
+
+  function kept() {
+    setEdits({});
+    setTicks({});
+    void queryClient.invalidateQueries({ queryKey: getListCaseFormsQueryKey(caseId) });
+    if (clientId) void queryClient.invalidateQueries({ queryKey: getListClientChecklistQueryKey(clientId) });
+    void wording.refetch();
+  }
+
   function save(alsoSend: boolean) {
     if (!client) return;
-    change.mutate(
-      {
-        caseId,
-        kind: kind as CaseFormRow["kind"],
-        data: {
-          customerId: client.id,
-          dueOn: alsoSend ? shownDue || null : null,
-          waitingOnClient: alsoSend ? true : null,
-          signedCopyOnFile: null,
-          answers: { ...details, ...ticked },
+    const answers = { ...details, ...ticked };
+    // The document belongs to the application whichever way it was opened, so what is written on it and the
+    // day it goes to the client are recorded there.
+    if (sendAgainst) {
+      change.mutate(
+        {
+          caseId: sendAgainst,
+          kind: kind as CaseFormRow["kind"],
+          data: {
+            customerId: client.id,
+            dueOn: alsoSend ? shownDue || null : null,
+            waitingOnClient: alsoSend ? true : null,
+            signedCopyOnFile: null,
+            answers,
+          },
         },
-      },
-      {
-        onSuccess: () => {
-          setEdits({});
-          setTicks({});
-          void queryClient.invalidateQueries({ queryKey: getListCaseFormsQueryKey(caseId) });
-          void wording.refetch();
-        },
-      },
+        { onSuccess: kept },
+      );
+      return;
+    }
+    // A client with no application of their own keeps their copy on their own file.
+    if (row?.formId) {
+      keep.mutate({ id: row.formId, data: { answers, dueOn: null } }, { onSuccess: kept });
+      return;
+    }
+    open.mutate(
+      { data: { kind: kind as CaseFormRow["kind"], customerId: client.id, onboardingCaseId: null, dueOn: null } },
+      { onSuccess: (started) => keep.mutate({ id: started.summary.id, data: { answers, dueOn: null } }, { onSuccess: kept }) },
     );
   }
 
@@ -202,14 +235,14 @@ export function DocumentPage() {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="text-base font-bold">{wording.data.title}</h1>
           <span className="text-line">|</span>
-          <p className="text-sm text-ink-muted">{onboarding.data?.summary.clientName}</p>
+          <p className="text-sm text-ink-muted">{client?.fullName}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {row && <Badge tone={formStatus(row.status, row.dueOn).tone}>{formStatus(row.status, row.dueOn).label}</Badge>}
           {writable && client && (
-            <Button variant="secondary" size="sm" disabled={change.isPending} onClick={() => save(false)}>
+            <Button variant="secondary" size="sm" disabled={busy} onClick={() => save(false)}>
               <Check aria-hidden="true" />
-              {change.isPending ? "Saving…" : "Save the details"}
+              {busy ? "Saving…" : "Save the details"}
             </Button>
           )}
         </div>
@@ -261,7 +294,7 @@ export function DocumentPage() {
           <div key={current.id} className="space-y-6 px-6 py-6 sm:px-8">
             {current.id === SEND.id ? (
               <SendPart
-                canSend={Boolean(writable && client)}
+                canSend={Boolean(sendable && client)}
                 missing={missing}
                 dueOn={shownDue}
                 busy={change.isPending}
@@ -311,6 +344,8 @@ export function DocumentPage() {
                     }
                     // The lines the paper rules — "Other: ____", a name, a date — are written on before it goes out.
                     onFill={writable ? (key, value) => setEdits((held) => ({ ...held, [key]: value })) : undefined}
+                    // Every place the paper asks to be signed can be signed here, and none of them has to be.
+                    onSign={writable ? (spot, who) => setSigning({ spot, who }) : undefined}
                     listRows={listRows}
                     onListRows={
                       writable
@@ -365,6 +400,21 @@ export function DocumentPage() {
           </div>
         </section>
       </div>
+      <SignHereDialog
+        spot={signing?.spot ?? null}
+        who={signing?.who ?? "the client"}
+        forName={client?.fullName}
+        made={signing ? madeSignature(details[signing.spot]) : null}
+        onClose={() => setSigning(null)}
+        onSigned={(signature) => {
+          // A signature is kept with the rest of the answers: taking one off leaves the place empty again.
+          if (signing) {
+            const spot = signing.spot;
+            setEdits((held) => ({ ...held, [spot]: signature ? JSON.stringify(signature) : "" }));
+          }
+          setSigning(null);
+        }}
+      />
     </div>
   );
 }
@@ -430,10 +480,17 @@ function SendPart({
               required
             />
           </Field>
-          <Button disabled={!dueOn || busy} onClick={onSend}>
+          {/* A document goes to the client to sign as it stands, so it goes complete: what is still blank
+              would be blank on the copy they signed. */}
+          <Button disabled={!dueOn || busy || missing.length > 0} onClick={onSend}>
             <Send aria-hidden="true" />
             {sent ? "Send again" : "Send to the client"}
           </Button>
+          {missing.length > 0 && (
+            <p className="text-sm text-ink-muted">
+              Fill in what is still missing above before this goes out.
+            </p>
+          )}
         </div>
       )}
       <p className="text-xs text-ink-muted">No email goes out yet, so send it however you normally would.</p>

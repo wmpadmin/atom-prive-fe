@@ -21,6 +21,7 @@ import {
   type StatusGroup,
   type TaxResidence,
 } from "./fatca-crs";
+import { signatureText } from "./made-signature";
 
 const MISSING = "—";
 
@@ -196,7 +197,7 @@ export function FatcaCrsSummary({
             key={at}
             label={`The Entity Account Holder/ Controlling Person ${at + 1}`}
             wide
-            value={[shown(signer.name), shown(signer.capacity), shown(signer.signature), shownDate(signer.signedOn)].join(" · ")}
+            value={[shown(signer.name), shown(signer.capacity), signatureText(shown(signer.signature)), shownDate(signer.signedOn)].join(" · ")}
           />
         ))}
       </Part>

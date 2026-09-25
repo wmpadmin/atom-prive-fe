@@ -7,7 +7,7 @@ import {
   DateField,
   FollowUp,
   FormSection as FieldGroup,
-  TextField,
+  SignatureField, TextField,
   type FieldFor,
 } from "../../components/form-fields";
 import {
@@ -566,7 +566,7 @@ export function RiskStep({
       <FieldGroup title="Relationship Manager">
         <TextField id="risk.relationshipManagerName" label="Relationship Manager Name" value={risk.relationshipManagerName} onChange={(relationshipManagerName) => onChange({ relationshipManagerName })} field={field} />
         <TextField id="risk.dateAndPlace" label="Date &amp; Place" value={risk.dateAndPlace} onChange={(dateAndPlace) => onChange({ dateAndPlace })} field={field} />
-        <TextField id="risk.signature" label="Signature" value={risk.signature} onChange={(signature) => onChange({ signature })} field={field} placeholder="Type the full name" className="sm:col-span-2" />
+        <SignatureField who="the firm" id="risk.signature" label="Signature" value={risk.signature} onChange={(signature) => onChange({ signature })} field={field} className="sm:col-span-2" />
       </FieldGroup>
     </div>
   );
@@ -617,12 +617,12 @@ export function ComplianceReviewStep({
         <FieldGroup title="MLRO">
           <TextField id="review.mlro" label="MLRO" value={review.mlro} onChange={(mlro) => onChange({ mlro })} field={field} />
           <DateField id="review.mlroDate" label="Date" value={review.mlroDate} onChange={(mlroDate) => onChange({ mlroDate })} field={field} min={yearsFromToday(-5)} max={yearsFromToday(1)} />
-          <TextField id="review.mlroSignature" label="Signature" value={review.mlroSignature} onChange={(mlroSignature) => onChange({ mlroSignature })} field={field} placeholder="Type the full name" className="sm:col-span-2" />
+          <SignatureField who="the firm" id="review.mlroSignature" label="Signature" value={review.mlroSignature} onChange={(mlroSignature) => onChange({ mlroSignature })} field={field} className="sm:col-span-2" />
         </FieldGroup>
         <FieldGroup title="SEO">
           <TextField id="review.seo" label="SEO" value={review.seo} onChange={(seo) => onChange({ seo })} field={field} />
           <DateField id="review.seoDate" label="Date" value={review.seoDate} onChange={(seoDate) => onChange({ seoDate })} field={field} min={yearsFromToday(-5)} max={yearsFromToday(1)} />
-          <TextField id="review.seoSignature" label="Signature" value={review.seoSignature} onChange={(seoSignature) => onChange({ seoSignature })} field={field} placeholder="Type the full name" className="sm:col-span-2" />
+          <SignatureField who="the firm" id="review.seoSignature" label="Signature" value={review.seoSignature} onChange={(seoSignature) => onChange({ seoSignature })} field={field} className="sm:col-span-2" />
         </FieldGroup>
       </div>
     </div>

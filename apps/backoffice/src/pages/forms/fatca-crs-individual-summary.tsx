@@ -8,6 +8,7 @@ import {
   type FatcaCrsIndividual,
   type HolderAddress,
 } from "./fatca-crs-individual";
+import { signatureText } from "./made-signature";
 
 const MISSING = "—";
 
@@ -85,7 +86,7 @@ export function FatcaCrsIndividualSummary({
         <dl className="grid gap-3 sm:grid-cols-2">
           <Fact label="Declaration" value={declaration.confirmed ? "Made" : "Not yet made"} />
           <Fact label="Print Name" value={shown(declaration.printName)} />
-          <Fact label="Signature" value={shown(declaration.signature)} />
+          <Fact label="Signature" value={signatureText(shown(declaration.signature))} />
           <Fact label="Date" value={declaration.signedOn ? formatDate(declaration.signedOn) : MISSING} />
           <Fact label="Capacity" value={shown(declaration.capacity)} wide />
         </dl>

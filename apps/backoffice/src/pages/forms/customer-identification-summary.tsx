@@ -16,6 +16,7 @@ import {
   type CustomerIdentification,
   type Question,
 } from "./customer-identification";
+import { signatureText } from "./made-signature";
 
 const MISSING = "—";
 
@@ -84,7 +85,7 @@ export function CustomerIdentificationSummary({
         <Fact label="Declaration" value={value.confirmed["declaration.agreed"] ? "Made" : "Not yet made"} />
         <Fact label="Name" value={said("declaration.name")} />
         <Fact label="Date" value={onDate("declaration.date")} />
-        <Fact label="Signature" value={said("declaration.signature")} />
+        <Fact label="Signature" value={signatureText(said("declaration.signature"))} />
       </Part>
 
       <Part title="Checklist of required identification documents" stepId="documents" onEdit={onEdit}>
@@ -107,8 +108,8 @@ export function CustomerIdentificationSummary({
 
       <Part title="Internal sign-off" stepId="signoff" onEdit={onEdit}>
         <Fact label="Contact with the customer" value={`${said("signoff.contactWay")} · ${onDate("signoff.contactOn")} · ${said("signoff.contactPlace")}`} wide />
-        <Fact label="Relationship manager" value={`${said("signoff.name")} · ${onDate("signoff.date")} · ${said("signoff.signature")}`} wide />
-        <Fact label="Compliance Officer and MLRO" value={`${said("compliance.name")} · ${onDate("compliance.date")} · ${said("compliance.signature")}`} wide />
+        <Fact label="Relationship manager" value={`${said("signoff.name")} · ${onDate("signoff.date")} · ${signatureText(said("signoff.signature"))}`} wide />
+        <Fact label="Compliance Officer and MLRO" value={`${said("compliance.name")} · ${onDate("compliance.date")} · ${signatureText(said("compliance.signature"))}`} wide />
       </Part>
 
       <Part title="Screening Results" stepId="screening" onEdit={onEdit}>

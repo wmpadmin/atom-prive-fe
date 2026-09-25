@@ -7,17 +7,16 @@ import {
   type CaseDetail,
   type StaffMember,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, cn } from "@atomprive/ui";
+import { Alert, Avatar } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatDate } from "../../lib/labels";
-import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
+import { hasAnyAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
 import { newApplication, toForm } from "./application";
 import { ApplicationSummary } from "./application-summary";
-import { CaseDocumentsTab } from "./case-documents-tab";
 import type { SentForSignOff } from "@atomprive/api-client/backoffice";
 import { CaseSignOff, SignOffNotice } from "./case-sign-off";
 import { caseSubtitle, listHref } from "./case-labels";
@@ -32,7 +31,6 @@ export function OnboardingCasePage() {
   // Entering the client's details is the advisor's too, for their own clients; filling in the client's forms
   // stays Operations' work, so the two are asked separately.
   const canOnboard = hasAnyAuthority(user, ...ONBOARDS_CLIENTS_CHANGE);
-  const canFillForms = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE");
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -78,15 +76,12 @@ export function OnboardingCasePage() {
     );
   }
   const justSubmitted = (location.state as { submitted?: boolean } | null)?.submitted === true;
-  const openAt = (location.state as { tab?: "client" | "documents" } | null)?.tab ?? "client";
   return (
     <CaseOverview
       detail={detail}
       justSubmitted={justSubmitted}
       canOnboard={canOnboard}
-      canFillForms={canFillForms}
       backTo={backTo}
-      openAt={openAt}
     />
   );
 }
@@ -105,20 +100,15 @@ function CaseOverview({
   detail,
   justSubmitted,
   canOnboard,
-  canFillForms,
   backTo,
-  openAt,
 }: {
   detail: CaseDetail;
   justSubmitted: boolean;
   canOnboard: boolean;
-  canFillForms: boolean;
   backTo: string;
-  openAt: "client" | "documents";
 }) {
   const { summary } = detail;
   const manager = summary.relationshipManager;
-  const [tab, setTab] = useState<"client" | "documents">(openAt);
   /** What came of writing to Compliance, known only just after the case is sent to them. */
   const [told, setTold] = useState<SentForSignOff>();
 
@@ -139,31 +129,10 @@ function CaseOverview({
             <CaseSignOff detail={detail} canChange={canOnboard} onSent={setTold} />
           </div>
         </div>
-        <div role="tablist" aria-label="Case" className="flex gap-1 border-b border-line">
-          {([["client", "Client view"], ["documents", "Client documents"]] as const).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              onClick={() => setTab(id)}
-              className={cn(
-                "-mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
-                tab === id ? "border-primary-600 text-primary-700" : "border-transparent text-ink-muted hover:text-ink",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
       </header>
 
       <SignOffNotice detail={detail} told={told} />
 
-      {tab === "documents" && <CaseDocumentsTab detail={detail} canChange={canFillForms} />}
-      {tab === "client" && (
-        <>
 
       {justSubmitted && summary.submitted && (
         <Alert tone="success">Details submitted. The next stage is collecting the client's documents.</Alert>
@@ -206,8 +175,6 @@ function CaseOverview({
         </div>
         <ApplicationSummary application={toForm(detail.application)} managers={manager ? [manager] : []} />
       </section>
-        </>
-      )}
     </div>
   );
 }

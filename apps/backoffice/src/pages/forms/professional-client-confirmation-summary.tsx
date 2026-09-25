@@ -3,6 +3,7 @@ import { PencilLine } from "lucide-react";
 import type { ReactNode } from "react";
 import { formatDate } from "../../lib/labels";
 import { familyTies, type ProfessionalClientConfirmation, type Signature } from "./professional-client-confirmation";
+import { signatureText } from "./made-signature";
 
 const MISSING = "—";
 
@@ -12,7 +13,7 @@ function shown(value: string | null | undefined) {
 
 function signed(block: Signature) {
   const when = block.signedOn ? formatDate(block.signedOn) : MISSING;
-  return `${shown(block.name)} · ${shown(block.signature)} · ${when}`;
+  return `${shown(block.name)} · ${signatureText(shown(block.signature))} · ${when}`;
 }
 
 /** Everything the joint account holders' confirmation asks for, as it was answered. */

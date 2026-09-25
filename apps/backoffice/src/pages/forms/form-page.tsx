@@ -75,15 +75,19 @@ export function FormPage() {
       return <FilledForm key={key} kit={dueDiligenceKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     case "FATCA_CRS_ENTITY":
       return <FilledForm key={key} kit={fatcaCrsKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
-    // The joint pack holds the self-certification twice, one copy per account holder; it is the same form.
+    // The joint pack holds the self-certification once per account holder, up to four; it is the same form.
     case "FATCA_CRS_INDIVIDUAL":
     case "FATCA_CRS_SECOND_HOLDER":
+    case "FATCA_CRS_THIRD_HOLDER":
+    case "FATCA_CRS_FOURTH_HOLDER":
       return <FilledForm key={key} kit={fatcaCrsIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     case "CUSTOMER_DUE_DILIGENCE_INDIVIDUAL":
       return <FilledForm key={key} kit={dueDiligenceIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     // The joint pack holds the identification form once per holder; it is the same form.
     case "CUSTOMER_IDENTIFICATION_INDIVIDUAL":
     case "CUSTOMER_IDENTIFICATION_SECOND_HOLDER":
+    case "CUSTOMER_IDENTIFICATION_THIRD_HOLDER":
+    case "CUSTOMER_IDENTIFICATION_FOURTH_HOLDER":
       return <FilledForm key={key} kit={customerIdentificationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
     case "PROFESSIONAL_CLIENT_CONFIRMATION_JOINT":
       return <FilledForm key={key} kit={professionalClientConfirmationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} />;
@@ -380,11 +384,11 @@ function FilledForm<T>({ kit, detail, caseId, clientId }: { kit: FormKit<T>; det
           }}
           footer={
             <Link
-              to={caseId ? `/onboarding/${caseId}` : "/forms"}
-              state={caseId ? { tab: "documents" } : undefined}
+              to={caseId ? `/onboarding/${caseId}` : clientId ? `/clients/${clientId}` : "/forms"}
+              state={caseId || clientId ? { tab: "documents" } : undefined}
               className="text-xs font-medium text-primary-700 hover:underline"
             >
-              {caseId ? "Back to the client's documents" : "Back to all forms"}
+              {caseId || clientId ? "Back to the client's documents" : "Back to all forms"}
             </Link>
           }
         />

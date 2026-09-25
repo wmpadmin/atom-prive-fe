@@ -9,7 +9,7 @@ import {
   DateField,
   FollowUp,
   FormSection as FieldGroup,
-  TextField,
+  SignatureField, TextField,
   type FieldFor,
 } from "../../components/form-fields";
 import { MobileNumberInput } from "../../components/mobile-number-input";
@@ -321,7 +321,7 @@ export function DeclarationsStep({
         {declarations.signers.map((signer, at) => (
           <FollowUp key={at} title={at === 0 ? "First account holder" : "Second account holder (if applicable)"}>
             <TextField id={`declarations.signers[${at}].fullName`} label="Full name" value={signer.fullName} onChange={(fullName) => setSigner(at, { fullName })} field={field} />
-            <TextField id={`declarations.signers[${at}].signature`} label="Signature" value={signer.signature} onChange={(signature) => setSigner(at, { signature })} field={field} placeholder="Type the full name" />
+            <SignatureField id={`declarations.signers[${at}].signature`} label="Signature" value={signer.signature} onChange={(signature) => setSigner(at, { signature })} field={field} />
             {declarations.signers.length > 1 && (
               <div className="sm:col-span-2">
                 <IconButton label={`Remove account holder ${at + 1}`} tone="danger" onClick={() => onChange({ signers: declarations.signers.filter((_, which) => which !== at) })}>
