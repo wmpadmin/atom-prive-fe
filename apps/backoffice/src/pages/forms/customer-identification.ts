@@ -609,7 +609,6 @@ export function reviewCustomerIdentification(
   for (const [field, says] of [
     ["declaration.name", REQUIRED],
     ["declaration.date", "Choose a date."],
-    ["declaration.signature", REQUIRED],
   ] as const) {
     if (!value.said[field]?.trim()) problems[field] = says;
   }

@@ -4,6 +4,7 @@ import {
   getListCustomersQueryKey,
   useGetCustomer,
   useRemoveAdvisor,
+  type ClientOnboardingStage,
   type CustomerDetail,
   type StaffMember,
 } from "@atomprive/api-client/backoffice";
@@ -16,11 +17,14 @@ import { useStaffUser } from "../../auth/session";
 import { formatDate, formatRelative } from "../../lib/labels";
 import { hasAnyAuthority, hasAuthority } from "../../lib/permissions";
 import { ConfirmDialog } from "../config/confirm-dialog";
+import { toForm } from "../onboarding/application";
+import { ApplicationSummary } from "../onboarding/application-summary";
+import { ProgressMeter } from "../onboarding/case-parts";
+import { BankAccountsPanel } from "./bank-accounts-panel";
 import { AssignAdvisorDialog } from "./assign-advisor-dialog";
 import { EditClientDialog } from "./edit-client-dialog";
 import {
   ActivityPanel,
-  BankAccountsPanel,
   FamilyPanel,
   HoldingsPanel,
   ProposalsPanel,
@@ -30,11 +34,12 @@ import { assignmentNotice, clientsHref, clientTypeLabels, kycStatusLabels, kycSt
 import { ClientAccessPanel } from "./client-access-panel";
 import { ClientFormsPanel } from "./client-forms-panel";
 
-type Tab = "overview" | "family" | "banks" | "holdings" | "transactions" | "proposals" | "documents" | "activity";
+type Tab = "overview" | "family" | "advisors" | "banks" | "holdings" | "transactions" | "proposals" | "documents" | "activity";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "family", label: "Family group" },
+  { id: "advisors", label: "Advisors" },
   { id: "banks", label: "Bank accounts" },
   { id: "holdings", label: "Holdings" },
   { id: "transactions", label: "Transactions" },
@@ -91,7 +96,7 @@ export function ClientPage() {
     );
   }
 
-  const { client, advisors, family, activity } = detail.data;
+  const { client, advisors, family, activity, application, onboarding } = detail.data;
   return (
     <div className="space-y-6">
       <header className="space-y-3">
@@ -158,6 +163,32 @@ export function ClientPage() {
 
         {setsAccess && <ClientAccessPanel clientId={clientId} />}
 
+        {/* Where their onboarding stands, and what they were onboarded with: the same the case shows, on
+            the client's own file, for whoever can open the client but not the case. */}
+        {onboarding && <OnboardingStage stage={onboarding} />}
+
+        {application && (
+          <section aria-labelledby="application-title" className="space-y-4 rounded-2xl border border-line bg-white px-6 py-6">
+            <div>
+              <h2 id="application-title" className="text-base font-bold">
+                Application
+              </h2>
+              <p className="mt-0.5 text-xs text-ink-muted">
+                The details this client was onboarded with.
+              </p>
+            </div>
+            <ApplicationSummary
+              application={toForm(application)}
+              managers={advisors.map(({ advisor }) => advisor)}
+            />
+          </section>
+        )}
+
+        </>
+      )}
+
+      {tab === "family" && <FamilyPanel client={client} family={family} />}
+      {tab === "advisors" && (
         <section aria-labelledby="advisors-title" className="rounded-2xl border border-line bg-white">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-6 py-5">
             <div>
@@ -203,11 +234,8 @@ export function ClientPage() {
             </ul>
           )}
         </section>
-        </>
       )}
-
-      {tab === "family" && <FamilyPanel client={client} family={family} />}
-      {tab === "banks" && <BankAccountsPanel />}
+      {tab === "banks" && <BankAccountsPanel client={client} />}
       {tab === "holdings" && <HoldingsPanel />}
       {tab === "transactions" && <TransactionsPanel />}
       {tab === "proposals" && <ProposalsPanel />}
@@ -251,6 +279,41 @@ function BackLink({ to, label }: { to: string; label: string }) {
       <ChevronLeft aria-hidden="true" className="size-4" />
       {label}
     </Link>
+  );
+}
+
+/** Where the client's onboarding got to, read the way the onboarding case reads it. */
+function OnboardingStage({ stage }: { stage: ClientOnboardingStage }) {
+  return (
+    <>
+      {stage.signOff === "AWAITING" && <Alert tone="info">This case is with Compliance for KYC sign-off.</Alert>}
+      {stage.signOff === "RETURNED" && (
+        <Alert tone="warning">
+          Compliance sent this back{stage.signOffComment ? `: ${stage.signOffComment}` : "."}
+        </Alert>
+      )}
+      {stage.signOff === "APPROVED" && <Alert tone="success">Compliance have signed the KYC off.</Alert>}
+      {!stage.submitted && <Alert tone="info">This application is still a draft.</Alert>}
+
+      <dl className="grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
+        <Fact label="Relationship manager">
+          {stage.relationshipManager ? (
+            <span className="flex items-center gap-2">
+              <Avatar name={stage.relationshipManager.fullName} className="size-6 text-3xs" />
+              {stage.relationshipManager.fullName}
+            </span>
+          ) : (
+            "Not chosen yet"
+          )}
+        </Fact>
+        <Fact label="Started">{formatDate(stage.startedAt)}</Fact>
+        <Fact label="Submitted">{stage.submittedAt ? formatDate(stage.submittedAt) : "Not yet"}</Fact>
+        <Fact label="Current stage">
+          <span className="block">{stage.currentStage}</span>
+          <ProgressMeter done={stage.completedSteps} total={stage.totalSteps} className="mt-2" />
+        </Fact>
+      </dl>
+    </>
   );
 }
 

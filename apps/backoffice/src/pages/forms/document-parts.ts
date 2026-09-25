@@ -117,7 +117,7 @@ function openingLabel(blocks: DocumentBlock[], fallback: string) {
 export function partsOf(blocks: DocumentBlock[], gaps: DocumentGap[], title: string): DocumentPart[] {
   const starts = partStarts(blocks);
   const cuts = starts.length > 0 && starts[0]! > 0 ? [0, ...starts] : starts.length > 0 ? starts : [0];
-  const parts: DocumentPart[] = [];
+  const parts: (DocumentPart & { head?: DocumentBlock })[] = [];
   cuts.forEach((from, which) => {
     const to = cuts[which + 1] ?? blocks.length;
     const mine = blocks.slice(from, to);
@@ -135,7 +135,34 @@ export function partsOf(blocks: DocumentBlock[], gaps: DocumentGap[], title: str
       // The heading is shown above the part; printing it again at the top of the part would say it twice.
       blocks: head ? mine.slice(1) : mine,
       gaps: gaps.filter((gap) => words.includes(`{{${gap.key}}}`) || words.includes(`{{${gap.key}^}}`)),
+      head,
     });
   });
-  return parts;
+  return sectionsHeadTheirParts(parts);
+}
+
+/**
+ * A heading with nothing under it heads the parts that follow rather than being a part of its own — the pack
+ * does this where a section opens straight onto its first clause. Its wording is kept, printed above the part
+ * it introduces, so nobody is given a page with a title and no document on it.
+ */
+function sectionsHeadTheirParts(parts: (DocumentPart & { head?: DocumentBlock })[]): DocumentPart[] {
+  const kept: (DocumentPart & { head?: DocumentBlock })[] = [];
+  for (const part of parts) {
+    if (part.blocks.length === 0 && part.head) {
+      const next = parts[parts.indexOf(part) + 1];
+      if (next) {
+        next.blocks = [part.head, ...next.blocks];
+        continue;
+      }
+      const last = kept[kept.length - 1];
+      if (last) {
+        last.blocks = [...last.blocks, part.head];
+        continue;
+      }
+    }
+    kept.push(part);
+  }
+  // The heading itself is no longer needed once it has been put where it belongs.
+  return kept.map(({ head: _head, ...part }) => part);
 }

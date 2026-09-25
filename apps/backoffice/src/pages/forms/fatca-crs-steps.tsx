@@ -9,7 +9,7 @@ import {
   DateField,
   FollowUp,
   FormSection as FieldGroup,
-  TextField,
+  SignatureField, TextField,
   type FieldFor,
 } from "../../components/form-fields";
 import {
@@ -672,7 +672,7 @@ export function DeclarationStep({
           <FollowUp key={at} title={`Signatory ${at + 1}`}>
             <TextField id={`declaration.signers[${at}].name`} label="Name" value={signer.name} onChange={(name) => change(at, { name })} field={field} />
             <TextField id={`declaration.signers[${at}].capacity`} label="Capacity" value={signer.capacity} onChange={(capacity) => change(at, { capacity })} field={field} />
-            <TextField id={`declaration.signers[${at}].signature`} label="Signature" value={signer.signature} onChange={(signature) => change(at, { signature })} field={field} placeholder="Type the full name" />
+            <SignatureField id={`declaration.signers[${at}].signature`} label="Signature" value={signer.signature} onChange={(signature) => change(at, { signature })} field={field} />
             <DateField id={`declaration.signers[${at}].signedOn`} label="Date" value={signer.signedOn} onChange={(signedOn) => change(at, { signedOn })} field={field} min={yearsFromToday(-2)} max={yearsFromToday(1)} />
             {signers.length > 1 && (
               <div className="sm:col-span-2">

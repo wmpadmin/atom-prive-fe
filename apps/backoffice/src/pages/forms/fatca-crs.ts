@@ -545,7 +545,8 @@ export function reviewFatcaCrs(value: FatcaCrsEntity, provided: ReadonlySet<stri
   declaration.signers.forEach((signer, at) => {
     if (!signer.name.trim()) problems[`declaration.signers[${at}].name`] = REQUIRED;
     if (!signer.capacity.trim()) problems[`declaration.signers[${at}].capacity`] = REQUIRED;
-    if (!signer.signature.trim()) problems[`declaration.signers[${at}].signature`] = REQUIRED;
+    // The client signs after the form reaches them, so their signature is not what makes the form ready
+    // to send. Their name and the date still are.
     if (!signer.signedOn) problems[`declaration.signers[${at}].signedOn`] = "Choose a date.";
   });
 

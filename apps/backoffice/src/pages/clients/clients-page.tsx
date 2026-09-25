@@ -9,13 +9,14 @@ import {
   type ProposalRow,
   type StaffMember,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, cn, DateInput, Pagination, SelectInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, cn, DateInput, SelectInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Download, UserRoundCog } from "lucide-react";
 import { useMemo, useState, type MouseEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { ColumnPicker } from "../../components/column-picker";
+import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
 import { formatDate, formatRelative } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
 import { PAGE_SIZES } from "../../lib/page-sizes";
@@ -23,7 +24,7 @@ import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
 import { AdvisorChips } from "./advisor-chips";
 import { AssignAdvisorDialog, type ClientToAssign } from "./assign-advisor-dialog";
-import { assignmentNotice, clientTypeLabels, kycStatuses, kycStatusLabels, kycStatusTones, type KycStatus } from "./client-labels";
+import { assignmentNotice, clientKindLabels, clientTypeLabels, kycStatuses, kycStatusLabels, kycStatusTones, type KycStatus } from "./client-labels";
 import { ClientSearch } from "./client-search";
 
 
@@ -36,6 +37,7 @@ const PORTFOLIO_LATER = "Available once bank data is connected";
 /** The columns beside the client's name, which always shows. */
 const COLUMNS = [
   { id: "code", label: "Client code" },
+  { id: "clientType", label: "Client type" },
   { id: "registered", label: "Registered" },
   { id: "kyc", label: "KYC status" },
   { id: "banks", label: "Linked banks" },
@@ -208,15 +210,14 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[1.625rem] font-bold">{mine ? "My clients" : "All clients"}</h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            {mine
-              ? "The clients assigned to you, with their code, KYC status, advisors and last login."
-              : "Every client registered with the firm, with their code, KYC status, advisors and last login."}
-          </p>
-        </div>
+      <ListPageHeader
+        title={mine ? "My clients" : "All clients"}
+        lead={
+          mine
+            ? "The clients assigned to you, with their code, KYC status, advisors and last login."
+            : "Every client registered with the firm, with their code, KYC status, advisors and last login."
+        }
+      >
         <ColumnPicker
           columns={offered.map((column) => ({ id: column.id, label: column.label }))}
           shown={new Set(offered.filter((column) => columns.has(column.id)).map((column) => column.id))}
@@ -225,26 +226,15 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
             rememberColumns(shown);
           }}
         />
-      </header>
+      </ListPageHeader>
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {customers.isError && <Alert tone="danger">{customers.error.message}</Alert>}
 
-      <section className="rounded-2xl border border-line bg-white">
-        <div className="space-y-4 px-5 pt-5 pb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-bold">Clients</h2>
-              <p className="text-xs text-ink-muted">Newest first</p>
-            </div>
-            {filtered && (
-              <button type="button" onClick={clearFilters} className="text-sm font-semibold text-primary-600 hover:text-primary-700">
-                Clear search and filters
-              </button>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
+      <RecordList
+        caption="Clients"
+        filters={
+          <>
             <ClientSearch value={typed.search} filters={filters} onChange={typed.change} onSearch={typed.apply} />
             <label>
               <span className="sr-only">KYC status</span>
@@ -308,9 +298,9 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                 />
               </div>
             </div>
-          </div>
-
-          {canAssign && selected.size > 0 && (
+          </>
+        }
+        banner={canAssign && selected.size > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary-100 bg-primary-50 px-4 py-2.5">
               <p className="text-sm font-semibold text-primary-700" role="status">
                 {selected.size === 1 ? "1 client selected" : `${selected.size} clients selected`}
@@ -326,12 +316,10 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
               </div>
             </div>
           )}
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className={cn("min-w-full text-sm transition-opacity", customers.isPlaceholderData && "opacity-60")} aria-busy={customers.isFetching}>
-            <thead>
-              <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
+        filtered={filtered}
+        onClear={clearFilters}
+        head={
+          <>
                 {canAssign && (
                   <th scope="col" className="w-10 py-3 pl-5">
                     <Checkbox
@@ -345,6 +333,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                 )}
                 <th scope="col" className={cn("py-3 pr-4", canAssign ? "pl-3" : "pl-5")}>Client</th>
                 {shows("code") && <th scope="col" className="px-4 py-3">Client code</th>}
+                {shows("clientType") && <th scope="col" className="px-4 py-3">Client type</th>}
                 {shows("registered") && <th scope="col" className="px-4 py-3">Registered</th>}
                 {shows("kyc") && <th scope="col" className="px-4 py-3">KYC status</th>}
                 {shows("banks") && (
@@ -361,30 +350,27 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                     Portfolio
                   </th>
                 )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {customers.isPending && (
-                <tr>
-                  <td colSpan={columnCount} className="px-5 py-8 text-center text-ink-muted">Loading clients…</td>
-                </tr>
-              )}
-              {!customers.isPending && rows.length === 0 && (
-                <tr>
-                  <td colSpan={columnCount} className="px-5 py-10 text-center text-ink-muted">
-                    {filtered ? (
-                      <>
-                        No clients match your search and filters.{" "}
-                        <button type="button" onClick={clearFilters} className="font-semibold text-primary-600 hover:text-primary-700">
-                          Clear search and filters
-                        </button>
-                      </>
-                    ) : (
-                      "No clients yet. Clients appear here once Operations submit their onboarding details."
-                    )}
-                  </td>
-                </tr>
-              )}
+          </>
+        }
+        columns={columnCount}
+        loading={customers.isPending}
+        loadingLabel="Loading clients…"
+        empty={
+          rows.length > 0 ? undefined : filtered ? (
+            <ClearFiltersLink onClear={clearFilters}>No clients match your search and filters.</ClearFiltersLink>
+          ) : (
+            "No clients yet. Clients appear here once Operations submit their onboarding details."
+          )
+        }
+        stale={customers.isPlaceholderData}
+        busy={customers.isFetching}
+        page={page}
+        size={size}
+        total={total}
+        noun={["client", "clients"]}
+        onPage={(next) => update({ page: next > 0 ? next + 1 : null })}
+        onSize={(next) => update({ size: next === PAGE_SIZES[0] ? null : next })}
+      >
               {rows.map((customer) => (
                 // The row opens the client, the same as their name does; what is in the row keeps its own job.
                 <tr
@@ -426,6 +412,9 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                   </td>
                   {shows("code") && (
                     <td className="px-4 py-3 font-mono text-xs whitespace-nowrap text-ink-soft">{customer.code}</td>
+                  )}
+                  {shows("clientType") && (
+                    <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{clientKindLabels[customer.clientType]}</td>
                   )}
                   {shows("registered") && <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatDate(customer.registeredAt)}</td>}
                   {shows("kyc") && (
@@ -469,27 +458,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                   )}
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
-
-        {total > 0 && (
-          <div className="border-t border-line px-5 py-3">
-            <Pagination
-              page={page}
-              pageSize={size}
-              totalItems={total}
-              noun={["client", "clients"]}
-              onPageChange={(next) => {
-                update({ page: next > 0 ? next + 1 : null });
-                window.scrollTo({ top: 0 });
-              }}
-              pageSizes={PAGE_SIZES}
-              onPageSizeChange={(next) => update({ size: next === PAGE_SIZES[0] ? null : next })}
-            />
-          </div>
-        )}
-      </section>
+      </RecordList>
 
       <AssignAdvisorDialog
         open={assigning !== null}

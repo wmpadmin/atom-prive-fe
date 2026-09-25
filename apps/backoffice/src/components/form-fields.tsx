@@ -1,7 +1,10 @@
 import type { Address } from "@atomprive/api-client/backoffice";
 import { cn, DateInput, describedBy, Field, TextArea, TextInput } from "@atomprive/ui";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { madeSignature } from "../pages/forms/made-signature";
 import { CountriesPicker, CountrySelect } from "./country-select";
+import { SignHereDialog } from "./sign-here-dialog";
+import { SignatureMark } from "./signature-mark";
 
 /** A field's message, shown once someone has been to the field, and the handler that marks the visit. */
 export interface FieldState {
@@ -191,5 +194,57 @@ export function FollowUp({ title, children, className }: { title: string; childr
       <p className="text-2xs font-semibold tracking-wider text-primary-600 uppercase">{title}</p>
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>
     </div>
+  );
+}
+
+interface SignatureFieldProps {
+  id: string;
+  label: string;
+  value: string | null;
+  onChange: (value: string) => void;
+  field: FieldFor;
+  /** Whose signature the form asks for here, in its own words: "the client", "the firm". */
+  who?: string;
+  /** Who that is by name, where the form knows it. */
+  forName?: string;
+  /** A signature the form does not insist on. */
+  optional?: boolean;
+  disabled?: boolean;
+  className?: string;
+}
+
+/**
+ * A signature on a form. The same e-signature the documents take: typed or drawn, made on the client's behalf
+ * and recorded as such. It is kept as a string like every other answer, so nothing about saving changes.
+ */
+export function SignatureField({ id, label, value, onChange, field, who = "the client", forName, optional, disabled, className }: SignatureFieldProps) {
+  const { error } = field(id);
+  const [signing, setSigning] = useState(false);
+  const made = madeSignature(value ?? undefined);
+  return (
+    <Field id={id} label={label} required={!optional && !disabled} error={error} className={className}>
+      <div {...describedBy(id, error)}>
+        <SignatureMark
+          made={made}
+          who={who}
+          shape="field"
+          disabled={disabled}
+          onOpen={() => setSigning(true)}
+          // A signature typed in before this was an e-signature is left readable rather than thrown away.
+          written={!made && value ? value : undefined}
+        />
+      </div>
+      <SignHereDialog
+        spot={signing ? id : null}
+        who={who}
+        forName={forName}
+        made={made}
+        onClose={() => setSigning(false)}
+        onSigned={(signature) => {
+          onChange(signature ? JSON.stringify(signature) : "");
+          setSigning(false);
+        }}
+      />
+    </Field>
   );
 }

@@ -135,7 +135,7 @@ export function reviewProfessionalClientConfirmation(value: ProfessionalClientCo
     ["secondary", signatures.secondary],
   ] as const) {
     if (!block.name.trim()) problems[`signatures.${who}.name`] = REQUIRED;
-    if (!block.signature.trim()) problems[`signatures.${who}.signature`] = REQUIRED;
+    // Each holder signs once the form reaches them; the name and date are what is asked for here.
     if (!block.signedOn.trim()) problems[`signatures.${who}.signedOn`] = "Choose a date.";
   }
 

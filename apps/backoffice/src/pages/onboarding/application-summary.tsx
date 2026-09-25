@@ -65,10 +65,13 @@ export function ApplicationSummary({ application, managers, onEdit }: SummaryPro
         title: "Entity details",
         rows: [
           ["Full legal name", entity.legalName],
+          ["Legal form", entity.legalForm],
           ["Country of incorporation", country(entity.countryOfIncorporation)],
           ["Date of incorporation", date(entity.dateOfIncorporation)],
           ["Business registration number", entity.registrationNumber],
           ["Nature of the business", entity.natureOfBusiness],
+          ["Tax residency", country(entity.taxResidency)],
+          ["GIIN", entity.giin],
         ],
       },
       {

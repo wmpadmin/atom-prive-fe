@@ -1,6 +1,6 @@
 import type { ClientEvent, CustomerDetail, FamilyMember } from "@atomprive/api-client/backoffice";
 import { Avatar, Badge } from "@atomprive/ui";
-import { Banknote, FileSignature, ReceiptText, ScrollText, Wallet } from "lucide-react";
+import { FileSignature, ReceiptText, ScrollText, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { formatDateTime } from "../../lib/labels";
@@ -16,15 +16,6 @@ export function WaitingPanel({ icon, title, children }: { icon: ReactNode; title
       <p className="mt-3 font-semibold">{title}</p>
       <p className="mt-1 max-w-md text-sm text-ink-muted">{children}</p>
     </section>
-  );
-}
-
-export function BankAccountsPanel() {
-  return (
-    <WaitingPanel icon={<Banknote />} title="No linked bank accounts yet">
-      Accounts and their connection status appear here once the bank connections are built. That work is waiting on API
-      or file access from each bank.
-    </WaitingPanel>
   );
 }
 

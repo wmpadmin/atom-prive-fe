@@ -14,6 +14,7 @@ import {
   type AccountHolder,
   type AccountOpeningIndividual,
 } from "./account-opening-individual";
+import { signatureText } from "./made-signature";
 
 const MISSING = "—";
 
@@ -74,7 +75,7 @@ export function AccountOpeningIndividualSummary({
             <Fact
               key={at}
               label={at === 0 ? "First account holder" : "Second account holder"}
-              value={`${shown(signer.fullName)} · ${shown(signer.signature)}`}
+              value={`${shown(signer.fullName)} · ${signatureText(shown(signer.signature))}`}
               wide
             />
           ))}

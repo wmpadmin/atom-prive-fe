@@ -95,6 +95,9 @@ export function emptyHolder(): FormHolder {
 function emptyEntity(): FormEntity {
   return {
     legalName: null,
+    legalForm: null,
+    taxResidency: null,
+    giin: null,
     countryOfIncorporation: null,
     dateOfIncorporation: null,
     registrationNumber: null,

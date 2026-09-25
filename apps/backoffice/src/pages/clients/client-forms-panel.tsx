@@ -1,14 +1,16 @@
 import type { ApiError } from "@atomprive/api-client";
 import {
   getListClientChecklistQueryKey,
+  useChangeCaseForm,
   useListClientChecklist,
   useStartForm,
   type CaseFormRow,
   type ClientChecklist,
   type CustomerDetail,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, cn } from "@atomprive/ui";
+import { Alert, Badge, Button, DateInput, Dialog, Field, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { hasAuthority } from "../../lib/permissions";
@@ -28,6 +30,10 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
 
   const checklist = useListClientChecklist<ClientChecklist, ApiError>(client.id);
   const open = useStartForm<ApiError>();
+  // When the signed copy is expected back. It is set per form, before the form goes out.
+  const [dating, setDating] = useState<CaseFormRow | null>(null);
+  const changeDue = useChangeCaseForm<ApiError>();
+  const caseId = checklist.data?.caseId ?? null;
 
   const rows = checklist.data?.forms ?? [];
   const category = checklist.data?.category;
@@ -45,7 +51,7 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
       {
         onSuccess: (started) => {
           void queryClient.invalidateQueries({ queryKey: getListClientChecklistQueryKey(client.id) });
-          void navigate(`/forms/${started.summary.id}`);
+          void navigate(`/clients/${client.id}/forms/${started.summary.id}`);
         },
       },
     );
@@ -138,7 +144,21 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
                     </div>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <DueDate dueOn={form.dueOn} due={due} />
+                    {canFill && caseId && form.status !== "SUBMITTED" ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          // The row opens the form behind it; the date is set here instead.
+                          event.stopPropagation();
+                          setDating(form);
+                        }}
+                        className="text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                      >
+                        <DueDate dueOn={form.dueOn} due={due} />
+                      </button>
+                    ) : (
+                      <DueDate dueOn={form.dueOn} due={due} />
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <Badge tone={formStatus(form.status, form.dueOn).tone}>
@@ -171,6 +191,73 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
           </tbody>
         </table>
       </div>
+
+      <DueDateDialog
+        form={dating}
+        clientId={client.id}
+        caseId={caseId}
+        busy={changeDue.isPending}
+        error={changeDue.error?.message}
+        onClose={() => setDating(null)}
+        onSet={(dueOn) =>
+          dating &&
+          caseId &&
+          changeDue.mutate(
+            {
+              caseId,
+              kind: dating.kind,
+              data: { customerId: client.id, dueOn, waitingOnClient: null, signedCopyOnFile: null, answers: null },
+            },
+            {
+              onSuccess: () => {
+                setDating(null);
+                void queryClient.invalidateQueries({ queryKey: getListClientChecklistQueryKey(client.id) });
+              },
+            },
+          )
+        }
+      />
     </section>
+  );
+}
+
+/** When this form's signed copy is expected back from the client. */
+function DueDateDialog({
+  form,
+  caseId,
+  busy,
+  error,
+  onClose,
+  onSet,
+}: {
+  form: CaseFormRow | null;
+  clientId: string;
+  caseId: string | null;
+  busy: boolean;
+  error?: string;
+  onClose: () => void;
+  onSet: (dueOn: string | null) => void;
+}) {
+  const [dueOn, setDueOn] = useState<string | null>(null);
+  const shown = dueOn ?? form?.dueOn ?? "";
+  const today = new Date();
+  const inTwoYears = new Date(today.getFullYear() + 2, today.getMonth(), today.getDate());
+  return (
+    <Dialog open={form !== null && caseId !== null} title={form ? form.title : "Due date"} onClose={onClose}>
+      <div className="space-y-4">
+        {error && <Alert tone="danger">{error}</Alert>}
+        <Field id="checklist-due" label="Signed copy expected back by" hint="When you expect it back from the client.">
+          <DateInput id="checklist-due" name="dueOn" value={shown} min={today} max={inTwoYears} clearable onChange={setDueOn} />
+        </Field>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button onClick={() => onSet(shown || null)} disabled={busy}>
+            {busy ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
   );
 }

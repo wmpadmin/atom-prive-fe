@@ -520,10 +520,11 @@ export function reviewRiskProfile(value: InvestmentRiskProfileEntity): FormRevie
     one.name.trim(),
   );
   if (named.length === 0) problems["acknowledgement.signOff"] = "Name whoever signs off.";
-  // Each line the form rules carries a Date and a Sign off beside the name.
+  // Each line the form rules carries a Date beside the name. The sign off is the client's own, made once the
+  // form reaches them, so it is not what makes the form ready to send.
   for (const signer of named) {
-    if (!signer.signedOn || !signer.signOff.trim()) {
-      problems["acknowledgement.signOff"] = "Give the date and the sign off beside each name.";
+    if (!signer.signedOn) {
+      problems["acknowledgement.signOff"] = "Give the date beside each name.";
     }
   }
   const manager = acknowledgement.relationshipManager;

@@ -26,6 +26,7 @@ import {
   OPENS_CLIENT_DOCUMENTS,
   OPENS_CLIENT_FILES,
   UPLOADS_CLIENT_DOCUMENTS,
+  READS_PROPOSALS,
   WRITES_PROPOSALS,
 } from "./lib/permissions";
 import { ForgotPasswordPage } from "./pages/sign-in/forgot-password-page";
@@ -120,11 +121,17 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            element: <RequireAuthority authority={WRITES_PROPOSALS} />,
+            // Compliance read the firm's advice; writing it stays with whoever advises the client.
+            element: <RequireAuthority authority={READS_PROPOSALS} />,
             children: [
               { path: "proposals", element: <ProposalsPage /> },
-              { path: "proposals/new", element: <ProposalPage /> },
               { path: "proposals/:proposalId", element: <ProposalPage /> },
+            ],
+          },
+          {
+            element: <RequireAuthority authority={WRITES_PROPOSALS} />,
+            children: [
+              { path: "proposals/new", element: <ProposalPage /> },
             ],
           },
           {

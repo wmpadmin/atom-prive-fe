@@ -348,6 +348,24 @@ export interface EntityDetails {
   legalName: string | null;
   /**
      * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  legalForm: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  taxResidency: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  giin: string | null;
+  /**
+     * @minLength 0
      * @maxLength 2
      * @nullable
      */
@@ -502,11 +520,12 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  valueNode?: boolean;
-  missingNode?: boolean;
   number?: boolean;
   container?: boolean;
+  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
+  valueNode?: boolean;
+  missingNode?: boolean;
   string?: boolean;
   integralNumber?: boolean;
   pojo?: boolean;
@@ -520,7 +539,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -586,10 +604,14 @@ export const FormRowKind = {
   FATCA_CRS_ENTITY: 'FATCA_CRS_ENTITY',
   FATCA_CRS_INDIVIDUAL: 'FATCA_CRS_INDIVIDUAL',
   FATCA_CRS_SECOND_HOLDER: 'FATCA_CRS_SECOND_HOLDER',
+  FATCA_CRS_THIRD_HOLDER: 'FATCA_CRS_THIRD_HOLDER',
+  FATCA_CRS_FOURTH_HOLDER: 'FATCA_CRS_FOURTH_HOLDER',
   INVESTMENT_RISK_PROFILE: 'INVESTMENT_RISK_PROFILE',
   PROFESSIONAL_CLIENT_CONFIRMATION_JOINT: 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT',
   CUSTOMER_IDENTIFICATION_INDIVIDUAL: 'CUSTOMER_IDENTIFICATION_INDIVIDUAL',
   CUSTOMER_IDENTIFICATION_SECOND_HOLDER: 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER',
+  CUSTOMER_IDENTIFICATION_THIRD_HOLDER: 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER',
+  CUSTOMER_IDENTIFICATION_FOURTH_HOLDER: 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER',
   DFSA_ONBOARDING_CHECKLIST_ENTITY: 'DFSA_ONBOARDING_CHECKLIST_ENTITY',
   DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL: 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL',
   NDAM_AGREEMENT: 'NDAM_AGREEMENT',
@@ -670,10 +692,14 @@ export const CatalogueEntryKind = {
   FATCA_CRS_ENTITY: 'FATCA_CRS_ENTITY',
   FATCA_CRS_INDIVIDUAL: 'FATCA_CRS_INDIVIDUAL',
   FATCA_CRS_SECOND_HOLDER: 'FATCA_CRS_SECOND_HOLDER',
+  FATCA_CRS_THIRD_HOLDER: 'FATCA_CRS_THIRD_HOLDER',
+  FATCA_CRS_FOURTH_HOLDER: 'FATCA_CRS_FOURTH_HOLDER',
   INVESTMENT_RISK_PROFILE: 'INVESTMENT_RISK_PROFILE',
   PROFESSIONAL_CLIENT_CONFIRMATION_JOINT: 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT',
   CUSTOMER_IDENTIFICATION_INDIVIDUAL: 'CUSTOMER_IDENTIFICATION_INDIVIDUAL',
   CUSTOMER_IDENTIFICATION_SECOND_HOLDER: 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER',
+  CUSTOMER_IDENTIFICATION_THIRD_HOLDER: 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER',
+  CUSTOMER_IDENTIFICATION_FOURTH_HOLDER: 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER',
   DFSA_ONBOARDING_CHECKLIST_ENTITY: 'DFSA_ONBOARDING_CHECKLIST_ENTITY',
   DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL: 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL',
   NDAM_AGREEMENT: 'NDAM_AGREEMENT',
@@ -730,10 +756,14 @@ export const CaseFormRowKind = {
   FATCA_CRS_ENTITY: 'FATCA_CRS_ENTITY',
   FATCA_CRS_INDIVIDUAL: 'FATCA_CRS_INDIVIDUAL',
   FATCA_CRS_SECOND_HOLDER: 'FATCA_CRS_SECOND_HOLDER',
+  FATCA_CRS_THIRD_HOLDER: 'FATCA_CRS_THIRD_HOLDER',
+  FATCA_CRS_FOURTH_HOLDER: 'FATCA_CRS_FOURTH_HOLDER',
   INVESTMENT_RISK_PROFILE: 'INVESTMENT_RISK_PROFILE',
   PROFESSIONAL_CLIENT_CONFIRMATION_JOINT: 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT',
   CUSTOMER_IDENTIFICATION_INDIVIDUAL: 'CUSTOMER_IDENTIFICATION_INDIVIDUAL',
   CUSTOMER_IDENTIFICATION_SECOND_HOLDER: 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER',
+  CUSTOMER_IDENTIFICATION_THIRD_HOLDER: 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER',
+  CUSTOMER_IDENTIFICATION_FOURTH_HOLDER: 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER',
   DFSA_ONBOARDING_CHECKLIST_ENTITY: 'DFSA_ONBOARDING_CHECKLIST_ENTITY',
   DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL: 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL',
   NDAM_AGREEMENT: 'NDAM_AGREEMENT',
@@ -814,11 +844,35 @@ export interface ClientEvent {
   onBehalfOf: string | null;
 }
 
+export interface ClientOnboardingStage {
+  caseId: string;
+  currentStage: string;
+  completedSteps: number;
+  totalSteps: number;
+  startedAt: string;
+  /** @nullable */
+  submittedAt: string | null;
+  submitted: boolean;
+  signOff: string;
+  /** @nullable */
+  signOffComment: string | null;
+  relationshipManager: StaffMember | null;
+}
+
 export type CustomerRowType = typeof CustomerRowType[keyof typeof CustomerRowType];
 
 
 export const CustomerRowType = {
   INDIVIDUAL: 'INDIVIDUAL',
+  ENTITY: 'ENTITY',
+} as const;
+
+export type CustomerRowClientType = typeof CustomerRowClientType[keyof typeof CustomerRowClientType];
+
+
+export const CustomerRowClientType = {
+  INDIVIDUAL: 'INDIVIDUAL',
+  JOINT: 'JOINT',
   ENTITY: 'ENTITY',
 } as const;
 
@@ -837,6 +891,7 @@ export interface CustomerRow {
   id: string;
   code: string;
   type: CustomerRowType;
+  clientType: CustomerRowClientType;
   fullName: string;
   /** @nullable */
   email: string | null;
@@ -876,6 +931,8 @@ export interface CustomerDetail {
   advisors: AssignedAdvisor[];
   family: FamilyMember[];
   activity: ClientEvent[];
+  application: OnboardingApplication | null;
+  onboarding: ClientOnboardingStage | null;
 }
 
 export type ClientAccessRequestAccess = typeof ClientAccessRequestAccess[keyof typeof ClientAccessRequestAccess];
@@ -910,6 +967,59 @@ export interface ClientAccessView {
   clientName: string;
   access: ClientAccessViewAccess;
   staff: StaffWithAccess[];
+}
+
+export interface ChangeAccountRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  holderName: string;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  nickname: string | null;
+}
+
+export type BankAccountRowAccountType = typeof BankAccountRowAccountType[keyof typeof BankAccountRowAccountType];
+
+
+export const BankAccountRowAccountType = {
+  CURRENT: 'CURRENT',
+  SAVINGS: 'SAVINGS',
+  CUSTODY: 'CUSTODY',
+  INVESTMENT: 'INVESTMENT',
+} as const;
+
+export type BankAccountRowStatus = typeof BankAccountRowStatus[keyof typeof BankAccountRowStatus];
+
+
+export const BankAccountRowStatus = {
+  PENDING: 'PENDING',
+  VERIFIED: 'VERIFIED',
+  FAILED: 'FAILED',
+  SYNC_ERROR: 'SYNC_ERROR',
+  DEACTIVATED: 'DEACTIVATED',
+} as const;
+
+export interface BankAccountRow {
+  id: string;
+  bankId: string;
+  bankName: string;
+  lastFour: string;
+  holderName: string;
+  accountType: BankAccountRowAccountType;
+  currency: string;
+  /** @nullable */
+  nickname: string | null;
+  status: BankAccountRowStatus;
+  /** @nullable */
+  lastSyncedAt: string | null;
+  /** @nullable */
+  deactivatedAt: string | null;
+  canBeReactivated: boolean;
 }
 
 export interface UpdateFxRateRequest {
@@ -1188,13 +1298,9 @@ export type StaffUserRequestRolesItem = typeof StaffUserRequestRolesItem[keyof t
 export const StaffUserRequestRolesItem = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
-  ADVISOR_HEAD: 'ADVISOR_HEAD',
   COMPLIANCE: 'COMPLIANCE',
-  COMPLIANCE_HEAD: 'COMPLIANCE_HEAD',
   OPERATIONS: 'OPERATIONS',
-  OPERATIONS_HEAD: 'OPERATIONS_HEAD',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
-  PORTFOLIO_MANAGER_HEAD: 'PORTFOLIO_MANAGER_HEAD',
 } as const;
 
 export interface StaffUserRequest {
@@ -1294,13 +1400,9 @@ export type StaffUserDetailRolesItem = typeof StaffUserDetailRolesItem[keyof typ
 export const StaffUserDetailRolesItem = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
-  ADVISOR_HEAD: 'ADVISOR_HEAD',
   COMPLIANCE: 'COMPLIANCE',
-  COMPLIANCE_HEAD: 'COMPLIANCE_HEAD',
   OPERATIONS: 'OPERATIONS',
-  OPERATIONS_HEAD: 'OPERATIONS_HEAD',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
-  PORTFOLIO_MANAGER_HEAD: 'PORTFOLIO_MANAGER_HEAD',
 } as const;
 
 export type StaffUserDetailStatus = typeof StaffUserDetailStatus[keyof typeof StaffUserDetailStatus];
@@ -1413,13 +1515,9 @@ export type RoleAccessViewRole = typeof RoleAccessViewRole[keyof typeof RoleAcce
 export const RoleAccessViewRole = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
-  ADVISOR_HEAD: 'ADVISOR_HEAD',
   COMPLIANCE: 'COMPLIANCE',
-  COMPLIANCE_HEAD: 'COMPLIANCE_HEAD',
   OPERATIONS: 'OPERATIONS',
-  OPERATIONS_HEAD: 'OPERATIONS_HEAD',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
-  PORTFOLIO_MANAGER_HEAD: 'PORTFOLIO_MANAGER_HEAD',
 } as const;
 
 export interface RoleAccessView {
@@ -1460,10 +1558,14 @@ export const PackFormRowKind = {
   FATCA_CRS_ENTITY: 'FATCA_CRS_ENTITY',
   FATCA_CRS_INDIVIDUAL: 'FATCA_CRS_INDIVIDUAL',
   FATCA_CRS_SECOND_HOLDER: 'FATCA_CRS_SECOND_HOLDER',
+  FATCA_CRS_THIRD_HOLDER: 'FATCA_CRS_THIRD_HOLDER',
+  FATCA_CRS_FOURTH_HOLDER: 'FATCA_CRS_FOURTH_HOLDER',
   INVESTMENT_RISK_PROFILE: 'INVESTMENT_RISK_PROFILE',
   PROFESSIONAL_CLIENT_CONFIRMATION_JOINT: 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT',
   CUSTOMER_IDENTIFICATION_INDIVIDUAL: 'CUSTOMER_IDENTIFICATION_INDIVIDUAL',
   CUSTOMER_IDENTIFICATION_SECOND_HOLDER: 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER',
+  CUSTOMER_IDENTIFICATION_THIRD_HOLDER: 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER',
+  CUSTOMER_IDENTIFICATION_FOURTH_HOLDER: 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER',
   DFSA_ONBOARDING_CHECKLIST_ENTITY: 'DFSA_ONBOARDING_CHECKLIST_ENTITY',
   DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL: 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL',
   NDAM_AGREEMENT: 'NDAM_AGREEMENT',
@@ -1679,10 +1781,14 @@ export const StartFormRequestKind = {
   FATCA_CRS_ENTITY: 'FATCA_CRS_ENTITY',
   FATCA_CRS_INDIVIDUAL: 'FATCA_CRS_INDIVIDUAL',
   FATCA_CRS_SECOND_HOLDER: 'FATCA_CRS_SECOND_HOLDER',
+  FATCA_CRS_THIRD_HOLDER: 'FATCA_CRS_THIRD_HOLDER',
+  FATCA_CRS_FOURTH_HOLDER: 'FATCA_CRS_FOURTH_HOLDER',
   INVESTMENT_RISK_PROFILE: 'INVESTMENT_RISK_PROFILE',
   PROFESSIONAL_CLIENT_CONFIRMATION_JOINT: 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT',
   CUSTOMER_IDENTIFICATION_INDIVIDUAL: 'CUSTOMER_IDENTIFICATION_INDIVIDUAL',
   CUSTOMER_IDENTIFICATION_SECOND_HOLDER: 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER',
+  CUSTOMER_IDENTIFICATION_THIRD_HOLDER: 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER',
+  CUSTOMER_IDENTIFICATION_FOURTH_HOLDER: 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER',
   DFSA_ONBOARDING_CHECKLIST_ENTITY: 'DFSA_ONBOARDING_CHECKLIST_ENTITY',
   DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL: 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL',
   NDAM_AGREEMENT: 'NDAM_AGREEMENT',
@@ -1699,6 +1805,42 @@ export interface StartFormRequest {
   onboardingCaseId: string | null;
   /** @nullable */
   dueOn: string | null;
+}
+
+export type LinkAccountRequestAccountType = typeof LinkAccountRequestAccountType[keyof typeof LinkAccountRequestAccountType];
+
+
+export const LinkAccountRequestAccountType = {
+  CURRENT: 'CURRENT',
+  SAVINGS: 'SAVINGS',
+  CUSTODY: 'CUSTODY',
+  INVESTMENT: 'INVESTMENT',
+} as const;
+
+export interface LinkAccountRequest {
+  bankId: string;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     */
+  accountNumber: string;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  holderName: string;
+  accountType: LinkAccountRequestAccountType;
+  /**
+     * @minLength 1
+     * @pattern [A-Za-z]{3}
+     */
+  currency: string;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  nickname: string | null;
 }
 
 export interface AssignAdvisorRequest {
@@ -1827,13 +1969,9 @@ export type EnterWorkspaceRequestRole = typeof EnterWorkspaceRequestRole[keyof t
 export const EnterWorkspaceRequestRole = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
-  ADVISOR_HEAD: 'ADVISOR_HEAD',
   COMPLIANCE: 'COMPLIANCE',
-  COMPLIANCE_HEAD: 'COMPLIANCE_HEAD',
   OPERATIONS: 'OPERATIONS',
-  OPERATIONS_HEAD: 'OPERATIONS_HEAD',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
-  PORTFOLIO_MANAGER_HEAD: 'PORTFOLIO_MANAGER_HEAD',
 } as const;
 
 export interface EnterWorkspaceRequest {
@@ -1846,13 +1984,9 @@ export type StaffProfileRolesItem = typeof StaffProfileRolesItem[keyof typeof St
 export const StaffProfileRolesItem = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
-  ADVISOR_HEAD: 'ADVISOR_HEAD',
   COMPLIANCE: 'COMPLIANCE',
-  COMPLIANCE_HEAD: 'COMPLIANCE_HEAD',
   OPERATIONS: 'OPERATIONS',
-  OPERATIONS_HEAD: 'OPERATIONS_HEAD',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
-  PORTFOLIO_MANAGER_HEAD: 'PORTFOLIO_MANAGER_HEAD',
 } as const;
 
 /**
@@ -1864,13 +1998,9 @@ export type StaffProfileActiveRole = typeof StaffProfileActiveRole[keyof typeof 
 export const StaffProfileActiveRole = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
-  ADVISOR_HEAD: 'ADVISOR_HEAD',
   COMPLIANCE: 'COMPLIANCE',
-  COMPLIANCE_HEAD: 'COMPLIANCE_HEAD',
   OPERATIONS: 'OPERATIONS',
-  OPERATIONS_HEAD: 'OPERATIONS_HEAD',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
-  PORTFOLIO_MANAGER_HEAD: 'PORTFOLIO_MANAGER_HEAD',
 } as const;
 
 export interface StaffProfile {
@@ -2040,6 +2170,24 @@ export interface SyncRunPage {
   counts: SyncRunCounts;
 }
 
+export type StaffToNameRolesItem = typeof StaffToNameRolesItem[keyof typeof StaffToNameRolesItem];
+
+
+export const StaffToNameRolesItem = {
+  ADMIN: 'ADMIN',
+  ADVISOR: 'ADVISOR',
+  COMPLIANCE: 'COMPLIANCE',
+  OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+} as const;
+
+export interface StaffToName {
+  id: string;
+  fullName: string;
+  email: string;
+  roles: StaffToNameRolesItem[];
+}
+
 export type RegisterRowStanding = typeof RegisterRowStanding[keyof typeof RegisterRowStanding];
 
 
@@ -2182,28 +2330,6 @@ export interface DeliveryPage {
   size: number;
   totalItems: number;
   failedToday: number;
-}
-
-export type TeamMemberRolesItem = typeof TeamMemberRolesItem[keyof typeof TeamMemberRolesItem];
-
-
-export const TeamMemberRolesItem = {
-  ADMIN: 'ADMIN',
-  ADVISOR: 'ADVISOR',
-  ADVISOR_HEAD: 'ADVISOR_HEAD',
-  COMPLIANCE: 'COMPLIANCE',
-  COMPLIANCE_HEAD: 'COMPLIANCE_HEAD',
-  OPERATIONS: 'OPERATIONS',
-  OPERATIONS_HEAD: 'OPERATIONS_HEAD',
-  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
-  PORTFOLIO_MANAGER_HEAD: 'PORTFOLIO_MANAGER_HEAD',
-} as const;
-
-export interface TeamMember {
-  id: string;
-  fullName: string;
-  email: string;
-  roles: TeamMemberRolesItem[];
 }
 
 export type MyDeclarationRowKind = typeof MyDeclarationRowKind[keyof typeof MyDeclarationRowKind];
@@ -2350,10 +2476,14 @@ export const DocumentTextKind = {
   FATCA_CRS_ENTITY: 'FATCA_CRS_ENTITY',
   FATCA_CRS_INDIVIDUAL: 'FATCA_CRS_INDIVIDUAL',
   FATCA_CRS_SECOND_HOLDER: 'FATCA_CRS_SECOND_HOLDER',
+  FATCA_CRS_THIRD_HOLDER: 'FATCA_CRS_THIRD_HOLDER',
+  FATCA_CRS_FOURTH_HOLDER: 'FATCA_CRS_FOURTH_HOLDER',
   INVESTMENT_RISK_PROFILE: 'INVESTMENT_RISK_PROFILE',
   PROFESSIONAL_CLIENT_CONFIRMATION_JOINT: 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT',
   CUSTOMER_IDENTIFICATION_INDIVIDUAL: 'CUSTOMER_IDENTIFICATION_INDIVIDUAL',
   CUSTOMER_IDENTIFICATION_SECOND_HOLDER: 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER',
+  CUSTOMER_IDENTIFICATION_THIRD_HOLDER: 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER',
+  CUSTOMER_IDENTIFICATION_FOURTH_HOLDER: 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER',
   DFSA_ONBOARDING_CHECKLIST_ENTITY: 'DFSA_ONBOARDING_CHECKLIST_ENTITY',
   DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL: 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL',
   NDAM_AGREEMENT: 'NDAM_AGREEMENT',
@@ -2385,6 +2515,8 @@ export const ClientChecklistCategory = {
 
 export interface ClientChecklist {
   category: ClientChecklistCategory;
+  /** @nullable */
+  caseId: string | null;
   forms: CaseFormRow[];
 }
 
@@ -2642,13 +2774,9 @@ export type StaffUserSummaryRolesItem = typeof StaffUserSummaryRolesItem[keyof t
 export const StaffUserSummaryRolesItem = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
-  ADVISOR_HEAD: 'ADVISOR_HEAD',
   COMPLIANCE: 'COMPLIANCE',
-  COMPLIANCE_HEAD: 'COMPLIANCE_HEAD',
   OPERATIONS: 'OPERATIONS',
-  OPERATIONS_HEAD: 'OPERATIONS_HEAD',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
-  PORTFOLIO_MANAGER_HEAD: 'PORTFOLIO_MANAGER_HEAD',
 } as const;
 
 export type StaffUserSummaryStatus = typeof StaffUserSummaryStatus[keyof typeof StaffUserSummaryStatus];
@@ -2679,29 +2807,6 @@ export interface StaffUserPage {
   size: number;
   totalItems: number;
   counts: StaffUserCounts;
-}
-
-export type TeamHeadHead = typeof TeamHeadHead[keyof typeof TeamHeadHead];
-
-
-export const TeamHeadHead = {
-  ADMIN: 'ADMIN',
-  ADVISOR: 'ADVISOR',
-  ADVISOR_HEAD: 'ADVISOR_HEAD',
-  COMPLIANCE: 'COMPLIANCE',
-  COMPLIANCE_HEAD: 'COMPLIANCE_HEAD',
-  OPERATIONS: 'OPERATIONS',
-  OPERATIONS_HEAD: 'OPERATIONS_HEAD',
-  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
-  PORTFOLIO_MANAGER_HEAD: 'PORTFOLIO_MANAGER_HEAD',
-} as const;
-
-export interface TeamHead {
-  head: TeamHeadHead;
-  /** @nullable */
-  staffUserId: string | null;
-  /** @nullable */
-  fullName: string | null;
 }
 
 export type AccessLevelOptionLevel = typeof AccessLevelOptionLevel[keyof typeof AccessLevelOptionLevel];
@@ -2856,10 +2961,14 @@ export const ListFormsKind = {
   FATCA_CRS_ENTITY: 'FATCA_CRS_ENTITY',
   FATCA_CRS_INDIVIDUAL: 'FATCA_CRS_INDIVIDUAL',
   FATCA_CRS_SECOND_HOLDER: 'FATCA_CRS_SECOND_HOLDER',
+  FATCA_CRS_THIRD_HOLDER: 'FATCA_CRS_THIRD_HOLDER',
+  FATCA_CRS_FOURTH_HOLDER: 'FATCA_CRS_FOURTH_HOLDER',
   INVESTMENT_RISK_PROFILE: 'INVESTMENT_RISK_PROFILE',
   PROFESSIONAL_CLIENT_CONFIRMATION_JOINT: 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT',
   CUSTOMER_IDENTIFICATION_INDIVIDUAL: 'CUSTOMER_IDENTIFICATION_INDIVIDUAL',
   CUSTOMER_IDENTIFICATION_SECOND_HOLDER: 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER',
+  CUSTOMER_IDENTIFICATION_THIRD_HOLDER: 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER',
+  CUSTOMER_IDENTIFICATION_FOURTH_HOLDER: 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER',
   DFSA_ONBOARDING_CHECKLIST_ENTITY: 'DFSA_ONBOARDING_CHECKLIST_ENTITY',
   DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL: 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL',
   NDAM_AGREEMENT: 'NDAM_AGREEMENT',
@@ -2906,13 +3015,9 @@ export type ListStaffUsersRole = typeof ListStaffUsersRole[keyof typeof ListStaf
 export const ListStaffUsersRole = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
-  ADVISOR_HEAD: 'ADVISOR_HEAD',
   COMPLIANCE: 'COMPLIANCE',
-  COMPLIANCE_HEAD: 'COMPLIANCE_HEAD',
   OPERATIONS: 'OPERATIONS',
-  OPERATIONS_HEAD: 'OPERATIONS_HEAD',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
-  PORTFOLIO_MANAGER_HEAD: 'PORTFOLIO_MANAGER_HEAD',
 } as const;
 
 export type ListStaffUsersStatus = typeof ListStaffUsersStatus[keyof typeof ListStaffUsersStatus];
@@ -3122,13 +3227,9 @@ export type ExportStaffUsersRole = typeof ExportStaffUsersRole[keyof typeof Expo
 export const ExportStaffUsersRole = {
   ADMIN: 'ADMIN',
   ADVISOR: 'ADVISOR',
-  ADVISOR_HEAD: 'ADVISOR_HEAD',
   COMPLIANCE: 'COMPLIANCE',
-  COMPLIANCE_HEAD: 'COMPLIANCE_HEAD',
   OPERATIONS: 'OPERATIONS',
-  OPERATIONS_HEAD: 'OPERATIONS_HEAD',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
-  PORTFOLIO_MANAGER_HEAD: 'PORTFOLIO_MANAGER_HEAD',
 } as const;
 
 export type ExportStaffUsersStatus = typeof ExportStaffUsersStatus[keyof typeof ExportStaffUsersStatus];
@@ -3954,7 +4055,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getSaveFormDraftMutationOptions(options), queryClient);
     }
 
-export const getSetFormCategoriesUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',) => {
+export const getSetFormCategoriesUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',) => {
 
 
 
@@ -3962,7 +4063,7 @@ export const getSetFormCategoriesUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUN
   return `/api/backoffice/forms/catalogue/${kind}/categories`
 }
 
-export const setFormCategories = async (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+export const setFormCategories = async (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
     formCategoriesRequest: FormCategoriesRequest, options?: Parameters<typeof http>[1]): Promise<CatalogueEntry[]> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -4024,7 +4125,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SetFormCategoriesMutationResult = NonNullable<Awaited<ReturnType<typeof setFormCategories>>>
     export type SetFormCategoriesMutationBody = FormCategoriesRequest
     export type SetFormCategoriesMutationError = unknown
-    export type SetFormCategoriesMutationVariables = {kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE';data: FormCategoriesRequest}
+    export type SetFormCategoriesMutationVariables = {kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE';data: FormCategoriesRequest}
 
     export const useSetFormCategories = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setFormCategories>>, TError,SetFormCategoriesMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -4038,7 +4139,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     }
 
 export const getChangeCaseFormUrl = (caseId: string,
-    kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',) => {
+    kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',) => {
 
 
 
@@ -4047,7 +4148,7 @@ export const getChangeCaseFormUrl = (caseId: string,
 }
 
 export const changeCaseForm = async (caseId: string,
-    kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+    kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
     caseFormRequest: CaseFormRequest, options?: Parameters<typeof http>[1]): Promise<CaseFormRow> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -4109,7 +4210,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ChangeCaseFormMutationResult = NonNullable<Awaited<ReturnType<typeof changeCaseForm>>>
     export type ChangeCaseFormMutationBody = CaseFormRequest
     export type ChangeCaseFormMutationError = unknown
-    export type ChangeCaseFormMutationVariables = {caseId: string;kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE';data: CaseFormRequest}
+    export type ChangeCaseFormMutationVariables = {caseId: string;kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE';data: CaseFormRequest}
 
     export const useChangeCaseForm = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeCaseForm>>, TError,ChangeCaseFormMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -4476,6 +4577,91 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSetClientAccessMutationOptions(options), queryClient);
+    }
+
+export const getChangeClientBankAccountUrl = (customerId: string,
+    accountId: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${customerId}/bank-accounts/${accountId}`
+}
+
+export const changeClientBankAccount = async (customerId: string,
+    accountId: string,
+    changeAccountRequest: ChangeAccountRequest, options?: Parameters<typeof http>[1]): Promise<BankAccountRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<BankAccountRow>(getChangeClientBankAccountUrl(customerId,accountId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(changeAccountRequest)
+  }
+);}
+
+
+
+
+
+export const getChangeClientBankAccountMutationKey = () => ['changeClientBankAccount'] as const;
+
+export const getChangeClientBankAccountMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeClientBankAccount>>, TError,ChangeClientBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeClientBankAccount>>, TError,ChangeClientBankAccountMutationVariables, TContext> => {
+
+const mutationKey = getChangeClientBankAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeClientBankAccount>>, ChangeClientBankAccountMutationVariables> = (props) => {
+          const {customerId,accountId,data} = props ?? {};
+
+          return  changeClientBankAccount(customerId,accountId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeClientBankAccountMutationResult = NonNullable<Awaited<ReturnType<typeof changeClientBankAccount>>>
+    export type ChangeClientBankAccountMutationBody = ChangeAccountRequest
+    export type ChangeClientBankAccountMutationError = unknown
+    export type ChangeClientBankAccountMutationVariables = {customerId: string;accountId: string;data: ChangeAccountRequest}
+
+    export const useChangeClientBankAccount = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeClientBankAccount>>, TError,ChangeClientBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeClientBankAccount>>,
+        TError,
+        ChangeClientBankAccountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeClientBankAccountMutationOptions(options), queryClient);
     }
 
 export const getUpdateFxRateUrl = (code: string,) => {
@@ -5083,7 +5269,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateStaffUserMutationOptions(options), queryClient);
     }
 
-export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'ADVISOR_HEAD' | 'COMPLIANCE' | 'COMPLIANCE_HEAD' | 'OPERATIONS' | 'OPERATIONS_HEAD' | 'PORTFOLIO_MANAGER' | 'PORTFOLIO_MANAGER_HEAD',
+export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
     permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',) => {
 
 
@@ -5092,7 +5278,7 @@ export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'ADVISOR_
   return `/api/backoffice/admin/roles/${role}/permissions/${permission}`
 }
 
-export const updateRolePermission = async (role: 'ADMIN' | 'ADVISOR' | 'ADVISOR_HEAD' | 'COMPLIANCE' | 'COMPLIANCE_HEAD' | 'OPERATIONS' | 'OPERATIONS_HEAD' | 'PORTFOLIO_MANAGER' | 'PORTFOLIO_MANAGER_HEAD',
+export const updateRolePermission = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
     permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',
     updateRolePermissionRequest: UpdateRolePermissionRequest, options?: Parameters<typeof http>[1]): Promise<RoleAccessView> => {
 
@@ -5155,7 +5341,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateRolePermissionMutationResult = NonNullable<Awaited<ReturnType<typeof updateRolePermission>>>
     export type UpdateRolePermissionMutationBody = UpdateRolePermissionRequest
     export type UpdateRolePermissionMutationError = unknown
-    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'ADVISOR_HEAD' | 'COMPLIANCE' | 'COMPLIANCE_HEAD' | 'OPERATIONS' | 'OPERATIONS_HEAD' | 'PORTFOLIO_MANAGER' | 'PORTFOLIO_MANAGER_HEAD';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
+    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
 
     export const useUpdateRolePermission = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRolePermission>>, TError,UpdateRolePermissionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -6955,6 +7141,324 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAttachToFormMutationOptions(options), queryClient);
+    }
+
+export const getListClientBankAccountsUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${customerId}/bank-accounts`
+}
+
+export const listClientBankAccounts = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<BankAccountRow[]> => {
+
+  return http<BankAccountRow[]>(getListClientBankAccountsUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientBankAccountsQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/customers/${customerId}/bank-accounts`
+    ] as const;
+    }
+
+
+export const getListClientBankAccountsQueryOptions = <TData = Awaited<ReturnType<typeof listClientBankAccounts>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientBankAccounts>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientBankAccountsQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientBankAccounts>>> = ({ signal }) => listClientBankAccounts(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientBankAccounts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListClientBankAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof listClientBankAccounts>>>
+export type ListClientBankAccountsQueryError = unknown
+
+
+export function useListClientBankAccounts<TData = Awaited<ReturnType<typeof listClientBankAccounts>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientBankAccounts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientBankAccounts>>,
+          TError,
+          Awaited<ReturnType<typeof listClientBankAccounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientBankAccounts<TData = Awaited<ReturnType<typeof listClientBankAccounts>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientBankAccounts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientBankAccounts>>,
+          TError,
+          Awaited<ReturnType<typeof listClientBankAccounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientBankAccounts<TData = Awaited<ReturnType<typeof listClientBankAccounts>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientBankAccounts>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListClientBankAccounts<TData = Awaited<ReturnType<typeof listClientBankAccounts>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientBankAccounts>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListClientBankAccountsQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getLinkClientBankAccountUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${customerId}/bank-accounts`
+}
+
+export const linkClientBankAccount = async (customerId: string,
+    linkAccountRequest: LinkAccountRequest, options?: Parameters<typeof http>[1]): Promise<BankAccountRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<BankAccountRow>(getLinkClientBankAccountUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(linkAccountRequest)
+  }
+);}
+
+
+
+
+
+export const getLinkClientBankAccountMutationKey = () => ['linkClientBankAccount'] as const;
+
+export const getLinkClientBankAccountMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof linkClientBankAccount>>, TError,LinkClientBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof linkClientBankAccount>>, TError,LinkClientBankAccountMutationVariables, TContext> => {
+
+const mutationKey = getLinkClientBankAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof linkClientBankAccount>>, LinkClientBankAccountMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  linkClientBankAccount(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LinkClientBankAccountMutationResult = NonNullable<Awaited<ReturnType<typeof linkClientBankAccount>>>
+    export type LinkClientBankAccountMutationBody = LinkAccountRequest
+    export type LinkClientBankAccountMutationError = unknown
+    export type LinkClientBankAccountMutationVariables = {customerId: string;data: LinkAccountRequest}
+
+    export const useLinkClientBankAccount = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof linkClientBankAccount>>, TError,LinkClientBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof linkClientBankAccount>>,
+        TError,
+        LinkClientBankAccountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLinkClientBankAccountMutationOptions(options), queryClient);
+    }
+
+export const getReactivateClientBankAccountUrl = (customerId: string,
+    accountId: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${customerId}/bank-accounts/${accountId}/reactivate`
+}
+
+export const reactivateClientBankAccount = async (customerId: string,
+    accountId: string, options?: Parameters<typeof http>[1]): Promise<BankAccountRow> => {
+
+  return http<BankAccountRow>(getReactivateClientBankAccountUrl(customerId,accountId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReactivateClientBankAccountMutationKey = () => ['reactivateClientBankAccount'] as const;
+
+export const getReactivateClientBankAccountMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reactivateClientBankAccount>>, TError,ReactivateClientBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof reactivateClientBankAccount>>, TError,ReactivateClientBankAccountMutationVariables, TContext> => {
+
+const mutationKey = getReactivateClientBankAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reactivateClientBankAccount>>, ReactivateClientBankAccountMutationVariables> = (props) => {
+          const {customerId,accountId} = props ?? {};
+
+          return  reactivateClientBankAccount(customerId,accountId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReactivateClientBankAccountMutationResult = NonNullable<Awaited<ReturnType<typeof reactivateClientBankAccount>>>
+
+    export type ReactivateClientBankAccountMutationError = unknown
+    export type ReactivateClientBankAccountMutationVariables = {customerId: string;accountId: string}
+
+    export const useReactivateClientBankAccount = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reactivateClientBankAccount>>, TError,ReactivateClientBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reactivateClientBankAccount>>,
+        TError,
+        ReactivateClientBankAccountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReactivateClientBankAccountMutationOptions(options), queryClient);
+    }
+
+export const getDeactivateClientBankAccountUrl = (customerId: string,
+    accountId: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${customerId}/bank-accounts/${accountId}/deactivate`
+}
+
+export const deactivateClientBankAccount = async (customerId: string,
+    accountId: string, options?: Parameters<typeof http>[1]): Promise<BankAccountRow> => {
+
+  return http<BankAccountRow>(getDeactivateClientBankAccountUrl(customerId,accountId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeactivateClientBankAccountMutationKey = () => ['deactivateClientBankAccount'] as const;
+
+export const getDeactivateClientBankAccountMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deactivateClientBankAccount>>, TError,DeactivateClientBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof deactivateClientBankAccount>>, TError,DeactivateClientBankAccountMutationVariables, TContext> => {
+
+const mutationKey = getDeactivateClientBankAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deactivateClientBankAccount>>, DeactivateClientBankAccountMutationVariables> = (props) => {
+          const {customerId,accountId} = props ?? {};
+
+          return  deactivateClientBankAccount(customerId,accountId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeactivateClientBankAccountMutationResult = NonNullable<Awaited<ReturnType<typeof deactivateClientBankAccount>>>
+
+    export type DeactivateClientBankAccountMutationError = unknown
+    export type DeactivateClientBankAccountMutationVariables = {customerId: string;accountId: string}
+
+    export const useDeactivateClientBankAccount = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deactivateClientBankAccount>>, TError,DeactivateClientBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deactivateClientBankAccount>>,
+        TError,
+        DeactivateClientBankAccountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeactivateClientBankAccountMutationOptions(options), queryClient);
     }
 
 export const getAssignAdvisorUrl = () => {
@@ -9451,6 +9955,101 @@ export function useListSyncRuns<TData = Awaited<ReturnType<typeof listSyncRuns>>
 
 
 
+export const getListStaffToGiveAccessToUrl = () => {
+
+
+
+
+  return `/api/backoffice/staff/to-give-access-to`
+}
+
+export const listStaffToGiveAccessTo = async ( options?: Parameters<typeof http>[1]): Promise<StaffToName[]> => {
+
+  return http<StaffToName[]>(getListStaffToGiveAccessToUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStaffToGiveAccessToQueryKey = () => {
+    return [
+    `/api/backoffice/staff/to-give-access-to`
+    ] as const;
+    }
+
+
+export const getListStaffToGiveAccessToQueryOptions = <TData = Awaited<ReturnType<typeof listStaffToGiveAccessTo>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffToGiveAccessTo>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStaffToGiveAccessToQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStaffToGiveAccessTo>>> = ({ signal }) => listStaffToGiveAccessTo({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStaffToGiveAccessTo>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListStaffToGiveAccessToQueryResult = NonNullable<Awaited<ReturnType<typeof listStaffToGiveAccessTo>>>
+export type ListStaffToGiveAccessToQueryError = unknown
+
+
+export function useListStaffToGiveAccessTo<TData = Awaited<ReturnType<typeof listStaffToGiveAccessTo>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffToGiveAccessTo>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStaffToGiveAccessTo>>,
+          TError,
+          Awaited<ReturnType<typeof listStaffToGiveAccessTo>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStaffToGiveAccessTo<TData = Awaited<ReturnType<typeof listStaffToGiveAccessTo>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffToGiveAccessTo>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStaffToGiveAccessTo>>,
+          TError,
+          Awaited<ReturnType<typeof listStaffToGiveAccessTo>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStaffToGiveAccessTo<TData = Awaited<ReturnType<typeof listStaffToGiveAccessTo>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffToGiveAccessTo>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListStaffToGiveAccessTo<TData = Awaited<ReturnType<typeof listStaffToGiveAccessTo>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffToGiveAccessTo>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListStaffToGiveAccessToQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListRegisterUrl = () => {
 
 
@@ -10336,101 +10935,6 @@ export function useListDeliveries<TData = Awaited<ReturnType<typeof listDeliveri
 
 
 
-export const getListMyTeamUrl = () => {
-
-
-
-
-  return `/api/backoffice/my-team`
-}
-
-export const listMyTeam = async ( options?: Parameters<typeof http>[1]): Promise<TeamMember[]> => {
-
-  return http<TeamMember[]>(getListMyTeamUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListMyTeamQueryKey = () => {
-    return [
-    `/api/backoffice/my-team`
-    ] as const;
-    }
-
-
-export const getListMyTeamQueryOptions = <TData = Awaited<ReturnType<typeof listMyTeam>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTeam>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListMyTeamQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyTeam>>> = ({ signal }) => listMyTeam({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyTeam>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListMyTeamQueryResult = NonNullable<Awaited<ReturnType<typeof listMyTeam>>>
-export type ListMyTeamQueryError = unknown
-
-
-export function useListMyTeam<TData = Awaited<ReturnType<typeof listMyTeam>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTeam>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listMyTeam>>,
-          TError,
-          Awaited<ReturnType<typeof listMyTeam>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListMyTeam<TData = Awaited<ReturnType<typeof listMyTeam>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTeam>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listMyTeam>>,
-          TError,
-          Awaited<ReturnType<typeof listMyTeam>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListMyTeam<TData = Awaited<ReturnType<typeof listMyTeam>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTeam>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useListMyTeam<TData = Awaited<ReturnType<typeof listMyTeam>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTeam>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getListMyTeamQueryOptions(options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
 export const getListMineUrl = () => {
 
 
@@ -11093,7 +11597,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRemoveFormAttachmentMutationOptions(options), queryClient);
     }
 
-export const getGetDocumentTextUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+export const getGetDocumentTextUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -11109,7 +11613,7 @@ export const getGetDocumentTextUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_
   return stringifiedParams.length > 0 ? `/api/backoffice/forms/documents/${kind}?${stringifiedParams}` : `/api/backoffice/forms/documents/${kind}`
 }
 
-export const getDocumentText = async (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+export const getDocumentText = async (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams, options?: Parameters<typeof http>[1]): Promise<DocumentText> => {
 
   return http<DocumentText>(getGetDocumentTextUrl(kind,params),
@@ -11125,7 +11629,7 @@ export const getDocumentText = async (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_
 
 
 
-export const getGetDocumentTextQueryKey = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+export const getGetDocumentTextQueryKey = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams,) => {
     return [
     `/api/backoffice/forms/documents/${kind}`, ...(params ? [params] : [])
@@ -11133,7 +11637,7 @@ export const getGetDocumentTextQueryKey = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACC
     }
 
 
-export const getGetDocumentTextQueryOptions = <TData = Awaited<ReturnType<typeof getDocumentText>>, TError = unknown>(kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+export const getGetDocumentTextQueryOptions = <TData = Awaited<ReturnType<typeof getDocumentText>>, TError = unknown>(kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentText>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
@@ -11157,7 +11661,7 @@ export type GetDocumentTextQueryError = unknown
 
 
 export function useGetDocumentText<TData = Awaited<ReturnType<typeof getDocumentText>>, TError = unknown>(
- kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+ kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
     params: undefined |  GetDocumentTextParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentText>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getDocumentText>>,
@@ -11168,7 +11672,7 @@ export function useGetDocumentText<TData = Awaited<ReturnType<typeof getDocument
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetDocumentText<TData = Awaited<ReturnType<typeof getDocumentText>>, TError = unknown>(
- kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+ kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentText>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getDocumentText>>,
@@ -11179,13 +11683,13 @@ export function useGetDocumentText<TData = Awaited<ReturnType<typeof getDocument
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetDocumentText<TData = Awaited<ReturnType<typeof getDocumentText>>, TError = unknown>(
- kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+ kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentText>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useGetDocumentText<TData = Awaited<ReturnType<typeof getDocumentText>>, TError = unknown>(
- kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+ kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'FATCA_CRS_SECOND_HOLDER' | 'FATCA_CRS_THIRD_HOLDER' | 'FATCA_CRS_FOURTH_HOLDER' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'CUSTOMER_IDENTIFICATION_SECOND_HOLDER' | 'CUSTOMER_IDENTIFICATION_THIRD_HOLDER' | 'CUSTOMER_IDENTIFICATION_FOURTH_HOLDER' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentText>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -13440,101 +13944,6 @@ export function useExportStaffUser<TData = Awaited<ReturnType<typeof exportStaff
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getExportStaffUserQueryOptions(id,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getListTeamHeadsUrl = () => {
-
-
-
-
-  return `/api/backoffice/admin/users/heads`
-}
-
-export const listTeamHeads = async ( options?: Parameters<typeof http>[1]): Promise<TeamHead[]> => {
-
-  return http<TeamHead[]>(getListTeamHeadsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListTeamHeadsQueryKey = () => {
-    return [
-    `/api/backoffice/admin/users/heads`
-    ] as const;
-    }
-
-
-export const getListTeamHeadsQueryOptions = <TData = Awaited<ReturnType<typeof listTeamHeads>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTeamHeads>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListTeamHeadsQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTeamHeads>>> = ({ signal }) => listTeamHeads({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTeamHeads>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListTeamHeadsQueryResult = NonNullable<Awaited<ReturnType<typeof listTeamHeads>>>
-export type ListTeamHeadsQueryError = unknown
-
-
-export function useListTeamHeads<TData = Awaited<ReturnType<typeof listTeamHeads>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTeamHeads>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listTeamHeads>>,
-          TError,
-          Awaited<ReturnType<typeof listTeamHeads>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListTeamHeads<TData = Awaited<ReturnType<typeof listTeamHeads>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTeamHeads>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listTeamHeads>>,
-          TError,
-          Awaited<ReturnType<typeof listTeamHeads>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListTeamHeads<TData = Awaited<ReturnType<typeof listTeamHeads>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTeamHeads>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useListTeamHeads<TData = Awaited<ReturnType<typeof listTeamHeads>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTeamHeads>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getListTeamHeadsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

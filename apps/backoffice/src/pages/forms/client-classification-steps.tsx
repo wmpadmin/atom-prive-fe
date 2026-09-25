@@ -4,7 +4,7 @@ import { Plus, X } from "lucide-react";
 import { ChoiceCards } from "../../components/choice-cards";
 import { Boxes } from "../../components/form-boxes";
 import { Documents, type FormDocuments } from "../../components/form-documents";
-import { DateField, FollowUp, FormSection as FieldGroup, TextField, type FieldFor } from "../../components/form-fields";
+import { DateField, FollowUp, FormSection as FieldGroup, SignatureField, TextField, type FieldFor } from "../../components/form-fields";
 import {
   CLIENT_AGREEMENT,
   PROOF_PROVIDED,
@@ -348,7 +348,7 @@ export function ClassificationDeclarationStep({
       >
         {signers.map((signer, at) => (
           <FollowUp key={at} title={`Signed for the CLIENT ${at + 1}`}>
-            <TextField id={`declaration.signers[${at}].signature`} label="By" value={signer.signature} onChange={(signature) => change(at, { signature })} field={field} placeholder="Type the full name" className="sm:col-span-2" />
+            <SignatureField id={`declaration.signers[${at}].signature`} label="By" value={signer.signature} onChange={(signature) => change(at, { signature })} field={field} className="sm:col-span-2" />
             <TextField id={`declaration.signers[${at}].name`} label="(Name)" value={signer.name} onChange={(name) => change(at, { name })} field={field} />
             <TextField id={`declaration.signers[${at}].title`} label="(Title)" value={signer.title} onChange={(title) => change(at, { title })} field={field} />
             <DateField id={`declaration.signers[${at}].signedOn`} label="(Date)" value={signer.signedOn} onChange={(signedOn) => change(at, { signedOn })} field={field} min={yearsFromToday(-2)} max={yearsFromToday(1)} className="sm:col-span-2" />

@@ -14,6 +14,7 @@ import {
   type FormPerson,
   type PersonTitle,
 } from "./account-opening-entity";
+import { signatureText } from "./made-signature";
 
 const MISSING = "—";
 
@@ -99,7 +100,7 @@ export function AccountOpeningSummary({ value, onEdit }: { value: AccountOpening
             key={at}
             label={`Authorised Signatory ${at + 1}`}
             wide
-            value={`${shown(signer.fullName)} · ${shown(signer.signature)} · ${shownDate(signer.signedOn)}`}
+            value={`${shown(signer.fullName)} · ${signatureText(shown(signer.signature))} · ${shownDate(signer.signedOn)}`}
           />
         ))}
       </Part>

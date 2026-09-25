@@ -25,6 +25,16 @@ export const clientTypeLabels: Record<CustomerRow["type"], string> = {
   ENTITY: "Entity",
 };
 
+/**
+ * What kind of account a client holds. A joint account is two people on one application rather than a kind of
+ * client record, so it is worked out from who else came in with them.
+ */
+export const clientKindLabels: Record<CustomerRow["clientType"], string> = {
+  INDIVIDUAL: "Individual",
+  JOINT: "Joint",
+  ENTITY: "Entity",
+};
+
 /** All clients as it was left, with its search, filters and page, for links back to it from a client. */
 export function clientsHref(state: unknown) {
   const search = (state as { list?: unknown } | null)?.list;

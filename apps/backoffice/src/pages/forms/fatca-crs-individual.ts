@@ -242,7 +242,7 @@ export function reviewFatcaCrsIndividual(value: FatcaCrsIndividual): FormReview 
 
   if (!declaration.confirmed) problems["declaration.confirmed"] = "This has to be agreed to.";
   if (!declaration.printName.trim()) problems["declaration.printName"] = REQUIRED;
-  if (!declaration.signature.trim()) problems["declaration.signature"] = REQUIRED;
+  // The client signs after the form reaches them; their name and the date are what is needed here.
   if (!declaration.signedOn.trim()) problems["declaration.signedOn"] = "Choose a date.";
   // The capacity line is for someone signing who is not the Account Holder, so it is not asked for.
 

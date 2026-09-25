@@ -24,22 +24,31 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
-import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, type Authority } from "./lib/permissions";
-import { roleLabels, workspacesIn } from "./lib/labels";
+import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_PROPOSALS, UPLOADS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
+import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
 // A null authority is a screen everyone signed in can reach, such as their own declarations.
-const allNavigation: { to: string; label: string; icon: LucideIcon; authority: Authority | Authority[] | null }[] = [
-  { to: "/clients", label: "All clients", icon: Contact, authority: "VIEW_ALL_CLIENTS:VIEW" },
+//
+// `notFor` keeps a screen off a role's menu even where the matrix would allow it. The Admin runs the platform
+// rather than the firm's clients: they hold every permission so that nothing is ever locked away from them,
+// but servicing a client is Operations', Advisory's and Compliance's work, and their menu says so.
+const allNavigation: {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  authority: Authority | Authority[] | null;
+  notFor?: StaffRole[];
+}[] = [
+  { to: "/clients", label: "All clients", icon: Contact, authority: "VIEW_ALL_CLIENTS:VIEW", notFor: ["ADMIN"] },
   { to: "/my-clients", label: "My clients", icon: Contact, authority: "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS" },
-  { to: "/proposals", label: "Proposals", icon: FileSignature, authority: "SEND_PROPOSALS:OWN_CLIENTS" },
-  { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: ONBOARDS_CLIENTS },
+  { to: "/proposals", label: "Proposals", icon: FileSignature, authority: READS_PROPOSALS, notFor: ["ADMIN"] },
+  { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: ONBOARDS_CLIENTS, notFor: ["ADMIN"] },
   { to: "/to-sign", label: "To sign", icon: PenLine, authority: "APPROVE_PROPOSALS:OWN_CLIENTS" },
-  { to: "/kyc", label: "KYC review", icon: ShieldCheck, authority: "APPROVE_ONBOARDING:CHANGE" },
-  { to: "/client-documents", label: "Client documents", icon: FolderOpen, authority: "UPLOAD_CLIENT_DOCUMENTS:OWN_CLIENTS" },
-  { to: "/forms", label: "Forms", icon: FileText, authority: "FILL_CLIENT_FORMS:VIEW" },
-  { to: "/staff-declarations", label: "Staff declarations", icon: ClipboardCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
-  { to: "/my-declarations", label: "My declarations", icon: FileCheck, authority: null },
+  { to: "/kyc", label: "KYC review", icon: ShieldCheck, authority: "APPROVE_ONBOARDING:CHANGE", notFor: ["ADMIN"] },
+  { to: "/client-documents", label: "Client documents", icon: FolderOpen, authority: UPLOADS_CLIENT_DOCUMENTS, notFor: ["ADMIN"] },
+  { to: "/forms", label: "Forms", icon: FileText, authority: "FILL_CLIENT_FORMS:VIEW", notFor: ["ADMIN"] },
+  { to: "/staff-declarations", label: "Staff declarations", icon: ClipboardCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW", notFor: ["ADMIN"] },
   { to: "/users", label: "Manage staff users", icon: Users, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
   { to: "/roles", label: "Permission matrix", icon: ShieldCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
   { to: "/config", label: "Config data", icon: SlidersHorizontal, authority: "MANAGE_CONFIGURATION:VIEW" },
@@ -48,14 +57,16 @@ const allNavigation: { to: string; label: string; icon: LucideIcon; authority: A
   { to: "/audit-log", label: "Audit log", icon: Landmark, authority: "VIEW_AUDIT_LOG:VIEW" },
   { to: "/family-access", label: "Family access trail", icon: UsersRound, authority: "VIEW_AUDIT_LOG:VIEW" },
   { to: "/proposal-trail", label: "Proposal trail", icon: FileSignature, authority: "VIEW_AUDIT_LOG:VIEW" },
+  { to: "/my-declarations", label: "My declarations", icon: FileCheck, authority: null },
 ];
 
 export function AppLayout() {
   const user = useStaffUser();
   const navigation = allNavigation.filter(
     (item) =>
-      item.authority === null ||
-      (Array.isArray(item.authority) ? hasAnyAuthority(user, ...item.authority) : hasAuthority(user, item.authority)),
+      !(user.activeRole && item.notFor?.includes(user.activeRole)) &&
+      (item.authority === null ||
+      (Array.isArray(item.authority) ? hasAnyAuthority(user, ...item.authority) : hasAuthority(user, item.authority))),
   );
 
   return (
@@ -135,7 +146,7 @@ function UserMenu() {
       </button>
       {open && (
         <div role="menu" className="absolute right-0 z-10 mt-2 w-52 rounded-xl border border-line bg-white p-1.5 shadow-lg">
-          {workspacesIn(user.roles).length > 1 && (
+          {user.roles.length > 1 && (
             <Link
               role="menuitem"
               to="/workspace"
@@ -143,7 +154,7 @@ function UserMenu() {
               className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink-soft hover:bg-slate-50"
             >
               <ArrowLeftRight className="size-4" aria-hidden="true" />
-              Switch workspace
+              Switch role
             </Link>
           )}
           <Link
