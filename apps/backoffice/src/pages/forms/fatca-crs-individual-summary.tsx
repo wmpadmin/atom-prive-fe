@@ -135,7 +135,7 @@ function Part({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-line p-5">
+    <section className="rounded-2xl border border-line bg-white p-5">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="text-sm font-bold text-ink">{title}</h3>
         {onEdit && (

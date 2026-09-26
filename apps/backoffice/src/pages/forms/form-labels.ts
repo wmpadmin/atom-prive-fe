@@ -18,6 +18,15 @@ export function formStatus(
   return overdue ? { label: "Overdue", tone: "danger" } : { label: "Waiting on client", tone: "warning" };
 }
 
+/**
+ * Whether Operations still type on this form here. A form they have sent for review, one out with the client
+ * and one already finished are all read: what is on them is what went out, and changing that quietly would
+ * make the copy somebody else is holding a different document.
+ */
+export function stillBeingFilledIn(status: CaseFormRow["status"]) {
+  return status === "NOT_STARTED" || status === "DRAFT" || status === "REJECTED";
+}
+
 export const formCategories = ["ENTITY", "JOINT", "INDIVIDUAL"] as const satisfies readonly CatalogueEntryCategoriesItem[];
 
 export const categoryLabels: Record<CatalogueEntryCategoriesItem, string> = {
@@ -37,10 +46,23 @@ export function progressLine(form: CaseFormRow) {
   if (form.status === "AWAITING_COMPLIANCE") {
     return "Filled in · with compliance for KYC review";
   }
-  // The reason is what Operations have to act on, so it is the line rather than a note beside it.
+  // What compliance decided is what Operations have to act on, so it is the line rather than a note beside
+  // it: sent back, they put it right; passed, they know the client has it because compliance let it go.
   if (form.status === "REJECTED") {
-    return `Sent back by compliance${form.compliance?.comment ? ` · ${form.compliance.comment}` : ""}`;
+    return said("Sent back by compliance", form);
+  }
+  if (form.status === "WAITING_ON_CLIENT" && form.compliance?.approved) {
+    return said("Approved by compliance · awaiting client signature", form);
   }
   const requested = form.requestedOn ? ` · Requested ${formatDate(form.requestedOn)}` : "";
   return form.status === "WAITING_ON_CLIENT" ? `Awaiting client signature${requested}` : `Pending completion${requested}`;
+}
+
+/** A decision, said with who took it, when, and anything they wrote. */
+function said(what: string, form: CaseFormRow) {
+  const decision = form.compliance;
+  if (!decision) return what;
+  const parts = [`${what} · ${decision.decidedBy}, ${formatDate(decision.decidedAt)}`];
+  if (decision.comment) parts.push(decision.comment);
+  return parts.join(" · ");
 }

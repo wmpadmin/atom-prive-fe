@@ -51,8 +51,14 @@ function Criterion({
   const id = `${name}.${option.value}`;
   return (
     <div
+      // The whole line is the box: picking it is clicking anywhere on it, not hunting for the square.
+      onClick={(event) => {
+        // The box itself and its label already pick the line, so a click that lands on one is left alone.
+        if ((event.target as HTMLElement).closest("input, textarea, select, button, a, label")) return;
+        onChange(kind === "checkbox" ? !checked : true);
+      }}
       className={cn(
-        "flex items-start gap-3 rounded-xl border p-3.5 transition-colors",
+        "flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors",
         checked ? "border-primary-600 bg-primary-50/70" : "border-line bg-white hover:border-primary-100",
       )}
     >
@@ -351,7 +357,7 @@ export function ClassificationDeclarationStep({
             <SignatureField id={`declaration.signers[${at}].signature`} label="By" value={signer.signature} onChange={(signature) => change(at, { signature })} field={field} className="sm:col-span-2" />
             <TextField id={`declaration.signers[${at}].name`} label="(Name)" value={signer.name} onChange={(name) => change(at, { name })} field={field} />
             <TextField id={`declaration.signers[${at}].title`} label="(Title)" value={signer.title} onChange={(title) => change(at, { title })} field={field} />
-            <DateField id={`declaration.signers[${at}].signedOn`} label="(Date)" value={signer.signedOn} onChange={(signedOn) => change(at, { signedOn })} field={field} min={yearsFromToday(-2)} max={yearsFromToday(1)} className="sm:col-span-2" />
+            <DateField id={`declaration.signers[${at}].signedOn`} label="(Date)" value={signer.signedOn} onChange={(signedOn) => change(at, { signedOn })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} className="sm:col-span-2" />
             {signers.length > 1 && (
               <div className="sm:col-span-2">
                 <IconButton label={`Remove signatory ${at + 1}`} tone="danger" onClick={() => onChange({ signers: signers.filter((_, which) => which !== at) })}>

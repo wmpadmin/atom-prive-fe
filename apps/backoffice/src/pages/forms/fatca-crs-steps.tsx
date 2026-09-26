@@ -673,7 +673,7 @@ export function DeclarationStep({
             <TextField id={`declaration.signers[${at}].name`} label="Name" value={signer.name} onChange={(name) => change(at, { name })} field={field} />
             <TextField id={`declaration.signers[${at}].capacity`} label="Capacity" value={signer.capacity} onChange={(capacity) => change(at, { capacity })} field={field} />
             <SignatureField id={`declaration.signers[${at}].signature`} label="Signature" value={signer.signature} onChange={(signature) => change(at, { signature })} field={field} />
-            <DateField id={`declaration.signers[${at}].signedOn`} label="Date" value={signer.signedOn} onChange={(signedOn) => change(at, { signedOn })} field={field} min={yearsFromToday(-2)} max={yearsFromToday(1)} />
+            <DateField id={`declaration.signers[${at}].signedOn`} label="Date" value={signer.signedOn} onChange={(signedOn) => change(at, { signedOn })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
             {signers.length > 1 && (
               <div className="sm:col-span-2">
                 <IconButton label={`Remove signatory ${at + 1}`} tone="danger" onClick={() => onChange({ signers: signers.filter((_, which) => which !== at) })}>

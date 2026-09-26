@@ -616,12 +616,12 @@ export function ComplianceReviewStep({
         <h3 className="text-sm font-bold text-ink">Approvals:</h3>
         <FieldGroup title="MLRO">
           <TextField id="review.mlro" label="MLRO" value={review.mlro} onChange={(mlro) => onChange({ mlro })} field={field} />
-          <DateField id="review.mlroDate" label="Date" value={review.mlroDate} onChange={(mlroDate) => onChange({ mlroDate })} field={field} min={yearsFromToday(-5)} max={yearsFromToday(1)} />
+          <DateField id="review.mlroDate" label="Date" value={review.mlroDate} onChange={(mlroDate) => onChange({ mlroDate })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
           <SignatureField who="the firm" id="review.mlroSignature" label="Signature" value={review.mlroSignature} onChange={(mlroSignature) => onChange({ mlroSignature })} field={field} className="sm:col-span-2" />
         </FieldGroup>
         <FieldGroup title="SEO">
           <TextField id="review.seo" label="SEO" value={review.seo} onChange={(seo) => onChange({ seo })} field={field} />
-          <DateField id="review.seoDate" label="Date" value={review.seoDate} onChange={(seoDate) => onChange({ seoDate })} field={field} min={yearsFromToday(-5)} max={yearsFromToday(1)} />
+          <DateField id="review.seoDate" label="Date" value={review.seoDate} onChange={(seoDate) => onChange({ seoDate })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
           <SignatureField who="the firm" id="review.seoSignature" label="Signature" value={review.seoSignature} onChange={(seoSignature) => onChange({ seoSignature })} field={field} className="sm:col-span-2" />
         </FieldGroup>
       </div>

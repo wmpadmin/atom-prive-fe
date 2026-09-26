@@ -305,7 +305,7 @@ export function DeclarationsStep({
       </Boxes>
 
       <FieldGroup title="Date of Account Opening Application Form">
-        <DateField id="declarations.appliedOn" label="Date of Account Opening Application Form" value={declarations.appliedOn} onChange={(appliedOn) => onChange({ appliedOn })} field={field} min={daysFromToday(-2 * 365)} max={daysFromToday(365)} />
+        <DateField id="declarations.appliedOn" label="Date of Account Opening Application Form" value={declarations.appliedOn} onChange={(appliedOn) => onChange({ appliedOn })} field={field} min={daysFromToday(0)} max={daysFromToday(365)} />
       </FieldGroup>
 
       {/* The form rules a block for the first account holder and one for the second, if applicable. */}

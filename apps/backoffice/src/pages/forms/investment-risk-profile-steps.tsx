@@ -530,7 +530,7 @@ export function RiskAcknowledgementStep({
         <p className="text-sm leading-relaxed text-ink-muted">{riskProfileNotes.relationshipManager}</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField id="acknowledgement.relationshipManager.name" label="Relationship Manager Name" value={held.relationshipManager.name} onChange={(name) => set({ relationshipManager: { ...held.relationshipManager, name } })} field={field} />
-          <DateField id="acknowledgement.relationshipManager.signedOn" label="Date:" value={held.relationshipManager.signedOn} onChange={(signedOn) => set({ relationshipManager: { ...held.relationshipManager, signedOn } })} field={field} min={yearsFromToday(-5)} max={yearsFromToday(1)} />
+          <DateField id="acknowledgement.relationshipManager.signedOn" label="Date:" value={held.relationshipManager.signedOn} onChange={(signedOn) => set({ relationshipManager: { ...held.relationshipManager, signedOn } })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
           <SignatureField who="the firm" id="acknowledgement.relationshipManager.signOff" label="Sign off:" value={held.relationshipManager.signOff} onChange={(signOff) => set({ relationshipManager: { ...held.relationshipManager, signOff } })} field={field} className="sm:col-span-2" />
         </div>
       </section>
@@ -572,7 +572,7 @@ function SignOffs({
         rows.map((row, index) => (
           <FollowUp key={index} title={`${label} ${index + 1}`}>
             <TextField id={`acknowledgement.${at}[${index}].name`} label={label} value={row.name} onChange={(name) => set(index, { name })} field={field} optional />
-            <DateField id={`acknowledgement.${at}[${index}].signedOn`} label="Date:" value={row.signedOn} onChange={(signedOn) => set(index, { signedOn })} field={field} min={yearsFromToday(-5)} max={yearsFromToday(1)} />
+            <DateField id={`acknowledgement.${at}[${index}].signedOn`} label="Date:" value={row.signedOn} onChange={(signedOn) => set(index, { signedOn })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
             <SignatureField who="the firm" id={`acknowledgement.${at}[${index}].signOff`} label="Sign off:" value={row.signOff} onChange={(signOff) => set(index, { signOff })} field={field} optional />
             <div className="self-end pb-1">
               <IconButton label={`Remove ${label} ${index + 1}`} tone="danger" onClick={() => onChange(rows.filter((_, which) => which !== index))}>

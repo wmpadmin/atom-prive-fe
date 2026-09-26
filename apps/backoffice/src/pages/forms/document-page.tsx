@@ -20,7 +20,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, DateInput, Field, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronLeft, ChevronRight, Send } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, PencilLine, Send } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import { SignHereDialog } from "../../components/sign-here-dialog";
@@ -33,7 +33,15 @@ import { partsOf } from "./document-parts";
 import { DocumentWording } from "./document-wording";
 import { madeSignature } from "./made-signature";
 
-import { formStatus } from "./form-labels";
+import { ConfirmDialog } from "../config/confirm-dialog";
+import { formStatus, stillBeingFilledIn } from "./form-labels";
+
+/** Tomorrow, which is the earliest a date still to come can be. */
+function tomorrow() {
+  const day = new Date();
+  day.setDate(day.getDate() + 1);
+  return day;
+}
 
 function yearsFromToday(years: number) {
   const now = new Date();
@@ -72,6 +80,8 @@ export function DocumentPage() {
   const queryClient = useQueryClient();
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [ticks, setTicks] = useState<Record<string, boolean>>({});
+  const [editing, setEditing] = useState(false);
+  const [dueOn, setDueOn] = useState("");
   // How many rows each of the document's lists is showing. The paper rules a fixed few; here they are added.
   const [listRows, setListRows] = useState<Record<string, number>>({});
   const [at, setAt] = useState<string>();
@@ -150,12 +160,13 @@ export function DocumentPage() {
     );
   }
 
-  const sent = row?.status === "WAITING_ON_CLIENT" || row?.status === "AWAITING_COMPLIANCE"
-    || row?.status === "SUBMITTED";
-  // Finished, or with Compliance: either way nothing more is typed on it here.
-  const signed = row?.status === "SUBMITTED" || row?.status === "AWAITING_COMPLIANCE";
+  // Sent for review, out with the client, or finished: it has left Operations either way, and what is on it
+  // is what went out, so nothing more is typed on it here.
+  const being = row?.status ?? "NOT_STARTED";
+  const sent = !stillBeingFilledIn(being);
+  const signed = being === "SUBMITTED";
   const missing = wording.data.gaps.filter((gap) => !details[gap.key]?.trim());
-  const writable = canChange && !signed;
+  const writable = canChange && !sent;
   // A client onboarded before there were cases has no application to record a send against.
   const sendable = writable && Boolean(sendAgainst);
 
@@ -171,7 +182,7 @@ export function DocumentPage() {
       complete: read.has(part.id) && filledIn(part),
     })),
     // Ticked once it has actually gone; that every detail is in is said in words below, not with a tick.
-    { ...SEND, complete: sent },
+    ...(writable ? [{ ...SEND, complete: sent }] : []),
   ];
   const current = steps.find((step) => step.id === at) ?? steps[0]!;
   const index = steps.findIndex((step) => step.id === current.id);
@@ -182,6 +193,30 @@ export function DocumentPage() {
 
   const busy = change.isPending || open.isPending || keep.isPending;
 
+  /**
+   * Takes the document back so it can be filled in again. Whoever is holding it — Compliance or the client —
+   * loses it, and what was written on it goes: it starts again from the beginning.
+   */
+  function fillItInAgain() {
+    if (!client || !sendAgainst) return;
+    change.mutate(
+      {
+        caseId: sendAgainst,
+        kind: kind as CaseFormRow["kind"],
+        // A finished document is unpicked by taking its signed copy off; one still out is simply taken back.
+        data: signed
+          ? { customerId: client.id, dueOn: null, waitingOnClient: null, signedCopyOnFile: false, sendForKyc: null, answers: null }
+          : { customerId: client.id, dueOn: null, waitingOnClient: false, signedCopyOnFile: null, sendForKyc: null, answers: null },
+      },
+      {
+        onSuccess: () => {
+          setEditing(false);
+          kept();
+        },
+      },
+    );
+  }
+
   function kept() {
     setEdits({});
     setTicks({});
@@ -190,7 +225,7 @@ export function DocumentPage() {
     void wording.refetch();
   }
 
-  function save(alsoSend: boolean) {
+  function save(alsoSend: boolean, dueOn?: string) {
     if (!client) return;
     const answers = { ...details, ...ticked };
     // The document belongs to the application whichever way it was opened, so what is written on it and its
@@ -202,7 +237,7 @@ export function DocumentPage() {
           kind: kind as CaseFormRow["kind"],
           data: {
             customerId: client.id,
-            dueOn: null,
+            dueOn: dueOn ?? null,
             waitingOnClient: null,
             signedCopyOnFile: null,
             sendForKyc: alsoSend ? true : null,
@@ -242,24 +277,32 @@ export function DocumentPage() {
               {busy ? "Saving…" : "Save the details"}
             </Button>
           )}
+          {!writable && canChange && client && sendAgainst && (
+            <Button variant="secondary" size="sm" disabled={busy} onClick={() => setEditing(true)}>
+              <PencilLine aria-hidden="true" />
+              {change.isPending ? "Opening…" : "Edit"}
+            </Button>
+          )}
         </div>
       </header>
 
       {signed && (
         <Alert tone="success">
-          {onboarding.data?.summary.clientName} has signed this
+          {client?.fullName} has signed this
           {row?.submittedAt ? ` — their signed copy came in on ${formatDate(row.submittedAt)}` : ""}.
         </Alert>
       )}
       {sent && !signed && (
         <Alert tone="info">
-          This has gone to {onboarding.data?.summary.clientName} to sign
-          {row?.dueOn ? `, and is expected back by ${formatDate(row.dueOn)}` : ""}.
+          {being === "AWAITING_COMPLIANCE"
+            ? "This is with Compliance for KYC review. It goes to the client to sign once they approve it."
+            : `This has gone to ${client?.fullName ?? "the client"} to sign${row?.dueOn ? `, and is expected back by ${formatDate(row.dueOn)}` : ""}.`}
         </Alert>
       )}
       {change.isError && <Alert tone="danger">{change.error.message}</Alert>}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[18rem_1fr]">
+      <div className={writable ? "grid items-start gap-6 lg:grid-cols-[18rem_1fr]" : undefined}>
+        {writable && (
         <StepRail
           steps={steps}
           currentId={current.id}
@@ -275,7 +318,39 @@ export function DocumentPage() {
             </Link>
           }
         />
+        )}
 
+        {!writable ? (
+          // Nothing here is filled in, so there is nothing to step through: the document reads top to bottom
+          // the way the paper does, and the rail beside it jumps rather than pages.
+          <section aria-labelledby="document-title" className="rounded-2xl border border-line bg-white">
+            <div className="border-b border-line px-6 py-6 sm:px-8">
+              <h2 id="document-title" className="text-2xl leading-tight font-bold">{wording.data.title}</h2>
+            </div>
+            <div className="divide-y divide-line">
+              {parts.map((one) => (
+                <div key={one.id} className="space-y-4 px-6 py-6 sm:px-8">
+                  <h3 className="text-base font-bold text-ink">
+                    {one.number ? `${one.number} ` : ""}
+                    {named(one.label, details, printedDetails)}
+                  </h3>
+                  <article className="text-ink">
+                    <DocumentWording
+                      blocks={one.blocks}
+                      gaps={wording.data.gaps}
+                      details={details}
+                      ticked={ticked}
+                      listRows={listRows}
+                    />
+                  </article>
+                </div>
+              ))}
+            </div>
+            <p className="border-t border-line px-6 py-4 text-xs text-ink-muted sm:px-8">
+              This is the document as it went out.
+            </p>
+          </section>
+        ) : (
         <section aria-labelledby="part-title" className="rounded-2xl border border-line bg-white">
           <div className="border-b border-line px-6 py-6 sm:px-8">
             <p className="text-2xs font-semibold tracking-wider text-primary-600 uppercase">
@@ -295,7 +370,9 @@ export function DocumentPage() {
                 missing={missing}
                 busy={change.isPending}
                 sent={sent}
-                onSend={() => save(true)}
+                dueOn={dueOn}
+                onDue={setDueOn}
+                onSend={(chosen) => save(true, chosen)}
                 onGoTo={setAt}
                 partOf={(gap) => parts.find((one) => one.gaps.some((held) => held.key === gap.key))?.id}
               />
@@ -365,9 +442,11 @@ export function DocumentPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-6 py-4 sm:px-8">
             <p className="text-xs text-ink-muted">
-              {missing.length === 0
-                ? "Every detail it asks for is in. It is ready to go to the client."
-                : `${missing.length} detail${missing.length === 1 ? "" : "s"} still to fill in, over ${asked} part${asked === 1 ? "" : "s"}${answered > 0 ? ` (${answered} done)` : ""}.`}
+              {!writable
+                ? "This is the document as it went out."
+                : missing.length === 0
+                  ? "Every detail it asks for is in. It is ready to go for KYC review."
+                  : `${missing.length} detail${missing.length === 1 ? "" : "s"} still to fill in, over ${asked} part${asked === 1 ? "" : "s"}${answered > 0 ? ` (${answered} done)` : ""}.`}
             </p>
             <div className="flex gap-2">
               <Button
@@ -394,7 +473,25 @@ export function DocumentPage() {
             </div>
           </div>
         </section>
+        )}
       </div>
+      <ConfirmDialog
+        open={editing}
+        title="Edit this document?"
+        // Whoever else is holding it has to be named: taking it back is not the same small thing as opening
+        // a draft again, and what was written on it goes with it.
+        description={
+          being === "AWAITING_COMPLIANCE"
+            ? "This has been sent to Compliance for KYC review. Editing it takes it back from them and clears what was filled in — it starts again from the beginning, and has to be sent for review afresh. Do you want to continue?"
+            : signed
+              ? "The client's signed copy is on file. Editing it takes the document back and clears what was filled in — it starts again from the beginning. Do you want to continue?"
+              : `This is with ${client?.fullName ?? "the client"} to sign. Editing it takes the document back and clears what was filled in — it starts again from the beginning, and has to go for review afresh. Do you want to continue?`
+        }
+        confirmLabel="Yes, start it again"
+        busy={change.isPending}
+        onConfirm={() => fillItInAgain()}
+        onClose={() => setEditing(false)}
+      />
       <SignHereDialog
         spot={signing?.spot ?? null}
         who={signing?.who ?? "the client"}
@@ -420,6 +517,8 @@ function SendPart({
   missing,
   busy,
   sent,
+  dueOn,
+  onDue,
   onSend,
   onGoTo,
   partOf,
@@ -428,7 +527,9 @@ function SendPart({
   missing: DocumentGap[];
   busy: boolean;
   sent: boolean;
-  onSend: () => void;
+  dueOn: string;
+  onDue: (value: string) => void;
+  onSend: (dueOn: string) => void;
   onGoTo: (id: string) => void;
   partOf: (gap: DocumentGap) => string | undefined;
 }) {
@@ -460,9 +561,21 @@ function SendPart({
 
       {canSend && (
         <div className="flex flex-wrap items-end gap-3">
+          {/* A date already gone cannot be a date something is wanted by, so the earliest is tomorrow. */}
+          <Field id="document-due" label="Wanted back by" required className="w-full max-w-xs">
+            <DateInput
+              id="document-due"
+              name="dueOn"
+              value={dueOn}
+              min={tomorrow()}
+              max={yearsFromToday(2)}
+              onChange={onDue}
+              required
+            />
+          </Field>
           {/* A document goes for review as it stands, so it goes complete: what is still blank would be
               blank on the copy the client eventually signs. */}
-          <Button disabled={busy || missing.length > 0} onClick={onSend}>
+          <Button disabled={!dueOn || busy || missing.length > 0} onClick={() => onSend(dueOn)}>
             <Send aria-hidden="true" />
             {sent ? "Send for KYC again" : "Send for KYC"}
           </Button>

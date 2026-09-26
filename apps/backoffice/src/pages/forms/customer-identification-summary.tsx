@@ -2,8 +2,9 @@ import type { AttachedFile } from "@atomprive/api-client/backoffice";
 import { Button } from "@atomprive/ui";
 import { PencilLine } from "lucide-react";
 import type { ReactNode } from "react";
+import { AttachedFiles } from "../../components/attached-files";
 import { countryName } from "../../lib/countries";
-import { formatDate, formatFileSize } from "../../lib/labels";
+import { formatDate } from "../../lib/labels";
 import {
   assetLines,
   checklistDocuments,
@@ -44,10 +45,12 @@ function answerTo(question: Question, value: Lines) {
 export function CustomerIdentificationSummary({
   value,
   attachments,
+  formId,
   onEdit,
 }: {
   value: CustomerIdentification;
   attachments: AttachedFile[];
+  formId: string;
   onEdit?: (stepId: string) => void;
 }) {
   const alone = value.holders.length === 1;
@@ -60,7 +63,7 @@ export function CustomerIdentificationSummary({
               Account holder {at + 1} — {namedHolder(holder, at)}
             </h2>
           )}
-          <OneHolder holder={holder} where={`holders[${at}]`} attachments={attachments} onEdit={onEdit} />
+          <OneHolder holder={holder} where={`holders[${at}]`} attachments={attachments} formId={formId} onEdit={onEdit} />
         </div>
       ))}
       <FirmSide firm={value.firm} onEdit={onEdit} />
@@ -73,11 +76,13 @@ function OneHolder({
   holder,
   where,
   attachments,
+  formId,
   onEdit,
 }: {
   holder: HolderAnswers;
   where: string;
   attachments: AttachedFile[];
+  formId: string;
   onEdit?: (stepId: string) => void;
 }) {
   const said = (id: string) => holder.said[id]?.trim() || MISSING;
@@ -130,11 +135,7 @@ function OneHolder({
               key={document.id}
               label={`${document.number}.`}
               wide
-              value={
-                held.length === 0
-                  ? "not attached yet"
-                  : held.map((file) => `${file.fileName} (${formatFileSize(file.sizeBytes)})`).join(", ")
-              }
+              value={<AttachedFiles formId={formId} files={held} nothing="not attached yet" />}
             />
           );
         })}
@@ -193,7 +194,7 @@ function Part({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-line">
+    <section className="overflow-hidden rounded-2xl border border-line bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-line bg-slate-50/70 px-5 py-3">
         <h3 className="text-sm font-bold text-ink">{title}</h3>
         {onEdit && (
@@ -208,7 +209,7 @@ function Part({
   );
 }
 
-function Fact({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
+function Fact({ label, value, wide }: { label: string; value: ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? "sm:col-span-2" : undefined}>
       <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>

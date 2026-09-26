@@ -14,7 +14,7 @@ import {
   type DocumentTextKind,
   type FormDetail,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, Dialog, Field, TextInput } from "@atomprive/ui";
+import { Alert, Badge, Button, DateInput, Dialog, Field, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, ChevronRight, Info, PencilLine, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -306,10 +306,10 @@ function FilledForm<T>({
   }
 
   /** Written up and handed to Compliance, who read it before the client is asked to sign anything. */
-  function sendForKyc() {
+  function sendForKyc(dueOn: string) {
     setFormError(undefined);
     send.mutate(
-      { id: detail.summary.id, data: { answers: answersToSave(), dueOn: null } },
+      { id: detail.summary.id, data: { answers: answersToSave(), dueOn } },
       {
         onSuccess: (saved: FormDetail) => {
           afterWrite(saved);
@@ -347,6 +347,12 @@ function FilledForm<T>({
             </Button>
           </>
         )}
+        {locked && canWorkOnIt && !deciding && (
+          <Button variant="secondary" size="sm" disabled={reopen.isPending} onClick={() => setEditing(true)}>
+            <PencilLine aria-hidden="true" />
+            {reopen.isPending ? "Opening…" : "Edit"}
+          </Button>
+        )}
       </div>
     </header>
   );
@@ -379,7 +385,8 @@ function FilledForm<T>({
           <div className="rounded-2xl border border-line bg-white p-5">
             <h2 className="text-base font-bold">Your decision</h2>
             <p className="mt-0.5 mb-4 text-sm text-ink-muted">
-              Approving it finishes the form. Sending it back returns it to Operations with what is wrong.
+              Approving it sends the form to the client to sign, and asks when their signed copy is wanted
+              back. Sending it back returns it to Operations with what is wrong.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" onClick={() => setDecision("reject")}>
@@ -394,15 +401,7 @@ function FilledForm<T>({
           </div>
         )}
         {reopen.isError && <Alert tone="danger">{reopen.error.message}</Alert>}
-        {canWorkOnIt && !deciding && (
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" disabled={reopen.isPending} onClick={() => setEditing(true)}>
-              <PencilLine aria-hidden="true" />
-              {reopen.isPending ? "Opening…" : "Edit"}
-            </Button>
-          </div>
-        )}
-        {kit.summary(value, detail.attachments)}
+        {kit.summary(value, detail.attachments, detail.summary.id)}
         <FormDecisionDialog
           deciding={
             decision === null
@@ -425,8 +424,16 @@ function FilledForm<T>({
         <ConfirmDialog
           open={editing}
           title="Edit this form?"
-          description="If you choose to edit this form, you will need to complete and submit the form again. Do you want to continue?"
-          confirmLabel="Yes, edit it"
+          // Whoever else is holding it has to be named: taking a form back from Compliance or from the
+          // client is not the same small thing as opening a draft again, and it clears what was filled in.
+          description={
+            detail.summary.status === "AWAITING_COMPLIANCE"
+              ? "This has been sent to Compliance for KYC review. Editing it takes it back from them and clears what was filled in — the form starts again from the beginning, and has to be sent for review afresh. Do you want to continue?"
+              : signed
+                ? "The client's signed copy is on file. Editing it takes the form back and clears what was filled in — it starts again from the beginning. Do you want to continue?"
+                : `This is with ${detail.summary.clientName} to sign. Editing it takes the form back and clears what was filled in — it starts again from the beginning, and has to go for review afresh. Do you want to continue?`
+          }
+          confirmLabel="Yes, start it again"
           busy={reopen.isPending}
           onConfirm={() => fillItInAgain()}
           onClose={() => setEditing(false)}
@@ -614,10 +621,19 @@ function BackLink({ caseId, clientId, deciding }: { caseId?: string; clientId?: 
 }
 
 /** Asks when the client's signed copy is expected back, which is the point the form goes out. */
-/**
- * Handing the finished form to Compliance. Nothing is asked of the client yet, so no date is set here: the
- * signed copy is expected back only once Compliance have passed it and it has gone out.
- */
+/** Tomorrow, which is the earliest a date still to come can be. */
+function tomorrow() {
+  const day = new Date();
+  day.setDate(day.getDate() + 1);
+  return day;
+}
+
+function yearsFromToday(years: number) {
+  const day = new Date();
+  return new Date(day.getFullYear() + years, day.getMonth(), day.getDate());
+}
+
+/** Handing the finished form to Compliance, with the day it is wanted back by. */
 function SendForKycDialog({
   open,
   client,
@@ -629,8 +645,10 @@ function SendForKycDialog({
   client: string;
   busy: boolean;
   onClose: () => void;
-  onSend: () => void;
+  onSend: (dueOn: string) => void;
 }) {
+  const [dueOn, setDueOn] = useState("");
+
   return (
     <Dialog open={open} title="Send for KYC review" onClose={onClose}>
       <div className="space-y-4">
@@ -638,14 +656,24 @@ function SendForKycDialog({
           Compliance read this form before {client} does. Once they approve it, it goes out to be signed; if
           they send it back, you will see what has to be put right.
         </p>
-        <p className="text-sm text-ink-muted">
-          It can't be changed while Compliance have it.
-        </p>
+        {/* A date already gone cannot be a date something is wanted by, so the earliest is tomorrow. */}
+        <Field id="send-due-on" label="Wanted back by" required>
+          <DateInput
+            id="send-due-on"
+            name="dueOn"
+            value={dueOn}
+            min={tomorrow()}
+            max={yearsFromToday(2)}
+            onChange={setDueOn}
+            required
+          />
+        </Field>
+        <p className="text-sm text-ink-muted">It can't be changed while Compliance have it.</p>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button disabled={busy} onClick={onSend}>
+          <Button disabled={!dueOn || busy} onClick={() => onSend(dueOn)}>
             {busy ? "Sending…" : "Send for KYC"}
           </Button>
         </div>

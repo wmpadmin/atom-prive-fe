@@ -12,7 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { DueDate, Mark } from "../forms/checklist-parts";
-import { formStatus, progressLine } from "../forms/form-labels";
+import { formStatus, progressLine, stillBeingFilledIn } from "../forms/form-labels";
 import { categoryLabels, categoryOf, dueLabel } from "./case-category";
 import { readyToSend } from "./ready-to-send";
 import { SendToSignBar } from "./send-to-sign-bar";
@@ -73,12 +73,11 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
    * not by finding the small word at the end of its line.
    */
   function actionOf(form: CaseFormRow): (() => void) | undefined {
-    if (form.status === "SUBMITTED" || form.status === "AWAITING_COMPLIANCE" || !canChange) {
+    if (!stillBeingFilledIn(form.status) || !canChange) {
       // Nothing left to do to it here, or nothing this person may do: the row still opens what was filled in.
       return form.formId ? () => void navigate(`/onboarding/${caseId}/forms/${form.formId}`) : undefined;
     }
     if (!form.readyToFill) return () => void navigate(`/onboarding/${caseId}/documents/${form.kind}`);
-    if (form.status === "WAITING_ON_CLIENT") return () => void navigate(`/onboarding/${caseId}/forms/${form.formId}`);
     return () => fill(form);
   }
 
