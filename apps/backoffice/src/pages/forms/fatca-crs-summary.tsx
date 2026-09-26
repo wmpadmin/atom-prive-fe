@@ -2,8 +2,9 @@ import type { AttachedFile } from "@atomprive/api-client/backoffice";
 import { Button } from "@atomprive/ui";
 import { PencilLine } from "lucide-react";
 import type { ReactNode } from "react";
+import { AttachedFiles } from "../../components/attached-files";
 import { countryName } from "../../lib/countries";
-import { formatDate, formatFileSize } from "../../lib/labels";
+import { formatDate } from "../../lib/labels";
 import {
   BLANK,
   CERTIFIED_COPY,
@@ -66,10 +67,12 @@ function typeOfPerson(person: ControllingPerson) {
 export function FatcaCrsSummary({
   value,
   attachments,
+  formId,
   onEdit,
 }: {
   value: FatcaCrsEntity;
   attachments: AttachedFile[];
+  formId: string;
   onEdit?: (stepId: string) => void;
 }) {
   const { entity, residence, fatca, crs, declaration } = value;
@@ -126,10 +129,11 @@ export function FatcaCrsSummary({
             label="Certified true copy provided"
             wide
             value={
-              attachments
-                .filter((file) => file.field === CERTIFIED_COPY)
-                .map((file) => `${file.fileName} (${formatFileSize(file.sizeBytes)})`)
-                .join(" · ") || "Not attached yet"
+              <AttachedFiles
+                formId={formId}
+                files={attachments.filter((file) => file.field === CERTIFIED_COPY)}
+                nothing="Not attached yet"
+              />
             }
           />
         )}
@@ -217,7 +221,7 @@ function Part({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-line">
+    <section className="rounded-2xl border border-line bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3">
         <h3 className="text-sm font-bold">{title}</h3>
         {onEdit && (
@@ -232,7 +236,7 @@ function Part({
   );
 }
 
-function Fact({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
+function Fact({ label, value, wide }: { label: string; value: ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? "sm:col-span-2" : undefined}>
       <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>

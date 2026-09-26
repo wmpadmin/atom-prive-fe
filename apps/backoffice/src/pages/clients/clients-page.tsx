@@ -25,7 +25,7 @@ import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
 import { AdvisorChips } from "./advisor-chips";
 import { AssignAdvisorDialog, type ClientToAssign } from "./assign-advisor-dialog";
-import { assignmentNotice, clientKindLabels, clientTypeLabels, kycStatuses, kycStatusLabels, kycStatusTones, type KycStatus } from "./client-labels";
+import { assignmentNotice, clientKindLabels, clientTypeLabels } from "./client-labels";
 import { ClientSearch } from "./client-search";
 
 
@@ -68,7 +68,6 @@ const COLUMNS = [
   { id: "code", label: "Client code" },
   { id: "clientType", label: "Client type" },
   { id: "registered", label: "Registered" },
-  { id: "kyc", label: "KYC status" },
   { id: "banks", label: "Linked banks" },
   { id: "advisors", label: "Advisors" },
   { id: "proposal", label: "Proposal" },
@@ -113,7 +112,6 @@ function rememberColumns(shown: ReadonlySet<string>) {
 
 interface Filters {
   query: string;
-  kycStatus: KycStatus | "";
   advisorId: string;
   /** Registered on or after this day, yyyy-mm-dd. */
   from: string;
@@ -123,14 +121,12 @@ interface Filters {
   page: number;
 }
 
-/** The search, filters and page live in the address (?q=kapoor&kyc=PENDING&from=2026-09-01), so they can be shared. */
+/** The search, filters and page live in the address (?q=kapoor&advisor=…&from=2026-09-01), so they can be shared. */
 function readFilters(params: URLSearchParams): Filters {
-  const kycStatus = params.get("kyc") as KycStatus | null;
   const size = Number(params.get("size"));
   const page = Number(params.get("page"));
   return {
     query: params.get("q")?.trim() ?? "",
-    kycStatus: kycStatus && kycStatuses.includes(kycStatus) ? kycStatus : "",
     advisorId: params.get("advisor") ?? "",
     from: dayParam(params.get("from")),
     to: dayParam(params.get("to")),
@@ -162,7 +158,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { params, update } = useListAddress();
-  const { query, kycStatus, advisorId, from, to, size, page } = readFilters(params);
+  const { query, advisorId, from, to, size, page } = readFilters(params);
   const typed = useTypedSearch(query, update);
 
   // Clients ticked for assigning an advisor, on the page shown; changing the page or a filter starts afresh.
@@ -177,7 +173,6 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const [columns, setColumns] = useState<ReadonlySet<string>>(readColumns);
 
   const filters = {
-    kycStatus: kycStatus || undefined,
     advisorId: advisorId || undefined,
     registeredFrom: from ? localDay(from).toISOString() : undefined,
     registeredTo: to ? localDay(to, 1).toISOString() : undefined,
@@ -188,7 +183,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   );
   // The advisor's own list is the same list, narrowed by the API to the clients assigned to them.
   const myClients = useListMyClients<CustomerPage, ApiError>(
-    { kycStatus: filters.kycStatus, registeredFrom: filters.registeredFrom, registeredTo: filters.registeredTo,
+    { registeredFrom: filters.registeredFrom, registeredTo: filters.registeredTo,
       query: query || undefined, page, size },
     { query: { enabled: mine, placeholderData: keepPreviousData } },
   );
@@ -214,13 +209,13 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
 
   function clearFilters() {
     typed.clear();
-    update({ q: null, kyc: null, advisor: null, from: null, to: null });
+    update({ q: null, advisor: null, from: null, to: null });
   }
 
   const rows = customers.data?.items ?? [];
   const total = customers.data?.totalItems ?? 0;
   const lastPage = Math.max(0, Math.ceil(total / size) - 1);
-  const filtered = query !== "" || kycStatus !== "" || advisorId !== "" || from !== "" || to !== "";
+  const filtered = query !== "" || advisorId !== "" || from !== "" || to !== "";
   const today = new Date();
   // Assigning is the only action there is, so people who can't assign aren't offered that column.
   // The proposal a client is considering is their advisor's business; the firm-wide list has its own screen for it.
@@ -243,8 +238,8 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         title={mine ? "My clients" : "All clients"}
         lead={
           mine
-            ? "The clients assigned to you, with their code, KYC status, advisors and last login."
-            : "Every client registered with the firm, with their code, KYC status, advisors and last login."
+            ? "The clients assigned to you, with their code, advisors and last login."
+            : "Every client registered with the firm, with their code, advisors and last login."
         }
       >
         <ColumnPicker
@@ -265,17 +260,6 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         filters={
           <>
             <ClientSearch value={typed.search} filters={filters} onChange={typed.change} onSearch={typed.apply} />
-            <label>
-              <span className="sr-only">KYC status</span>
-              <SelectInput id="client-kyc" value={kycStatus} onChange={(event) => update({ kyc: event.target.value })} className="w-auto">
-                <option value="">All KYC statuses</option>
-                {kycStatuses.map((status) => (
-                  <option key={status} value={status}>
-                    {kycStatusLabels[status]}
-                  </option>
-                ))}
-              </SelectInput>
-            </label>
             {!mine && (
               <label>
                 <span className="sr-only">Advisor</span>
@@ -364,7 +348,6 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                 {shows("code") && <th scope="col" className="px-4 py-3">Client code</th>}
                 {shows("clientType") && <th scope="col" className="px-4 py-3">Client type</th>}
                 {shows("registered") && <th scope="col" className="px-4 py-3">Registered</th>}
-                {shows("kyc") && <th scope="col" className="px-4 py-3">KYC status</th>}
                 {shows("banks") && (
                   <th scope="col" className="px-4 py-3" title={LINKED_BANKS_LATER}>
                     Linked banks
@@ -451,22 +434,6 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                     <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{clientKindLabels[customer.clientType]}</td>
                   )}
                   {shows("registered") && <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatDate(customer.registeredAt)}</td>}
-                  {shows("kyc") && (
-                    <td className="px-4 py-3">
-                      {/* Everyone on a joint account keeps their own KYC, so one badge would speak for people
-                          it does not cover. Each holder gets their own, named where they differ. */}
-                      <div className="flex flex-wrap gap-1">
-                        <Badge tone={kycStatusTones[customer.kycStatus]}>{kycStatusLabels[customer.kycStatus]}</Badge>
-                        {heldWith(customer)
-                          .filter((held) => held.kycStatus !== customer.kycStatus)
-                          .map((held) => (
-                            <Badge key={held.id} tone={kycStatusTones[held.kycStatus]}>
-                              {held.fullName.split(" ")[0]}: {kycStatusLabels[held.kycStatus]}
-                            </Badge>
-                          ))}
-                      </div>
-                    </td>
-                  )}
                   {shows("banks") && (
                     <td className="px-4 py-3 text-ink-muted" title={LINKED_BANKS_LATER}>
                       —

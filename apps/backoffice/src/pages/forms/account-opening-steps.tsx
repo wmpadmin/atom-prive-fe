@@ -333,7 +333,7 @@ export function DeclarationsStep({
           <FollowUp key={at} title={`Authorised Signatory ${at + 1}`}>
             <TextField id={`declarations.signers[${at}].fullName`} label="Full name:" value={signer.fullName} onChange={(fullName) => setSigner(at, { fullName })} field={field} className="sm:col-span-2" />
             <SignatureField id={`declarations.signers[${at}].signature`} label="Signature:" value={signer.signature} onChange={(signature) => setSigner(at, { signature })} field={field} />
-            <DateField id={`declarations.signers[${at}].signedOn`} label="Date (DD/MM/YYYY):" value={signer.signedOn} onChange={(signedOn) => setSigner(at, { signedOn })} field={field} min={daysFromToday(-2 * 365)} max={daysFromToday(365)} />
+            <DateField id={`declarations.signers[${at}].signedOn`} label="Date (DD/MM/YYYY):" value={signer.signedOn} onChange={(signedOn) => setSigner(at, { signedOn })} field={field} min={daysFromToday(0)} max={daysFromToday(365)} />
             {declarations.signers.length > 1 && (
               <div className="sm:col-span-2">
                 <IconButton label={`Remove Authorised Signatory ${at + 1}`} tone="danger" onClick={() => onChange({ signers: declarations.signers.filter((_, which) => which !== at) })}>

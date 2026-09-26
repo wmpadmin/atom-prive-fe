@@ -67,7 +67,12 @@ export function ClientPage() {
   const backLabel = mine ? "My clients" : "All clients";
   const queryClient = useQueryClient();
   const detail = useGetCustomer<CustomerDetail, ApiError>(clientId);
-  const [tab, setTab] = useState<Tab>("overview");
+  // Coming back from one of the client's forms opens the tab it was reached from, rather than the top of
+  // the file: whoever went into a document is on their way back to the rest of them.
+  const [tab, setTab] = useState<Tab>(() => {
+    const asked = (location.state as { tab?: string } | null)?.tab;
+    return TABS.some((option) => option.id === asked) ? (asked as Tab) : "overview";
+  });
   const [editing, setEditing] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [removing, setRemoving] = useState<StaffMember | null>(null);
@@ -113,7 +118,11 @@ export function ClientPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Badge tone={kycStatusTones[client.kycStatus]}>KYC: {kycStatusLabels[client.kycStatus]}</Badge>
+            {/* The papers on the client's file — their passport and proof of address — not the forms in
+                their pack, which have statuses of their own. */}
+            <Badge tone={kycStatusTones[client.kycStatus]}>
+              KYC documents: {kycStatusLabels[client.kycStatus]}
+            </Badge>
             {canEdit && (
               <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
                 <PencilLine aria-hidden="true" />
@@ -152,7 +161,7 @@ export function ClientPage() {
             <span className="font-mono text-xs">{client.code}</span>
           </Fact>
           <Fact label="Registered">{formatDate(client.registeredAt)}</Fact>
-          <Fact label="KYC status">{kycStatusLabels[client.kycStatus]}</Fact>
+          <Fact label="KYC documents">{kycStatusLabels[client.kycStatus]}</Fact>
           <Fact label="Linked banks">
             <span className="text-ink-muted" title="Filled in once bank linking is built">
               —

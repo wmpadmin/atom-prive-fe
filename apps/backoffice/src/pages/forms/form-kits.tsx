@@ -205,7 +205,12 @@ export interface FormKit<T> {
     /** The firm's own name, for the lines of a form that print it. */
     firmName: string | null;
   }) => ReactNode;
-  summary: (value: T, attachments: AttachedFile[]) => ReactNode;
+  /**
+   * The form read back as it was answered.
+   *
+   * @param formId the form itself, so a document attached to one of its lines can be opened from here
+   */
+  summary: (value: T, attachments: AttachedFile[], formId: string) => ReactNode;
 }
 
 const accountOpeningDescriptions: Record<string, string> = {
@@ -307,7 +312,7 @@ export const fatcaCrsKit: FormKit<FatcaCrsEntity> = {
   stepOfField: stepOfFatcaCrsField,
   descriptions: fatcaCrsDescriptions,
   guidance: fatcaCrsGuidance,
-  summary: (value, attachments) => <FatcaCrsSummary value={value} attachments={attachments} />,
+  summary: (value, attachments, formId) => <FatcaCrsSummary value={value} attachments={attachments} formId={formId} />,
   step: ({ id, value, change, field, goTo, formId, documents }) => {
     switch (id) {
       case "entity":
@@ -323,7 +328,7 @@ export const fatcaCrsKit: FormKit<FatcaCrsEntity> = {
       case "declaration":
         return <DeclarationStep declaration={value.declaration} onChange={(patch) => change({ declaration: { ...value.declaration, ...patch } })} field={field} />;
       default:
-        return <FatcaCrsSummary value={value} attachments={documents.files} onEdit={goTo} />;
+        return <FatcaCrsSummary value={value} attachments={documents.files} formId={formId} onEdit={goTo} />;
     }
   },
 };
@@ -369,7 +374,7 @@ export const customerIdentificationKit: FormKit<CustomerIdentification> = {
   stepOfField: stepOfCustomerIdentificationField,
   descriptions: customerIdentificationDescriptions,
   guidance: customerIdentificationGuidance,
-  summary: (value, attachments) => <CustomerIdentificationSummary value={value} attachments={attachments} />,
+  summary: (value, attachments, formId) => <CustomerIdentificationSummary value={value} attachments={attachments} formId={formId} />,
   step: ({ id, value, change, field, goTo, formId, documents }) => {
     // The paper asks for a separate form for each joint holder; the account gets one with a set of pages for
     // each of them instead. Which set a part belongs to is in its id, so the parts never have to know.
@@ -387,7 +392,7 @@ export const customerIdentificationKit: FormKit<CustomerIdentification> = {
     const at = Number(/^holders\[(\d+)]/.exec(id)?.[1] ?? -1);
     const one = value.holders[at];
     if (!one) {
-      return <CustomerIdentificationSummary value={value} attachments={documents.files} onEdit={goTo} />;
+      return <CustomerIdentificationSummary value={value} attachments={documents.files} formId={formId} onEdit={goTo} />;
     }
     const where = `holders[${at}]`;
     const held = {
@@ -519,11 +524,11 @@ function checklistKit(groups: ChecklistGroup[]): FormKit<DfsaChecklistEntity> {
     stepOfField: (field) => stepOfDfsaChecklistField(groups, field),
     descriptions: dfsaChecklistDescriptions(groups),
     guidance: dfsaChecklistGuidance,
-    summary: (value, attachments) => <DfsaChecklistSummary groups={groups} value={value} attachments={attachments} />,
+    summary: (value, attachments, formId) => <DfsaChecklistSummary groups={groups} value={value} attachments={attachments} formId={formId} />,
     step: ({ id, value, change, field, goTo, formId, documents }) => {
       const group = groups.find((one) => one.id === id);
       if (!group) {
-        return <DfsaChecklistSummary groups={groups} value={value} attachments={documents.files} onEdit={goTo} />;
+        return <DfsaChecklistSummary groups={groups} value={value} attachments={documents.files} formId={formId} onEdit={goTo} />;
       }
       return (
         <ChecklistStep
@@ -545,7 +550,7 @@ export const accountOpeningIndividualKit: FormKit<AccountOpeningIndividual> = {
   stepOfField: stepOfAccountOpeningIndividualField,
   descriptions: accountOpeningIndividualDescriptions,
   guidance: accountOpeningIndividualGuidance,
-  summary: (value, attachments) => <AccountOpeningIndividualSummary value={value} attachments={attachments} />,
+  summary: (value, attachments, formId) => <AccountOpeningIndividualSummary value={value} attachments={attachments} formId={formId} />,
   step: ({ id, value, change, field, goTo, formId, documents, firmName }) => {
     const holder = (at: number) => (
       <HolderStep
@@ -572,7 +577,7 @@ export const accountOpeningIndividualKit: FormKit<AccountOpeningIndividual> = {
       case "declarations":
         return <IndividualDeclarationsStep declarations={value.declarations} firmName={firmName} onChange={(patch) => change({ declarations: { ...value.declarations, ...patch } })} field={field} />;
       default:
-        return <AccountOpeningIndividualSummary value={value} attachments={documents.files} onEdit={goTo} />;
+        return <AccountOpeningIndividualSummary value={value} attachments={documents.files} formId={formId} onEdit={goTo} />;
     }
   },
 };

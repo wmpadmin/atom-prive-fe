@@ -15,7 +15,7 @@ import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { hasAnyAuthority, hasAuthority } from "../../lib/permissions";
 import { DueDate, Mark } from "../forms/checklist-parts";
-import { formStatus, progressLine } from "../forms/form-labels";
+import { formStatus, progressLine, stillBeingFilledIn } from "../forms/form-labels";
 import { categoryLabels, dueLabel } from "../onboarding/case-category";
 
 /**
@@ -69,7 +69,7 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
     if (!canOpen) return undefined;
     // The agreements and the disclosure are only signed, never filled in here: those open their wording.
     if (!form.readyToFill) return () => void navigate(`/clients/${client.id}/documents/${form.kind}`);
-    if (form.status === "SUBMITTED" || form.status === "AWAITING_COMPLIANCE" || !canFill) {
+    if (!stillBeingFilledIn(form.status) || !canFill) {
       // Nothing left to do to it here, or nothing this person may do: the row still opens what was filled in.
       return form.formId
         ? () => void navigate(`/clients/${client.id}/forms/${form.formId}`)
@@ -193,7 +193,7 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
                         }}
                         className="text-sm font-semibold text-primary-600 hover:text-primary-700 disabled:text-ink-muted"
                       >
-                        {canFill && form.readyToFill ? "Fill" : "View"}
+                        {canFill && form.readyToFill && stillBeingFilledIn(form.status) ? "Fill" : "View"}
                       </button>
                     )}
                   </td>

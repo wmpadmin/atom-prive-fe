@@ -322,7 +322,7 @@ export function DeclarationStep(at: AskProps) {
 
       <FieldGroup>
         <TextField id="declaration.name" label="Name:" value={value.said["declaration.name"] ?? ""} onChange={(said) => say("declaration.name", said)} field={field} />
-        <DateField id="declaration.date" label="Date:" value={value.said["declaration.date"] ?? ""} onChange={(said) => say("declaration.date", said)} field={field} min={yearsFromToday(-2)} max={yearsFromToday(1)} />
+        <DateField id="declaration.date" label="Date:" value={value.said["declaration.date"] ?? ""} onChange={(said) => say("declaration.date", said)} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
         <SignatureField id="declaration.signature" label="Signature:" value={value.said["declaration.signature"] ?? ""} onChange={(said) => say("declaration.signature", said)} field={field} className="sm:col-span-2" />
       </FieldGroup>
 
@@ -483,7 +483,7 @@ function SignatureBlock({ at, prefix, title }: { at: AskProps; prefix: string; t
   return (
     <FieldGroup title={title}>
       <TextField id={`${prefix}.name`} label="Name:" value={value.said[`${prefix}.name`] ?? ""} onChange={(said) => say(`${prefix}.name`, said)} field={field} />
-      <DateField id={`${prefix}.date`} label="Date:" value={value.said[`${prefix}.date`] ?? ""} onChange={(said) => say(`${prefix}.date`, said)} field={field} min={yearsFromToday(-2)} max={yearsFromToday(1)} />
+      <DateField id={`${prefix}.date`} label="Date:" value={value.said[`${prefix}.date`] ?? ""} onChange={(said) => say(`${prefix}.date`, said)} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
       <SignatureField who="the firm" id={`${prefix}.signature`} label="Signature:" value={value.said[`${prefix}.signature`] ?? ""} onChange={(said) => say(`${prefix}.signature`, said)} field={field} className="sm:col-span-2" />
     </FieldGroup>
   );

@@ -5,7 +5,7 @@ import {
   getListFormsAwaitingComplianceQueryKey,
   useDecideOnForm,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, Dialog, Field, TextArea, describedBy } from "@atomprive/ui";
+import { Alert, Button, DateInput, Dialog, Field, TextArea, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
@@ -36,6 +36,18 @@ export function FormDecisionDialog({
   );
 }
 
+/** Tomorrow, which is the earliest a date still to come can be. */
+function tomorrow() {
+  const day = new Date();
+  day.setDate(day.getDate() + 1);
+  return day;
+}
+
+function yearsFromToday(years: number) {
+  const day = new Date();
+  return new Date(day.getFullYear() + years, day.getMonth(), day.getDate());
+}
+
 /** A form waiting on Compliance, and which way it is about to go. */
 export interface FormToDecide {
   formId: string;
@@ -59,6 +71,7 @@ function DecisionForm({
   const { formId, approved } = deciding;
   const queryClient = useQueryClient();
   const [comment, setComment] = useState("");
+  const [dueOn, setDueOn] = useState("");
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const decide = useDecideOnForm<ApiError>({
     mutation: {
@@ -81,7 +94,7 @@ function DecisionForm({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrors(noErrors);
-    decide.mutate({ id: formId, data: { approved, comment: comment.trim() || null } });
+    decide.mutate({ id: formId, data: { approved, comment: comment.trim() || null, dueOn: dueOn || null } });
   }
 
   const error = errors.fields.comment;
@@ -91,9 +104,29 @@ function DecisionForm({
 
       <p className="text-sm leading-relaxed text-ink">
         {approved
-          ? "Approving it sends the form to the client to sign. Their signed copy is what finishes it."
-          : "The form goes back to Operations to be put right and signed again. What you write is what they see."}
+          ? "Approving it sends the form to the client. They sign it, or read it over where Operations have already signed on their behalf; either way their signed copy is what finishes it."
+          : "The form goes back to Operations to be put right and sent for review again. What you write is what they see."}
       </p>
+
+      {/* The form leaves you either way, so either way it is wanted back by a day: from the client once
+          they have signed, or from Operations once they have put it right. A day already gone cannot be
+          that day, so the earliest is tomorrow. */}
+      <Field
+        id="decision-due-on"
+        label={approved ? "Signed copy wanted back by" : "Corrected form wanted back by"}
+        required
+        error={errors.fields.dueOn}
+      >
+        <DateInput
+          id="decision-due-on"
+          name="dueOn"
+          value={dueOn}
+          min={tomorrow()}
+          max={yearsFromToday(2)}
+          onChange={setDueOn}
+          required
+        />
+      </Field>
 
       <Field
         id="compliance-comment"
@@ -114,7 +147,7 @@ function DecisionForm({
         <Button variant="ghost" onClick={onCancel} disabled={decide.isPending}>
           Cancel
         </Button>
-        <Button type="submit" disabled={decide.isPending || (!approved && comment.trim() === "")}>
+        <Button type="submit" disabled={decide.isPending || dueOn === "" || (!approved && comment.trim() === "")}>
           {decide.isPending ? "Saving…" : approved ? "Approve" : "Send back"}
         </Button>
       </div>

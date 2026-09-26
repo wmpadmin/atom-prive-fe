@@ -2,8 +2,9 @@ import type { AttachedFile } from "@atomprive/api-client/backoffice";
 import { Button } from "@atomprive/ui";
 import { PencilLine } from "lucide-react";
 import type { ReactNode } from "react";
+import { AttachedFiles } from "../../components/attached-files";
 import { countryName } from "../../lib/countries";
-import { formatDate, formatFileSize } from "../../lib/labels";
+import { formatDate } from "../../lib/labels";
 import type { FormAddress } from "./account-opening-entity";
 import {
   MANDATORY_DOCUMENTS,
@@ -36,10 +37,12 @@ function wholeAddress(address: FormAddress) {
 export function AccountOpeningIndividualSummary({
   value,
   attachments,
+  formId,
   onEdit,
 }: {
   value: AccountOpeningIndividual;
   attachments: AttachedFile[];
+  formId: string;
   onEdit?: (stepId: string) => void;
 }) {
   const declarations = value.declarations;
@@ -47,7 +50,7 @@ export function AccountOpeningIndividualSummary({
     <div className="space-y-5">
       {value.holders.map((holder, at) => (
         <Part key={at} title={`Account holder ${at + 1}`} stepId={at === 0 ? "holder1" : "holder2"} onEdit={onEdit}>
-          <Holder holder={holder} at={at} attachments={attachments} />
+          <Holder holder={holder} at={at} attachments={attachments} formId={formId} />
         </Part>
       ))}
 
@@ -85,7 +88,7 @@ export function AccountOpeningIndividualSummary({
   );
 }
 
-function Holder({ holder, at, attachments }: { holder: AccountHolder; at: number; attachments: AttachedFile[] }) {
+function Holder({ holder, at, attachments, formId }: { holder: AccountHolder; at: number; attachments: AttachedFile[]; formId: string }) {
   const title = holderTitles.find((one) => one.value === holder.title);
   const occupation = occupations.find((one) => one.value === holder.occupation);
   return (
@@ -132,10 +135,7 @@ function Holder({ holder, at, attachments }: { holder: AccountHolder; at: number
           const held = attachments.filter((file) => file.field === documentField(`holders[${at}]`, document));
           return (
             <li key={document} className="text-sm text-ink-muted">
-              {document}:{" "}
-              {held.length === 0
-                ? "not attached yet"
-                : held.map((file) => `${file.fileName} (${formatFileSize(file.sizeBytes)})`).join(", ")}
+              {document}: <AttachedFiles formId={formId} files={held} nothing="not attached yet" />
             </li>
           );
         })}
@@ -146,7 +146,7 @@ function Holder({ holder, at, attachments }: { holder: AccountHolder; at: number
 
 function Part({ title, stepId, onEdit, children }: { title: string; stepId: string; onEdit?: (stepId: string) => void; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-line p-5">
+    <section className="rounded-2xl border border-line bg-white p-5">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="text-sm font-bold text-ink">{title}</h3>
         {onEdit && (
@@ -161,7 +161,7 @@ function Part({ title, stepId, onEdit, children }: { title: string; stepId: stri
   );
 }
 
-function Fact({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
+function Fact({ label, value, wide }: { label: string; value: ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? "sm:col-span-2" : undefined}>
       <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>

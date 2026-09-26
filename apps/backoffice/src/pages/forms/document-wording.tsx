@@ -1,5 +1,5 @@
 import type { DocumentBlock, DocumentCell, DocumentGap } from "@atomprive/api-client/backoffice";
-import { cn } from "@atomprive/ui";
+import { DateInput, cn } from "@atomprive/ui";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { SignatureMark } from "../../components/signature-mark";
 import { namesAPart } from "./document-parts";
@@ -61,6 +61,19 @@ const SIGNATURE_LABEL = /^signature\s*\(?s?\)?\s*:?$/i;
 /** Words that name the rule after them as the place to sign: "Signature: ______". */
 const SIGNS_WHAT_FOLLOWS = /signature\s*\(?s?\)?\s*:?\s*$/i;
 
+/** "Date: ______" is a day to pick, not a line to type anything on. */
+const DATES_WHAT_FOLLOWS = /\bdate(?:d)?\s*\(?s?\)?\s*:?\s*$/i;
+
+/** Today, which is the earliest a day being written on a document now can be. */
+function today() {
+  return new Date();
+}
+
+function yearsFromToday(years: number) {
+  const day = new Date();
+  return new Date(day.getFullYear() + years, day.getMonth(), day.getDate());
+}
+
 /** A whole line the paper rules to write on: written on where this is a form, left as a rule where it is not. */
 function RuledBlank({ name }: { name: string }) {
   const { onFill } = useContext(FillingContext);
@@ -85,11 +98,28 @@ function SignatureSpot({ spot, who, where }: { spot: string; who?: string; where
 }
 
 /** A blank on a form, written in here. It looks like the rule the paper leaves, not like a box on a screen. */
-function Blank({ name, wide, idle }: { name: string; wide?: boolean; idle?: boolean }) {
+function Blank({ name, wide, idle, day }: { name: string; wide?: boolean; idle?: boolean; day?: boolean }) {
   const { details, onFill } = useContext(FillingContext);
   const written = details[name] ?? "";
   if (!onFill) {
     return <span className="text-ink">{written || "\u2007\u2007\u2007\u2007"}</span>;
+  }
+  if (day) {
+    // A day is picked from a calendar rather than typed, and a day already gone is not one a document is
+    // being dated with now.
+    return (
+      <span className={cn("inline-block align-baseline", wide ? "w-full" : "w-44")}>
+        <DateInput
+          id={name}
+          name={name}
+          value={written}
+          min={today()}
+          max={yearsFromToday(2)}
+          disabled={idle}
+          onChange={(picked) => onFill(name, picked)}
+        />
+      </span>
+    );
   }
   return (
     <input
@@ -162,9 +192,10 @@ function useFilledIn() {
           said.push(<SignatureSpot key={`${part}.${which}`} spot={`${where}.${part}.${which}`} where="inline" />);
           return;
         }
+        const asksForADay = DATES_WHAT_FOLLOWS.test(runs[which - 1] ?? "");
         said.push(
           onFill ? (
-            <Blank key={`${part}.${which}`} name={`${where}.${part}.${which}`} idle={idle} />
+            <Blank key={`${part}.${which}`} name={`${where}.${part}.${which}`} idle={idle} day={asksForADay} />
           ) : (
             <span
               key={`${part}.${which}`}
