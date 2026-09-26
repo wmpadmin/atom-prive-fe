@@ -23,7 +23,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet } from "react-router";
+import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
 import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_PROPOSALS, UPLOADS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
@@ -40,6 +40,12 @@ const allNavigation: {
   icon: LucideIcon;
   authority: Authority | Authority[] | null;
   notFor?: StaffRole[];
+  /**
+   * Which screens this entry is the menu for, where the path alone does not say. The two KYC screens share
+   * the /kyc prefix: the queue owns a case and a form opened from it, the document review owns a client's
+   * own file, which is reached from there. Left out, an entry owns its path and whatever hangs off it.
+   */
+  at?: (path: string) => boolean;
 }[] = [
   { to: "/clients", label: "All clients", icon: Contact, authority: "VIEW_ALL_CLIENTS:VIEW", notFor: ["ADMIN"] },
   { to: "/my-clients", label: "My clients", icon: Contact, authority: "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS" },
@@ -48,8 +54,22 @@ const allNavigation: {
   { to: "/to-sign", label: "To sign", icon: PenLine, authority: "APPROVE_PROPOSALS:OWN_CLIENTS" },
   // The queue is where a client's KYC is decided, which is Compliance's alone. The papers themselves the
   // Admin reads too, so the document review sits on both menus.
-  { to: "/kyc", label: "KYC review", icon: ShieldCheck, authority: "APPROVE_ONBOARDING:CHANGE", notFor: ["ADMIN"] },
-  { to: "/kyc-documents", label: "KYC document review", icon: FileCheck2, authority: "APPROVE_ONBOARDING:CHANGE" },
+  {
+    to: "/kyc",
+    label: "KYC review",
+    icon: ShieldCheck,
+    authority: "APPROVE_ONBOARDING:CHANGE",
+    notFor: ["ADMIN"],
+    at: (path) => path === "/kyc" || path.startsWith("/kyc/cases/") || path.startsWith("/kyc/forms/"),
+  },
+  {
+    to: "/kyc-documents",
+    label: "KYC document review",
+    icon: FileCheck2,
+    authority: "APPROVE_ONBOARDING:CHANGE",
+    // A client's own KYC file hangs off /kyc but is opened from here, so this is the menu it belongs to.
+    at: (path) => path.startsWith("/kyc-documents") || /^\/kyc\/[^/]+$/.test(path),
+  },
   { to: "/client-documents", label: "Client documents", icon: FolderOpen, authority: UPLOADS_CLIENT_DOCUMENTS, notFor: ["ADMIN"] },
   { to: "/forms", label: "Forms", icon: FileText, authority: "FILL_CLIENT_FORMS:VIEW", notFor: ["ADMIN"] },
   { to: "/staff-declarations", label: "Staff declarations", icon: ClipboardCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW", notFor: ["ADMIN"] },
@@ -66,6 +86,7 @@ const allNavigation: {
 
 export function AppLayout() {
   const user = useStaffUser();
+  const { pathname } = useLocation();
   const navigation = allNavigation.filter(
     (item) =>
       !(user.activeRole && item.notFor?.includes(user.activeRole)) &&
@@ -78,22 +99,24 @@ export function AppLayout() {
       <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-line bg-sidebar px-4 py-6">
         <nav aria-label="Back-office" className="mt-14">
           <ul className="space-y-1">
-            {navigation.map(({ to, label, icon: Icon }) => (
+            {navigation.map(({ to, label, icon: Icon, at }) => {
+              const here = at ? at(pathname) : pathname === to || pathname.startsWith(`${to}/`);
+              return (
               <li key={to}>
                 <NavLink
                   to={to}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
-                      isActive ? "bg-primary-100 font-semibold text-ink" : "text-ink-soft hover:bg-white",
-                    )
-                  }
+                  aria-current={here ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
+                    here ? "bg-primary-100 font-semibold text-ink" : "text-ink-soft hover:bg-white",
+                  )}
                 >
                   <Icon className="size-4.5" aria-hidden="true" />
                   {label}
                 </NavLink>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </nav>
       </aside>

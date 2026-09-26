@@ -522,6 +522,7 @@ export const JsonNodeNodeType = {
 
 export interface JsonNode {
   container?: boolean;
+  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
@@ -539,7 +540,6 @@ export interface JsonNode {
   boolean?: boolean;
   binary?: boolean;
   number?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -1545,6 +1545,37 @@ export interface RoleAccessView {
   grants: PermissionGrant[];
 }
 
+export type SyncRunRowOutcome = typeof SyncRunRowOutcome[keyof typeof SyncRunRowOutcome];
+
+
+export const SyncRunRowOutcome = {
+  RUNNING: 'RUNNING',
+  SUCCEEDED: 'SUCCEEDED',
+  FAILED: 'FAILED',
+} as const;
+
+export interface SyncRunRow {
+  id: string;
+  bankId: string;
+  bankName: string;
+  accountLabel: string;
+  startedAt: string;
+  /** @nullable */
+  finishedAt: string | null;
+  outcome: SyncRunRowOutcome;
+  fetched: number;
+  inserted: number;
+  skipped: number;
+  validationErrors: number;
+  /** @nullable */
+  errorDetail: string | null;
+}
+
+export interface StartSyncRequest {
+  /** @nullable */
+  accountLabel: string | null;
+}
+
 export interface Reminders {
   sent: number;
   owing: number;
@@ -2144,37 +2175,24 @@ export interface TemporaryPassword {
   temporaryPassword: string;
 }
 
+export interface BankOption {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
+
+export interface FailingFeed {
+  id: string;
+  name: string;
+  failedRuns: number;
+  lastTried: string;
+}
+
 export interface SyncRunCounts {
   runsToday: number;
   failedToday: number;
   runningNow: number;
   banksConnected: number;
-}
-
-export type SyncRunRowOutcome = typeof SyncRunRowOutcome[keyof typeof SyncRunRowOutcome];
-
-
-export const SyncRunRowOutcome = {
-  RUNNING: 'RUNNING',
-  SUCCEEDED: 'SUCCEEDED',
-  FAILED: 'FAILED',
-} as const;
-
-export interface SyncRunRow {
-  id: string;
-  bankId: string;
-  bankName: string;
-  accountLabel: string;
-  startedAt: string;
-  /** @nullable */
-  finishedAt: string | null;
-  outcome: SyncRunRowOutcome;
-  fetched: number;
-  inserted: number;
-  skipped: number;
-  validationErrors: number;
-  /** @nullable */
-  errorDetail: string | null;
 }
 
 export interface SyncRunPage {
@@ -2183,6 +2201,8 @@ export interface SyncRunPage {
   size: number;
   totalItems: number;
   counts: SyncRunCounts;
+  banks: BankOption[];
+  failing: FailingFeed[];
 }
 
 export type StaffToNameRolesItem = typeof StaffToNameRolesItem[keyof typeof StaffToNameRolesItem];
@@ -5371,6 +5391,157 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdateRolePermissionMutationOptions(options), queryClient);
+    }
+
+export const getRetrySyncRunUrl = (runId: string,) => {
+
+
+
+
+  return `/api/backoffice/sync-runs/${runId}/retry`
+}
+
+export const retrySyncRun = async (runId: string, options?: Parameters<typeof http>[1]): Promise<SyncRunRow> => {
+
+  return http<SyncRunRow>(getRetrySyncRunUrl(runId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetrySyncRunMutationKey = () => ['retrySyncRun'] as const;
+
+export const getRetrySyncRunMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retrySyncRun>>, TError,RetrySyncRunMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof retrySyncRun>>, TError,RetrySyncRunMutationVariables, TContext> => {
+
+const mutationKey = getRetrySyncRunMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retrySyncRun>>, RetrySyncRunMutationVariables> = (props) => {
+          const {runId} = props ?? {};
+
+          return  retrySyncRun(runId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetrySyncRunMutationResult = NonNullable<Awaited<ReturnType<typeof retrySyncRun>>>
+
+    export type RetrySyncRunMutationError = unknown
+    export type RetrySyncRunMutationVariables = {runId: string}
+
+    export const useRetrySyncRun = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retrySyncRun>>, TError,RetrySyncRunMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof retrySyncRun>>,
+        TError,
+        RetrySyncRunMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetrySyncRunMutationOptions(options), queryClient);
+    }
+
+export const getStartSyncNowUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/sync-runs/banks/${bankId}`
+}
+
+export const startSyncNow = async (bankId: string,
+    startSyncRequest?: StartSyncRequest, options?: Parameters<typeof http>[1]): Promise<SyncRunRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<SyncRunRow>(getStartSyncNowUrl(bankId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(startSyncRequest)
+  }
+);}
+
+
+
+
+
+export const getStartSyncNowMutationKey = () => ['startSyncNow'] as const;
+
+export const getStartSyncNowMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startSyncNow>>, TError,StartSyncNowMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof startSyncNow>>, TError,StartSyncNowMutationVariables, TContext> => {
+
+const mutationKey = getStartSyncNowMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startSyncNow>>, StartSyncNowMutationVariables> = (props) => {
+          const {bankId,data} = props ?? {};
+
+          return  startSyncNow(bankId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartSyncNowMutationResult = NonNullable<Awaited<ReturnType<typeof startSyncNow>>>
+    export type StartSyncNowMutationBody = StartSyncRequest | undefined
+    export type StartSyncNowMutationError = unknown
+    export type StartSyncNowMutationVariables = {bankId: string;data?: StartSyncRequest}
+
+    export const useStartSyncNow = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startSyncNow>>, TError,StartSyncNowMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof startSyncNow>>,
+        TError,
+        StartSyncNowMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartSyncNowMutationOptions(options), queryClient);
     }
 
 export const getRemindOneUrl = (staffUserId: string,) => {
