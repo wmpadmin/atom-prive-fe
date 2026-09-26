@@ -1,14 +1,20 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  getListSyncRunsQueryKey,
   useListSyncRuns,
+  useRetrySyncRun,
+  useStartSyncNow,
   type ListSyncRunsOutcome,
   type ListSyncRunsParams,
   type SyncRunPage,
   type SyncRunRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Pagination, SelectInput } from "@atomprive/ui";
-import { keepPreviousData } from "@tanstack/react-query";
+import { Alert, Badge, Button, Pagination, SelectInput, TextInput } from "@atomprive/ui";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import { Play, RotateCcw } from "lucide-react";
 import { useState } from "react";
+import { useStaffUser } from "../../auth/session";
+import { hasAuthority } from "../../lib/permissions";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { formatDateTime } from "../../lib/labels";
 
@@ -47,23 +53,63 @@ export function SyncRunsPage() {
     size: pageSize,
   };
   const runs = useListSyncRuns<SyncRunPage, ApiError>(filters, { query: { placeholderData: keepPreviousData } });
-  // The banks a run can belong to; the same list the filter offers.
-  const banks = [...new Map((runs.data?.items ?? []).map((run) => [run.bankId, run.bankName])).entries()];
+  // Every bank the feeds cover, not only the ones this page of runs happens to name.
+  const banks = runs.data?.banks ?? [];
+  const user = useStaffUser();
+  const canRun = hasAuthority(user, "MANAGE_BANK_FEEDS:CHANGE");
+  const queryClient = useQueryClient();
+  const again = () => void queryClient.invalidateQueries({ queryKey: getListSyncRunsQueryKey() });
+  const start = useStartSyncNow<ApiError>({ mutation: { onSuccess: again } });
+  const retry = useRetrySyncRun<ApiError>({ mutation: { onSuccess: again } });
+  const asking = start.isPending || retry.isPending;
 
   if (runs.isError) {
     return <Alert tone="danger">{runs.error.message}</Alert>;
   }
   const counts = runs.data?.counts;
+  const refused = start.error ?? retry.error;
+  const failing = runs.data?.failing ?? [];
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-[1.625rem] font-bold">Bank syncs</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          Every attempt to pull a client's data from a bank, with what came back. Filled by the bank feeds once each
-          bank is connected.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[1.625rem] font-bold">Bank syncs</h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            Every attempt to pull a client's data from a bank, with what came back — the ones the schedule brought
+            round, and the ones somebody asked for.
+          </p>
+        </div>
+        {canRun && (
+          <RunNow
+            banks={banks.filter((bank) => bank.enabled)}
+            busy={asking}
+            onRun={(bank, account) => start.mutate({ bankId: bank, data: { accountLabel: account || null } })}
+          />
+        )}
       </header>
+
+      {refused && <Alert tone="danger">{refused.message}</Alert>}
+
+      {/* A feed still failing after three days is somebody's to chase, so the screen says so rather than
+          leaving it to be noticed among the rows. */}
+      {failing.length > 0 && (
+        <Alert tone="danger">
+          <span className="font-semibold">
+            {failing.length === 1 ? "A bank's feed has" : `${failing.length} banks' feeds have`} been failing for
+            three days.
+          </span>{" "}
+          {failing
+            .map((feed) => `${feed.name} — ${feed.failedRuns} failed, last tried ${formatDateTime(feed.lastTried)}`)
+            .join(" · ")}
+        </Alert>
+      )}
+
+      {/* Nobody should read a run of nothing as a run that worked. */}
+      <Alert tone="info">
+        No bank's feed is connected yet — SFTP, a bank's API and uploaded files are all configured but not built. A
+        sync asked for now is recorded as an attempt and comes back with nothing, saying so.
+      </Alert>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Count label="Runs in 24 hours" value={counts?.runsToday} />
@@ -87,9 +133,9 @@ export function SyncRunsPage() {
               className="w-auto pr-8 pl-3"
             >
               <option value="">All banks</option>
-              {banks.map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
+              {banks.map((bank) => (
+                <option key={bank.id} value={bank.id}>
+                  {bank.name}
                 </option>
               ))}
             </SelectInput>
@@ -128,23 +174,34 @@ export function SyncRunsPage() {
                 <th scope="col" className="px-4 py-3 text-right">Inserted</th>
                 <th scope="col" className="px-4 py-3 text-right">Skipped</th>
                 <th scope="col" className="px-4 py-3 text-right">Errors</th>
-                <th scope="col" className="py-3 pr-5 pl-4">Result</th>
+                <th scope="col" className="px-4 py-3">Result</th>
+                <th scope="col" className="py-3 pr-5 pl-4">
+                  <span className="sr-only">Try again</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {!runs.data && (
                 <tr>
-                  <td colSpan={9} className="px-5 py-8 text-center text-ink-muted">Loading runs…</td>
+                  <td colSpan={10} className="px-5 py-8 text-center text-ink-muted">Loading runs…</td>
                 </tr>
               )}
               {runs.data?.items.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-5 py-10 text-center text-ink-muted">
-                    No sync runs yet. They appear here once a bank feed is connected.
+                  <td colSpan={10} className="px-5 py-10 text-center text-ink-muted">
+                    No sync runs yet. They appear here as the schedule comes round, or as somebody asks for one.
                   </td>
                 </tr>
               )}
-              {(runs.data?.items ?? []).map((run) => <Row key={run.id} run={run} />)}
+              {(runs.data?.items ?? []).map((run) => (
+                <Row
+                  key={run.id}
+                  run={run}
+                  canRetry={canRun}
+                  busy={asking}
+                  onRetry={() => retry.mutate({ runId: run.id })}
+                />
+              ))}
             </tbody>
           </table>
         </div>
@@ -167,7 +224,17 @@ export function SyncRunsPage() {
   );
 }
 
-function Row({ run }: { run: SyncRunRow }) {
+function Row({
+  run,
+  canRetry,
+  busy,
+  onRetry,
+}: {
+  run: SyncRunRow;
+  canRetry: boolean;
+  busy: boolean;
+  onRetry: () => void;
+}) {
   return (
     <>
       <tr>
@@ -183,18 +250,81 @@ function Row({ run }: { run: SyncRunRow }) {
         <td className={`px-4 py-3 text-right tabular-nums ${run.validationErrors > 0 ? "font-semibold text-red-600" : ""}`}>
           {run.validationErrors}
         </td>
-        <td className="py-3 pr-5 pl-4">
+        <td className="px-4 py-3">
           <Badge tone={outcomeTones[run.outcome]}>{outcomeLabels[run.outcome]}</Badge>
+        </td>
+        <td className="py-3 pr-5 pl-4 text-right">
+          {/* Only a run that failed is worth trying again; the rest have nothing to put right. */}
+          {canRetry && run.outcome === "FAILED" && (
+            <Button variant="ghost" size="sm" disabled={busy} onClick={onRetry}>
+              <RotateCcw aria-hidden="true" />
+              Try again
+            </Button>
+          )}
         </td>
       </tr>
       {run.errorDetail && (
         <tr>
-          <td colSpan={9} className="bg-red-50/60 px-5 py-2 text-xs text-red-800">
+          <td colSpan={10} className="bg-red-50/60 px-5 py-2 text-xs text-red-800">
             {run.errorDetail}
           </td>
         </tr>
       )}
     </>
+  );
+}
+
+/**
+ * Asking a bank to run now. The account is optional: named, the run is for that one; left blank it is for
+ * everything the bank sends.
+ */
+function RunNow({
+  banks,
+  busy,
+  onRun,
+}: {
+  banks: { id: string; name: string }[];
+  busy: boolean;
+  onRun: (bankId: string, accountLabel: string) => void;
+}) {
+  const [bankId, setBankId] = useState("");
+  const [account, setAccount] = useState("");
+
+  if (banks.length === 0) {
+    return <p className="text-xs text-ink-muted">No bank is switched on, so there is nothing to pull from.</p>;
+  }
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <label className="flex items-center gap-2 text-xs text-ink-muted">
+        Run now
+        <SelectInput
+          id="run-bank"
+          name="runBank"
+          value={bankId}
+          onChange={(event) => setBankId(event.target.value)}
+          className="w-auto pr-8 pl-3"
+        >
+          <option value="">Choose a bank</option>
+          {banks.map((bank) => (
+            <option key={bank.id} value={bank.id}>
+              {bank.name}
+            </option>
+          ))}
+        </SelectInput>
+      </label>
+      <TextInput
+        id="run-account"
+        name="runAccount"
+        value={account}
+        placeholder="An account, or every account"
+        onChange={(event) => setAccount(event.target.value)}
+        className="w-56"
+      />
+      <Button disabled={!bankId || busy} onClick={() => onRun(bankId, account.trim())}>
+        <Play aria-hidden="true" />
+        {busy ? "Asking…" : "Run now"}
+      </Button>
+    </div>
   );
 }
 
