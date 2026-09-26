@@ -46,8 +46,10 @@ const allNavigation: {
   { to: "/proposals", label: "Proposals", icon: FileSignature, authority: READS_PROPOSALS, notFor: ["ADMIN"] },
   { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: ONBOARDS_CLIENTS, notFor: ["ADMIN"] },
   { to: "/to-sign", label: "To sign", icon: PenLine, authority: "APPROVE_PROPOSALS:OWN_CLIENTS" },
+  // The queue is where a client's KYC is decided, which is Compliance's alone. The papers themselves the
+  // Admin reads too, so the document review sits on both menus.
   { to: "/kyc", label: "KYC review", icon: ShieldCheck, authority: "APPROVE_ONBOARDING:CHANGE", notFor: ["ADMIN"] },
-  { to: "/kyc-documents", label: "KYC document review", icon: FileCheck2, authority: "APPROVE_ONBOARDING:CHANGE", notFor: ["ADMIN"] },
+  { to: "/kyc-documents", label: "KYC document review", icon: FileCheck2, authority: "APPROVE_ONBOARDING:CHANGE" },
   { to: "/client-documents", label: "Client documents", icon: FolderOpen, authority: UPLOADS_CLIENT_DOCUMENTS, notFor: ["ADMIN"] },
   { to: "/forms", label: "Forms", icon: FileText, authority: "FILL_CLIENT_FORMS:VIEW", notFor: ["ADMIN"] },
   { to: "/staff-declarations", label: "Staff declarations", icon: ClipboardCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW", notFor: ["ADMIN"] },

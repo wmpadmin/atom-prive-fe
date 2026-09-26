@@ -2,15 +2,15 @@ import type { CaseFormRow, CatalogueEntryCategoriesItem, FormRowStatus } from "@
 import { formatDate } from "../../lib/labels";
 
 /**
- * Where a form has got to. Nobody sets this by hand: it follows what has been filled in, and once the form is with
- * the client it follows the day it was due back. It becomes complete when their signed copy comes in.
+ * Where a form has got to. Nobody sets this by hand: Operations fill it in and send it for KYC review, and it
+ * goes to the client only once Compliance have passed it. It becomes complete when their signed copy comes in.
  */
 export function formStatus(
   status: FormRowStatus | "NOT_STARTED",
   dueOn: string | null,
 ): { label: string; tone: "neutral" | "warning" | "danger" | "success" } {
   if (status === "SUBMITTED") return { label: "Complete", tone: "success" };
-  if (status === "AWAITING_COMPLIANCE") return { label: "With compliance", tone: "warning" };
+  if (status === "AWAITING_COMPLIANCE") return { label: "KYC review", tone: "warning" };
   if (status === "REJECTED") return { label: "Sent back", tone: "danger" };
   if (status !== "WAITING_ON_CLIENT") return { label: "Pending", tone: "neutral" };
   // Due at the end of the day it was asked for.
@@ -35,7 +35,7 @@ export function progressLine(form: CaseFormRow) {
     return "Pending completion · Not started";
   }
   if (form.status === "AWAITING_COMPLIANCE") {
-    return "Signed · with compliance to review";
+    return "Filled in · with compliance for KYC review";
   }
   // The reason is what Operations have to act on, so it is the line rather than a note beside it.
   if (form.status === "REJECTED") {

@@ -301,6 +301,7 @@ function FormProgressDialog({ form, caseId, clientId, onClose, onChanged }: Form
                     dueOn: shownDue || null,
                     waitingOnClient: null,
                     signedCopyOnFile: null,
+                    sendForKyc: null,
                     answers: null,
                   },
                 },

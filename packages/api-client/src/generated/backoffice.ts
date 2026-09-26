@@ -485,6 +485,7 @@ export interface CaseSummary {
   signOff: CaseSummarySignOff;
   /** @nullable */
   signOffComment: string | null;
+  formsForReview: number;
 }
 
 export interface ClientBrief {
@@ -520,11 +521,13 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  number?: boolean;
+  container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -536,8 +539,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  container?: boolean;
-  number?: boolean;
   floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
@@ -628,8 +629,8 @@ export type FormRowStatus = typeof FormRowStatus[keyof typeof FormRowStatus];
 
 export const FormRowStatus = {
   DRAFT: 'DRAFT',
-  WAITING_ON_CLIENT: 'WAITING_ON_CLIENT',
   AWAITING_COMPLIANCE: 'AWAITING_COMPLIANCE',
+  WAITING_ON_CLIENT: 'WAITING_ON_CLIENT',
   SUBMITTED: 'SUBMITTED',
   REJECTED: 'REJECTED',
 } as const;
@@ -739,6 +740,8 @@ export interface CaseFormRequest {
   waitingOnClient: boolean | null;
   /** @nullable */
   signedCopyOnFile: boolean | null;
+  /** @nullable */
+  sendForKyc: boolean | null;
   /** @nullable */
   answers: CaseFormRequestAnswers;
 }
@@ -2990,8 +2993,8 @@ export type ListFormsStatus = typeof ListFormsStatus[keyof typeof ListFormsStatu
 
 export const ListFormsStatus = {
   DRAFT: 'DRAFT',
-  WAITING_ON_CLIENT: 'WAITING_ON_CLIENT',
   AWAITING_COMPLIANCE: 'AWAITING_COMPLIANCE',
+  WAITING_ON_CLIENT: 'WAITING_ON_CLIENT',
   SUBMITTED: 'SUBMITTED',
   REJECTED: 'REJECTED',
 } as const;
@@ -6992,15 +6995,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getStartFormMutationOptions(options), queryClient);
     }
 
-export const getSendFormToClientUrl = (id: string,) => {
+export const getSendFormForKycUrl = (id: string,) => {
 
 
 
 
-  return `/api/backoffice/forms/${id}/send-to-client`
+  return `/api/backoffice/forms/${id}/send-for-kyc`
 }
 
-export const sendFormToClient = async (id: string,
+export const sendFormForKyc = async (id: string,
     saveFormRequest: SaveFormRequest, options?: Parameters<typeof http>[1]): Promise<FormDetail> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -7017,7 +7020,7 @@ export const sendFormToClient = async (id: string,
     }
     return headers;
   };
-return http<FormDetail>(getSendFormToClientUrl(id),
+return http<FormDetail>(getSendFormForKycUrl(id),
   {
     ...options,
     method: 'POST',
@@ -7030,13 +7033,13 @@ return http<FormDetail>(getSendFormToClientUrl(id),
 
 
 
-export const getSendFormToClientMutationKey = () => ['sendFormToClient'] as const;
+export const getSendFormForKycMutationKey = () => ['sendFormForKyc'] as const;
 
-export const getSendFormToClientMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendFormToClient>>, TError,SendFormToClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof sendFormToClient>>, TError,SendFormToClientMutationVariables, TContext> => {
+export const getSendFormForKycMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendFormForKyc>>, TError,SendFormForKycMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendFormForKyc>>, TError,SendFormForKycMutationVariables, TContext> => {
 
-const mutationKey = getSendFormToClientMutationKey();
+const mutationKey = getSendFormForKycMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -7046,10 +7049,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendFormToClient>>, SendFormToClientMutationVariables> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendFormForKyc>>, SendFormForKycMutationVariables> = (props) => {
           const {id,data} = props ?? {};
 
-          return  sendFormToClient(id,data,requestOptions)
+          return  sendFormForKyc(id,data,requestOptions)
         }
 
 
@@ -7059,20 +7062,20 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type SendFormToClientMutationResult = NonNullable<Awaited<ReturnType<typeof sendFormToClient>>>
-    export type SendFormToClientMutationBody = SaveFormRequest
-    export type SendFormToClientMutationError = unknown
-    export type SendFormToClientMutationVariables = {id: string;data: SaveFormRequest}
+    export type SendFormForKycMutationResult = NonNullable<Awaited<ReturnType<typeof sendFormForKyc>>>
+    export type SendFormForKycMutationBody = SaveFormRequest
+    export type SendFormForKycMutationError = unknown
+    export type SendFormForKycMutationVariables = {id: string;data: SaveFormRequest}
 
-    export const useSendFormToClient = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendFormToClient>>, TError,SendFormToClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+    export const useSendFormForKyc = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendFormForKyc>>, TError,SendFormForKycMutationVariables, TContext>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof sendFormToClient>>,
+        Awaited<ReturnType<typeof sendFormForKyc>>,
         TError,
-        SendFormToClientMutationVariables,
+        SendFormForKycMutationVariables,
         TContext
       > => {
-      return useMutation(getSendFormToClientMutationOptions(options), queryClient);
+      return useMutation(getSendFormForKycMutationOptions(options), queryClient);
     }
 
 export const getDecideOnFormUrl = (id: string,) => {

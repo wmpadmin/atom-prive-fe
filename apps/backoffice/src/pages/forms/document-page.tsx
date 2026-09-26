@@ -35,18 +35,14 @@ import { madeSignature } from "./made-signature";
 
 import { formStatus } from "./form-labels";
 
-function today() {
-  return new Date();
-}
-
 function yearsFromToday(years: number) {
   const now = new Date();
   return new Date(now.getFullYear() + years, now.getMonth(), now.getDate());
 }
 
-const SEND: RailStep = { id: "send", group: "—", label: "Send to the client", complete: false };
+const SEND: RailStep = { id: "send", group: "—", label: "Send for KYC", complete: false };
 
-const READ_IT_OVER = "Check the details it needs, then send it to the client to sign.";
+const READ_IT_OVER = "Check the details it needs, then send it for KYC review.";
 
 /**
  * What a part of the document is called, with the gaps its name leaves filled in as the wording itself fills
@@ -76,7 +72,6 @@ export function DocumentPage() {
   const queryClient = useQueryClient();
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [ticks, setTicks] = useState<Record<string, boolean>>({});
-  const [dueOn, setDueOn] = useState("");
   // How many rows each of the document's lists is showing. The paper rules a fixed few; here they are added.
   const [listRows, setListRows] = useState<Record<string, number>>({});
   const [at, setAt] = useState<string>();
@@ -160,7 +155,6 @@ export function DocumentPage() {
   // Finished, or with Compliance: either way nothing more is typed on it here.
   const signed = row?.status === "SUBMITTED" || row?.status === "AWAITING_COMPLIANCE";
   const missing = wording.data.gaps.filter((gap) => !details[gap.key]?.trim());
-  const shownDue = dueOn || (row?.dueOn ?? "");
   const writable = canChange && !signed;
   // A client onboarded before there were cases has no application to record a send against.
   const sendable = writable && Boolean(sendAgainst);
@@ -199,8 +193,8 @@ export function DocumentPage() {
   function save(alsoSend: boolean) {
     if (!client) return;
     const answers = { ...details, ...ticked };
-    // The document belongs to the application whichever way it was opened, so what is written on it and the
-    // day it goes to the client are recorded there.
+    // The document belongs to the application whichever way it was opened, so what is written on it and its
+    // going for review are recorded there.
     if (sendAgainst) {
       change.mutate(
         {
@@ -208,9 +202,10 @@ export function DocumentPage() {
           kind: kind as CaseFormRow["kind"],
           data: {
             customerId: client.id,
-            dueOn: alsoSend ? shownDue || null : null,
-            waitingOnClient: alsoSend ? true : null,
+            dueOn: null,
+            waitingOnClient: null,
             signedCopyOnFile: null,
+            sendForKyc: alsoSend ? true : null,
             answers,
           },
         },
@@ -272,7 +267,7 @@ export function DocumentPage() {
           intro="The client signs this as it stands. Go to any part — nothing is locked."
           note={{
             title: "Nothing goes out by itself",
-            body: "Read it through and fill in what it asks for. It only reaches the client when you send it.",
+            body: "Read it through and fill in what it asks for. It reaches the client only once Compliance have passed it.",
           }}
           footer={
             <Link to={backTo} state={{ tab: "documents" }} className="text-xs font-medium text-primary-700 hover:underline">
@@ -298,10 +293,8 @@ export function DocumentPage() {
               <SendPart
                 canSend={Boolean(sendable && client)}
                 missing={missing}
-                dueOn={shownDue}
                 busy={change.isPending}
                 sent={sent}
-                onDue={setDueOn}
                 onSend={() => save(true)}
                 onGoTo={setAt}
                 partOf={(gap) => parts.find((one) => one.gaps.some((held) => held.key === gap.key))?.id}
@@ -421,24 +414,20 @@ export function DocumentPage() {
   );
 }
 
-/** The last part: what is still blank, when the signed copy is expected, and the send itself. */
+/** The last part: what is still blank, and the send itself. */
 function SendPart({
   canSend,
   missing,
-  dueOn,
   busy,
   sent,
-  onDue,
   onSend,
   onGoTo,
   partOf,
 }: {
   canSend: boolean;
   missing: DocumentGap[];
-  dueOn: string;
   busy: boolean;
   sent: boolean;
-  onDue: (value: string) => void;
   onSend: () => void;
   onGoTo: (id: string) => void;
   partOf: (gap: DocumentGap) => string | undefined;
@@ -471,22 +460,11 @@ function SendPart({
 
       {canSend && (
         <div className="flex flex-wrap items-end gap-3">
-          <Field id="document-due" label="Signed copy expected back by" required className="w-full max-w-xs">
-            <DateInput
-              id="document-due"
-              name="dueOn"
-              value={dueOn}
-              min={today()}
-              max={yearsFromToday(2)}
-              onChange={onDue}
-              required
-            />
-          </Field>
-          {/* A document goes to the client to sign as it stands, so it goes complete: what is still blank
-              would be blank on the copy they signed. */}
-          <Button disabled={!dueOn || busy || missing.length > 0} onClick={onSend}>
+          {/* A document goes for review as it stands, so it goes complete: what is still blank would be
+              blank on the copy the client eventually signs. */}
+          <Button disabled={busy || missing.length > 0} onClick={onSend}>
             <Send aria-hidden="true" />
-            {sent ? "Send again" : "Send to the client"}
+            {sent ? "Send for KYC again" : "Send for KYC"}
           </Button>
           {missing.length > 0 && (
             <p className="text-sm text-ink-muted">
