@@ -5,7 +5,6 @@ import { keepPreviousData, type UseQueryResult } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { formatRelative } from "../../lib/labels";
-import { SignedFormsAwaitingCompliance } from "./signed-forms-panel";
 
 /**
  * The clients waiting on a KYC decision. Operations hand a client over once their details are in; Compliance
@@ -23,15 +22,14 @@ export function KycReviewQueuePage() {
       <header>
         <h1 className="text-[1.625rem] font-bold">KYC review</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          The clients Operations have handed over, and the signed forms waiting on a decision. Open one to read
-          what was submitted and sign the KYC off.
+          The clients whose forms Operations have sent for review. Open one to read each form, approve it or
+          send it back, and sign the client's KYC off.
         </p>
       </header>
 
       {cases.isError && <Alert tone="danger">{cases.error.message}</Alert>}
 
       <ClientsAwaitingReview cases={cases} />
-      <SignedFormsAwaitingCompliance />
     </div>
   );
 }
@@ -42,14 +40,16 @@ export function KycReviewQueuePage() {
  */
 function ClientsAwaitingReview({ cases }: { cases: UseQueryResult<CasePage, ApiError> }) {
   const navigate = useNavigate();
-  const rows = cases.data?.items ?? [];
+  // Handed over is not the same as sent for review: a client appears here only once Operations have
+  // finished a form and sent it, which is what puts something in front of Compliance to read.
+  const rows = (cases.data?.items ?? []).filter((row) => row.formsForReview > 0);
   return (
     <section className="rounded-2xl border border-line bg-white">
       <div className="px-5 pt-5">
         <h2 className="text-base font-bold">Clients awaiting KYC review</h2>
         <p className="mt-0.5 text-xs text-ink-muted">
-          Sent over by Operations once the client's forms are in. Open one to read what was submitted and sign it
-          off.
+          Here once Operations have sent a form for review. Open one to read it, decide on each form, and sign
+          the client's KYC off.
         </p>
       </div>
       <div className="mt-4 overflow-x-auto">
@@ -74,7 +74,8 @@ function ClientsAwaitingReview({ cases }: { cases: UseQueryResult<CasePage, ApiE
             {cases.data && rows.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-5 py-10 text-center text-ink-muted">
-                  No client is waiting for KYC review. Operations send them over once the forms are in.
+                  No client is waiting for KYC review. They arrive as Operations finish a form and send it
+                  for review.
                 </td>
               </tr>
             )}
@@ -96,7 +97,7 @@ function ClientsAwaitingReview({ cases }: { cases: UseQueryResult<CasePage, ApiE
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-ink-soft tabular-nums">
-                  {row.completedSteps} of {row.totalSteps}
+                  {row.formsForReview} {row.formsForReview === 1 ? "form" : "forms"}
                 </td>
                 <td className="px-4 py-3 text-ink-soft">{row.relationshipManager?.fullName ?? "—"}</td>
                 <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(row.updatedAt)}</td>

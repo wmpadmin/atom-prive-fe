@@ -8,13 +8,13 @@ import {
   useChangeCaseForm,
   useRemoveFormAttachment,
   useSaveFormDraft,
-  useSendFormToClient,
+  useSendFormForKyc,
   type DocumentText,
   type DocumentGap,
   type DocumentTextKind,
   type FormDetail,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, DateInput, Dialog, Field, TextInput } from "@atomprive/ui";
+import { Alert, Badge, Button, Dialog, Field, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, ChevronRight, Info, PencilLine, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -22,7 +22,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { StepRail } from "../../components/step-rail";
 import type { FormDocuments } from "../../components/form-documents";
 import type { FieldFor } from "../../components/form-fields";
-import { DecisionForm } from "../kyc/signed-forms-panel";
+import { FormDecisionDialog } from "../kyc/form-decision";
 import { FirmContext } from "./firm-name";
 import { toFormErrors } from "../../lib/api-errors";
 import { formatDate } from "../../lib/labels";
@@ -195,8 +195,8 @@ function FilledForm<T>({
         kind: detail.summary.kind,
         // A finished form is unpicked by taking its signed copy off; one still out is simply taken back.
         data: signed
-          ? { customerId: detail.summary.customerId, dueOn: null, waitingOnClient: null, signedCopyOnFile: false, answers: null }
-          : { customerId: detail.summary.customerId, dueOn: null, waitingOnClient: false, signedCopyOnFile: null, answers: null },
+          ? { customerId: detail.summary.customerId, dueOn: null, waitingOnClient: null, signedCopyOnFile: false, sendForKyc: null, answers: null }
+          : { customerId: detail.summary.customerId, dueOn: null, waitingOnClient: false, signedCopyOnFile: null, sendForKyc: null, answers: null },
       },
       {
         onSuccess: () => {
@@ -209,7 +209,7 @@ function FilledForm<T>({
   }
 
   const save = useSaveFormDraft<ApiError>();
-  const send = useSendFormToClient<ApiError>();
+  const send = useSendFormForKyc<ApiError>();
   const busy = save.isPending || send.isPending;
 
   // An attached document is kept straight away: it is the client's paper, not a draft answer.
@@ -305,19 +305,20 @@ function FilledForm<T>({
     );
   }
 
-  /** Written up and off to the client, with the day their signed copy is expected back. */
-  function sendToClient(dueOn: string) {
+  /** Written up and handed to Compliance, who read it before the client is asked to sign anything. */
+  function sendForKyc() {
     setFormError(undefined);
     send.mutate(
-      { id: detail.summary.id, data: { answers: answersToSave(), dueOn } },
+      { id: detail.summary.id, data: { answers: answersToSave(), dueOn: null } },
       {
-        onSuccess: (saved) => {
+        onSuccess: (saved: FormDetail) => {
           afterWrite(saved);
           setSavedFirmJson(JSON.stringify(firmEdits));
           setSending(false);
           window.scrollTo({ top: 0 });
         },
-        onError: (caught) => failed(caught, "Some sections need attention before the form can go to the client."),
+        onError: (caught: ApiError) =>
+          failed(caught, "Some sections need attention before the form can go for KYC review."),
       },
     );
   }
@@ -362,8 +363,9 @@ function FilledForm<T>({
           </Alert>
         ) : detail.summary.status === "AWAITING_COMPLIANCE" ? (
           <Alert tone="info">
-            {detail.summary.clientName} has signed this and the signed copy is on file. It is with Compliance to
-            read; nothing more is typed on it here until they have decided.
+            This is with Compliance for KYC review. Once they approve it, it goes to {detail.summary.clientName}
+            {" "}to sign; if they send it back you will see what has to be put right. Nothing more is typed on it
+            here until they have decided.
           </Alert>
         ) : (
           <Alert tone="info">
@@ -401,24 +403,25 @@ function FilledForm<T>({
           </div>
         )}
         {kit.summary(value, detail.attachments)}
-        <Dialog
-          open={decision !== null}
-          title={decision === "approve" ? "Approve this form" : "Send this form back to Operations"}
-          description={`${detail.summary.formTitle} · ${detail.summary.clientName}`}
+        <FormDecisionDialog
+          deciding={
+            decision === null
+              ? null
+              : {
+                  formId: detail.summary.id,
+                  title: detail.summary.formTitle,
+                  clientName: detail.summary.clientName,
+                  approved: decision === "approve",
+                  customerId: detail.summary.customerId,
+                  caseId: detail.summary.onboardingCaseId,
+                }
+          }
           onClose={() => setDecision(null)}
-        >
-          {decision && (
-            <DecisionForm
-              form={detail.summary}
-              approved={decision === "approve"}
-              onCancel={() => setDecision(null)}
-              onDecided={() => {
-                setDecision(null);
-                void navigate("/kyc");
-              }}
-            />
-          )}
-        </Dialog>
+          onDecided={() => {
+            setDecision(null);
+            void navigate("/kyc");
+          }}
+        />
         <ConfirmDialog
           open={editing}
           title="Edit this form?"
@@ -509,7 +512,7 @@ function FilledForm<T>({
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-6 py-4 sm:px-8">
             <p className="text-xs text-ink-muted">
               {everythingDone
-                ? "Every part is answered. It is ready to go to the client."
+                ? "Every part is answered. It is ready to go for KYC review."
                 : `${review.steps.filter((step) => !step.complete).length} of ${review.steps.length} parts still to answer.`}
             </p>
             <div className="flex gap-2">
@@ -519,7 +522,7 @@ function FilledForm<T>({
               </Button>
               {current.id === "review" ? (
                 <Button onClick={() => setSending(true)} disabled={!everythingDone || busy}>
-                  {send.isPending ? "Sending…" : "Send to the client"}
+                  {send.isPending ? "Sending…" : "Send for KYC"}
                 </Button>
               ) : (
                 // Nothing is locked: a form is filled in whatever order the client's papers arrive in.
@@ -533,12 +536,12 @@ function FilledForm<T>({
         </section>
       </div>
 
-      <SendToClientDialog
+      <SendForKycDialog
         open={sending}
         client={detail.summary.clientName}
         busy={send.isPending}
         onClose={() => setSending(false)}
-        onSend={sendToClient}
+        onSend={sendForKyc}
       />
 
       <Dialog
@@ -611,7 +614,11 @@ function BackLink({ caseId, clientId, deciding }: { caseId?: string; clientId?: 
 }
 
 /** Asks when the client's signed copy is expected back, which is the point the form goes out. */
-function SendToClientDialog({
+/**
+ * Handing the finished form to Compliance. Nothing is asked of the client yet, so no date is set here: the
+ * signed copy is expected back only once Compliance have passed it and it has gone out.
+ */
+function SendForKycDialog({
   open,
   client,
   busy,
@@ -622,28 +629,24 @@ function SendToClientDialog({
   client: string;
   busy: boolean;
   onClose: () => void;
-  onSend: (dueOn: string) => void;
+  onSend: () => void;
 }) {
-  const [dueOn, setDueOn] = useState("");
-  const today = new Date();
-  const inTwoYears = new Date(today.getFullYear() + 2, today.getMonth(), today.getDate());
-
   return (
-    <Dialog open={open} title="Send to the client" onClose={onClose}>
+    <Dialog open={open} title="Send for KYC review" onClose={onClose}>
       <div className="space-y-4">
-        <p className="text-sm text-ink-muted">
-          {client} signs this form and sends it back. No email goes out yet, so send it however you normally would;
-          this records that they have it and when you expect it back.
+        <p className="text-sm leading-relaxed text-ink">
+          Compliance read this form before {client} does. Once they approve it, it goes out to be signed; if
+          they send it back, you will see what has to be put right.
         </p>
-        <Field id="send-due-on" label="Signed copy expected back by" required>
-          <DateInput id="send-due-on" name="dueOn" value={dueOn} min={today} max={inTwoYears} onChange={setDueOn} required />
-        </Field>
+        <p className="text-sm text-ink-muted">
+          It can't be changed while Compliance have it.
+        </p>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button disabled={!dueOn || busy} onClick={() => onSend(dueOn)}>
-            {busy ? "Sending…" : "Send it"}
+          <Button disabled={busy} onClick={onSend}>
+            {busy ? "Sending…" : "Send for KYC"}
           </Button>
         </div>
       </div>
