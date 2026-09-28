@@ -74,7 +74,7 @@ export function SyncRunsPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[1.625rem] font-bold">Bank syncs</h1>
+          <h1 className="text-[1.625rem] font-bold">Ingestion log</h1>
           <p className="mt-1 text-sm text-ink-muted">
             Every attempt to pull a client's data from a bank, with what came back — the ones the schedule brought
             round, and the ones somebody asked for.

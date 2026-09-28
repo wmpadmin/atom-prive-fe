@@ -4,7 +4,9 @@ import { Alert, Avatar } from "@atomprive/ui";
 import { keepPreviousData, type UseQueryResult } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
+import { useStaffUser } from "../../auth/session";
 import { formatRelative } from "../../lib/labels";
+import { hasAuthority } from "../../lib/permissions";
 
 /**
  * The clients waiting on a KYC decision. Operations hand a client over once their details are in; Compliance
@@ -12,6 +14,8 @@ import { formatRelative } from "../../lib/labels";
  * KYC document review.
  */
 export function KycReviewQueuePage() {
+  // Operations follow the same queue to see where a client has got to; deciding on it is Compliance's.
+  const decides = hasAuthority(useStaffUser(), "APPROVE_ONBOARDING:CHANGE");
   const cases = useListOnboardingCases<CasePage, ApiError>(
     { signOff: "AWAITING", size: 50 },
     { query: { placeholderData: keepPreviousData } },
@@ -22,14 +26,15 @@ export function KycReviewQueuePage() {
       <header>
         <h1 className="text-[1.625rem] font-bold">KYC review</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          The clients whose forms Operations have sent for review. Open one to read each form, approve it or
-          send it back, and sign the client's KYC off.
+          {decides
+            ? "The clients whose forms Operations have sent for review. Open one to read each form, approve it or send it back, and sign the client's KYC off."
+            : "The clients whose forms have been sent for review, and what Compliance have made of them. Open one to see where it has got to; the decisions are Compliance's."}
         </p>
       </header>
 
       {cases.isError && <Alert tone="danger">{cases.error.message}</Alert>}
 
-      <ClientsAwaitingReview cases={cases} />
+      <ClientsAwaitingReview cases={cases} decides={decides} />
     </div>
   );
 }
@@ -38,18 +43,25 @@ export function KycReviewQueuePage() {
  * The clients Operations have handed over for KYC. This is the queue proper: Operations finish a client's
  * forms, submit them for KYC, and the client lands here for Compliance to review and sign off.
  */
-function ClientsAwaitingReview({ cases }: { cases: UseQueryResult<CasePage, ApiError> }) {
+function ClientsAwaitingReview({
+  cases,
+  decides,
+}: {
+  cases: UseQueryResult<CasePage, ApiError>;
+  decides: boolean;
+}) {
   const navigate = useNavigate();
-  // Handed over is not the same as sent for review: a client appears here only once Operations have
-  // finished a form and sent it, which is what puts something in front of Compliance to read.
-  const rows = (cases.data?.items ?? []).filter((row) => row.formsForReview > 0);
+  // Every client Operations handed over. A case with nothing sent for review cannot be handed over at all,
+  // so none of these is the empty file that filtering here was meant to keep out.
+  const rows = cases.data?.items ?? [];
   return (
     <section className="rounded-2xl border border-line bg-white">
       <div className="px-5 pt-5">
         <h2 className="text-base font-bold">Clients awaiting KYC review</h2>
         <p className="mt-0.5 text-xs text-ink-muted">
-          Here once Operations have sent a form for review. Open one to read it, decide on each form, and sign
-          the client's KYC off.
+          {decides
+            ? "Here once Operations have sent a form for review. Open one to read it, decide on each form, and sign the client's KYC off."
+            : "Here once a form has been sent for review. Open one to see where it has got to."}
         </p>
       </div>
       <div className="mt-4 overflow-x-auto">
@@ -61,7 +73,7 @@ function ClientsAwaitingReview({ cases }: { cases: UseQueryResult<CasePage, ApiE
               <th scope="col" className="px-4 py-3">Relationship manager</th>
               <th scope="col" className="px-4 py-3">Waiting since</th>
               <th scope="col" className="py-3 pr-5 pl-4">
-                <span className="sr-only">Review</span>
+                <span className="sr-only">{decides ? "Review" : "Open"}</span>
               </th>
             </tr>
           </thead>
@@ -103,7 +115,7 @@ function ClientsAwaitingReview({ cases }: { cases: UseQueryResult<CasePage, ApiE
                 <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(row.updatedAt)}</td>
                 <td className="py-3 pr-5 pl-4 text-right">
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700">
-                    Review
+                    {decides ? "Review" : "Open"}
                     <ChevronRight aria-hidden="true" className="size-3.5" />
                   </span>
                 </td>
