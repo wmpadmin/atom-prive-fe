@@ -14,7 +14,9 @@ import {
   LogOut,
   Mail,
   PenLine,
-  RefreshCw,
+  BellRing,
+  Radio,
+  TriangleAlert,
   ShieldCheck,
   SlidersHorizontal,
   UserPlus,
@@ -34,6 +36,9 @@ import { roleLabels, type StaffRole } from "./lib/labels";
 // `notFor` keeps a screen off a role's menu even where the matrix would allow it. The Admin runs the platform
 // rather than the firm's clients: they hold every permission so that nothing is ever locked away from them,
 // but servicing a client is Operations', Advisory's and Compliance's work, and their menu says so.
+/** The Notice of Treatment letter, which is a client's document but is only ever opened from the notice. */
+const NOTICE_OF_TREATMENT = /^\/clients\/[^/]+\/documents\/NOTICE_OF_TREATMENT$/;
+
 const allNavigation: {
   to: string;
   label: string;
@@ -47,15 +52,32 @@ const allNavigation: {
    */
   at?: (path: string) => boolean;
 }[] = [
-  { to: "/clients", label: "All clients", icon: Contact, authority: "VIEW_ALL_CLIENTS:VIEW", notFor: ["ADMIN"] },
+  {
+    to: "/clients",
+    label: "All clients",
+    icon: Contact,
+    authority: "VIEW_ALL_CLIENTS:VIEW",
+    notFor: ["ADMIN"],
+    at: (path) => (path === "/clients" || path.startsWith("/clients/")) && !NOTICE_OF_TREATMENT.test(path),
+  },
   { to: "/my-clients", label: "My clients", icon: Contact, authority: "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS" },
   { to: "/proposals", label: "Proposals", icon: FileSignature, authority: READS_PROPOSALS, notFor: ["ADMIN"] },
   { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: ONBOARDS_CLIENTS, notFor: ["ADMIN"] },
+  {
+    to: "/post-onboarding",
+    label: "Post onboarding notice",
+    icon: BellRing,
+    authority: ONBOARDS_CLIENTS,
+    notFor: ["ADMIN"],
+    at: (path) => path === "/post-onboarding" || NOTICE_OF_TREATMENT.test(path),
+  },
   { to: "/to-sign", label: "To sign", icon: PenLine, authority: "APPROVE_PROPOSALS:OWN_CLIENTS" },
   // The queue is where a client's KYC is decided, which is Compliance's alone. The papers themselves the
   // Admin reads too, so the document review sits on both menus.
   {
     to: "/kyc",
+    // Deciding a client's KYC is Compliance's, and so is the screen: Operations follow a case from Client
+    // onboarding, which is their own.
     label: "KYC review",
     icon: ShieldCheck,
     authority: "APPROVE_ONBOARDING:CHANGE",
@@ -72,11 +94,19 @@ const allNavigation: {
   },
   { to: "/client-documents", label: "Client documents", icon: FolderOpen, authority: UPLOADS_CLIENT_DOCUMENTS, notFor: ["ADMIN"] },
   { to: "/forms", label: "Forms", icon: FileText, authority: "FILL_CLIENT_FORMS:VIEW", notFor: ["ADMIN"] },
-  { to: "/staff-declarations", label: "Staff declarations", icon: ClipboardCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW", notFor: ["ADMIN"] },
+  { to: "/staff-declarations", label: "Staff declarations", icon: ClipboardCheck, authority: "VIEW_STAFF_DECLARATIONS:VIEW", notFor: ["ADMIN"] },
   { to: "/users", label: "Manage staff users", icon: Users, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
   { to: "/roles", label: "Permission matrix", icon: ShieldCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
   { to: "/config", label: "Config data", icon: SlidersHorizontal, authority: "MANAGE_CONFIGURATION:VIEW" },
-  { to: "/bank-syncs", label: "Bank syncs", icon: RefreshCw, authority: "MANAGE_BANK_FEEDS:CHANGE" },
+  {
+    to: "/ingestion",
+    label: "Ingestion monitoring",
+    icon: Radio,
+    authority: "MANAGE_BANK_FEEDS:CHANGE",
+    // The run log hangs off the feeds screen: it is the same subject, read run by run.
+    at: (path) => path.startsWith("/ingestion") || path.startsWith("/bank-syncs"),
+  },
+  { to: "/sync-errors", label: "Sync errors", icon: TriangleAlert, authority: "MANAGE_BANK_FEEDS:CHANGE" },
   { to: "/notifications", label: "Notification log", icon: Mail, authority: "MANAGE_CONFIGURATION:VIEW" },
   { to: "/audit-log", label: "Audit log", icon: Landmark, authority: "VIEW_AUDIT_LOG:VIEW" },
   { to: "/family-access", label: "Family access trail", icon: UsersRound, authority: "VIEW_AUDIT_LOG:VIEW" },

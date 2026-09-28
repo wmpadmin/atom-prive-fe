@@ -5,6 +5,8 @@ import { MyClientsPage } from "./pages/advisor/my-clients-page";
 import { ProposalPage } from "./pages/advisor/proposal-page";
 import { ProposalsPage } from "./pages/advisor/proposals-page";
 import { AuditLogPage } from "./pages/audit-log/audit-log-page";
+import { IngestionMonitoringPage } from "./pages/bank-syncs/ingestion-monitoring-page";
+import { SyncErrorsPage } from "./pages/bank-syncs/sync-errors-page";
 import { SyncRunsPage } from "./pages/bank-syncs/sync-runs-page";
 import { DashboardPage } from "./pages/dashboard/dashboard-page";
 import { DeliveriesPage } from "./pages/notifications/deliveries-page";
@@ -35,6 +37,7 @@ import { LoginPage } from "./pages/sign-in/login-page";
 import { ResetPasswordPage } from "./pages/sign-in/reset-password-page";
 import { OnboardingCasePage } from "./pages/onboarding/onboarding-case-page";
 import { OnboardingListPage } from "./pages/onboarding/onboarding-list-page";
+import { PostOnboardingPage } from "./pages/onboarding/post-onboarding-page";
 import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
 import { UsersPage } from "./pages/users/users-page";
@@ -143,7 +146,13 @@ export const router = createBrowserRouter([
           {
             // The bank feeds are the head's: staff work from what has come in, not from the connections.
             element: <RequireAuthority authority="MANAGE_BANK_FEEDS:VIEW" />,
-            children: [{ path: "bank-syncs", element: <SyncRunsPage /> }],
+            children: [
+              // The feeds themselves, then the run-by-run log behind them.
+              { path: "ingestion", element: <IngestionMonitoringPage /> },
+              { path: "bank-syncs", element: <SyncRunsPage /> },
+              // What has gone wrong, on its own: the part of the log somebody has to act on.
+              { path: "sync-errors", element: <SyncErrorsPage /> },
+            ],
           },
           {
             // Filling a client's forms is its own job, separate from onboarding them.
@@ -157,8 +166,9 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            // The firm-wide register of declarations is oversight, so it follows managing staff.
-            element: <RequireAuthority authority="MANAGE_USERS_AND_ROLES:VIEW" />,
+            // Operations keep the firm-wide register: they chase what is outstanding and hold the signed
+            // copies. That is its own permission, not a corner of managing staff.
+            element: <RequireAuthority authority="VIEW_STAFF_DECLARATIONS:VIEW" />,
             children: [{ path: "staff-declarations", element: <StaffDeclarationsPage /> }],
           },
           {
@@ -175,6 +185,8 @@ export const router = createBrowserRouter([
             element: <RequireAuthority authority={ONBOARDS_CLIENTS} />,
             children: [
               { path: "onboarding", element: <OnboardingListPage /> },
+              // What a signed-off client is owed, and whether it has gone.
+              { path: "post-onboarding", element: <PostOnboardingPage /> },
               // A form opened from a case's checklist lives under that case, so the menu keeps saying
               // Client onboarding and Back knows where to return to even after a refresh.
               { path: "onboarding/:caseId/forms/:formId", element: <FormPage /> },

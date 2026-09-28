@@ -521,8 +521,8 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  number?: boolean;
   container?: boolean;
-  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
@@ -539,7 +539,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  number?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -621,6 +621,7 @@ export const FormRowKind = {
   NDAM_INVESTMENT_MANDATE: 'NDAM_INVESTMENT_MANDATE',
   DAM_AGREEMENT: 'DAM_AGREEMENT',
   DAM_INVESTMENT_MANDATE: 'DAM_INVESTMENT_MANDATE',
+  NOTICE_OF_TREATMENT: 'NOTICE_OF_TREATMENT',
   RISK_DISCLOSURE_SCHEDULE: 'RISK_DISCLOSURE_SCHEDULE',
 } as const;
 
@@ -706,6 +707,7 @@ export const CatalogueEntryKind = {
   NDAM_INVESTMENT_MANDATE: 'NDAM_INVESTMENT_MANDATE',
   DAM_AGREEMENT: 'DAM_AGREEMENT',
   DAM_INVESTMENT_MANDATE: 'DAM_INVESTMENT_MANDATE',
+  NOTICE_OF_TREATMENT: 'NOTICE_OF_TREATMENT',
   RISK_DISCLOSURE_SCHEDULE: 'RISK_DISCLOSURE_SCHEDULE',
 } as const;
 
@@ -766,6 +768,7 @@ export const CaseFormRowKind = {
   NDAM_INVESTMENT_MANDATE: 'NDAM_INVESTMENT_MANDATE',
   DAM_AGREEMENT: 'DAM_AGREEMENT',
   DAM_INVESTMENT_MANDATE: 'DAM_INVESTMENT_MANDATE',
+  NOTICE_OF_TREATMENT: 'NOTICE_OF_TREATMENT',
   RISK_DISCLOSURE_SCHEDULE: 'RISK_DISCLOSURE_SCHEDULE',
 } as const;
 
@@ -1231,6 +1234,7 @@ export interface TemplateDetail {
   name: string;
   description: string;
   versions: VersionView[];
+  sentByThePortal: boolean;
 }
 
 export type BankRequestConnectionType = typeof BankRequestConnectionType[keyof typeof BankRequestConnectionType];
@@ -1506,6 +1510,7 @@ export const PermissionGrantPermission = {
   ASSIGN_WORK: 'ASSIGN_WORK',
   MANAGE_BANK_FEEDS: 'MANAGE_BANK_FEEDS',
   MANAGE_USERS_AND_ROLES: 'MANAGE_USERS_AND_ROLES',
+  VIEW_STAFF_DECLARATIONS: 'VIEW_STAFF_DECLARATIONS',
   MANAGE_CONFIGURATION: 'MANAGE_CONFIGURATION',
   VIEW_AUDIT_LOG: 'VIEW_AUDIT_LOG',
 } as const;
@@ -1616,6 +1621,7 @@ export const PackFormRowKind = {
   NDAM_INVESTMENT_MANDATE: 'NDAM_INVESTMENT_MANDATE',
   DAM_AGREEMENT: 'DAM_AGREEMENT',
   DAM_INVESTMENT_MANDATE: 'DAM_INVESTMENT_MANDATE',
+  NOTICE_OF_TREATMENT: 'NOTICE_OF_TREATMENT',
   RISK_DISCLOSURE_SCHEDULE: 'RISK_DISCLOSURE_SCHEDULE',
 } as const;
 
@@ -1707,6 +1713,32 @@ export interface SignFormRequest {
      * @maxLength 200000
      */
   signature: string;
+}
+
+export interface MarkNoticeSentRequest {
+  /** @nullable */
+  note: string | null;
+}
+
+export interface NoticeRow {
+  caseId: string;
+  /** @nullable */
+  customerId: string | null;
+  clientName: string;
+  approvedAt: string;
+  dueOn: string;
+  /** @nullable */
+  sentAt: string | null;
+  /** @nullable */
+  sentByName: string | null;
+  /** @nullable */
+  note: string | null;
+  overdue: boolean;
+  daysLeft: number;
+}
+
+export interface NoticeSent {
+  notice: NoticeRow;
 }
 
 export interface SentForSignOff {
@@ -1833,6 +1865,7 @@ export const StartFormRequestKind = {
   NDAM_INVESTMENT_MANDATE: 'NDAM_INVESTMENT_MANDATE',
   DAM_AGREEMENT: 'DAM_AGREEMENT',
   DAM_INVESTMENT_MANDATE: 'DAM_INVESTMENT_MANDATE',
+  NOTICE_OF_TREATMENT: 'NOTICE_OF_TREATMENT',
   RISK_DISCLOSURE_SCHEDULE: 'RISK_DISCLOSURE_SCHEDULE',
 } as const;
 
@@ -2001,6 +2034,8 @@ export interface PreviewRequest {
   body: string;
   /** @nullable */
   values: PreviewRequestValues;
+  /** @nullable */
+  template: string | null;
 }
 
 export interface Preview {
@@ -2205,6 +2240,45 @@ export interface SyncRunPage {
   failing: FailingFeed[];
 }
 
+export interface FeedSummary {
+  feeds: number;
+  enabled: number;
+  accounts: number;
+  recordsToday: number;
+  manualToday: number;
+}
+
+/**
+ * @nullable
+ */
+export type BankFeedLastOutcome = typeof BankFeedLastOutcome[keyof typeof BankFeedLastOutcome] | null;
+
+
+export const BankFeedLastOutcome = {
+  RUNNING: 'RUNNING',
+  SUCCEEDED: 'SUCCEEDED',
+  FAILED: 'FAILED',
+} as const;
+
+export interface BankFeed {
+  id: string;
+  name: string;
+  countryCode: string;
+  enabled: boolean;
+  connectionType: string;
+  schedule: string;
+  liveAccounts: number;
+  takenOffAccounts: number;
+  recordsToday: number;
+  /** @nullable */
+  lastRunAt: string | null;
+  /** @nullable */
+  lastOutcome: BankFeedLastOutcome;
+  /** @nullable */
+  lastLandedAt: string | null;
+  failingForDays: boolean;
+}
+
 export type StaffToNameRolesItem = typeof StaffToNameRolesItem[keyof typeof StaffToNameRolesItem];
 
 
@@ -2315,6 +2389,11 @@ export interface ProposalPage {
   size: number;
   totalItems: number;
   counts: ProposalCounts;
+}
+
+export interface PostOnboardingQueue {
+  items: NoticeRow[];
+  overdue: number;
 }
 
 export interface CasePage {
@@ -2519,6 +2598,7 @@ export const DocumentTextKind = {
   NDAM_INVESTMENT_MANDATE: 'NDAM_INVESTMENT_MANDATE',
   DAM_AGREEMENT: 'DAM_AGREEMENT',
   DAM_INVESTMENT_MANDATE: 'DAM_INVESTMENT_MANDATE',
+  NOTICE_OF_TREATMENT: 'NOTICE_OF_TREATMENT',
   RISK_DISCLOSURE_SCHEDULE: 'RISK_DISCLOSURE_SCHEDULE',
 } as const;
 
@@ -2880,6 +2960,7 @@ export const PermissionOptionPermission = {
   ASSIGN_WORK: 'ASSIGN_WORK',
   MANAGE_BANK_FEEDS: 'MANAGE_BANK_FEEDS',
   MANAGE_USERS_AND_ROLES: 'MANAGE_USERS_AND_ROLES',
+  VIEW_STAFF_DECLARATIONS: 'VIEW_STAFF_DECLARATIONS',
   MANAGE_CONFIGURATION: 'MANAGE_CONFIGURATION',
   VIEW_AUDIT_LOG: 'VIEW_AUDIT_LOG',
 } as const;
@@ -3007,6 +3088,7 @@ export const ListFormsKind = {
   NDAM_INVESTMENT_MANDATE: 'NDAM_INVESTMENT_MANDATE',
   DAM_AGREEMENT: 'DAM_AGREEMENT',
   DAM_INVESTMENT_MANDATE: 'DAM_INVESTMENT_MANDATE',
+  NOTICE_OF_TREATMENT: 'NOTICE_OF_TREATMENT',
   RISK_DISCLOSURE_SCHEDULE: 'RISK_DISCLOSURE_SCHEDULE',
 } as const;
 
@@ -3085,6 +3167,10 @@ export type ListPacksToSignParams = {
 waiting?: boolean;
 page?: number;
 size?: number;
+};
+
+export type ListPostOnboardingNoticesParams = {
+sent?: boolean;
 };
 
 export type ListDeliveriesParams = {
@@ -3215,8 +3301,31 @@ export const ListMyClientsKycStatus = {
   EXPIRED: 'EXPIRED',
 } as const;
 
+export type ExportCustomersParams = {
+query?: string;
+kycStatus?: ExportCustomersKycStatus;
+advisorId?: string;
+registeredFrom?: string;
+registeredTo?: string;
+};
+
+export type ExportCustomersKycStatus = typeof ExportCustomersKycStatus[keyof typeof ExportCustomersKycStatus];
+
+
+export const ExportCustomersKycStatus = {
+  NOT_SUBMITTED: 'NOT_SUBMITTED',
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  EXPIRED: 'EXPIRED',
+} as const;
+
 export type ListFxRateHistoryParams = {
 code?: string;
+};
+
+export type ListEmailPlaceholdersParams = {
+template?: string;
 };
 
 export type ListAuditEventsParams = {
@@ -4094,7 +4203,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getSaveFormDraftMutationOptions(options), queryClient);
     }
 
-export const getSetFormCategoriesUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',) => {
+export const getSetFormCategoriesUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',) => {
 
 
 
@@ -4102,7 +4211,7 @@ export const getSetFormCategoriesUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUN
   return `/api/backoffice/forms/catalogue/${kind}/categories`
 }
 
-export const setFormCategories = async (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+export const setFormCategories = async (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',
     formCategoriesRequest: FormCategoriesRequest, options?: Parameters<typeof http>[1]): Promise<CatalogueEntry[]> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -4164,7 +4273,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SetFormCategoriesMutationResult = NonNullable<Awaited<ReturnType<typeof setFormCategories>>>
     export type SetFormCategoriesMutationBody = FormCategoriesRequest
     export type SetFormCategoriesMutationError = unknown
-    export type SetFormCategoriesMutationVariables = {kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE';data: FormCategoriesRequest}
+    export type SetFormCategoriesMutationVariables = {kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE';data: FormCategoriesRequest}
 
     export const useSetFormCategories = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setFormCategories>>, TError,SetFormCategoriesMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -4178,7 +4287,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     }
 
 export const getChangeCaseFormUrl = (caseId: string,
-    kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',) => {
+    kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',) => {
 
 
 
@@ -4187,7 +4296,7 @@ export const getChangeCaseFormUrl = (caseId: string,
 }
 
 export const changeCaseForm = async (caseId: string,
-    kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+    kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',
     caseFormRequest: CaseFormRequest, options?: Parameters<typeof http>[1]): Promise<CaseFormRow> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -4249,7 +4358,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ChangeCaseFormMutationResult = NonNullable<Awaited<ReturnType<typeof changeCaseForm>>>
     export type ChangeCaseFormMutationBody = CaseFormRequest
     export type ChangeCaseFormMutationError = unknown
-    export type ChangeCaseFormMutationVariables = {caseId: string;kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE';data: CaseFormRequest}
+    export type ChangeCaseFormMutationVariables = {caseId: string;kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE';data: CaseFormRequest}
 
     export const useChangeCaseForm = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeCaseForm>>, TError,ChangeCaseFormMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -5309,7 +5418,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     }
 
 export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',) => {
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',) => {
 
 
 
@@ -5318,7 +5427,7 @@ export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIAN
 }
 
 export const updateRolePermission = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',
     updateRolePermissionRequest: UpdateRolePermissionRequest, options?: Parameters<typeof http>[1]): Promise<RoleAccessView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -5380,7 +5489,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateRolePermissionMutationResult = NonNullable<Awaited<ReturnType<typeof updateRolePermission>>>
     export type UpdateRolePermissionMutationBody = UpdateRolePermissionRequest
     export type UpdateRolePermissionMutationError = unknown
-    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
+    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
 
     export const useUpdateRolePermission = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRolePermission>>, TError,UpdateRolePermissionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -6233,6 +6342,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getResendProposalMutationOptions(options), queryClient);
+    }
+
+export const getMarkPostOnboardingNoticeSentUrl = (caseId: string,) => {
+
+
+
+
+  return `/api/backoffice/post-onboarding-notices/${caseId}/sent`
+}
+
+export const markPostOnboardingNoticeSent = async (caseId: string,
+    markNoticeSentRequest?: MarkNoticeSentRequest, options?: Parameters<typeof http>[1]): Promise<NoticeSent> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<NoticeSent>(getMarkPostOnboardingNoticeSentUrl(caseId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(markNoticeSentRequest)
+  }
+);}
+
+
+
+
+
+export const getMarkPostOnboardingNoticeSentMutationKey = () => ['markPostOnboardingNoticeSent'] as const;
+
+export const getMarkPostOnboardingNoticeSentMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markPostOnboardingNoticeSent>>, TError,MarkPostOnboardingNoticeSentMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof markPostOnboardingNoticeSent>>, TError,MarkPostOnboardingNoticeSentMutationVariables, TContext> => {
+
+const mutationKey = getMarkPostOnboardingNoticeSentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markPostOnboardingNoticeSent>>, MarkPostOnboardingNoticeSentMutationVariables> = (props) => {
+          const {caseId,data} = props ?? {};
+
+          return  markPostOnboardingNoticeSent(caseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkPostOnboardingNoticeSentMutationResult = NonNullable<Awaited<ReturnType<typeof markPostOnboardingNoticeSent>>>
+    export type MarkPostOnboardingNoticeSentMutationBody = MarkNoticeSentRequest | undefined
+    export type MarkPostOnboardingNoticeSentMutationError = unknown
+    export type MarkPostOnboardingNoticeSentMutationVariables = {caseId: string;data?: MarkNoticeSentRequest}
+
+    export const useMarkPostOnboardingNoticeSent = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markPostOnboardingNoticeSent>>, TError,MarkPostOnboardingNoticeSentMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof markPostOnboardingNoticeSent>>,
+        TError,
+        MarkPostOnboardingNoticeSentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkPostOnboardingNoticeSentMutationOptions(options), queryClient);
     }
 
 export const getListOnboardingCasesUrl = (params?: ListOnboardingCasesParams,) => {
@@ -10228,6 +10420,196 @@ export function useListSyncRuns<TData = Awaited<ReturnType<typeof listSyncRuns>>
 
 
 
+export const getSummariseFeedsUrl = () => {
+
+
+
+
+  return `/api/backoffice/sync-runs/summary`
+}
+
+export const summariseFeeds = async ( options?: Parameters<typeof http>[1]): Promise<FeedSummary> => {
+
+  return http<FeedSummary>(getSummariseFeedsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSummariseFeedsQueryKey = () => {
+    return [
+    `/api/backoffice/sync-runs/summary`
+    ] as const;
+    }
+
+
+export const getSummariseFeedsQueryOptions = <TData = Awaited<ReturnType<typeof summariseFeeds>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof summariseFeeds>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSummariseFeedsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof summariseFeeds>>> = ({ signal }) => summariseFeeds({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof summariseFeeds>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SummariseFeedsQueryResult = NonNullable<Awaited<ReturnType<typeof summariseFeeds>>>
+export type SummariseFeedsQueryError = unknown
+
+
+export function useSummariseFeeds<TData = Awaited<ReturnType<typeof summariseFeeds>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof summariseFeeds>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof summariseFeeds>>,
+          TError,
+          Awaited<ReturnType<typeof summariseFeeds>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSummariseFeeds<TData = Awaited<ReturnType<typeof summariseFeeds>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof summariseFeeds>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof summariseFeeds>>,
+          TError,
+          Awaited<ReturnType<typeof summariseFeeds>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSummariseFeeds<TData = Awaited<ReturnType<typeof summariseFeeds>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof summariseFeeds>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useSummariseFeeds<TData = Awaited<ReturnType<typeof summariseFeeds>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof summariseFeeds>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSummariseFeedsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListBankFeedsUrl = () => {
+
+
+
+
+  return `/api/backoffice/sync-runs/feeds`
+}
+
+export const listBankFeeds = async ( options?: Parameters<typeof http>[1]): Promise<BankFeed[]> => {
+
+  return http<BankFeed[]>(getListBankFeedsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBankFeedsQueryKey = () => {
+    return [
+    `/api/backoffice/sync-runs/feeds`
+    ] as const;
+    }
+
+
+export const getListBankFeedsQueryOptions = <TData = Awaited<ReturnType<typeof listBankFeeds>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBankFeeds>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBankFeedsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBankFeeds>>> = ({ signal }) => listBankFeeds({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBankFeeds>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListBankFeedsQueryResult = NonNullable<Awaited<ReturnType<typeof listBankFeeds>>>
+export type ListBankFeedsQueryError = unknown
+
+
+export function useListBankFeeds<TData = Awaited<ReturnType<typeof listBankFeeds>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBankFeeds>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBankFeeds>>,
+          TError,
+          Awaited<ReturnType<typeof listBankFeeds>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBankFeeds<TData = Awaited<ReturnType<typeof listBankFeeds>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBankFeeds>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBankFeeds>>,
+          TError,
+          Awaited<ReturnType<typeof listBankFeeds>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBankFeeds<TData = Awaited<ReturnType<typeof listBankFeeds>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBankFeeds>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListBankFeeds<TData = Awaited<ReturnType<typeof listBankFeeds>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBankFeeds>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListBankFeedsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListStaffToGiveAccessToUrl = () => {
 
 
@@ -10999,6 +11381,108 @@ export function useListClientPacks<TData = Awaited<ReturnType<typeof listClientP
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListClientPacksQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListPostOnboardingNoticesUrl = (params?: ListPostOnboardingNoticesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/post-onboarding-notices?${stringifiedParams}` : `/api/backoffice/post-onboarding-notices`
+}
+
+export const listPostOnboardingNotices = async (params?: ListPostOnboardingNoticesParams, options?: Parameters<typeof http>[1]): Promise<PostOnboardingQueue> => {
+
+  return http<PostOnboardingQueue>(getListPostOnboardingNoticesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPostOnboardingNoticesQueryKey = (params?: ListPostOnboardingNoticesParams,) => {
+    return [
+    `/api/backoffice/post-onboarding-notices`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPostOnboardingNoticesQueryOptions = <TData = Awaited<ReturnType<typeof listPostOnboardingNotices>>, TError = unknown>(params?: ListPostOnboardingNoticesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPostOnboardingNotices>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPostOnboardingNoticesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPostOnboardingNotices>>> = ({ signal }) => listPostOnboardingNotices(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPostOnboardingNotices>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPostOnboardingNoticesQueryResult = NonNullable<Awaited<ReturnType<typeof listPostOnboardingNotices>>>
+export type ListPostOnboardingNoticesQueryError = unknown
+
+
+export function useListPostOnboardingNotices<TData = Awaited<ReturnType<typeof listPostOnboardingNotices>>, TError = unknown>(
+ params: undefined |  ListPostOnboardingNoticesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPostOnboardingNotices>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPostOnboardingNotices>>,
+          TError,
+          Awaited<ReturnType<typeof listPostOnboardingNotices>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPostOnboardingNotices<TData = Awaited<ReturnType<typeof listPostOnboardingNotices>>, TError = unknown>(
+ params?: ListPostOnboardingNoticesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPostOnboardingNotices>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPostOnboardingNotices>>,
+          TError,
+          Awaited<ReturnType<typeof listPostOnboardingNotices>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPostOnboardingNotices<TData = Awaited<ReturnType<typeof listPostOnboardingNotices>>, TError = unknown>(
+ params?: ListPostOnboardingNoticesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPostOnboardingNotices>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListPostOnboardingNotices<TData = Awaited<ReturnType<typeof listPostOnboardingNotices>>, TError = unknown>(
+ params?: ListPostOnboardingNoticesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPostOnboardingNotices>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListPostOnboardingNoticesQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -11870,7 +12354,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRemoveFormAttachmentMutationOptions(options), queryClient);
     }
 
-export const getGetDocumentTextUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+export const getGetDocumentTextUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -11886,7 +12370,7 @@ export const getGetDocumentTextUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_
   return stringifiedParams.length > 0 ? `/api/backoffice/forms/documents/${kind}?${stringifiedParams}` : `/api/backoffice/forms/documents/${kind}`
 }
 
-export const getDocumentText = async (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+export const getDocumentText = async (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams, options?: Parameters<typeof http>[1]): Promise<DocumentText> => {
 
   return http<DocumentText>(getGetDocumentTextUrl(kind,params),
@@ -11902,7 +12386,7 @@ export const getDocumentText = async (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_
 
 
 
-export const getGetDocumentTextQueryKey = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+export const getGetDocumentTextQueryKey = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams,) => {
     return [
     `/api/backoffice/forms/documents/${kind}`, ...(params ? [params] : [])
@@ -11910,7 +12394,7 @@ export const getGetDocumentTextQueryKey = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACC
     }
 
 
-export const getGetDocumentTextQueryOptions = <TData = Awaited<ReturnType<typeof getDocumentText>>, TError = unknown>(kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+export const getGetDocumentTextQueryOptions = <TData = Awaited<ReturnType<typeof getDocumentText>>, TError = unknown>(kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentText>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
@@ -11934,7 +12418,7 @@ export type GetDocumentTextQueryError = unknown
 
 
 export function useGetDocumentText<TData = Awaited<ReturnType<typeof getDocumentText>>, TError = unknown>(
- kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+ kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',
     params: undefined |  GetDocumentTextParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentText>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getDocumentText>>,
@@ -11945,7 +12429,7 @@ export function useGetDocumentText<TData = Awaited<ReturnType<typeof getDocument
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetDocumentText<TData = Awaited<ReturnType<typeof getDocumentText>>, TError = unknown>(
- kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+ kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentText>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getDocumentText>>,
@@ -11956,13 +12440,13 @@ export function useGetDocumentText<TData = Awaited<ReturnType<typeof getDocument
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetDocumentText<TData = Awaited<ReturnType<typeof getDocumentText>>, TError = unknown>(
- kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+ kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentText>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useGetDocumentText<TData = Awaited<ReturnType<typeof getDocumentText>>, TError = unknown>(
- kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'RISK_DISCLOSURE_SCHEDULE',
+ kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',
     params?: GetDocumentTextParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentText>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -12790,6 +13274,108 @@ export function useListMyClients<TData = Awaited<ReturnType<typeof listMyClients
 
 
 
+export const getExportCustomersUrl = (params?: ExportCustomersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/customers/export?${stringifiedParams}` : `/api/backoffice/customers/export`
+}
+
+export const exportCustomers = async (params?: ExportCustomersParams, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getExportCustomersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportCustomersQueryKey = (params?: ExportCustomersParams,) => {
+    return [
+    `/api/backoffice/customers/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportCustomersQueryOptions = <TData = Awaited<ReturnType<typeof exportCustomers>>, TError = unknown>(params?: ExportCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportCustomers>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportCustomersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportCustomers>>> = ({ signal }) => exportCustomers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportCustomers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportCustomersQueryResult = NonNullable<Awaited<ReturnType<typeof exportCustomers>>>
+export type ExportCustomersQueryError = unknown
+
+
+export function useExportCustomers<TData = Awaited<ReturnType<typeof exportCustomers>>, TError = unknown>(
+ params: undefined |  ExportCustomersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportCustomers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportCustomers>>,
+          TError,
+          Awaited<ReturnType<typeof exportCustomers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportCustomers<TData = Awaited<ReturnType<typeof exportCustomers>>, TError = unknown>(
+ params?: ExportCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportCustomers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportCustomers>>,
+          TError,
+          Awaited<ReturnType<typeof exportCustomers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportCustomers<TData = Awaited<ReturnType<typeof exportCustomers>>, TError = unknown>(
+ params?: ExportCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportCustomers>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportCustomers<TData = Awaited<ReturnType<typeof exportCustomers>>, TError = unknown>(
+ params?: ExportCustomersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportCustomers>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportCustomersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListCustomerAdvisorsUrl = () => {
 
 
@@ -13557,17 +14143,24 @@ export function useGetEmailTemplate<TData = Awaited<ReturnType<typeof getEmailTe
 
 
 
-export const getListEmailPlaceholdersUrl = () => {
+export const getListEmailPlaceholdersUrl = (params?: ListEmailPlaceholdersParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/backoffice/config/email-templates/placeholders`
+  return stringifiedParams.length > 0 ? `/api/backoffice/config/email-templates/placeholders?${stringifiedParams}` : `/api/backoffice/config/email-templates/placeholders`
 }
 
-export const listEmailPlaceholders = async ( options?: Parameters<typeof http>[1]): Promise<Placeholder[]> => {
+export const listEmailPlaceholders = async (params?: ListEmailPlaceholdersParams, options?: Parameters<typeof http>[1]): Promise<Placeholder[]> => {
 
-  return http<Placeholder[]>(getListEmailPlaceholdersUrl(),
+  return http<Placeholder[]>(getListEmailPlaceholdersUrl(params),
   {
     ...options,
     method: 'GET'
@@ -13580,23 +14173,23 @@ export const listEmailPlaceholders = async ( options?: Parameters<typeof http>[1
 
 
 
-export const getListEmailPlaceholdersQueryKey = () => {
+export const getListEmailPlaceholdersQueryKey = (params?: ListEmailPlaceholdersParams,) => {
     return [
-    `/api/backoffice/config/email-templates/placeholders`
+    `/api/backoffice/config/email-templates/placeholders`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListEmailPlaceholdersQueryOptions = <TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getListEmailPlaceholdersQueryOptions = <TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = unknown>(params?: ListEmailPlaceholdersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListEmailPlaceholdersQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListEmailPlaceholdersQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmailPlaceholders>>> = ({ signal }) => listEmailPlaceholders({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmailPlaceholders>>> = ({ signal }) => listEmailPlaceholders(params, { signal, ...requestOptions });
 
 
 
@@ -13610,7 +14203,7 @@ export type ListEmailPlaceholdersQueryError = unknown
 
 
 export function useListEmailPlaceholders<TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>> & Pick<
+ params: undefined |  ListEmailPlaceholdersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listEmailPlaceholders>>,
           TError,
@@ -13620,7 +14213,7 @@ export function useListEmailPlaceholders<TData = Awaited<ReturnType<typeof listE
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListEmailPlaceholders<TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>> & Pick<
+ params?: ListEmailPlaceholdersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listEmailPlaceholders>>,
           TError,
@@ -13630,16 +14223,16 @@ export function useListEmailPlaceholders<TData = Awaited<ReturnType<typeof listE
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListEmailPlaceholders<TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ params?: ListEmailPlaceholdersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useListEmailPlaceholders<TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ params?: ListEmailPlaceholdersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListEmailPlaceholdersQueryOptions(options)
+  const queryOptions = getListEmailPlaceholdersQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
