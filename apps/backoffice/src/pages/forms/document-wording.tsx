@@ -64,14 +64,20 @@ const SIGNS_WHAT_FOLLOWS = /signature\s*\(?s?\)?\s*:?\s*$/i;
 /** "Date: ______" is a day to pick, not a line to type anything on. */
 const DATES_WHAT_FOLLOWS = /\bdate(?:d)?\s*\(?s?\)?\s*:?\s*$/i;
 
-/** Today, which is the earliest a day being written on a document now can be. */
-function today() {
-  return new Date();
-}
+/** A day as the calendar writes it. Anything else on a date line was typed before it became a calendar. */
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 function yearsFromToday(years: number) {
   const day = new Date();
   return new Date(day.getFullYear() + years, day.getMonth(), day.getDate());
+}
+
+/**
+ * Today, which is the earliest a day being written on a document now can be. It is the day itself and not the
+ * moment this is read: the calendar offers whole days, so a day that started hours ago is still today.
+ */
+function today() {
+  return yearsFromToday(0);
 }
 
 /** A whole line the paper rules to write on: written on where this is a form, left as a rule where it is not. */
@@ -104,9 +110,10 @@ function Blank({ name, wide, idle, day }: { name: string; wide?: boolean; idle?:
   if (!onFill) {
     return <span className="text-ink">{written || "\u2007\u2007\u2007\u2007"}</span>;
   }
-  if (day) {
-    // A day is picked from a calendar rather than typed, and a day already gone is not one a document is
-    // being dated with now.
+  // A blank that asks for a day is picked from a calendar. What was typed on one before it became a picker
+  // is still what the paper says, and a calendar cannot show it, so that line stays as it was written.
+  if (day && (written === "" || ISO_DAY.test(written))) {
+    // A day already gone is not one a document is being dated with now.
     return (
       <span className={cn("inline-block align-baseline", wide ? "w-full" : "w-44")}>
         <DateInput
@@ -559,6 +566,7 @@ export function DocumentWording({
   listRows,
   onListRows,
   onSign,
+  part = "",
 }: {
   blocks: DocumentBlock[];
   gaps: DocumentGap[];
@@ -573,6 +581,12 @@ export function DocumentWording({
   onListRows?: (table: string, rows: number) => void;
   /** Set where this person may sign, which turns each signature place into one they can sign in. */
   onSign?: (spot: string, who: string) => void;
+  /**
+   * Which part of the document these blocks are. A blank is named for where it sits, and each part counts its
+   * own blocks from one, so without the part two blanks the same way down two parts would share a name and
+   * what is written on one would be written on the other.
+   */
+  part?: string;
 }) {
   const filling = useMemo(
     () => ({
@@ -590,7 +604,7 @@ export function DocumentWording({
   );
   return (
     <FillingContext.Provider value={filling}>
-      <Wording blocks={blocks} />
+      <Wording blocks={blocks} part={part} />
     </FillingContext.Provider>
   );
 }
@@ -729,8 +743,10 @@ function subHeadingsIn(blocks: DocumentBlock[]) {
   return headings;
 }
 
-function Wording({ blocks }: { blocks: DocumentBlock[] }) {
+function Wording({ blocks, part }: { blocks: DocumentBlock[]; part: string }) {
   const filledIn = useFilledIn();
+  /** What a blank here is called: where it sits in this part, under the part it is in. */
+  const spot = (here: string) => (part ? `${part}.${here}` : here);
   const { ticked, onTick } = useContext(FillingContext);
   const alternatives = useMemo(() => alternativesIn(blocks), [blocks]);
   const subHeadings = useMemo(() => subHeadingsIn(blocks), [blocks]);
@@ -746,9 +762,9 @@ function Wording({ blocks }: { blocks: DocumentBlock[] }) {
         // A line that is nothing but a ruled blank: the place a signature goes, or a rule to write on.
         if (onlyARule(block.text ?? "")) {
           const who = signedHere(blocks, at);
-          return who ? <SignatureSpot key={at} spot={`s${at}`} who={who} /> : <RuledBlank key={at} name={`r${at}`} />;
+          return who ? <SignatureSpot key={at} spot={spot(`s${at}`)} who={who} /> : <RuledBlank key={at} name={spot(`r${at}`)} />;
         }
-        const words = said(block, `b${at}`);
+        const words = said(block, spot(`b${at}`));
         switch (block.kind) {
           case "TITLE":
             return (
@@ -759,7 +775,7 @@ function Wording({ blocks }: { blocks: DocumentBlock[] }) {
           case "HEADING": {
             const { mark, text } = marked(block);
             const depth = depthOf(block, mark);
-            const saying = said(block, `b${at}`, false, text);
+            const saying = said(block, spot(`b${at}`), false, text);
             // A clause the document happens to have set in a heading style is still a clause, and is read as
             // one: in the same column, at the same depth and in the same weight as the clauses around it.
             if (namesAPart(text)) {
@@ -829,12 +845,12 @@ function Wording({ blocks }: { blocks: DocumentBlock[] }) {
                   className={cn("text-sm leading-relaxed text-ink", onTick && "cursor-pointer")}
                 >
                   {/* Named after the box, so what is written on its rule goes back with it. */}
-                  {said(block, block.key ?? `b${at}`, !(block.key && ticked[block.key]))}
+                  {said(block, block.key ?? spot(`b${at}`), !(block.key && ticked[block.key]))}
                 </label>
               </div>
             );
           case "TABLE":
-            return <Table key={at} rows={block.rows} widths={block.widths} where={`t${at}`} />;
+            return <Table key={at} rows={block.rows} widths={block.widths} where={spot(`t${at}`)} />;
           case "COLUMNS": {
             // A heading the document typed as a number, a tab and a title arrives as two columns. It is a
             // heading, not a pair of columns, and is set as one — otherwise its title sits out in mid-page.
@@ -843,7 +859,7 @@ function Wording({ blocks }: { blocks: DocumentBlock[] }) {
             if (JUST_A_NUMBER.test(mark) && cells[1]!.text.trim()) {
               return (
                 <Heading key={at} mark={mark} depth={depthOf(block, mark)}>
-                  {filledIn(cells[1]!.text, `c${at}.1`)}
+                  {filledIn(cells[1]!.text, spot(`c${at}.1`))}
                 </Heading>
               );
             }
@@ -854,10 +870,10 @@ function Wording({ blocks }: { blocks: DocumentBlock[] }) {
               <div key={at} className="flex flex-wrap items-end gap-x-10 gap-y-1 pt-2 text-sm text-ink">
                 {cells.map((cell, column) => (
                   <span key={column} className={cn("min-w-[8rem]", signHere ? "shrink-0" : "flex-1")}>
-                    {filledIn(cell.text, `c${at}.${column}`)}
+                    {filledIn(cell.text, spot(`c${at}.${column}`))}
                   </span>
                 ))}
-                {signHere && <SignatureSpot spot={`c${at}.sign`} where="inline" />}
+                {signHere && <SignatureSpot spot={spot(`c${at}.sign`)} where="inline" />}
               </div>
             );
           }
@@ -867,7 +883,7 @@ function Wording({ blocks }: { blocks: DocumentBlock[] }) {
               // The marker the paper typed is dropped: the bullet itself is drawn, so it is not printed twice.
               return (
                 <Numbered key={at} number={listed.marker} bullet indented={indent(block.level + listed.level)}>
-                  {filledIn(listed.text, `b${at}`)}
+                  {filledIn(listed.text, spot(`b${at}`))}
                 </Numbered>
               );
             }
@@ -875,7 +891,7 @@ function Wording({ blocks }: { blocks: DocumentBlock[] }) {
               const { mark, text } = marked(block);
               return (
                 <Heading key={at} mark={mark} depth={depthOf(block, mark)}>
-                  {said(block, `b${at}`, false, text)}
+                  {said(block, spot(`b${at}`), false, text)}
                 </Heading>
               );
             }

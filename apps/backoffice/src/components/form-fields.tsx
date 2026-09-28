@@ -71,7 +71,9 @@ export function DateField({ id, label, value, onChange, field, min, max, optiona
       <DateInput
         {...describedBy(id, error)}
         name={id}
-        defaultValue={value}
+        // The date shown is the answer held, not a copy taken when the line was first drawn: a row added or
+        // taken off the table above it renumbers the rest, and each line must still show its own answer.
+        value={value}
         min={min}
         max={max}
         onChange={(chosen) => {
