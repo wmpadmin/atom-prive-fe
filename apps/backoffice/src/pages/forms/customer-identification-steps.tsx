@@ -554,7 +554,7 @@ export function ScreeningStep(at: FirmAskProps) {
         </div>
         {rows.map((row, index) => (
           <div key={index} className="grid gap-3 rounded-xl border border-line p-4 sm:grid-cols-[3rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
-            <p className="text-sm font-semibold text-ink-muted">{index + 1}</p>
+            <p className="text-sm font-semibold text-ink-muted sm:pb-2.5">{index + 1}</p>
             <DateField id={`screening.rows[${index}].screenedOn`} label="Date latest screening" value={row.screenedOn} onChange={(screenedOn) => change(index, { screenedOn })} field={field} min={yearsFromToday(-20)} max={yearsFromToday(0)} />
             <TextField id={`screening.rows[${index}].names`} label="Screened Names" value={row.names} onChange={(names) => change(index, { names })} field={field} optional />
             <TextField id={`screening.rows[${index}].result`} label="RESULT" value={row.result} onChange={(result) => change(index, { result })} field={field} optional />

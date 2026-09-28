@@ -146,11 +146,15 @@ export function DocumentPage() {
     [wording.data],
   );
 
-  const backTo = fromClient ? `/clients/${clientId}` : `/onboarding/${caseId}`;
+  // No checklist asks for the Notice of Treatment, so the client's documents do not list it: it is opened
+  // from the notice that the client is owed it, and that is where going back belongs.
+  const owedNotice = kind === "NOTICE_OF_TREATMENT";
+  const backTo = owedNotice ? "/post-onboarding" : fromClient ? `/clients/${clientId}` : `/onboarding/${caseId}`;
+  const backLabel = owedNotice ? "Post onboarding notice" : "Client documents";
   if (!wording.data) {
     return (
       <div className="space-y-4">
-        <BackLink to={backTo} />
+        <BackLink to={backTo} label={backLabel} />
         {wording.isError ? (
           <Alert tone="danger">{wording.error.message}</Alert>
         ) : (
@@ -261,7 +265,7 @@ export function DocumentPage() {
 
   return (
     <div className="space-y-6">
-      <BackLink to={backTo} />
+      <BackLink to={backTo} label={backLabel} />
 
       <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-2xl border border-line bg-white px-6 py-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -314,7 +318,7 @@ export function DocumentPage() {
           }}
           footer={
             <Link to={backTo} state={{ tab: "documents" }} className="text-xs font-medium text-primary-700 hover:underline">
-              Back to the client's documents
+              {owedNotice ? "Back to the post onboarding notice" : "Back to the client's documents"}
             </Link>
           }
         />
@@ -337,6 +341,7 @@ export function DocumentPage() {
                   <article className="text-ink">
                     <DocumentWording
                       blocks={one.blocks}
+                      part={one.id}
                       gaps={wording.data.gaps}
                       details={details}
                       ticked={ticked}
@@ -388,6 +393,7 @@ export function DocumentPage() {
                 <article className="text-ink">
                   <DocumentWording
                     blocks={part?.blocks ?? []}
+                    part={part?.id ?? ""}
                     gaps={wording.data.gaps}
                     details={details}
                     ticked={ticked}
@@ -427,7 +433,10 @@ export function DocumentPage() {
                             setEdits((held) => {
                               const now = { ...held };
                               for (const name of Object.keys(now)) {
-                                if (name.startsWith(`${table}.`) && Number(name.split(".")[1]) > count) delete now[name];
+                                // The row is the number straight after the table's own name, whatever that name
+                                // is made of, so a table named for its part is read the same way as any other.
+                                const inside = name.startsWith(`${table}.`) ? name.slice(table.length + 1) : null;
+                                if (inside && Number(inside.split(".")[0]) > count) delete now[name];
                               }
                               return now;
                             });
@@ -637,11 +646,11 @@ function Details({
   );
 }
 
-function BackLink({ to }: { to: string }) {
+function BackLink({ to, label }: { to: string; label: string }) {
   return (
     <Link to={to} state={{ tab: "documents" }} className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700">
       <ChevronLeft aria-hidden="true" className="size-4" />
-      Client documents
+      {label}
     </Link>
   );
 }
