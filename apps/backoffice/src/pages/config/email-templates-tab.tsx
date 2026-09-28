@@ -168,7 +168,9 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
     rememberPreviewClient(client);
   }
   const bodyRef = useRef<HTMLTextAreaElement>(null);
-  const placeholders = useListEmailPlaceholders<Placeholder[], ApiError>();
+  // Only what this email is actually given. A name its sender doesn't fill in goes out as it was typed, so
+  // offering it here would be offering a mistake.
+  const placeholders = useListEmailPlaceholders<Placeholder[], ApiError>({ template: template.key });
   const dirty = subject !== (current?.subject ?? "") || body !== (current?.body ?? "");
 
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
@@ -329,6 +331,17 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
           {placeholders.data && (
             <div>
               <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Insert a placeholder</p>
+              {placeholders.data.length === 0 && (
+                <p className="mt-1.5 text-xs text-ink-muted">
+                  Nothing gives this email any details, so anything in {"{{ }}"} would be sent exactly as typed.
+                </p>
+              )}
+              {!template.sentByThePortal && placeholders.data.length > 0 && (
+                <p className="mt-1.5 text-xs text-amber-700">
+                  Nothing sends this email yet. Write the wording now — these are what it will be given once
+                  sending it is built.
+                </p>
+              )}
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {placeholders.data.map((placeholder) => (
                   <button
@@ -347,7 +360,7 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
         </form>
       )}
 
-      {mode === "preview" && <PreviewPanel subject={subject} body={body} values={values} />}
+      {mode === "preview" && <PreviewPanel subject={subject} body={body} values={values} templateKey={template.key} />}
 
       {mode === "versions" && (
         <div className="mt-4">
@@ -497,17 +510,21 @@ interface PreviewPanelProps {
   body: string;
   /** The picked client's details, or null to fill the placeholders with samples. */
   values: Record<string, string> | null;
+  /** Which email this is, so a name it is never given is called out rather than quietly stood in for. */
+  templateKey: string;
 }
 
-function PreviewPanel({ subject, body, values }: PreviewPanelProps) {
+function PreviewPanel({ subject, body, values, templateKey }: PreviewPanelProps) {
   const preview = usePreviewEmailTemplate<ApiError>();
   const { mutate } = preview;
   // The values are rebuilt on each render, so the effect watches what is in them rather than the object itself.
   const valuesKey = JSON.stringify(values ?? null);
 
   useEffect(() => {
-    mutate({ data: { subject, body, values: JSON.parse(valuesKey) as Record<string, string> | null } });
-  }, [mutate, subject, body, valuesKey]);
+    mutate({
+      data: { subject, body, values: JSON.parse(valuesKey) as Record<string, string> | null, template: templateKey },
+    });
+  }, [mutate, subject, body, valuesKey, templateKey]);
 
   if (preview.isError) {
     return (
@@ -521,7 +538,7 @@ function PreviewPanel({ subject, body, values }: PreviewPanelProps) {
     <div className="mt-4 space-y-3">
       {rendered && rendered.unknownPlaceholders.length > 0 && (
         <Alert tone="danger">
-          These placeholders aren't recognised and would be sent exactly as typed:{" "}
+          This email is never given these, so they would be sent exactly as typed:{" "}
           {rendered.unknownPlaceholders.map((name) => `{{${name}}}`).join(", ")}
         </Alert>
       )}
