@@ -1,5 +1,6 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  exportCustomers,
   useListCustomerAdvisors,
   useListCustomers,
   useListMyClients,
@@ -19,6 +20,7 @@ import { useStaffUser } from "../../auth/session";
 import { ColumnPicker } from "../../components/column-picker";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
 import { formatDate, formatRelative } from "../../lib/labels";
+import { downloadTextFile } from "../../lib/download";
 import { hasAuthority } from "../../lib/permissions";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
@@ -216,6 +218,28 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const total = customers.data?.totalItems ?? 0;
   const lastPage = Math.max(0, Math.ceil(total / size) - 1);
   const filtered = query !== "" || advisorId !== "" || from !== "" || to !== "";
+  const canExport = hasAuthority(user, "EXPORT_CUSTOMER_DATA:CHANGE");
+  const [exporting, setExporting] = useState(false);
+  const [exportFailed, setExportFailed] = useState<string>();
+
+  /** The clients the filters turned up, as a spreadsheet — what is on screen, not more. */
+  async function exportTheList() {
+    setExportFailed(undefined);
+    setExporting(true);
+    try {
+      const csv = await exportCustomers({
+        ...filters,
+        query: query || undefined,
+      });
+      downloadTextFile(`clients-${new Date().toISOString().slice(0, 10)}.csv`, csv, "text/csv");
+    }
+    catch (caught) {
+      setExportFailed(caught instanceof Error ? caught.message : "The export didn't run.");
+    }
+    finally {
+      setExporting(false);
+    }
+  }
   const today = new Date();
   // Assigning is the only action there is, so people who can't assign aren't offered that column.
   // The proposal a client is considering is their advisor's business; the firm-wide list has its own screen for it.
@@ -242,17 +266,27 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
             : "Every client registered with the firm, with their code, advisors and last login."
         }
       >
-        <ColumnPicker
-          columns={offered.map((column) => ({ id: column.id, label: column.label }))}
-          shown={new Set(offered.filter((column) => columns.has(column.id)).map((column) => column.id))}
-          onChange={(shown) => {
-            setColumns(shown);
-            rememberColumns(shown);
-          }}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <ColumnPicker
+            columns={offered.map((column) => ({ id: column.id, label: column.label }))}
+            shown={new Set(offered.filter((column) => columns.has(column.id)).map((column) => column.id))}
+            onChange={(shown) => {
+              setColumns(shown);
+              rememberColumns(shown);
+            }}
+          />
+          {/* Carrying the list out of the building is its own permission, so the button follows it. */}
+          {canExport && (
+            <Button variant="secondary" disabled={exporting} onClick={exportTheList}>
+              <Download aria-hidden="true" />
+              {exporting ? "Exporting…" : "Export"}
+            </Button>
+          )}
+        </div>
       </ListPageHeader>
 
       {notice && <Alert tone="success">{notice}</Alert>}
+      {exportFailed && <Alert tone="danger">{exportFailed}</Alert>}
       {customers.isError && <Alert tone="danger">{customers.error.message}</Alert>}
 
       <RecordList

@@ -15,7 +15,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatDate, formatRelative } from "../../lib/labels";
-import { hasAnyAuthority, hasAuthority } from "../../lib/permissions";
+import { hasAnyAuthority, hasAuthority, READS_PROPOSALS, type Authority } from "../../lib/permissions";
 import { ConfirmDialog } from "../config/confirm-dialog";
 import { toForm } from "../onboarding/application";
 import { ApplicationSummary } from "../onboarding/application-summary";
@@ -36,14 +36,16 @@ import { ClientFormsPanel } from "./client-forms-panel";
 
 type Tab = "overview" | "family" | "advisors" | "banks" | "holdings" | "transactions" | "proposals" | "documents" | "activity";
 
-const TABS: { id: Tab; label: string }[] = [
+/** @param needs what the reader has to hold for this tab to be theirs; left out, the tab is everyone's */
+const TABS: { id: Tab; label: string; needs?: Authority[] }[] = [
   { id: "overview", label: "Overview" },
   { id: "family", label: "Family group" },
   { id: "advisors", label: "Advisors" },
   { id: "banks", label: "Bank accounts" },
   { id: "holdings", label: "Holdings" },
   { id: "transactions", label: "Transactions" },
-  { id: "proposals", label: "Proposals" },
+  // Operations fill a client's forms but do not read the advice given to them, so they are not offered it.
+  { id: "proposals", label: "Proposals", needs: READS_PROPOSALS },
   { id: "documents", label: "Documents" },
   { id: "activity", label: "Activity" },
 ];
@@ -69,9 +71,10 @@ export function ClientPage() {
   const detail = useGetCustomer<CustomerDetail, ApiError>(clientId);
   // Coming back from one of the client's forms opens the tab it was reached from, rather than the top of
   // the file: whoever went into a document is on their way back to the rest of them.
+  const tabs = TABS.filter((option) => !option.needs || hasAnyAuthority(user, ...option.needs));
   const [tab, setTab] = useState<Tab>(() => {
     const asked = (location.state as { tab?: string } | null)?.tab;
-    return TABS.some((option) => option.id === asked) ? (asked as Tab) : "overview";
+    return tabs.some((option) => option.id === asked) ? (asked as Tab) : "overview";
   });
   const [editing, setEditing] = useState(false);
   const [assigning, setAssigning] = useState(false);
@@ -133,7 +136,7 @@ export function ClientPage() {
         </div>
         {/* Scrolls rather than wraps: a second row would break the line the tabs sit on. */}
         <div role="tablist" aria-label="Client file" className="flex gap-1 overflow-x-auto border-b border-line">
-          {TABS.map((option) => (
+          {tabs.map((option) => (
             <button
               key={option.id}
               type="button"
@@ -247,7 +250,7 @@ export function ClientPage() {
       {tab === "banks" && <BankAccountsPanel client={client} />}
       {tab === "holdings" && <HoldingsPanel />}
       {tab === "transactions" && <TransactionsPanel />}
-      {tab === "proposals" && <ProposalsPanel />}
+      {tab === "proposals" && <ProposalsPanel clientId={client.id} />}
       {tab === "documents" && <ClientFormsPanel client={client} />}
       {tab === "activity" && <ActivityPanel activity={activity} />}
 

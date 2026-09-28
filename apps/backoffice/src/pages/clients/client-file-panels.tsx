@@ -1,9 +1,18 @@
-import type { ClientEvent, CustomerDetail, FamilyMember } from "@atomprive/api-client/backoffice";
-import { Avatar, Badge } from "@atomprive/ui";
+import { ApiError } from "@atomprive/api-client";
+import {
+  useListProposals,
+  type ClientEvent,
+  type CustomerDetail,
+  type FamilyMember,
+  type ProposalPage,
+} from "@atomprive/api-client/backoffice";
+import { Alert, Avatar, Badge } from "@atomprive/ui";
+import { keepPreviousData } from "@tanstack/react-query";
 import { FileSignature, ReceiptText, ScrollText, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { formatDateTime } from "../../lib/labels";
+import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
 import { clientsHref, kycStatusLabels, kycStatusTones } from "./client-labels";
 
 /** What each still-to-come section is waiting for, said plainly rather than left blank. */
@@ -35,19 +44,67 @@ export function TransactionsPanel() {
   );
 }
 
-export function ProposalsPanel() {
-  return (
-    <WaitingPanel icon={<FileSignature />} title="No proposals yet">
-      Pending and past proposals appear here once proposals are built.
-    </WaitingPanel>
+/** Every proposal written for this client, newest first: what was sent, where it got to, and what it was for. */
+export function ProposalsPanel({ clientId }: { clientId: string }) {
+  const proposals = useListProposals<ProposalPage, ApiError>(
+    { customerId: clientId, size: 50 },
+    { query: { placeholderData: keepPreviousData } },
   );
-}
+  const rows = proposals.data?.items ?? [];
 
-export function DocumentsPanel() {
+  if (proposals.isError) {
+    return <Alert tone="danger">{proposals.error.message}</Alert>;
+  }
+  if (proposals.data && rows.length === 0) {
+    return (
+      <WaitingPanel icon={<FileSignature />} title="No proposals yet">
+        Proposals written for this client appear here, with what was sent and where each one got to.
+      </WaitingPanel>
+    );
+  }
   return (
-    <WaitingPanel icon={<ScrollText />} title="No KYC documents yet">
-      Uploaded identity and address documents appear here once KYC review is built.
-    </WaitingPanel>
+    <section className="rounded-2xl border border-line bg-white">
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              <th scope="col" className="py-3 pr-4 pl-5">Proposal</th>
+              <th scope="col" className="px-4 py-3">Reference</th>
+              <th scope="col" className="px-4 py-3">Status</th>
+              <th scope="col" className="px-4 py-3">Sent</th>
+              <th scope="col" className="py-3 pr-5 pl-4">Expires</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {!proposals.data && (
+              <tr>
+                <td colSpan={5} className="px-5 py-8 text-center text-ink-muted">Loading proposals…</td>
+              </tr>
+            )}
+            {rows.map((proposal) => (
+              <tr key={proposal.id}>
+                <td className="py-3 pr-4 pl-5">
+                  <Link to={`/proposals/${proposal.id}`} className="font-semibold hover:text-primary-600">
+                    {proposal.title}
+                  </Link>
+                  {proposal.summary && <p className="truncate text-xs text-ink-muted">{proposal.summary}</p>}
+                </td>
+                <td className="px-4 py-3 font-mono text-xs whitespace-nowrap text-ink-soft">{proposal.reference}</td>
+                <td className="px-4 py-3">
+                  <Badge tone={proposalStatusTones[proposal.status]}>{proposalStatusLabels[proposal.status]}</Badge>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
+                  {proposal.sentAt ? formatDateTime(proposal.sentAt) : "Not sent"}
+                </td>
+                <td className="py-3 pr-5 pl-4 whitespace-nowrap text-ink-soft">
+                  {proposal.expiresAt ? formatDateTime(proposal.expiresAt) : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
