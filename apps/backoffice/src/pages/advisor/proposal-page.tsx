@@ -3,18 +3,22 @@ import {
   useCreateProposal,
   useGetProposal,
   useListMyClients,
+  useRecordClientDecision,
   useResendProposal,
+  useSignOffProposal,
   useSubmitProposal,
   useUpdateProposal,
   type CustomerPage,
   type ProposalDetail,
   type ProposalRowStatus,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, describedBy, Field, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Badge, Button, describedBy, Dialog, Field, SelectInput, TextArea, TextInput } from "@atomprive/ui";
 import { ChevronLeft } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { hasAnyAuthority } from "../../lib/permissions";
 import { formatDate, formatDateTime } from "../../lib/labels";
 import { expiryLabel, formatValue, proposalStatusLabels, proposalStatusTones } from "./proposal-labels";
 
@@ -28,6 +32,12 @@ export function ProposalPage() {
   const writing = proposalId === undefined;
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [notice, setNotice] = useState<string>();
+  /** Which answer is being written down: a manager sending it back, or the client's own. */
+  const [answering, setAnswering] = useState<"send-back" | "client" | null>(null);
+  const [comment, setComment] = useState("");
+  const [clientSaid, setClientSaid] = useState(true);
+  const user = useStaffUser();
+  const signsOff = hasAnyAuthority(user, "APPROVE_PROPOSALS:CHANGE", "APPROVE_PROPOSALS:OWN_CLIENTS");
 
   const detail = useGetProposal<ProposalDetail, ApiError>(proposalId ?? "", { query: { enabled: !writing } });
   // Proposals can only be written for clients assigned to you, so the picker offers exactly those.
@@ -54,6 +64,22 @@ export function ProposalPage() {
   const resend = useResendProposal<ApiError>({
     mutation: { onSuccess: (copy) => navigate(`/proposals/${copy.summary.id}`), onError },
   });
+  function answered(said: string) {
+    setAnswering(null);
+    setComment("");
+    setNotice(said);
+    void detail.refetch();
+  }
+  const signOff = useSignOffProposal<ApiError>({
+    mutation: {
+      onSuccess: (saved) =>
+        answered(saved.summary.status === "DRAFT" ? "Sent back to the advisor." : "Signed off, and sent to the client."),
+      onError,
+    },
+  });
+  const clientAnswer = useRecordClientDecision<ApiError>({
+    mutation: { onSuccess: () => answered("The client's answer is on the record."), onError },
+  });
 
   if (!writing && !detail.data) {
     return detail.isError ? (
@@ -67,6 +93,11 @@ export function ProposalPage() {
   const status = (proposal?.summary.status ?? "DRAFT") as ProposalRowStatus;
   const editable = writing || status === "DRAFT";
   const busy = create.isPending || update.isPending || submit.isPending;
+  const deciding = signOff.isPending || clientAnswer.isPending;
+  // A sign-off is what sends it to the client, and it is somebody else's to give: the advisor who wrote it
+  // does not see the buttons, because the API would refuse them anyway.
+  const toSignOff = !writing && status === "PENDING_MANAGER_REVIEW" && signsOff && proposal!.summary.advisorId !== user.id;
+  const withTheClient = !writing && status === "PENDING_REVIEW";
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -239,6 +270,24 @@ export function ProposalPage() {
                 {resend.isPending ? "Copying…" : "Send again as new"}
               </Button>
             )}
+            {toSignOff && (
+              <>
+                <Button variant="secondary" disabled={deciding} onClick={() => setAnswering("send-back")}>
+                  Send back
+                </Button>
+                <Button
+                  disabled={deciding}
+                  onClick={() => signOff.mutate({ id: proposalId!, data: { approved: true, comment: null } })}
+                >
+                  {signOff.isPending ? "Signing off…" : "Sign off and send"}
+                </Button>
+              </>
+            )}
+            {withTheClient && (
+              <Button variant="secondary" disabled={deciding} onClick={() => setAnswering("client")}>
+                Record the client's answer
+              </Button>
+            )}
             {editable && (
               <Button type="submit" variant="secondary" disabled={busy}>
                 {busy ? "Saving…" : writing ? "Save draft" : "Save"}
@@ -252,6 +301,85 @@ export function ProposalPage() {
           </div>
         </div>
       </form>
+
+      <Dialog open={answering === "send-back"} title="Send this proposal back?" onClose={() => setAnswering(null)}>
+        <div className="space-y-4">
+          <p className="text-sm text-ink-muted">
+            It becomes a draft again and the advisor sees what you write here. Nothing reaches the client.
+          </p>
+          {errors.form && <Alert tone="danger">{errors.form}</Alert>}
+          <Field id="send-back-comment" label="What needs putting right?" required error={errors.fields.comment}>
+            <TextArea
+              {...describedBy("send-back-comment", errors.fields.comment)}
+              id="send-back-comment"
+              rows={3}
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+            />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setAnswering(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={deciding}
+              onClick={() => signOff.mutate({ id: proposalId!, data: { approved: false, comment } })}
+            >
+              {signOff.isPending ? "Sending back…" : "Send back"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog open={answering === "client"} title="What did the client say?" onClose={() => setAnswering(null)}>
+        <div className="space-y-4">
+          <p className="text-sm text-ink-muted">
+            Write down the answer they gave you. It is the firm's record of their decision, so it is written once.
+          </p>
+          {errors.form && <Alert tone="danger">{errors.form}</Alert>}
+          <fieldset>
+            <legend className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Their answer</legend>
+            <div className="mt-1.5 flex gap-4">
+              {[
+                { said: true, text: "They approved it" },
+                { said: false, text: "They turned it down" },
+              ].map((one) => (
+                <label key={one.text} className="flex items-center gap-2 text-sm text-ink">
+                  <input
+                    type="radio"
+                    name="client-said"
+                    checked={clientSaid === one.said}
+                    onChange={() => setClientSaid(one.said)}
+                  />
+                  {one.text}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <Field id="client-comment" label="Anything they said about it" error={errors.fields.comment}>
+            <TextArea
+              {...describedBy("client-comment", errors.fields.comment)}
+              id="client-comment"
+              rows={3}
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+            />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setAnswering(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={deciding}
+              onClick={() =>
+                clientAnswer.mutate({ id: proposalId!, data: { approved: clientSaid, comment: comment || null } })
+              }
+            >
+              {clientAnswer.isPending ? "Recording…" : "Record it"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       {!writing && proposal!.summary.valueAmount !== null && (
         <p className="text-xs text-ink-muted">

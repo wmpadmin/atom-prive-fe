@@ -9,10 +9,10 @@ import {
 import { Alert, Badge, Button, Dialog, Field, TextArea, cn } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { formatDate, formatDateTime } from "../../lib/labels";
+import { formatDate } from "../../lib/labels";
 import { hasAnyAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
 
 /**
@@ -33,29 +33,46 @@ export function PostOnboardingPage() {
   }
   const rows = notices.data?.items ?? [];
   const overdue = notices.data?.overdue ?? 0;
+  const sentThisMonth = notices.data?.sentThisMonth ?? 0;
+  const lateThisMonth = notices.data?.lateThisMonth ?? 0;
+  // What is still waiting to go, and when the earliest of it is due. The owed list is ordered by due date,
+  // so the first row is the next one out.
+  const owed = sent ? [] : rows;
+  const owedNow = owed.length;
+  const nextDue = owed[0]?.dueOn ?? null;
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-[1.625rem] font-bold">Post onboarding notice</h1>
+        <h1 className="text-[1.625rem] font-bold">Welcome &amp; risk-classification notice</h1>
         <p className="mt-1 text-sm text-ink-muted">
           Once Compliance sign a client off, the firm has seven days to send them the welcome email, the Notice
           of Treatment letter, and the agreement and forms they signed.
         </p>
       </header>
 
-      {overdue > 0 && !sent && (
-        <Alert tone="danger">
-          <span className="font-semibold">
-            {overdue === 1 ? "One client is" : `${overdue} clients are`} past their seven days.
-          </span>{" "}
-          The pack is owed from the day Compliance signed them off.
-        </Alert>
-      )}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Tile label="Sent this month" value={sentThisMonth}>
+          {sentThisMonth === 0
+            ? "Nothing has gone out yet this month."
+            : lateThisMonth === 0
+              ? "All within the seven days."
+              : `${lateThisMonth} went after the seven days were up.`}
+        </Tile>
+        <Tile label="Owed" value={owedNow}>
+          {owedNow === 0 ? "Nothing is waiting to go." : `Next due ${nextDue ? formatDate(nextDue) : "—"}.`}
+        </Tile>
+        <Tile label="Overdue" value={overdue} tone={overdue > 0 ? "danger" : undefined}>
+          {overdue === 0 ? "Nothing is past its seven days." : "The pack is owed from the day they were signed off."}
+        </Tile>
+      </div>
 
       <section className="rounded-2xl border border-line bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
-          <h2 className="text-base font-bold">{sent ? "Sent" : "Owed to the client"}</h2>
+          <div>
+            <h2 className="text-base font-bold">{sent ? "Sent" : "Notice queue"}</h2>
+            <p className="mt-0.5 text-xs text-ink-muted">Due date = the day they were signed off, plus seven.</p>
+          </div>
           <div className="flex gap-1">
             {([[false, "Owed"], [true, "Sent"]] as [boolean, string][]).map(([which, label]) => (
               <button
@@ -78,9 +95,9 @@ export function PostOnboardingPage() {
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">Client</th>
-                <th scope="col" className="px-4 py-3">Signed off</th>
-                <th scope="col" className="px-4 py-3">{sent ? "Sent" : "Owed by"}</th>
-                <th scope="col" className="px-4 py-3">{sent ? "Sent by" : "Standing"}</th>
+                <th scope="col" className="px-4 py-3">Approved</th>
+                <th scope="col" className="px-4 py-3">Due</th>
+                <th scope="col" className="px-4 py-3">Status</th>
                 <th scope="col" className="py-3 pr-5 pl-4 text-right">Action</th>
               </tr>
             </thead>
@@ -105,33 +122,38 @@ export function PostOnboardingPage() {
                     <Link to={`/onboarding/${notice.caseId}`} className="font-semibold hover:text-primary-600">
                       {notice.clientName}
                     </Link>
-                    {notice.note ? (
-                      <p className="mt-0.5 truncate text-sm text-ink-muted">{notice.note}</p>
-                    ) : (
-                      notice.customerId && (
-                        <Link
-                          to={`/clients/${notice.customerId}/documents/NOTICE_OF_TREATMENT`}
-                          className="mt-0.5 block text-sm font-medium text-primary-700 hover:underline"
-                        >
-                          Open the Notice of Treatment
-                        </Link>
-                      )
-                    )}
+                    <p className="mt-0.5 text-xs text-ink-muted">
+                      {notice.relationshipManager ?? "No relationship manager"}
+                    </p>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatDate(notice.approvedAt)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                    {sent ? (notice.sentAt ? formatDateTime(notice.sentAt) : "—") : formatDate(notice.dueOn)}
-                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatDate(notice.dueOn)}</td>
                   <td className="px-4 py-3">
                     {sent ? (
-                      <span className="text-ink-soft">{notice.sentByName ?? "—"}</span>
+                      <div>
+                        <Badge tone={notice.sentAt && notice.sentAt.slice(0, 10) > notice.dueOn ? "warning" : "success"}>
+                          {notice.sentAt ? `Sent ${formatDate(notice.sentAt)}` : "Sent"}
+                        </Badge>
+                        <p className="mt-0.5 text-xs text-ink-muted">
+                          {notice.sentByName ? `by ${notice.sentByName}` : ""}
+                          {notice.note ? ` · ${notice.note}` : ""}
+                        </p>
+                      </div>
                     ) : (
                       <Standing notice={notice} />
                     )}
                   </td>
-                  <td className="py-3 pr-5 pl-4 text-right">
+                  <td className="py-3 pr-5 pl-4 text-right whitespace-nowrap">
+                    {notice.customerId && (
+                      <Link
+                        to={`/clients/${notice.customerId}/documents/NOTICE_OF_TREATMENT`}
+                        className="text-sm font-medium text-primary-700 hover:underline"
+                      >
+                        {sent ? "View the letter" : "Preview"}
+                      </Link>
+                    )}
                     {!sent && canSend && (
-                      <Button variant="ghost" size="sm" onClick={() => setSending(notice)}>
+                      <Button variant="ghost" size="sm" className="ml-2" onClick={() => setSending(notice)}>
                         <Check aria-hidden="true" />
                         Mark as sent
                       </Button>
@@ -250,5 +272,28 @@ function SendForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/** One of the counts above the queue: how many, and a line saying what that means. */
+function Tile({
+  label,
+  value,
+  tone,
+  children,
+}: {
+  label: string;
+  value: number;
+  tone?: "danger";
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-line bg-white px-5 py-4">
+      <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
+      <p className={cn("mt-1 text-3xl font-bold", tone === "danger" && value > 0 ? "text-red-600" : "text-ink")}>
+        {value}
+      </p>
+      <p className="mt-0.5 text-xs text-ink-muted">{children}</p>
+    </div>
   );
 }
