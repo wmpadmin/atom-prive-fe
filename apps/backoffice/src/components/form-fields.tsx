@@ -1,7 +1,7 @@
 import type { Address } from "@atomprive/api-client/backoffice";
 import { cn, DateInput, describedBy, Field, TextArea, TextInput } from "@atomprive/ui";
 import { useState, type ReactNode } from "react";
-import { madeSignature } from "../pages/forms/made-signature";
+import { madeSignature, signedByTheFirm } from "../pages/forms/made-signature";
 import { CountriesPicker, CountrySelect } from "./country-select";
 import { SignHereDialog } from "./sign-here-dialog";
 import { SignatureMark } from "./signature-mark";
@@ -223,15 +223,17 @@ export function SignatureField({ id, label, value, onChange, field, who = "the c
   const { error } = field(id);
   const [signing, setSigning] = useState(false);
   const made = madeSignature(value ?? undefined);
+  // The firm signs its own lines here. The client's are printed and left blank for them to sign.
+  const ours = signedByTheFirm(who);
   return (
-    <Field id={id} label={label} required={!optional && !disabled} error={error} className={className}>
+    <Field id={id} label={label} required={!optional && !disabled && ours} error={error} className={className}>
       <div {...describedBy(id, error)}>
         <SignatureMark
           made={made}
           who={who}
           shape="field"
-          disabled={disabled}
-          onOpen={() => setSigning(true)}
+          disabled={disabled || !ours}
+          onOpen={ours ? () => setSigning(true) : undefined}
           // A signature typed in before this was an e-signature is left readable rather than thrown away.
           written={!made && value ? value : undefined}
         />

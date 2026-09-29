@@ -3,7 +3,7 @@ import { DateInput, cn } from "@atomprive/ui";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { SignatureMark } from "../../components/signature-mark";
 import { namesAPart } from "./document-parts";
-import { madeSignature } from "./made-signature";
+import { THE_FIRM, madeSignature, signedByTheFirm } from "./made-signature";
 
 interface Filling {
   details: Record<string, string>;
@@ -93,12 +93,15 @@ function RuledBlank({ name }: { name: string }) {
  */
 function SignatureSpot({ spot, who, where }: { spot: string; who?: string; where?: "inline" | "cell" }) {
   const { details, onSign } = useContext(FillingContext);
+  // The firm signs its own lines. A line the paper leaves for the client is printed and left for them: it is
+  // their signature, and nobody here puts it there for them.
+  const ours = signedByTheFirm(who);
   return (
     <SignatureMark
       made={madeSignature(details[spot])}
       who={who}
       shape={where ?? "block"}
-      onOpen={onSign ? () => onSign(spot, who ?? "the client") : undefined}
+      onOpen={onSign && ours ? () => onSign(spot, who ?? THE_FIRM) : undefined}
     />
   );
 }
