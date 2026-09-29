@@ -23,11 +23,12 @@ import {
   Users,
   UsersRound,
   type LucideIcon,
+  Layers,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
-import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_PROPOSALS, UPLOADS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
+import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, UPLOADS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
@@ -45,6 +46,8 @@ const allNavigation: {
   icon: LucideIcon;
   authority: Authority | Authority[] | null;
   notFor?: StaffRole[];
+  /** Where an entry belongs to particular roles rather than to whoever holds the permission. */
+  onlyFor?: StaffRole[];
   /**
    * Which screens this entry is the menu for, where the path alone does not say. The two KYC screens share
    * the /kyc prefix: the queue owns a case and a form opened from it, the document review owns a client's
@@ -57,8 +60,23 @@ const allNavigation: {
     label: "All clients",
     icon: Contact,
     authority: "VIEW_ALL_CLIENTS:VIEW",
-    notFor: ["ADMIN"],
+    notFor: ["ADMIN", "PORTFOLIO_MANAGER"],
     at: (path) => (path === "/clients" || path.startsWith("/clients/")) && !NOTICE_OF_TREATMENT.test(path),
+  },
+  {
+    // The same clients, set out for portfolio work rather than for servicing the account.
+    to: "/portfolio-clients",
+    label: "Clients",
+    icon: Contact,
+    authority: "VIEW_ALL_CLIENTS:VIEW",
+    onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  {
+    to: "/model-portfolios",
+    label: "Model portfolios",
+    icon: Layers,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
   },
   { to: "/my-clients", label: "My clients", icon: Contact, authority: "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS" },
   { to: "/proposals", label: "Proposals", icon: FileSignature, authority: READS_PROPOSALS, notFor: ["ADMIN"] },
@@ -120,6 +138,7 @@ export function AppLayout() {
   const navigation = allNavigation.filter(
     (item) =>
       !(user.activeRole && item.notFor?.includes(user.activeRole)) &&
+      (!item.onlyFor || (user.activeRole != null && item.onlyFor.includes(user.activeRole))) &&
       (item.authority === null ||
       (Array.isArray(item.authority) ? hasAnyAuthority(user, ...item.authority) : hasAuthority(user, item.authority))),
   );

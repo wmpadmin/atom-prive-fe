@@ -59,6 +59,13 @@ export const WRITES_PROPOSALS: Authority[] = ["SEND_PROPOSALS:OWN_CLIENTS", "SEN
 /** Enough to read proposals: whoever writes them, and Compliance, who oversee the advice the firm gives. */
 export const READS_PROPOSALS: Authority[] = ["SEND_PROPOSALS:VIEW", ...WRITES_PROPOSALS];
 
+/** Reading how the firm invests, which follows reading a client's portfolio rather than writing proposals. */
+export const READS_CLIENT_PORTFOLIOS: Authority[] = [
+  "VIEW_CUSTOMER_PROFILE:VIEW",
+  "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS",
+  "VIEW_CUSTOMER_PROFILE:ASSIGNED",
+];
+
 /** Whoever may write proposals for their own clients. */
 export function writesProposals(user: StaffProfile) {
   return hasAnyAuthority(user, ...WRITES_PROPOSALS);

@@ -31,6 +31,7 @@ import {
   UPLOADS_CLIENT_DOCUMENTS,
   READS_PROPOSALS,
   WRITES_PROPOSALS,
+  READS_CLIENT_PORTFOLIOS,
 } from "./lib/permissions";
 import { ForgotPasswordPage } from "./pages/sign-in/forgot-password-page";
 import { LoginPage } from "./pages/sign-in/login-page";
@@ -38,6 +39,8 @@ import { ResetPasswordPage } from "./pages/sign-in/reset-password-page";
 import { OnboardingCasePage } from "./pages/onboarding/onboarding-case-page";
 import { OnboardingListPage } from "./pages/onboarding/onboarding-list-page";
 import { PostOnboardingPage } from "./pages/onboarding/post-onboarding-page";
+import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
+import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
 import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
 import { UsersPage } from "./pages/users/users-page";
@@ -164,6 +167,18 @@ export const router = createBrowserRouter([
               { path: "clients/:clientId/forms/:formId", element: <FormPage /> },
               { path: "clients/:clientId/documents/:kind", element: <DocumentPage /> },
             ],
+          },
+          {
+            // The book read for portfolio work. It is the same clients as All clients, set out for a
+            // different job, so it goes on the same permission.
+            element: <RequireAuthority authority="VIEW_ALL_CLIENTS:VIEW" />,
+            children: [{ path: "portfolio-clients", element: <PortfolioClientsPage /> }],
+          },
+          {
+            // How the firm invests is read by whoever may read a client's portfolio; changing a model is
+            // the product team's, which the buttons on the screen follow.
+            element: <RequireAuthority authority={READS_CLIENT_PORTFOLIOS} />,
+            children: [{ path: "model-portfolios", element: <ModelPortfoliosPage /> }],
           },
           {
             // Operations keep the firm-wide register: they chase what is outstanding and hold the signed
