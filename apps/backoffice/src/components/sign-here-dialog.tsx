@@ -2,7 +2,7 @@ import { Alert, Button, Dialog, Field, TextInput, cn } from "@atomprive/ui";
 import { useState } from "react";
 import { useStaffUser } from "../auth/session";
 import { SignaturePad } from "../pages/to-sign/signature-pad";
-import { signedByTheFirm, type MadeSignature } from "../pages/forms/made-signature";
+import { mayBeSignedHere, type MadeSignature } from "../pages/forms/made-signature";
 
 const WAYS = [
   { value: "TYPED", label: "Type it" },
@@ -69,10 +69,10 @@ function Signing({
   const [wrong, setWrong] = useState("");
 
   function sign() {
-    // The firm signs its own lines and nothing else. A client's signature is theirs to make: if a place for
-    // one ever reaches here, it is refused rather than written on their behalf.
-    if (!signedByTheFirm(who)) {
-      setWrong(`${who} signs this themselves. It can't be signed here on their behalf.`);
+    // The firm's own lines, and a client's line signed by their advisor. Operations prepare the paper and
+    // send it out; if a client's place reaches here from anywhere else, it is refused rather than written.
+    if (!mayBeSignedHere(who, user.activeRole)) {
+      setWrong(`Only ${who}'s advisor signs on their behalf. Send the form out for them to sign it.`);
       return;
     }
     const signature = how === "TYPED" ? typed.trim() : drawn;

@@ -44,6 +44,12 @@ export const ONBOARDS_CLIENTS: Authority[] = ["ONBOARD_CLIENTS:VIEW", "ONBOARD_C
  */
 export const ONBOARDS_CLIENTS_CHANGE: Authority[] = ["ONBOARD_CLIENTS:CHANGE", "ONBOARD_CLIENTS:OWN_CLIENTS"];
 
+/**
+ * Onboarding across the whole book rather than an advisor's own clients. The post-onboarding notice is every
+ * client's pack, so it belongs to whoever follows all of them and not to an advisor who onboards their own.
+ */
+export const ONBOARDS_EVERY_CLIENT: Authority[] = ["ONBOARD_CLIENTS:VIEW", "ONBOARD_CLIENTS:CHANGE"];
+
 /** Enough to put a client's papers on file: Compliance for any client, an advisor for their own. */
 export const UPLOADS_CLIENT_DOCUMENTS: Authority[] = [
   "UPLOAD_CLIENT_DOCUMENTS:CHANGE",

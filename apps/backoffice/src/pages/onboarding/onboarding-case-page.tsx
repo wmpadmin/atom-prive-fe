@@ -31,6 +31,9 @@ export function OnboardingCasePage() {
   const user = useStaffUser();
   // Entering the client's details is the advisor's too, for their own clients; filling in the client's forms
   // stays Operations' work, so the two are asked separately.
+  // An advisor reads every case now, but works only on the ones they manage. A case of somebody else's is
+  // read here and edited nowhere: the API refuses it, so the screen does not offer it either.
+  const mayWorkOnAnyCase = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE");
   const canOnboard = hasAnyAuthority(user, ...ONBOARDS_CLIENTS_CHANGE);
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,7 +41,8 @@ export function OnboardingCasePage() {
 
   const saved = useGetOnboardingCase<CaseDetail, ApiError>(caseId, { query: { enabled: !isNew } });
   const detail = isNew ? undefined : saved.data;
-  const editing = canOnboard && (isNew || detail?.summary.submitted === false);
+  const mine = mayWorkOnAnyCase || isNew || detail?.summary.relationshipManager?.id === user.id;
+  const editing = canOnboard && mine && (isNew || detail?.summary.submitted === false);
   const managers = useListRelationshipManagers<StaffMember[], ApiError>({ query: { enabled: editing } });
   const initial = useMemo(() => (detail ? toForm(detail.application) : newApplication()), [detail]);
   // The list's search and page, remembered when the case was opened, so going back returns to them.

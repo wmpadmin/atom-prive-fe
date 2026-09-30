@@ -1,5 +1,6 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  useAskToDeactivate,
   getGetCustomerQueryKey,
   getListCustomersQueryKey,
   useGetCustomer,
@@ -8,9 +9,9 @@ import {
   type CustomerDetail,
   type StaffMember,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, cn, IconButton } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, Dialog, Field, IconButton, TextArea, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, PencilLine, UserRoundCog, X } from "lucide-react";
+import { ChevronLeft, PencilLine, UserRoundCog, UserX, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -57,10 +58,11 @@ export function ClientPage() {
   const canAssign = hasAuthority(user, "ASSIGN_ADVISORS:CHANGE");
   // Whoever runs a team decides who on it sees this client, and so who reads their documents.
   const setsAccess = hasAuthority(user, "ASSIGN_WORK:CHANGE");
-  // Everyone with access reads the file. Correcting it belongs to whoever manages the client's record:
-  // an Admin, a head, or Compliance — not an officer who is there to fill the forms in.
-  const canEdit = hasAnyAuthority(user, "MANAGE_USERS_AND_ROLES:CHANGE", "ASSIGN_WORK:CHANGE",
-    "APPROVE_ONBOARDING:CHANGE");
+  // Everyone with access reads the file. Operations enter the client, so they correct what they entered;
+  // so do an Admin, a head and Compliance. Where the KYC stands is Compliance's alone, which the API keeps
+  // apart from the rest of the record.
+  const canEdit = hasAnyAuthority(user, "ONBOARD_CLIENTS:CHANGE", "MANAGE_USERS_AND_ROLES:CHANGE",
+    "ASSIGN_WORK:CHANGE", "APPROVE_ONBOARDING:CHANGE");
   const location = useLocation();
   // The same file opens from All clients and from My clients. Back goes where they came from: an advisor has no
   // All clients screen to return to.
@@ -77,6 +79,23 @@ export function ClientPage() {
     return tabs.some((option) => option.id === asked) ? (asked as Tab) : "overview";
   });
   const [editing, setEditing] = useState(false);
+  const [askingToClose, setAskingToClose] = useState(false);
+  const [closureReason, setClosureReason] = useState("");
+  const [closureWrong, setClosureWrong] = useState<string>();
+  // Writing down that a client has asked to close their account is servicing work: it belongs with whoever
+  // the client speaks to, not with whoever approves the closure afterwards.
+  const canRecordClosure = hasAnyAuthority(user, "ONBOARD_CLIENTS:CHANGE", "ONBOARD_CLIENTS:OWN_CLIENTS",
+    "MANAGE_USERS_AND_ROLES:CHANGE");
+  const askToClose = useAskToDeactivate<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        setAskingToClose(false);
+        setClosureReason("");
+        setClosureWrong(undefined);
+      },
+      onError: (caught) => setClosureWrong(caught.message),
+    },
+  });
   const [assigning, setAssigning] = useState(false);
   const [removing, setRemoving] = useState<StaffMember | null>(null);
   const [notice, setNotice] = useState<string>();
@@ -130,6 +149,23 @@ export function ClientPage() {
               <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
                 <PencilLine aria-hidden="true" />
                 Edit client
+              </Button>
+            )}
+            {canRecordClosure && (
+              // Off-boarding is built and tested, and switched off until the firm settles how a client asks:
+              // in their own portal, as the scope has it, or written down here by whoever they speak to.
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled
+                title="Off-boarding isn't switched on yet."
+                onClick={() => {
+                  setClosureWrong(undefined);
+                  setAskingToClose(true);
+                }}
+              >
+                <UserX aria-hidden="true" />
+                They asked to close the account
               </Button>
             )}
           </div>
@@ -262,6 +298,43 @@ export function ClientPage() {
           setNotice(`Saved. ${saved.client.fullName}'s details are up to date.`);
         }}
       />
+
+      <Dialog
+        open={askingToClose}
+        title="Has the client asked to close their account?"
+        description={client.fullName}
+        onClose={() => setAskingToClose(false)}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-ink-muted">
+            They keep the account for thirty days from today, with everything still theirs to read and take.
+            Nothing is closed now: the firm decides once those have passed. This is written down as your doing,
+            not theirs.
+          </p>
+          {closureWrong && <Alert tone="danger">{closureWrong}</Alert>}
+          <Field id="closure-reason" label="The reason they gave, if any">
+            <TextArea
+              id="closure-reason"
+              rows={3}
+              value={closureReason}
+              onChange={(event) => setClosureReason(event.target.value)}
+            />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setAskingToClose(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={askToClose.isPending}
+              onClick={() =>
+                askToClose.mutate({ customerId: clientId!, data: { reason: closureReason || null } })
+              }
+            >
+              {askToClose.isPending ? "Writing it down…" : "Write it down"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
       <AssignAdvisorDialog
         open={assigning}
         clients={[client]}

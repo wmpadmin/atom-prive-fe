@@ -1,9 +1,10 @@
 import type { DocumentBlock, DocumentCell, DocumentGap } from "@atomprive/api-client/backoffice";
 import { DateInput, cn } from "@atomprive/ui";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { useStaffUser } from "../../auth/session";
 import { SignatureMark } from "../../components/signature-mark";
 import { namesAPart } from "./document-parts";
-import { THE_FIRM, madeSignature, signedByTheFirm } from "./made-signature";
+import { THE_FIRM, madeSignature, mayBeSignedHere } from "./made-signature";
 
 interface Filling {
   details: Record<string, string>;
@@ -55,6 +56,28 @@ function signedHere(blocks: DocumentBlock[], at: number): string | null {
   return /signator/i.test(next?.text ?? "") ? "the firm" : "the client";
 }
 
+/** The paper naming the block that follows as the firm's own, above the lines it signs on. */
+const THE_FIRMS_BLOCK = /^(for and on behalf of|signed for and on behalf of|for the firm)\b/i;
+
+/** The paper naming the block that follows as the client's. */
+const THE_CLIENTS_BLOCK = /^(client|customer|the client|for the client|client\(s\))\s*:?$/i;
+
+/**
+ * Whose block a line belongs to, read off the heading above it. A document sets its signing out in blocks —
+ * "For and on behalf of AMALTAS PARTNERS LIMITED" and then "CLIENT" — with each block's name, signature and
+ * date under its own heading. The lines themselves say only "Signature:" and "Date:", so who they belong to
+ * is whichever heading came last.
+ */
+function whoseBlock(blocks: DocumentBlock[], at: number): string | undefined {
+  for (let back = at; back >= 0 && back > at - 12; back -= 1) {
+    const said = (blocks[back]?.text ?? "").trim();
+    if (!said) continue;
+    if (THE_FIRMS_BLOCK.test(said)) return "the firm";
+    if (THE_CLIENTS_BLOCK.test(said)) return "the client";
+  }
+  return undefined;
+}
+
 /** A cell that is the word alone: the paper heading a column, or labelling the space beside it. */
 const SIGNATURE_LABEL = /^signature\s*\(?s?\)?\s*:?$/i;
 
@@ -93,9 +116,9 @@ function RuledBlank({ name }: { name: string }) {
  */
 function SignatureSpot({ spot, who, where }: { spot: string; who?: string; where?: "inline" | "cell" }) {
   const { details, onSign } = useContext(FillingContext);
-  // The firm signs its own lines. A line the paper leaves for the client is printed and left for them: it is
-  // their signature, and nobody here puts it there for them.
-  const ours = signedByTheFirm(who);
+  // The firm's own lines are signed by whoever is filling the form in; a client's line is the advisor's, who
+  // signs on their behalf. Operations leave it for the client.
+  const ours = mayBeSignedHere(who, useStaffUser().activeRole);
   return (
     <SignatureMark
       made={madeSignature(details[spot])}
@@ -182,7 +205,8 @@ function useFilledIn() {
     );
   }
 
-  return (text: string, where = "", idle = false): ReactNode[] => {
+  const signsForTheClient = mayBeSignedHere(undefined, useStaffUser().activeRole);
+  return (text: string, where = "", idle = false, whose?: string): ReactNode[] => {
     const said: ReactNode[] = [];
     text.split(/(\{\{\w+\^?}})/).forEach((piece, part) => {
       if (piece.startsWith("{{")) {
@@ -199,12 +223,16 @@ function useFilledIn() {
         }
         // "Signature: ______" is a place to sign, not a blank to type in.
         if (SIGNS_WHAT_FOLLOWS.test(runs[which - 1] ?? "")) {
-          said.push(<SignatureSpot key={`${part}.${which}`} spot={`${where}.${part}.${which}`} where="inline" />);
+          said.push(
+            <SignatureSpot key={`${part}.${which}`} spot={`${where}.${part}.${which}`} who={whose} where="inline" />,
+          );
           return;
         }
         const asksForADay = DATES_WHAT_FOLLOWS.test(runs[which - 1] ?? "");
+        // A line in the client's own block goes with their signature: the advisor fills it in sitting with
+        // them, and for anybody else it is printed as the rule the paper draws and left for the client.
         said.push(
-          onFill ? (
+          onFill && (whose !== "the client" || signsForTheClient) ? (
             <Blank key={`${part}.${which}`} name={`${where}.${part}.${which}`} idle={idle} day={asksForADay} />
           ) : (
             <span
@@ -283,6 +311,7 @@ function Cell({
   insteadOf,
   mark,
   signing,
+  theirsToWrite,
 }: {
   cell: DocumentCell;
   where: string;
@@ -295,9 +324,12 @@ function Cell({
   insteadOf?: string[];
   /** Where the paper asks for a signature in this cell: in place of what it holds, or after it. */
   signing?: "instead" | "after" | false;
+  /** This row is a block the client signs, so the whole of it is theirs to write — name, date and all. */
+  theirsToWrite?: boolean;
 }) {
   const filledIn = useFilledIn();
   const { ticked, onTick, onFill } = useContext(FillingContext);
+  const signsForTheClient = mayBeSignedHere(undefined, useStaffUser().activeRole);
   const pieces = cell.text.split("☐");
   if (pieces.length === 1) {
     if (ticking && !cell.text.trim()) {
@@ -322,8 +354,10 @@ function Cell({
         </span>
       );
     }
-    // A cell the paper leaves empty is where the answer is written — unless it is naming a column.
-    const writable = onFill && !naming && !cell.text.trim();
+    // A cell the paper leaves empty is where the answer is written — unless it is naming a column, or it sits
+    // in a block the client signs. A row they put their name and signature to is theirs throughout: the date
+    // beside it is the date they signed, which is not the firm's to fill in for them.
+    const writable = onFill && !naming && !cell.text.trim() && (!theirsToWrite || signsForTheClient);
     if (!writable) return <>{filledIn(cell.text, where)}</>;
     return mark ? (
       <span className="flex items-baseline gap-2">
@@ -413,6 +447,12 @@ function Table({ rows: printed, widths, where }: { rows: DocumentCell[][]; width
     SIGNATURE_LABEL.test(cell.text.trim()) ? [[columns[0]![which]!, columns[0]![which]! + cell.across] as const] : [],
   );
   const cols = (row: number, which: number) => columns[row]![which]!;
+  /**
+   * Whether this row is a block the client signs. The whole row is then theirs: their name, their signature
+   * and the date they signed on. None of it is written here on their behalf.
+   */
+  const theySign = (row: DocumentCell[], at: number) =>
+    at > 0 && row.some((_, which) => Boolean(signsHere(row, at, which, cols(at, which))));
   const underASignatureHeading = (from: number, across: number) =>
     signatureSpans.some(([starts, ends]) => from < ends && starts < from + across);
   /**
@@ -514,6 +554,7 @@ function Table({ rows: printed, widths, where }: { rows: DocumentCell[][]; width
                         <Cell
                           cell={cell}
                           where={`${where}.${at}.${which}`}
+                          theirsToWrite={theySign(row, at)}
                           naming={
                             banded(row) || numbering.has(from) || (chosenOnce.has(from) && nothingToTick(row, at))
                           }
@@ -756,8 +797,13 @@ function Wording({ blocks, part }: { blocks: DocumentBlock[]; part: string }) {
   /** A line the paper opens with a bold label, such as "Asset Management Fees:". */
   const said = (block: DocumentBlock, where: string, idle = false, saying?: string) => {
     const text = saying ?? block.text ?? "";
-    if (!block.lead || !text.startsWith(block.lead)) return filledIn(text, where, idle);
-    return [<strong key="lead">{block.lead}</strong>, ...filledIn(text.slice(block.lead.length), where, idle)];
+    // Whose block this line sits in, so a line the client signs on is left for them rather than written here.
+    const whose = whoseBlock(blocks, blocks.indexOf(block));
+    if (!block.lead || !text.startsWith(block.lead)) return filledIn(text, where, idle, whose);
+    return [
+      <strong key="lead">{block.lead}</strong>,
+      ...filledIn(text.slice(block.lead.length), where, idle, whose),
+    ];
   };
   return (
     <div className="space-y-3.5">
