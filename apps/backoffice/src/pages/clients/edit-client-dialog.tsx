@@ -4,13 +4,12 @@ import {
   getListCustomersQueryKey,
   useUpdateClient,
   type CustomerDetail,
-  type CustomerRowKycStatus,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, describedBy, Dialog, Field, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Button, describedBy, Dialog, Field, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
-import { kycStatuses, kycStatusLabels } from "./client-labels";
+import { kycStatusLabels } from "./client-labels";
 
 interface EditClientDialogProps {
   client: CustomerDetail["client"] | null;
@@ -44,7 +43,6 @@ export function EditClientDialog({ client, onClose, onSaved }: EditClientDialogP
       data: {
         fullName: String(form.get("fullName")),
         email: String(form.get("email")).trim() || null,
-        kycStatus: String(form.get("kycStatus")) as CustomerRowKycStatus,
       },
     });
   }
@@ -65,15 +63,12 @@ export function EditClientDialog({ client, onClose, onSaved }: EditClientDialogP
           <Field id="email" label="Email" error={errors.fields.email} hint="How the client signs in to the portal.">
             <TextInput {...describedBy("email", errors.fields.email)} name="email" type="email" defaultValue={client.email ?? ""} />
           </Field>
-          <Field id="kycStatus" label="KYC status" error={errors.fields.kycStatus} hint="Moved by hand until KYC review is built.">
-            <SelectInput {...describedBy("kycStatus", errors.fields.kycStatus)} name="kycStatus" defaultValue={client.kycStatus}>
-              {kycStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {kycStatusLabels[status]}
-                </option>
-              ))}
-            </SelectInput>
-          </Field>
+          {/* Where a client's KYC stands is not typed in: it is read off their papers, and moves when
+              Compliance decide on one. */}
+          <p className="text-xs text-ink-muted">
+            KYC: <span className="font-semibold text-ink">{kycStatusLabels[client.kycStatus]}</span>. It follows
+            the client's documents and moves when Compliance decide on one — it isn't set here.
+          </p>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" onClick={close} disabled={save.isPending}>
               Cancel

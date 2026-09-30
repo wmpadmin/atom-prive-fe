@@ -26,12 +26,13 @@ import { StaffDeclarationsPage } from "./pages/staff-declarations/staff-declarat
 import { HomePage } from "./pages/home-page";
 import {
   ONBOARDS_CLIENTS,
+  ONBOARDS_EVERY_CLIENT,
   OPENS_CLIENT_DOCUMENTS,
   OPENS_CLIENT_FILES,
-  UPLOADS_CLIENT_DOCUMENTS,
-  READS_PROPOSALS,
-  WRITES_PROPOSALS,
   READS_CLIENT_PORTFOLIOS,
+  READS_PROPOSALS,
+  UPLOADS_CLIENT_DOCUMENTS,
+  WRITES_PROPOSALS,
 } from "./lib/permissions";
 import { ForgotPasswordPage } from "./pages/sign-in/forgot-password-page";
 import { LoginPage } from "./pages/sign-in/login-page";
@@ -195,13 +196,17 @@ export const router = createBrowserRouter([
             ],
           },
           {
+            // What every signed-off client is owed. It is the whole book's, so it stays with Operations
+            // rather than following an advisor who onboards their own clients.
+            element: <RequireAuthority authority={ONBOARDS_EVERY_CLIENT} />,
+            children: [{ path: "post-onboarding", element: <PostOnboardingPage /> }],
+          },
+          {
             // Onboarding is Operations' and the advisor's alike; the advisor is held to their own clients
             // by the API, which answers another advisor's case as though it were not there.
             element: <RequireAuthority authority={ONBOARDS_CLIENTS} />,
             children: [
               { path: "onboarding", element: <OnboardingListPage /> },
-              // What a signed-off client is owed, and whether it has gone.
-              { path: "post-onboarding", element: <PostOnboardingPage /> },
               // A form opened from a case's checklist lives under that case, so the menu keeps saying
               // Client onboarding and Back knows where to return to even after a refresh.
               { path: "onboarding/:caseId/forms/:formId", element: <FormPage /> },

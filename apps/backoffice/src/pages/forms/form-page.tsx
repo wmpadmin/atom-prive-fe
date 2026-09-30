@@ -615,7 +615,7 @@ function BackLink({ caseId, clientId, deciding }: { caseId?: string; clientId?: 
       className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700"
     >
       <ChevronLeft aria-hidden="true" className="size-4" />
-      {onAClient ? "Client documents" : deciding ? "KYC review" : "Forms"}
+      {onAClient ? "Client documents" : deciding ? "KYC review queue" : "Forms"}
     </Link>
   );
 }

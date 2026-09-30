@@ -1,7 +1,8 @@
 import type { Address } from "@atomprive/api-client/backoffice";
 import { cn, DateInput, describedBy, Field, TextArea, TextInput } from "@atomprive/ui";
 import { useState, type ReactNode } from "react";
-import { madeSignature, signedByTheFirm } from "../pages/forms/made-signature";
+import { useStaffUser } from "../auth/session";
+import { madeSignature, mayBeSignedHere } from "../pages/forms/made-signature";
 import { CountriesPicker, CountrySelect } from "./country-select";
 import { SignHereDialog } from "./sign-here-dialog";
 import { SignatureMark } from "./signature-mark";
@@ -223,8 +224,9 @@ export function SignatureField({ id, label, value, onChange, field, who = "the c
   const { error } = field(id);
   const [signing, setSigning] = useState(false);
   const made = madeSignature(value ?? undefined);
-  // The firm signs its own lines here. The client's are printed and left blank for them to sign.
-  const ours = signedByTheFirm(who);
+  // The firm's own lines are signed by whoever is filling the form in; a client's line is the advisor's, who
+  // signs on their behalf. Operations prepare the paper and leave the client's line for the client.
+  const ours = mayBeSignedHere(who, useStaffUser().activeRole);
   return (
     <Field id={id} label={label} required={!optional && !disabled && ours} error={error} className={className}>
       <div {...describedBy(id, error)}>

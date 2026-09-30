@@ -8,10 +8,11 @@ import {
   useGetClientKycFile,
   type ClientKycFile,
   type KycDecision,
+  type KycRequirement,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Field, TextArea, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ExternalLink, Plus } from "lucide-react";
+import { Check, ChevronLeft, ExternalLink, Plus } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { openApiFile } from "../../lib/download";
@@ -133,6 +134,8 @@ export function ClientKycPage() {
         </Alert>
       )}
       {problem && <Alert tone="danger">{problem}</Alert>}
+
+      {file.data.checklist.length > 0 && <Checklist checklist={file.data.checklist} />}
 
       <section className="rounded-2xl border border-line bg-white">
         <div className="px-6 pt-5">
@@ -300,6 +303,48 @@ export function ClientKycPage() {
 }
 
 /** Back where they came from: Compliance from the review queue, an advisor from their own clients. */
+/**
+ * What this client's KYC waits on. Where their KYC stands is read off their papers rather than set by hand, so
+ * a client stays pending until every paper here is on file and approved — this is the list that says why.
+ */
+function Checklist({ checklist }: { checklist: KycRequirement[] }) {
+  const stillToCome = checklist.filter((one) => !one.settled);
+
+  return (
+    <section className="rounded-2xl border border-line bg-white px-6 py-5">
+      <h2 className="text-base font-bold">What the KYC waits on</h2>
+      <p className="mt-0.5 text-xs text-ink-muted">
+        {stillToCome.length === 0
+          ? "Every paper on the checklist is in and approved."
+          : `${stillToCome.length} still to come · the KYC reads as approved once every one of these is on file and approved`}
+      </p>
+      <ul className="mt-4 flex flex-wrap gap-2">
+        {checklist.map((one) => (
+          <li
+            key={one.kind}
+            className={cn(
+              "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm",
+              one.settled ? "border-emerald-200 bg-emerald-50 text-ink" : "border-line bg-slate-50 text-ink-soft",
+            )}
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "grid size-5 shrink-0 place-items-center rounded-full border",
+                one.settled ? "border-emerald-600 bg-emerald-600 text-white" : "border-line bg-white",
+              )}
+            >
+              {one.settled && <Check className="size-3" strokeWidth={3} />}
+            </span>
+            <span className="font-medium">{one.kindTitle}</span>
+            <span className="text-2xs text-ink-muted">{one.settled ? "approved" : "still to come"}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function BackLink() {
   const decides = hasAuthority(useStaffUser(), "APPROVE_ONBOARDING:VIEW");
   return (

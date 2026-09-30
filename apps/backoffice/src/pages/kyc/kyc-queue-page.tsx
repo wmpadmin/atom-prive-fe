@@ -16,15 +16,17 @@ import { hasAuthority } from "../../lib/permissions";
 export function KycReviewQueuePage() {
   // Operations follow the same queue to see where a client has got to; deciding on it is Compliance's.
   const decides = hasAuthority(useStaffUser(), "APPROVE_ONBOARDING:CHANGE");
+  // Everything of Compliance's: a client whose form has been sent for review, and one whose whole case has
+  // been handed over to be signed off. A form belongs to them the moment it is sent.
   const cases = useListOnboardingCases<CasePage, ApiError>(
-    { signOff: "AWAITING", size: 50 },
+    { waitingOnCompliance: true, size: 50 },
     { query: { placeholderData: keepPreviousData } },
   );
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-[1.625rem] font-bold">KYC review</h1>
+        <h1 className="text-[1.625rem] font-bold">KYC review queue</h1>
         <p className="mt-1 text-sm text-ink-muted">
           {decides
             ? "The clients whose forms Operations have sent for review. Open one to read each form, approve it or send it back, and sign the client's KYC off."

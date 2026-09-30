@@ -1,4 +1,5 @@
 import { Avatar, cn } from "@atomprive/ui";
+import { NotificationBell } from "./components/notification-bell";
 import {
   FileCheck2,
   ArrowLeftRight,
@@ -28,7 +29,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
-import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, UPLOADS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
+import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, UPLOADS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
@@ -85,7 +86,9 @@ const allNavigation: {
     to: "/post-onboarding",
     label: "Post onboarding notice",
     icon: BellRing,
-    authority: ONBOARDS_CLIENTS,
+    // Every client's pack, so it stays with Operations. An advisor onboarding their own clients does not
+    // thereby follow what every other client is owed.
+    authority: ONBOARDS_EVERY_CLIENT,
     notFor: ["ADMIN"],
     at: (path) => path === "/post-onboarding" || NOTICE_OF_TREATMENT.test(path),
   },
@@ -96,7 +99,7 @@ const allNavigation: {
     to: "/kyc",
     // Deciding a client's KYC is Compliance's, and so is the screen: Operations follow a case from Client
     // onboarding, which is their own.
-    label: "KYC review",
+    label: "KYC review queue",
     icon: ShieldCheck,
     authority: "APPROVE_ONBOARDING:CHANGE",
     notFor: ["ADMIN"],
@@ -173,7 +176,10 @@ export function AppLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-20 items-center justify-between gap-4 px-8">
           <p className="text-2xl font-bold">{user.activeRole ? roleLabels[user.activeRole] : ""}</p>
-          <UserMenu />
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <UserMenu />
+          </div>
         </header>
         <main className="flex-1 px-8 pb-10">
           <Outlet />

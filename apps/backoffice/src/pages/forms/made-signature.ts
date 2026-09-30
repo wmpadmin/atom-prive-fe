@@ -15,12 +15,19 @@ export interface MadeSignature {
 /** The one signature the back office makes: the firm's own. */
 export const THE_FIRM = "the firm";
 
-/**
- * Whether this place may be signed from the back office. Only the firm's own signature may: a client signs
- * their own paper, and nobody here signs it for them, however the paper words whose signature it asks for.
- */
 export function signedByTheFirm(who: string | undefined) {
   return who === THE_FIRM;
+}
+
+/**
+ * Whether this place may be signed here, and by this person.
+ *
+ * <p>The firm's own lines are signed by whoever is filling the form in. A client's line is the advisor's:
+ * they are the one who sits with the client, and what they put down is recorded as theirs on the client's
+ * behalf. Operations never sign for a client — they prepare the paper and send it out to be signed.
+ */
+export function mayBeSignedHere(who: string | undefined, activeRole: string | null | undefined) {
+  return signedByTheFirm(who) || activeRole === "ADVISOR" || activeRole === "ADMIN";
 }
 
 /** Reads a signature back out of the answers. Anything else written there is not one, and is left alone. */
