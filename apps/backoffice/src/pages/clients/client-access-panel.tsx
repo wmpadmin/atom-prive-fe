@@ -12,7 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 /**
- * Who on the staff may see this client (#39). Most clients are open to the whole team, which is how a
+ * Who on the staff may see this client (#80). Most clients are open to the whole team, which is how a
  * servicing desk works; a client can be held to named staff instead. Documents follow the client, so this
  * decides who reads their papers too.
  */
@@ -130,7 +130,7 @@ function Choice({ label, active, onClick }: { label: string; active: boolean; on
       onClick={onClick}
       className={cn(
         "h-9 rounded-lg border px-4 text-sm font-semibold transition-colors",
-        active ? "border-primary-600 bg-primary-600 text-white" : "border-line bg-white text-ink hover:border-primary-600",
+        active ? "border-primary-600 bg-primary-600 text-on-accent" : "border-line bg-white text-ink hover:border-primary-600",
       )}
     >
       {label}

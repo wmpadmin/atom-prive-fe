@@ -19,7 +19,7 @@ import { PickClientDialog } from "./pick-client-dialog";
 
 /**
  * Every KYC document waiting on Compliance, with the client it belongs to. Opening one goes to that client's
- * whole pack, since a paper is judged against the rest of what they have handed over, not on its own (#36).
+ * whole pack, since a paper is judged against the rest of what they have handed over, not on its own (#83).
  */
 export function KycDocumentReviewPage() {
   const navigate = useNavigate();

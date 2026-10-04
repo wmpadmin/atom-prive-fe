@@ -16,7 +16,7 @@ import { formatDate } from "../../lib/labels";
 import { hasAnyAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
 
 /**
- * What every signed-off client is owed (#N). Compliance sign a client off; the firm then has seven days to
+ * What every signed-off client is owed. Compliance sign a client off; the firm then has seven days to
  * get the welcome email, the Notice of Treatment letter and the forms they signed to them.
  */
 export function PostOnboardingPage() {

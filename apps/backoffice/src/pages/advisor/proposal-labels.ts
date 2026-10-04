@@ -1,4 +1,5 @@
 import type { ProposalRowStatus } from "@atomprive/api-client/backoffice";
+import { formatDate } from "../../lib/labels";
 
 export const proposalStatusLabels: Record<ProposalRowStatus, string> = {
   DRAFT: "Draft",
@@ -18,9 +19,15 @@ export const proposalStatusTones: Record<ProposalRowStatus, "neutral" | "info" |
   EXPIRED: "neutral",
 };
 
-/** "2 days left", or what happened, for the Expiry column. */
-export function expiryLabel(expiresAt: string | null, status: ProposalRowStatus) {
-  if (status === "APPROVED" || status === "REJECTED") return "—";
+/**
+ * "2 days left" while the client still has it, and once they have answered, what they said and when — the
+ * column is about where a proposal stands in time, and for a decided one that is the day it was decided.
+ */
+export function expiryLabel(expiresAt: string | null, status: ProposalRowStatus, decidedAt?: string | null) {
+  if (status === "APPROVED" || status === "REJECTED") {
+    const said = status === "APPROVED" ? "Approved" : "Rejected";
+    return decidedAt ? `${said} ${formatDate(decidedAt)}` : said;
+  }
   if (status === "EXPIRED") return "Expired";
   if (!expiresAt) return "Not sent yet";
   const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);

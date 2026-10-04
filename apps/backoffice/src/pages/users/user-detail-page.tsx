@@ -162,7 +162,7 @@ export function UserDetailPage() {
             className={cn(
               "rounded-lg px-7 py-2 text-sm font-medium transition-colors",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
-              tab === option.id ? "bg-primary-600 text-white" : "text-ink-soft hover:bg-slate-50",
+              tab === option.id ? "bg-primary-600 text-on-accent" : "text-ink-soft hover:bg-slate-50",
             )}
           >
             {option.label}

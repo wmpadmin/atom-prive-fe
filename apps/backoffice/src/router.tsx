@@ -3,6 +3,7 @@ import { AppLayout } from "./app-layout";
 import { RequireAuthority, RequireSignIn } from "./auth/guards";
 import { MyClientsPage } from "./pages/advisor/my-clients-page";
 import { ProposalPage } from "./pages/advisor/proposal-page";
+import { ManagerReviewPage } from "./pages/advisor/manager-review-page";
 import { ProposalsPage } from "./pages/advisor/proposals-page";
 import { AuditLogPage } from "./pages/audit-log/audit-log-page";
 import { IngestionMonitoringPage } from "./pages/bank-syncs/ingestion-monitoring-page";
@@ -24,8 +25,10 @@ import { MyDeclarationPage } from "./pages/my-declarations/my-declaration-page";
 import { MyDeclarationsPage } from "./pages/my-declarations/my-declarations-page";
 import { StaffDeclarationsPage } from "./pages/staff-declarations/staff-declarations-page";
 import { HomePage } from "./pages/home-page";
+import { SettingsPage } from "./pages/settings-page";
 import {
   ONBOARDS_CLIENTS,
+  APPROVES_PROPOSALS,
   ONBOARDS_EVERY_CLIENT,
   OPENS_CLIENT_DOCUMENTS,
   OPENS_CLIENT_FILES,
@@ -40,6 +43,15 @@ import { ResetPasswordPage } from "./pages/sign-in/reset-password-page";
 import { OnboardingCasePage } from "./pages/onboarding/onboarding-case-page";
 import { OnboardingListPage } from "./pages/onboarding/onboarding-list-page";
 import { PostOnboardingPage } from "./pages/onboarding/post-onboarding-page";
+import { BenchmarksPage } from "./pages/portfolios/benchmarks-page";
+import { ModelDetailPage } from "./pages/portfolios/model-detail-page";
+import { ModelRiskPage } from "./pages/portfolios/model-risk-page";
+import { ManagementInformationPage } from "./pages/portfolios/management-information-page";
+import { PortfolioReportsPage } from "./pages/portfolios/reports-page";
+import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-page";
+import { ModelPerformancePage } from "./pages/portfolios/model-performance-page";
+import { BulkRebalancingPage } from "./pages/portfolios/bulk-rebalancing-page";
+import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
 import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
 import { RolesPage } from "./pages/roles/roles-page";
@@ -67,13 +79,13 @@ export const router = createBrowserRouter([
           // Everyone at the firm signs the same nine, so their own need no permission beyond being signed in.
           { path: "my-declarations", element: <MyDeclarationsPage /> },
           { path: "my-declarations/:kind", element: <MyDeclarationPage /> },
+          // Somebody's own account, so it asks for nothing beyond being signed in.
+          { path: "settings", element: <SettingsPage /> },
+          // Whoever runs the platform gets the firm's figures here; everybody else gets their own day.
+          { path: "dashboard", element: <DashboardPage /> },
           {
             element: <RequireAuthority authority="VIEW_ALL_CLIENTS:VIEW" />,
             children: [
-              // Hidden for now at your request: off the menu, and Admins land on Staff users. Put the nav entry
-              // back in app-layout.tsx to show it again.
-              { path: "dashboard", element: <DashboardPage /> },
-              { path: "clients", element: <ClientsPage /> },
               { path: "notifications", element: <DeliveriesPage /> },
               {
                 path: "family-access",
@@ -95,12 +107,20 @@ export const router = createBrowserRouter([
                   />
                 ),
               },
+            ],
+          },
+          {
+            // The whole book, read as a directory. An advisor works from it to onboard but is not given a
+            // screen onto every client's file: theirs are under My clients, and the API answers the same way.
+            element: <RequireAuthority authority="VIEW_ALL_CLIENTS:VIEW" notFor={["ADVISOR"]} />,
+            children: [
+              { path: "clients", element: <ClientsPage /> },
               { path: "clients/:clientId", element: <ClientPage /> },
             ],
           },
           {
-            // KYC review is Compliance's, and Compliance have no sight of every client, so it cannot sit under
-            // VIEW_ALL_CLIENTS. Operations may look at where a client's papers have got to; only Compliance decide.
+            // KYC sign-off is Compliance's, and Compliance have no sight of every client, so it cannot sit
+            // under VIEW_ALL_CLIENTS. Operations may look at where a client's papers have got to.
             element: <RequireAuthority authority="APPROVE_ONBOARDING:VIEW" />,
             children: [
               { path: "kyc", element: <KycReviewQueuePage /> },
@@ -109,8 +129,8 @@ export const router = createBrowserRouter([
               // Compliance read the client's case here rather than under Client onboarding, which is
               // Operations' own screen and closed to them.
               { path: "kyc/cases/:caseId", element: <OnboardingCasePage /> },
-              // A signed form waiting on their decision. Read here, decided here; the API opens them nothing
-              // that is still being filled in.
+              // A client's form, read here. Compliance change none of it: every endpoint that writes asks
+              // for a permission they do not hold.
               { path: "kyc/forms/:formId", element: <FormPage /> },
             ],
           },
@@ -134,7 +154,8 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            // Compliance read the firm's advice; writing it stays with whoever advises the client.
+            // Compliance and the Portfolio Manager read the firm's advice; writing it stays with whoever
+            // advises the client, which is why only the writing route below is closed to them.
             element: <RequireAuthority authority={READS_PROPOSALS} />,
             children: [
               { path: "proposals", element: <ProposalsPage /> },
@@ -142,7 +163,12 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            element: <RequireAuthority authority={WRITES_PROPOSALS} />,
+            // Giving a sign-off is its own permission: whoever passes a proposal need not write any.
+            element: <RequireAuthority authority={APPROVES_PROPOSALS} />,
+            children: [{ path: "manager-review", element: <ManagerReviewPage /> }],
+          },
+          {
+            element: <RequireAuthority authority={WRITES_PROPOSALS} notFor={["PORTFOLIO_MANAGER"]} />,
             children: [
               { path: "proposals/new", element: <ProposalPage /> },
             ],
@@ -179,7 +205,18 @@ export const router = createBrowserRouter([
             // How the firm invests is read by whoever may read a client's portfolio; changing a model is
             // the product team's, which the buttons on the screen follow.
             element: <RequireAuthority authority={READS_CLIENT_PORTFOLIOS} />,
-            children: [{ path: "model-portfolios", element: <ModelPortfoliosPage /> }],
+            children: [
+              { path: "model-portfolios", element: <ModelPortfoliosPage /> },
+              { path: "drift", element: <DriftBreachesPage /> },
+              { path: "bulk-rebalancing", element: <BulkRebalancingPage /> },
+              { path: "model-performance", element: <ModelPerformancePage /> },
+              { path: "model-risk", element: <ModelRiskPage /> },
+              { path: "reports", element: <PortfolioReportsPage /> },
+              { path: "mis", element: <ManagementInformationPage /> },
+              { path: "portfolio-settings", element: <PortfolioSettingsPage /> },
+              { path: "benchmarks", element: <BenchmarksPage /> },
+              { path: "model-portfolios/:modelId", element: <ModelDetailPage /> },
+            ],
           },
           {
             // Operations keep the firm-wide register: they chase what is outstanding and hold the signed

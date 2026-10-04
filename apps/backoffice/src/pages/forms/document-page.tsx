@@ -6,6 +6,7 @@ import {
   useGetCustomer,
   useGetDocumentText,
   useSaveFormDraft,
+  useSendFormsForSignature,
   useStartForm,
   useGetOnboardingCase,
   useListCaseForms,
@@ -48,9 +49,9 @@ function yearsFromToday(years: number) {
   return new Date(now.getFullYear() + years, now.getMonth(), now.getDate());
 }
 
-const SEND: RailStep = { id: "send", group: "—", label: "Send for KYC", complete: false };
+const SEND: RailStep = { id: "send", group: "—", label: "Send to be signed", complete: false };
 
-const READ_IT_OVER = "Check the details it needs, then send it for KYC review.";
+const READ_IT_OVER = "Check the details it needs, then send it out to be signed.";
 
 /**
  * What a part of the document is called, with the gaps its name leaves filled in as the wording itself fills
@@ -113,6 +114,8 @@ export function DocumentPage() {
   // A client's own copy has no case behind it, so what is written on it is kept against the form itself.
   const open = useStartForm<ApiError>();
   const keep = useSaveFormDraft<ApiError>();
+  // Finished, a document goes straight out to the client's advisor to be signed.
+  const send = useSendFormsForSignature<ApiError>();
 
   // What the record already knows, with anything typed here on top.
   const details = useMemo(() => {
@@ -209,8 +212,8 @@ export function DocumentPage() {
         kind: kind as CaseFormRow["kind"],
         // A finished document is unpicked by taking its signed copy off; one still out is simply taken back.
         data: signed
-          ? { customerId: client.id, dueOn: null, waitingOnClient: null, signedCopyOnFile: false, sendForKyc: null, answers: null }
-          : { customerId: client.id, dueOn: null, waitingOnClient: false, signedCopyOnFile: null, sendForKyc: null, answers: null },
+          ? { customerId: client.id, dueOn: null, waitingOnClient: null, signedCopyOnFile: false, answers: null }
+          : { customerId: client.id, dueOn: null, waitingOnClient: false, signedCopyOnFile: null, answers: null },
       },
       {
         onSuccess: () => {
@@ -229,9 +232,16 @@ export function DocumentPage() {
     void wording.refetch();
   }
 
+  /**
+   * Keeps what has been written on the document, and where it is being sent, sends it to the client's advisor
+   * to be signed. Nothing goes through Compliance on the way: they read the firm's papers, they do not hold
+   * them up.
+   */
   function save(alsoSend: boolean, dueOn?: string) {
     if (!client) return;
     const answers = { ...details, ...ticked };
+    const sendItOut = (formId: string) =>
+      send.mutate({ data: { formIds: [formId], dueOn: dueOn ?? null, note: null } }, { onSuccess: kept });
     // The document belongs to the application whichever way it was opened, so what is written on it and its
     // going for review are recorded there.
     if (sendAgainst) {
@@ -244,22 +254,27 @@ export function DocumentPage() {
             dueOn: dueOn ?? null,
             waitingOnClient: null,
             signedCopyOnFile: null,
-            sendForKyc: alsoSend ? true : null,
             answers,
           },
         },
-        { onSuccess: kept },
+        { onSuccess: (saved) => (alsoSend && saved.formId ? sendItOut(saved.formId) : kept()) },
       );
       return;
     }
     // A client with no application of their own keeps their copy on their own file.
     if (row?.formId) {
-      keep.mutate({ id: row.formId, data: { answers, dueOn: null } }, { onSuccess: kept });
+      const formId = row.formId;
+      keep.mutate({ id: formId, data: { answers, dueOn: null } },
+        { onSuccess: () => (alsoSend ? sendItOut(formId) : kept()) });
       return;
     }
     open.mutate(
       { data: { kind: kind as CaseFormRow["kind"], customerId: client.id, onboardingCaseId: null, dueOn: null } },
-      { onSuccess: (started) => keep.mutate({ id: started.summary.id, data: { answers, dueOn: null } }, { onSuccess: kept }) },
+      {
+        onSuccess: (started) =>
+          keep.mutate({ id: started.summary.id, data: { answers, dueOn: null } },
+            { onSuccess: () => (alsoSend ? sendItOut(started.summary.id) : kept()) }),
+      },
     );
   }
 
@@ -298,9 +313,7 @@ export function DocumentPage() {
       )}
       {sent && !signed && (
         <Alert tone="info">
-          {being === "AWAITING_COMPLIANCE"
-            ? "This is with Compliance for KYC review. It goes to the client to sign once they approve it."
-            : `This has gone to ${client?.fullName ?? "the client"} to sign${row?.dueOn ? `, and is expected back by ${formatDate(row.dueOn)}` : ""}.`}
+          {`This has gone to ${client?.fullName ?? "the client"} to sign${row?.dueOn ? `, and is expected back by ${formatDate(row.dueOn)}` : ""}.`}
         </Alert>
       )}
       {change.isError && <Alert tone="danger">{change.error.message}</Alert>}
@@ -314,7 +327,7 @@ export function DocumentPage() {
           intro="The client signs this as it stands. Go to any part — nothing is locked."
           note={{
             title: "Nothing goes out by itself",
-            body: "Read it through and fill in what it asks for. It reaches the client only once Compliance have passed it.",
+            body: "Read it through and fill in what it asks for. It goes out to be signed only when you send it.",
           }}
           footer={
             <Link to={backTo} state={{ tab: "documents" }} className="text-xs font-medium text-primary-700 hover:underline">
@@ -454,7 +467,7 @@ export function DocumentPage() {
               {!writable
                 ? "This is the document as it went out."
                 : missing.length === 0
-                  ? "Every detail it asks for is in. It is ready to go for KYC review."
+                  ? "Every detail it asks for is in. It is ready to go out to be signed."
                   : `${missing.length} detail${missing.length === 1 ? "" : "s"} still to fill in, over ${asked} part${asked === 1 ? "" : "s"}${answered > 0 ? ` (${answered} done)` : ""}.`}
             </p>
             <div className="flex gap-2">
@@ -490,11 +503,9 @@ export function DocumentPage() {
         // Whoever else is holding it has to be named: taking it back is not the same small thing as opening
         // a draft again, and what was written on it goes with it.
         description={
-          being === "AWAITING_COMPLIANCE"
-            ? "This has been sent to Compliance for KYC review. Editing it takes it back from them and clears what was filled in — it starts again from the beginning, and has to be sent for review afresh. Do you want to continue?"
-            : signed
+          signed
               ? "The client's signed copy is on file. Editing it takes the document back and clears what was filled in — it starts again from the beginning. Do you want to continue?"
-              : `This is with ${client?.fullName ?? "the client"} to sign. Editing it takes the document back and clears what was filled in — it starts again from the beginning, and has to go for review afresh. Do you want to continue?`
+            : `This is with ${client?.fullName ?? "the client"} to sign. Editing it takes the document back and clears what was filled in — it starts again from the beginning. Do you want to continue?`
         }
         confirmLabel="Yes, start it again"
         busy={change.isPending}
@@ -582,11 +593,11 @@ function SendPart({
               required
             />
           </Field>
-          {/* A document goes for review as it stands, so it goes complete: what is still blank would be
-              blank on the copy the client eventually signs. */}
+          {/* A document goes out as it stands, so it goes complete: what is still blank would be blank on
+              the copy the client signs. */}
           <Button disabled={!dueOn || busy || missing.length > 0} onClick={() => onSend(dueOn)}>
             <Send aria-hidden="true" />
-            {sent ? "Send for KYC again" : "Send for KYC"}
+            {sent ? "Send to be signed again" : "Send to be signed"}
           </Button>
           {missing.length > 0 && (
             <p className="text-sm text-ink-muted">

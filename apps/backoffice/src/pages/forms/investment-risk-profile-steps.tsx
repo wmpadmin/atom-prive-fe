@@ -321,7 +321,7 @@ function Pick({
             className={cn(
               "cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
               chosen === option.value
-                ? "border-primary-600 bg-primary-600 text-white"
+                ? "border-primary-600 bg-primary-600 text-on-accent"
                 : "border-line bg-white text-ink hover:border-primary-100",
               error && !chosen && "border-red-300",
             )}

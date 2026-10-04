@@ -8,7 +8,7 @@ import {
   useChangeCaseForm,
   useRemoveFormAttachment,
   useSaveFormDraft,
-  useSendFormForKyc,
+  useSendFormsForSignature,
   type DocumentText,
   type DocumentGap,
   type DocumentTextKind,
@@ -16,13 +16,12 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, DateInput, Dialog, Field, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronLeft, ChevronRight, Info, PencilLine, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info, PencilLine } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 import { StepRail } from "../../components/step-rail";
 import type { FormDocuments } from "../../components/form-documents";
 import type { FieldFor } from "../../components/form-fields";
-import { FormDecisionDialog } from "../kyc/form-decision";
 import { FirmContext } from "./firm-name";
 import { toFormErrors } from "../../lib/api-errors";
 import { formatDate } from "../../lib/labels";
@@ -54,14 +53,14 @@ export function FormPage() {
   // Opened from a case's checklist, the form sits under that case: Back goes to the checklist, and the menu
   // still says Client onboarding.
   const { formId = "", caseId: cameFromCase, clientId: cameFromClient } = useParams();
-  // Compliance open a signed form from their queue to decide on it, never to fill it in.
-  const deciding = useLocation().pathname.startsWith("/kyc/");
+  // Compliance reach a form from a client's file to read it, never to fill it in.
+  const fromKyc = useLocation().pathname.startsWith("/kyc/");
   const detail = useGetForm<FormDetail, ApiError>(formId);
 
   if (!detail.data) {
     return (
       <div className="space-y-4">
-        <BackLink caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />
+        <BackLink caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />
         {detail.isError ? (
           <Alert tone="danger">{detail.error.status === 404 ? "This form doesn't exist." : detail.error.message}</Alert>
         ) : (
@@ -75,31 +74,31 @@ export function FormPage() {
   const key = `${formId}:${detail.data.summary.status}`;
   switch (detail.data.summary.kind) {
     case "CUSTOMER_DUE_DILIGENCE_ENTITY":
-      return <FilledForm key={key} kit={dueDiligenceKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />;
+      return <FilledForm key={key} kit={dueDiligenceKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     case "FATCA_CRS_ENTITY":
-      return <FilledForm key={key} kit={fatcaCrsKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />;
+      return <FilledForm key={key} kit={fatcaCrsKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     // One self-certification for the account, whoever holds it: the form names each holder in turn.
     case "FATCA_CRS_INDIVIDUAL":
-      return <FilledForm key={key} kit={fatcaCrsIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />;
+      return <FilledForm key={key} kit={fatcaCrsIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     case "CUSTOMER_DUE_DILIGENCE_INDIVIDUAL":
-      return <FilledForm key={key} kit={dueDiligenceIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />;
+      return <FilledForm key={key} kit={dueDiligenceIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     // One identification form for the account, whoever holds it: it is filled in for each of them in turn.
     case "CUSTOMER_IDENTIFICATION_INDIVIDUAL":
-      return <FilledForm key={key} kit={customerIdentificationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />;
+      return <FilledForm key={key} kit={customerIdentificationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     case "PROFESSIONAL_CLIENT_CONFIRMATION_JOINT":
-      return <FilledForm key={key} kit={professionalClientConfirmationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />;
+      return <FilledForm key={key} kit={professionalClientConfirmationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     case "INVESTMENT_RISK_PROFILE":
-      return <FilledForm key={key} kit={riskProfileKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />;
+      return <FilledForm key={key} kit={riskProfileKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     case "CLIENT_CLASSIFICATION":
-      return <FilledForm key={key} kit={clientClassificationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />;
+      return <FilledForm key={key} kit={clientClassificationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     case "DFSA_ONBOARDING_CHECKLIST_ENTITY":
-      return <FilledForm key={key} kit={dfsaChecklistKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />;
+      return <FilledForm key={key} kit={dfsaChecklistKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     case "ACCOUNT_OPENING_INDIVIDUAL":
-      return <FilledForm key={key} kit={accountOpeningIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />;
+      return <FilledForm key={key} kit={accountOpeningIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     case "DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL":
-      return <FilledForm key={key} kit={dfsaChecklistIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />;
+      return <FilledForm key={key} kit={dfsaChecklistIndividualKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     default:
-      return <FilledForm key={key} kit={accountOpeningKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} deciding={deciding} />;
+      return <FilledForm key={key} kit={accountOpeningKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
   }
 }
 
@@ -109,21 +108,20 @@ function FilledForm<T>({
   detail,
   caseId,
   clientId,
-  deciding,
+  fromKyc,
 }: {
   kit: FormKit<T>;
   detail: FormDetail;
   caseId?: string;
   clientId?: string;
   /** Opened by Compliance from their queue: the form is read to be decided on, not to be worked on. */
-  deciding?: boolean;
+  fromKyc?: boolean;
 }) {
   const queryClient = useQueryClient();
   const signed = detail.summary.status === "SUBMITTED";
   // Once it has gone to the client it is a record of what was sent, so it is read-only until it is filled in
-  // again — and a signed form with Compliance is the paper they are reading, which must not change under them.
-  const locked = signed || detail.summary.status === "WAITING_ON_CLIENT"
-    || detail.summary.status === "AWAITING_COMPLIANCE";
+  // again.
+  const locked = signed || detail.summary.status === "WAITING_ON_CLIENT";
   const [value, setValue] = useState<T>(() => kit.toValue(detail.answers));
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(kit.toValue(detail.answers)));
   // The firm's own name, which the lines of a form that print it are filled out with.
@@ -170,8 +168,6 @@ function FilledForm<T>({
   const [justSaved, setJustSaved] = useState(false);
   const [sending, setSending] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
-  const navigate = useNavigate();
 
   const index = Math.max(0, steps.findIndex((step) => step.id === currentId));
   const current = steps[index] ?? REVIEW;
@@ -195,8 +191,8 @@ function FilledForm<T>({
         kind: detail.summary.kind,
         // A finished form is unpicked by taking its signed copy off; one still out is simply taken back.
         data: signed
-          ? { customerId: detail.summary.customerId, dueOn: null, waitingOnClient: null, signedCopyOnFile: false, sendForKyc: null, answers: null }
-          : { customerId: detail.summary.customerId, dueOn: null, waitingOnClient: false, signedCopyOnFile: null, sendForKyc: null, answers: null },
+          ? { customerId: detail.summary.customerId, dueOn: null, waitingOnClient: null, signedCopyOnFile: false, answers: null }
+          : { customerId: detail.summary.customerId, dueOn: null, waitingOnClient: false, signedCopyOnFile: null, answers: null },
       },
       {
         onSuccess: () => {
@@ -209,7 +205,8 @@ function FilledForm<T>({
   }
 
   const save = useSaveFormDraft<ApiError>();
-  const send = useSendFormForKyc<ApiError>();
+  // A finished form goes to the client's advisor to be signed; nothing holds it up on the way.
+  const send = useSendFormsForSignature<ApiError>();
   const busy = save.isPending || send.isPending;
 
   // An attached document is kept straight away: it is the client's paper, not a draft answer.
@@ -305,27 +302,38 @@ function FilledForm<T>({
     );
   }
 
-  /** Written up and handed to Compliance, who read it before the client is asked to sign anything. */
-  function sendForKyc(dueOn: string) {
+  /** Written up and sent to the client's advisor to be signed. */
+  function sendToBeSigned(dueOn: string) {
     setFormError(undefined);
-    send.mutate(
-      { id: detail.summary.id, data: { answers: answersToSave(), dueOn } },
+    // Written down first, then sent: what goes out to be signed is what is on the form, not what is on screen.
+    save.mutate(
+      { id: detail.summary.id, data: { answers: answersToSave(), dueOn: null } },
       {
         onSuccess: (saved: FormDetail) => {
           afterWrite(saved);
           setSavedFirmJson(JSON.stringify(firmEdits));
-          setSending(false);
-          window.scrollTo({ top: 0 });
+          send.mutate(
+            { data: { formIds: [detail.summary.id], dueOn, note: null } },
+            {
+              onSuccess: () => {
+                setSending(false);
+                window.scrollTo({ top: 0 });
+                void queryClient.invalidateQueries({ queryKey: getGetFormQueryKey(detail.summary.id) });
+              },
+              onError: (caught: ApiError) =>
+                failed(caught, "This form couldn't be sent to be signed."),
+            },
+          );
         },
         onError: (caught: ApiError) =>
-          failed(caught, "Some sections need attention before the form can go for KYC review."),
+          failed(caught, "Some sections need attention before the form can be sent to be signed."),
       },
     );
   }
 
   const header = (
     <header className="space-y-3">
-      <BackLink caseId={caseId} clientId={clientId} deciding={deciding} />
+      <BackLink caseId={caseId} clientId={clientId} fromKyc={fromKyc} />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-line bg-white px-5 py-3.5">
         <h1 className="text-base font-bold">{detail.summary.formTitle}</h1>
         <span aria-hidden="true" className="hidden h-5 w-px bg-line sm:block" />
@@ -347,7 +355,7 @@ function FilledForm<T>({
             </Button>
           </>
         )}
-        {locked && canWorkOnIt && !deciding && (
+        {locked && canWorkOnIt && !fromKyc && (
           <Button variant="secondary" size="sm" disabled={reopen.isPending} onClick={() => setEditing(true)}>
             <PencilLine aria-hidden="true" />
             {reopen.isPending ? "Opening…" : "Edit"}
@@ -367,12 +375,6 @@ function FilledForm<T>({
             {detail.summary.submittedAt ? `, from ${formatDate(detail.summary.submittedAt)}` : ""}. This is the record of
             what they signed.
           </Alert>
-        ) : detail.summary.status === "AWAITING_COMPLIANCE" ? (
-          <Alert tone="info">
-            This is with Compliance for KYC review. Once they approve it, it goes to {detail.summary.clientName}
-            {" "}to sign; if they send it back you will see what has to be put right. Nothing more is typed on it
-            here until they have decided.
-          </Alert>
         ) : (
           <Alert tone="info">
             This form has gone to {detail.summary.clientName} to sign
@@ -380,58 +382,17 @@ function FilledForm<T>({
             changed while they have it. To change something, fill it in again and send it out afresh.
           </Alert>
         )}
-        {/* Read it, then decide on it here rather than going back to the queue to do it. */}
-        {deciding && detail.summary.status === "AWAITING_COMPLIANCE" && (
-          <div className="rounded-2xl border border-line bg-white p-5">
-            <h2 className="text-base font-bold">Your decision</h2>
-            <p className="mt-0.5 mb-4 text-sm text-ink-muted">
-              Approving it sends the form to the client to sign, and asks when their signed copy is wanted
-              back. Sending it back returns it to Operations with what is wrong.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={() => setDecision("reject")}>
-                <X aria-hidden="true" />
-                Send back
-              </Button>
-              <Button onClick={() => setDecision("approve")}>
-                <Check aria-hidden="true" />
-                Approve
-              </Button>
-            </div>
-          </div>
-        )}
         {reopen.isError && <Alert tone="danger">{reopen.error.message}</Alert>}
         {kit.summary(value, detail.attachments, detail.summary.id)}
-        <FormDecisionDialog
-          deciding={
-            decision === null
-              ? null
-              : {
-                  formId: detail.summary.id,
-                  title: detail.summary.formTitle,
-                  clientName: detail.summary.clientName,
-                  approved: decision === "approve",
-                  customerId: detail.summary.customerId,
-                  caseId: detail.summary.onboardingCaseId,
-                }
-          }
-          onClose={() => setDecision(null)}
-          onDecided={() => {
-            setDecision(null);
-            void navigate("/kyc");
-          }}
-        />
         <ConfirmDialog
           open={editing}
           title="Edit this form?"
           // Whoever else is holding it has to be named: taking a form back from Compliance or from the
           // client is not the same small thing as opening a draft again, and it clears what was filled in.
           description={
-            detail.summary.status === "AWAITING_COMPLIANCE"
-              ? "This has been sent to Compliance for KYC review. Editing it takes it back from them and clears what was filled in — the form starts again from the beginning, and has to be sent for review afresh. Do you want to continue?"
-              : signed
-                ? "The client's signed copy is on file. Editing it takes the form back and clears what was filled in — it starts again from the beginning. Do you want to continue?"
-                : `This is with ${detail.summary.clientName} to sign. Editing it takes the form back and clears what was filled in — it starts again from the beginning, and has to go for review afresh. Do you want to continue?`
+            signed
+              ? "The client's signed copy is on file. Editing it takes the form back and clears what was filled in — it starts again from the beginning. Do you want to continue?"
+              : `This is with ${detail.summary.clientName} to sign. Editing it takes the form back and clears what was filled in — it starts again from the beginning. Do you want to continue?`
           }
           confirmLabel="Yes, start it again"
           busy={reopen.isPending}
@@ -519,7 +480,7 @@ function FilledForm<T>({
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-6 py-4 sm:px-8">
             <p className="text-xs text-ink-muted">
               {everythingDone
-                ? "Every part is answered. It is ready to go for KYC review."
+                ? "Every part is answered. It is ready to go out to be signed."
                 : `${review.steps.filter((step) => !step.complete).length} of ${review.steps.length} parts still to answer.`}
             </p>
             <div className="flex gap-2">
@@ -529,7 +490,7 @@ function FilledForm<T>({
               </Button>
               {current.id === "review" ? (
                 <Button onClick={() => setSending(true)} disabled={!everythingDone || busy}>
-                  {send.isPending ? "Sending…" : "Send for KYC"}
+                  {send.isPending ? "Sending…" : "Send to be signed"}
                 </Button>
               ) : (
                 // Nothing is locked: a form is filled in whatever order the client's papers arrive in.
@@ -543,12 +504,12 @@ function FilledForm<T>({
         </section>
       </div>
 
-      <SendForKycDialog
+      <SendToBeSignedDialog
         open={sending}
         client={detail.summary.clientName}
         busy={send.isPending}
         onClose={() => setSending(false)}
-        onSend={sendForKyc}
+        onSend={sendToBeSigned}
       />
 
       <Dialog
@@ -604,9 +565,9 @@ function FirmDetails({
   );
 }
 
-function BackLink({ caseId, clientId, deciding }: { caseId?: string; clientId?: string; deciding?: boolean }) {
+function BackLink({ caseId, clientId, fromKyc }: { caseId?: string; clientId?: string; fromKyc?: boolean }) {
   // Back goes where the form was opened from: the case, the client, the KYC queue, or the forms list.
-  const to = caseId ? `/onboarding/${caseId}` : clientId ? `/clients/${clientId}` : deciding ? "/kyc" : "/forms";
+  const to = caseId ? `/onboarding/${caseId}` : clientId ? `/clients/${clientId}` : fromKyc ? "/kyc" : "/forms";
   const onAClient = Boolean(caseId || clientId);
   return (
     <Link
@@ -615,7 +576,7 @@ function BackLink({ caseId, clientId, deciding }: { caseId?: string; clientId?: 
       className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700"
     >
       <ChevronLeft aria-hidden="true" className="size-4" />
-      {onAClient ? "Client documents" : deciding ? "KYC review queue" : "Forms"}
+      {onAClient ? "Client documents" : fromKyc ? "KYC sign-off" : "Forms"}
     </Link>
   );
 }
@@ -634,7 +595,7 @@ function yearsFromToday(years: number) {
 }
 
 /** Handing the finished form to Compliance, with the day it is wanted back by. */
-function SendForKycDialog({
+function SendToBeSignedDialog({
   open,
   client,
   busy,
@@ -650,11 +611,11 @@ function SendForKycDialog({
   const [dueOn, setDueOn] = useState("");
 
   return (
-    <Dialog open={open} title="Send for KYC review" onClose={onClose}>
+    <Dialog open={open} title="Send to be signed" onClose={onClose}>
       <div className="space-y-4">
         <p className="text-sm leading-relaxed text-ink">
-          Compliance read this form before {client} does. Once they approve it, it goes out to be signed; if
-          they send it back, you will see what has to be put right.
+          This goes to {client}'s advisor, who signs it with them. Compliance can read it at any point,
+          here and on the client's documents, but the answers are yours to put right until it is signed.
         </p>
         {/* A date already gone cannot be a date something is wanted by, so the earliest is tomorrow. */}
         <Field id="send-due-on" label="Wanted back by" required>
@@ -668,13 +629,13 @@ function SendForKycDialog({
             required
           />
         </Field>
-        <p className="text-sm text-ink-muted">It can't be changed while Compliance have it.</p>
+        <p className="text-sm text-ink-muted">It can't be changed once it has gone out to be signed.</p>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
           <Button disabled={!dueOn || busy} onClick={() => onSend(dueOn)}>
-            {busy ? "Sending…" : "Send for KYC"}
+            {busy ? "Sending…" : "Send to be signed"}
           </Button>
         </div>
       </div>

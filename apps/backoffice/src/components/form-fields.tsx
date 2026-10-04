@@ -226,7 +226,7 @@ export function SignatureField({ id, label, value, onChange, field, who = "the c
   const made = madeSignature(value ?? undefined);
   // The firm's own lines are signed by whoever is filling the form in; a client's line is the advisor's, who
   // signs on their behalf. Operations prepare the paper and leave the client's line for the client.
-  const ours = mayBeSignedHere(who, useStaffUser().activeRole);
+  const ours = mayBeSignedHere(useStaffUser().activeRole);
   return (
     <Field id={id} label={label} required={!optional && !disabled && ours} error={error} className={className}>
       <div {...describedBy(id, error)}>

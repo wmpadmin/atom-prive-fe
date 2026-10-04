@@ -1,13 +1,18 @@
 import { Avatar, cn } from "@atomprive/ui";
+import { SystemStatusPanel } from "./components/system-status";
+import { ThemeToggle } from "./components/theme-toggle";
+import { TopSearch } from "./components/top-search";
 import { NotificationBell } from "./components/notification-bell";
 import {
   FileCheck2,
   ArrowLeftRight,
   ChevronDown,
   ClipboardCheck,
+  ChartPie,
   Contact,
   FileCheck,
   FileSignature,
+  FileSpreadsheet,
   FileText,
   FolderOpen,
   KeyRound,
@@ -17,14 +22,21 @@ import {
   PenLine,
   BellRing,
   Radio,
+  Ruler,
+  Scale,
+  TrendingUp,
   TriangleAlert,
+  Settings,
+  ShieldAlert,
   ShieldCheck,
+  Stamp,
   SlidersHorizontal,
   UserPlus,
   Users,
   UsersRound,
   type LucideIcon,
   Layers,
+  LayoutGrid,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
@@ -56,12 +68,16 @@ const allNavigation: {
    */
   at?: (path: string) => boolean;
 }[] = [
+  // Whoever runs the platform gets the firm's figures; everybody else gets their own day, on the same address.
+  { to: "/dashboard", label: "Dashboard", icon: LayoutGrid, authority: null },
   {
     to: "/clients",
     label: "All clients",
     icon: Contact,
     authority: "VIEW_ALL_CLIENTS:VIEW",
-    notFor: ["ADMIN", "PORTFOLIO_MANAGER"],
+    // An advisor onboards from the whole book, but reads in full only the clients assigned to them, which is
+    // My clients. A second screen onto every client would say otherwise.
+    notFor: ["ADMIN", "ADVISOR", "PORTFOLIO_MANAGER"],
     at: (path) => (path === "/clients" || path.startsWith("/clients/")) && !NOTICE_OF_TREATMENT.test(path),
   },
   {
@@ -79,8 +95,69 @@ const allNavigation: {
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
   },
-  { to: "/my-clients", label: "My clients", icon: Contact, authority: "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS" },
-  { to: "/proposals", label: "Proposals", icon: FileSignature, authority: READS_PROPOSALS, notFor: ["ADMIN"] },
+  {
+    to: "/drift",
+    label: "Drift & breaches",
+    icon: TriangleAlert,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  {
+    to: "/bulk-rebalancing",
+    label: "Bulk rebalancing",
+    icon: Scale,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  {
+    // How the plans themselves are doing, which is a different question from how any one client is doing.
+    to: "/model-performance",
+    label: "Model performance",
+    icon: TrendingUp,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  {
+    // How risky the plans are, which is a different question from how they have done: two plans that
+    // returned the same are not the same plan if one of them lurched to get there.
+    to: "/model-risk",
+    label: "Model risk",
+    icon: ShieldAlert,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  {
+    to: "/reports",
+    label: "Reports",
+    icon: FileSpreadsheet,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  {
+    // Numbers for the partners rather than the working day. Read only: nothing here changes a client.
+    to: "/mis",
+    label: "MIS",
+    icon: ChartPie,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  {
+    // The indices the plans are measured against. Its own screen rather than a tab on Model performance:
+    // maintaining the reference data is a different job from reading what it says.
+    to: "/benchmarks",
+    label: "Benchmarks",
+    icon: Ruler,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  // Whoever passes a proposal to the client. Its own screen, not a tab on the proposals list: the queue is
+  // other people's work waiting on you, which is a different job from following your own.
+  {
+    to: "/manager-review",
+    label: "Waiting on my sign-off",
+    icon: Stamp,
+    authority: "APPROVE_PROPOSALS:CHANGE",
+  },
   { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: ONBOARDS_CLIENTS, notFor: ["ADMIN"] },
   {
     to: "/post-onboarding",
@@ -93,13 +170,13 @@ const allNavigation: {
     at: (path) => path === "/post-onboarding" || NOTICE_OF_TREATMENT.test(path),
   },
   { to: "/to-sign", label: "To sign", icon: PenLine, authority: "APPROVE_PROPOSALS:OWN_CLIENTS" },
-  // The queue is where a client's KYC is decided, which is Compliance's alone. The papers themselves the
+  // The queue is where a client's KYC is signed off, which is Compliance's alone. The papers themselves the
   // Admin reads too, so the document review sits on both menus.
   {
     to: "/kyc",
-    // Deciding a client's KYC is Compliance's, and so is the screen: Operations follow a case from Client
+    // Signing a client's KYC off is Compliance's, and so is the screen: Operations follow a case from Client
     // onboarding, which is their own.
-    label: "KYC review queue",
+    label: "KYC sign-off",
     icon: ShieldCheck,
     authority: "APPROVE_ONBOARDING:CHANGE",
     notFor: ["ADMIN"],
@@ -133,6 +210,30 @@ const allNavigation: {
   { to: "/family-access", label: "Family access trail", icon: UsersRound, authority: "VIEW_AUDIT_LOG:VIEW" },
   { to: "/proposal-trail", label: "Proposal trail", icon: FileSignature, authority: "VIEW_AUDIT_LOG:VIEW" },
   { to: "/my-declarations", label: "My declarations", icon: FileCheck, authority: null },
+  {
+    to: "/proposals",
+    label: "Sent proposals",
+    icon: FileSignature,
+    authority: READS_PROPOSALS,
+    notFor: ["ADMIN"],
+  },
+  // The clients assigned to this advisor: the whole book is not theirs, and this is the part that is.
+  {
+    to: "/my-clients",
+    label: "Assigned customers",
+    icon: Contact,
+    authority: "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS",
+  },
+  // Somebody's own account, which everybody signed in has one of.
+  {
+    // The firm's portfolio rules. Named apart from Settings below, which is a person's own account.
+    to: "/portfolio-settings",
+    label: "Portfolio settings",
+    icon: SlidersHorizontal,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  { to: "/settings", label: "Settings", icon: Settings, authority: null },
 ];
 
 export function AppLayout() {
@@ -171,14 +272,23 @@ export function AppLayout() {
             })}
           </ul>
         </nav>
+
+        {/* Pushed to the foot of the sidebar: it is there to be glanced at, not read. */}
+        <div className="mt-auto pt-6">
+          <SystemStatusPanel />
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-20 items-center justify-between gap-4 px-8">
           <p className="text-2xl font-bold">{user.activeRole ? roleLabels[user.activeRole] : ""}</p>
-          <div className="flex items-center gap-1">
-            <NotificationBell />
-            <UserMenu />
+          <div className="flex items-center gap-3">
+            <TopSearch />
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <NotificationBell />
+              <UserMenu />
+            </div>
           </div>
         </header>
         <main className="flex-1 px-8 pb-10">

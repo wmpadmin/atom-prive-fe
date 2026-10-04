@@ -9,13 +9,22 @@ import { Alert, Button, DateInput, Dialog, Field, SelectInput, TextInput } from 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type FormEvent } from "react";
 
-/** What the firm asks a client for, in the order it usually asks. */
+/**
+ * What the firm asks a client for, in the order it usually asks: a person's own papers first, then a company's.
+ * Every kind is offered whoever the client is, because the firm's checklist asks an individual for a trade
+ * licence and audited accounts too where they own a business.
+ */
 const KINDS: { value: KycDocumentRowKind; label: string }[] = [
   { value: "PASSPORT", label: "Passport" },
   { value: "NATIONAL_ID", label: "National ID" },
   { value: "PROOF_OF_ADDRESS", label: "Proof of address" },
   { value: "SOURCE_OF_FUNDS", label: "Source of funds" },
   { value: "SOURCE_OF_WEALTH", label: "Source of wealth" },
+  { value: "TRADE_LICENCE", label: "Trade licence" },
+  { value: "CERTIFICATE_OF_INCUMBENCY", label: "Certificate of incumbency" },
+  { value: "BOARD_RESOLUTION", label: "Board resolution" },
+  { value: "AUDITED_ACCOUNTS", label: "Audited accounts" },
+  { value: "SHAREHOLDER_REGISTER", label: "Shareholder register" },
   { value: "OTHER", label: "Other" },
 ];
 

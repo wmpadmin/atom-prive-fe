@@ -61,9 +61,9 @@ export function StepRail({ steps, currentId, onSelect, hints, intro, note, foote
                   className={cn(
                     "mt-px grid size-5.5 shrink-0 place-items-center rounded-full border text-2xs font-semibold",
                     step.complete
-                      ? "border-emerald-500 bg-emerald-500 text-white"
+                      ? "border-emerald-500 bg-emerald-500 text-on-accent"
                       : current
-                        ? "border-primary-600 bg-primary-600 text-white"
+                        ? "border-primary-600 bg-primary-600 text-on-accent"
                         : "border-line bg-white text-ink-muted",
                   )}
                 >

@@ -207,7 +207,7 @@ export function StaffDeclarationsPage() {
                     row.id === selectedId ? "bg-primary-50" : "hover:bg-canvas",
                   )}
                 >
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary-600 text-2xs font-semibold text-white">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary-600 text-2xs font-semibold text-on-accent">
                     {initialsOf(row.fullName)}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -245,7 +245,7 @@ function StaffPanel({ held, onTold }: { held: StaffDeclarations; onTold: (told: 
       <section className="rounded-2xl border border-line bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary-600 text-sm font-semibold text-white">
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary-600 text-sm font-semibold text-on-accent">
               {initialsOf(employee.fullName)}
             </span>
             <div>

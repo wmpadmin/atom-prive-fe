@@ -3,13 +3,15 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 
 interface DialogProps {
   open: boolean;
-  /** lg suits long forms, such as editing a full profile. */
-  size?: "md" | "lg";
+  /** lg suits long forms, such as editing a full profile; xl a form laid out in columns. */
+  size?: "md" | "lg" | "xl";
   title: string;
   description?: ReactNode;
   onClose: () => void;
   children: ReactNode;
 }
+
+const WIDTHS = { md: "max-w-lg", lg: "max-w-3xl", xl: "max-w-5xl" } as const;
 
 /** Modal built on the native dialog element: focus trapping, Escape and the backdrop come for free. */
 export function Dialog({ open, size = "md", title, description, onClose, children }: DialogProps) {
@@ -28,7 +30,7 @@ export function Dialog({ open, size = "md", title, description, onClose, childre
       ref={ref}
       onClose={onClose}
       aria-labelledby={titleId}
-      className={`m-auto w-full ${size === "lg" ? "max-w-3xl" : "max-w-lg"} rounded-2xl bg-white p-0 font-sans text-ink shadow-2xl backdrop:bg-slate-900/40 backdrop:backdrop-blur-[2px]`}
+      className={`m-auto w-full ${WIDTHS[size]} rounded-2xl bg-white p-0 font-sans text-ink shadow-2xl backdrop:bg-slate-900/40 backdrop:backdrop-blur-[2px]`}
     >
       {open && (
         <div className="relative space-y-5 px-6 py-6">

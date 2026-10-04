@@ -8,7 +8,7 @@ import { formatDate } from "../../lib/labels";
 import { packTones, whatIsLeft } from "./to-sign-labels";
 
 /**
- * What has been sent to the signed-in advisor to sign (#39). Operations write a client's forms up and send
+ * What has been sent to the signed-in advisor to sign. Operations write a client's forms up and send
  * them out a pack at a time; this is where the advisor's half of the signing is done.
  */
 export function ToSignPage() {
@@ -48,7 +48,7 @@ export function ToSignPage() {
               className={cn(
                 "h-9 rounded-lg border px-4 text-sm font-semibold transition-colors",
                 waiting === choice.value
-                  ? "border-primary-600 bg-primary-600 text-white"
+                  ? "border-primary-600 bg-primary-600 text-on-accent"
                   : "border-line bg-white text-ink hover:border-primary-600",
               )}
             >

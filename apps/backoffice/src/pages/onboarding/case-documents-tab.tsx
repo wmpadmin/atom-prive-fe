@@ -141,7 +141,7 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
             )}
             {rows.map((form) => {
               const due = dueLabel(form.dueOn, form.submittedAt);
-              const waiting = form.status === "WAITING_ON_CLIENT" || form.status === "AWAITING_COMPLIANCE";
+              const waiting = form.status === "WAITING_ON_CLIENT";
               const openRow = actionOf(form);
               return (
                 <tr
@@ -300,7 +300,6 @@ function FormProgressDialog({ form, caseId, clientId, onClose, onChanged }: Form
                     dueOn: shownDue || null,
                     waitingOnClient: null,
                     signedCopyOnFile: null,
-                    sendForKyc: null,
                     answers: null,
                   },
                 },

@@ -25,7 +25,7 @@ export function Mark({ status }: { status: CaseFormRow["status"] }) {
       </span>
     );
   }
-  if (status === "WAITING_ON_CLIENT" || status === "AWAITING_COMPLIANCE") {
+  if (status === "WAITING_ON_CLIENT") {
     return (
       <span aria-hidden="true" className={cn(shared, "bg-amber-100 text-amber-700")}>
         <TriangleAlert className="size-3.5" />

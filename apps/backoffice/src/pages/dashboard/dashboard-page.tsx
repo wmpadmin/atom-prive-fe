@@ -4,11 +4,32 @@ import { Alert, Badge } from "@atomprive/ui";
 import { Activity, Database, Timer } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { useStaffUser } from "../../auth/session";
 import { formatDateTime, formatRelative, roleLabel } from "../../lib/labels";
+import { hasAuthority } from "../../lib/permissions";
+import { AdvisorDashboard } from "../advisor/advisor-dashboard";
+import { PortfolioManagerDashboard } from "../portfolios/portfolio-manager-dashboard";
 
-/** What an Admin sees when they sign in: the figures, the newest activity and whether the platform is well (#76). */
+/**
+ * The dashboard belonging to whoever asked for it. The firm-wide figures are the Admin's — the API answers
+ * nobody else for them — so everybody else is shown their own day instead of a screen that would refuse them.
+ * A portfolio manager's day is their models and what has wandered off them, which is a different question
+ * from an advisor's clients and advice.
+ */
 export function DashboardPage() {
-  const dashboard = useGetDashboard<Dashboard, ApiError>({ query: { refetchInterval: 60_000 } });
+  const user = useStaffUser();
+  const runsThePlatform = hasAuthority(user, "MANAGE_USERS_AND_ROLES:VIEW");
+  const managesPortfolios = user.roles.includes("PORTFOLIO_MANAGER");
+  const dashboard = useGetDashboard<Dashboard, ApiError>({
+    query: { refetchInterval: 60_000, enabled: runsThePlatform },
+  });
+
+  if (managesPortfolios) {
+    return <PortfolioManagerDashboard />;
+  }
+  if (!runsThePlatform) {
+    return <AdvisorDashboard />;
+  }
 
   if (dashboard.isError) {
     return <Alert tone="danger">{dashboard.error.message}</Alert>;

@@ -4,10 +4,12 @@ import {
   useDeactivateClientBankAccount,
   useLinkClientBankAccount,
   useListClientBankAccounts,
+  useListCurrencies,
   useListSupportedBanks,
   useReactivateClientBankAccount,
   type BankAccountRow,
   type BankList,
+  type Currency,
   type CustomerDetail,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, SelectInput, TextInput, cn } from "@atomprive/ui";
@@ -17,7 +19,7 @@ import { useState } from "react";
 import { useStaffUser } from "../../auth/session";
 import { formatRelative } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
-import { accountTypeLabels, accountTypes, bankAccountStatus, currencies } from "./bank-account-labels";
+import { accountTypeLabels, accountTypes, bankAccountStatus } from "./bank-account-labels";
 
 /**
  * The accounts a client holds at their banks. The firm links them on the client's behalf, keeps the details
@@ -189,6 +191,7 @@ function LinkAccountDialog({
   const [heldBy, setHeldBy] = useState(holderName);
   const [accountType, setAccountType] = useState<BankAccountRow["accountType"]>("CURRENT");
   const [currency, setCurrency] = useState("AED");
+  const currencies = useListCurrencies<Currency[], ApiError>({ query: { enabled: open } });
   const [nickname, setNickname] = useState("");
 
   const offered = banks.data?.items ?? [];
@@ -231,9 +234,13 @@ function LinkAccountDialog({
           </Field>
           <Field id="currency" label="Currency" required>
             <SelectInput id="currency" value={currency} onChange={(event) => setCurrency(event.target.value)}>
-              {currencies.map((code) => (
-                <option key={code} value={code}>
-                  {code}
+              {/* Until the list arrives, what is already chosen is still worth showing. */}
+              {!(currencies.data ?? []).some((one) => one.code === currency) && (
+                <option value={currency}>{currency}</option>
+              )}
+              {(currencies.data ?? []).map((one) => (
+                <option key={one.code} value={one.code}>
+                  {one.code} — {one.name}
                 </option>
               ))}
             </SelectInput>

@@ -8,7 +8,7 @@ import { kycStatusLabels, kycStatusTones } from "../clients/client-labels";
 import { formatDate } from "../../lib/labels";
 
 /**
- * Where an advisor puts their clients' papers on file (#39). One client at a time, because a document is
+ * Where an advisor puts their clients' papers on file (#83). One client at a time, because a document is
  * only worth keeping against the client it belongs to.
  */
 export function ClientDocumentsPage() {

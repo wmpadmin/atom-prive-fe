@@ -25,5 +25,3 @@ export function bankAccountStatus(status: BankAccountRow["status"]): { label: st
   }
 }
 
-/** The currencies the firm's clients hold accounts in. Reference data will take this over. */
-export const currencies = ["AED", "USD", "EUR", "GBP", "SGD", "INR", "CHF"] as const;

@@ -8,7 +8,9 @@ const badgeTones: Record<Tone, string> = {
   success: "bg-emerald-50 text-emerald-700",
   info: "bg-primary-50 text-primary-600",
   warning: "bg-amber-50 text-amber-700",
-  danger: "bg-red-50 text-red-600",
+  // red-700 rather than red-600: on the pale red fill the lighter one measures 4.36:1, just under
+  // the 4.5 small text needs. The two are indistinguishable side by side.
+  danger: "bg-red-50 text-red-700",
 };
 
 /** Status pill, e.g. Active, Invited, Deactivated. */

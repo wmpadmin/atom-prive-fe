@@ -16,7 +16,6 @@ import { useStaffUser } from "../../auth/session";
 import { formatDate } from "../../lib/labels";
 import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
 import { newApplication, toForm } from "./application";
-import { CaseFormsForCompliance } from "../kyc/case-forms-review";
 import { ApplicationSummary } from "./application-summary";
 import type { SentForSignOff } from "@atomprive/api-client/backoffice";
 import { CaseSignOff, SignOffNotice } from "./case-sign-off";
@@ -86,7 +85,6 @@ export function OnboardingCasePage() {
       detail={detail}
       justSubmitted={justSubmitted}
       canOnboard={canOnboard}
-      deciding={hasAuthority(user, "APPROVE_ONBOARDING:CHANGE")}
       backTo={backTo}
     />
   );
@@ -106,14 +104,11 @@ function CaseOverview({
   detail,
   justSubmitted,
   canOnboard,
-  deciding,
   backTo,
 }: {
   detail: CaseDetail;
   justSubmitted: boolean;
   canOnboard: boolean;
-  /** Whether this reader decides on the client's papers, and so on the forms in their pack. */
-  deciding: boolean;
   backTo: string;
 }) {
   const { summary } = detail;
@@ -174,7 +169,6 @@ function CaseOverview({
       </dl>
 
       {/* Read what Operations submitted, then decide on each signed form, before the KYC is signed off. */}
-      {deciding && summary.submitted && <CaseFormsForCompliance summary={summary} />}
 
       <section aria-labelledby="application-title" className="space-y-4 rounded-2xl border border-line bg-white px-6 py-6">
         <div>

@@ -29,7 +29,7 @@ const MOST_CHARACTERS = 500;
 /**
  * One client's KYC pack and the decision on it. A paper is judged against the rest of what they have handed
  * over, so the whole file is here; the decision applies to the one document chosen, and the reason given is
- * shown to the client when it is turned down (#36).
+ * shown to the client when it is turned down (#83).
  */
 export function ClientKycPage() {
   const { customerId = "" } = useParams();
@@ -331,7 +331,7 @@ function Checklist({ checklist }: { checklist: KycRequirement[] }) {
               aria-hidden="true"
               className={cn(
                 "grid size-5 shrink-0 place-items-center rounded-full border",
-                one.settled ? "border-emerald-600 bg-emerald-600 text-white" : "border-line bg-white",
+                one.settled ? "border-emerald-600 bg-emerald-600 text-on-accent" : "border-line bg-white",
               )}
             >
               {one.settled && <Check className="size-3" strokeWidth={3} />}

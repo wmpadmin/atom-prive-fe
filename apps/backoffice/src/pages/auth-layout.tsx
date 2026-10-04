@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 export function AuthLayout({ heading, children }: { heading: string; children: ReactNode }) {
   return (
     <div className="grid min-h-screen font-sans lg:grid-cols-2">
-      <div className="hidden flex-col justify-between bg-linear-to-b from-brand-900 to-brand-950 p-12 text-white lg:flex">
+      <div className="hidden flex-col justify-between bg-linear-to-b from-brand-900 to-brand-950 p-12 text-on-fill lg:flex">
         <span aria-hidden="true" />
         <div className="space-y-3">
           <p className="text-xs font-semibold tracking-widest text-slate-300 uppercase">Back-office</p>
