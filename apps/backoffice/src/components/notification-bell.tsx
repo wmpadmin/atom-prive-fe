@@ -75,7 +75,7 @@ export function NotificationBell() {
       >
         <Bell aria-hidden="true" className="size-5" />
         {unread > 0 && (
-          <span className="absolute top-1 right-1 grid min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[0.625rem] font-bold text-white">
+          <span className="absolute top-1 right-1 grid min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[0.625rem] font-bold text-on-accent">
             {unread > 9 ? "9+" : unread}
           </span>
         )}

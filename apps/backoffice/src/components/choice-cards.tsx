@@ -50,7 +50,7 @@ export function ChoiceCards<T extends string>({ name, legend, required, value, o
                   aria-hidden="true"
                   className={cn(
                     "grid size-9 shrink-0 place-items-center rounded-lg transition-colors [&_svg]:size-4.5",
-                    checked ? "bg-primary-600 text-white" : "bg-slate-100 text-ink-soft",
+                    checked ? "bg-primary-600 text-on-accent" : "bg-slate-100 text-ink-soft",
                   )}
                 >
                   {choice.icon}
@@ -64,7 +64,7 @@ export function ChoiceCards<T extends string>({ name, legend, required, value, o
                 aria-hidden="true"
                 className={cn(
                   "grid size-4.5 shrink-0 place-items-center rounded-full border transition-colors",
-                  checked ? "border-primary-600 bg-primary-600 text-white" : "border-slate-300 bg-white",
+                  checked ? "border-primary-600 bg-primary-600 text-on-accent" : "border-slate-300 bg-white",
                 )}
               >
                 {checked && <Check className="size-3" strokeWidth={3} />}

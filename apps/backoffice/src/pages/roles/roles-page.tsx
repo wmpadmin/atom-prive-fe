@@ -3,6 +3,7 @@ import {
   exportPermissionMatrix,
   getGetPermissionMatrixQueryKey,
   useGetPermissionMatrix,
+  useUpdateProposalSignOff,
   useUpdateRolePermission,
   type AccessLevelOption,
   type PermissionGrant,
@@ -170,8 +171,88 @@ function RoleCapabilities({ matrix }: { matrix: PermissionMatrix }) {
           );
         })}
       </ul>
+
+      <ProposalSignOff role={selected} roles={matrix.roles} onSaved={setSaved} />
     </>
   );
+}
+
+/**
+ * Whether proposals written by this role wait for a manager (#88). It isn't an access level, so it sits apart from
+ * the matrix rather than pretending to be a permission with one.
+ */
+function ProposalSignOff({ role, roles, onSaved }: {
+  role: RoleAccessView;
+  roles: RoleAccessView[];
+  onSaved: (notice: Notice | undefined) => void;
+}) {
+  const queryClient = useQueryClient();
+  const id = `sign-off-${role.role}`;
+
+  const update = useUpdateProposalSignOff<ApiError>({
+    mutation: {
+      onMutate: () => onSaved(undefined),
+      onSuccess: (updated) => {
+        queryClient.setQueryData<PermissionMatrix>(getGetPermissionMatrixQueryKey(), (current) =>
+          current && { ...current, roles: current.roles.map((each) => (each.role === updated.role ? updated : each)) },
+        );
+        onSaved({
+          tone: "success",
+          message: updated.proposalsNeedSignOff
+            ? `Saved: proposals from ${updated.name} now wait for a sign-off.`
+            : `Saved: proposals from ${updated.name} go straight to the client.`,
+        });
+      },
+      onError: (error) => {
+        onSaved({ tone: "danger", message: error.message });
+        void queryClient.invalidateQueries({ queryKey: getGetPermissionMatrixQueryKey() });
+      },
+    },
+  });
+
+  const writes = levelOf(role, "SEND_PROPOSALS") !== "NONE";
+  const signers = roles.filter((each) => levelOf(each, "APPROVE_PROPOSALS") !== "NONE").map((each) => each.name);
+
+  return (
+    <section className="mt-5 rounded-xl border border-line px-5 py-4">
+      <h3 className="text-sm font-semibold text-ink">Proposals from this role</h3>
+      <label htmlFor={id} className="mt-2 flex items-start gap-2 text-sm">
+        <input
+          id={id}
+          type="checkbox"
+          className="mt-0.5 size-4 rounded border-line"
+          checked={role.proposalsNeedSignOff}
+          disabled={update.isPending}
+          aria-busy={update.isPending}
+          onChange={(event) =>
+            update.mutate({ role: role.role, data: { required: event.target.checked } })
+          }
+        />
+        Hold them for a sign-off before they reach the client
+      </label>
+      <p className="mt-1.5 text-xs text-ink-muted">
+        Somebody other than whoever wrote it signs it off; nobody signs off their own. Somebody who holds another role
+        that needs a sign-off has theirs held too.
+      </p>
+      {!writes && (
+        <p className="mt-1.5 text-xs text-ink-muted">
+          {role.name} can't write proposals, so nothing waits on this until Send proposals is granted.
+        </p>
+      )}
+      {role.proposalsNeedSignOff && signers.length === 0 && (
+        <p className="mt-1.5 text-xs text-red-600">
+          Nobody holds Approve proposals, so these would wait with no one able to sign them off.
+        </p>
+      )}
+      {role.proposalsNeedSignOff && signers.length > 0 && (
+        <p className="mt-1.5 text-xs text-ink-muted">Signed off by: {signers.join(", ")}.</p>
+      )}
+    </section>
+  );
+}
+
+function levelOf(role: RoleAccessView, permission: PermissionGrant["permission"]): Level {
+  return role.grants.find((grant) => grant.permission === permission)?.level ?? "NONE";
 }
 
 function RoleTabs({ roles, selected, panelId, onSelect }: {
@@ -233,7 +314,7 @@ function RoleTabs({ roles, selected, panelId, onSelect }: {
             className={cn(
               "rounded-lg px-5 py-2 text-sm font-semibold transition-colors",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
-              isSelected ? "bg-primary-600 text-white shadow-xs" : "text-ink-soft hover:bg-white hover:text-ink",
+              isSelected ? "bg-primary-600 text-on-accent shadow-xs" : "text-ink-soft hover:bg-white hover:text-ink",
             )}
           >
             {role.name}

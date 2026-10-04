@@ -69,10 +69,10 @@ function Signing({
   const [wrong, setWrong] = useState("");
 
   function sign() {
-    // The firm's own lines, and a client's line signed by their advisor. Operations prepare the paper and
-    // send it out; if a client's place reaches here from anywhere else, it is refused rather than written.
-    if (!mayBeSignedHere(who, user.activeRole)) {
-      setWrong(`Only ${who}'s advisor signs on their behalf. Send the form out for them to sign it.`);
+    // Signing is the advisor's. Operations prepare the paper and send it out; if a place to sign reaches
+    // here from anywhere else, it is refused rather than written.
+    if (!mayBeSignedHere(user.activeRole)) {
+      setWrong("Only an advisor signs. Send the form out to the client's advisor to have it signed.");
       return;
     }
     const signature = how === "TYPED" ? typed.trim() : drawn;
@@ -111,7 +111,7 @@ function Signing({
               className={cn(
                 "h-9 rounded-lg border px-4 text-sm font-semibold transition-colors",
                 how === way.value
-                  ? "border-primary-600 bg-primary-600 text-white"
+                  ? "border-primary-600 bg-primary-600 text-on-accent"
                   : "border-line bg-white text-ink hover:border-primary-600",
               )}
             >

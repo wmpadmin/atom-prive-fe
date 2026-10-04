@@ -67,7 +67,7 @@ export function ColumnPicker({ columns, shown, onChange }: ColumnPickerProps) {
                       aria-hidden="true"
                       className={cn(
                         "grid size-4 shrink-0 place-items-center rounded border",
-                        ticked ? "border-primary-600 bg-primary-600 text-white" : "border-line bg-white",
+                        ticked ? "border-primary-600 bg-primary-600 text-on-accent" : "border-line bg-white",
                       )}
                     >
                       {ticked && <Check className="size-3" strokeWidth={3} />}

@@ -83,7 +83,7 @@ export function SignFormDialog({
               className={cn(
                 "h-9 rounded-lg border px-4 text-sm font-semibold transition-colors",
                 how === way.value
-                  ? "border-primary-600 bg-primary-600 text-white"
+                  ? "border-primary-600 bg-primary-600 text-on-accent"
                   : "border-line bg-white text-ink hover:border-primary-600",
               )}
             >

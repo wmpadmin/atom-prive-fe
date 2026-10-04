@@ -382,7 +382,7 @@ function Stepper({ steps, currentId, onSelect, canAddHolder, onAddHolder, onRemo
                       aria-hidden="true"
                       className={cn(
                         "grid size-6 shrink-0 place-items-center rounded-full text-2xs font-bold",
-                        step.complete ? "bg-emerald-500 text-white" : current ? "bg-primary-600 text-white" : "bg-slate-100 text-ink-muted",
+                        step.complete ? "bg-emerald-500 text-on-accent" : current ? "bg-primary-600 text-on-accent" : "bg-slate-100 text-ink-muted",
                       )}
                     >
                       {step.complete ? <Check className="size-3.5" strokeWidth={3} /> : step.number}

@@ -2,15 +2,14 @@ import type { CaseFormRow, CatalogueEntryCategoriesItem, FormRowStatus } from "@
 import { formatDate } from "../../lib/labels";
 
 /**
- * Where a form has got to. Nobody sets this by hand: Operations fill it in and send it for KYC review, and it
- * goes to the client only once Compliance have passed it. It becomes complete when their signed copy comes in.
+ * Where a form has got to. Nobody sets this by hand: Operations fill it in and send it out to be signed, and it
+ * goes straight out to the client's advisor to be signed. It becomes complete when the signed copy comes in.
  */
 export function formStatus(
   status: FormRowStatus | "NOT_STARTED",
   dueOn: string | null,
 ): { label: string; tone: "neutral" | "warning" | "danger" | "success" } {
   if (status === "SUBMITTED") return { label: "Complete", tone: "success" };
-  if (status === "AWAITING_COMPLIANCE") return { label: "KYC review", tone: "warning" };
   if (status === "REJECTED") return { label: "Sent back", tone: "danger" };
   if (status !== "WAITING_ON_CLIENT") return { label: "Pending", tone: "neutral" };
   // Due at the end of the day it was asked for.
@@ -19,7 +18,7 @@ export function formStatus(
 }
 
 /**
- * Whether Operations still type on this form here. A form they have sent for review, one out with the client
+ * Whether Operations still type on this form here. A form they have sent out to be signed, one out with the client
  * and one already finished are all read: what is on them is what went out, and changing that quietly would
  * make the copy somebody else is holding a different document.
  */
@@ -42,9 +41,6 @@ export function progressLine(form: CaseFormRow) {
   }
   if (form.status === "NOT_STARTED") {
     return "Pending completion · Not started";
-  }
-  if (form.status === "AWAITING_COMPLIANCE") {
-    return "Filled in · with compliance for KYC review";
   }
   // What compliance decided is what Operations have to act on, so it is the line rather than a note beside
   // it: sent back, they put it right; passed, they know the client has it because compliance let it go.

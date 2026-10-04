@@ -8,6 +8,22 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      The theme is settled before anything is drawn. Left to React, the page would paint light and then go
+      dark a moment later, which is worse than either.
+    -->
+    <script>
+      (function () {
+        try {
+          var held = localStorage.getItem("atomprive.theme");
+          var dark = held === "dark"
+            || ((held === null || held === "system") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+        } catch (blocked) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

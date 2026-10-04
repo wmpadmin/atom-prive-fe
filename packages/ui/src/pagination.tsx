@@ -86,7 +86,7 @@ function PageButton({ label, current, disabled, onClick, children }: { label: st
         "inline-grid h-8 min-w-8 place-items-center rounded-lg border px-2 text-xs font-semibold tabular-nums transition-colors",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
         "disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-4",
-        current ? "border-primary-600 bg-primary-600 text-white" : "border-line bg-white text-ink-soft hover:bg-slate-50",
+        current ? "border-primary-600 bg-primary-600 text-on-accent" : "border-line bg-white text-ink-soft hover:bg-slate-50",
       )}
     >
       {children}

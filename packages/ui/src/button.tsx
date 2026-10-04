@@ -4,10 +4,10 @@ import { cn } from "./cn";
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "danger-soft";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-primary-600 text-white shadow-xs hover:bg-primary-700",
+  primary: "bg-primary-600 text-on-accent shadow-xs hover:bg-primary-700",
   secondary: "border border-line bg-white text-ink shadow-xs hover:bg-slate-50",
   ghost: "bg-slate-100 text-ink-soft hover:bg-slate-200",
-  danger: "bg-red-600 text-white shadow-xs hover:bg-red-700",
+  danger: "bg-red-600 text-on-accent shadow-xs hover:bg-red-700",
   /** A destructive action that shouldn't dominate the page, such as Deactivate next to Edit. */
   "danger-soft": "border border-red-200 bg-red-50 text-red-600 hover:bg-red-100",
 };

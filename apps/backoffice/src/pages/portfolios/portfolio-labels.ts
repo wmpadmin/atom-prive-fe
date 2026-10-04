@@ -1,28 +1,7 @@
-/**
- * The asset classes a model is spread across, in the order the firm's papers list them. They are the keys of
- * the target and holding maps, which the API describes as plain strings, so they are named once here.
- */
-export type AssetClass = "EQUITIES" | "FIXED_INCOME" | "ALTERNATIVES" | "CASH";
-
-export const ASSET_CLASSES: AssetClass[] = ["EQUITIES", "FIXED_INCOME", "ALTERNATIVES", "CASH"];
-
 /** How far a portfolio has wandered from its model, as the API names it. */
 export type DriftStanding = "WITHIN_BAND" | "WATCH" | "AT_EDGE" | "BREACHED";
 
-export const assetClassLabels: Record<AssetClass, string> = {
-  EQUITIES: "Equities",
-  FIXED_INCOME: "Fixed income",
-  ALTERNATIVES: "Alternatives",
-  CASH: "Cash",
-};
 
-/** What a crowded column calls it: "Eq 49% · FI 36% · Alt 7%". */
-export const assetClassShort: Record<AssetClass, string> = {
-  EQUITIES: "Eq",
-  FIXED_INCOME: "FI",
-  ALTERNATIVES: "Alt",
-  CASH: "Cash",
-};
 
 export const standingLabels: Record<DriftStanding, string> = {
   WITHIN_BAND: "Within band",
@@ -36,14 +15,6 @@ export const standingTones: Record<DriftStanding, "success" | "neutral" | "warni
   WATCH: "neutral",
   AT_EDGE: "warning",
   BREACHED: "danger",
-};
-
-/** The colour each asset class is drawn in, so one bar reads the same on every screen. */
-export const assetClassBars: Record<AssetClass, string> = {
-  EQUITIES: "bg-primary-600",
-  FIXED_INCOME: "bg-sky-400",
-  ALTERNATIVES: "bg-violet-500",
-  CASH: "bg-slate-300",
 };
 
 /** Drift as the screens write it: "+6.4pp", "−6.0pp", and a true zero as "0.0pp". */

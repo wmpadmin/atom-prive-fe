@@ -112,6 +112,9 @@ export function ProposalsPanel({ clientId }: { clientId: string }) {
 export function FamilyPanel({ client, family }: { client: CustomerDetail["client"]; family: FamilyMember[] }) {
   const location = useLocation();
   const backTo = clientsHref(location.state);
+  // A client is read under whichever list they were reached from: an advisor has My clients and no sight of
+  // every client, so sending them to the whole book's address would only turn them round at the door.
+  const mine = location.pathname.startsWith("/my-clients");
   if (family.length === 0) {
     return (
       <WaitingPanel icon={<Wallet />} title="Onboarded on their own">
@@ -140,7 +143,11 @@ export function FamilyPanel({ client, family }: { client: CustomerDetail["client
                       {member.fullName} <span className="text-xs font-normal text-ink-muted">· this client</span>
                     </>
                   ) : (
-                    <Link to={`/clients/${member.id}`} state={{ from: backTo }} className="hover:text-primary-700">
+                    <Link
+                      to={`${mine ? "/my-clients" : "/clients"}/${member.id}`}
+                      state={{ from: backTo }}
+                      className="hover:text-primary-700"
+                    >
                       {member.fullName}
                     </Link>
                   )}

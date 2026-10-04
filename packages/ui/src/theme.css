@@ -28,6 +28,18 @@
   --color-primary-600: #1d6ee8;
   --color-primary-700: #175ac4;
 
+  /* Two kinds of text that sit on something filled, because they part company in dark mode.
+
+     `on-fill` is text on the navy panels — the sign-in side, the workspace page. Those are dark in both
+     themes, so it stays near-white in both.
+
+     `on-accent` is text on a coloured fill: a blue button, a red counter, a done step. Dark mode lifts those
+     colours so they still read against a dark page, which makes them too light to carry white text — so in
+     that theme the label goes dark instead. Neither is Tailwind's `white`, which dark mode moves to the
+     colour of a panel. */
+  --color-on-fill: #ffffff;
+  --color-on-accent: #ffffff;
+
   /* Surfaces and lines */
   --color-canvas: #edf2f8;
   --color-sidebar: #f6f8fc;
@@ -81,4 +93,109 @@
 .rdp-month_caption {
   font-size: var(--text-sm);
   font-weight: 600;
+}
+
+/*
+ * Dark mode.
+ *
+ * The back-office stamps `data-theme` on <html>; the client portal never does, so it is untouched by any of
+ * this. Everything below redefines colours rather than adding `dark:` to five hundred class names: a panel
+ * written as `bg-white` is a panel, and in this theme a panel is dark. The one colour that could not be moved
+ * that way is text sitting on a filled panel, which is why `--color-on-fill` exists above.
+ *
+ * These are chosen, not inverted. Surfaces step up from the page rather than down, as they do in the light
+ * theme; the blues are lifted so they still read as a link on a dark ground; and the status colours are
+ * lightened to clear text contrast rather than left at a shade meant for white paper.
+ */
+:root[data-theme="dark"] {
+  /* A label on a coloured fill goes dark, because the fill itself is now light. */
+  --color-on-accent: #0d1117;
+
+  /* Surfaces, from the page up: canvas, sidebar, panel, the fills inside a panel. */
+  --color-canvas: #0d1117;
+  --color-sidebar: #10151e;
+  --color-white: #161c27;
+  --color-slate-50: #1b2230;
+  --color-slate-100: #222b3a;
+  --color-slate-200: #2b3545;
+  --color-line: #2a3444;
+
+  /* Text */
+  --color-ink: #e7edf6;
+  --color-ink-soft: #b6c2d4;
+  --color-ink-muted: #8a97aa;
+  --color-slate-300: #7c8a9e;
+  --color-slate-400: #6d7b90;
+  --color-slate-500: #94a2b6;
+  --color-slate-600: #aab6c8;
+
+  /* Blue: lifted, so an action still reads as one against a dark ground. */
+  --color-primary-50: #132742;
+  --color-primary-100: #17324f;
+  --color-primary-600: #3d87f4;
+  --color-primary-700: #62a0f7;
+
+  /* Navy panels are already dark; they deepen a little so they do not float off the page. */
+  --color-brand-950: #04101f;
+  --color-brand-900: #0a2149;
+  --color-brand-50: #dce7f7;
+
+  /* Status: the inks lighten, the soft fills become tints of the panel rather than of paper. */
+  --color-red-50: #2a1416;
+  --color-red-100: #3a1a1d;
+  --color-red-200: #4d2126;
+  --color-red-300: #6b2d33;
+  --color-red-400: #e8686e;
+  --color-red-500: #ef5f66;
+  --color-red-600: #f1767c;
+  --color-red-700: #f58e93;
+  --color-red-800: #f8a5a9;
+
+  --color-amber-50: #2a2010;
+  --color-amber-100: #3a2c13;
+  --color-amber-200: #4d3a18;
+  --color-amber-300: #6b5222;
+  --color-amber-400: #e0a23a;
+  --color-amber-500: #e3a93f;
+  --color-amber-600: #ecb95c;
+  --color-amber-700: #f2c878;
+  --color-amber-800: #f6d694;
+  --color-amber-900: #f9e2b2;
+
+  --color-emerald-50: #10261b;
+  --color-emerald-100: #153322;
+  --color-emerald-200: #1c452d;
+  --color-emerald-500: #35b574;
+  --color-emerald-600: #4cc487;
+  --color-emerald-700: #6ed2a0;
+  --color-emerald-800: #8fdeb6;
+
+  --color-rose-400: #e8707f;
+  --color-rose-700: #f291a0;
+
+  /* The few hues that only ever draw a chart slice; lifted so a thin bar still reads. */
+  --color-sky-400: #4cb3ef;
+  --color-violet-500: #9b7cf0;
+  --color-teal-500: #2cb8a8;
+  --color-indigo-400: #7c92f2;
+  --color-orange-400: #ef9a4c;
+
+  /* Access levels on the Permission matrix. */
+  --color-access-full: #35b574;
+  --color-access-full-soft: #12301f;
+  --color-access-full-ink: #6ed2a0;
+  --color-access-view: #e3a93f;
+  --color-access-view-soft: #32250f;
+  --color-access-view-ink: #f2c878;
+  --color-access-own: #c6c64a;
+  --color-access-own-soft: #2b2b12;
+  --color-access-own-ink: #dcdc82;
+  --color-access-assigned: #3d87f4;
+  --color-access-assigned-soft: #132742;
+  --color-access-assigned-ink: #79acf8;
+  --color-access-none: #ef5f66;
+  --color-access-none-soft: #311518;
+  --color-access-none-ink: #f58e93;
+
+  color-scheme: dark;
 }

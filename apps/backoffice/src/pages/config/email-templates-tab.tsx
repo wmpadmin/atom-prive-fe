@@ -289,7 +289,7 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
               className={cn(
                 "rounded-lg px-4 py-1.5 text-xs font-semibold capitalize transition-colors",
                 "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
-                mode === option ? "bg-primary-600 text-white" : "text-ink-soft hover:bg-white",
+                mode === option ? "bg-primary-600 text-on-accent" : "text-ink-soft hover:bg-white",
               )}
             >
               {option}

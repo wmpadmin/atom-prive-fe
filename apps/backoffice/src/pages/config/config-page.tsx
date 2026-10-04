@@ -12,6 +12,7 @@ import { Download, PencilLine } from "lucide-react";
 import { useState, type KeyboardEvent } from "react";
 import { useSearchParams } from "react-router";
 import { downloadTextFile } from "../../lib/download";
+import { AssetClassesTab } from "./asset-classes-tab";
 import { BanksTab } from "./banks-tab";
 import { EmailTemplatesTab } from "./email-templates-tab";
 import { FieldMappingTab } from "./field-mapping-tab";
@@ -23,6 +24,7 @@ const tabs = [
   { id: "mapping", title: "Format mapping & alerts", subtitle: "Field mapping" },
   { id: "offboarding", title: "Deactivation & deletion", subtitle: "Off-boarding approvals" },
   { id: "fx", title: "FX rates", subtitle: "Daily rates in USD" },
+  { id: "asset-classes", title: "Asset classes", subtitle: "What portfolios are counted in" },
   { id: "templates", title: "Email templates", subtitle: "Subject, body, versions" },
 ] as const;
 
@@ -70,7 +72,9 @@ export function ConfigPage() {
     }
   }
 
-  const canExport = active !== "offboarding" && !(active === "mapping" && !bankId);
+  // Only the tabs the API will actually hand back a CSV for; the rest leave the button off rather
+  // than offering an export that answers with nothing.
+  const canExport = active !== "offboarding" && active !== "asset-classes" && !(active === "mapping" && !bankId);
 
   return (
     <div className="space-y-6">
@@ -120,7 +124,7 @@ export function ConfigPage() {
               className={cn(
                 "rounded-xl border px-3.5 py-2.5 text-left transition-colors",
                 "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
-                selected ? "border-primary-600 bg-primary-600 text-white shadow-sm" : "border-line bg-white hover:border-primary-100",
+                selected ? "border-primary-600 bg-primary-600 text-on-accent shadow-sm" : "border-line bg-white hover:border-primary-100",
               )}
             >
               <span className="flex items-center gap-1.5 text-sm font-semibold whitespace-nowrap">
@@ -128,13 +132,13 @@ export function ConfigPage() {
                 {badge ? (
                   <span
                     aria-label={`${badge} unmapped`}
-                    className="grid min-w-4 place-items-center rounded-full bg-red-600 px-1 text-3xs leading-4 font-bold text-white"
+                    className="grid min-w-4 place-items-center rounded-full bg-red-600 px-1 text-3xs leading-4 font-bold text-on-accent"
                   >
                     {badge}
                   </span>
                 ) : null}
               </span>
-              <span className={cn("block text-xs", selected ? "text-white/80" : "text-ink-muted")}>{tab.subtitle}</span>
+              <span className={cn("block text-xs", selected ? "text-on-accent/80" : "text-ink-muted")}>{tab.subtitle}</span>
             </button>
           );
         })}
@@ -145,6 +149,7 @@ export function ConfigPage() {
         {active === "mapping" && <FieldMappingTab />}
         {active === "offboarding" && <OffboardingTab />}
         {active === "fx" && <FxRatesTab />}
+        {active === "asset-classes" && <AssetClassesTab />}
         {active === "templates" && (
           <EmailTemplatesTab creating={creatingTemplate} onCreatingChange={setCreatingTemplate} />
         )}

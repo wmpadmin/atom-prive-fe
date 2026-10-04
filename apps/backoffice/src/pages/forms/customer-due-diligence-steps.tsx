@@ -537,7 +537,7 @@ export function RiskStep({
                         "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
                         pepAsked ? "cursor-pointer" : "cursor-not-allowed",
                         risk.pep[row.id]?.rating === rating.value
-                          ? "border-primary-600 bg-primary-600 text-white"
+                          ? "border-primary-600 bg-primary-600 text-on-accent"
                           : pepAsked
                             ? "border-line bg-white text-ink hover:border-primary-100"
                             : "border-line bg-slate-50 text-ink-muted",

@@ -17,12 +17,10 @@ import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { formatDate } from "../../lib/labels";
 import { AdvisorChips } from "../clients/advisor-chips";
+import { barFor, useAssetClasses } from "./asset-classes";
 import { ClientSearch } from "../clients/client-search";
 import { ClientPortfolioDialog } from "./client-portfolio-dialog";
 import {
-  ASSET_CLASSES,
-  assetClassBars,
-  assetClassShort,
   driftLabel,
   standingLabels,
   standingTones,
@@ -43,6 +41,7 @@ const NOTHING_YET = "—";
  */
 export function PortfolioClientsPage() {
   const { params, update } = useListAddress();
+  const assetClasses = useAssetClasses();
   const query = params.get("q") ?? "";
   const advisorId = params.get("advisor") ?? "";
   const page = Number(params.get("page")) || 0;
@@ -157,7 +156,8 @@ export function PortfolioClientsPage() {
         {rows.map((client: CustomerRow) => {
           const standing = standingOf.get(client.id);
           const shares = standing?.shares ?? {};
-          const spread = ASSET_CLASSES.filter((assetClass) => shares[assetClass]);
+          // In the firm's own order, so one client's spread reads the same way as the next one's.
+          const spread = assetClasses.all.map((one) => one.code).filter((assetClass) => shares[assetClass]);
           return (
             <tr key={client.id} className="border-t border-line">
               <td className="px-5 py-3">
@@ -186,14 +186,14 @@ export function PortfolioClientsPage() {
                       {spread.map((assetClass) => (
                         <span
                           key={assetClass}
-                          className={cn("h-full", assetClassBars[assetClass])}
+                          className={cn("h-full", barFor(assetClass, assetClasses.all))}
                           style={{ width: `${shares[assetClass]}%` }}
                         />
                       ))}
                     </div>
                     <p className="mt-1 text-2xs whitespace-nowrap text-ink-muted">
                       {spread
-                        .map((assetClass) => `${assetClassShort[assetClass]} ${Math.round(shares[assetClass]!)}%`)
+                        .map((assetClass) => `${assetClasses.shortNames[assetClass] ?? assetClass} ${Math.round(shares[assetClass]!)}%`)
                         .join(" · ")}
                     </p>
                   </div>

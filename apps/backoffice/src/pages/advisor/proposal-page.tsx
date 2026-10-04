@@ -2,25 +2,57 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useCreateProposal,
   useGetProposal,
+  listProposals,
+  useListCurrencies,
   useListMyClients,
   useRecordClientDecision,
   useResendProposal,
   useSignOffProposal,
   useSubmitProposal,
   useUpdateProposal,
+  type Currency,
   type CustomerPage,
   type ProposalDetail,
   type ProposalRowStatus,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, describedBy, Dialog, Field, SelectInput, TextArea, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, describedBy, Dialog, Field, SelectInput, TextArea, TextInput } from "@atomprive/ui";
 import { ChevronLeft } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
-import { hasAnyAuthority } from "../../lib/permissions";
-import { formatDate, formatDateTime } from "../../lib/labels";
+import { asFigure } from "../../lib/figures";
+import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
+import { SentProposalsHeader } from "./sent-proposals-header";
+import { ProposalLineEditor } from "./proposal-line-editor";
+import { EMPTY_LINE, linesFrom, type TypedLine } from "./proposal-line-values";
+import { ProposalAttachment } from "./proposal-attachment";
+import { ProposalLines } from "./proposal-lines";
+import { ProposalTrail } from "./proposal-trail";
+import { hasAnyAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
+import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
 import { expiryLabel, formatValue, proposalStatusLabels, proposalStatusTones } from "./proposal-labels";
+
+/** One of the four facts above a proposal: what it was advised against, and the dates it turns on. */
+function Fact({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="rounded-xl bg-canvas px-4 py-3">
+      <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
+      <dd className="mt-0.5 text-sm font-medium text-ink">{children}</dd>
+    </div>
+  );
+}
+
+/** A saved proposal's lines, as the form holds them for editing. */
+function typedFrom(lines: ProposalDetail["lines"]): TypedLine[] {
+  return lines.map((line) => ({
+    asset: line.asset,
+    action: line.action,
+    amount: line.amount === null || line.amount === undefined ? "" : String(line.amount),
+    weightFrom: String(line.weightFrom),
+    weightTo: String(line.weightTo),
+  }));
+}
 
 /**
  * Writing a proposal, and reading one back (#86, #87, #88, #93). A draft can be edited and sent; once it has gone it
@@ -36,12 +68,41 @@ export function ProposalPage() {
   const [answering, setAnswering] = useState<"send-back" | "client" | null>(null);
   const [comment, setComment] = useState("");
   const [clientSaid, setClientSaid] = useState(true);
+  // Typed rather than native: a number box takes "e" as scientific notation and then reports itself empty,
+  // so a figure somebody fumbled would be dropped on the way out instead of questioned.
+  // Null until somebody types: the box then shows what is on the proposal, and what was typed from then on.
+  const [typedAmount, setTypedAmount] = useState<string | null>(null);
+  const [chosenCurrency, setChosenCurrency] = useState<string | null>(null);
+  const [typedObjective, setTypedObjective] = useState<string | null>(null);
+  const [typedLines, setTypedLines] = useState<TypedLine[] | null>(null);
+  const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  /** Searching from here is searching the list, so it goes back to the list carrying what was typed. */
+  function searchTheList(value: string) {
+    setSearch(value);
+    void navigate(`/proposals?q=${encodeURIComponent(value)}`, { replace: true });
+  }
+
+  /** The same export the list offers, because the button means the same thing wherever it is pressed. */
+  async function exportEverything() {
+    setExporting(true);
+    try {
+      const all = await listProposals({ page: 0, size: EXPORT_LIMIT });
+      download(csvOf(all.items), `proposals-${new Date().toISOString().slice(0, 10)}.csv`);
+    } finally {
+      setExporting(false);
+    }
+  }
   const user = useStaffUser();
   const signsOff = hasAnyAuthority(user, "APPROVE_PROPOSALS:CHANGE", "APPROVE_PROPOSALS:OWN_CLIENTS");
+  const writes = hasAnyAuthority(user, ...WRITES_PROPOSALS);
 
   const detail = useGetProposal<ProposalDetail, ApiError>(proposalId ?? "", { query: { enabled: !writing } });
+  const currencies = useListCurrencies<Currency[], ApiError>();
   // Proposals can only be written for clients assigned to you, so the picker offers exactly those.
   const clients = useListMyClients<CustomerPage, ApiError>({ size: 100 });
+  const noClients = clients.isSuccess && (clients.data?.items.length ?? 0) === 0;
 
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
   const create = useCreateProposal<ApiError>({
@@ -90,8 +151,16 @@ export function ProposalPage() {
   }
 
   const proposal = detail.data;
+  // A proposal opened for editing arrives after the first render, so the boxes read from it until typed in.
+  const amount = typedAmount ?? (proposal?.summary.valueAmount == null ? "" : String(proposal.summary.valueAmount));
+  const currency = chosenCurrency ?? proposal?.summary.valueCurrency ?? "USD";
+  const objective = typedObjective ?? proposal?.objective ?? "";
+  const lines = typedLines ?? (proposal && proposal.lines.length > 0 ? typedFrom(proposal.lines) : [{ ...EMPTY_LINE }]);
   const status = (proposal?.summary.status ?? "DRAFT") as ProposalRowStatus;
-  const editable = writing || status === "DRAFT";
+  // A draft is only editable by whoever wrote it. Whoever oversees the firm's advice reads every proposal,
+  // and the API answers their save with "doesn't exist" — so the form is not offered to them in the first
+  // place rather than inviting an edit that cannot land.
+  const editable = writing || (status === "DRAFT" && proposal?.summary.advisorId === user.id);
   const busy = create.isPending || update.isPending || submit.isPending;
   const deciding = signOff.isPending || clientAnswer.isPending;
   // A sign-off is what sends it to the client, and it is somebody else's to give: the advisor who wrote it
@@ -102,15 +171,17 @@ export function ProposalPage() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const amount = String(form.get("valueAmount")).trim();
+    const figure = amount.trim();
     const data = {
       customerId: String(form.get("customerId")),
       title: String(form.get("title")),
       summary: String(form.get("summary")).trim() || null,
       body: String(form.get("body")),
-      valueAmount: amount ? Number(amount) : null,
-      valueCurrency: String(form.get("valueCurrency")).trim() || null,
+      valueAmount: figure ? Number(figure) : null,
+      valueCurrency: currency.trim() || null,
       affectedAccounts: String(form.get("affectedAccounts")).trim() || null,
+      objective: objective.trim() || null,
+      lines: linesFrom(lines),
     };
     setErrors(noErrors);
     setNotice(undefined);
@@ -120,25 +191,63 @@ export function ProposalPage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-3">
-        <Link to="/proposals" className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700">
-          <ChevronLeft aria-hidden="true" className="size-4" />
-          Proposals
-        </Link>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-[1.625rem] leading-tight font-bold">
-              {writing ? "New proposal" : proposal!.summary.title}
-            </h1>
-            {!writing && (
-              <p className="mt-0.5 text-sm text-ink-muted">
-                {proposal!.summary.reference} · {proposal!.summary.customerName} ({proposal!.summary.customerCode})
-              </p>
-            )}
+      {/* The screen is the list; a proposal is read within it, so the way back is never off the page. */}
+      {!writing && (
+        <SentProposalsHeader
+          writes={writes}
+          search={search}
+          onSearch={searchTheList}
+          onExport={() => void exportEverything()}
+          exporting={exporting}
+          canExport
+          extra={
+            status === "EXPIRED" ? (
+              <Button
+                variant="secondary"
+                disabled={resend.isPending}
+                onClick={() => resend.mutate({ id: proposalId! })}
+              >
+                {resend.isPending ? "Copying…" : "Resend as new proposal"}
+              </Button>
+            ) : null
+          }
+        />
+      )}
+
+      <Link to="/proposals" className="inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:underline">
+        <ChevronLeft aria-hidden="true" className="size-4" />
+        Back to sent proposals
+      </Link>
+
+      {/* Who it is for, where it stands, and what it was advised against: read together, so grouped together. */}
+      <header className="space-y-4 rounded-2xl border border-line bg-white p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            {!writing && <Avatar name={proposal!.summary.customerName} />}
+            <div className="min-w-0">
+              <h1 className="text-[1.625rem] leading-tight font-bold">
+                {writing ? "New proposal" : proposal!.summary.title}
+              </h1>
+              {!writing && (
+                <p className="mt-0.5 text-sm text-ink-muted">
+                  {proposal!.summary.summary && `${proposal!.summary.summary} · `}
+                  {proposal!.summary.customerName} · {proposal!.summary.customerCode} ·{" "}
+                  {proposal!.summary.reference}
+                </p>
+              )}
+            </div>
           </div>
-          {!writing && <Badge tone={proposalStatusTones[status]}>{proposalStatusLabels[status]}</Badge>}
+          {!writing && (
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <Badge tone={proposalStatusTones[status]}>{proposalStatusLabels[status]}</Badge>
+                <p className="mt-1 text-xs text-ink-muted">
+                  {formatRelative(proposal!.summary.sentAt ?? proposal!.summary.createdAt)}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-      </header>
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
@@ -162,18 +271,38 @@ export function ProposalPage() {
         </Alert>
       )}
 
+      {/* What the advice was given against, and the dates it turns on — the four facts read before the detail. */}
+      {!writing && (
+        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Fact label="Portfolio value">
+            {proposal!.portfolioValue === null
+              ? "Not recorded"
+              : formatValue(proposal!.portfolioValue, proposal!.portfolioCurrency)}
+          </Fact>
+          <Fact label="Sent">
+            {proposal!.summary.sentAt ? formatDate(proposal!.summary.sentAt) : "Not sent yet"}
+          </Fact>
+          <Fact label="Expires">
+            {expiryLabel(proposal!.summary.expiresAt, status, proposal!.summary.decidedAt)}
+          </Fact>
+          <Fact label="Objective">{proposal!.objective ?? "Not set"}</Fact>
+        </dl>
+      )}
+      </header>
+
       <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-line bg-white p-6">
+        {editable ? (
+          <>
         <Field id="customerId" label="Client" error={errors.fields.customerId}>
           <SelectInput
             {...describedBy("customerId", errors.fields.customerId)}
             name="customerId"
             defaultValue={proposal?.summary.customerId ?? ""}
-            disabled={!editable}
+            disabled={!editable || noClients}
             required
-            className="w-auto"
           >
             <option value="" disabled>
-              Choose a client
+              {noClients ? "No clients are assigned to you" : "Choose a client"}
             </option>
             {(clients.data?.items ?? []).map((client) => (
               <option key={client.id} value={client.id}>
@@ -181,6 +310,13 @@ export function ProposalPage() {
               </option>
             ))}
           </SelectInput>
+          {/* An empty list is not a fault to report, but it is a dead end, so it says what it is. */}
+          {noClients && (
+            <p className="mt-1.5 text-xs text-ink-muted">
+              A proposal is written for a client assigned to you, and you have none. Ask an Admin to assign
+              one, then this list will fill.
+            </p>
+          )}
         </Field>
 
         <Field id="title" label="Title" error={errors.fields.title}>
@@ -204,7 +340,41 @@ export function ProposalPage() {
           />
         </Field>
 
-        <Field id="body" label="The changes you're proposing" error={errors.fields.body}>
+        <Field
+          id="objective"
+          label="Objective"
+          error={errors.fields.objective}
+          hint="What this is for, in a line. Shown to the client above the detail."
+        >
+          <TextInput
+            {...describedBy("objective", errors.fields.objective)}
+            name="objective"
+            value={objective}
+            placeholder="Reduce concentration risk in listed equities"
+            disabled={!editable}
+            onChange={(event) => setTypedObjective(event.target.value)}
+          />
+        </Field>
+
+        <fieldset>
+          <legend className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            What you're proposing
+          </legend>
+          <p className="mt-1 text-xs text-ink-muted">
+            Holding by holding, so the client can see what moves and where it leaves them. A part-written line
+            is left out. Advisory only — nothing here is executed.
+          </p>
+          <div className="mt-2">
+            {editable ? (
+              <ProposalLineEditor lines={lines} disabled={busy} onChange={setTypedLines} />
+            ) : (
+              <ProposalLines lines={proposal?.lines ?? []} currency={proposal?.summary.valueCurrency ?? null} />
+            )}
+          </div>
+          {errors.fields.lines && <p className="mt-1.5 text-xs text-red-600">{errors.fields.lines}</p>}
+        </fieldset>
+
+        <Field id="body" label="Rationale shown to the client" error={errors.fields.body}>
           <textarea
             {...describedBy("body", errors.fields.body)}
             name="body"
@@ -216,26 +386,35 @@ export function ProposalPage() {
           />
         </Field>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-[1fr_7rem]">
           <Field id="valueAmount" label="Value" error={errors.fields.valueAmount} hint="What the change is worth, if it has a figure.">
             <TextInput
               {...describedBy("valueAmount", errors.fields.valueAmount)}
               name="valueAmount"
-              type="number"
-              step="0.01"
-              defaultValue={proposal?.summary.valueAmount ?? ""}
+              inputMode="decimal"
+              value={amount}
               disabled={!editable}
+              onChange={(event) => setTypedAmount(asFigure(event.target.value, amount))}
             />
           </Field>
           <Field id="valueCurrency" label="Currency" error={errors.fields.valueCurrency}>
-            <TextInput
+            <SelectInput
               {...describedBy("valueCurrency", errors.fields.valueCurrency)}
               name="valueCurrency"
-              defaultValue={proposal?.summary.valueCurrency ?? "USD"}
-              maxLength={3}
+              value={currency}
               disabled={!editable}
-              className="w-28 uppercase"
-            />
+              onChange={(event) => setChosenCurrency(event.target.value)}
+            >
+              {/* Whatever the proposal was saved in stays offered, even if the firm has since dropped it. */}
+              {!(currencies.data ?? []).some((one) => one.code === currency) && (
+                <option value={currency}>{currency}</option>
+              )}
+              {(currencies.data ?? []).map((one) => (
+                <option key={one.code} value={one.code}>
+                  {one.code} — {one.name}
+                </option>
+              ))}
+            </SelectInput>
           </Field>
         </div>
 
@@ -256,20 +435,63 @@ export function ProposalPage() {
           />
         </Field>
 
+        <ProposalAttachment
+          proposalId={proposalId ?? null}
+          attachment={proposal?.attachment ?? null}
+          editable={editable}
+          onChanged={() => void detail.refetch()}
+        />
+
+          </>
+        ) : (
+          <>
+        {/* Sent, it is a record of advice given rather than something to fill in, so it reads as one. */}
+        <section>
+          <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">What was proposed</h2>
+          <p className="mt-1 text-xs text-ink-muted">
+            Line-by-line changes shown to the client. Advisory only — no execution.
+          </p>
+          <div className="mt-3">
+            <ProposalLines lines={proposal!.lines} currency={proposal!.summary.valueCurrency} />
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Rationale shown to the client
+          </h2>
+          <p className="mt-2 text-sm leading-6 whitespace-pre-line text-ink">{proposal!.body}</p>
+        </section>
+
+        {proposal!.affectedAccounts && (
+          <section>
+            <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              Accounts this touches
+            </h2>
+            <p className="mt-2 text-sm leading-6 whitespace-pre-line text-ink">{proposal!.affectedAccounts}</p>
+          </section>
+        )}
+
+        {/* A manager signing one off reads all of it, so what came with it is here too, not only on the draft. */}
+        <ProposalAttachment
+          proposalId={proposalId ?? null}
+          attachment={proposal!.attachment}
+          editable={false}
+          onChanged={() => void detail.refetch()}
+        />
+
+          </>
+        )}
+
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
           <p className="text-xs text-ink-muted">
             {writing
               ? "Saved as a draft first. Nothing reaches the client until you send it."
               : proposal!.summary.sentAt
-                ? `Sent ${formatDate(proposal!.summary.sentAt)} · ${expiryLabel(proposal!.summary.expiresAt, status)}`
+                ? `Sent ${formatDate(proposal!.summary.sentAt)} · ${expiryLabel(proposal!.summary.expiresAt, status, proposal!.summary.decidedAt)}`
                 : `Draft, last saved ${formatDateTime(proposal!.summary.createdAt)}`}
           </p>
           <div className="flex flex-wrap gap-3">
-            {status === "EXPIRED" && (
-              <Button variant="secondary" disabled={resend.isPending} onClick={() => resend.mutate({ id: proposalId! })}>
-                {resend.isPending ? "Copying…" : "Send again as new"}
-              </Button>
-            )}
             {toSignOff && (
               <>
                 <Button variant="secondary" disabled={deciding} onClick={() => setAnswering("send-back")}>
@@ -301,6 +523,21 @@ export function ProposalPage() {
           </div>
         </div>
       </form>
+
+      {/* A proposal that has been sent is a record of advice given, so what happened to it is shown with it. */}
+      {!writing && (
+        <section aria-labelledby="trail-title" className="rounded-2xl border border-line bg-white">
+          <div className="border-b border-line px-6 py-5">
+            <h2 id="trail-title" className="text-sm font-semibold">
+              Audit trail
+            </h2>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              Immutable record. A sent proposal is never altered — a change is issued as a new one.
+            </p>
+          </div>
+          <ProposalTrail trail={proposal?.trail ?? []} />
+        </section>
+      )}
 
       <Dialog open={answering === "send-back"} title="Send this proposal back?" onClose={() => setAnswering(null)}>
         <div className="space-y-4">

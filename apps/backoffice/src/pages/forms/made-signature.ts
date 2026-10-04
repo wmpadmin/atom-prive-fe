@@ -20,14 +20,16 @@ export function signedByTheFirm(who: string | undefined) {
 }
 
 /**
- * Whether this place may be signed here, and by this person.
+ * Whether a signature may be put down here, by the person working now.
  *
- * <p>The firm's own lines are signed by whoever is filling the form in. A client's line is the advisor's:
- * they are the one who sits with the client, and what they put down is recorded as theirs on the client's
- * behalf. Operations never sign for a client — they prepare the paper and send it out to be signed.
+ * <p>Signing is the advisor's and nobody else's — the firm's own lines as much as the client's. They are the
+ * one who sits with the client, and what they put down is recorded as theirs. Operations prepare the paper
+ * and send it out to be signed; they never sign it, and neither does an Admin who is not working as an
+ * advisor. Somebody who holds both roles signs by switching to the advisor's workspace, which is a deliberate
+ * act rather than a button that happens to be there.
  */
-export function mayBeSignedHere(who: string | undefined, activeRole: string | null | undefined) {
-  return signedByTheFirm(who) || activeRole === "ADVISOR" || activeRole === "ADMIN";
+export function mayBeSignedHere(activeRole: string | null | undefined) {
+  return activeRole === "ADVISOR";
 }
 
 /** Reads a signature back out of the answers. Anything else written there is not one, and is left alone. */

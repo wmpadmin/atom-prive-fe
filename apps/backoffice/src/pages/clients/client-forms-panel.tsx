@@ -121,7 +121,7 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
             )}
             {rows.map((form) => {
               const due = dueLabel(form.dueOn, form.submittedAt);
-              const waiting = form.status === "WAITING_ON_CLIENT" || form.status === "AWAITING_COMPLIANCE";
+              const waiting = form.status === "WAITING_ON_CLIENT";
               const openRow = actionOf(form);
               return (
                 <tr
@@ -174,9 +174,6 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
                     {form.status === "SUBMITTED" ? (
                       // Signed and approved. There is nothing left to do, and nobody sets this by hand.
                       <span className="text-sm font-semibold text-emerald-700">Done</span>
-                    ) : form.status === "AWAITING_COMPLIANCE" ? (
-                      // It is Compliance's now, so Operations have nothing to do until it comes back.
-                      <span className="text-sm font-semibold text-amber-700">KYC review</span>
                     ) : !openRow ? (
                       // Compliance see what the row offers without being able to take it: the action reads as
                       // the thing they may not do, rather than leaving the column blank.
@@ -218,7 +215,7 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
             {
               caseId,
               kind: dating.kind,
-              data: { customerId: client.id, dueOn, waitingOnClient: null, signedCopyOnFile: null, sendForKyc: null, answers: null },
+              data: { customerId: client.id, dueOn, waitingOnClient: null, signedCopyOnFile: null, answers: null },
             },
             {
               onSuccess: () => {

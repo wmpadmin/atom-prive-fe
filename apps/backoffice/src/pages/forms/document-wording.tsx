@@ -87,6 +87,9 @@ const SIGNS_WHAT_FOLLOWS = /signature\s*\(?s?\)?\s*:?\s*$/i;
 /** "Date: ______" is a day to pick, not a line to type anything on. */
 const DATES_WHAT_FOLLOWS = /\bdate(?:d)?\s*\(?s?\)?\s*:?\s*$/i;
 
+/** What separates the parts of one date written out: "……/………/………" is a day, a month and a year of one day. */
+const SAME_DATE = /^[\s/.\u2026-]*$/;
+
 /** A day as the calendar writes it. Anything else on a date line was typed before it became a calendar. */
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -116,9 +119,9 @@ function RuledBlank({ name }: { name: string }) {
  */
 function SignatureSpot({ spot, who, where }: { spot: string; who?: string; where?: "inline" | "cell" }) {
   const { details, onSign } = useContext(FillingContext);
-  // The firm's own lines are signed by whoever is filling the form in; a client's line is the advisor's, who
-  // signs on their behalf. Operations leave it for the client.
-  const ours = mayBeSignedHere(who, useStaffUser().activeRole);
+  // Signing is the advisor's, the firm's own lines as much as the client's. Operations prepare the paper and
+  // leave every place on it to be signed.
+  const ours = mayBeSignedHere(useStaffUser().activeRole);
   return (
     <SignatureMark
       made={madeSignature(details[spot])}
@@ -205,7 +208,7 @@ function useFilledIn() {
     );
   }
 
-  const signsForTheClient = mayBeSignedHere(undefined, useStaffUser().activeRole);
+  const signsForTheClient = mayBeSignedHere(useStaffUser().activeRole);
   return (text: string, where = "", idle = false, whose?: string): ReactNode[] => {
     const said: ReactNode[] = [];
     text.split(/(\{\{\w+\^?}})/).forEach((piece, part) => {
@@ -216,8 +219,14 @@ function useFilledIn() {
       // The paper rules a run of dots or underscores where something is to be written. On a form that rule is
       // written on; read-only it stays a rule, never the dots themselves.
       const runs = piece.split(RULE_RUN);
+      // A day already picked covers the rest of the date it was written in: "Date ……/………/………" is one day on
+      // the paper, not three things to fill in, and offering the other two invites a month typed over a month.
+      let dayTaken = false;
       runs.forEach((run, which) => {
         if (!RULE_RUN.test(run)) {
+          // The slashes between the parts of a day already picked. The calendar wrote the whole day, so
+          // printing "/ /" after it leaves the reader looking for two boxes that are not there.
+          if (dayTaken && SAME_DATE.test(run)) return;
           said.push(run);
           return;
         }
@@ -228,7 +237,19 @@ function useFilledIn() {
           );
           return;
         }
-        const asksForADay = DATES_WHAT_FOLLOWS.test(runs[which - 1] ?? "");
+        const before = runs[which - 1] ?? "";
+        const asksForADay = DATES_WHAT_FOLLOWS.test(before);
+        if (asksForADay) {
+          dayTaken = true;
+        }
+        else if (dayTaken && SAME_DATE.test(before)) {
+          // The month and the year of a day already picked. The calendar wrote all three, so these are not
+          // ruled for anybody to write on: the line would be an invitation to type a month over a month.
+          return;
+        }
+        else {
+          dayTaken = false;
+        }
         // A line in the client's own block goes with their signature: the advisor fills it in sitting with
         // them, and for anybody else it is printed as the rule the paper draws and left for the client.
         said.push(
@@ -329,7 +350,7 @@ function Cell({
 }) {
   const filledIn = useFilledIn();
   const { ticked, onTick, onFill } = useContext(FillingContext);
-  const signsForTheClient = mayBeSignedHere(undefined, useStaffUser().activeRole);
+  const signsForTheClient = mayBeSignedHere(useStaffUser().activeRole);
   const pieces = cell.text.split("☐");
   if (pieces.length === 1) {
     if (ticking && !cell.text.trim()) {
@@ -399,6 +420,31 @@ function Cell({
 /** A row of a list is numbered and otherwise blank; the number is the paper's, not an answer. */
 const MARK_ONLY = /^\s*(\d+|[a-z])[.)]?\s*$/i;
 
+/** The format a date line prints after itself to say how it wants writing: "(DD/MM/YYYY)". */
+const DATE_SHAPE = /\(\s*d{1,4}\s*[/.-]\s*m{1,4}\s*[/.-]\s*y{2,4}\s*\)/i;
+
+/**
+ * A row that is one date split across cells: "Date" in the first, then the slashes and the format between
+ * the rest. The paper writes it that way because a typist needs somewhere to put each part; on screen a day
+ * is picked from a calendar, so the row is one label and one day rather than three cells of punctuation.
+ *
+ * <p>Answered where the row ends up a single cell the ordinary wording handles: a date label followed by a
+ * rule is already a day to pick everywhere else on the paper.
+ */
+function dateSplitAcrossCells(row: DocumentCell[]): DocumentCell[] | null {
+  if (row.length < 2 || !DATES_WHAT_FOLLOWS.test(row[0]!.text.trim())) return null;
+  const rest = row.slice(1);
+  // Only punctuation and the format hint may follow. Anything else is a real cell and the row is left alone.
+  const onlyPunctuation = rest.every((cell) => {
+    const said = cell.text.replace(DATE_SHAPE, "").trim();
+    return said === "" || SAME_DATE.test(said);
+  });
+  // A row that already rules a line to write on is handled by the ordinary path and must not be rebuilt.
+  if (!onlyPunctuation || row.some((cell) => RULE_RUN.test(cell.text))) return null;
+  const across = row.reduce((wide, cell) => wide + cell.across, 0);
+  return [{ ...row[0]!, text: `${row[0]!.text.trim()} \u2026\u2026\u2026\u2026`, across, down: 1 }];
+}
+
 /**
  * A table whose rows after the first say nothing but their own number is not a table to read: it is a list to
  * be written on, and the paper rules as many rows as it guessed would be wanted. On screen the rows are added
@@ -418,7 +464,10 @@ function Table({ rows: printed, widths, where }: { rows: DocumentCell[][]; width
   // Every row of the list takes its columns from the heading above it, so each answer sits under what asks for
   // it. The paper merges its own rows unevenly, which leaves an answer straddling two headings.
   const listRow = () => printed[0]!.map((heading) => ({ ...heading, text: "", shaded: false }));
-  const rows = asList ? [printed[0]!, ...Array.from({ length: shown }, listRow)] : printed;
+  // A date the paper split into "Date | / | / (DD/MM/YYYY)" is one day, so it is put back together before
+  // anything is measured off it — otherwise the row is three cells of punctuation nobody can write in.
+  const dated = printed.map((row) => dateSplitAcrossCells(row) ?? row);
+  const rows = asList ? [dated[0]!, ...Array.from({ length: shown }, listRow)] : dated;
   const widest = Math.max(...rows.map((row) => row.reduce((wide, cell) => wide + cell.across, 0)));
   // A row the paper tints all the way across names what follows it; a cell tinted on its own is just a question,
   // and a question and its answer sit on the same ground.
@@ -915,9 +964,13 @@ function Wording({ blocks, part }: { blocks: DocumentBlock[]; part: string }) {
             // The paper sets some of its signature lines as a label and a colon, with the space left after.
             const signHere = SIGNATURE_LABEL.test((cells[0]?.text ?? "").trim())
               && cells.slice(1).every((cell) => !cell.text.replace(/[:\s]/g, ""));
+            // "Date | / | / (DD/MM/YYYY)" is one day the paper split so a typist had somewhere to put each
+            // part. On screen a day is picked from a calendar, so it is put back together as one line —
+            // otherwise the row is punctuation with nowhere to write the date at all.
+            const shown = dateSplitAcrossCells(cells) ?? cells;
             return (
               <div key={at} className="flex flex-wrap items-end gap-x-10 gap-y-1 pt-2 text-sm text-ink">
-                {cells.map((cell, column) => (
+                {shown.map((cell, column) => (
                   <span key={column} className={cn("min-w-[8rem]", signHere ? "shrink-0" : "flex-1")}>
                     {filledIn(cell.text, spot(`c${at}.${column}`))}
                   </span>

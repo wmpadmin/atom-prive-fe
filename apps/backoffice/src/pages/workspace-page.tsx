@@ -61,17 +61,17 @@ export function WorkspacePage() {
 
   return (
     <div className="grid min-h-screen font-sans text-ink lg:grid-cols-2">
-      <section className="hidden flex-col justify-between bg-linear-to-b from-[#0d3f86] via-brand-900 to-brand-950 px-14 py-12 text-white lg:flex">
+      <section className="hidden flex-col justify-between bg-linear-to-b from-[#0d3f86] via-brand-900 to-brand-950 px-14 py-12 text-on-fill lg:flex">
         <span aria-hidden="true" />
         <div className="max-w-xl">
-          <p className="text-xs font-semibold tracking-[0.2em] text-white/80 uppercase">Role-based workspace</p>
+          <p className="text-xs font-semibold tracking-[0.2em] text-on-fill/80 uppercase">Role-based workspace</p>
           <h1 className="mt-4 text-6xl leading-[1.02] font-bold tracking-tight text-balance">Choose your workspace.</h1>
-          <p className="mt-6 text-lg leading-relaxed text-white/75">
+          <p className="mt-6 text-lg leading-relaxed text-on-fill/75">
             Each role lands on its own dashboard with a navigation menu scoped to its access. Select the panel you want to
             enter.
           </p>
         </div>
-        <p className="text-xs text-white/70">Atom Financial Services Group · Bengaluru · Dubai · Singapore</p>
+        <p className="text-xs text-on-fill/70">Atom Financial Services Group · Bengaluru · Dubai · Singapore</p>
       </section>
 
       <main className="flex flex-col bg-canvas px-6 py-8 sm:px-12">
