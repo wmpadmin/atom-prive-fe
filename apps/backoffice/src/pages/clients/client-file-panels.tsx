@@ -84,7 +84,7 @@ export function ProposalsPanel({ clientId }: { clientId: string }) {
             {rows.map((proposal) => (
               <tr key={proposal.id}>
                 <td className="py-3 pr-4 pl-5">
-                  <Link to={`/proposals/${proposal.id}`} className="font-semibold hover:text-primary-600">
+                  <Link to={`/proposals/${proposal.id}?from=client`} className="font-semibold hover:text-primary-600">
                     {proposal.title}
                   </Link>
                   {proposal.summary && <p className="truncate text-xs text-ink-muted">{proposal.summary}</p>}

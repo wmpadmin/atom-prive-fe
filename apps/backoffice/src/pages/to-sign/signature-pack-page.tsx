@@ -5,6 +5,7 @@ import { ArrowLeft, Check, FileText } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { formatDate, formatDateTime } from "../../lib/labels";
+import { SendBackDialog } from "./send-back-dialog";
 import { SignFormDialog } from "./sign-form-dialog";
 import { packTones } from "./to-sign-labels";
 
@@ -16,6 +17,7 @@ export function SignaturePackPage() {
   const { packId = "" } = useParams();
   const pack = useGetPack<SignaturePackDetail, ApiError>(packId);
   const [signing, setSigning] = useState<PackFormRow | null>(null);
+  const [sendingBack, setSendingBack] = useState<PackFormRow | null>(null);
 
   if (pack.isError) {
     return (
@@ -40,8 +42,9 @@ export function SignaturePackPage() {
         <div>
           <h1 className="text-[1.625rem] font-bold">{summary.clientName}</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {summary.reference} · {summary.clientCode} · sent by {summary.sentByName} on{" "}
-            {formatDate(summary.sentAt)}
+            {/* The client's own code rather than the signing record's reference: an advisor knows their
+                clients by one and has never had to know the other. */}
+            {summary.clientCode} · ready to sign since {formatDate(summary.sentAt)}
             {summary.dueOn ? ` · due ${formatDate(summary.dueOn)}` : ""}
           </p>
         </div>
@@ -92,7 +95,8 @@ export function SignaturePackPage() {
                 {form.signatures.map((made) => (
                   <span key={made.signedAs}>
                     {" · "}
-                    {made.signedAsLabel} signed by {made.signerName} on {formatDateTime(made.signedAt)}
+                    {made.signedAsLabel} signed by {made.signerName}
+                    {made.capacity ? ` (${made.capacity})` : ""} on {formatDateTime(made.signedAt)}
                   </span>
                 ))}
               </span>
@@ -102,8 +106,24 @@ export function SignaturePackPage() {
               <span className="text-xs text-ink-muted">Awaiting: {form.awaiting.join(", ")}</span>
             )}
 
+            {/* What has been asked for on this form and not dealt with. It belongs beside Sign: a form with
+                a comment open on it is one somebody is still working on. */}
+            {form.openComments > 0 && (
+              <Badge tone="warning">
+                {form.openComments === 1 ? "1 comment open" : `${form.openComments} comments open`}
+              </Badge>
+            )}
+
+            {/* The client's own route. /forms/:id is Operations' queue, which an advisor may not open, so
+                reading a form from here used to bounce them to the dashboard. An agreement or a mandate is
+                never filled in, so it is read as its own wording: sending one to the form wizard showed the
+                account-opening summary with every line empty, that being the form it fell back to. */}
             <Link
-              to={`/forms/${form.formId}`}
+              to={
+                (form.filledInHere
+                  ? `/clients/${summary.customerId}/forms/${form.formId}`
+                  : `/clients/${summary.customerId}/documents/${form.kind}`) + `?pack=${packId}`
+              }
               className="inline-flex h-9 items-center rounded-lg border border-line bg-white px-3 text-xs font-semibold text-ink shadow-xs"
             >
               Read it
@@ -111,15 +131,32 @@ export function SignaturePackPage() {
             {form.signedByMe ? (
               <Badge tone="success">Signed</Badge>
             ) : (
-              <Button size="sm" onClick={() => setSigning(form)} disabled={summary.status !== "OUT"}>
-                Sign
-              </Button>
+              <>
+                {/* Sending it back is the other half of reading it: either it is right, or it says why not. */}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setSendingBack(form)}
+                  disabled={summary.status !== "OUT"}
+                >
+                  Send back
+                </Button>
+                <Button size="sm" onClick={() => setSigning(form)} disabled={summary.status !== "OUT"}>
+                  Sign
+                </Button>
+              </>
             )}
           </li>
         ))}
       </ul>
 
       <SignFormDialog packId={packId} form={signing} open={signing !== null} onClose={() => setSigning(null)} />
+      <SendBackDialog
+        packId={packId}
+        form={sendingBack}
+        open={sendingBack !== null}
+        onClose={() => setSendingBack(null)}
+      />
     </div>
   );
 }

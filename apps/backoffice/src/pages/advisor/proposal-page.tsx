@@ -4,6 +4,7 @@ import {
   useGetProposal,
   listProposals,
   useListCurrencies,
+  useListCustomers,
   useListMyClients,
   useRecordClientDecision,
   useResendProposal,
@@ -17,10 +18,11 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, describedBy, Dialog, Field, SelectInput, TextArea, TextInput } from "@atomprive/ui";
 import { ChevronLeft } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { useShowFirstError } from "../../lib/show-first-error";
 import { asFigure } from "../../lib/figures";
 import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
 import { SentProposalsHeader } from "./sent-proposals-header";
@@ -29,9 +31,9 @@ import { EMPTY_LINE, linesFrom, type TypedLine } from "./proposal-line-values";
 import { ProposalAttachment } from "./proposal-attachment";
 import { ProposalLines } from "./proposal-lines";
 import { ProposalTrail } from "./proposal-trail";
-import { hasAnyAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
+import { clientFileHref, hasAnyAuthority, hasAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
-import { expiryLabel, formatValue, proposalStatusLabels, proposalStatusTones } from "./proposal-labels";
+import { expiryLabel, formatValue, proposalStatusLabels, proposalStatusTones, sentLabel } from "./proposal-labels";
 
 /** One of the four facts above a proposal: what it was advised against, and the dates it turns on. */
 function Fact({ label, children }: { label: string; children: ReactNode }) {
@@ -62,8 +64,18 @@ export function ProposalPage() {
   const { proposalId } = useParams();
   const navigate = useNavigate();
   const writing = proposalId === undefined;
+  const form = useRef<HTMLFormElement>(null);
+  // Where this proposal was opened from. It is read from three screens and is the same screen from all of
+  // them: a manager who came from their sign-off queue, and an advisor who came from the client's own file,
+  // were both being sent on to Sent proposals, which is neither the list they were working nor one they had
+  // been on. The client's file needs no id in the address — the proposal names its own client.
+  const cameFrom = useSearchParams()[0].get("from");
   const [errors, setErrors] = useState<FormErrors>(noErrors);
+  // A refusal takes the reader to it: on a form this long the first bad field is a screen above Send.
+  useShowFirstError(errors, form);
   const [notice, setNotice] = useState<string>();
+  // Where what just happened is said, so a send can take the reader to it.
+  const moments = useRef<HTMLDivElement>(null);
   /** Which answer is being written down: a manager sending it back, or the client's own. */
   const [answering, setAnswering] = useState<"send-back" | "client" | null>(null);
   const [comment, setComment] = useState("");
@@ -100,8 +112,13 @@ export function ProposalPage() {
 
   const detail = useGetProposal<ProposalDetail, ApiError>(proposalId ?? "", { query: { enabled: !writing } });
   const currencies = useListCurrencies<Currency[], ApiError>();
-  // Proposals can only be written for clients assigned to you, so the picker offers exactly those.
-  const clients = useListMyClients<CustomerPage, ApiError>({ size: 100 });
+  // Whose clients may be written for: an advisor's own assigned list, or the whole book for whoever holds
+  // proposals at full. Offering an advisor every client would be offering them ones the API then refuses;
+  // offering a portfolio manager only their own would be an empty list, because they are assigned none.
+  const forEveryClient = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
+  const mine = useListMyClients<CustomerPage, ApiError>({ size: 100 }, { query: { enabled: !forEveryClient } });
+  const everyone = useListCustomers<CustomerPage, ApiError>({ size: 100 }, { query: { enabled: forEveryClient } });
+  const clients = forEveryClient ? everyone : mine;
   const noClients = clients.isSuccess && (clients.data?.items.length ?? 0) === 0;
 
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
@@ -109,12 +126,12 @@ export function ProposalPage() {
     mutation: { onSuccess: (saved) => navigate(`/proposals/${saved.summary.id}`, { replace: true }), onError },
   });
   const update = useUpdateProposal<ApiError>({
-    mutation: { onSuccess: () => setNotice("Saved."), onError },
+    mutation: { onSuccess: () => moved("Saved."), onError },
   });
   const submit = useSubmitProposal<ApiError>({
     mutation: {
       onSuccess: (saved) =>
-        setNotice(
+        moved(
           saved.summary.status === "PENDING_MANAGER_REVIEW"
             ? "Sent to your manager for sign-off."
             : "Sent to the client.",
@@ -125,16 +142,32 @@ export function ProposalPage() {
   const resend = useResendProposal<ApiError>({
     mutation: { onSuccess: (copy) => navigate(`/proposals/${copy.summary.id}`), onError },
   });
+  /**
+   * Says what happened, and reads the proposal back. Both halves matter: a proposal that has been sent is a
+   * different document — read rather than written, with a new line on its trail — and a screen still showing
+   * the draft form says nothing happened at all.
+   */
+  function moved(said: string) {
+    setNotice(said);
+    void detail.refetch();
+    // Said at the top, pressed at the bottom. On a proposal this long the notice is off-screen from where
+    // the button was, which is why a send that worked looked like a button that did nothing.
+    moments.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
   function answered(said: string) {
     setAnswering(null);
     setComment("");
-    setNotice(said);
-    void detail.refetch();
+    moved(said);
   }
   const signOff = useSignOffProposal<ApiError>({
     mutation: {
       onSuccess: (saved) =>
-        answered(saved.summary.status === "DRAFT" ? "Sent back to the advisor." : "Signed off, and sent to the client."),
+        answered(
+          saved.summary.status === "RETURNED"
+            ? "Sent back to the advisor."
+            : "Signed off, and sent to the client.",
+        ),
       onError,
     },
   });
@@ -160,7 +193,10 @@ export function ProposalPage() {
   // A draft is only editable by whoever wrote it. Whoever oversees the firm's advice reads every proposal,
   // and the API answers their save with "doesn't exist" — so the form is not offered to them in the first
   // place rather than inviting an edit that cannot land.
-  const editable = writing || (status === "DRAFT" && proposal?.summary.advisorId === user.id);
+  // Never sent, or sent and handed back to be put right: both are the author's to write. The same two states
+  // the API calls editable, so a screen that offers Save never meets a refusal from the other side.
+  const editable =
+    writing || ((status === "DRAFT" || status === "RETURNED") && proposal?.summary.advisorId === user.id);
   const busy = create.isPending || update.isPending || submit.isPending;
   const deciding = signOff.isPending || clientAnswer.isPending;
   // A sign-off is what sends it to the client, and it is somebody else's to give: the advisor who wrote it
@@ -168,26 +204,62 @@ export function ProposalPage() {
   const toSignOff = !writing && status === "PENDING_MANAGER_REVIEW" && signsOff && proposal!.summary.advisorId !== user.id;
   const withTheClient = !writing && status === "PENDING_REVIEW";
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
+  /** What is on the screen, as the API takes it. */
+  function typedInto(form: HTMLFormElement) {
+    const said = new FormData(form);
     const figure = amount.trim();
-    const data = {
-      customerId: String(form.get("customerId")),
-      title: String(form.get("title")),
-      summary: String(form.get("summary")).trim() || null,
-      body: String(form.get("body")),
+    return {
+      customerId: String(said.get("customerId")),
+      title: String(said.get("title")),
+      summary: String(said.get("summary")).trim() || null,
+      body: String(said.get("body")),
       valueAmount: figure ? Number(figure) : null,
       valueCurrency: currency.trim() || null,
-      affectedAccounts: String(form.get("affectedAccounts")).trim() || null,
+      affectedAccounts: String(said.get("affectedAccounts")).trim() || null,
       objective: objective.trim() || null,
       lines: linesFrom(lines),
     };
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = typedInto(event.currentTarget);
     setErrors(noErrors);
     setNotice(undefined);
     if (writing) create.mutate({ data });
     else update.mutate({ id: proposalId!, data });
   }
+
+  /**
+   * Sends what is on the screen, which means writing it down first.
+   *
+   * <p>Send used to submit whatever was last saved. Anything typed and not saved was quietly dropped, and the
+   * proposal went to the manager — or to the client — saying something its author had already changed. A
+   * button beside Save that sends a different document than the one being read is worse than one that fails.
+   */
+  async function saveAndSend() {
+    const onScreen = form.current;
+    if (!onScreen) return;
+    setErrors(noErrors);
+    setNotice(undefined);
+    try {
+      await update.mutateAsync({ id: proposalId!, data: typedInto(onScreen) });
+      await submit.mutateAsync({ id: proposalId! });
+    }
+    catch {
+      // Both report through onError, which has already put the refusal on the screen.
+    }
+  }
+
+  const back =
+    cameFrom === "review"
+      ? { to: "/manager-review", label: "Back to what is waiting on you" }
+      : cameFrom === "client" && proposal
+        ? {
+            to: clientFileHref(user, proposal.summary.customerId),
+            label: `Back to ${proposal.summary.customerName}`,
+          }
+        : { to: "/proposals", label: "Back to sent proposals" };
 
   return (
     <div className="space-y-6">
@@ -214,9 +286,9 @@ export function ProposalPage() {
         />
       )}
 
-      <Link to="/proposals" className="inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:underline">
+      <Link to={back.to} className="inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:underline">
         <ChevronLeft aria-hidden="true" className="size-4" />
-        Back to sent proposals
+        {back.label}
       </Link>
 
       {/* Who it is for, where it stands, and what it was advised against: read together, so grouped together. */}
@@ -249,10 +321,12 @@ export function ProposalPage() {
           )}
         </div>
 
-      {notice && <Alert tone="success">{notice}</Alert>}
+      <div ref={moments}>{notice && <Alert tone="success">{notice}</Alert>}</div>
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
-      {proposal?.summary.managerComment && (
+      {/* While it is back with its author. The comment stays on the record after they send it again, so
+          reading it off the comment alone said "your manager sent this back" about one that had since gone. */}
+      {status === "RETURNED" && proposal?.summary.managerComment && (
         <Alert tone="warning">
           <span className="font-semibold">Your manager sent this back:</span> {proposal.summary.managerComment}
         </Alert>
@@ -280,7 +354,7 @@ export function ProposalPage() {
               : formatValue(proposal!.portfolioValue, proposal!.portfolioCurrency)}
           </Fact>
           <Fact label="Sent">
-            {proposal!.summary.sentAt ? formatDate(proposal!.summary.sentAt) : "Not sent yet"}
+            {sentLabel(status, proposal!.summary.sentAt, proposal!.summary.submittedAt)}
           </Fact>
           <Fact label="Expires">
             {expiryLabel(proposal!.summary.expiresAt, status, proposal!.summary.decidedAt)}
@@ -290,7 +364,7 @@ export function ProposalPage() {
       )}
       </header>
 
-      <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-line bg-white p-6">
+      <form ref={form} onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-line bg-white p-6">
         {editable ? (
           <>
         <Field id="customerId" label="Client" error={errors.fields.customerId}>
@@ -489,7 +563,9 @@ export function ProposalPage() {
               ? "Saved as a draft first. Nothing reaches the client until you send it."
               : proposal!.summary.sentAt
                 ? `Sent ${formatDate(proposal!.summary.sentAt)} · ${expiryLabel(proposal!.summary.expiresAt, status, proposal!.summary.decidedAt)}`
-                : `Draft, last saved ${formatDateTime(proposal!.summary.createdAt)}`}
+                : status === "RETURNED"
+                  ? "Sent back by the manager. Put it right and send it again."
+                  : `Draft, last saved ${formatDateTime(proposal!.summary.createdAt)}`}
           </p>
           <div className="flex flex-wrap gap-3">
             {toSignOff && (
@@ -516,7 +592,7 @@ export function ProposalPage() {
               </Button>
             )}
             {!writing && editable && (
-              <Button disabled={busy} onClick={() => submit.mutate({ id: proposalId! })}>
+              <Button disabled={busy} onClick={() => void saveAndSend()}>
                 {submit.isPending ? "Sending…" : "Send"}
               </Button>
             )}

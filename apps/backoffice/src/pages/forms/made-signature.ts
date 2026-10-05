@@ -28,9 +28,6 @@ export function signedByTheFirm(who: string | undefined) {
  * advisor. Somebody who holds both roles signs by switching to the advisor's workspace, which is a deliberate
  * act rather than a button that happens to be there.
  */
-export function mayBeSignedHere(activeRole: string | null | undefined) {
-  return activeRole === "ADVISOR";
-}
 
 /** Reads a signature back out of the answers. Anything else written there is not one, and is left alone. */
 export function madeSignature(written: string | undefined): MadeSignature | null {

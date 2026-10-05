@@ -4,6 +4,8 @@ import { Avatar } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useStaffUser } from "../auth/session";
+import { clientFileHref } from "../lib/permissions";
 import { Highlight, SuggestionSearch, type Suggestion } from "./suggestion-search";
 import { useSuggestionsBox } from "./use-suggestions-box";
 
@@ -16,6 +18,7 @@ import { useSuggestionsBox } from "./use-suggestions-box";
  */
 export function TopSearch() {
   const navigate = useNavigate();
+  const user = useStaffUser();
   const [typedValue, setTypedValue] = useState("");
   const box = useSuggestionsBox(typedValue);
   const { typed } = box;
@@ -27,7 +30,9 @@ export function TopSearch() {
 
   function open(clientId: string) {
     setTypedValue("");
-    void navigate(`/clients/${clientId}`);
+    // By the route this person may open: an advisor's clients are under My clients, and the directory of
+    // every client is not theirs to see.
+    void navigate(clientFileHref(user, clientId));
   }
 
   const suggestions: Suggestion[] = (customers.data?.items ?? []).map((customer) => ({
@@ -61,7 +66,11 @@ export function TopSearch() {
       // Enter with nothing picked goes to the list, carrying what was typed, rather than guessing a client.
       onSearch={(value) => {
         setTypedValue("");
-        void navigate(`/clients?q=${encodeURIComponent(value)}`);
+        void navigate(
+          user.activeRole === "ADVISOR"
+            ? `/my-clients?q=${encodeURIComponent(value)}`
+            : `/clients?q=${encodeURIComponent(value)}`,
+        );
       }}
       suggestions={suggestions}
       loading={customers.isFetching}

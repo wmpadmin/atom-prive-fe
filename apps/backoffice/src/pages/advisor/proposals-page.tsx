@@ -21,12 +21,14 @@ import { SentProposalsHeader } from "./sent-proposals-header";
 import { expiryLabel, formatValue, proposalStatusLabels, proposalStatusTones } from "./proposal-labels";
 
 /** The tabs across the top; "Expiring soon" is a view of those with the client, not a status of its own. */
-type Tab = "all" | "draft" | "manager" | "client" | "expiringSoon" | "approved" | "rejected" | "expired";
+type Tab = "all" | "draft" | "manager" | "returned" | "client" | "expiringSoon" | "approved" | "rejected" | "expired";
 
 const TABS: { id: Tab; label: string; status?: ListProposalsStatus; expiringSoon?: boolean }[] = [
   { id: "all", label: "All" },
   { id: "draft", label: "Drafts", status: "DRAFT" },
   { id: "manager", label: "With the manager", status: "PENDING_MANAGER_REVIEW" },
+  // Its own tab, not a draft: somebody has to act on what the manager wrote on it.
+  { id: "returned", label: "Sent back", status: "RETURNED" },
   { id: "client", label: "With the client", status: "PENDING_REVIEW" },
   { id: "expiringSoon", label: "Expiring soon", expiringSoon: true },
   { id: "approved", label: "Approved", status: "APPROVED" },
@@ -46,12 +48,17 @@ export function ProposalsPage() {
   // Whoever oversees the firm's advice reads every proposal without writing any, so the screen is the same
   // list with nothing on it to write with.
   const writes = hasAnyAuthority(useStaffUser(), ...WRITES_PROPOSALS);
-  const [tab, setTab] = useState<Tab>("all");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   // Seeded from the address, so searching from an open proposal lands here already filtered.
   const [params] = useSearchParams();
   const fromAddress = params.get("q") ?? "";
+  // And the tab, so a count somewhere else can link to the proposals it counted rather than to all of them.
+  // A tab nobody has heard of is the whole list, which is what somebody arriving at this screen expects.
+  const named = params.get("tab");
+  const [tab, setTab] = useState<Tab>(() =>
+    TABS.some((one) => one.id === named) ? (named as Tab) : "all",
+  );
   const [typed, setTyped] = useState(fromAddress);
   const [search, setSearch] = useState(fromAddress);
   const [from, setFrom] = useState("");
@@ -119,6 +126,7 @@ export function ProposalsPage() {
     all: counts?.all,
     draft: counts?.draft,
     manager: counts?.awaitingManager,
+    returned: counts?.returned,
     client: counts?.awaitingClient,
     expiringSoon: counts?.expiringSoon,
     approved: counts?.approved,

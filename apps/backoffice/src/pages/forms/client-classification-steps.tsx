@@ -1,10 +1,10 @@
 import { useFirmName } from "./firm-name";
-import { Alert, Button, IconButton, cn } from "@atomprive/ui";
-import { Plus, X } from "lucide-react";
+import { Alert, cn } from "@atomprive/ui";
 import { ChoiceCards } from "../../components/choice-cards";
 import { Boxes } from "../../components/form-boxes";
 import { Documents, type FormDocuments } from "../../components/form-documents";
-import { DateField, FollowUp, FormSection as FieldGroup, SignatureField, TextField, type FieldFor } from "../../components/form-fields";
+import { ClientSignsThis } from "../../components/client-signs-this";
+import { FormSection as FieldGroup, TextField, type FieldFor } from "../../components/form-fields";
 import {
   CLIENT_AGREEMENT,
   PROOF_PROVIDED,
@@ -15,14 +15,11 @@ import {
   classificationNotes,
   clientAgreementNote,
   deemedOptions,
-  emptyClassificationSigner,
   serviceBasedOptions,
   type AccountType,
   type ClassificationOption,
   type ClientClassificationEntity,
 } from "./client-classification";
-
-const MAX_ROWS = 10;
 
 /** The firm's own name, which the form prints throughout its criteria and its declaration. */
 function withFirm(text: string, firmName: string | null) {
@@ -275,9 +272,6 @@ export function ClassificationDeclarationStep({
   field: FieldFor;
 }) {
   const firmName = useFirmName();
-  const signers = declaration.signers;
-  const change = (at: number, patch: Partial<(typeof signers)[number]>) =>
-    onChange({ signers: signers.map((row, which) => (which === at ? { ...row, ...patch } : row)) });
   const confirmed = field("declaration.confirmed");
 
   return (
@@ -342,32 +336,7 @@ export function ClassificationDeclarationStep({
         {field(CLIENT_AGREEMENT).error && <p className="text-xs text-amber-700">{field(CLIENT_AGREEMENT).error}</p>}
       </div>
 
-      <FieldGroup
-        title="SIGNATURES"
-        description="Signed for the CLIENT"
-        action={
-          <Button variant="secondary" size="sm" disabled={signers.length >= MAX_ROWS} onClick={() => onChange({ signers: [...signers, emptyClassificationSigner()] })}>
-            <Plus aria-hidden="true" />
-            Add a signatory
-          </Button>
-        }
-      >
-        {signers.map((signer, at) => (
-          <FollowUp key={at} title={`Signed for the CLIENT ${at + 1}`}>
-            <SignatureField id={`declaration.signers[${at}].signature`} label="By" value={signer.signature} onChange={(signature) => change(at, { signature })} field={field} className="sm:col-span-2" />
-            <TextField id={`declaration.signers[${at}].name`} label="(Name)" value={signer.name} onChange={(name) => change(at, { name })} field={field} />
-            <TextField id={`declaration.signers[${at}].title`} label="(Title)" value={signer.title} onChange={(title) => change(at, { title })} field={field} />
-            <DateField id={`declaration.signers[${at}].signedOn`} label="(Date)" value={signer.signedOn} onChange={(signedOn) => change(at, { signedOn })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} className="sm:col-span-2" />
-            {signers.length > 1 && (
-              <div className="sm:col-span-2">
-                <IconButton label={`Remove signatory ${at + 1}`} tone="danger" onClick={() => onChange({ signers: signers.filter((_, which) => which !== at) })}>
-                  <X />
-                </IconButton>
-              </div>
-            )}
-          </FollowUp>
-        ))}
-      </FieldGroup>
+      <ClientSignsThis what="The client's signature, name, title and date" />
     </div>
   );
 }
@@ -385,7 +354,3 @@ function onTheLine(mark: string) {
   return ON_THE_LINE[mark] ?? mark;
 }
 
-function yearsFromToday(years: number) {
-  const today = new Date();
-  return new Date(today.getFullYear() + years, today.getMonth(), today.getDate());
-}

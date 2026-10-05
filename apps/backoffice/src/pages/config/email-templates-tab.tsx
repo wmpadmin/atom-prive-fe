@@ -22,6 +22,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { useShowFirstError } from "../../lib/show-first-error";
 import { formatDay } from "./config-labels";
 import { ConfirmDialog } from "./confirm-dialog";
 import { placeholderValues, readPreviewClient, rememberPreviewClient, type PreviewClient } from "./preview-client";
@@ -157,7 +158,10 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
   const [body, setBody] = useState(current?.body ?? "");
   const [mode, setMode] = useState<Mode>("edit");
   const [notice, setNotice] = useState<Notice>();
+  const form = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
+  // A refusal takes the reader to it: the subject sits above a body box that fills the screen.
+  useShowFirstError(errors, form);
   const [renaming, setRenaming] = useState(false);
   // Which client the preview and test email stand in for; kept so it survives moving between templates.
   const [previewClient, setPreviewClient] = useState<PreviewClient | null>(readPreviewClient);
@@ -305,7 +309,7 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
       )}
 
       {mode === "edit" && (
-        <form id="template-form" onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form ref={form} id="template-form" onSubmit={handleSubmit} className="mt-4 space-y-4">
           <Field id="subject" label="Subject" error={errors.fields.subject}>
             <TextInput
               {...describedBy("subject", errors.fields.subject)}

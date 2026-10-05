@@ -2,12 +2,13 @@ import { Alert, Button, IconButton, cn } from "@atomprive/ui";
 import { Plus, X } from "lucide-react";
 import { Boxes, Tick, Written } from "../../components/form-boxes";
 import { Documents, type FormDocuments } from "../../components/form-documents";
+import { FirmSignsThis } from "../../components/client-signs-this";
 import {
   CountriesField,
   DateField,
   FollowUp,
   FormSection as FieldGroup,
-  SignatureField, TextField,
+  TextField,
   type FieldFor,
 } from "../../components/form-fields";
 import {
@@ -563,11 +564,7 @@ export function RiskStep({
         </ul>
       </div>
 
-      <FieldGroup title="Relationship Manager">
-        <TextField id="risk.relationshipManagerName" label="Relationship Manager Name" value={risk.relationshipManagerName} onChange={(relationshipManagerName) => onChange({ relationshipManagerName })} field={field} />
-        <TextField id="risk.dateAndPlace" label="Date &amp; Place" value={risk.dateAndPlace} onChange={(dateAndPlace) => onChange({ dateAndPlace })} field={field} />
-        <SignatureField who="the firm" id="risk.signature" label="Signature" value={risk.signature} onChange={(signature) => onChange({ signature })} field={field} className="sm:col-span-2" />
-      </FieldGroup>
+      <FirmSignsThis what="The Relationship Manager's name, date and place, and signature" />
     </div>
   );
 }
@@ -614,16 +611,8 @@ export function ComplianceReviewStep({
 
       <div className="space-y-4">
         <h3 className="text-sm font-bold text-ink">Approvals:</h3>
-        <FieldGroup title="MLRO">
-          <TextField id="review.mlro" label="MLRO" value={review.mlro} onChange={(mlro) => onChange({ mlro })} field={field} />
-          <DateField id="review.mlroDate" label="Date" value={review.mlroDate} onChange={(mlroDate) => onChange({ mlroDate })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
-          <SignatureField who="the firm" id="review.mlroSignature" label="Signature" value={review.mlroSignature} onChange={(mlroSignature) => onChange({ mlroSignature })} field={field} className="sm:col-span-2" />
-        </FieldGroup>
-        <FieldGroup title="SEO">
-          <TextField id="review.seo" label="SEO" value={review.seo} onChange={(seo) => onChange({ seo })} field={field} />
-          <DateField id="review.seoDate" label="Date" value={review.seoDate} onChange={(seoDate) => onChange({ seoDate })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
-          <SignatureField who="the firm" id="review.seoSignature" label="Signature" value={review.seoSignature} onChange={(seoSignature) => onChange({ seoSignature })} field={field} className="sm:col-span-2" />
-        </FieldGroup>
+        <FirmSignsThis what="The MLRO's name, date and signature" />
+        <FirmSignsThis what="The SEO's name, date and signature" />
       </div>
     </div>
   );

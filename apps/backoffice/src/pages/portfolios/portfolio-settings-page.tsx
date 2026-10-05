@@ -8,11 +8,12 @@ import {
 import { Alert, Button, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { useShowFirstError } from "../../lib/show-first-error";
 import { asFigure } from "../../lib/figures";
 import { formatDateTime } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
@@ -33,7 +34,10 @@ export function PortfolioSettingsPage() {
   const settings = useGetPortfolioSettings<SettingsView, ApiError>();
 
   const [edits, setEdits] = useState<Typed | null>(null);
+  const form = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
+  // A refusal takes the reader to it: the rules run a long way above the button that saves them.
+  useShowFirstError(errors, form);
   const [saved, setSaved] = useState(false);
 
   // The boxes start from what the firm has settled, and stay as they are typed from then on.
@@ -99,7 +103,7 @@ export function PortfolioSettingsPage() {
         </Alert>
       )}
 
-      <form onSubmit={submit} className="space-y-5">
+      <form ref={form} onSubmit={submit} className="space-y-5">
         <Panel
           title="Default tolerance bands"
           says="Applied to a new model unless it overrides them. Changing these does not re-judge a model already written."

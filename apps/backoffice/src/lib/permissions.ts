@@ -60,6 +60,21 @@ export const UPLOADS_CLIENT_DOCUMENTS: Authority[] = [
 export const OPENS_CLIENT_DOCUMENTS: Authority[] = ["APPROVE_ONBOARDING:VIEW", ...UPLOADS_CLIENT_DOCUMENTS];
 
 /** Enough to write proposals, the same set ProposalController lets through. */
+/**
+ * Who may open a client's form or the wording of a document. The same list the API guards those screens with:
+ * Operations and Admin fill them, an advisor works on their own clients' and signs them, and Compliance read
+ * them without touching them. Anybody this does not name is not offered the click in the first place.
+ */
+export const READS_CLIENT_FORMS: Authority[] = [
+  "FILL_CLIENT_FORMS:VIEW",
+  "ONBOARD_CLIENTS:VIEW",
+  "ONBOARD_CLIENTS:OWN_CLIENTS",
+  "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS",
+];
+
+/** Who may type on one: Operations and Admin on any, an advisor on their own clients'. */
+export const FILLS_CLIENT_FORMS: Authority[] = ["FILL_CLIENT_FORMS:CHANGE", "FILL_CLIENT_FORMS:OWN_CLIENTS"];
+
 export const WRITES_PROPOSALS: Authority[] = ["SEND_PROPOSALS:OWN_CLIENTS", "SEND_PROPOSALS:ASSIGNED", "SEND_PROPOSALS:CHANGE"];
 
 /** Enough to read proposals: whoever writes them, and Compliance, who oversee the advice the firm gives. */
@@ -78,4 +93,18 @@ export const READS_CLIENT_PORTFOLIOS: Authority[] = [
 /** Whoever may write proposals for their own clients. */
 export function writesProposals(user: StaffProfile) {
   return hasAnyAuthority(user, ...WRITES_PROPOSALS);
+}
+
+/**
+ * Where a client lives for whoever is looking, which is not the same screen for everybody.
+ *
+ * <p>An advisor is kept off the directory of every client — theirs are under My clients — so a link that
+ * always said /clients would bounce them away from their own client's file. A portfolio manager is kept off
+ * it too, and does not have a servicing file to be sent to at all: their work on a client is the portfolio,
+ * so that is the client as they know one.
+ */
+export function clientFileHref(user: { activeRole?: string | null }, clientId: string) {
+  if (user.activeRole === "ADVISOR") return `/my-clients/${clientId}`;
+  if (user.activeRole === "PORTFOLIO_MANAGER") return `/portfolio-clients/${clientId}`;
+  return `/clients/${clientId}`;
 }

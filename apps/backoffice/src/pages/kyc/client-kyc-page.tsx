@@ -347,9 +347,11 @@ function Checklist({ checklist }: { checklist: KycRequirement[] }) {
 
 function BackLink() {
   const decides = hasAuthority(useStaffUser(), "APPROVE_ONBOARDING:VIEW");
+  // KYC document review, not the sign-off queue: a client's papers are opened from the review, and /kyc is
+  // where a whole case is signed off. The label said the right screen all along; the link did not.
   return (
     <Link
-      to={decides ? "/kyc" : "/client-documents"}
+      to={decides ? "/kyc-documents" : "/client-documents"}
       className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700"
     >
       <ChevronLeft aria-hidden="true" className="size-4" />

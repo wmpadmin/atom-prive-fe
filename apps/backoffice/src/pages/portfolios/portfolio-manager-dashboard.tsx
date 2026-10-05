@@ -5,16 +5,13 @@ import {
   useListProposals,
   useListReviewsDue,
   type DriftPage,
-  type DriftRow,
   type ModelsPage,
   type ProposalPage,
   type ReviewsDue,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, cn } from "@atomprive/ui";
-import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { ClientPortfolioDialog } from "./client-portfolio-dialog";
 import {
   averageDriftLabel,
   driftLabel,
@@ -36,6 +33,7 @@ const NEEDS_ME = 5;
  * never says something that screen would contradict.
  */
 export function PortfolioManagerDashboard() {
+  const navigate = useNavigate();
   const user = useStaffUser();
   const models = useListModelPortfolios<ModelsPage, ApiError>();
   // Worst first, as the queue itself orders them; totalItems counts the whole queue, not this page of it.
@@ -45,7 +43,6 @@ export function PortfolioManagerDashboard() {
   // One row for the same reason: the tile wants the total, not the list.
   const reviews = useListReviewsDue<ReviewsDue, ApiError>({ size: 1 });
 
-  const [opening, setOpening] = useState<DriftRow | null>(null);
 
   const rows = models.data?.items ?? [];
   const onModels = rows.filter((model) => model.clients > 0);
@@ -160,7 +157,13 @@ export function PortfolioManagerDashboard() {
               </thead>
               <tbody className="divide-y divide-line">
                 {queue.data.items.map((row) => (
-                  <tr key={row.customerId} className="hover:bg-slate-50/60">
+                  // The row opens the portfolio, the same as Open does: the queue is worked down by
+                  // clicking the line you are reading.
+                  <tr
+                    key={row.customerId}
+                    onClick={() => void navigate(`/portfolio-clients/${row.customerId}?from=dashboard`)}
+                    className="cursor-pointer hover:bg-slate-50/60"
+                  >
                     <td className="py-3 pr-4 pl-6">
                       <div className="flex items-center gap-3">
                         <Avatar name={row.clientName} />
@@ -186,13 +189,12 @@ export function PortfolioManagerDashboard() {
                       <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>
                     </td>
                     <td className="py-3 pr-6 pl-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setOpening(row)}
+                      <Link
+                        to={`/portfolio-clients/${row.customerId}?from=dashboard`}
                         className="text-sm font-medium text-primary-700 hover:underline"
                       >
                         Open
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -231,7 +233,12 @@ export function PortfolioManagerDashboard() {
           ) : (
             <ul className="divide-y divide-line">
               {onModels.map((model) => (
-                <li key={model.id} className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-6 py-3">
+                <li key={model.id}>
+                  {/* The whole line opens the plan: a list of models is read by clicking the model. */}
+                  <Link
+                    to={`/model-portfolios/${model.id}`}
+                    className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-6 py-3 hover:bg-slate-50/60"
+                  >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{model.name}</p>
                     <p className="text-xs text-ink-muted">
@@ -246,6 +253,7 @@ export function PortfolioManagerDashboard() {
                       {model.averageDrift === null ? "—" : `${averageDriftLabel(model.averageDrift)} average drift`}
                     </span>
                   </div>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -264,23 +272,30 @@ export function PortfolioManagerDashboard() {
               Proposals
             </Link>
           </div>
-          <dl className="divide-y divide-line">
-            <Sent label="Awaiting a client's answer" value={counts?.awaitingClient} failed={proposals.isError} />
-            <Sent label="Accepted in the last week" value={counts?.approvedLately} failed={proposals.isError} />
+          <div className="divide-y divide-line">
+            <Sent
+              label="Awaiting a client's answer"
+              value={counts?.awaitingClient}
+              to="/proposals?tab=client"
+              failed={proposals.isError}
+            />
+            <Sent
+              label="Accepted in the last week"
+              value={counts?.approvedLately}
+              to="/proposals?tab=approved"
+              failed={proposals.isError}
+            />
             {/* Not a failure to hide: no answer in the window and it lapses on its own. */}
-            <Sent label="Expired without an answer" value={counts?.expired} failed={proposals.isError} />
-          </dl>
+            <Sent
+              label="Expired without an answer"
+              value={counts?.expired}
+              to="/proposals?tab=expired"
+              failed={proposals.isError}
+            />
+          </div>
         </section>
       </div>
 
-      {opening && (
-        <ClientPortfolioDialog
-          customerId={opening.customerId}
-          clientName={opening.clientName}
-          onClose={() => setOpening(null)}
-          onSaved={() => void queue.refetch()}
-        />
-      )}
     </div>
   );
 }
@@ -322,11 +337,27 @@ function Tile({
   );
 }
 
-function Sent({ label, value, failed }: { label: string; value: number | undefined; failed: boolean }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 px-6 py-3">
-      <dt className="text-sm text-ink-soft">{label}</dt>
-      <dd className="text-lg font-bold tabular-nums">
+/**
+ * One count of what was sent, which opens the proposals it counted. A figure on a dashboard that cannot be
+ * opened is one somebody has to go and find the list for themselves — the same reason {@link Tile} links.
+ *
+ * <p>A count that could not be read is not a link: there is nothing behind it to show.
+ */
+function Sent({
+  label,
+  value,
+  to,
+  failed,
+}: {
+  label: string;
+  value: number | undefined;
+  to: string;
+  failed: boolean;
+}) {
+  const figure = (
+    <>
+      <span className="text-sm text-ink-soft">{label}</span>
+      <span className="text-lg font-bold tabular-nums">
         {failed ? (
           <span className="text-sm font-normal text-ink-muted">—</span>
         ) : value === undefined ? (
@@ -334,7 +365,15 @@ function Sent({ label, value, failed }: { label: string; value: number | undefin
         ) : (
           value
         )}
-      </dd>
-    </div>
+      </span>
+    </>
+  );
+  const laidOut = "flex items-baseline justify-between gap-4 px-6 py-3";
+  return failed ? (
+    <div className={laidOut}>{figure}</div>
+  ) : (
+    <Link to={to} className={`${laidOut} hover:bg-slate-50/60`}>
+      {figure}
+    </Link>
   );
 }

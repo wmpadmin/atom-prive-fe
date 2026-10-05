@@ -448,7 +448,7 @@ export const professionalClientConfirmationKit: FormKit<ProfessionalClientConfir
       case "secondary":
         return <SecondaryStep secondary={value.secondary} onChange={(patch) => change({ secondary: { ...value.secondary, ...patch } })} field={field} />;
       case "signatures":
-        return <SignaturesStep signatures={value.signatures} onChange={(patch) => change({ signatures: { ...value.signatures, ...patch } })} field={field} />;
+        return <SignaturesStep />;
       default:
         return <ProfessionalClientConfirmationSummary value={value} onEdit={goTo} />;
     }
@@ -466,7 +466,7 @@ export const fatcaCrsIndividualKit: FormKit<FatcaCrsIndividual> = {
   descriptions: fatcaCrsIndividualDescriptions,
   guidance: fatcaCrsIndividualGuidance,
   summary: (value) => <FatcaCrsIndividualSummary value={value} />,
-  step: ({ id, value, change, field, goTo }) => {
+  step: ({ id, value, change, field, goTo, formId, documents }) => {
     // A joint account is one form with a part for each holder. Which holder a step belongs to is in its id,
     // so the steps themselves are written for one person and never have to know.
     const at = Number(/^holders\[(\d+)]/.exec(id)?.[1] ?? -1);
@@ -506,7 +506,7 @@ export const fatcaCrsIndividualKit: FormKit<FatcaCrsIndividual> = {
           <CitizenshipStep fatca={one.fatca} onChange={(changed) => patch({ fatca: { ...one.fatca, ...changed } })} field={scoped} />
         )}
         {part === "declaration" && (
-          <IndividualSelfCertificationStep declaration={one.declaration} onChange={(changed) => patch({ declaration: { ...one.declaration, ...changed } })} field={scoped} />
+          <IndividualSelfCertificationStep declaration={one.declaration} onChange={(changed) => patch({ declaration: { ...one.declaration, ...changed } })} field={scoped} formId={formId} documents={documents} />
         )}
       </>
     );

@@ -106,12 +106,12 @@ export function ManagerReviewPage() {
                 return (
                   <tr
                     key={proposal.id}
-                    onClick={() => void navigate(`/proposals/${proposal.id}`)}
+                    onClick={() => void navigate(`/proposals/${proposal.id}?from=review`)}
                     className="cursor-pointer hover:bg-slate-50/60"
                   >
                     <td className="py-3 pr-4 pl-5">
                       <Link
-                        to={`/proposals/${proposal.id}`}
+                        to={`/proposals/${proposal.id}?from=review`}
                         onClick={(event) => event.stopPropagation()}
                         className="font-semibold hover:text-primary-600"
                       >

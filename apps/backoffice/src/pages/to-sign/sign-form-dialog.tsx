@@ -9,6 +9,7 @@ import { Alert, Button, Dialog, Field, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useStaffUser } from "../../auth/session";
+import { formatDate } from "../../lib/labels";
 import { SignaturePad } from "./signature-pad";
 
 /** The two ways to sign: type your name, or draw it. Either counts; the record says which was used. */
@@ -53,7 +54,10 @@ export function SignFormDialog({
   function submit() {
     if (!form || !ready) return;
     sign.mutate(
-      { packId, formId: form.formId, data: { signatureKind: how, signature } },
+      // No capacity: an advisor signing here is always signing as the client's relationship advisor, which
+      // is what SignedAs records. The paper's question — "if you are not the Account Holder, indicate the
+      // capacity" — is for whoever signs in a capacity nothing else says, and that is the client's own half.
+      { packId, formId: form.formId, data: { signatureKind: how, signature, capacity: null } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetPackQueryKey(packId) });
@@ -71,6 +75,20 @@ export function SignFormDialog({
           You are signing <span className="font-semibold text-ink">{form?.formTitle}</span> ({form?.reference}) as
           the client's relationship advisor.
         </p>
+
+        {/* The paper rules a printed name and a date beside every signature. Neither is typed: the name is
+            whoever is signed in, and the date is the moment it is signed, both kept with the signature. Saying
+            so means nobody has to wonder where those lines went. */}
+        <dl className="grid grid-cols-2 gap-3 rounded-xl border border-line bg-slate-50/70 px-4 py-3 text-sm">
+          <div>
+            <dt className="text-xs text-ink-muted">Name on the form</dt>
+            <dd className="font-semibold text-ink">{user.fullName}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-ink-muted">Date</dt>
+            <dd className="font-semibold text-ink">{formatDate(new Date().toISOString())}</dd>
+          </div>
+        </dl>
 
         {sign.isError && <Alert tone="danger">{sign.error.message}</Alert>}
 
@@ -106,7 +124,7 @@ export function SignFormDialog({
         )}
 
         <p className="text-xs text-ink-muted">
-          Signing as {user.fullName}. The date, the time and the address you sign from are kept with it.
+          The time and the address you sign from are kept with it.
         </p>
 
         <div className="flex justify-end gap-2">

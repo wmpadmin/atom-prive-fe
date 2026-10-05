@@ -10,8 +10,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
@@ -19,7 +18,6 @@ import { formatDate } from "../../lib/labels";
 import { AdvisorChips } from "../clients/advisor-chips";
 import { barFor, useAssetClasses } from "./asset-classes";
 import { ClientSearch } from "../clients/client-search";
-import { ClientPortfolioDialog } from "./client-portfolio-dialog";
 import {
   driftLabel,
   standingLabels,
@@ -34,12 +32,17 @@ const NOTHING_YET = "—";
  * The book, read for portfolio work: every client the firm has, whoever advises them.
  *
  * <p>The columns to the right of the advisor are what managing a portfolio is done from — what the client
- * holds, what it is worth, how far it has drifted from its model and when it was last put back. None of it
- * is known here yet: no custodian feed delivers holdings, and no model portfolio carries a target to drift
- * from. They are drawn all the same, and say plainly that they are empty, so the screen is the shape it will
- * keep rather than one that has to be rebuilt around them later.
+ * holds, what it is worth, how far it has drifted from its model and when it was last put back. All of it is
+ * worked out from what has been written down: a model carries its targets and its tolerance bands, and the
+ * standing against them is the platform's own answer rather than a figure typed on this screen.
+ *
+ * <p>What is written down still arrives by hand. No custodian feed delivers holdings, so a client's are
+ * recorded here: the dialog this list opens is where they are entered, the model chosen and a rebalance
+ * dated. Until somebody has done that for a client, their columns are empty, and they say so rather than
+ * reading as a portfolio worth nothing.
  */
 export function PortfolioClientsPage() {
+  const navigate = useNavigate();
   const { params, update } = useListAddress();
   const assetClasses = useAssetClasses();
   const query = params.get("q") ?? "";
@@ -54,7 +57,6 @@ export function PortfolioClientsPage() {
     update({ q: null, advisor: null });
   }
 
-  const [editing, setEditing] = useState<CustomerRow | null>(null);
   const advisors = useListCustomerAdvisors<StaffMember[], ApiError>();
   const clients = useListCustomers<CustomerPage, ApiError>(
     { query: query || undefined, advisorId: advisorId || undefined, page, size },
@@ -83,8 +85,8 @@ export function PortfolioClientsPage() {
       <Alert tone="info">
         <span className="font-semibold">Holdings are written down by hand.</span> No custodian feed delivers
         them yet, so a client's portfolio is empty until somebody records it. Open a client to put them on a
-        model and write down what they hold; drift follows from those two. Return needs a history of
-        valuations, which nothing keeps yet.
+        model and write down what they hold; drift follows from those two. Each writing down is also the one
+        point the platform learns a value at, so return reads over as many days as somebody has recorded.
       </Alert>
 
       <RecordList
@@ -159,12 +161,22 @@ export function PortfolioClientsPage() {
           // In the firm's own order, so one client's spread reads the same way as the next one's.
           const spread = assetClasses.all.map((one) => one.code).filter((assetClass) => shares[assetClass]);
           return (
-            <tr key={client.id} className="border-t border-line">
+            // The row opens the portfolio, the same as the client's name and Open do. This is the book read
+            // for portfolio work: the servicing file — their papers, their family, their onboarding — is
+            // somebody else's screen, and a name that opened it sent the reader out of their own job.
+            <tr
+              key={client.id}
+              onClick={() => void navigate(`/portfolio-clients/${client.id}`)}
+              className="cursor-pointer border-t border-line hover:bg-slate-50/60"
+            >
               <td className="px-5 py-3">
                 <div className="flex items-center gap-3">
                   <Avatar name={client.fullName} />
                   <div>
-                    <Link to={`/clients/${client.id}`} className="font-semibold text-ink hover:text-primary-600">
+                    <Link
+                      to={`/portfolio-clients/${client.id}`}
+                      className="font-semibold text-ink hover:text-primary-600"
+                    >
                       {client.fullName}
                     </Link>
                     <p className="text-xs text-ink-muted">{client.code}</p>
@@ -238,27 +250,18 @@ export function PortfolioClientsPage() {
                 )}
               </td>
               <td className="px-4 py-3 text-right">
-                <button
-                  type="button"
-                  onClick={() => setEditing(client)}
+                <Link
+                  to={`/portfolio-clients/${client.id}`}
                   className="text-sm font-medium text-primary-700 hover:underline"
                 >
                   {standing?.modelPortfolioId ? "Open" : "Assign"}
-                </button>
+                </Link>
               </td>
             </tr>
           );
         })}
       </RecordList>
 
-      {editing && (
-        <ClientPortfolioDialog
-          customerId={editing.id}
-          clientName={editing.fullName}
-          onClose={() => setEditing(null)}
-          onSaved={() => void standings.refetch()}
-        />
-      )}
     </div>
   );
 }

@@ -1,10 +1,9 @@
 import type { DocumentBlock, DocumentCell, DocumentGap } from "@atomprive/api-client/backoffice";
 import { DateInput, cn } from "@atomprive/ui";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { useStaffUser } from "../../auth/session";
 import { SignatureMark } from "../../components/signature-mark";
 import { namesAPart } from "./document-parts";
-import { THE_FIRM, madeSignature, mayBeSignedHere } from "./made-signature";
+import { madeSignature } from "./made-signature";
 
 interface Filling {
   details: Record<string, string>;
@@ -118,18 +117,10 @@ function RuledBlank({ name }: { name: string }) {
  * signed it is the signature itself, over the rule the paper ruled.
  */
 function SignatureSpot({ spot, who, where }: { spot: string; who?: string; where?: "inline" | "cell" }) {
-  const { details, onSign } = useContext(FillingContext);
-  // Signing is the advisor's, the firm's own lines as much as the client's. Operations prepare the paper and
-  // leave every place on it to be signed.
-  const ours = mayBeSignedHere(useStaffUser().activeRole);
-  return (
-    <SignatureMark
-      made={madeSignature(details[spot])}
-      who={who}
-      shape={where ?? "block"}
-      onOpen={onSign && ours ? () => onSign(spot, who ?? THE_FIRM) : undefined}
-    />
-  );
+  const { details } = useContext(FillingContext);
+  // Nobody signs while a document is being prepared. It is signed once, in To sign, where the signature is
+  // kept with who made it and when — so here the paper's line is only shown, never offered.
+  return <SignatureMark made={madeSignature(details[spot])} who={who} shape={where ?? "block"} />;
 }
 
 /** A blank on a form, written in here. It looks like the rule the paper leaves, not like a box on a screen. */
@@ -208,7 +199,9 @@ function useFilledIn() {
     );
   }
 
-  const signsForTheClient = mayBeSignedHere(useStaffUser().activeRole);
+  // The client's own lines — their name, their date, the capacity they sign in — are never written here.
+  // They are taken when the form is signed, so the paper's blank is what the firm's copy shows.
+  const signsForTheClient = false;
   return (text: string, where = "", idle = false, whose?: string): ReactNode[] => {
     const said: ReactNode[] = [];
     text.split(/(\{\{\w+\^?}})/).forEach((piece, part) => {
@@ -350,7 +343,9 @@ function Cell({
 }) {
   const filledIn = useFilledIn();
   const { ticked, onTick, onFill } = useContext(FillingContext);
-  const signsForTheClient = mayBeSignedHere(useStaffUser().activeRole);
+  // The client's own lines — their name, their date, the capacity they sign in — are never written here.
+  // They are taken when the form is signed, so the paper's blank is what the firm's copy shows.
+  const signsForTheClient = false;
   const pieces = cell.text.split("☐");
   if (pieces.length === 1) {
     if (ticking && !cell.text.trim()) {

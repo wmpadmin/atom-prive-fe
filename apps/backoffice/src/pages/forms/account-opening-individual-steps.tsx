@@ -1,5 +1,5 @@
-import { Button, cn, describedBy, Field, IconButton } from "@atomprive/ui";
-import { Plus, X } from "lucide-react";
+import { cn, describedBy, Field } from "@atomprive/ui";
+import { ClientSignsThis } from "../../components/client-signs-this";
 import { Boxes, Tick } from "../../components/form-boxes";
 import { Documents, type FormDocuments } from "../../components/form-documents";
 import {
@@ -9,11 +9,10 @@ import {
   DateField,
   FollowUp,
   FormSection as FieldGroup,
-  SignatureField, TextField,
+  TextField,
   type FieldFor,
 } from "../../components/form-fields";
 import { MobileNumberInput } from "../../components/mobile-number-input";
-import { emptySigner, type Signer } from "./account-opening-entity";
 import {
   MANDATORY_DOCUMENTS,
   addressStarted,
@@ -30,8 +29,6 @@ import {
   type Occupation,
   type SigningMandate,
 } from "./account-opening-individual";
-
-const MAX_SIGNERS = 4;
 
 /** The one phone line the form rules, with the country code picked rather than typed. */
 function PhoneField({ id, label, value, onChange, field }: { id: string; label: string; value: string; onChange: (value: string) => void; field: FieldFor }) {
@@ -245,9 +242,6 @@ export function DeclarationsStep({
   field: FieldFor;
 }) {
   const mandate = field("declarations.signingMandate");
-  const setSigner = (at: number, patch: Partial<Signer>) =>
-    onChange({ signers: declarations.signers.map((row, which) => (which === at ? { ...row, ...patch } : row)) });
-
   return (
     <div className="space-y-6">
       <section className="space-y-3">
@@ -309,29 +303,7 @@ export function DeclarationsStep({
       </FieldGroup>
 
       {/* The form rules a block for the first account holder and one for the second, if applicable. */}
-      <FieldGroup
-        title="Account holders"
-        action={
-          <Button variant="secondary" size="sm" disabled={declarations.signers.length >= MAX_SIGNERS} onClick={() => onChange({ signers: [...declarations.signers, emptySigner()] })}>
-            <Plus aria-hidden="true" />
-            Add an account holder
-          </Button>
-        }
-      >
-        {declarations.signers.map((signer, at) => (
-          <FollowUp key={at} title={at === 0 ? "First account holder" : "Second account holder (if applicable)"}>
-            <TextField id={`declarations.signers[${at}].fullName`} label="Full name" value={signer.fullName} onChange={(fullName) => setSigner(at, { fullName })} field={field} />
-            <SignatureField id={`declarations.signers[${at}].signature`} label="Signature" value={signer.signature} onChange={(signature) => setSigner(at, { signature })} field={field} />
-            {declarations.signers.length > 1 && (
-              <div className="sm:col-span-2">
-                <IconButton label={`Remove account holder ${at + 1}`} tone="danger" onClick={() => onChange({ signers: declarations.signers.filter((_, which) => which !== at) })}>
-                  <X />
-                </IconButton>
-              </div>
-            )}
-          </FollowUp>
-        ))}
-      </FieldGroup>
+      <ClientSignsThis what="Each account holder's name and signature" />
     </div>
   );
 }

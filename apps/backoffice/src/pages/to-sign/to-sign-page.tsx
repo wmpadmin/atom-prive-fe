@@ -8,8 +8,8 @@ import { formatDate } from "../../lib/labels";
 import { packTones, whatIsLeft } from "./to-sign-labels";
 
 /**
- * What has been sent to the signed-in advisor to sign. Operations write a client's forms up and send
- * them out a pack at a time; this is where the advisor's half of the signing is done.
+ * The advisor's clients, and the forms of theirs waiting on a signature. A client is the row because that is
+ * how an advisor holds them in mind; what is underneath is the forms, each signed or sent back on its own.
  */
 export function ToSignPage() {
   const [waiting, setWaiting] = useState(true);
@@ -25,8 +25,9 @@ export function ToSignPage() {
       <header>
         <h1 className="text-[1.625rem] font-bold">To sign</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Forms your clients' paperwork needs your signature on. Each form is signed on its own, because each of
-          them is its own document.
+          Your clients' forms, once whoever wrote them up has finished. Open a client to read each form and
+          either sign it or send it back to be put right. Each is signed on its own, because each of them is
+          its own document.
         </p>
       </header>
 
@@ -82,8 +83,10 @@ export function ToSignPage() {
               <span className="min-w-0 flex-1">
                 <span className="block font-semibold text-ink">{pack.clientName}</span>
                 <span className="block text-xs text-ink-muted">
-                  {pack.reference} · {pack.formCount === 1 ? "1 form" : `${pack.formCount} forms`} · sent by{" "}
-                  {pack.sentByName} on {formatDate(pack.sentAt)}
+                  {/* Nobody sends these any more — finishing a form is what sends it — so the line says when
+                      the first of them arrived rather than who sent them. */}
+                  {pack.formCount === 1 ? "1 form" : `${pack.formCount} forms`} · ready to sign since{" "}
+                  {formatDate(pack.sentAt)}
                   {pack.dueOn ? ` · due ${formatDate(pack.dueOn)}` : ""}
                 </span>
               </span>
