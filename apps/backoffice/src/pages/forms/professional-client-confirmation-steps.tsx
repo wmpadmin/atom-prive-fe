@@ -1,5 +1,6 @@
 import { Boxes, Tick, Written } from "../../components/form-boxes";
-import { DateField, FormSection as FieldGroup, SignatureField, TextField, type FieldFor } from "../../components/form-fields";
+import { ClientSignsThis } from "../../components/client-signs-this";
+import { FormSection as FieldGroup, TextField, type FieldFor } from "../../components/form-fields";
 import {
   BY_SIGNING,
   familyTies,
@@ -7,13 +8,7 @@ import {
   secondaryConfirmations,
   type FamilyTie,
   type ProfessionalClientConfirmation,
-  type Signature,
 } from "./professional-client-confirmation";
-
-function yearsFromToday(years: number) {
-  const today = new Date();
-  return new Date(today.getFullYear() + years, today.getMonth(), today.getDate());
-}
 
 /** One of the form's numbered confirmations, printed as it reads. */
 function Confirmation({ number, text, blank }: { number: string; text: string; blank?: Parameters<typeof Written>[0]["blank"] }) {
@@ -180,63 +175,17 @@ export function SecondaryStep({
   );
 }
 
-/** The two blocks the form rules at its foot. */
-export function SignaturesStep({
-  signatures,
-  onChange,
-  field,
-}: {
-  signatures: ProfessionalClientConfirmation["signatures"];
-  onChange: (patch: Partial<ProfessionalClientConfirmation["signatures"]>) => void;
-  field: FieldFor;
-}) {
+/** The two blocks the form rules at its foot. Both are the account holders' own to sign. */
+export function SignaturesStep() {
   return (
     <div className="space-y-6">
-      <SignatureBlock
-        at="signatures.primary"
-        title="Name of the Primary Account Holder"
-        value={signatures.primary}
-        onChange={(primary) => onChange({ primary })}
-        field={field}
-      />
-      <SignatureBlock
-        at="signatures.secondary"
-        title="Name of the Secondary Account Holder"
-        value={signatures.secondary}
-        onChange={(secondary) => onChange({ secondary })}
-        field={field}
-      />
+      <SignatureBlock title="Name of the Primary Account Holder" />
+      <SignatureBlock title="Name of the Secondary Account Holder" />
     </div>
   );
 }
 
-function SignatureBlock({
-  at,
-  title,
-  value,
-  onChange,
-  field,
-}: {
-  at: string;
-  title: string;
-  value: Signature;
-  onChange: (block: Signature) => void;
-  field: FieldFor;
-}) {
-  const set = (patch: Partial<Signature>) => onChange({ ...value, ...patch });
-  return (
-    <FieldGroup title={title}>
-      <TextField id={`${at}.name`} label="Name" value={value.name} onChange={(name) => set({ name })} field={field} />
-      <SignatureField id={`${at}.signature`} label="Signature" value={value.signature} onChange={(signature) => set({ signature })} field={field} />
-      <DateField
-        id={`${at}.signedOn`}
-        label="Date"
-        value={value.signedOn}
-        onChange={(signedOn) => set({ signedOn })}
-        field={field}
-        min={yearsFromToday(-2)}
-        max={yearsFromToday(1)}
-      />
-    </FieldGroup>
-  );
+/** Where the paper rules a signature block. Nothing in one is the firm's to fill in. */
+function SignatureBlock({ title }: { title: string }) {
+  return <ClientSignsThis what={`${title}: name, signature and date`} />;
 }

@@ -12,8 +12,9 @@ import {
 import { Alert, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { useShowFirstError } from "../../lib/show-first-error";
 import { useAssetClasses } from "./asset-classes";
 import { underManagementLabel } from "./portfolio-labels";
 
@@ -234,7 +235,10 @@ function HoldingDialog({
   const [countryCode, setCountryCode] = useState(position?.countryCode ?? "");
   const [creditRating, setCreditRating] = useState(position?.creditRating ?? "");
   const [valueAmount, setValueAmount] = useState(position ? String(position.valueAmount) : "");
+  const form = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
+  // A refusal takes the reader to it: a short window puts the first fields above the fold.
+  useShowFirstError(errors, form);
 
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
   const create = useRecordClientHolding<ApiError>({ mutation: { onSuccess: onSaved, onError } });
@@ -262,7 +266,7 @@ function HoldingDialog({
 
   return (
     <Dialog open title={position ? `Edit ${position.name}` : "Add a holding"} size="lg" onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
+      <form ref={form} onSubmit={submit} className="space-y-4">
         {errors.form && <Alert tone="danger">{errors.form}</Alert>}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field id="holding-class" label="Asset class" required error={errors.fields.assetClass}>

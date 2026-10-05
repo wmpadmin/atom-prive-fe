@@ -101,6 +101,13 @@ export const declarationWording = [
 ];
 
 /** The two notes the form prints under its declaration. */
+/**
+ * The line the form's own note sends the reader to: "If signing under a power of attorney, please also attach
+ * a copy of the power of attorney." The copy is the firm's to hold, so it is attached here rather than left
+ * as an instruction nobody can act on.
+ */
+export const POWER_OF_ATTORNEY = "declaration.powerOfAttorney";
+
 export const JOINT_HOLDERS_NOTE =
   "Note: In the case of joint account holders, each Account Holder must complete a separate form.";
 
@@ -273,10 +280,8 @@ export function reviewFatcaCrsIndividual(value: FatcaCrsIndividual): FormReview 
     if (fatca.usPerson === true && !fatca.usTin.trim()) problems[`${where}.fatca.usTin`] = REQUIRED;
 
     if (!declaration.confirmed) problems[`${where}.declaration.confirmed`] = "This has to be agreed to.";
-    if (!declaration.printName.trim()) problems[`${where}.declaration.printName`] = REQUIRED;
-    // The client signs after the form reaches them; their name and the date are what is needed here.
-    if (!declaration.signedOn.trim()) problems[`${where}.declaration.signedOn`] = "Choose a date.";
-    // The capacity line is for someone signing who is not the Account Holder, so it is not asked for.
+    // The printed name, the signature, the date and the capacity are the signer's own, taken when they sign.
+    // Nothing on this part is asked of whoever fills the form in but the declaration itself.
 
     // Every holder answers the same four parts of the same paper, so the part numbers are the paper's own;
     // which holder is on screen is said in the heading instead.

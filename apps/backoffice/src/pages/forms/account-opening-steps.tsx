@@ -7,9 +7,10 @@ import {
   DateField,
   FollowUp,
   FormSection as FieldGroup,
-  SignatureField, TextField,
+  TextField,
   type FieldFor,
 } from "../../components/form-fields";
+import { ClientSignsThis } from "../../components/client-signs-this";
 import { Boxes, Tick } from "../../components/form-boxes";
 import { Documents, type FormDocuments } from "../../components/form-documents";
 import { MobileNumberInput } from "../../components/mobile-number-input";
@@ -20,7 +21,6 @@ import {
   declarationWording,
   documentField,
   emptyPerson,
-  emptySigner,
   organisationTypeLabels,
   personBlocks,
   personTitles,
@@ -29,7 +29,6 @@ import {
   type AccountOpeningEntity,
   type FormPerson,
   type OrganisationType,
-  type Signer,
   type SigningMandate,
 } from "./account-opening-entity";
 
@@ -259,9 +258,6 @@ export function DeclarationsStep({
   field: FieldFor;
 }) {
   const mandate = field("declarations.signingMandate");
-  const setSigner = (at: number, patch: Partial<Signer>) =>
-    onChange({ signers: declarations.signers.map((row, which) => (which === at ? { ...row, ...patch } : row)) });
-
   return (
     <div className="space-y-6">
       <section className="space-y-3">
@@ -320,30 +316,7 @@ export function DeclarationsStep({
       </Boxes>
 
       {/* Section E rules two of these at its foot, one under the other. */}
-      <FieldGroup
-        title="Authorised Signatory"
-        action={
-          <Button variant="secondary" size="sm" disabled={declarations.signers.length >= MAX_PEOPLE} onClick={() => onChange({ signers: [...declarations.signers, emptySigner()] })}>
-            <Plus aria-hidden="true" />
-            Add a signatory
-          </Button>
-        }
-      >
-        {declarations.signers.map((signer, at) => (
-          <FollowUp key={at} title={`Authorised Signatory ${at + 1}`}>
-            <TextField id={`declarations.signers[${at}].fullName`} label="Full name:" value={signer.fullName} onChange={(fullName) => setSigner(at, { fullName })} field={field} className="sm:col-span-2" />
-            <SignatureField id={`declarations.signers[${at}].signature`} label="Signature:" value={signer.signature} onChange={(signature) => setSigner(at, { signature })} field={field} />
-            <DateField id={`declarations.signers[${at}].signedOn`} label="Date (DD/MM/YYYY):" value={signer.signedOn} onChange={(signedOn) => setSigner(at, { signedOn })} field={field} min={daysFromToday(0)} max={daysFromToday(365)} />
-            {declarations.signers.length > 1 && (
-              <div className="sm:col-span-2">
-                <IconButton label={`Remove Authorised Signatory ${at + 1}`} tone="danger" onClick={() => onChange({ signers: declarations.signers.filter((_, which) => which !== at) })}>
-                  <X />
-                </IconButton>
-              </div>
-            )}
-          </FollowUp>
-        ))}
-      </FieldGroup>
+      <ClientSignsThis what="Each authorised signatory's name, signature and date" />
 
     </div>
   );

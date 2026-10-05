@@ -8,18 +8,20 @@ import {
   useChangeCaseForm,
   useRemoveFormAttachment,
   useSaveFormDraft,
-  useSendFormsForSignature,
   type DocumentText,
   type DocumentGap,
   type DocumentTextKind,
   type FormDetail,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, DateInput, Dialog, Field, TextInput } from "@atomprive/ui";
+import { Alert, Badge, Button, Dialog, Field, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Info, PencilLine } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useParams } from "react-router";
+import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
+import { useStaffUser } from "../../auth/session";
+import { FILLS_CLIENT_FORMS, ONBOARDS_CLIENTS_CHANGE, clientFileHref, hasAnyAuthority } from "../../lib/permissions";
 import { StepRail } from "../../components/step-rail";
+import { FormComments } from "../../components/form-comments";
 import type { FormDocuments } from "../../components/form-documents";
 import type { FieldFor } from "../../components/form-fields";
 import { FirmContext } from "./firm-name";
@@ -55,12 +57,14 @@ export function FormPage() {
   const { formId = "", caseId: cameFromCase, clientId: cameFromClient } = useParams();
   // Compliance reach a form from a client's file to read it, never to fill it in.
   const fromKyc = useLocation().pathname.startsWith("/kyc/");
+  // Opened from a pack in To sign, which is where Back goes while a form is being read to be signed.
+  const fromPack = useSearchParams()[0].get("pack") ?? undefined;
   const detail = useGetForm<FormDetail, ApiError>(formId);
 
   if (!detail.data) {
     return (
       <div className="space-y-4">
-        <BackLink caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />
+        <BackLink caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} fromPack={fromPack} />
         {detail.isError ? (
           <Alert tone="danger">{detail.error.status === 404 ? "This form doesn't exist." : detail.error.message}</Alert>
         ) : (
@@ -68,6 +72,16 @@ export function FormPage() {
         )}
       </div>
     );
+  }
+  // An agreement, a mandate or the disclosure is signed as it stands, so there is no wizard for it and no
+  // answers to read back: it is read as its own wording. Falling through to the switch below put it in the
+  // account-opening form, which showed its sections with every line dashed because nothing had ever been
+  // answered into them.
+  if (!detail.data.summary.readyToFill) {
+    const client = cameFromClient ?? detail.data.summary.customerId;
+    // The pack goes with it, so Back there still returns to the forms waiting on a signature.
+    const where = `/clients/${client}/documents/${detail.data.summary.kind}`;
+    return <Navigate replace to={fromPack ? `${where}?pack=${fromPack}` : where} />;
   }
   // Keyed by the form and where it has got to: opening another form, or taking this one back to be filled in
   // again, starts from the answers the API holds rather than the ones on screen.
@@ -118,10 +132,12 @@ function FilledForm<T>({
   fromKyc?: boolean;
 }) {
   const queryClient = useQueryClient();
+  const user = useStaffUser();
   const signed = detail.summary.status === "SUBMITTED";
-  // Once it has gone to the client it is a record of what was sent, so it is read-only until it is filled in
-  // again.
-  const locked = signed || detail.summary.status === "WAITING_ON_CLIENT";
+  const withTheAdvisor = detail.summary.status === "AWAITING_SIGNATURE";
+  // Once it has left whoever was writing it up — gone to the advisor to sign, out with the client, or signed
+  // — it is a record of what was sent, and reads as one until it is filled in again.
+  const locked = signed || withTheAdvisor || detail.summary.status === "WAITING_ON_CLIENT";
   const [value, setValue] = useState<T>(() => kit.toValue(detail.answers));
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(kit.toValue(detail.answers)));
   // The firm's own name, which the lines of a form that print it are filled out with.
@@ -166,7 +182,6 @@ function FilledForm<T>({
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string>();
   const [justSaved, setJustSaved] = useState(false);
-  const [sending, setSending] = useState(false);
   const [editing, setEditing] = useState(false);
 
   const index = Math.max(0, steps.findIndex((step) => step.id === currentId));
@@ -178,9 +193,20 @@ function FilledForm<T>({
   // What was typed about the firm is part of what is saved, so changing it counts as a change to the form.
   const dirty = JSON.stringify(value) !== savedJson || JSON.stringify(firmEdits) !== savedFirmJson;
 
+  // Opened from To sign, which is what a comment left here is recorded against: the pack is where the form
+  // was being read when somebody asked for the change.
+  const readFromPack = useSearchParams()[0].get("pack") ?? undefined;
+  // Whoever may fill a client's forms in may also ask for a change to one. An advisor holds that over their
+  // own clients rather than at change, so asking only for change left them reading with nothing to say.
+  // Compliance read every form and hold neither, so they read the comments without adding to them.
+  const canChange = !fromKyc && hasAnyAuthority(user, ...FILLS_CLIENT_FORMS, ...ONBOARDS_CLIENTS_CHANGE);
+
   const reopen = useChangeCaseForm<ApiError>();
   const onCase = detail.summary.onboardingCaseId;
-  const canWorkOnIt = Boolean(onCase);
+  // A form with the advisor is nobody's to edit — not the advisor reading it in To sign, and not whoever
+  // wrote it up. They sign it or send it back saying what is wrong, and sending it back is what opens it
+  // again. An Edit here would let either side change a form out from under the other one's signature.
+  const canWorkOnIt = Boolean(onCase) && !withTheAdvisor;
 
   /** Puts the form back to being filled in, so it can be corrected and sent out afresh. */
   function fillItInAgain() {
@@ -206,8 +232,7 @@ function FilledForm<T>({
 
   const save = useSaveFormDraft<ApiError>();
   // A finished form goes to the client's advisor to be signed; nothing holds it up on the way.
-  const send = useSendFormsForSignature<ApiError>();
-  const busy = save.isPending || send.isPending;
+  const busy = save.isPending;
 
   // An attached document is kept straight away: it is the client's paper, not a draft answer.
   const keptNow = (saved: FormDetail) => queryClient.setQueryData(getGetFormQueryKey(saved.summary.id), saved);
@@ -303,37 +328,10 @@ function FilledForm<T>({
   }
 
   /** Written up and sent to the client's advisor to be signed. */
-  function sendToBeSigned(dueOn: string) {
-    setFormError(undefined);
-    // Written down first, then sent: what goes out to be signed is what is on the form, not what is on screen.
-    save.mutate(
-      { id: detail.summary.id, data: { answers: answersToSave(), dueOn: null } },
-      {
-        onSuccess: (saved: FormDetail) => {
-          afterWrite(saved);
-          setSavedFirmJson(JSON.stringify(firmEdits));
-          send.mutate(
-            { data: { formIds: [detail.summary.id], dueOn, note: null } },
-            {
-              onSuccess: () => {
-                setSending(false);
-                window.scrollTo({ top: 0 });
-                void queryClient.invalidateQueries({ queryKey: getGetFormQueryKey(detail.summary.id) });
-              },
-              onError: (caught: ApiError) =>
-                failed(caught, "This form couldn't be sent to be signed."),
-            },
-          );
-        },
-        onError: (caught: ApiError) =>
-          failed(caught, "Some sections need attention before the form can be sent to be signed."),
-      },
-    );
-  }
 
   const header = (
     <header className="space-y-3">
-      <BackLink caseId={caseId} clientId={clientId} fromKyc={fromKyc} />
+      <BackLink caseId={caseId} clientId={clientId} fromKyc={fromKyc} fromPack={readFromPack} />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-line bg-white px-5 py-3.5">
         <h1 className="text-base font-bold">{detail.summary.formTitle}</h1>
         <span aria-hidden="true" className="hidden h-5 w-px bg-line sm:block" />
@@ -375,6 +373,13 @@ function FilledForm<T>({
             {detail.summary.submittedAt ? `, from ${formatDate(detail.summary.submittedAt)}` : ""}. This is the record of
             what they signed.
           </Alert>
+        ) : withTheAdvisor ? (
+          <Alert tone="info">
+            Every part is answered, so this has gone to {detail.summary.clientName}'s advisor to sign. Nobody
+            sent it: finishing it is what sends it. Nobody changes it while it is with them either — the
+            advisor signs it, sends it back saying what is wrong, or leaves a comment below asking for a
+            change.
+          </Alert>
         ) : (
           <Alert tone="info">
             This form has gone to {detail.summary.clientName} to sign
@@ -384,6 +389,14 @@ function FilledForm<T>({
         )}
         {reopen.isError && <Alert tone="danger">{reopen.error.message}</Alert>}
         {kit.summary(value, detail.attachments, detail.summary.id)}
+        {/* The parts come from the API's own sections rather than the rail, which a read form has none of:
+            the two are the same list, and a comment has to name a part the other side will recognise. */}
+        <FormComments
+          formId={detail.summary.id}
+          parts={detail.sections.map((section) => ({ id: section.id, label: section.label }))}
+          packId={readFromPack}
+          canWrite={canChange}
+        />
         <ConfirmDialog
           open={editing}
           title="Edit this form?"
@@ -419,7 +432,7 @@ function FilledForm<T>({
           }}
           footer={
             <Link
-              to={caseId ? `/onboarding/${caseId}` : clientId ? `/clients/${clientId}` : "/forms"}
+              to={caseId ? `/onboarding/${caseId}` : clientId ? clientFileHref(user, clientId) : "/forms"}
               state={caseId || clientId ? { tab: "documents" } : undefined}
               className="text-xs font-medium text-primary-700 hover:underline"
             >
@@ -480,7 +493,12 @@ function FilledForm<T>({
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-6 py-4 sm:px-8">
             <p className="text-xs text-ink-muted">
               {everythingDone
-                ? "Every part is answered. It is ready to go out to be signed."
+                ? dirty
+                  // Saving the last answer is what sends it, so that is what the words say to do.
+                  ? "Every part is answered. Save it and it goes to the advisor to sign."
+                  // Saved, answered, and still here: the only thing that stops it going is having nobody to
+                  // sign it.
+                  : "Every part is answered, but this hasn't gone to be signed. The client needs a relationship advisor before anybody can sign it."
                 : `${review.steps.filter((step) => !step.complete).length} of ${review.steps.length} parts still to answer.`}
             </p>
             <div className="flex gap-2">
@@ -489,8 +507,8 @@ function FilledForm<T>({
                 Back
               </Button>
               {current.id === "review" ? (
-                <Button onClick={() => setSending(true)} disabled={!everythingDone || busy}>
-                  {send.isPending ? "Sending…" : "Send to be signed"}
+                <Button onClick={saveDraft} disabled={busy || !dirty}>
+                  {save.isPending ? "Saving…" : "Save draft"}
                 </Button>
               ) : (
                 // Nothing is locked: a form is filled in whatever order the client's papers arrive in.
@@ -504,12 +522,13 @@ function FilledForm<T>({
         </section>
       </div>
 
-      <SendToBeSignedDialog
-        open={sending}
-        client={detail.summary.clientName}
-        busy={send.isPending}
-        onClose={() => setSending(false)}
-        onSend={sendToBeSigned}
+      {/* Whatever the advisor asked for, while it is being put right. A form sent back carries its comments
+          over, so the change is read where it is made rather than in a message somewhere else. */}
+      <FormComments
+        formId={detail.summary.id}
+        parts={detail.sections.map((section) => ({ id: section.id, label: section.label }))}
+        packId={readFromPack}
+        canWrite={canChange}
       />
 
       <Dialog
@@ -565,10 +584,33 @@ function FirmDetails({
   );
 }
 
-function BackLink({ caseId, clientId, fromKyc }: { caseId?: string; clientId?: string; fromKyc?: boolean }) {
-  // Back goes where the form was opened from: the case, the client, the KYC queue, or the forms list.
-  const to = caseId ? `/onboarding/${caseId}` : clientId ? `/clients/${clientId}` : fromKyc ? "/kyc" : "/forms";
-  const onAClient = Boolean(caseId || clientId);
+function BackLink({
+  caseId,
+  clientId,
+  fromKyc,
+  fromPack,
+}: {
+  caseId?: string;
+  clientId?: string;
+  fromKyc?: boolean;
+  /** Opened from To sign, to be signed: the pack is where Back belongs. */
+  fromPack?: string;
+}) {
+  const user = useStaffUser();
+  // Back goes where the form was opened from: the pack it is being signed in, the case, the client's file,
+  // the KYC queue, or the forms list. The pack comes first — an advisor reading a form to sign it was never
+  // on the client's file, and sending them there leaves the form they were about to sign behind.
+  // The client's file by the route this person may open — an advisor's clients are under My clients.
+  const to = fromPack
+    ? `/to-sign/${fromPack}`
+    : caseId
+      ? `/onboarding/${caseId}`
+      : clientId
+        ? clientFileHref(user, clientId)
+        : fromKyc
+          ? "/kyc"
+          : "/forms";
+  const onAClient = !fromPack && Boolean(caseId || clientId);
   return (
     <Link
       to={to}
@@ -576,69 +618,22 @@ function BackLink({ caseId, clientId, fromKyc }: { caseId?: string; clientId?: s
       className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700"
     >
       <ChevronLeft aria-hidden="true" className="size-4" />
-      {onAClient ? "Client documents" : fromKyc ? "KYC sign-off" : "Forms"}
+      {/*
+        Named for where it lands, and the same words the buttons at the foot of this page use. It said
+        "Client documents", which is the name of a different screen in the sidebar; this one opens the
+        Documents tab of the client's own file.
+      */}
+      {fromPack
+        ? "Back to the forms to sign"
+        : onAClient
+          ? "Back to the client's documents"
+          : fromKyc
+            ? "KYC sign-off"
+            : "Forms"}
     </Link>
   );
 }
 
 /** Asks when the client's signed copy is expected back, which is the point the form goes out. */
 /** Tomorrow, which is the earliest a date still to come can be. */
-function tomorrow() {
-  const day = new Date();
-  day.setDate(day.getDate() + 1);
-  return day;
-}
-
-function yearsFromToday(years: number) {
-  const day = new Date();
-  return new Date(day.getFullYear() + years, day.getMonth(), day.getDate());
-}
-
 /** Handing the finished form to Compliance, with the day it is wanted back by. */
-function SendToBeSignedDialog({
-  open,
-  client,
-  busy,
-  onClose,
-  onSend,
-}: {
-  open: boolean;
-  client: string;
-  busy: boolean;
-  onClose: () => void;
-  onSend: (dueOn: string) => void;
-}) {
-  const [dueOn, setDueOn] = useState("");
-
-  return (
-    <Dialog open={open} title="Send to be signed" onClose={onClose}>
-      <div className="space-y-4">
-        <p className="text-sm leading-relaxed text-ink">
-          This goes to {client}'s advisor, who signs it with them. Compliance can read it at any point,
-          here and on the client's documents, but the answers are yours to put right until it is signed.
-        </p>
-        {/* A date already gone cannot be a date something is wanted by, so the earliest is tomorrow. */}
-        <Field id="send-due-on" label="Wanted back by" required>
-          <DateInput
-            id="send-due-on"
-            name="dueOn"
-            value={dueOn}
-            min={tomorrow()}
-            max={yearsFromToday(2)}
-            onChange={setDueOn}
-            required
-          />
-        </Field>
-        <p className="text-sm text-ink-muted">It can't be changed once it has gone out to be signed.</p>
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
-          <Button disabled={!dueOn || busy} onClick={() => onSend(dueOn)}>
-            {busy ? "Sending…" : "Send to be signed"}
-          </Button>
-        </div>
-      </div>
-    </Dialog>
-  );
-}

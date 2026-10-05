@@ -113,6 +113,7 @@ export type ProposalRowStatus = typeof ProposalRowStatus[keyof typeof ProposalRo
 export const ProposalRowStatus = {
   DRAFT: 'DRAFT',
   PENDING_MANAGER_REVIEW: 'PENDING_MANAGER_REVIEW',
+  RETURNED: 'RETURNED',
   PENDING_REVIEW: 'PENDING_REVIEW',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
@@ -987,14 +988,13 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1006,6 +1006,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -1096,9 +1097,10 @@ export type FormRowStatus = typeof FormRowStatus[keyof typeof FormRowStatus];
 
 export const FormRowStatus = {
   DRAFT: 'DRAFT',
+  AWAITING_SIGNATURE: 'AWAITING_SIGNATURE',
   WAITING_ON_CLIENT: 'WAITING_ON_CLIENT',
   SUBMITTED: 'SUBMITTED',
-  REJECTED: 'REJECTED',
+  SENT_BACK: 'SENT_BACK',
 } as const;
 
 export interface FormRow {
@@ -1241,9 +1243,10 @@ export type CaseFormRowStatus = typeof CaseFormRowStatus[keyof typeof CaseFormRo
 export const CaseFormRowStatus = {
   NOT_STARTED: 'NOT_STARTED',
   DRAFT: 'DRAFT',
+  AWAITING_SIGNATURE: 'AWAITING_SIGNATURE',
   WAITING_ON_CLIENT: 'WAITING_ON_CLIENT',
   SUBMITTED: 'SUBMITTED',
-  REJECTED: 'REJECTED',
+  SENT_BACK: 'SENT_BACK',
 } as const;
 
 export interface CaseFormRow {
@@ -1263,6 +1266,14 @@ export interface CaseFormRow {
   completedSections: number;
   totalSections: number;
   compliance: ComplianceDecision | null;
+  /** @nullable */
+  writtenBy: string | null;
+  /** @nullable */
+  sentBackReason: string | null;
+  /** @nullable */
+  sentBackBy: string | null;
+  /** @nullable */
+  sentBackAt: string | null;
 }
 
 export interface UpdateClientRequest {
@@ -2104,6 +2115,12 @@ export const PackFormRowKind = {
   RISK_DISCLOSURE_SCHEDULE: 'RISK_DISCLOSURE_SCHEDULE',
 } as const;
 
+export interface PersonToTag {
+  id: string;
+  name: string;
+  wroteThisForm: boolean;
+}
+
 export type SignatureRowSignedAs = typeof SignatureRowSignedAs[keyof typeof SignatureRowSignedAs];
 
 
@@ -2127,6 +2144,8 @@ export interface SignatureRow {
   signatureKind: SignatureRowSignatureKind;
   /** @nullable */
   signature: string | null;
+  /** @nullable */
+  capacity: string | null;
   signedAt: string;
 }
 
@@ -2135,7 +2154,10 @@ export interface PackFormRow {
   reference: string;
   kind: PackFormRowKind;
   formTitle: string;
+  filledInHere: boolean;
   signedByMe: boolean;
+  openComments: number;
+  peopleToAsk: PersonToTag[];
   signatures: SignatureRow[];
   awaiting: string[];
 }
@@ -2192,6 +2214,22 @@ export interface SignFormRequest {
      * @maxLength 200000
      */
   signature: string;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  capacity: string | null;
+}
+
+export interface SendBackRequest {
+  /**
+     * @minLength 0
+     * @maxLength 1000
+     */
+  reason: string;
+  /** @nullable */
+  toStaff: string | null;
 }
 
 export interface DecisionRequest {
@@ -2622,6 +2660,52 @@ export interface StartFormRequest {
   onboardingCaseId: string | null;
   /** @nullable */
   dueOn: string | null;
+}
+
+export interface WriteCommentRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  about: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 240
+     * @nullable
+     */
+  aboutLabel: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  body: string;
+  /** @nullable */
+  forStaff: string | null;
+  /** @nullable */
+  packId: string | null;
+}
+
+export interface FormCommentRow {
+  id: string;
+  /** @nullable */
+  about: string | null;
+  /** @nullable */
+  aboutLabel: string | null;
+  body: string;
+  writtenBy: string;
+  writtenByName: string;
+  mine: boolean;
+  /** @nullable */
+  forStaff: string | null;
+  /** @nullable */
+  forStaffName: string | null;
+  forMe: boolean;
+  createdAt: string;
+  /** @nullable */
+  settledAt: string | null;
+  /** @nullable */
+  settledByName: string | null;
 }
 
 export interface AskToDeactivateRequest {
@@ -3195,6 +3279,7 @@ export interface ProposalCounts {
   all: number;
   draft: number;
   awaitingManager: number;
+  returned: number;
   awaitingClient: number;
   expiringSoon: number;
   approved: number;
@@ -3633,6 +3718,12 @@ export interface FormPage {
   page: number;
   size: number;
   totalItems: number;
+}
+
+export interface FormCommentList {
+  items: FormCommentRow[];
+  peopleToTag: PersonToTag[];
+  open: number;
 }
 
 export type DocumentBlockKind = typeof DocumentBlockKind[keyof typeof DocumentBlockKind];
@@ -4139,6 +4230,7 @@ export type ListProposalsStatus = typeof ListProposalsStatus[keyof typeof ListPr
 export const ListProposalsStatus = {
   DRAFT: 'DRAFT',
   PENDING_MANAGER_REVIEW: 'PENDING_MANAGER_REVIEW',
+  RETURNED: 'RETURNED',
   PENDING_REVIEW: 'PENDING_REVIEW',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
@@ -4204,7 +4296,7 @@ export type UploadKycDocumentBody = {
 
 export type ListFormsParams = {
 kind?: ListFormsKind;
-status?: ListFormsStatus;
+status?: ListFormsStatusItem[];
 clientId?: string;
 caseId?: string;
 page?: number;
@@ -4235,14 +4327,15 @@ export const ListFormsKind = {
   RISK_DISCLOSURE_SCHEDULE: 'RISK_DISCLOSURE_SCHEDULE',
 } as const;
 
-export type ListFormsStatus = typeof ListFormsStatus[keyof typeof ListFormsStatus];
+export type ListFormsStatusItem = typeof ListFormsStatusItem[keyof typeof ListFormsStatusItem];
 
 
-export const ListFormsStatus = {
+export const ListFormsStatusItem = {
   DRAFT: 'DRAFT',
+  AWAITING_SIGNATURE: 'AWAITING_SIGNATURE',
   WAITING_ON_CLIENT: 'WAITING_ON_CLIENT',
   SUBMITTED: 'SUBMITTED',
-  REJECTED: 'REJECTED',
+  SENT_BACK: 'SENT_BACK',
 } as const;
 
 export type AttachToFormParams = {
@@ -8445,6 +8538,91 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getSignFormMutationOptions(options), queryClient);
     }
 
+export const getSendFormBackUrl = (packId: string,
+    formId: string,) => {
+
+
+
+
+  return `/api/backoffice/signature-packs/${packId}/forms/${formId}/send-back`
+}
+
+export const sendFormBack = async (packId: string,
+    formId: string,
+    sendBackRequest: SendBackRequest, options?: Parameters<typeof http>[1]): Promise<SignaturePackDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<SignaturePackDetail>(getSendFormBackUrl(packId,formId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(sendBackRequest)
+  }
+);}
+
+
+
+
+
+export const getSendFormBackMutationKey = () => ['sendFormBack'] as const;
+
+export const getSendFormBackMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendFormBack>>, TError,SendFormBackMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendFormBack>>, TError,SendFormBackMutationVariables, TContext> => {
+
+const mutationKey = getSendFormBackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendFormBack>>, SendFormBackMutationVariables> = (props) => {
+          const {packId,formId,data} = props ?? {};
+
+          return  sendFormBack(packId,formId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendFormBackMutationResult = NonNullable<Awaited<ReturnType<typeof sendFormBack>>>
+    export type SendFormBackMutationBody = SendBackRequest
+    export type SendFormBackMutationError = unknown
+    export type SendFormBackMutationVariables = {packId: string;formId: string;data: SendBackRequest}
+
+    export const useSendFormBack = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendFormBack>>, TError,SendFormBackMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendFormBack>>,
+        TError,
+        SendFormBackMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendFormBackMutationOptions(options), queryClient);
+    }
+
 export const getListProposalsUrl = (params?: ListProposalsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -11220,6 +11398,14 @@ export const getListFormsUrl = (params?: ListFormsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["status"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
 
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : String(value))
@@ -11480,6 +11666,254 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAttachToFormMutationOptions(options), queryClient);
+    }
+
+export const getListFormCommentsUrl = (formId: string,) => {
+
+
+
+
+  return `/api/backoffice/forms/${formId}/comments`
+}
+
+export const listFormComments = async (formId: string, options?: Parameters<typeof http>[1]): Promise<FormCommentList> => {
+
+  return http<FormCommentList>(getListFormCommentsUrl(formId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFormCommentsQueryKey = (formId: string,) => {
+    return [
+    `/api/backoffice/forms/${formId}/comments`
+    ] as const;
+    }
+
+
+export const getListFormCommentsQueryOptions = <TData = Awaited<ReturnType<typeof listFormComments>>, TError = unknown>(formId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFormComments>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFormCommentsQueryKey(formId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFormComments>>> = ({ signal }) => listFormComments(formId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: formId !== null && formId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFormComments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListFormCommentsQueryResult = NonNullable<Awaited<ReturnType<typeof listFormComments>>>
+export type ListFormCommentsQueryError = unknown
+
+
+export function useListFormComments<TData = Awaited<ReturnType<typeof listFormComments>>, TError = unknown>(
+ formId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFormComments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFormComments>>,
+          TError,
+          Awaited<ReturnType<typeof listFormComments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFormComments<TData = Awaited<ReturnType<typeof listFormComments>>, TError = unknown>(
+ formId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFormComments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFormComments>>,
+          TError,
+          Awaited<ReturnType<typeof listFormComments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFormComments<TData = Awaited<ReturnType<typeof listFormComments>>, TError = unknown>(
+ formId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFormComments>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListFormComments<TData = Awaited<ReturnType<typeof listFormComments>>, TError = unknown>(
+ formId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFormComments>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListFormCommentsQueryOptions(formId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getWriteFormCommentUrl = (formId: string,) => {
+
+
+
+
+  return `/api/backoffice/forms/${formId}/comments`
+}
+
+export const writeFormComment = async (formId: string,
+    writeCommentRequest: WriteCommentRequest, options?: Parameters<typeof http>[1]): Promise<FormCommentRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<FormCommentRow>(getWriteFormCommentUrl(formId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(writeCommentRequest)
+  }
+);}
+
+
+
+
+
+export const getWriteFormCommentMutationKey = () => ['writeFormComment'] as const;
+
+export const getWriteFormCommentMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeFormComment>>, TError,WriteFormCommentMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof writeFormComment>>, TError,WriteFormCommentMutationVariables, TContext> => {
+
+const mutationKey = getWriteFormCommentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof writeFormComment>>, WriteFormCommentMutationVariables> = (props) => {
+          const {formId,data} = props ?? {};
+
+          return  writeFormComment(formId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WriteFormCommentMutationResult = NonNullable<Awaited<ReturnType<typeof writeFormComment>>>
+    export type WriteFormCommentMutationBody = WriteCommentRequest
+    export type WriteFormCommentMutationError = unknown
+    export type WriteFormCommentMutationVariables = {formId: string;data: WriteCommentRequest}
+
+    export const useWriteFormComment = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeFormComment>>, TError,WriteFormCommentMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof writeFormComment>>,
+        TError,
+        WriteFormCommentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWriteFormCommentMutationOptions(options), queryClient);
+    }
+
+export const getSettleFormCommentUrl = (formId: string,
+    commentId: string,) => {
+
+
+
+
+  return `/api/backoffice/forms/${formId}/comments/${commentId}/done`
+}
+
+export const settleFormComment = async (formId: string,
+    commentId: string, options?: Parameters<typeof http>[1]): Promise<FormCommentRow> => {
+
+  return http<FormCommentRow>(getSettleFormCommentUrl(formId,commentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettleFormCommentMutationKey = () => ['settleFormComment'] as const;
+
+export const getSettleFormCommentMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settleFormComment>>, TError,SettleFormCommentMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof settleFormComment>>, TError,SettleFormCommentMutationVariables, TContext> => {
+
+const mutationKey = getSettleFormCommentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settleFormComment>>, SettleFormCommentMutationVariables> = (props) => {
+          const {formId,commentId} = props ?? {};
+
+          return  settleFormComment(formId,commentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettleFormCommentMutationResult = NonNullable<Awaited<ReturnType<typeof settleFormComment>>>
+
+    export type SettleFormCommentMutationError = unknown
+    export type SettleFormCommentMutationVariables = {formId: string;commentId: string}
+
+    export const useSettleFormComment = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settleFormComment>>, TError,SettleFormCommentMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settleFormComment>>,
+        TError,
+        SettleFormCommentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSettleFormCommentMutationOptions(options), queryClient);
     }
 
 export const getAskToDeactivateUrl = (customerId: string,) => {

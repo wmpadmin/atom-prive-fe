@@ -23,16 +23,15 @@ import { Alert, Badge, Button, DateInput, Field, TextInput } from "@atomprive/ui
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, ChevronRight, PencilLine, Send } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router";
-import { SignHereDialog } from "../../components/sign-here-dialog";
+import { Link, useParams, useSearchParams } from "react-router";
 import { StepRail, type RailStep } from "../../components/step-rail";
+import { FormComments } from "../../components/form-comments";
 import { useStaffUser } from "../../auth/session";
 import { formatDate } from "../../lib/labels";
-import { hasAnyAuthority } from "../../lib/permissions";
+import { FILLS_CLIENT_FORMS, ONBOARDS_CLIENTS_CHANGE, clientFileHref, hasAnyAuthority } from "../../lib/permissions";
 import { categoryOf } from "../onboarding/case-category";
 import { partsOf } from "./document-parts";
 import { DocumentWording } from "./document-wording";
-import { madeSignature } from "./made-signature";
 
 import { ConfirmDialog } from "../config/confirm-dialog";
 import { formStatus, stillBeingFilledIn } from "./form-labels";
@@ -49,9 +48,9 @@ function yearsFromToday(years: number) {
   return new Date(now.getFullYear() + years, now.getMonth(), now.getDate());
 }
 
-const SEND: RailStep = { id: "send", group: "—", label: "Send to be signed", complete: false };
+const SEND: RailStep = { id: "send", group: "—", label: "Send to the advisor", complete: false };
 
-const READ_IT_OVER = "Check the details it needs, then send it out to be signed.";
+const READ_IT_OVER = "Check the details it needs, then send it to the advisor to sign.";
 
 /**
  * What a part of the document is called, with the gaps its name leaves filled in as the wording itself fills
@@ -72,12 +71,16 @@ function named(label: string, details: Record<string, string>, printed: Record<s
  */
 export function DocumentPage() {
   const { caseId = "", kind = "", clientId = "" } = useParams();
+  // Opened from To sign, which is what a comment left here is recorded against.
+  const readFromPack = useSearchParams()[0].get("pack") ?? undefined;
   // Reached from the client list rather than from a case: the wording still reads, but sending it
   // out belongs to the case, so there is nothing to send from here.
   const fromClient = Boolean(clientId);
   const user = useStaffUser();
   // Operations fill these in and sign them; whoever onboards the client may too.
-  const canChange = hasAnyAuthority(user, "FILL_CLIENT_FORMS:CHANGE", "ONBOARD_CLIENTS:CHANGE");
+  // The same set that may fill a client's forms. An advisor holds these at own clients rather than at change,
+  // so asking only for change left every gap on the document inert for them.
+  const canChange = hasAnyAuthority(user, ...FILLS_CLIENT_FORMS, ...ONBOARDS_CLIENTS_CHANGE);
   const queryClient = useQueryClient();
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [ticks, setTicks] = useState<Record<string, boolean>>({});
@@ -89,8 +92,6 @@ export function DocumentPage() {
   // Which parts have been read through. A document is signed as it stands, so most of its parts ask for
   // nothing; ticking them before anybody has opened them reads as work already done.
   const [read, setRead] = useState<ReadonlySet<string>>(new Set());
-  // The place on the paper being signed, and whose signature it asks for.
-  const [signing, setSigning] = useState<{ spot: string; who: string } | null>(null);
 
   const onboarding = useGetOnboardingCase<CaseDetail, ApiError>(caseId, { query: { enabled: !fromClient } });
   const category = onboarding.data ? categoryOf(onboarding.data.summary) : undefined;
@@ -152,8 +153,28 @@ export function DocumentPage() {
   // No checklist asks for the Notice of Treatment, so the client's documents do not list it: it is opened
   // from the notice that the client is owed it, and that is where going back belongs.
   const owedNotice = kind === "NOTICE_OF_TREATMENT";
-  const backTo = owedNotice ? "/post-onboarding" : fromClient ? `/clients/${clientId}` : `/onboarding/${caseId}`;
-  const backLabel = owedNotice ? "Post onboarding notice" : "Client documents";
+  // Back to wherever this was opened from. Reading one to sign it starts at the client's pack in To sign, so
+  // that is where Back belongs: sending the advisor on to the client's file puts them somewhere they have
+  // never been, with the document they were about to sign no longer in front of them.
+  //
+  // Otherwise the client's file, by the route this person may open: an advisor's clients are under My
+  // clients, and a link that always said /clients would bounce them away from their own client.
+  const backTo = readFromPack
+    ? `/to-sign/${readFromPack}`
+    : owedNotice
+      ? "/post-onboarding"
+      : fromClient
+        ? clientFileHref(user, clientId ?? "")
+        : `/onboarding/${caseId}`;
+  // Named for where it lands: the Documents tab of the client's own file, not the sidebar screen of
+  // the same name, which is somewhere else entirely.
+  const backLabel = readFromPack
+    ? "Back to the forms to sign"
+    : owedNotice
+      ? "Post onboarding notice"
+      : fromClient
+        ? "Back to the client's documents"
+        : "Back to the checklist";
   if (!wording.data) {
     return (
       <div className="space-y-4">
@@ -172,6 +193,10 @@ export function DocumentPage() {
   const being = row?.status ?? "NOT_STARTED";
   const sent = !stillBeingFilledIn(being);
   const signed = being === "SUBMITTED";
+  // With the advisor to sign. It is nobody's to edit then — not the advisor reading it in To sign, and not
+  // whoever wrote it up. They sign it or send it back saying what is wrong, and sending it back is what opens
+  // it again; an Edit here would let either side change the document out from under the other's signature.
+  const withTheAdvisor = being === "AWAITING_SIGNATURE";
   const missing = wording.data.gaps.filter((gap) => !details[gap.key]?.trim());
   const writable = canChange && !sent;
   // A client onboarded before there were cases has no application to record a send against.
@@ -296,7 +321,7 @@ export function DocumentPage() {
               {busy ? "Saving…" : "Save the details"}
             </Button>
           )}
-          {!writable && canChange && client && sendAgainst && (
+          {!writable && !withTheAdvisor && canChange && client && sendAgainst && (
             <Button variant="secondary" size="sm" disabled={busy} onClick={() => setEditing(true)}>
               <PencilLine aria-hidden="true" />
               {change.isPending ? "Opening…" : "Edit"}
@@ -311,12 +336,24 @@ export function DocumentPage() {
           {row?.submittedAt ? ` — their signed copy came in on ${formatDate(row.submittedAt)}` : ""}.
         </Alert>
       )}
-      {sent && !signed && (
+      {/* Who is actually holding it. These used to read the same, so a document waiting on the advisor said
+          it had gone to the client — with the badge beside it saying the opposite. */}
+      {withTheAdvisor && (
+        <Alert tone="info">
+          {`This has gone to ${client?.fullName ?? "the client"}'s advisor to sign. Nobody changes it while it is with them — the advisor signs it, sends it back saying what is wrong, or leaves a comment below asking for a change.`}
+        </Alert>
+      )}
+      {sent && !signed && !withTheAdvisor && (
         <Alert tone="info">
           {`This has gone to ${client?.fullName ?? "the client"} to sign${row?.dueOn ? `, and is expected back by ${formatDate(row.dueOn)}` : ""}.`}
         </Alert>
       )}
+      {/* Every way this screen can fail says so. Sending used to fail silently, which left the button sitting
+          there looking as though nothing had happened. */}
       {change.isError && <Alert tone="danger">{change.error.message}</Alert>}
+      {keep.isError && <Alert tone="danger">{keep.error.message}</Alert>}
+      {open.isError && <Alert tone="danger">{open.error.message}</Alert>}
+      {send.isError && <Alert tone="danger">{send.error.message}</Alert>}
 
       <div className={writable ? "grid items-start gap-6 lg:grid-cols-[18rem_1fr]" : undefined}>
         {writable && (
@@ -435,8 +472,6 @@ export function DocumentPage() {
                     }
                     // The lines the paper rules — "Other: ____", a name, a date — are written on before it goes out.
                     onFill={writable ? (key, value) => setEdits((held) => ({ ...held, [key]: value })) : undefined}
-                    // Every place the paper asks to be signed can be signed here, and none of them has to be.
-                    onSign={writable ? (spot, who) => setSigning({ spot, who }) : undefined}
                     listRows={listRows}
                     onListRows={
                       writable
@@ -467,7 +502,7 @@ export function DocumentPage() {
               {!writable
                 ? "This is the document as it went out."
                 : missing.length === 0
-                  ? "Every detail it asks for is in. It is ready to go out to be signed."
+                  ? "Every detail it asks for is in. It is ready to go to the advisor to sign."
                   : `${missing.length} detail${missing.length === 1 ? "" : "s"} still to fill in, over ${asked} part${asked === 1 ? "" : "s"}${answered > 0 ? ` (${answered} done)` : ""}.`}
             </p>
             <div className="flex gap-2">
@@ -497,6 +532,21 @@ export function DocumentPage() {
         </section>
         )}
       </div>
+
+      {/* Comments start once the document has been opened for a client, because that is what gives it a form
+          to hang off. Its parts are the ones cut from its own wording, which is how both sides read it. */}
+      {row?.formId && (
+        <FormComments
+          formId={row.formId}
+          parts={parts.map((part) => ({
+            id: part.id,
+            label: named(part.label, details, printedDetails),
+          }))}
+          packId={readFromPack}
+          canWrite={canChange}
+        />
+      )}
+
       <ConfirmDialog
         open={editing}
         title="Edit this document?"
@@ -511,21 +561,6 @@ export function DocumentPage() {
         busy={change.isPending}
         onConfirm={() => fillItInAgain()}
         onClose={() => setEditing(false)}
-      />
-      <SignHereDialog
-        spot={signing?.spot ?? null}
-        who={signing?.who ?? "the client"}
-        forName={client?.fullName}
-        made={signing ? madeSignature(details[signing.spot]) : null}
-        onClose={() => setSigning(null)}
-        onSigned={(signature) => {
-          // A signature is kept with the rest of the answers: taking one off leaves the place empty again.
-          if (signing) {
-            const spot = signing.spot;
-            setEdits((held) => ({ ...held, [spot]: signature ? JSON.stringify(signature) : "" }));
-          }
-          setSigning(null);
-        }}
       />
     </div>
   );
@@ -597,7 +632,7 @@ function SendPart({
               the copy the client signs. */}
           <Button disabled={!dueOn || busy || missing.length > 0} onClick={() => onSend(dueOn)}>
             <Send aria-hidden="true" />
-            {sent ? "Send to be signed again" : "Send to be signed"}
+            {sent ? "Send to the advisor again" : "Send to the advisor to sign"}
           </Button>
           {missing.length > 0 && (
             <p className="text-sm text-ink-muted">
@@ -606,7 +641,12 @@ function SendPart({
           )}
         </div>
       )}
-      <p className="text-xs text-ink-muted">No email goes out yet, so send it however you normally would.</p>
+      {/* It goes to the client's advisor, not to the client: theirs is the signature that finishes one of
+          these, the same as a form that sends itself when it is finished. */}
+      <p className="text-xs text-ink-muted">
+        It goes to the client's relationship advisor, who signs it in To sign. The date above is when the
+        signed copy is wanted back.
+      </p>
     </div>
   );
 }

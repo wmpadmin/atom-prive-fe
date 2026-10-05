@@ -718,11 +718,7 @@ export function reviewCustomerIdentification(
   if (!firmSaid("signoff.contactOn")) problems["firm.signoff.contactOn"] = "Choose a date.";
   if (!firmSaid("signoff.contactPlace")) problems["firm.signoff.contactPlace"] = REQUIRED;
   if (!firm.confirmed["signoff.agreed"]) problems["firm.signoff.agreed"] = "This has to be confirmed.";
-  for (const who of ["signoff", "compliance"] as const) {
-    if (!firmSaid(`${who}.name`)) problems[`firm.${who}.name`] = REQUIRED;
-    if (!firmSaid(`${who}.date`)) problems[`firm.${who}.date`] = "Choose a date.";
-    if (!firmSaid(`${who}.signature`)) problems[`firm.${who}.signature`] = REQUIRED;
-  }
+  // The firm's own sign-off and Compliance's are taken when the form is signed off, not typed here.
 
   if (!firmSaid("screening.included")) problems["firm.screening.included"] = "Tick the box that applies.";
   if (firmSaid("screening.included") === "YES" && !firmSaid("screening.since")) {

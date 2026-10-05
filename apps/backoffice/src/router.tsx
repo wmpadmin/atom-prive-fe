@@ -33,6 +33,7 @@ import {
   OPENS_CLIENT_DOCUMENTS,
   OPENS_CLIENT_FILES,
   READS_CLIENT_PORTFOLIOS,
+  READS_CLIENT_FORMS,
   READS_PROPOSALS,
   UPLOADS_CLIENT_DOCUMENTS,
   WRITES_PROPOSALS,
@@ -53,6 +54,7 @@ import { ModelPerformancePage } from "./pages/portfolios/model-performance-page"
 import { BulkRebalancingPage } from "./pages/portfolios/bulk-rebalancing-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
+import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
 import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
 import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
@@ -112,7 +114,11 @@ export const router = createBrowserRouter([
           {
             // The whole book, read as a directory. An advisor works from it to onboard but is not given a
             // screen onto every client's file: theirs are under My clients, and the API answers the same way.
-            element: <RequireAuthority authority="VIEW_ALL_CLIENTS:VIEW" notFor={["ADVISOR"]} />,
+            //
+            // A portfolio manager is kept off it for a different reason: servicing a client — their papers,
+            // their family, their onboarding — is not their work at all. The menu has always said so by not
+            // offering the screen; this is what makes it true of the address as well.
+            element: <RequireAuthority authority="VIEW_ALL_CLIENTS:VIEW" notFor={["ADVISOR", "PORTFOLIO_MANAGER"]} />,
             children: [
               { path: "clients", element: <ClientsPage /> },
               { path: "clients/:clientId", element: <ClientPage /> },
@@ -168,7 +174,9 @@ export const router = createBrowserRouter([
             children: [{ path: "manager-review", element: <ManagerReviewPage /> }],
           },
           {
-            element: <RequireAuthority authority={WRITES_PROPOSALS} notFor={["PORTFOLIO_MANAGER"]} />,
+            // The portfolio manager writes proposals too, which the firm confirmed. They hold it at full, so
+            // theirs is the whole book rather than an assigned list.
+            element: <RequireAuthority authority={WRITES_PROPOSALS} />,
             children: [
               { path: "proposals/new", element: <ProposalPage /> },
             ],
@@ -185,12 +193,19 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            // Filling a client's forms is its own job, separate from onboarding them.
+            // The queue of forms to fill is Operations' own work, so it stays on their permission.
             element: <RequireAuthority authority="FILL_CLIENT_FORMS:VIEW" />,
             children: [
               { path: "forms", element: <FormsPage /> },
               { path: "forms/:formId", element: <FormPage /> },
-              // The same two screens reached from a client rather than a case, so Back returns to the client.
+            ],
+          },
+          {
+            // One client's form, reached from the client. Wider than the queue above, and deliberately the
+            // same list the API guards it with: an advisor opens their own clients' forms and Compliance read
+            // any of them. What each of them may change is decided on the screen, not here.
+            element: <RequireAuthority authority={READS_CLIENT_FORMS} />,
+            children: [
               { path: "clients/:clientId/forms/:formId", element: <FormPage /> },
               { path: "clients/:clientId/documents/:kind", element: <DocumentPage /> },
             ],
@@ -199,7 +214,12 @@ export const router = createBrowserRouter([
             // The book read for portfolio work. It is the same clients as All clients, set out for a
             // different job, so it goes on the same permission.
             element: <RequireAuthority authority="VIEW_ALL_CLIENTS:VIEW" />,
-            children: [{ path: "portfolio-clients", element: <PortfolioClientsPage /> }],
+            children: [
+              { path: "portfolio-clients", element: <PortfolioClientsPage /> },
+              // One client's portfolio, written down and read against its model. Its own address, so a
+              // sitting over it can be left and come back to, and linked to from the queues.
+              { path: "portfolio-clients/:customerId", element: <ClientPortfolioPage /> },
+            ],
           },
           {
             // How the firm invests is read by whoever may read a client's portfolio; changing a model is

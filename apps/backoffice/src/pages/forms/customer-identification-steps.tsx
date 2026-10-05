@@ -3,11 +3,12 @@ import { Plus, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Boxes, Tick } from "../../components/form-boxes";
 import { Documents, type FormDocuments } from "../../components/form-documents";
+import { ClientSignsThis, FirmSignsThis } from "../../components/client-signs-this";
 import {
   CountryField,
   DateField,
   FormSection as FieldGroup,
-  SignatureField, TextField,
+  TextField,
   type FieldFor,
 } from "../../components/form-fields";
 import {
@@ -19,7 +20,6 @@ import {
   DATA_PROTECTION_HEADING,
   NET_ASSETS,
   ONGOING_SCREENING,
-  ON_BEHALF_OF_FIRM,
   PEP_DEFINITION,
   PRIVATE_BANKING_ONLY,
   SENSITIVE_DEFINITION,
@@ -294,8 +294,7 @@ export function ExperienceStep(at: AskProps) {
 /** The Declaration, the data protection statement, and APPENDIX A the declaration sends the reader to. */
 export function DeclarationStep(at: AskProps) {
   const { value, field } = at;
-  const { say, confirm } = writing(at);
-  const firmName = useFirmName();
+  const { confirm } = writing(at);
   const agreed = field("declaration.agreed");
   return (
     <div className="space-y-6">
@@ -320,23 +319,14 @@ export function DeclarationStep(at: AskProps) {
         {agreed.error && <p className="mt-1.5 text-xs text-red-600">{agreed.error}</p>}
       </div>
 
-      <FieldGroup>
-        <TextField id="declaration.name" label="Name:" value={value.said["declaration.name"] ?? ""} onChange={(said) => say("declaration.name", said)} field={field} />
-        <DateField id="declaration.date" label="Date:" value={value.said["declaration.date"] ?? ""} onChange={(said) => say("declaration.date", said)} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
-        <SignatureField id="declaration.signature" label="Signature:" value={value.said["declaration.signature"] ?? ""} onChange={(said) => say("declaration.signature", said)} field={field} className="sm:col-span-2" />
-      </FieldGroup>
+      <ClientSignsThis what="The client's name, date and signature" />
 
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-ink">{DATA_PROTECTION_HEADING}</h3>
         <p className="text-sm leading-relaxed text-ink-muted">{DATA_PROTECTION}</p>
       </section>
 
-      <FieldGroup title={withFirm(ON_BEHALF_OF_FIRM, firmName, null)}>
-        <TextField id="firmSide.name" label="Name:" value={value.said["firmSide.name"] ?? ""} onChange={(said) => say("firmSide.name", said)} field={field} optional />
-        <TextField id="firmSide.designation" label="Designation:" value={value.said["firmSide.designation"] ?? ""} onChange={(said) => say("firmSide.designation", said)} field={field} optional />
-        <DateField id="firmSide.date" label="Date:" value={value.said["firmSide.date"] ?? ""} onChange={(said) => say("firmSide.date", said)} field={field} min={yearsFromToday(-2)} max={yearsFromToday(1)} />
-        <SignatureField who="the firm" id="firmSide.signature" label="Signature:" value={value.said["firmSide.signature"] ?? ""} onChange={(said) => say("firmSide.signature", said)} field={field} optional />
-      </FieldGroup>
+      <FirmSignsThis what="The firm's name, designation, date and signature" />
 
       <details className="rounded-2xl border border-line px-5 py-4">
         <summary className="cursor-pointer text-sm font-bold text-ink">
@@ -471,22 +461,15 @@ export function SignoffStep(at: FirmAskProps) {
         {agreed.error && <p className="mt-1.5 text-xs text-red-600">{agreed.error}</p>}
       </div>
 
-      <SignatureBlock at={at} prefix="signoff" title="Relationship manager" />
-      <SignatureBlock at={at} prefix="compliance" title={COMPLIANCE_HEADING} />
+      <SignatureBlock title="Relationship manager" />
+      <SignatureBlock title={COMPLIANCE_HEADING} />
     </div>
   );
 }
 
-function SignatureBlock({ at, prefix, title }: { at: AskProps; prefix: string; title: string }) {
-  const { value, field } = at;
-  const { say } = writing(at);
-  return (
-    <FieldGroup title={title}>
-      <TextField id={`${prefix}.name`} label="Name:" value={value.said[`${prefix}.name`] ?? ""} onChange={(said) => say(`${prefix}.name`, said)} field={field} />
-      <DateField id={`${prefix}.date`} label="Date:" value={value.said[`${prefix}.date`] ?? ""} onChange={(said) => say(`${prefix}.date`, said)} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
-      <SignatureField who="the firm" id={`${prefix}.signature`} label="Signature:" value={value.said[`${prefix}.signature`] ?? ""} onChange={(said) => say(`${prefix}.signature`, said)} field={field} className="sm:col-span-2" />
-    </FieldGroup>
-  );
+/** Where the paper rules a sign-off block for the firm's own side. */
+function SignatureBlock({ title }: { title: string }) {
+  return <FirmSignsThis what={`${title}: name, date and signature`} />;
 }
 
 /** "Screening Results:" — whether the customer is screened on, and what each screening found. */

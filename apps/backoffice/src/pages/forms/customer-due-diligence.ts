@@ -463,9 +463,7 @@ export function sharedDueDiligenceProblems(
       if (!risk.pep[row.id]?.rating) problems[`risk.pep.${row.id}`] = "Tick one.";
     }
   }
-  if (!risk.relationshipManagerName.trim()) problems["risk.relationshipManagerName"] = REQUIRED;
-  if (!risk.dateAndPlace.trim()) problems["risk.dateAndPlace"] = REQUIRED;
-  if (!risk.signature.trim()) problems["risk.signature"] = REQUIRED;
+  // The Relationship Manager's block is a sign-off, taken when the form is signed off rather than typed here.
 
   if (!review.overallMlrr.trim()) problems["review.overallMlrr"] = REQUIRED;
   if (!review.comments.trim()) problems["review.comments"] = REQUIRED;

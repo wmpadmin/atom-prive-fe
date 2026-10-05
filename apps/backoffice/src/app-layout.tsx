@@ -53,6 +53,35 @@ import { roleLabels, type StaffRole } from "./lib/labels";
 /** The Notice of Treatment letter, which is a client's document but is only ever opened from the notice. */
 const NOTICE_OF_TREATMENT = /^\/clients\/[^/]+\/documents\/NOTICE_OF_TREATMENT$/;
 
+/**
+ * Which queue a shared screen was opened from, as that screen's own back link reads it.
+ *
+ * <p>A client's portfolio and a proposal are each reached from several queues and are the same address from
+ * all of them, so the path alone cannot say which menu they belong to. Somebody working the drift queue who
+ * opens a client is still working the drift queue; lighting up Clients tells them they have left it.
+ */
+function openedFrom(search: string) {
+  return new URLSearchParams(search).get("from");
+}
+
+/** A screen of its own, or a shared one opened from this entry's queue. */
+function ownsSharedScreen(path: string, search: string, shared: RegExp, from: string) {
+  return shared.test(path) && openedFrom(search) === from;
+}
+
+/**
+ * The entry a shared screen falls back to: where the thing lives, rather than where somebody came from. Only
+ * a queue that claims the screen takes it away — a proposal read from a client's own file is still a sent
+ * proposal, and that is the menu it belongs on, even though Back there returns to the client.
+ */
+function livesHere(path: string, search: string, shared: RegExp, claimedBy: string[]) {
+  return shared.test(path) && !claimedBy.includes(openedFrom(search) ?? "");
+}
+
+const A_PORTFOLIO = /^\/portfolio-clients\/[^/]+$/;
+
+const A_PROPOSAL = /^\/proposals\/[^/]+$/;
+
 const allNavigation: {
   to: string;
   label: string;
@@ -65,11 +94,20 @@ const allNavigation: {
    * Which screens this entry is the menu for, where the path alone does not say. The two KYC screens share
    * the /kyc prefix: the queue owns a case and a form opened from it, the document review owns a client's
    * own file, which is reached from there. Left out, an entry owns its path and whatever hangs off it.
+   *
+   * <p>The address is given in full, because a screen shared between queues says which queue it was opened
+   * from in its query rather than in its path.
    */
-  at?: (path: string) => boolean;
+  at?: (path: string, search: string) => boolean;
 }[] = [
   // Whoever runs the platform gets the firm's figures; everybody else gets their own day, on the same address.
-  { to: "/dashboard", label: "Dashboard", icon: LayoutGrid, authority: null },
+  {
+    to: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutGrid,
+    authority: null,
+    at: (path, search) => path === "/dashboard" || ownsSharedScreen(path, search, A_PORTFOLIO, "dashboard"),
+  },
   {
     to: "/clients",
     label: "All clients",
@@ -87,6 +125,9 @@ const allNavigation: {
     icon: Contact,
     authority: "VIEW_ALL_CLIENTS:VIEW",
     onlyFor: ["PORTFOLIO_MANAGER"],
+    // A portfolio opened from a queue belongs to that queue's menu, not to this one.
+    at: (path, search) =>
+      path === "/portfolio-clients" || livesHere(path, search, A_PORTFOLIO, ["drift", "dashboard"]),
   },
   {
     to: "/model-portfolios",
@@ -98,6 +139,7 @@ const allNavigation: {
   {
     to: "/drift",
     label: "Drift & breaches",
+    at: (path, search) => path === "/drift" || ownsSharedScreen(path, search, A_PORTFOLIO, "drift"),
     icon: TriangleAlert,
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
@@ -157,6 +199,7 @@ const allNavigation: {
     label: "Waiting on my sign-off",
     icon: Stamp,
     authority: "APPROVE_PROPOSALS:CHANGE",
+    at: (path, search) => path === "/manager-review" || ownsSharedScreen(path, search, A_PROPOSAL, "review"),
   },
   { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: ONBOARDS_CLIENTS, notFor: ["ADMIN"] },
   {
@@ -216,6 +259,8 @@ const allNavigation: {
     icon: FileSignature,
     authority: READS_PROPOSALS,
     notFor: ["ADMIN"],
+    // A proposal opened from the sign-off queue or from a client's own file is read there, not here.
+    at: (path, search) => path === "/proposals" || livesHere(path, search, A_PROPOSAL, ["review"]),
   },
   // The clients assigned to this advisor: the whole book is not theirs, and this is the part that is.
   {
@@ -238,7 +283,7 @@ const allNavigation: {
 
 export function AppLayout() {
   const user = useStaffUser();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigation = allNavigation.filter(
     (item) =>
       !(user.activeRole && item.notFor?.includes(user.activeRole)) &&
@@ -253,7 +298,7 @@ export function AppLayout() {
         <nav aria-label="Back-office" className="mt-14">
           <ul className="space-y-1">
             {navigation.map(({ to, label, icon: Icon, at }) => {
-              const here = at ? at(pathname) : pathname === to || pathname.startsWith(`${to}/`);
+              const here = at ? at(pathname, search) : pathname === to || pathname.startsWith(`${to}/`);
               return (
               <li key={to}>
                 <NavLink

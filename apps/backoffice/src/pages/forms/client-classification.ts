@@ -362,14 +362,7 @@ export function reviewClientClassification(
   if (!provided.has(CLIENT_AGREEMENT)) {
     problems[CLIENT_AGREEMENT] = "Attach the client agreement, which is schedule a to this form.";
   }
-  if (declaration.signers.length === 0) problems["declaration.signers"] = "Add whoever signs.";
-  declaration.signers.forEach((signer, at) => {
-    // The client signs after the form reaches them, so their signature is not what makes the form ready
-    // to send. Their name and the date still are.
-    if (!signer.name.trim()) problems[`declaration.signers[${at}].name`] = REQUIRED;
-    if (!signer.title.trim()) problems[`declaration.signers[${at}].title`] = REQUIRED;
-    if (!signer.signedOn) problems[`declaration.signers[${at}].signedOn`] = "Choose a date.";
-  });
+  // The signing block — a signature, a name, a title and a date — is the client's own, taken when they sign.
 
   return {
     problems,

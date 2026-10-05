@@ -117,7 +117,7 @@ function none(problems: Record<string, string>, prefix: string) {
 /** What is still missing, and which parts that leaves incomplete. The API checks the same things on submit. */
 export function reviewProfessionalClientConfirmation(value: ProfessionalClientConfirmation): FormReview {
   const problems: Record<string, string> = {};
-  const { holders, primary, secondary, signatures } = value;
+  const { holders, primary, secondary } = value;
 
   if (!holders.primaryName.trim()) problems["holders.primaryName"] = REQUIRED;
   if (!holders.secondaryName.trim()) problems["holders.secondaryName"] = REQUIRED;
@@ -130,14 +130,8 @@ export function reviewProfessionalClientConfirmation(value: ProfessionalClientCo
   if (!secondary.familyTie) problems["secondary.familyTie"] = "Choose one.";
   if (!secondary.agreed) problems["secondary.agreed"] = "This has to be confirmed.";
 
-  for (const [who, block] of [
-    ["primary", signatures.primary],
-    ["secondary", signatures.secondary],
-  ] as const) {
-    if (!block.name.trim()) problems[`signatures.${who}.name`] = REQUIRED;
-    // Each holder signs once the form reaches them; the name and date are what is asked for here.
-    if (!block.signedOn.trim()) problems[`signatures.${who}.signedOn`] = "Choose a date.";
-  }
+  // Both blocks at the foot are the account holders' own: a name, a signature and a date, taken when they
+  // sign. Neither is asked of whoever fills the form in.
 
   return {
     problems,

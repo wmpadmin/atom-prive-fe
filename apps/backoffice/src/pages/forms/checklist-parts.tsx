@@ -18,14 +18,15 @@ export function Mark({ status }: { status: CaseFormRow["status"] }) {
       </span>
     );
   }
-  if (status === "REJECTED") {
+  if (status === "SENT_BACK") {
     return (
       <span aria-hidden="true" className={cn(shared, "bg-red-100 text-red-700")}>
         <RotateCcw className="size-3.5" />
       </span>
     );
   }
-  if (status === "WAITING_ON_CLIENT") {
+  // With the advisor and out with the client are both "somebody else is holding it", and read the same way.
+  if (status === "AWAITING_SIGNATURE" || status === "WAITING_ON_CLIENT") {
     return (
       <span aria-hidden="true" className={cn(shared, "bg-amber-100 text-amber-700")}>
         <TriangleAlert className="size-3.5" />

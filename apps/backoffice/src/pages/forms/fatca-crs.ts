@@ -541,14 +541,7 @@ export function reviewFatcaCrs(value: FatcaCrsEntity, provided: ReadonlySet<stri
   }
 
   if (!declaration.confirmed) problems["declaration.confirmed"] = "The declaration has to be made.";
-  if (declaration.signers.length === 0) problems["declaration.signers"] = "Add whoever signs.";
-  declaration.signers.forEach((signer, at) => {
-    if (!signer.name.trim()) problems[`declaration.signers[${at}].name`] = REQUIRED;
-    if (!signer.capacity.trim()) problems[`declaration.signers[${at}].capacity`] = REQUIRED;
-    // The client signs after the form reaches them, so their signature is not what makes the form ready
-    // to send. Their name and the date still are.
-    if (!signer.signedOn) problems[`declaration.signers[${at}].signedOn`] = "Choose a date.";
-  });
+  // The signing block — a name, a capacity, a signature and a date — is the client's own, taken when they sign.
 
   return {
     problems,

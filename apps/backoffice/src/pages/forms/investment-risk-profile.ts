@@ -516,21 +516,7 @@ export function reviewRiskProfile(value: InvestmentRiskProfileEntity): FormRevie
 
   const { acknowledgement } = value;
   if (!acknowledgement.confirmed) problems["acknowledgement.confirmed"] = "The confirmation has to be made.";
-  const named = [...acknowledgement.accountHolders, ...acknowledgement.authorisedIndividuals].filter((one) =>
-    one.name.trim(),
-  );
-  if (named.length === 0) problems["acknowledgement.signOff"] = "Name whoever signs off.";
-  // Each line the form rules carries a Date beside the name. The sign off is the client's own, made once the
-  // form reaches them, so it is not what makes the form ready to send.
-  for (const signer of named) {
-    if (!signer.signedOn) {
-      problems["acknowledgement.signOff"] = "Give the date beside each name.";
-    }
-  }
-  const manager = acknowledgement.relationshipManager;
-  if (!manager.name.trim()) problems["acknowledgement.relationshipManager.name"] = REQUIRED;
-  if (!manager.signedOn) problems["acknowledgement.relationshipManager.signedOn"] = "Choose a date.";
-  if (!manager.signOff.trim()) problems["acknowledgement.relationshipManager.signOff"] = REQUIRED;
+  // Who signs off, and when, is taken at signing — the client's lines and the Relationship Manager's alike.
 
   return {
     problems,

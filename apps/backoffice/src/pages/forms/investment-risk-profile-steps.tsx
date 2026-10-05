@@ -2,7 +2,8 @@ import { useFirmName } from "./firm-name";
 import { Alert, Button, IconButton, TextArea, cn } from "@atomprive/ui";
 import { Plus, X } from "lucide-react";
 import { Boxes, Tick } from "../../components/form-boxes";
-import { DateField, FollowUp, FormSection as FieldGroup, SignatureField, TextField, type FieldFor } from "../../components/form-fields";
+import { FirmSignsThis } from "../../components/client-signs-this";
+import { FollowUp, FormSection as FieldGroup, TextField, type FieldFor } from "../../components/form-fields";
 import {
   allProducts,
   assessmentMatters,
@@ -30,11 +31,6 @@ import {
 } from "./investment-risk-profile";
 
 const MAX_ROWS = 6;
-
-function yearsFromToday(years: number) {
-  const today = new Date();
-  return new Date(today.getFullYear() + years, today.getMonth(), today.getDate());
-}
 
 /** One numbered question, with the answers the form prints under it and the score it carries. */
 function Question({
@@ -528,11 +524,7 @@ export function RiskAcknowledgementStep({
       <section className="space-y-3 rounded-2xl border border-line bg-white px-5 py-5">
         <h3 className="text-sm font-bold text-ink">RM Sign off</h3>
         <p className="text-sm leading-relaxed text-ink-muted">{riskProfileNotes.relationshipManager}</p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <TextField id="acknowledgement.relationshipManager.name" label="Relationship Manager Name" value={held.relationshipManager.name} onChange={(name) => set({ relationshipManager: { ...held.relationshipManager, name } })} field={field} />
-          <DateField id="acknowledgement.relationshipManager.signedOn" label="Date:" value={held.relationshipManager.signedOn} onChange={(signedOn) => set({ relationshipManager: { ...held.relationshipManager, signedOn } })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
-          <SignatureField who="the firm" id="acknowledgement.relationshipManager.signOff" label="Sign off:" value={held.relationshipManager.signOff} onChange={(signOff) => set({ relationshipManager: { ...held.relationshipManager, signOff } })} field={field} className="sm:col-span-2" />
-        </div>
+        <FirmSignsThis what="The Relationship Manager's name, date and sign off" />
       </section>
     </div>
   );
@@ -572,8 +564,9 @@ function SignOffs({
         rows.map((row, index) => (
           <FollowUp key={index} title={`${label} ${index + 1}`}>
             <TextField id={`acknowledgement.${at}[${index}].name`} label={label} value={row.name} onChange={(name) => set(index, { name })} field={field} optional />
-            <DateField id={`acknowledgement.${at}[${index}].signedOn`} label="Date:" value={row.signedOn} onChange={(signedOn) => set(index, { signedOn })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
-            <SignatureField who="the firm" id={`acknowledgement.${at}[${index}].signOff`} label="Sign off:" value={row.signOff} onChange={(signOff) => set(index, { signOff })} field={field} optional />
+            <div className="sm:col-span-2">
+              <FirmSignsThis what="Date and sign off" />
+            </div>
             <div className="self-end pb-1">
               <IconButton label={`Remove ${label} ${index + 1}`} tone="danger" onClick={() => onChange(rows.filter((_, which) => which !== index))}>
                 <X />

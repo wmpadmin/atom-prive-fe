@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { hasAnyAuthority, hasAuthority } from "../../lib/permissions";
+import { FILLS_CLIENT_FORMS, READS_CLIENT_FORMS, hasAnyAuthority } from "../../lib/permissions";
 import { DueDate, Mark } from "../forms/checklist-parts";
 import { formStatus, progressLine, stillBeingFilledIn } from "../forms/form-labels";
 import { categoryLabels, dueLabel } from "../onboarding/case-category";
@@ -24,11 +24,12 @@ import { categoryLabels, dueLabel } from "../onboarding/case-category";
  */
 export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] }) {
   const user = useStaffUser();
-  const canFill = hasAuthority(user, "FILL_CLIENT_FORMS:CHANGE");
-  // Compliance follow where the forms have got to without opening any of them: what they decide on is the
-  // papers the client hands over, not the forms the firm fills in.
-  const canOpen = hasAnyAuthority(user, "FILL_CLIENT_FORMS:VIEW", "ONBOARD_CLIENTS:VIEW",
-    "ONBOARD_CLIENTS:OWN_CLIENTS", "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS");
+  // Operations and Admin type on any client's form; an advisor types on their own clients'. The API scopes
+  // an advisor to their own, so this only has to decide whether to offer it at all.
+  const canFill = hasAnyAuthority(user, ...FILLS_CLIENT_FORMS);
+  // Exactly what the screens behind these rows are guarded by, and nothing wider: a row this list invites
+  // somebody to click who may not open what is behind it is a dead click.
+  const canOpen = hasAnyAuthority(user, ...READS_CLIENT_FORMS);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -175,8 +176,8 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
                       // Signed and approved. There is nothing left to do, and nobody sets this by hand.
                       <span className="text-sm font-semibold text-emerald-700">Done</span>
                     ) : !openRow ? (
-                      // Compliance see what the row offers without being able to take it: the action reads as
-                      // the thing they may not do, rather than leaving the column blank.
+                      // Whoever may follow the pack without opening it — an advisor, Compliance — sees what
+                      // the row holds without being offered it, rather than a blank at the end of the line.
                       <span className="text-sm font-semibold text-ink-muted">View</span>
                     ) : (
                       // The same thing the row itself does, said in a word, and the way a keyboard reaches it.

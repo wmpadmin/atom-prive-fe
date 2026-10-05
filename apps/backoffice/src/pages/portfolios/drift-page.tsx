@@ -1,14 +1,12 @@
 import { ApiError } from "@atomprive/api-client";
-import { useListDrift, type DriftPage, type DriftRow } from "@atomprive/api-client/backoffice";
+import { useListDrift, type DriftPage } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
 import { formatDate } from "../../lib/labels";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress } from "../../lib/use-list-address";
-import { ClientPortfolioDialog } from "./client-portfolio-dialog";
 import {
   driftLabel,
   standingLabels,
@@ -31,13 +29,15 @@ const WANDERED: DriftStanding[] = ["BREACHED", "AT_EDGE", "WATCH"];
  * count of them is of the whole book, so narrowing the list to one standing never hides how many there are.
  */
 export function DriftBreachesPage() {
+  const navigate = useNavigate();
+  // The queue as it is being read, so Back from a portfolio comes to the same page of the same filter.
+  const asLeft = encodeURIComponent(useLocation().search);
   const { params, update } = useListAddress();
   const standing = params.get("standing") ?? "";
   const page = Number(params.get("page")) || 0;
   const size = Number(params.get("size")) || PAGE_SIZES[0]!;
   const filtered = standing !== "";
 
-  const [opening, setOpening] = useState<DriftRow | null>(null);
   const queue = useListDrift<DriftPage, ApiError>(
     { standing: filtered ? [standing as DriftStanding] : WANDERED, page, size },
     { query: { placeholderData: keepPreviousData } },
@@ -134,13 +134,19 @@ export function DriftBreachesPage() {
         onSize={(next) => update({ size: String(next), page: "0" })}
       >
         {rows.map((row) => (
-          <tr key={row.customerId} className="border-t border-line">
+          // The row opens the portfolio, the same as the client's name and Open do. A queue is worked down
+          // by clicking the line you are reading, not by finding the small word at the end of it.
+          <tr
+            key={row.customerId}
+            onClick={() => void navigate(`/portfolio-clients/${row.customerId}?from=drift&back=${asLeft}`)}
+            className="cursor-pointer border-t border-line hover:bg-slate-50/60"
+          >
             <td className="px-5 py-3">
               <div className="flex items-center gap-3">
                 <Avatar name={row.clientName} />
                 <div>
                   <Link
-                    to={`/clients/${row.customerId}`}
+                    to={`/portfolio-clients/${row.customerId}?from=drift&back=${asLeft}`}
                     className="font-semibold text-ink hover:text-primary-600"
                   >
                     {row.clientName}
@@ -174,26 +180,17 @@ export function DriftBreachesPage() {
               )}
             </td>
             <td className="px-4 py-3 text-right">
-              <button
-                type="button"
-                onClick={() => setOpening(row)}
+              <Link
+                to={`/portfolio-clients/${row.customerId}?from=drift&back=${asLeft}`}
                 className="text-sm font-medium text-primary-700 hover:underline"
               >
                 Open
-              </button>
+              </Link>
             </td>
           </tr>
         ))}
       </RecordList>
 
-      {opening && (
-        <ClientPortfolioDialog
-          customerId={opening.customerId}
-          clientName={opening.clientName}
-          onClose={() => setOpening(null)}
-          onSaved={() => void queue.refetch()}
-        />
-      )}
     </div>
   );
 }

@@ -4,12 +4,13 @@ import { CircleCheck, Plus, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Boxes, Tick, type Blank } from "../../components/form-boxes";
 import { Documents, type FormDocuments } from "../../components/form-documents";
+import { ClientSignsThis } from "../../components/client-signs-this";
 import {
   CountryField,
   DateField,
   FollowUp,
   FormSection as FieldGroup,
-  SignatureField, TextField,
+  TextField,
   type FieldFor,
 } from "../../components/form-fields";
 import {
@@ -21,7 +22,6 @@ import {
   crsStatusOf,
   declarationWording,
   emptyControllingPerson,
-  emptySigner,
   emptyTaxResidence,
   fatcaGroups,
   fatcaStatusOf,
@@ -258,10 +258,9 @@ export function ResidenceStep({
   field: FieldFor;
 }) {
   const rows = residence.jurisdictions;
-  const provided = documents.files.filter((file) => file.field === CERTIFIED_COPY);
-  const change = (at: number, patch: Partial<TaxResidence>) =>
+  const change = (at: number, patch: Partial<(typeof rows)[number]>) =>
     onChange({ jurisdictions: rows.map((row, which) => (which === at ? { ...row, ...patch } : row)) });
-
+  const provided = documents.files.filter((file) => file.field === CERTIFIED_COPY);
   return (
     <div className="space-y-6">
       {/* The form rules three rows here; a country is added as it is needed instead. */}
@@ -628,9 +627,6 @@ export function DeclarationStep({
   field: FieldFor;
 }) {
   const firmName = useFirmName();
-  const signers = declaration.signers;
-  const change = (at: number, patch: Partial<(typeof signers)[number]>) =>
-    onChange({ signers: signers.map((row, which) => (which === at ? { ...row, ...patch } : row)) });
   const confirmed = field("declaration.confirmed");
 
   return (
@@ -659,31 +655,7 @@ export function DeclarationStep({
       </div>
 
       {/* The form rules this block three times over, for the Entity Account Holder and ALL Controlling Person(s). */}
-      <FieldGroup
-        title="The Entity Account Holder/ Controlling Person"
-        action={
-          <Button variant="secondary" size="sm" disabled={signers.length >= MAX_ROWS} onClick={() => onChange({ signers: [...signers, emptySigner()] })}>
-            <Plus aria-hidden="true" />
-            Add a signatory
-          </Button>
-        }
-      >
-        {signers.map((signer, at) => (
-          <FollowUp key={at} title={`Signatory ${at + 1}`}>
-            <TextField id={`declaration.signers[${at}].name`} label="Name" value={signer.name} onChange={(name) => change(at, { name })} field={field} />
-            <TextField id={`declaration.signers[${at}].capacity`} label="Capacity" value={signer.capacity} onChange={(capacity) => change(at, { capacity })} field={field} />
-            <SignatureField id={`declaration.signers[${at}].signature`} label="Signature" value={signer.signature} onChange={(signature) => change(at, { signature })} field={field} />
-            <DateField id={`declaration.signers[${at}].signedOn`} label="Date" value={signer.signedOn} onChange={(signedOn) => change(at, { signedOn })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
-            {signers.length > 1 && (
-              <div className="sm:col-span-2">
-                <IconButton label={`Remove signatory ${at + 1}`} tone="danger" onClick={() => onChange({ signers: signers.filter((_, which) => which !== at) })}>
-                  <X />
-                </IconButton>
-              </div>
-            )}
-          </FollowUp>
-        ))}
-      </FieldGroup>
+      <ClientSignsThis what="Each signatory's name, capacity, signature and date" />
     </div>
   );
 }

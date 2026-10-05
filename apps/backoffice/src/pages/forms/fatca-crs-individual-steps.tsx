@@ -1,17 +1,20 @@
 import { Alert, Button, IconButton } from "@atomprive/ui";
 import { Plus, X } from "lucide-react";
 import type { ReactNode } from "react";
+import { ClientSignsThis } from "../../components/client-signs-this";
+import { Documents, type FormDocuments } from "../../components/form-documents";
 import { Boxes, Tick } from "../../components/form-boxes";
 import {
   CountryField,
   DateField,
   FollowUp,
   FormSection as FieldGroup,
-  SignatureField, TextField,
+  TextField,
   type FieldFor,
 } from "../../components/form-fields";
 import {
   CAPACITY_NOTE,
+  POWER_OF_ATTORNEY,
   COMPLETE_ALL_PARTS,
   FORM_TITLE,
   JOINT_HOLDERS_NOTE,
@@ -385,10 +388,14 @@ export function DeclarationStep({
   declaration,
   onChange,
   field,
+  formId,
+  documents,
 }: {
   declaration: HolderDeclaration["declaration"];
   onChange: (patch: Partial<HolderDeclaration["declaration"]>) => void;
   field: FieldFor;
+  formId: string;
+  documents: FormDocuments;
 }) {
   const firmName = useFirmName();
   const confirmed = field("declaration.confirmed");
@@ -419,26 +426,17 @@ export function DeclarationStep({
 
       <Note>{JOINT_HOLDERS_NOTE}</Note>
 
-      <FieldGroup>
-        <TextField id="declaration.printName" label="Print Name" value={declaration.printName} onChange={(printName) => onChange({ printName })} field={field} />
-        <SignatureField id="declaration.signature" label="Signature" value={declaration.signature} onChange={(signature) => onChange({ signature })} field={field} />
-        <DateField
-          id="declaration.signedOn"
-          label="Date"
-          value={declaration.signedOn}
-          onChange={(signedOn) => onChange({ signedOn })}
-          field={field}
-          min={yearsFromToday(-2)}
-          max={yearsFromToday(1)}
-        />
-      </FieldGroup>
+      <ClientSignsThis what="Print name, signature, date and capacity" />
 
       <Note>{CAPACITY_NOTE}</Note>
 
-      <FieldGroup>
-        {/* The line below the note, which only someone signing for the Account Holder fills in. */}
-        <TextField id="declaration.capacity" label="Capacity" value={declaration.capacity} onChange={(capacity) => onChange({ capacity })} field={field} optional />
-      </FieldGroup>
+      {/* The note above asks for a copy of the power of attorney, so here is where one is put on file. */}
+      <Documents
+        formId={formId}
+        field={POWER_OF_ATTORNEY}
+        documents={documents}
+        label="Attach the power of attorney, where the form is signed under one"
+      />
     </div>
   );
 }

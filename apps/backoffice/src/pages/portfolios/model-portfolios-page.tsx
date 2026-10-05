@@ -14,11 +14,12 @@ import {
 import { Alert, Badge, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link } from "react-router";
 import { ListPageHeader, RecordList } from "../../components/record-list";
 import { formatRelative } from "../../lib/labels";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { useShowFirstError } from "../../lib/show-first-error";
 import { asFigure } from "../../lib/figures";
 import { useStaffUser } from "../../auth/session";
 import { hasAuthority } from "../../lib/permissions";
@@ -378,6 +379,9 @@ function ModelDialog({
   onClose: () => void;
   onSave: (data: ModelRequest) => void;
 }) {
+  const form = useRef<HTMLFormElement>(null);
+  // A refusal takes the reader to it: the fields are a screen above the button that sends them.
+  useShowFirstError(errors, form);
   const assetClasses = useAssetClasses();
   const { names, all } = assetClasses;
   // A model is built out of the classes the firm still uses, plus any retired one it already targets — that
@@ -490,8 +494,12 @@ function ModelDialog({
 
   return (
     <Dialog open title={model ? `Edit ${model.name}` : "New model portfolio"} size="xl" onClose={onClose}>
-      <form onSubmit={submit} className="space-y-6">
-        {errors.form && <Alert tone="danger">{errors.form}</Alert>}
+      <form ref={form} onSubmit={submit} className="space-y-6">
+        {errors.form && (
+          <div data-form-error>
+            <Alert tone="danger">{errors.form}</Alert>
+          </div>
+        )}
 
         {/* What the plan is. Four short answers rather than a column of full-width boxes. */}
         <section className="space-y-3">
@@ -908,7 +916,14 @@ function ModelDialog({
           />
         </Field>
 
-        <div className="flex justify-end gap-2 border-t border-line pt-4">
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
+          {/* Said beside the button as well as against the field. Somebody who presses Save at the foot of a
+              long form has to be told here that it was refused, not only where the fault is. */}
+          {Object.keys(errors.fields).length > 0 && (
+            <p className="mr-auto text-xs text-red-600">
+              Something above still needs putting right.
+            </p>
+          )}
           <Button variant="secondary" type="button" onClick={onClose}>
             Cancel
           </Button>

@@ -337,12 +337,8 @@ export function reviewAccountOpening(value: AccountOpeningEntity, provided: Read
     problems["declarations.signingMandateOther"] = "Say what the signing mandate is.";
   }
   if (declarations.signers.length === 0) problems["declarations.signers"] = "Add whoever signs.";
-  declarations.signers.forEach((signer, at) => {
-    if (!signer.fullName.trim()) problems[`declarations.signers[${at}].fullName`] = REQUIRED;
-    // The client signs after the form reaches them, so their signature is not what makes the form ready
-    // to send. Their name and the date still are.
-    if (!signer.signedOn) problems[`declarations.signers[${at}].signedOn`] = "Choose a date.";
-  });
+  // The Authorised Signatory block is the client's own: a name, a signature and a date, all taken when they
+  // sign. None of it is asked of whoever fills the form in.
   return {
     problems,
     // Grouped by the sections the paper form is divided into, so what is on screen matches what is signed.
