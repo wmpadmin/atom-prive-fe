@@ -11,7 +11,8 @@
     "build": "pnpm --filter \"./apps/*\" build",
     "typecheck": "pnpm -r typecheck",
     "lint": "oxlint apps packages",
-    "api:generate": "pnpm --filter @atomprive/api-client generate"
+    "api:generate": "pnpm --filter @atomprive/api-client generate",
+    "test": "pnpm -r test"
   },
   "devDependencies": {
     "oxlint": "^1.81.0"

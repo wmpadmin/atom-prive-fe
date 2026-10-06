@@ -1,0 +1,516 @@
+{
+  "about": [
+    "What counts as a finished part of a form, written down once.",
+    "",
+    "The rules exist twice over: in Java, where they decide whether a form is finished and goes to the",
+    "advisor to be signed, and in the browser, where they tick the rail as somebody types. Neither can be",
+    "deleted \u2014 one is authoritative, the other is live \u2014 so this file is what stops them disagreeing. Both",
+    "sides run these answers through their own rules and have to arrive at the same verdicts.",
+    "",
+    "A case is a set of answers, the lines a document has been attached for, and what each part should then",
+    "come to. Add a case whenever a rule is written or changed, and change it in this file first: it is the",
+    "specification, and the two implementations are what have to follow it.",
+    "",
+    "Kept in both repositories, synced rather than shared, because they are two repositories. Within either,",
+    "a rule that drifts from this file fails the build."
+  ],
+  "cases": [
+    {
+      "name": "A checklist with nothing ticked has no finished part",
+      "kind": "DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL",
+      "answers": {},
+      "provided": [],
+      "sections": {
+        "identification": false,
+        "financial": false,
+        "business": false,
+        "property": false,
+        "wealth": false,
+        "profiling": false
+      }
+    },
+    {
+      "name": "A heading is finished when every line under it is ticked",
+      "kind": "DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL",
+      "answers": {
+        "obtained": {
+          "identification.passport": true,
+          "identification.visa": true,
+          "identification.emiratesId": true,
+          "identification.address": true,
+          "wealth.evidence": true
+        }
+      },
+      "provided": [],
+      "sections": {
+        "identification": true,
+        "financial": false,
+        "business": false,
+        "property": false,
+        "wealth": false,
+        "profiling": false
+      }
+    },
+    {
+      "name": "A heading marked if applicable is finished by saying it does not apply",
+      "kind": "DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL",
+      "answers": {
+        "applies": {
+          "business": false,
+          "property": false
+        }
+      },
+      "provided": [],
+      "sections": {
+        "identification": false,
+        "financial": false,
+        "business": true,
+        "property": true,
+        "wealth": false,
+        "profiling": false
+      }
+    },
+    {
+      "name": "Saying it applies asks for its lines after all",
+      "kind": "DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL",
+      "answers": {
+        "applies": {
+          "property": true
+        },
+        "obtained": {
+          "property.titleDeed": true
+        }
+      },
+      "provided": [],
+      "sections": {
+        "identification": false,
+        "financial": false,
+        "business": false,
+        "property": true,
+        "wealth": false,
+        "profiling": false
+      }
+    },
+    {
+      "name": "Applies, with its line still to tick",
+      "kind": "DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL",
+      "answers": {
+        "applies": {
+          "property": true
+        }
+      },
+      "provided": [],
+      "sections": {
+        "identification": false,
+        "financial": false,
+        "business": false,
+        "property": false,
+        "wealth": false,
+        "profiling": false
+      }
+    },
+    {
+      "name": "The entity checklist reads its own headings",
+      "kind": "DFSA_ONBOARDING_CHECKLIST_ENTITY",
+      "answers": {
+        "applies": {
+          "business": false,
+          "property": false
+        }
+      },
+      "provided": [],
+      "sections": {
+        "identification": false,
+        "financial": false,
+        "business": true,
+        "property": true,
+        "wealth": false,
+        "profiling": false
+      }
+    },
+    {
+      "name": "Account opening: nothing entered leaves every part open",
+      "kind": "ACCOUNT_OPENING_ENTITY",
+      "answers": {},
+      "provided": [],
+      "sections": {
+        "entity": false,
+        "address": false,
+        "signatories": false,
+        "owners": false,
+        "directors": false,
+        "declarations": false
+      }
+    },
+    {
+      "name": "Account opening: the entity's own details, and the address beneath them",
+      "kind": "ACCOUNT_OPENING_ENTITY",
+      "answers": {
+        "entity": {
+          "legalName": "Marigold Family Office Pte. Ltd.",
+          "countryOfIncorporation": "SG",
+          "dateOfIncorporation": "2016-03-01",
+          "registrationNumber": "201612345A",
+          "natureOfBusiness": "Family office",
+          "organisationType": "PRIVATE_COMPANY",
+          "businessLinkCountries": [
+            "SG",
+            "AE"
+          ],
+          "regulated": false
+        },
+        "registeredAddress": {
+          "line1": "1 Raffles Place",
+          "city": "Singapore",
+          "postalCode": "048616",
+          "country": "SG"
+        }
+      },
+      "provided": [],
+      "sections": {
+        "entity": true,
+        "address": true,
+        "signatories": false,
+        "owners": false,
+        "directors": false,
+        "declarations": false
+      }
+    },
+    {
+      "name": "Account opening: others on the form needs saying what the organisation is",
+      "kind": "ACCOUNT_OPENING_ENTITY",
+      "answers": {
+        "entity": {
+          "legalName": "Marigold Family Office Pte. Ltd.",
+          "countryOfIncorporation": "SG",
+          "dateOfIncorporation": "2016-03-01",
+          "registrationNumber": "201612345A",
+          "natureOfBusiness": "Family office",
+          "organisationType": "OTHER",
+          "businessLinkCountries": [
+            "SG"
+          ],
+          "regulated": false
+        }
+      },
+      "provided": [],
+      "sections": {
+        "entity": false,
+        "address": false,
+        "signatories": false,
+        "owners": false,
+        "directors": false,
+        "declarations": false
+      }
+    },
+    {
+      "name": "Account opening: a signatory is not finished until their copies are attached",
+      "kind": "ACCOUNT_OPENING_ENTITY",
+      "answers": {
+        "signatories": [
+          {
+            "title": "Mr",
+            "fullName": "Rahul Menon",
+            "passportNumber": "Z1234567",
+            "nationality": "IN",
+            "dateOfBirth": "1979-04-02",
+            "countryOfBirth": "IN",
+            "occupation": "Director",
+            "phone": "+971500000000",
+            "email": "rahul@example.com",
+            "address": {
+              "line1": "12 Marina Walk",
+              "city": "Dubai",
+              "postalCode": "00000",
+              "country": "AE"
+            }
+          }
+        ]
+      },
+      "provided": [],
+      "sections": {
+        "entity": false,
+        "address": false,
+        "signatories": false,
+        "owners": false,
+        "directors": false,
+        "declarations": false
+      }
+    },
+    {
+      "name": "Account opening: a signatory with their copies attached",
+      "kind": "ACCOUNT_OPENING_ENTITY",
+      "answers": {
+        "signatories": [
+          {
+            "title": "Mr",
+            "fullName": "Rahul Menon",
+            "passportNumber": "Z1234567",
+            "nationality": "IN",
+            "dateOfBirth": "1979-04-02",
+            "countryOfBirth": "IN",
+            "occupation": "Director",
+            "phone": "+971500000000",
+            "email": "rahul@example.com",
+            "address": {
+              "line1": "12 Marina Walk",
+              "city": "Dubai",
+              "postalCode": "00000",
+              "country": "AE"
+            }
+          }
+        ]
+      },
+      "provided": [
+        "signatories[0].ID-Passport",
+        "signatories[0].Residential-address-proof"
+      ],
+      "sections": {
+        "entity": false,
+        "address": false,
+        "signatories": true,
+        "owners": false,
+        "directors": false,
+        "declarations": false
+      }
+    },
+    {
+      "name": "Account opening: a regulated entity is asked who regulates it",
+      "kind": "ACCOUNT_OPENING_ENTITY",
+      "answers": {
+        "entity": {
+          "legalName": "Ashwood Capital Partners Limited",
+          "countryOfIncorporation": "AE",
+          "dateOfIncorporation": "2011-09-14",
+          "registrationNumber": "CL1234",
+          "natureOfBusiness": "Asset management",
+          "organisationType": "PRIVATE_COMPANY",
+          "businessLinkCountries": [
+            "AE"
+          ],
+          "regulated": true
+        }
+      },
+      "provided": [],
+      "sections": {
+        "entity": false,
+        "address": false,
+        "signatories": false,
+        "owners": false,
+        "directors": false,
+        "declarations": false
+      }
+    },
+    {
+      "name": "Account opening, individual: a second holder nobody has started is not asked for",
+      "kind": "ACCOUNT_OPENING_INDIVIDUAL",
+      "answers": {},
+      "provided": [],
+      "sections": {
+        "holder1": false,
+        "holder2": true,
+        "mailing": false,
+        "declarations": false
+      }
+    },
+    {
+      "name": "Due diligence: nothing entered leaves every part open",
+      "kind": "CUSTOMER_DUE_DILIGENCE_ENTITY",
+      "answers": {},
+      "provided": [],
+      "sections": {
+        "business": false,
+        "classification": false,
+        "suitability": false,
+        "wealth": false,
+        "risk": false,
+        "compliance": false
+      }
+    },
+    {
+      "name": "Due diligence, individual: nothing entered leaves every part open",
+      "kind": "CUSTOMER_DUE_DILIGENCE_INDIVIDUAL",
+      "answers": {},
+      "provided": [],
+      "sections": {
+        "customer": false,
+        "classification": false,
+        "suitability": false,
+        "wealth": false,
+        "risk": false,
+        "compliance": false
+      }
+    },
+    {
+      "name": "FATCA and CRS: controlling persons are only asked for where the classification calls for them",
+      "kind": "FATCA_CRS_ENTITY",
+      "answers": {},
+      "provided": [],
+      "sections": {
+        "entity": false,
+        "residence": false,
+        "fatca": false,
+        "crs": false,
+        "controlling": true,
+        "declaration": false
+      }
+    },
+    {
+      "name": "FATCA and CRS, individual: one holder's four parts",
+      "kind": "FATCA_CRS_INDIVIDUAL",
+      "answers": {},
+      "provided": [],
+      "sections": {
+        "holders[0].holder": false,
+        "holders[0].residence": false,
+        "holders[0].fatca": false,
+        "holders[0].declaration": false
+      }
+    },
+    {
+      "name": "Customer identification: a holder's parts, and the firm's own two",
+      "kind": "CUSTOMER_IDENTIFICATION_INDIVIDUAL",
+      "answers": {},
+      "provided": [],
+      "sections": {
+        "holders[0].personal": false,
+        "holders[0].intentions": false,
+        "holders[0].wealth": false,
+        "holders[0].assets": false,
+        "holders[0].experience": false,
+        "holders[0].declaration": false,
+        "holders[0].documents": false,
+        "firm.signoff": false,
+        "firm.screening": false
+      }
+    },
+    {
+      "name": "Professional client confirmation: the signatures are the client's own",
+      "kind": "PROFESSIONAL_CLIENT_CONFIRMATION_JOINT",
+      "answers": {},
+      "provided": [],
+      "sections": {
+        "holders": false,
+        "primary": false,
+        "secondary": false,
+        "signatures": true
+      }
+    },
+    {
+      "name": "Client classification: nothing entered leaves every part open",
+      "kind": "CLIENT_CLASSIFICATION",
+      "answers": {},
+      "provided": [],
+      "sections": {
+        "client": false,
+        "classification": false,
+        "declaration": false
+      }
+    },
+    {
+      "name": "Investment risk profile: nothing entered leaves every part open",
+      "kind": "INVESTMENT_RISK_PROFILE",
+      "answers": {},
+      "provided": [],
+      "sections": {
+        "customer": false,
+        "objectives": false,
+        "knowledge": false,
+        "attitude": false,
+        "capacity": false,
+        "rating": false,
+        "acknowledgement": false
+      }
+    },
+    {
+      "name": "Risk profile: a rating is the profile and every matter assessed",
+      "kind": "INVESTMENT_RISK_PROFILE",
+      "answers": {
+        "ratingProfile": "Balanced",
+        "assessment": {
+          "a": "Considered",
+          "b": "Considered",
+          "c": "Considered",
+          "d": "Considered",
+          "e": "Considered",
+          "f": "Considered",
+          "g": "Considered"
+        }
+      },
+      "provided": [],
+      "sections": {
+        "customer": false,
+        "objectives": false,
+        "knowledge": false,
+        "attitude": false,
+        "capacity": false,
+        "rating": true,
+        "acknowledgement": false
+      }
+    },
+    {
+      "name": "Risk profile: one matter left unassessed leaves the rating open",
+      "kind": "INVESTMENT_RISK_PROFILE",
+      "answers": {
+        "ratingProfile": "Balanced",
+        "assessment": {
+          "a": "Considered",
+          "b": "Considered",
+          "c": "Considered",
+          "d": "Considered",
+          "e": "Considered",
+          "f": "Considered"
+        }
+      },
+      "provided": [],
+      "sections": {
+        "customer": false,
+        "objectives": false,
+        "knowledge": false,
+        "attitude": false,
+        "capacity": false,
+        "rating": false,
+        "acknowledgement": false
+      }
+    },
+    {
+      "name": "Risk profile: the sign off is a confirmation and the profile chosen",
+      "kind": "INVESTMENT_RISK_PROFILE",
+      "answers": {
+        "chosenProfile": "Balanced",
+        "acknowledgement": {
+          "confirmed": true
+        }
+      },
+      "provided": [],
+      "sections": {
+        "customer": false,
+        "objectives": false,
+        "knowledge": false,
+        "attitude": false,
+        "capacity": false,
+        "rating": false,
+        "acknowledgement": true
+      }
+    },
+    {
+      "name": "Risk profile: confirmed without a profile chosen is not signed off",
+      "kind": "INVESTMENT_RISK_PROFILE",
+      "answers": {
+        "acknowledgement": {
+          "confirmed": true
+        }
+      },
+      "provided": [],
+      "sections": {
+        "customer": false,
+        "objectives": false,
+        "knowledge": false,
+        "attitude": false,
+        "capacity": false,
+        "rating": false,
+        "acknowledgement": false
+      }
+    }
+  ]
+}
