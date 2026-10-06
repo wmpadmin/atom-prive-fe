@@ -1,8 +1,10 @@
 name: CI
 
 on:
+  # Every branch the work lands on, not only the one it ends on: a push that breaks the build should say so
+  # the day it lands rather than when somebody opens a pull request weeks of commits later.
   push:
-    branches: [main]
+    branches: [main, staging, develop]
   pull_request:
 
 jobs:
