@@ -6,11 +6,11 @@ import {
   type FamilyMember,
   type ProposalPage,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge } from "@atomprive/ui";
+import { Alert, Avatar, Badge, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { FileSignature, ReceiptText, ScrollText, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { formatDateTime } from "../../lib/labels";
 import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
 import { clientsHref, kycStatusLabels, kycStatusTones } from "./client-labels";
@@ -110,6 +110,7 @@ export function ProposalsPanel({ clientId }: { clientId: string }) {
 
 /** Everyone onboarded on the same application, this client included. */
 export function FamilyPanel({ client, family }: { client: CustomerDetail["client"]; family: FamilyMember[] }) {
+  const navigate = useNavigate();
   const location = useLocation();
   const backTo = clientsHref(location.state);
   // A client is read under whichever list they were reached from: an advisor has My clients and no sight of
@@ -132,17 +133,25 @@ export function FamilyPanel({ client, family }: { client: CustomerDetail["client
         <p className="mt-0.5 text-xs text-ink-muted">Everyone onboarded on the same application.</p>
       </div>
       <ul className="divide-y divide-line">
-        {family.map((member) => (
-          <li key={member.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+        {family.map((member) => {
+          const theirs = member.id !== client.id;
+          return (
+          // The whole line opens them, not the name alone: everybody on an application is a client in their
+          // own right, with the same file behind them, and a row that only answers to its first few words
+          // reads as a list of names rather than a way through to them.
+          <li
+            key={member.id}
+            onClick={theirs ? () => void navigate(`${mine ? "/my-clients" : "/clients"}/${member.id}`, { state: { from: backTo } }) : undefined}
+            className={cn(
+              "flex flex-wrap items-center justify-between gap-3 px-6 py-4",
+              theirs && "cursor-pointer hover:bg-slate-50/60",
+            )}
+          >
             <div className="flex min-w-0 items-center gap-3">
               <Avatar name={member.fullName} />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold">
-                  {member.id === client.id ? (
-                    <>
-                      {member.fullName} <span className="text-xs font-normal text-ink-muted">· this client</span>
-                    </>
-                  ) : (
+                  {theirs ? (
                     <Link
                       to={`${mine ? "/my-clients" : "/clients"}/${member.id}`}
                       state={{ from: backTo }}
@@ -150,6 +159,10 @@ export function FamilyPanel({ client, family }: { client: CustomerDetail["client
                     >
                       {member.fullName}
                     </Link>
+                  ) : (
+                    <>
+                      {member.fullName} <span className="text-xs font-normal text-ink-muted">· this client</span>
+                    </>
                   )}
                 </p>
                 <p className="truncate text-xs text-ink-muted">
@@ -163,7 +176,8 @@ export function FamilyPanel({ client, family }: { client: CustomerDetail["client
               <Badge tone={kycStatusTones[member.kycStatus]}>{kycStatusLabels[member.kycStatus]}</Badge>
             </div>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </section>
   );
