@@ -31,6 +31,30 @@ const alertTones = {
 };
 
 /** A message about the whole page or form. Errors are announced to screen readers straight away. */
+/**
+ * A note on a screen: what somebody needs to know before they act, rather than what went wrong after they did.
+ *
+ * <p>Set in the same red as a form's own notes, so that a note reads as a note wherever it appears and nobody
+ * has to work out whether this particular grey paragraph was worth reading. It is not an error and carries no
+ * alert role — it is simply the thing worth saying.
+ *
+ * @param panel sets the note in its own tinted box, for a note that explains a whole section rather than one
+ * box in it
+ */
+export function Note({ panel, children, className }: { panel?: boolean; children: ReactNode; className?: string }) {
+  return (
+    <p
+      className={cn(
+        "text-xs text-red-700",
+        panel && "rounded-xl border border-red-200 bg-red-50 px-4 py-3",
+        className,
+      )}
+    >
+      {children}
+    </p>
+  );
+}
+
 export function Alert({ tone, children }: { tone: keyof typeof alertTones; children: ReactNode }) {
   return (
     <div role={tone === "danger" ? "alert" : "status"} className={cn("rounded-xl border px-4 py-3 text-sm", alertTones[tone])}>

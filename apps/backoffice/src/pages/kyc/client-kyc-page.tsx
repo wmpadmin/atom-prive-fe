@@ -1,31 +1,24 @@
 import { ApiError } from "@atomprive/api-client";
 import {
-  getGetClientKycFileQueryKey,
-  getListKycDocumentsQueryKey,
   getReadKycDocumentUrl,
-  useAskForReUpload,
-  useDecideKycDocument,
   useGetClientKycFile,
   type ClientKycFile,
-  type KycDecision,
   type KycRequirement,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, Field, TextArea, cn } from "@atomprive/ui";
-import { useQueryClient } from "@tanstack/react-query";
+import { Alert, Avatar, Badge, Button, cn } from "@atomprive/ui";
 import { Check, ChevronLeft, ExternalLink, Plus } from "lucide-react";
-import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { Fragment, useState } from "react";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { openApiFile } from "../../lib/download";
-import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
+import { formatDate, formatRelative } from "../../lib/labels";
 import { kycStatusLabels, kycStatusTones } from "../clients/client-labels";
 import { useStaffUser } from "../../auth/session";
 import { clientLine, fileMark, pageCount, reviewStateLabels, reviewStateTones } from "./kyc-labels";
+import { paperLabels, paperWaitsOn } from "./kyc-labels-review";
 import { UploadKycDialog } from "./upload-kyc-dialog";
 import { hasAuthority } from "../../lib/permissions";
 
 /** The longest a reason can be, as the API allows. */
-const MOST_CHARACTERS = 500;
-
 /**
  * One client's KYC pack and the decision on it. A paper is judged against the rest of what they have handed
  * over, so the whole file is here; the decision applies to the one document chosen, and the reason given is
@@ -33,56 +26,18 @@ const MOST_CHARACTERS = 500;
  */
 export function ClientKycPage() {
   const { customerId = "" } = useParams();
-  const queryClient = useQueryClient();
   const file = useGetClientKycFile<ClientKycFile, ApiError>(customerId, {
     query: { enabled: Boolean(customerId) },
   });
-  const decide = useDecideKycDocument<ApiError>();
-  const askAgain = useAskForReUpload<ApiError>();
-  const me = useStaffUser();
-  /** Picked first, then recorded — so nothing is decided by a single stray click. */
-  const [choice, setChoice] = useState<"APPROVE" | "REJECT">();
-  const busy = decide.isPending || askAgain.isPending;
-  // Deciding on a paper is Compliance's. An advisor opens the same file to put papers on it, and sees what
-  // has been decided, but is not offered the decision.
-  const decides = hasAuthority(useStaffUser(), "APPROVE_ONBOARDING:CHANGE");
-  const [chosenId, setChosenId] = useState<string>();
-  const [reason, setReason] = useState("");
-  const [problem, setProblem] = useState<string>();
-  const [decided, setDecided] = useState<KycDecision>();
+  // Set when a decision was just recorded on a document's own screen and this page was returned to.
+  const decided = (useLocation().state as { decided?: boolean } | null)?.decided === true;
+  const [search] = useSearchParams();
+  const from = search.get("from");
+  const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
 
   const documents = file.data?.documents ?? [];
   const waiting = documents.filter((one) => one.reviewState === "AWAITING_REVIEW");
-  const chosen = documents.find((one) => one.id === chosenId) ?? waiting[0];
-
-  function kept(result: KycDecision) {
-    setDecided(result);
-    setReason("");
-    setChoice(undefined);
-    setChosenId(undefined);
-    void queryClient.invalidateQueries({ queryKey: getGetClientKycFileQueryKey(customerId) });
-    void queryClient.invalidateQueries({ queryKey: getListKycDocumentsQueryKey() });
-  }
-
-  /** Asks the client for a better copy of the same paper. They stay pending while the firm waits for it. */
-  function askForAnother() {
-    if (!chosen) return;
-    setProblem(undefined);
-    askAgain.mutate(
-      { documentId: chosen.id, data: { reason } },
-      { onSuccess: kept, onError: (caught) => setProblem(caught.message) },
-    );
-  }
-
-  function record() {
-    if (!chosen || !choice) return;
-    setProblem(undefined);
-    decide.mutate(
-      { documentId: chosen.id, data: { approved: choice === "APPROVE", reason } },
-      { onSuccess: kept, onError: (caught) => setProblem(caught.message) },
-    );
-  }
 
   if (!file.data) {
     return (
@@ -127,13 +82,14 @@ export function ClientKycPage() {
         onClose={() => setAdding(false)}
       />
 
+      {/* Returned to from a document's own screen, where the decision was recorded. What it was is on the
+          document's own row below, and where the client now stands is in the badge above. */}
       {decided && (
-        <Alert tone={decided.document.reviewState === "APPROVED" ? "success" : "warning"}>
-          {decided.document.fileName} was {reviewStateLabels[decided.document.reviewState].toLowerCase()}.{" "}
-          {file.data.clientName}'s KYC now stands at {kycStatusLabels[decided.clientKycStatus].toLowerCase()}.
+        <Alert tone="success">
+          Recorded. {file.data.clientName}'s KYC now stands at{" "}
+          {kycStatusLabels[file.data.kycStatus].toLowerCase()}.
         </Alert>
       )}
-      {problem && <Alert tone="danger">{problem}</Alert>}
 
       {file.data.checklist.length > 0 && <Checklist checklist={file.data.checklist} />}
 
@@ -164,13 +120,12 @@ export function ClientKycPage() {
                 </tr>
               )}
               {documents.map((row) => (
+                <Fragment key={row.id}>
                 <tr
-                  key={row.id}
-                  onClick={() => row.reviewState === "AWAITING_REVIEW" && setChosenId(row.id)}
-                  className={cn(
-                    row.reviewState === "AWAITING_REVIEW" && "cursor-pointer hover:bg-slate-50/60",
-                    chosen?.id === row.id && "bg-primary-50/60",
-                  )}
+                  // A document is read on its own screen, where it has the room: any of them opens, decided
+                  // on or not, because a decision already taken is still worth reading back.
+                  onClick={() => void navigate(`/kyc/${customerId}/documents/${row.id}${from ? `?from=${from}` : ""}`)}
+                  className="cursor-pointer hover:bg-slate-50/60"
                 >
                   <td className="py-3 pr-4 pl-6">
                     <div className="flex items-center gap-3">
@@ -208,107 +163,35 @@ export function ClientKycPage() {
                       }}
                       className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline"
                     >
-                      View file
+                      Open in a tab
                       <ExternalLink aria-hidden="true" className="size-3.5" />
                     </button>
                   </td>
                 </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>
         </div>
       </section>
 
-      {decides && chosen && (
-        <section className="space-y-4 rounded-2xl border border-line bg-white px-6 py-5">
-          <div>
-            <h2 className="text-base font-bold">KYC decision</h2>
-            <p className="mt-0.5 text-xs text-ink-muted">
-              Applies to <strong className="text-ink">{chosen.fileName}</strong> · a typed reason is required
-              either way
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              aria-pressed={choice === "APPROVE"}
-              onClick={() => setChoice("APPROVE")}
-              className={cn(
-                "rounded-xl border px-5 py-2.5 text-sm font-semibold transition-colors",
-                choice === "APPROVE"
-                  ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                  : "border-line bg-white text-ink-soft hover:border-emerald-200",
-              )}
-            >
-              Approve KYC
-            </button>
-            <button
-              type="button"
-              aria-pressed={choice === "REJECT"}
-              onClick={() => setChoice("REJECT")}
-              className={cn(
-                "rounded-xl border px-5 py-2.5 text-sm font-semibold transition-colors",
-                choice === "REJECT"
-                  ? "border-red-500 bg-red-50 text-red-700"
-                  : "border-line bg-white text-ink-soft hover:border-red-200",
-              )}
-            >
-              Reject KYC
-            </button>
-          </div>
-
-          <Field id="reason" label="Decision reason — required" required>
-            <TextArea
-              id="reason"
-              rows={5}
-              maxLength={MOST_CHARACTERS}
-              value={reason}
-              disabled={busy}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder="Say what you checked, or what needs sending instead."
-            />
-          </Field>
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-2xs text-ink-muted">
-              Shown to the client if the document is turned down, and kept on the case file either way.
-            </p>
-            <p className="text-2xs text-ink-muted tabular-nums">
-              {reason.length} / {MOST_CHARACTERS}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-            <p className="text-2xs text-ink-muted">
-              Signing as {me.fullName}, Compliance · {formatDateTime(new Date().toISOString())}
-            </p>
-            <div className="flex flex-wrap gap-3">
-              {/* Not a rejection: asking for a better copy of the same paper leaves the client pending. */}
-              <Button
-                variant="secondary"
-                disabled={busy || reason.trim().length === 0}
-                onClick={askForAnother}
-              >
-                {askAgain.isPending ? "Asking…" : "Request re-upload"}
-              </Button>
-              <Button disabled={busy || !choice || reason.trim().length === 0} onClick={record}>
-                {decide.isPending ? "Recording…" : "Record decision"}
-              </Button>
-            </div>
-          </div>
-        </section>
-      )}
     </div>
   );
-}
+
+
 
 /** Back where they came from: Compliance from the review queue, an advisor from their own clients. */
 /**
- * What this client's KYC waits on. Where their KYC stands is read off their papers rather than set by hand, so
- * a client stays pending until every paper here is on file and approved — this is the list that says why.
+ * What this client's KYC waits on, and where each of it has got to.
+ *
+ * <p>Where their KYC stands is read off their papers rather than set by hand, so a client stays pending until
+ * every paper here is on file and approved — this is the list that says why. A tick alone would not: a paper
+ * nobody has sent is chased, one waiting on Compliance is read, one sent back is waited on, and one that has
+ * run out is asked for again. Each says which it is, and whose move it is.
  */
 function Checklist({ checklist }: { checklist: KycRequirement[] }) {
   const stillToCome = checklist.filter((one) => !one.settled);
+  const ours = stillToCome.filter((one) => paperWaitsOn[one.stands] === "compliance");
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -316,28 +199,41 @@ function Checklist({ checklist }: { checklist: KycRequirement[] }) {
       <p className="mt-0.5 text-xs text-ink-muted">
         {stillToCome.length === 0
           ? "Every paper on the checklist is in and approved."
-          : `${stillToCome.length} still to come · the KYC reads as approved once every one of these is on file and approved`}
+          : `${stillToCome.length} still to come${ours.length > 0 ? `, ${ours.length} of them with Compliance` : ""} · the KYC reads as approved once every one of these is on file and approved`}
       </p>
-      <ul className="mt-4 flex flex-wrap gap-2">
+      <ul className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {checklist.map((one) => (
           <li
             key={one.kind}
             className={cn(
-              "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm",
-              one.settled ? "border-emerald-200 bg-emerald-50 text-ink" : "border-line bg-slate-50 text-ink-soft",
+              "flex items-start gap-2.5 rounded-xl border px-3 py-2.5",
+              one.settled ? "border-emerald-200 bg-emerald-50" : "border-line bg-slate-50",
             )}
           >
             <span
               aria-hidden="true"
               className={cn(
-                "grid size-5 shrink-0 place-items-center rounded-full border",
+                "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border",
                 one.settled ? "border-emerald-600 bg-emerald-600 text-on-accent" : "border-line bg-white",
               )}
             >
               {one.settled && <Check className="size-3" strokeWidth={3} />}
             </span>
-            <span className="font-medium">{one.kindTitle}</span>
-            <span className="text-2xs text-ink-muted">{one.settled ? "approved" : "still to come"}</span>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-ink">{one.kindTitle}</span>
+              <span className="block text-2xs text-ink-muted">
+                {paperLabels[one.stands]}
+                {/* Whose move it is, where it is anybody's. An approved paper is nobody's move. */}
+                {paperWaitsOn[one.stands] === "client" && " · waiting on the client"}
+                {paperWaitsOn[one.stands] === "compliance" && " · waiting on Compliance"}
+              </span>
+              {one.expiresOn && (
+                <span className="block text-2xs text-ink-muted">
+                  {one.stands === "EXPIRED" ? "Ran out " : "Runs out "}
+                  {formatDate(one.expiresOn)}
+                </span>
+              )}
+            </span>
           </li>
         ))}
       </ul>
@@ -347,15 +243,18 @@ function Checklist({ checklist }: { checklist: KycRequirement[] }) {
 
 function BackLink() {
   const decides = hasAuthority(useStaffUser(), "APPROVE_ONBOARDING:VIEW");
-  // KYC document review, not the sign-off queue: a client's papers are opened from the review, and /kyc is
-  // where a whole case is signed off. The label said the right screen all along; the link did not.
+  // A client's file is opened from both KYC screens: from the review queue to see why they are not ready, and
+  // from the document review to decide on what they sent. It carries which, so Back returns there rather than
+  // to whichever one was written down first.
+  const [search] = useSearchParams();
+  const fromQueue = search.get("from") === "queue";
+  const to = fromQueue ? "/kyc" : decides ? "/kyc-documents" : "/client-documents";
+  const label = fromQueue ? "KYC review queue" : decides ? "KYC document review" : "Client documents";
   return (
-    <Link
-      to={decides ? "/kyc-documents" : "/client-documents"}
-      className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700"
-    >
+    <Link to={to} className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700">
       <ChevronLeft aria-hidden="true" className="size-4" />
-      {decides ? "KYC document review" : "Client documents"}
+      {label}
     </Link>
   );
+}
 }

@@ -32,7 +32,9 @@ export function Field({ id, label, required, hint, error, children, className }:
           {error}
         </p>
       ) : hint ? (
-        <p id={`${id}-hint`} className="text-xs text-ink-muted">
+        // A note under a box is there to be read before the box is filled in, not after it is got wrong, so it
+        // is set apart from the label and the value rather than sitting quietly beside them.
+        <p id={`${id}-hint`} className="text-xs text-red-700">
           {hint}
         </p>
       ) : null}

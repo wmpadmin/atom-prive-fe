@@ -13,9 +13,11 @@ import { DashboardPage } from "./pages/dashboard/dashboard-page";
 import { DeliveriesPage } from "./pages/notifications/deliveries-page";
 import { ChangePasswordPage } from "./pages/change-password-page";
 import { ConfigPage } from "./pages/config/config-page";
+import { AddAccountHolderPage } from "./pages/clients/add-account-holder-page";
 import { ClientPage } from "./pages/clients/client-page";
 import { ClientsPage } from "./pages/clients/clients-page";
 import { ClientKycPage } from "./pages/kyc/client-kyc-page";
+import { ReviewDocumentPage } from "./pages/kyc/review-document-page";
 import { KycDocumentReviewPage } from "./pages/kyc/kyc-documents-page";
 import { KycReviewQueuePage } from "./pages/kyc/kyc-queue-page";
 import { DocumentPage } from "./pages/forms/document-page";
@@ -28,6 +30,7 @@ import { HomePage } from "./pages/home-page";
 import { SettingsPage } from "./pages/settings-page";
 import {
   ONBOARDS_CLIENTS,
+  ONBOARDS_CLIENTS_CHANGE,
   APPROVES_PROPOSALS,
   ONBOARDS_EVERY_CLIENT,
   OPENS_CLIENT_DOCUMENTS,
@@ -125,6 +128,12 @@ export const router = createBrowserRouter([
             ],
           },
           {
+            // Adding somebody to an open account is onboarding them onto it, so it goes on the permission
+            // onboarding goes on rather than on being able to read the client list.
+            element: <RequireAuthority authority={ONBOARDS_CLIENTS_CHANGE} />,
+            children: [{ path: "clients/:clientId/account-holders/new", element: <AddAccountHolderPage /> }],
+          },
+          {
             // KYC sign-off is Compliance's, and Compliance have no sight of every client, so it cannot sit
             // under VIEW_ALL_CLIENTS. Operations may look at where a client's papers have got to.
             element: <RequireAuthority authority="APPROVE_ONBOARDING:VIEW" />,
@@ -144,7 +153,11 @@ export const router = createBrowserRouter([
             // A client's papers are opened both by Compliance, who decide on them, and by the advisor who
             // puts them on file.
             element: <RequireAuthority authority={OPENS_CLIENT_DOCUMENTS} />,
-            children: [{ path: "kyc/:customerId", element: <ClientKycPage /> }],
+            children: [
+              { path: "kyc/:customerId", element: <ClientKycPage /> },
+              // A paper is read and decided on its own screen, where it has the width to be read.
+              { path: "kyc/:customerId/documents/:documentId", element: <ReviewDocumentPage /> },
+            ],
           },
           {
             element: <RequireAuthority authority={UPLOADS_CLIENT_DOCUMENTS} />,
