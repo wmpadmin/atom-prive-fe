@@ -1,4 +1,5 @@
 import type { AdvisorAssignment, CustomerRow } from "@atomprive/api-client/backoffice";
+import { countryName } from "../../lib/countries";
 
 export type KycStatus = CustomerRow["kycStatus"];
 
@@ -53,4 +54,17 @@ export function assignmentNotice({ advisor, assigned, unchanged, email }: Adviso
   }
   if (email === "FAILED") parts.push(`The email to ${advisor.fullName} couldn't be sent.`);
   return parts.join(" ");
+}
+
+/**
+ * A client's address on one line, or nothing at all where the firm has none on file. The parts that were left
+ * blank are left out rather than printed as gaps, so a two-line address reads as a two-line address.
+ */
+export function oneLine(address: CustomerRow["address"]) {
+  const written = [address.line1, address.line2, address.city, address.state, address.postalCode]
+    .map((part) => part?.trim())
+    .filter((part) => part);
+  const country = address.country ? countryName(address.country) : undefined;
+  const whole = country ? [...written, country] : written;
+  return whole.length > 0 ? whole.join(", ") : null;
 }

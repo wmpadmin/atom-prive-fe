@@ -935,6 +935,12 @@ export const CaseSummarySignOff = {
   RETURNED: 'RETURNED',
 } as const;
 
+export interface RequiredPaper {
+  kind: string;
+  title: string;
+  in: boolean;
+}
+
 export interface CaseSummary {
   id: string;
   clientName: string;
@@ -953,6 +959,7 @@ export interface CaseSummary {
   signOff: CaseSummarySignOff;
   /** @nullable */
   signOffComment: string | null;
+  papers: RequiredPaper[];
 }
 
 export interface ClientBrief {
@@ -990,11 +997,11 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1288,11 +1295,71 @@ export interface UpdateClientRequest {
      * @nullable
      */
   email: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 20
+     * @nullable
+     */
+  phone: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  line1: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  line2: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  city: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  state: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 20
+     * @nullable
+     */
+  postalCode: string | null;
+  /**
+     * @minLength 2
+     * @maxLength 2
+     * @nullable
+     */
+  country: string | null;
+  /** @nullable */
+  proofOfAddress: Blob | null;
 }
 
 export interface AssignedAdvisor {
   advisor: StaffMember;
   since: string;
+}
+
+export interface ClientAddress {
+  /** @nullable */
+  line1: string | null;
+  /** @nullable */
+  line2: string | null;
+  /** @nullable */
+  city: string | null;
+  /** @nullable */
+  state: string | null;
+  /** @nullable */
+  postalCode: string | null;
+  /** @nullable */
+  country: string | null;
+  empty?: boolean;
 }
 
 export interface ClientEvent {
@@ -1379,6 +1446,7 @@ export interface CustomerRow {
   email: string | null;
   /** @nullable */
   phone: string | null;
+  address: ClientAddress;
   registeredAt: string;
   kycStatus: CustomerRowKycStatus;
   advisors: StaffMember[];
@@ -3646,6 +3714,65 @@ export interface MyDeclarationRow {
   overdue: boolean;
 }
 
+export type ReviewRowClientType = typeof ReviewRowClientType[keyof typeof ReviewRowClientType];
+
+
+export const ReviewRowClientType = {
+  INDIVIDUAL: 'INDIVIDUAL',
+  ENTITY: 'ENTITY',
+} as const;
+
+export type ReviewRowKycStatus = typeof ReviewRowKycStatus[keyof typeof ReviewRowKycStatus];
+
+
+export const ReviewRowKycStatus = {
+  NOT_SUBMITTED: 'NOT_SUBMITTED',
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  EXPIRED: 'EXPIRED',
+} as const;
+
+export type ReviewRowStanding = typeof ReviewRowStanding[keyof typeof ReviewRowStanding];
+
+
+export const ReviewRowStanding = {
+  NOT_STARTED: 'NOT_STARTED',
+  IN_REVIEW: 'IN_REVIEW',
+  RE_UPLOAD: 'RE_UPLOAD',
+  READY: 'READY',
+  REJECTED: 'REJECTED',
+  EXPIRED: 'EXPIRED',
+  APPROVED: 'APPROVED',
+} as const;
+
+export interface ReviewRow {
+  customerId: string;
+  clientName: string;
+  code: string;
+  clientType: ReviewRowClientType;
+  /** @nullable */
+  countryCode: string | null;
+  kycStatus: ReviewRowKycStatus;
+  standing: ReviewRowStanding;
+  waitingOn: string[];
+  /** @nullable */
+  stillNeeded: string | null;
+  updatedAt: string;
+}
+
+export interface ReviewQueue {
+  items: ReviewRow[];
+  page: number;
+  size: number;
+  totalItems: number;
+  pendingReview: number;
+  readyForDecision: number;
+  expiring: number;
+  rejected: number;
+  reUpload: number;
+}
+
 export interface KycQueue {
   items: KycDocumentRow[];
   page: number;
@@ -3695,10 +3822,25 @@ export const KycRequirementKind = {
   OTHER: 'OTHER',
 } as const;
 
+export type KycRequirementStands = typeof KycRequirementStands[keyof typeof KycRequirementStands];
+
+
+export const KycRequirementStands = {
+  NOT_SENT: 'NOT_SENT',
+  AWAITING_REVIEW: 'AWAITING_REVIEW',
+  RE_UPLOAD_REQUESTED: 'RE_UPLOAD_REQUESTED',
+  REJECTED: 'REJECTED',
+  APPROVED: 'APPROVED',
+  EXPIRED: 'EXPIRED',
+} as const;
+
 export interface KycRequirement {
   kind: KycRequirementKind;
   kindTitle: string;
   settled: boolean;
+  stands: KycRequirementStands;
+  /** @nullable */
+  expiresOn: string | null;
 }
 
 export interface ClientKycFile {
@@ -4462,6 +4604,26 @@ export const ListDeliveriesStatus = {
   DELIVERED: 'DELIVERED',
   OPENED: 'OPENED',
   FAILED: 'FAILED',
+} as const;
+
+export type ListClientsForReviewParams = {
+query?: string;
+standing?: ListClientsForReviewStanding;
+page?: number;
+size?: number;
+};
+
+export type ListClientsForReviewStanding = typeof ListClientsForReviewStanding[keyof typeof ListClientsForReviewStanding];
+
+
+export const ListClientsForReviewStanding = {
+  NOT_STARTED: 'NOT_STARTED',
+  IN_REVIEW: 'IN_REVIEW',
+  RE_UPLOAD: 'RE_UPLOAD',
+  READY: 'READY',
+  REJECTED: 'REJECTED',
+  EXPIRED: 'EXPIRED',
+  APPROVED: 'APPROVED',
 } as const;
 
 export type ListKycDocumentsParams = {
@@ -6740,28 +6902,45 @@ export const getUpdateClientUrl = (id: string,) => {
 }
 
 export const updateClient = async (id: string,
-    updateClientRequest: UpdateClientRequest, options?: Parameters<typeof http>[1]): Promise<CustomerDetail> => {
+    updateClientRequest?: UpdateClientRequest, options?: Parameters<typeof http>[1]): Promise<CustomerDetail> => {
+    const formData = new FormData();
+if(updateClientRequest?.fullName !== undefined) {
+ formData.append(`fullName`, updateClientRequest.fullName);
+ }
+if(updateClientRequest?.email !== undefined && updateClientRequest.email !== null) {
+ formData.append(`email`, updateClientRequest.email);
+ }
+if(updateClientRequest?.phone !== undefined && updateClientRequest.phone !== null) {
+ formData.append(`phone`, updateClientRequest.phone);
+ }
+if(updateClientRequest?.line1 !== undefined && updateClientRequest.line1 !== null) {
+ formData.append(`line1`, updateClientRequest.line1);
+ }
+if(updateClientRequest?.line2 !== undefined && updateClientRequest.line2 !== null) {
+ formData.append(`line2`, updateClientRequest.line2);
+ }
+if(updateClientRequest?.city !== undefined && updateClientRequest.city !== null) {
+ formData.append(`city`, updateClientRequest.city);
+ }
+if(updateClientRequest?.state !== undefined && updateClientRequest.state !== null) {
+ formData.append(`state`, updateClientRequest.state);
+ }
+if(updateClientRequest?.postalCode !== undefined && updateClientRequest.postalCode !== null) {
+ formData.append(`postalCode`, updateClientRequest.postalCode);
+ }
+if(updateClientRequest?.country !== undefined && updateClientRequest.country !== null) {
+ formData.append(`country`, updateClientRequest.country);
+ }
+if(updateClientRequest?.proofOfAddress !== undefined && updateClientRequest.proofOfAddress !== null) {
+ formData.append(`proofOfAddress`, updateClientRequest.proofOfAddress);
+ }
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<CustomerDetail>(getUpdateClientUrl(id),
+  return http<CustomerDetail>(getUpdateClientUrl(id),
   {
     ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(updateClientRequest)
+    method: 'PUT'
+    ,
+    body: formData
   }
 );}
 
@@ -6799,9 +6978,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type UpdateClientMutationResult = NonNullable<Awaited<ReturnType<typeof updateClient>>>
-    export type UpdateClientMutationBody = UpdateClientRequest
+    export type UpdateClientMutationBody = UpdateClientRequest | undefined
     export type UpdateClientMutationError = unknown
-    export type UpdateClientMutationVariables = {id: string;data: UpdateClientRequest}
+    export type UpdateClientMutationVariables = {id: string;data?: UpdateClientRequest}
 
     export const useUpdateClient = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClient>>, TError,UpdateClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -11061,6 +11240,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDecideCaseSignOffMutationOptions(options), queryClient);
+    }
+
+export const getAddAccountHolderUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/onboarding/cases/${id}/holders`
+}
+
+export const addAccountHolder = async (id: string,
+    accountHolder: AccountHolder, options?: Parameters<typeof http>[1]): Promise<CaseDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<CaseDetail>(getAddAccountHolderUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(accountHolder)
+  }
+);}
+
+
+
+
+
+export const getAddAccountHolderMutationKey = () => ['addAccountHolder'] as const;
+
+export const getAddAccountHolderMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addAccountHolder>>, TError,AddAccountHolderMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof addAccountHolder>>, TError,AddAccountHolderMutationVariables, TContext> => {
+
+const mutationKey = getAddAccountHolderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addAccountHolder>>, AddAccountHolderMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addAccountHolder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddAccountHolderMutationResult = NonNullable<Awaited<ReturnType<typeof addAccountHolder>>>
+    export type AddAccountHolderMutationBody = AccountHolder
+    export type AddAccountHolderMutationError = unknown
+    export type AddAccountHolderMutationVariables = {id: string;data: AccountHolder}
+
+    export const useAddAccountHolder = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addAccountHolder>>, TError,AddAccountHolderMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addAccountHolder>>,
+        TError,
+        AddAccountHolderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddAccountHolderMutationOptions(options), queryClient);
     }
 
 export const getSignMineUrl = (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',) => {
@@ -17820,6 +18082,108 @@ export function useListMine<TData = Awaited<ReturnType<typeof listMine>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListMineQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListClientsForReviewUrl = (params?: ListClientsForReviewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/kyc/queue?${stringifiedParams}` : `/api/backoffice/kyc/queue`
+}
+
+export const listClientsForReview = async (params?: ListClientsForReviewParams, options?: Parameters<typeof http>[1]): Promise<ReviewQueue> => {
+
+  return http<ReviewQueue>(getListClientsForReviewUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientsForReviewQueryKey = (params?: ListClientsForReviewParams,) => {
+    return [
+    `/api/backoffice/kyc/queue`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListClientsForReviewQueryOptions = <TData = Awaited<ReturnType<typeof listClientsForReview>>, TError = unknown>(params?: ListClientsForReviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientsForReview>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientsForReviewQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientsForReview>>> = ({ signal }) => listClientsForReview(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientsForReview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListClientsForReviewQueryResult = NonNullable<Awaited<ReturnType<typeof listClientsForReview>>>
+export type ListClientsForReviewQueryError = unknown
+
+
+export function useListClientsForReview<TData = Awaited<ReturnType<typeof listClientsForReview>>, TError = unknown>(
+ params: undefined |  ListClientsForReviewParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientsForReview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientsForReview>>,
+          TError,
+          Awaited<ReturnType<typeof listClientsForReview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientsForReview<TData = Awaited<ReturnType<typeof listClientsForReview>>, TError = unknown>(
+ params?: ListClientsForReviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientsForReview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientsForReview>>,
+          TError,
+          Awaited<ReturnType<typeof listClientsForReview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientsForReview<TData = Awaited<ReturnType<typeof listClientsForReview>>, TError = unknown>(
+ params?: ListClientsForReviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientsForReview>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListClientsForReview<TData = Awaited<ReturnType<typeof listClientsForReview>>, TError = unknown>(
+ params?: ListClientsForReviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientsForReview>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListClientsForReviewQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

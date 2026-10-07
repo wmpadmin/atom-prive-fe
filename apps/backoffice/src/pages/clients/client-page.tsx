@@ -16,6 +16,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatDate, formatRelative } from "../../lib/labels";
+import { formatMobileNumber } from "../../lib/mobile-numbers";
 import { hasAnyAuthority, hasAuthority, READS_PROPOSALS, type Authority } from "../../lib/permissions";
 import { ConfirmDialog } from "../config/confirm-dialog";
 import { toForm } from "../onboarding/application";
@@ -31,7 +32,7 @@ import {
   ProposalsPanel,
   TransactionsPanel,
 } from "./client-file-panels";
-import { assignmentNotice, clientsHref, clientTypeLabels, kycStatusLabels, kycStatusTones } from "./client-labels";
+import { assignmentNotice, clientsHref, clientTypeLabels, kycStatusLabels, kycStatusTones, oneLine } from "./client-labels";
 import { ClientAccessPanel } from "./client-access-panel";
 import { ClientFormsPanel } from "./client-forms-panel";
 
@@ -58,11 +59,10 @@ export function ClientPage() {
   const canAssign = hasAuthority(user, "ASSIGN_ADVISORS:CHANGE");
   // Whoever runs a team decides who on it sees this client, and so who reads their documents.
   const setsAccess = hasAuthority(user, "ASSIGN_WORK:CHANGE");
-  // Everyone with access reads the file. Operations enter the client, so they correct what they entered;
-  // so do an Admin, a head and Compliance. Where the KYC stands is Compliance's alone, which the API keeps
-  // apart from the rest of the record.
-  const canEdit = hasAnyAuthority(user, "ONBOARD_CLIENTS:CHANGE", "MANAGE_USERS_AND_ROLES:CHANGE",
-    "ASSIGN_WORK:CHANGE", "APPROVE_ONBOARDING:CHANGE");
+  // Everyone with access reads the file; only Operations correct it, because Operations entered it. Compliance
+  // read the whole record to decide on the KYC and a head of desk decides who sees the client — neither types
+  // over the details. An Admin has it because an Admin holds every permission there is.
+  const canEdit = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE");
   const location = useLocation();
   // The same file opens from All clients and from My clients. Back goes where they came from: an advisor has no
   // All clients screen to return to.
@@ -199,6 +199,15 @@ export function ClientPage() {
           <Fact label="Client code">
             <span className="font-mono text-xs">{client.code}</span>
           </Fact>
+          {/* How the firm reaches them, beside the email in the header. Operations correct it, so it has to be
+              readable here. */}
+          <Fact label="Mobile">
+            {formatMobileNumber(client.phone) ?? <span className="text-ink-muted">Not on the file</span>}
+          </Fact>
+          {/* Where they live now, which is not always where they lived when they applied. */}
+          <Fact label="Address">
+            {oneLine(client.address) ?? <span className="text-ink-muted">Not on the file</span>}
+          </Fact>
           <Fact label="Registered">{formatDate(client.registeredAt)}</Fact>
           <Fact label="KYC documents">{kycStatusLabels[client.kycStatus]}</Fact>
           <Fact label="Linked banks">
@@ -293,9 +302,13 @@ export function ClientPage() {
       <EditClientDialog
         client={editing ? client : null}
         onClose={() => setEditing(false)}
-        onSaved={(saved) => {
+        onSaved={(saved, moved) => {
           setEditing(false);
-          setNotice(`Saved. ${saved.client.fullName}'s details are up to date.`);
+          setNotice(
+            moved
+              ? `Saved. ${saved.client.fullName} has moved, and the new proof of address is with Compliance.`
+              : `Saved. ${saved.client.fullName}'s details are up to date.`,
+          );
         }}
       />
 

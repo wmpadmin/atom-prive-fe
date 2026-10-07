@@ -82,6 +82,12 @@ const A_PORTFOLIO = /^\/portfolio-clients\/[^/]+$/;
 
 const A_PROPOSAL = /^\/proposals\/[^/]+$/;
 
+/**
+ * A client's own KYC file. It is opened from both KYC screens — from the review queue to see why a client is
+ * not ready, and from the document review to decide on what they sent — so neither owns it outright.
+ */
+const A_CLIENT_KYC = /^\/kyc\/[^/]+(\/documents\/[^/]+)?$/;
+
 const allNavigation: {
   to: string;
   label: string;
@@ -219,19 +225,22 @@ const allNavigation: {
     to: "/kyc",
     // Signing a client's KYC off is Compliance's, and so is the screen: Operations follow a case from Client
     // onboarding, which is their own.
-    label: "KYC sign-off",
+    label: "KYC review queue",
     icon: ShieldCheck,
     authority: "APPROVE_ONBOARDING:CHANGE",
     notFor: ["ADMIN"],
-    at: (path) => path === "/kyc" || path.startsWith("/kyc/cases/") || path.startsWith("/kyc/forms/"),
+    at: (path, search) =>
+      path === "/kyc" || path.startsWith("/kyc/cases/") || path.startsWith("/kyc/forms/")
+      || ownsSharedScreen(path, search, A_CLIENT_KYC, "queue"),
   },
   {
     to: "/kyc-documents",
     label: "KYC document review",
     icon: FileCheck2,
     authority: "APPROVE_ONBOARDING:CHANGE",
-    // A client's own KYC file hangs off /kyc but is opened from here, so this is the menu it belongs to.
-    at: (path) => path.startsWith("/kyc-documents") || /^\/kyc\/[^/]+$/.test(path),
+    // A client's own KYC file hangs off /kyc and is opened from here, so this is the menu it belongs to —
+    // unless it was opened from the review queue, which says so in its query.
+    at: (path, search) => path.startsWith("/kyc-documents") || livesHere(path, search, A_CLIENT_KYC, ["queue"]),
   },
   { to: "/client-documents", label: "Client documents", icon: FolderOpen, authority: UPLOADS_CLIENT_DOCUMENTS, notFor: ["ADMIN"] },
   { to: "/forms", label: "Forms", icon: FileText, authority: "FILL_CLIENT_FORMS:VIEW", notFor: ["ADMIN"] },

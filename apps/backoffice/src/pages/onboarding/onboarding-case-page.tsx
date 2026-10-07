@@ -46,8 +46,11 @@ export function OnboardingCasePage() {
   const initial = useMemo(() => (detail ? toForm(detail.application) : newApplication()), [detail]);
   // The list's search and page, remembered when the case was opened, so going back returns to them.
   const list = (location.state as { list?: string } | null)?.list;
+  // The same case is read from two screens, and only one of them is everybody's: Compliance work the KYC
+  // review queue and have no Client onboarding to go back to. The link says where it goes.
   const fromKyc = location.pathname.startsWith("/kyc");
   const backTo = fromKyc ? "/kyc" : listHref(location.state);
+  const backLabel = fromKyc ? "KYC review queue" : "Client onboarding";
 
   function handleSaved(result: CaseDetail, submitted: boolean) {
     const id = result.summary.id;
@@ -70,7 +73,7 @@ export function OnboardingCasePage() {
   if (!detail) {
     return (
       <div className="space-y-4">
-        <BackLink to={backTo} />
+        <BackLink to={backTo} label={backLabel} />
         {saved.isError ? (
           <Alert tone="danger">{saved.error.status === 404 ? "This onboarding case doesn't exist." : saved.error.message}</Alert>
         ) : (
@@ -86,15 +89,16 @@ export function OnboardingCasePage() {
       justSubmitted={justSubmitted}
       canOnboard={canOnboard}
       backTo={backTo}
+      backLabel={backLabel}
     />
   );
 }
 
-function BackLink({ to }: { to: string }) {
+function BackLink({ to, label }: { to: string; label: string }) {
   return (
     <Link to={to} className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700">
       <ChevronLeft aria-hidden="true" className="size-4" />
-      Client onboarding
+      {label}
     </Link>
   );
 }
@@ -105,11 +109,13 @@ function CaseOverview({
   justSubmitted,
   canOnboard,
   backTo,
+  backLabel,
 }: {
   detail: CaseDetail;
   justSubmitted: boolean;
   canOnboard: boolean;
   backTo: string;
+  backLabel: string;
 }) {
   const { summary } = detail;
   const manager = summary.relationshipManager;
@@ -119,7 +125,7 @@ function CaseOverview({
   return (
     <div className="space-y-6">
       <header className="space-y-3">
-        <BackLink to={backTo} />
+        <BackLink to={backTo} label={backLabel} />
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <ClientMark name={summary.clientName} className="size-12 rounded-xl text-sm" />

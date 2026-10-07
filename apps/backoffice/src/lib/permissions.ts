@@ -70,6 +70,10 @@ export const READS_CLIENT_FORMS: Authority[] = [
   "ONBOARD_CLIENTS:VIEW",
   "ONBOARD_CLIENTS:OWN_CLIENTS",
   "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS",
+  // Compliance read a client's forms from the client's own file — the only way they reach one, since they have
+  // no Forms screen of their own. They hold nothing that fills a form in, so reading is the whole of it. The
+  // API has always served them a form; this is what stops the screen turning them away before it asks.
+  "APPROVE_ONBOARDING:CHANGE",
 ];
 
 /** Who may type on one: Operations and Admin on any, an advisor on their own clients'. */
