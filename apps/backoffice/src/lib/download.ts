@@ -14,6 +14,24 @@ export function downloadTextFile(filename: string, content: string, type: string
 }
 
 /**
+ * Saves a file the API holds under the name the API gave it. Used for exports that are not text — a report on
+ * the firm's letterhead — and for the ones that are, since the API already says which it is sending and the
+ * filename already carries the right extension.
+ */
+export async function saveApiFile(url: string, filename: string): Promise<void> {
+  const blob = await httpFile(url);
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  // Revoking straight away can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(href), 1_000);
+}
+
+/**
  * Opens a file the API holds — a client's passport, an attached document — in a new tab. The API is behind
  * the session's token, which a plain link in a new tab does not carry, so the file is fetched here and the
  * tab is pointed at what came back. The tab is opened first, while the click is still the user's, or the

@@ -8,6 +8,7 @@ import {
   ArrowLeftRight,
   ChevronDown,
   ClipboardCheck,
+  Clock,
   ChartPie,
   Contact,
   FileCheck,
@@ -88,6 +89,36 @@ const A_PROPOSAL = /^\/proposals\/[^/]+$/;
  */
 const A_CLIENT_KYC = /^\/kyc\/[^/]+(\/documents\/[^/]+)?$/;
 
+/**
+ * The Admin's own menu, as the firm drew it.
+ *
+ * <p>An Admin runs the platform rather than the book of clients, so the client and portfolio screens are not
+ * theirs even where the permission matrix would let them in: holding VIEW_CUSTOMER_PROFILE so that staff
+ * administration works is not the same as having a reason to read the firm's models and drift.
+ *
+ * <p>Written out rather than filtered down, so that a screen added later does not quietly appear here, and in
+ * the order the firm listed it rather than the order the rest of the menu happens to be in. It is the whole
+ * answer for an Admin: the rules that hide a screen from them elsewhere do not apply, because this list has
+ * already said what they get. An entry is still only shown where the Admin's permissions allow it, so
+ * narrowing the matrix narrows this too.
+ */
+const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
+  { to: "/dashboard" },
+  { to: "/users" },
+  // The client directory, which is where an advisor is put on a client. An Admin is given it for that job
+  // and the menu says so: the screen is the same one Operations and Compliance read.
+  { to: "/clients", label: "Assign advisors" },
+  { to: "/kyc-documents" },
+  { to: "/staff-tracker" },
+  // The declarations register is reached from under the tracker rather than from the menu's top level: it is
+  // one of the things being tracked, not a heading of its own.
+  { to: "/staff-declarations", under: "/staff-tracker" },
+  { to: "/roles" },
+  { to: "/config" },
+  { to: "/audit-log" },
+  { to: "/settings" },
+];
+
 const allNavigation: {
   to: string;
   label: string;
@@ -96,6 +127,8 @@ const allNavigation: {
   notFor?: StaffRole[];
   /** Where an entry belongs to particular roles rather than to whoever holds the permission. */
   onlyFor?: StaffRole[];
+  /** The entry this one sits under, where it is one of the things that entry gathers rather than its own heading. */
+  under?: string;
   /**
    * Which screens this entry is the menu for, where the path alone does not say. The two KYC screens share
    * the /kyc prefix: the queue owns a case and a form opened from it, the document review owns a client's
@@ -245,6 +278,14 @@ const allNavigation: {
   { to: "/client-documents", label: "Client documents", icon: FolderOpen, authority: UPLOADS_CLIENT_DOCUMENTS, notFor: ["ADMIN"] },
   { to: "/forms", label: "Forms", icon: FileText, authority: "FILL_CLIENT_FORMS:VIEW", notFor: ["ADMIN"] },
   { to: "/staff-declarations", label: "Staff declarations", icon: ClipboardCheck, authority: "VIEW_STAFF_DECLARATIONS:VIEW", notFor: ["ADMIN"] },
+  // An Admin's own screen. Operations keep the declarations register itself, under its own name.
+  {
+    to: "/staff-tracker",
+    label: "Staff tracker",
+    icon: Clock,
+    authority: "VIEW_STAFF_DECLARATIONS:VIEW",
+    onlyFor: ["ADMIN"],
+  },
   { to: "/users", label: "Manage staff users", icon: Users, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
   { to: "/roles", label: "Permission matrix", icon: ShieldCheck, authority: "MANAGE_USERS_AND_ROLES:VIEW" },
   { to: "/config", label: "Config data", icon: SlidersHorizontal, authority: "MANAGE_CONFIGURATION:VIEW" },
@@ -290,40 +331,131 @@ const allNavigation: {
   { to: "/settings", label: "Settings", icon: Settings, authority: null },
 ];
 
+/** Whether an entry is the one being read, which it is for its own address and whatever hangs off it. */
+function isHere(item: { to: string; at?: (path: string, search: string) => boolean }, pathname: string,
+  search: string) {
+  return item.at ? item.at(pathname, search) : pathname === item.to || pathname.startsWith(`${item.to}/`);
+}
+
+const ENTRY_CLASS = "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors";
+
+/**
+ * One entry in the menu, with whatever sits under it.
+ *
+ * <p>An entry that gathers others shows them, and can be shut again by whoever wants the menu shorter. It
+ * reopens itself when the screen being read is one of them, so arriving at a screen never leaves it hidden
+ * under a closed heading. An entry that gathers nothing is a link and nothing else.
+ */
+function NavEntry({
+  item,
+  pathname,
+  search,
+}: {
+  item: {
+    to: string;
+    label: string;
+    icon: LucideIcon;
+    at?: (path: string, search: string) => boolean;
+    below: { to: string; label: string; icon: LucideIcon; at?: (path: string, search: string) => boolean }[];
+  };
+  pathname: string;
+  search: string;
+}) {
+  const Icon = item.icon;
+  const here = isHere(item, pathname, search);
+  const holdsTheScreen = item.below.some((under) => isHere(under, pathname, search));
+  // Open to begin with: what an entry gathers is the point of it, and a section that starts shut hides the
+  // only thing under it from somebody who has not thought to click the arrow.
+  const [open, setOpen] = useState(true);
+  const showing = open || holdsTheScreen;
+
+  return (
+    <li>
+      <div className="flex items-center">
+        <NavLink
+          to={item.to}
+          aria-current={here ? "page" : undefined}
+          className={cn(
+            ENTRY_CLASS,
+            "flex-1",
+            here ? "bg-primary-100 font-semibold text-ink" : "text-ink-soft hover:bg-white",
+          )}
+        >
+          <Icon className="size-4.5" aria-hidden="true" />
+          {item.label}
+        </NavLink>
+        {item.below.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setOpen(!showing)}
+            aria-expanded={showing}
+            aria-label={`${showing ? "Hide" : "Show"} what is under ${item.label}`}
+            className="ml-1 rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-white hover:text-ink"
+          >
+            <ChevronDown className={cn("size-4 transition-transform", showing && "rotate-180")} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {item.below.length > 0 && showing && (
+        <ul className="mt-1 space-y-1 border-l border-line pl-3 ml-5">
+          {item.below.map((under) => {
+            const UnderIcon = under.icon;
+            const onIt = isHere(under, pathname, search);
+            return (
+              <li key={under.to}>
+                <NavLink
+                  to={under.to}
+                  aria-current={onIt ? "page" : undefined}
+                  className={cn(
+                    ENTRY_CLASS,
+                    onIt ? "bg-primary-100 font-semibold text-ink" : "text-ink-soft hover:bg-white",
+                  )}
+                >
+                  <UnderIcon className="size-4" aria-hidden="true" />
+                  {under.label}
+                </NavLink>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 export function AppLayout() {
   const user = useStaffUser();
   const { pathname, search } = useLocation();
-  const navigation = allNavigation.filter(
-    (item) =>
-      !(user.activeRole && item.notFor?.includes(user.activeRole)) &&
-      (!item.onlyFor || (user.activeRole != null && item.onlyFor.includes(user.activeRole))) &&
-      (item.authority === null ||
-      (Array.isArray(item.authority) ? hasAnyAuthority(user, ...item.authority) : hasAuthority(user, item.authority))),
-  );
+  const permitted = (item: (typeof allNavigation)[number]) =>
+    item.authority === null ||
+    (Array.isArray(item.authority) ? hasAnyAuthority(user, ...item.authority) : hasAuthority(user, item.authority));
+  const navigation =
+    user.activeRole === "ADMIN"
+      ? ADMINS_MENU.flatMap((entry) =>
+          allNavigation
+            .filter((item) => item.to === entry.to && permitted(item))
+            .map((item) => ({ ...item, label: entry.label ?? item.label, under: entry.under })),
+        )
+      : allNavigation.filter(
+          (item) =>
+            !(user.activeRole && item.notFor?.includes(user.activeRole)) &&
+            (!item.onlyFor || (user.activeRole != null && item.onlyFor.includes(user.activeRole))) &&
+            permitted(item),
+        );
+
+  // An entry and whatever sits under it, so the menu is drawn as the sections it actually has.
+  const sections = navigation
+    .filter((item) => !item.under)
+    .map((item) => ({ ...item, below: navigation.filter((under) => under.under === item.to) }));
 
   return (
     <div className="flex min-h-screen bg-canvas font-sans text-ink">
       <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-line bg-sidebar px-4 py-6">
         <nav aria-label="Back-office" className="mt-14">
           <ul className="space-y-1">
-            {navigation.map(({ to, label, icon: Icon, at }) => {
-              const here = at ? at(pathname, search) : pathname === to || pathname.startsWith(`${to}/`);
-              return (
-              <li key={to}>
-                <NavLink
-                  to={to}
-                  aria-current={here ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
-                    here ? "bg-primary-100 font-semibold text-ink" : "text-ink-soft hover:bg-white",
-                  )}
-                >
-                  <Icon className="size-4.5" aria-hidden="true" />
-                  {label}
-                </NavLink>
-              </li>
-              );
-            })}
+            {sections.map((item) => (
+              <NavEntry key={item.to} item={item} pathname={pathname} search={search} />
+            ))}
           </ul>
         </nav>
 

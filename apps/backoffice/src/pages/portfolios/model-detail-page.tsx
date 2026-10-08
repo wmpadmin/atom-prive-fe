@@ -1,9 +1,23 @@
 import { ApiError } from "@atomprive/api-client";
-import { useGetModelPortfolio, type AllocationRow, type ModelDetail } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, cn } from "@atomprive/ui";
-import { ChevronRight } from "lucide-react";
-import { Link, useParams } from "react-router";
+import {
+  getGetModelPortfolioQueryKey,
+  getListModelPortfoliosQueryKey,
+  useDeleteModelPortfolio,
+  useGetModelPortfolio,
+  useUpdateModelPortfolio,
+  type AllocationRow,
+  type ModelDetail,
+} from "@atomprive/api-client/backoffice";
+import { Alert, Badge, Button, Dialog, cn } from "@atomprive/ui";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChevronRight, PencilLine, Trash2 } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router";
+import { useState } from "react";
+import { useStaffUser } from "../../auth/session";
+import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { formatDate } from "../../lib/labels";
+import { hasAuthority } from "../../lib/permissions";
+import { ModelDialog } from "./model-dialog";
 import { barFor, useAssetClasses } from "./asset-classes";
 import {
   driftLabel,
@@ -20,8 +34,37 @@ import {
  */
 export function ModelDetailPage() {
   const { modelId = "" } = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const detail = useGetModelPortfolio<ModelDetail, ApiError>(modelId);
   const assetClasses = useAssetClasses();
+  // Changing a plan and deleting one are done on the plan, where whoever is doing it can see what they are
+  // changing. The list only lists.
+  const canChange = hasAuthority(useStaffUser(), "SEND_PROPOSALS:CHANGE");
+  const [editing, setEditing] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>(noErrors);
+
+  function kept() {
+    setEditing(false);
+    setErrors(noErrors);
+    void queryClient.invalidateQueries({ queryKey: getGetModelPortfolioQueryKey(modelId) });
+    void queryClient.invalidateQueries({ queryKey: getListModelPortfoliosQueryKey() });
+  }
+
+  const update = useUpdateModelPortfolio<ApiError>({
+    mutation: { onSuccess: kept, onError: (caught) => setErrors(toFormErrors(caught)) },
+  });
+  const remove = useDeleteModelPortfolio<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getListModelPortfoliosQueryKey() });
+        void navigate("/model-portfolios");
+      },
+      onError: (caught) => setErrors(toFormErrors(caught)),
+    },
+  });
+  const busy = update.isPending || remove.isPending;
 
   if (detail.isError) return <Alert tone="danger">{detail.error.message}</Alert>;
   if (!detail.data) {
@@ -39,11 +82,25 @@ export function ModelDetailPage() {
           <ChevronRight aria-hidden="true" className="size-3.5" />
           <span className="text-ink">{summary.name}</span>
         </nav>
-        <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h1 className="text-[1.625rem] font-bold">{summary.name}</h1>
-          <Badge tone={summary.status === "LIVE" ? "success" : summary.status === "DRAFT" ? "warning" : "neutral"}>
-            v{summary.revision} · {modelStatusLabels[summary.status as ModelStatus].toLowerCase()}
-          </Badge>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-[1.625rem] font-bold">{summary.name}</h1>
+            <Badge tone={summary.status === "LIVE" ? "success" : summary.status === "DRAFT" ? "warning" : "neutral"}>
+              v{summary.revision} · {modelStatusLabels[summary.status as ModelStatus].toLowerCase()}
+            </Badge>
+          </div>
+          {canChange && (
+            <div className="flex items-center gap-3">
+              <Button variant="secondary" onClick={() => setEditing(true)}>
+                <PencilLine aria-hidden="true" />
+                Edit
+              </Button>
+              <Button variant="ghost" onClick={() => setRemoving(true)}>
+                <Trash2 aria-hidden="true" />
+                Delete
+              </Button>
+            </div>
+          )}
         </div>
         {summary.description && <p className="mt-1 text-sm text-ink-muted">{summary.description}</p>}
       </header>
@@ -144,6 +201,36 @@ export function ModelDetailPage() {
           </section>
         </div>
       </div>
+      {editing && (
+        <ModelDialog
+          model={summary}
+          errors={errors}
+          busy={busy}
+          onClose={() => {
+            setEditing(false);
+            setErrors(noErrors);
+          }}
+          onSave={(data) => update.mutate({ id: modelId, data })}
+        />
+      )}
+
+      <Dialog open={removing} title="Delete this model?" onClose={() => setRemoving(false)}>
+        <div className="space-y-4">
+          <p className="text-sm text-ink-muted">
+            {summary.name} goes for good. A model clients are measured against can't be deleted; take them off
+            it first.
+          </p>
+          {errors.form && <Alert tone="danger">{errors.form}</Alert>}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setRemoving(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" disabled={busy} onClick={() => remove.mutate({ id: modelId })}>
+              {remove.isPending ? "Deleting…" : "Delete"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }
