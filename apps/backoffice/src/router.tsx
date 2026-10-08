@@ -26,6 +26,7 @@ import { FormsPage } from "./pages/forms/forms-page";
 import { MyDeclarationPage } from "./pages/my-declarations/my-declaration-page";
 import { MyDeclarationsPage } from "./pages/my-declarations/my-declarations-page";
 import { StaffDeclarationsPage } from "./pages/staff-declarations/staff-declarations-page";
+import { StaffTrackerPage } from "./pages/staff-tracker/staff-tracker-page";
 import { HomePage } from "./pages/home-page";
 import { SettingsPage } from "./pages/settings-page";
 import {
@@ -255,7 +256,11 @@ export const router = createBrowserRouter([
             // Operations keep the firm-wide register: they chase what is outstanding and hold the signed
             // copies. That is its own permission, not a corner of managing staff.
             element: <RequireAuthority authority="VIEW_STAFF_DECLARATIONS:VIEW" />,
-            children: [{ path: "staff-declarations", element: <StaffDeclarationsPage /> }],
+            children: [
+              { path: "staff-declarations", element: <StaffDeclarationsPage /> },
+              // Empty until the firm says what belongs on it; the declarations go in here.
+              { path: "staff-tracker", element: <StaffTrackerPage /> },
+            ],
           },
           {
             // Signing is the advisor's half of a pack; Operations follow the same packs from a client's file.

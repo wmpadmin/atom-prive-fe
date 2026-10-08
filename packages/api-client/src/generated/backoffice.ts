@@ -24,6 +24,29 @@ import type {
 } from '@tanstack/react-query';
 
 import { http } from '../http';
+export interface EntryRequest {
+  /**
+     * @minLength 0
+     * @maxLength 80
+     */
+  name: string;
+}
+
+export interface EntryRow {
+  code: string;
+  name: string;
+  sortOrder: number;
+  /** @nullable */
+  retiredAt: string | null;
+  updatedAt: string;
+  /** @nullable */
+  updatedBy: string | null;
+}
+
+export interface StillUsedRequest {
+  stillUsed: boolean;
+}
+
 export type LineRequestAction = typeof LineRequestAction[keyof typeof LineRequestAction];
 
 
@@ -290,6 +313,14 @@ export const ScheduleRowSendTo = {
   BOTH: 'BOTH',
 } as const;
 
+export type ScheduleRowFormat = typeof ScheduleRowFormat[keyof typeof ScheduleRowFormat];
+
+
+export const ScheduleRowFormat = {
+  CSV: 'CSV',
+  PDF: 'PDF',
+} as const;
+
 export interface ScheduleRow {
   id: string;
   kind: ScheduleRowKind;
@@ -298,6 +329,7 @@ export interface ScheduleRow {
   scopeLabel: string;
   cadence: ScheduleRowCadence;
   sendTo: ScheduleRowSendTo;
+  format: ScheduleRowFormat;
   active: boolean;
   /** @nullable */
   lastRunAt: string | null;
@@ -593,20 +625,6 @@ export interface BenchmarkLevelRow {
 /**
  * @nullable
  */
-export type AccountHolderRelationshipToPrimary = typeof AccountHolderRelationshipToPrimary[keyof typeof AccountHolderRelationshipToPrimary] | null;
-
-
-export const AccountHolderRelationshipToPrimary = {
-  SPOUSE: 'SPOUSE',
-  CHILD: 'CHILD',
-  PARENT: 'PARENT',
-  SIBLING: 'SIBLING',
-  OTHER: 'OTHER',
-} as const;
-
-/**
- * @nullable
- */
 export type AccountHolderOccupation = typeof AccountHolderOccupation[keyof typeof AccountHolderOccupation] | null;
 
 
@@ -733,8 +751,12 @@ export interface AccountHolder {
      * @nullable
      */
   surname: string | null;
-  /** @nullable */
-  relationshipToPrimary: AccountHolderRelationshipToPrimary;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  relationshipToPrimary: string | null;
   /** @nullable */
   dateOfBirth: string | null;
   /**
@@ -997,6 +1019,7 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
+  floatingPointNumber?: boolean;
   valueNode?: boolean;
   missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
@@ -1013,7 +1036,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -2382,11 +2404,24 @@ export const ReportRequestScope = {
   FIRM: 'FIRM',
 } as const;
 
+/**
+ * @nullable
+ */
+export type ReportRequestFormat = typeof ReportRequestFormat[keyof typeof ReportRequestFormat] | null;
+
+
+export const ReportRequestFormat = {
+  CSV: 'CSV',
+  PDF: 'PDF',
+} as const;
+
 export interface ReportRequest {
   kind: ReportRequestKind;
   scope: ReportRequestScope;
   /** @nullable */
   scopeId: string | null;
+  /** @nullable */
+  format: ReportRequestFormat;
 }
 
 export type ReportRowKind = typeof ReportRowKind[keyof typeof ReportRowKind];
@@ -2408,13 +2443,21 @@ export const ReportRowScope = {
   FIRM: 'FIRM',
 } as const;
 
+export type ReportRowFormat = typeof ReportRowFormat[keyof typeof ReportRowFormat];
+
+
+export const ReportRowFormat = {
+  CSV: 'CSV',
+  PDF: 'PDF',
+} as const;
+
 export interface ReportRow {
   id: string;
   kind: ReportRowKind;
   title: string;
   scope: ReportRowScope;
   scopeLabel: string;
-  format: string;
+  format: ReportRowFormat;
   lineCount: number;
   filename: string;
   schedule: string;
@@ -2461,6 +2504,17 @@ export const ScheduleRequestSendTo = {
   BOTH: 'BOTH',
 } as const;
 
+/**
+ * @nullable
+ */
+export type ScheduleRequestFormat = typeof ScheduleRequestFormat[keyof typeof ScheduleRequestFormat] | null;
+
+
+export const ScheduleRequestFormat = {
+  CSV: 'CSV',
+  PDF: 'PDF',
+} as const;
+
 export interface ScheduleRequest {
   kind: ScheduleRequestKind;
   scope: ScheduleRequestScope;
@@ -2468,6 +2522,8 @@ export interface ScheduleRequest {
   scopeId: string | null;
   cadence: ScheduleRequestCadence;
   sendTo: ScheduleRequestSendTo;
+  /** @nullable */
+  format: ScheduleRequestFormat;
 }
 
 export interface BulkRebalancedRequest {
@@ -4354,6 +4410,10 @@ export type SwitchReportScheduleParams = {
 on: boolean;
 };
 
+export type ListEntriesParams = {
+inUse?: boolean;
+};
+
 export type ListProposalsParams = {
 status?: ListProposalsStatus;
 customerId?: string;
@@ -4835,6 +4895,176 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getRenameEntryUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    code: string,) => {
+
+
+
+
+  return `/api/backoffice/reference-lists/${kind}/${code}`
+}
+
+export const renameEntry = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    code: string,
+    entryRequest: EntryRequest, options?: Parameters<typeof http>[1]): Promise<EntryRow[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<EntryRow[]>(getRenameEntryUrl(kind,code),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(entryRequest)
+  }
+);}
+
+
+
+
+
+export const getRenameEntryMutationKey = () => ['renameEntry'] as const;
+
+export const getRenameEntryMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameEntry>>, TError,RenameEntryMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof renameEntry>>, TError,RenameEntryMutationVariables, TContext> => {
+
+const mutationKey = getRenameEntryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renameEntry>>, RenameEntryMutationVariables> = (props) => {
+          const {kind,code,data} = props ?? {};
+
+          return  renameEntry(kind,code,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenameEntryMutationResult = NonNullable<Awaited<ReturnType<typeof renameEntry>>>
+    export type RenameEntryMutationBody = EntryRequest
+    export type RenameEntryMutationError = unknown
+    export type RenameEntryMutationVariables = {kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE';code: string;data: EntryRequest}
+
+    export const useRenameEntry = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameEntry>>, TError,RenameEntryMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof renameEntry>>,
+        TError,
+        RenameEntryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRenameEntryMutationOptions(options), queryClient);
+    }
+
+export const getSetStillUsedUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    code: string,) => {
+
+
+
+
+  return `/api/backoffice/reference-lists/${kind}/${code}/still-used`
+}
+
+export const setStillUsed = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    code: string,
+    stillUsedRequest: StillUsedRequest, options?: Parameters<typeof http>[1]): Promise<EntryRow[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<EntryRow[]>(getSetStillUsedUrl(kind,code),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(stillUsedRequest)
+  }
+);}
+
+
+
+
+
+export const getSetStillUsedMutationKey = () => ['setStillUsed'] as const;
+
+export const getSetStillUsedMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setStillUsed>>, TError,SetStillUsedMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof setStillUsed>>, TError,SetStillUsedMutationVariables, TContext> => {
+
+const mutationKey = getSetStillUsedMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setStillUsed>>, SetStillUsedMutationVariables> = (props) => {
+          const {kind,code,data} = props ?? {};
+
+          return  setStillUsed(kind,code,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetStillUsedMutationResult = NonNullable<Awaited<ReturnType<typeof setStillUsed>>>
+    export type SetStillUsedMutationBody = StillUsedRequest
+    export type SetStillUsedMutationError = unknown
+    export type SetStillUsedMutationVariables = {kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE';code: string;data: StillUsedRequest}
+
+    export const useSetStillUsed = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setStillUsed>>, TError,SetStillUsedMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setStillUsed>>,
+        TError,
+        SetStillUsedMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetStillUsedMutationOptions(options), queryClient);
+    }
 
 export const getGetProposalUrl = (id: string,) => {
 
@@ -8800,6 +9030,199 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSendFormBackMutationOptions(options), queryClient);
+    }
+
+export const getListEntriesUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    params?: ListEntriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/reference-lists/${kind}?${stringifiedParams}` : `/api/backoffice/reference-lists/${kind}`
+}
+
+export const listEntries = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    params?: ListEntriesParams, options?: Parameters<typeof http>[1]): Promise<EntryRow[]> => {
+
+  return http<EntryRow[]>(getListEntriesUrl(kind,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEntriesQueryKey = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    params?: ListEntriesParams,) => {
+    return [
+    `/api/backoffice/reference-lists/${kind}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listEntries>>, TError = unknown>(kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    params?: ListEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEntries>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEntriesQueryKey(kind,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEntries>>> = ({ signal }) => listEntries(kind,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: kind !== null && kind !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEntries>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof listEntries>>>
+export type ListEntriesQueryError = unknown
+
+
+export function useListEntries<TData = Awaited<ReturnType<typeof listEntries>>, TError = unknown>(
+ kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    params: undefined |  ListEntriesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEntries>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEntries>>,
+          TError,
+          Awaited<ReturnType<typeof listEntries>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListEntries<TData = Awaited<ReturnType<typeof listEntries>>, TError = unknown>(
+ kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    params?: ListEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEntries>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEntries>>,
+          TError,
+          Awaited<ReturnType<typeof listEntries>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListEntries<TData = Awaited<ReturnType<typeof listEntries>>, TError = unknown>(
+ kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    params?: ListEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEntries>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListEntries<TData = Awaited<ReturnType<typeof listEntries>>, TError = unknown>(
+ kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    params?: ListEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEntries>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListEntriesQueryOptions(kind,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddEntryUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',) => {
+
+
+
+
+  return `/api/backoffice/reference-lists/${kind}`
+}
+
+export const addEntry = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+    entryRequest: EntryRequest, options?: Parameters<typeof http>[1]): Promise<EntryRow[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<EntryRow[]>(getAddEntryUrl(kind),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(entryRequest)
+  }
+);}
+
+
+
+
+
+export const getAddEntryMutationKey = () => ['addEntry'] as const;
+
+export const getAddEntryMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addEntry>>, TError,AddEntryMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof addEntry>>, TError,AddEntryMutationVariables, TContext> => {
+
+const mutationKey = getAddEntryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addEntry>>, AddEntryMutationVariables> = (props) => {
+          const {kind,data} = props ?? {};
+
+          return  addEntry(kind,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddEntryMutationResult = NonNullable<Awaited<ReturnType<typeof addEntry>>>
+    export type AddEntryMutationBody = EntryRequest
+    export type AddEntryMutationError = unknown
+    export type AddEntryMutationVariables = {kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE';data: EntryRequest}
+
+    export const useAddEntry = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addEntry>>, TError,AddEntryMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addEntry>>,
+        TError,
+        AddEntryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddEntryMutationOptions(options), queryClient);
     }
 
 export const getListProposalsUrl = (params?: ListProposalsParams,) => {
@@ -16912,9 +17335,9 @@ export const getDownloadReportUrl = (id: string,) => {
   return `/api/backoffice/portfolios/reports/${id}/download`
 }
 
-export const downloadReport = async (id: string, options?: Parameters<typeof http>[1]): Promise<string> => {
+export const downloadReport = async (id: string, options?: Parameters<typeof http>[1]): Promise<string | Blob> => {
 
-  return http<string>(getDownloadReportUrl(id),
+  return http<string | Blob>(getDownloadReportUrl(id),
   {
     ...options,
     method: 'GET'

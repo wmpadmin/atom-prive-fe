@@ -4,11 +4,11 @@ import { FileText, PencilLine } from "lucide-react";
 import type { ReactNode } from "react";
 import { countryName } from "../../lib/countries";
 import { formatMobileNumber } from "../../lib/mobile-numbers";
+import { useRelationshipTypes } from "../../lib/relationship-types";
 import {
   holderGroup,
   occupationLabels,
   organisationTypeLabels,
-  relationshipLabels,
   reviewApplication,
   type FormApplication,
 } from "./application";
@@ -42,6 +42,7 @@ interface SummaryProps {
 
 /** Everything entered, section by section, as the last step of the form and for cases already submitted. */
 export function ApplicationSummary({ application, managers, onEdit }: SummaryProps) {
+  const relationshipTypes = useRelationshipTypes();
   const { steps } = reviewApplication(application, managers);
   const complete = (id: string) => steps.find((step) => step.id === id)?.complete ?? false;
   const managerName = managers?.find((person) => person.id === application.relationshipManagerId)?.fullName ?? null;
@@ -118,7 +119,7 @@ export function ApplicationSummary({ application, managers, onEdit }: SummaryPro
             ["Full name", holder.fullName],
             ["Forenames", holder.forenames],
             ["Surname", holder.surname],
-            ...(index > 0 ? ([["Relationship", holder.relationshipToPrimary && relationshipLabels[holder.relationshipToPrimary]]] as Row[]) : []),
+            ...(index > 0 ? ([["Relationship", relationshipTypes.labelFor(holder.relationshipToPrimary)]] as Row[]) : []),
             ["Date of birth", date(holder.dateOfBirth)],
             ["NRIC or passport", holder.idNumber],
             ["Expires", date(holder.idExpiry)],

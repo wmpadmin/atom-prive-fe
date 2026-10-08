@@ -18,6 +18,7 @@ import { EmailTemplatesTab } from "./email-templates-tab";
 import { FieldMappingTab } from "./field-mapping-tab";
 import { FxRatesTab } from "./fx-rates-tab";
 import { OffboardingTab } from "./offboarding-tab";
+import { ReferenceListsTab } from "./reference-lists-tab";
 
 const tabs = [
   { id: "banks", title: "Supported banks", subtitle: "Connections & schedules" },
@@ -25,6 +26,7 @@ const tabs = [
   { id: "offboarding", title: "Deactivation & deletion", subtitle: "Off-boarding approvals" },
   { id: "fx", title: "FX rates", subtitle: "Daily rates in USD" },
   { id: "asset-classes", title: "Asset classes", subtitle: "What portfolios are counted in" },
+  { id: "lists", title: "Product & relationship types", subtitle: "The firm's own short lists" },
   { id: "templates", title: "Email templates", subtitle: "Subject, body, versions" },
 ] as const;
 
@@ -150,6 +152,7 @@ export function ConfigPage() {
         {active === "offboarding" && <OffboardingTab />}
         {active === "fx" && <FxRatesTab />}
         {active === "asset-classes" && <AssetClassesTab />}
+        {active === "lists" && <ReferenceListsTab />}
         {active === "templates" && (
           <EmailTemplatesTab creating={creatingTemplate} onCreatingChange={setCreatingTemplate} />
         )}

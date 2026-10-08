@@ -7,16 +7,15 @@ import {
   emptyAddress,
   occupationLabels,
   organisationTypeLabels,
-  relationshipLabels,
   type ClientType,
   type FormApplication,
   type FormEntity,
   type FormHolder,
   type Occupation,
   type OrganisationType,
-  type Relationship,
 } from "./application";
 import { AddressFields, CountriesField, CountryField, DateField, FollowUp, FormSection, TextField, type FieldFor } from "../../components/form-fields";
+import { useRelationshipTypes } from "../../lib/relationship-types";
 
 const yesNo = [
   { value: "yes" as const, label: "Yes" },
@@ -97,6 +96,7 @@ interface HolderStepProps {
 export function PersonalDetailsStep({ index, holder, onChange, field }: HolderStepProps) {
   const at = `holders[${index}].`;
   const relationship = field(`${at}relationshipToPrimary`);
+  const relationshipTypes = useRelationshipTypes();
   return (
     <div className="space-y-8">
       <FormSection title="Name" description="Exactly as it appears on their NRIC or passport.">
@@ -108,16 +108,16 @@ export function PersonalDetailsStep({ index, holder, onChange, field }: HolderSt
             <SelectInput
               {...describedBy(`${at}relationshipToPrimary`, relationship.error)}
               value={holder.relationshipToPrimary ?? ""}
-              onChange={(event) => onChange({ relationshipToPrimary: event.target.value as Relationship })}
+              onChange={(event) => onChange({ relationshipToPrimary: event.target.value })}
               onBlur={relationship.onBlur}
               required
             >
               <option value="" disabled>
                 Choose a relationship
               </option>
-              {(Object.keys(relationshipLabels) as Relationship[]).map((option) => (
-                <option key={option} value={option}>
-                  {relationshipLabels[option]}
+              {relationshipTypes.inUse.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.name}
                 </option>
               ))}
             </SelectInput>

@@ -29,13 +29,10 @@ export const occupationLabels: Record<Occupation, string> = {
   OTHER: "Other",
 };
 
-export const relationshipLabels: Record<Relationship, string> = {
-  SPOUSE: "Spouse",
-  CHILD: "Child",
-  PARENT: "Parent",
-  SIBLING: "Sibling",
-  OTHER: "Other",
-};
+/**
+ * The firm keeps its own relationship types now, so there is no list of them here. A screen that offers them
+ * asks for them with useRelationshipTypes, and one that reads a stored code resolves it the same way.
+ */
 
 export const organisationTypeLabels: Record<OrganisationType, string> = {
   PIC: "Private investment company (PIC)",

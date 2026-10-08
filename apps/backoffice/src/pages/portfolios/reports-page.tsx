@@ -1,6 +1,6 @@
 import { ApiError } from "@atomprive/api-client";
 import {
-  downloadReport,
+  getDownloadReportUrl,
   getListReportsQueryKey,
   useListCustomers,
   useListModelPortfolios,
@@ -18,13 +18,20 @@ import { useState, type FormEvent } from "react";
 import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
-import { downloadTextFile } from "../../lib/download";
+import { saveApiFile } from "../../lib/download";
 import { ReportSchedules } from "./report-schedules";
 import { formatDateTime } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
 
 type Kind = ReportRow["kind"];
 type Scope = ReportRow["scope"];
+type Format = ReportRow["format"];
+
+/** The two files a report comes out as, and what each is for. */
+const FORMATS: { format: Format; title: string; forWhat: string }[] = [
+  { format: "CSV", title: "Spreadsheet", forWhat: "Opens in Excel or Sheets, to sort and filter." },
+  { format: "PDF", title: "On the firm's letterhead", forWhat: "To read as a document, and to send to a client." },
+];
 
 /** What each report answers, said where it is chosen rather than left to the title. */
 const KINDS: { kind: Kind; title: string; answers: string }[] = [
@@ -50,6 +57,7 @@ export function PortfolioReportsPage() {
   const [kind, setKind] = useState<Kind>("ALLOCATION_VS_PLAN");
   const [scope, setScope] = useState<Scope>("FIRM");
   const [scopeId, setScopeId] = useState("");
+  const [format, setFormat] = useState<Format>("CSV");
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [taking, setTaking] = useState<string | null>(null);
   // Only fetched when a report for one client is actually being chosen.
@@ -69,7 +77,9 @@ export function PortfolioReportsPage() {
   async function take(report: ReportRow) {
     setTaking(report.id);
     try {
-      downloadTextFile(report.filename, await downloadReport(report.id), "text/csv;charset=utf-8");
+      // Fetched as a file rather than as text: a report on the letterhead is a PDF, not something to read
+      // as a string. The API says what it is sending and the filename already carries the extension.
+      await saveApiFile(getDownloadReportUrl(report.id), report.filename);
     } finally {
       setTaking(null);
     }
@@ -77,7 +87,7 @@ export function PortfolioReportsPage() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    produce.mutate({ data: { kind, scope, scopeId: scope === "FIRM" ? null : scopeId || null } });
+    produce.mutate({ data: { kind, scope, scopeId: scope === "FIRM" ? null : scopeId || null, format } });
   }
 
   const rows = reports.data?.items ?? [];
@@ -94,7 +104,8 @@ export function PortfolioReportsPage() {
       <Alert tone="info">
         The firm's portfolio review is not here yet. It is produced in a template the firm already uses, and
         that template sets its columns and its sheets — one generated here would be a different document
-        wearing the same name. Everything below is produced as CSV, which every spreadsheet opens.
+        wearing the same name. Everything below can be produced either as a spreadsheet or on the firm's own
+        letterhead.
       </Alert>
 
       {mayProduce && (
@@ -105,7 +116,7 @@ export function PortfolioReportsPage() {
               <Alert tone="danger">{errors.form}</Alert>
             </div>
           )}
-          <form onSubmit={submit} className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end">
+          <form onSubmit={submit} className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr_1fr_1fr_auto] sm:items-end">
             <Field id="report-kind" label="Report" error={errors.fields.kind}>
               <SelectInput id="report-kind" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
                 {KINDS.map((one) => (
@@ -151,12 +162,29 @@ export function PortfolioReportsPage() {
                 </SelectInput>
               )}
             </Field>
+            <Field id="report-format" label="As" error={errors.fields.format}>
+              <SelectInput
+                id="report-format"
+                value={format}
+                onChange={(event) => setFormat(event.target.value as Format)}
+              >
+                {FORMATS.map((one) => (
+                  <option key={one.format} value={one.format}>
+                    {one.title}
+                  </option>
+                ))}
+              </SelectInput>
+            </Field>
             <Button type="submit" disabled={produce.isPending || (scope !== "FIRM" && !scopeId)}>
               <FileText aria-hidden="true" />
               {produce.isPending ? "Producing…" : "Produce"}
             </Button>
           </form>
-          {chosen && <p className="mt-2 text-xs text-ink-muted">{chosen.answers}</p>}
+          {chosen && (
+            <p className="mt-2 text-xs text-ink-muted">
+              {chosen.answers} {FORMATS.find((one) => one.format === format)?.forWhat}
+            </p>
+          )}
         </section>
       )}
 

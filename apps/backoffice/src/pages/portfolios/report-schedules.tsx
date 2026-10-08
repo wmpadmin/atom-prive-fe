@@ -18,6 +18,13 @@ type Kind = ScheduleRow["kind"];
 type Scope = ScheduleRow["scope"];
 type Cadence = ScheduleRow["cadence"];
 type SendTo = ScheduleRow["sendTo"];
+type Format = ScheduleRow["format"];
+
+/** What each run comes out as. A client's own report is usually the letterheaded one. */
+const FORMATS: Record<Format, string> = {
+  CSV: "Spreadsheet",
+  PDF: "On the letterhead",
+};
 
 const CADENCES: Record<Cadence, string> = {
   MONTHLY_FIRST: "Monthly, on the 1st",
@@ -54,6 +61,7 @@ export function ReportSchedules({
   const [scopeId, setScopeId] = useState("");
   const [cadence, setCadence] = useState<Cadence>("MONTHLY_FIRST");
   const [sendTo, setSendTo] = useState<SendTo>("NOBODY");
+  const [format, setFormat] = useState<Format>("CSV");
   const [errors, setErrors] = useState<FormErrors>(noErrors);
 
   const kept = () => void queryClient.invalidateQueries({ queryKey: getListReportSchedulesQueryKey() });
@@ -80,6 +88,7 @@ export function ReportSchedules({
         scopeId: scope === "FIRM" ? null : scopeId || null,
         cadence,
         sendTo: canTellSomebody ? sendTo : "NOBODY",
+        format,
       },
     });
   }
@@ -96,7 +105,7 @@ export function ReportSchedules({
               <Alert tone="danger">{errors.form}</Alert>
             </div>
           )}
-          <form onSubmit={submit} className="mt-3 grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto] lg:items-end">
+          <form onSubmit={submit} className="mt-3 grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_1fr_auto] lg:items-end">
             <Field id="sched-kind" label="Report" error={errors.fields.kind}>
               <SelectInput id="sched-kind" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
                 {kinds.map((one) => (
@@ -171,6 +180,19 @@ export function ReportSchedules({
                 ))}
               </SelectInput>
             </Field>
+            <Field id="sched-format" label="As" error={errors.fields.format}>
+              <SelectInput
+                id="sched-format"
+                value={format}
+                onChange={(event) => setFormat(event.target.value as Format)}
+              >
+                {(Object.keys(FORMATS) as Format[]).map((one) => (
+                  <option key={one} value={one}>
+                    {FORMATS[one]}
+                  </option>
+                ))}
+              </SelectInput>
+            </Field>
             <Button type="submit" disabled={create.isPending || (scope !== "FIRM" && !scopeId)}>
               <CalendarClock aria-hidden="true" />
               {create.isPending ? "Saving…" : "Schedule"}
@@ -191,6 +213,7 @@ export function ReportSchedules({
               <th scope="col" className="py-3 pr-4 pl-5">Scheduled report</th>
               <th scope="col" className="px-4 py-3">Covering</th>
               <th scope="col" className="px-4 py-3">How often</th>
+              <th scope="col" className="px-4 py-3">As</th>
               <th scope="col" className="px-4 py-3">Tells</th>
               <th scope="col" className="px-4 py-3">Last run</th>
               <th scope="col" className="py-3 pr-5 pl-4">
@@ -201,12 +224,12 @@ export function ReportSchedules({
           <tbody className="divide-y divide-line">
             {schedules.isPending && (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-ink-muted">Reading the schedules…</td>
+                <td colSpan={7} className="px-5 py-8 text-center text-ink-muted">Reading the schedules…</td>
               </tr>
             )}
             {schedules.data && rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-ink-muted">
+                <td colSpan={7} className="px-5 py-8 text-center text-ink-muted">
                   Nothing arrives by itself yet.
                 </td>
               </tr>
@@ -216,6 +239,7 @@ export function ReportSchedules({
                 <td className="py-3 pr-4 pl-5 font-semibold">{row.title}</td>
                 <td className="px-4 py-3 text-ink-soft">{row.scopeLabel}</td>
                 <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{CADENCES[row.cadence]}</td>
+                <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{FORMATS[row.format]}</td>
                 <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{SEND_TO[row.sendTo]}</td>
                 <td className="px-4 py-3">
                   {row.lastRunAt === null ? (
