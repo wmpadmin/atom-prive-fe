@@ -293,7 +293,7 @@ export function ClientPage() {
         </section>
       )}
       {tab === "banks" && <BankAccountsPanel client={client} />}
-      {tab === "holdings" && <HoldingsPanel />}
+      {tab === "holdings" && <HoldingsPanel clientId={client.id} />}
       {tab === "transactions" && <TransactionsPanel />}
       {tab === "proposals" && <ProposalsPanel clientId={client.id} />}
       {tab === "documents" && <ClientFormsPanel client={client} />}

@@ -1,5 +1,6 @@
 import type { AttachedFile, FormDetailAnswers } from "@atomprive/api-client/backoffice";
 import type { ReactNode } from "react";
+import type { RiskStanding } from "@atomprive/api-client/backoffice";
 import type { FormDocuments } from "../../components/form-documents";
 import type { FieldFor } from "../../components/form-fields";
 import {
@@ -204,6 +205,8 @@ export interface FormKit<T> {
     documents: FormDocuments;
     /** The firm's own name, for the lines of a form that print it. */
     firmName: string | null;
+    /** Where the client stands on the firm's AML matrix, for the form that has to state it. */
+    amlRating: RiskStanding | null;
   }) => ReactNode;
   /**
    * The form read back as it was answered.
@@ -286,7 +289,7 @@ export const dueDiligenceKit: FormKit<DueDiligenceEntity> = {
   descriptions: dueDiligenceDescriptions,
   guidance: dueDiligenceGuidance,
   summary: (value) => <DueDiligenceSummary value={value} />,
-  step: ({ id, value, change, field, goTo, formId, documents }) => {
+  step: ({ id, value, change, field, goTo, formId, documents, amlRating }) => {
     switch (id) {
       case "business":
         return <BusinessStep business={value.business} onChange={(patch) => change({ business: { ...value.business, ...patch } })} field={field} />;
@@ -297,7 +300,7 @@ export const dueDiligenceKit: FormKit<DueDiligenceEntity> = {
       case "wealth":
         return <WealthStep wealth={value.wealth} onChange={(patch) => change({ wealth: { ...value.wealth, ...patch } })} field={field} />;
       case "risk":
-        return <RiskStep risk={value.risk} formId={formId} documents={documents} onChange={(patch) => change({ risk: { ...value.risk, ...patch } })} field={field} />;
+        return <RiskStep risk={value.risk} formId={formId} documents={documents} amlRating={amlRating} onChange={(patch) => change({ risk: { ...value.risk, ...patch } })} field={field} />;
       case "compliance":
         return <ComplianceReviewStep review={value.review} onChange={(patch) => change({ review: { ...value.review, ...patch } })} field={field} />;
       default:
@@ -344,7 +347,7 @@ export const dueDiligenceIndividualKit: FormKit<DueDiligenceIndividual> = {
   descriptions: dueDiligenceIndividualDescriptions,
   guidance: dueDiligenceGuidance,
   summary: (value) => <DueDiligenceIndividualSummary value={value} />,
-  step: ({ id, value, change, field, goTo, formId, documents }) => {
+  step: ({ id, value, change, field, goTo, formId, documents, amlRating }) => {
     switch (id) {
       case "customer":
         return <CustomerDetailsStep customer={value.customer} onChange={(patch) => change({ customer: { ...value.customer, ...patch } })} field={field} />;
@@ -355,7 +358,7 @@ export const dueDiligenceIndividualKit: FormKit<DueDiligenceIndividual> = {
       case "wealth":
         return <WealthStep wealth={value.wealth} onChange={(patch) => change({ wealth: { ...value.wealth, ...patch } })} field={field} />;
       case "risk":
-        return <RiskStep risk={value.risk} formId={formId} documents={documents} onChange={(patch) => change({ risk: { ...value.risk, ...patch } })} field={field} />;
+        return <RiskStep risk={value.risk} formId={formId} documents={documents} amlRating={amlRating} onChange={(patch) => change({ risk: { ...value.risk, ...patch } })} field={field} />;
       case "compliance":
         return <ComplianceReviewStep review={value.review} onChange={(patch) => change({ review: { ...value.review, ...patch } })} field={field} />;
       default:
