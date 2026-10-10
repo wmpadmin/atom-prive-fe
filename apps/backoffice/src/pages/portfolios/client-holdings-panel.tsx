@@ -17,6 +17,7 @@ import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
 import { useAssetClasses } from "./asset-classes";
 import { underManagementLabel } from "./portfolio-labels";
+import { asFigure } from "../../lib/figures";
 
 /** Where the sub-class is left blank, the holdings still need a heading to sit under. */
 const UNGROUPED = "Not grouped";
@@ -141,7 +142,7 @@ export function ClientHoldingsPanel({ customerId, onChanged }: { customerId: str
                                   {position.name}
                                 </button>
                                 <span className="block truncate text-xs text-ink-muted">
-                                  {[position.identifier, position.issuer, position.countryCode, position.creditRating]
+                                  {[position.identifier, position.issuer, position.countryCode, position.sector, position.creditRating]
                                     .filter(Boolean)
                                     .join(" · ") || "No issuer recorded"}
                                 </span>
@@ -233,6 +234,9 @@ function HoldingDialog({
   const [identifier, setIdentifier] = useState(position?.identifier ?? "");
   const [issuer, setIssuer] = useState(position?.issuer ?? "");
   const [countryCode, setCountryCode] = useState(position?.countryCode ?? "");
+  const [sector, setSector] = useState(position?.sector ?? "");
+  const [yieldPercent, setYield] = useState(position?.yieldPercent == null ? "" : String(position.yieldPercent));
+  const [duration, setDuration] = useState(position?.durationYears == null ? "" : String(position.durationYears));
   const [creditRating, setCreditRating] = useState(position?.creditRating ?? "");
   const [valueAmount, setValueAmount] = useState(position ? String(position.valueAmount) : "");
   const form = useRef<HTMLFormElement>(null);
@@ -257,6 +261,10 @@ function HoldingDialog({
       identifier: identifier.trim() || null,
       issuer: issuer.trim() || null,
       countryCode: countryCode.trim() || null,
+      sector: sector.trim() || null,
+      // A yield and a duration belong to debt; the API drops them from anything else in any case.
+      yieldPercent: yieldPercent.trim() === "" ? null : Number(yieldPercent),
+      durationYears: duration.trim() === "" ? null : Number(duration),
       creditRating: creditRating.trim() || null,
       valueAmount: Number(valueAmount),
     };
@@ -315,7 +323,7 @@ function HoldingDialog({
             <TextInput id="holding-issuer" value={issuer} onChange={(e) => setIssuer(e.target.value)} />
           </Field>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field id="holding-country" label="Country" hint="Two-letter code." error={errors.fields.countryCode}>
             <TextInput
               id="holding-country"
@@ -323,6 +331,21 @@ function HoldingDialog({
               placeholder="US"
               value={countryCode}
               onChange={(event) => setCountryCode(event.target.value)}
+            />
+          </Field>
+          {/* What a plan's sector targets are read against. Nothing for cash, which is in no sector. */}
+          <Field
+            id="holding-sector"
+            label="Sector"
+            hint="What line of business it is in."
+            error={errors.fields.sector}
+          >
+            <TextInput
+              id="holding-sector"
+              maxLength={60}
+              placeholder="Technology"
+              value={sector}
+              onChange={(event) => setSector(event.target.value)}
             />
           </Field>
           <Field
@@ -338,6 +361,38 @@ function HoldingDialog({
               value={creditRating}
               disabled={assetClass !== "FIXED_INCOME"}
               onChange={(event) => setCreditRating(event.target.value)}
+            />
+          </Field>
+          {/* What the bond yields at today's price, and how far it moves when rates do. Debt only: an equity
+              has neither, and the API drops them from anything that is not debt in any case. */}
+          <Field
+            id="holding-yield"
+            label="Yield"
+            hint="Fixed income only."
+            error={errors.fields.yieldPercent}
+          >
+            <TextInput
+              id="holding-yield"
+              inputMode="decimal"
+              placeholder="4.25"
+              value={yieldPercent}
+              disabled={assetClass !== "FIXED_INCOME"}
+              onChange={(event) => setYield(asFigure(event.target.value, yieldPercent))}
+            />
+          </Field>
+          <Field
+            id="holding-duration"
+            label="Duration"
+            hint="In years. Fixed income only."
+            error={errors.fields.durationYears}
+          >
+            <TextInput
+              id="holding-duration"
+              inputMode="decimal"
+              placeholder="6.1"
+              value={duration}
+              disabled={assetClass !== "FIXED_INCOME"}
+              onChange={(event) => setDuration(asFigure(event.target.value, duration))}
             />
           </Field>
           <Field id="holding-value" label="Worth" required error={errors.fields.valueAmount}>

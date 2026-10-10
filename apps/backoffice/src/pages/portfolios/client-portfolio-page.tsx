@@ -1,28 +1,40 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  getGetClientAttributionQueryKey,
+  getGetClientValuationsQueryKey,
   useGetClientPortfolio,
   useGetCustomer,
   useListClientHoldings,
+  useListCurrencies,
   useListModelPortfolios,
   useRecordRebalance,
   useRecordReview,
   useSetClientHoldings,
   useSetClientModelPortfolio,
+  useSetPortfolioCurrency,
   type ClientHoldings,
+  type Currency,
   type CustomerDetail,
   type ModelsPage,
   type PortfolioStanding,
+  type Redenomination,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, DateInput, Field, SelectInput, TextInput, describedBy } from "@atomprive/ui";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { asFigure } from "../../lib/figures";
+import { AttributionPanel } from "./attribution-panel";
+import { ExposurePanel } from "./exposure-panel";
+import { FixedIncomePanel } from "./fixed-income-panel";
 import { useAssetClasses } from "./asset-classes";
 import { ClassStandingTable } from "./class-standing-table";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
 import { driftLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
+import { ValuationHistoryPanel } from "./valuation-history-panel";
+import { WhatIfPanel } from "./what-if-panel";
 
 /**
  * Where Back goes, by the queue this portfolio was opened from. A portfolio is reached from three screens
@@ -93,9 +105,14 @@ export function ClientPortfolioPage() {
   const assetClasses = useAssetClasses();
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [held, setHeld] = useState<Held | null>(null);
+  const [chosenCurrency, setChosenCurrency] = useState<string | null>(null);
+  /** What the last conversion did, so the screen can say it rather than leaving it to be noticed. */
+  const [converted, setConverted] = useState<Redenomination | null>(null);
+  const currencies = useListCurrencies<Currency[], ApiError>();
   const [rebalancedOn, setRebalancedOn] = useState<string | null>(null);
   const [reviewedOn, setReviewedOn] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
   const kept = () => {
     setErrors(noErrors);
@@ -103,9 +120,13 @@ export function ClientPortfolioPage() {
     // Adding or removing a line changes which classes are worked out rather than typed, so the boxes have
     // to be told as well as the totals.
     void lines.refetch();
+    // Saving the holdings is what writes a day of history, and converting rewrites every day of it.
+    void queryClient.invalidateQueries({ queryKey: getGetClientValuationsQueryKey(customerId) });
+    void queryClient.invalidateQueries({ queryKey: getGetClientAttributionQueryKey(customerId) });
   };
   const setModel = useSetClientModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
   const setHoldings = useSetClientHoldings<ApiError>({ mutation: { onSuccess: kept, onError } });
+  const setCurrency = useSetPortfolioCurrency<ApiError>({ mutation: { onError } });
   const rebalanced = useRecordRebalance<ApiError>({ mutation: { onSuccess: kept, onError } });
   const reviewed = useRecordReview<ApiError>({ mutation: { onSuccess: kept, onError } });
   // Each control waits on its own work and nothing else's. One flag over the whole screen dimmed every
@@ -122,15 +143,44 @@ export function ClientPortfolioPage() {
   );
   // What is typed but not yet saved. The table below reads what is on file, so a figure changed in a box and
   // not kept would otherwise be contradicted by the standings beside it with nothing to say why.
-  const unsaved = held !== null && JSON.stringify(held) !== JSON.stringify(heldFrom(standing.data, boxes));
+  // The portfolio arrives after the first render, so the box reads from it until somebody picks another.
+  const currency = chosenCurrency ?? standing.data?.currency ?? "USD";
+  const unsaved =
+    (held !== null && JSON.stringify(held) !== JSON.stringify(heldFrom(standing.data, boxes))) ||
+    (standing.data !== undefined && currency !== standing.data.currency);
+
+  /**
+   * Picking another currency writes the portfolio in it at today's rate — every class total and every
+   * holding line together, which only the API can do, because a line listed under a class carries no
+   * currency of its own. A portfolio with nothing written down yet has nothing to convert, so the choice
+   * simply waits and goes with the figures when they are saved.
+   */
+  function chooseCurrency(wanted: string) {
+    setChosenCurrency(wanted);
+    const writtenIn = standing.data?.currency;
+    if (!writtenIn || wanted === writtenIn || total === 0) return;
+    setCurrency.mutate(
+      { customerId, data: { currency: wanted } },
+      {
+        onSuccess: (done) => {
+          setConverted(done);
+          setHeld(null);
+          setChosenCurrency(null);
+          kept();
+        },
+      },
+    );
+  }
 
   function save() {
+    // The note about a conversion belongs to that conversion, not to everything done afterwards.
+    setConverted(null);
     const wanted: Record<string, number> = {};
     for (const [assetClass, typed] of Object.entries(holdings)) {
       if (typed.trim()) wanted[assetClass] = Number(typed);
     }
     setHoldings.mutate(
-      { customerId, data: { holdings: wanted, currency: standing.data?.currency ?? "USD" } },
+      { customerId, data: { holdings: wanted, currency } },
       { onSuccess: () => setHeld(null) },
     );
   }
@@ -200,13 +250,38 @@ export function ClientPortfolioPage() {
 
           <section className="rounded-2xl border border-line bg-white px-6 py-5">
             <fieldset>
-              <legend className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                What they hold, in {standing.data?.currency ?? "USD"}
-              </legend>
-              <p className="mt-1 text-xs text-ink-muted">
-                Written down by hand: no custodian feed delivers these yet. A class listed holding by holding
-                below takes its total from those holdings, so its figure here is worked out rather than typed.
-              </p>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <legend className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                    What they hold
+                  </legend>
+                  <p className="mt-1 max-w-prose text-xs text-ink-muted">
+                    Written down by hand: no custodian feed delivers these yet. A class listed holding by
+                    holding below takes its total from those holdings, so its figure here is worked out
+                    rather than typed.
+                  </p>
+                </div>
+                <Field id="holdings-currency" label="Currency">
+                  <SelectInput
+                    id="holdings-currency"
+                    value={currency}
+                    className="w-auto"
+                    disabled={setCurrency.isPending}
+                    onChange={(event) => chooseCurrency(event.target.value)}
+                  >
+                    {/* Whatever the portfolio is already written in stays offered, even if the firm has
+                        since stopped dealing in it. */}
+                    {!(currencies.data ?? []).some((one) => one.code === currency) && (
+                      <option value={currency}>{currency}</option>
+                    )}
+                    {(currencies.data ?? []).map((one) => (
+                      <option key={one.code} value={one.code}>
+                        {one.code} — {one.name}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </Field>
+              </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {boxes.map((assetClass) => (
                   <Field
@@ -232,12 +307,23 @@ export function ClientPortfolioPage() {
                   </Field>
                 ))}
               </div>
+              {converted && (
+                <p className="mt-3 text-xs text-ink-muted">
+                  <span className="font-semibold text-ink">Converted from {converted.from}.</span> The client
+                  holds the same things; only the money they are counted in has changed.
+                  {converted.lines > 0 &&
+                    ` ${converted.lines === 1 ? "1 holding" : `${converted.lines} holdings`} listed under a class moved with it.`}
+                  {converted.days > 0 &&
+                    ` ${converted.days === 1 ? "1 day" : `${converted.days} days`} of history ${converted.days === 1 ? "was" : "were"} rewritten, each at the rate that applied on that day, so a return read in ${standing.data?.currency ?? ""} is the one it actually earned.`}
+                </p>
+              )}
+              {errors.fields.currency && <p className="mt-3 text-xs text-red-600">{errors.fields.currency}</p>}
               {errors.fields.holdings && (
                 <p className="mt-3 text-xs text-red-600">{errors.fields.holdings}</p>
               )}
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-ink-muted">
-                  {total > 0 ? `Adds up to ${total.toLocaleString()}.` : "Nothing written down yet."}
+                  {total > 0 ? `Adds up to ${currency} ${total.toLocaleString()}.` : "Nothing written down yet."}
                   {unsaved && <span className="ml-1 font-semibold text-amber-700">Not saved yet.</span>}
                 </p>
                 <Button size="sm" disabled={setHoldings.isPending} onClick={save}>
@@ -248,6 +334,18 @@ export function ClientPortfolioPage() {
           </section>
 
           <ClientHoldingsPanel customerId={customerId} onChanged={kept} />
+
+          <ValuationHistoryPanel customerId={customerId} />
+
+          <FixedIncomePanel customerId={customerId} />
+
+          <ExposurePanel customerId={customerId} />
+
+          <AttributionPanel customerId={customerId} />
+
+          {standing.data && (
+            <WhatIfPanel customerId={customerId} standing={standing.data} />
+          )}
         </div>
 
         <div className="space-y-6">

@@ -33,7 +33,8 @@ export function ModelRiskPage() {
 
       {/* The firm's own caveat on this screen, said where the figures are read rather than in a footnote. */}
       <Alert tone="info">
-        Movement, worst fall and return per unit of risk are worked out from the valuations on file — the days
+        Movement, worst fall, return per unit of risk and the figures at risk are worked out from the
+        valuations on file — the days
         somebody wrote a portfolio down, not a daily series — so each row says how many readings it had. The
         last three columns need no history: they read off what the clients hold today.
       </Alert>
@@ -54,6 +55,15 @@ export function ModelRiskPage() {
               <th scope="col" className="px-4 py-3 text-right">Volatility</th>
               <th scope="col" className="px-4 py-3 text-right">Worst fall</th>
               <th scope="col" className="px-4 py-3 text-right">Return per unit of risk</th>
+              <th scope="col" className="px-4 py-3 text-right" title="The loss only one reading in twenty has been worse than.">
+                At risk 95%
+              </th>
+              <th scope="col" className="px-4 py-3 text-right" title="The loss only one reading in a hundred has been worse than.">
+                At risk 99%
+              </th>
+              <th scope="col" className="px-4 py-3 text-right" title="What has been lost on average on the readings past the 95% figure.">
+                Beyond it
+              </th>
               <th scope="col" className="px-4 py-3">Largest issuer</th>
               <th scope="col" className="px-4 py-3">Largest country</th>
               <th scope="col" className="py-3 pr-5 pl-4">Credit quality</th>
@@ -62,12 +72,12 @@ export function ModelRiskPage() {
           <tbody className="divide-y divide-line">
             {table.isPending && (
               <tr>
-                <td colSpan={8} className="px-5 py-10 text-center text-ink-muted">Working out the risk…</td>
+                <td colSpan={11} className="px-5 py-10 text-center text-ink-muted">Working out the risk…</td>
               </tr>
             )}
             {table.data && rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-10 text-center text-ink-muted">
+                <td colSpan={11} className="px-5 py-10 text-center text-ink-muted">
                   There are no model portfolios yet.
                 </td>
               </tr>
@@ -104,6 +114,14 @@ function Row({ row, currency }: { row: ModelRiskRow; currency: string }) {
       {/* A fall is always negative, so it is drawn as the loss it was. */}
       <Figure value={row.worstFall} suffix="%" tone={row.worstFall !== null && row.worstFall < 0 ? "bad" : undefined} />
       <Figure value={row.returnPerUnitOfRisk} places={2} />
+      {/* Losses, so they are drawn as losses. Absent where the history is too short to hold the tail. */}
+      <Figure value={row.atRisk95} suffix="%" tone={row.atRisk95 !== null && row.atRisk95 < 0 ? "bad" : undefined} />
+      <Figure value={row.atRisk99} suffix="%" tone={row.atRisk99 !== null && row.atRisk99 < 0 ? "bad" : undefined} />
+      <Figure
+        value={row.beyondRisk95}
+        suffix="%"
+        tone={row.beyondRisk95 !== null && row.beyondRisk95 < 0 ? "bad" : undefined}
+      />
       <td className="px-4 py-3">
         {row.largestIssuer === null ? (
           <span className="text-ink-muted">—</span>

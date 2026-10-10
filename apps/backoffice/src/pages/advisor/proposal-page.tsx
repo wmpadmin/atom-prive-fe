@@ -204,6 +204,13 @@ export function ProposalPage() {
   const toSignOff = !writing && status === "PENDING_MANAGER_REVIEW" && signsOff && proposal!.summary.advisorId !== user.id;
   const withTheClient = !writing && status === "PENDING_REVIEW";
 
+  /** Opens one of the answer dialogs on an empty box: the two share it, and neither inherits the other's. */
+  function asking(which: "send-back" | "client" | null) {
+    setComment("");
+    setErrors(noErrors);
+    setAnswering(which);
+  }
+
   /** What is on the screen, as the API takes it. */
   function typedInto(form: HTMLFormElement) {
     const said = new FormData(form);
@@ -460,7 +467,7 @@ export function ProposalPage() {
           />
         </Field>
 
-        <div className="grid gap-4 sm:grid-cols-[1fr_7rem]">
+        <div className="grid gap-4 sm:grid-cols-[1fr_14rem]">
           <Field id="valueAmount" label="Value" error={errors.fields.valueAmount} hint="What the change is worth, if it has a figure.">
             <TextInput
               {...describedBy("valueAmount", errors.fields.valueAmount)}
@@ -570,7 +577,7 @@ export function ProposalPage() {
           <div className="flex flex-wrap gap-3">
             {toSignOff && (
               <>
-                <Button variant="secondary" disabled={deciding} onClick={() => setAnswering("send-back")}>
+                <Button variant="secondary" disabled={deciding} onClick={() => asking("send-back")}>
                   Send back
                 </Button>
                 <Button
@@ -582,7 +589,7 @@ export function ProposalPage() {
               </>
             )}
             {withTheClient && (
-              <Button variant="secondary" disabled={deciding} onClick={() => setAnswering("client")}>
+              <Button variant="secondary" disabled={deciding} onClick={() => asking("client")}>
                 Record the client's answer
               </Button>
             )}
@@ -615,7 +622,7 @@ export function ProposalPage() {
         </section>
       )}
 
-      <Dialog open={answering === "send-back"} title="Send this proposal back?" onClose={() => setAnswering(null)}>
+      <Dialog open={answering === "send-back"} title="Send this proposal back?" onClose={() => asking(null)}>
         <div className="space-y-4">
           <p className="text-sm text-ink-muted">
             It becomes a draft again and the advisor sees what you write here. Nothing reaches the client.
@@ -631,11 +638,11 @@ export function ProposalPage() {
             />
           </Field>
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setAnswering(null)}>
+            <Button variant="secondary" onClick={() => asking(null)}>
               Cancel
             </Button>
             <Button
-              disabled={deciding}
+              disabled={deciding || comment.trim() === ""}
               onClick={() => signOff.mutate({ id: proposalId!, data: { approved: false, comment } })}
             >
               {signOff.isPending ? "Sending back…" : "Send back"}
@@ -644,7 +651,7 @@ export function ProposalPage() {
         </div>
       </Dialog>
 
-      <Dialog open={answering === "client"} title="What did the client say?" onClose={() => setAnswering(null)}>
+      <Dialog open={answering === "client"} title="What did the client say?" onClose={() => asking(null)}>
         <div className="space-y-4">
           <p className="text-sm text-ink-muted">
             Write down the answer they gave you. It is the firm's record of their decision, so it is written once.
@@ -679,7 +686,7 @@ export function ProposalPage() {
             />
           </Field>
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setAnswering(null)}>
+            <Button variant="secondary" onClick={() => asking(null)}>
               Cancel
             </Button>
             <Button
