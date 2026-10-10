@@ -3,6 +3,8 @@ import {
   useListBenchmarks,
   type BenchmarkRow,
   type ModelRequest,
+  type BandRequest,
+  type BandRequestBasis,
   type ModelRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
@@ -19,12 +21,58 @@ import {
 /** A model as the form holds it: every target typed, so an empty box reads as nothing rather than zero. */
 type Targets = Record<string, string>;
 
-/** One class's own tolerance, as the form holds it. All three empty means it is judged by the model's. */
-type TypedBand = { watchAt: string; edgeAt: string; breachAt: string };
+/**
+ * One class's own tolerance, as the form holds it. The three above-target levels empty means the class is
+ * judged by the model's own bands; the below ones empty means the same distance either way.
+ */
+type TypedBand = {
+  basis: BandRequestBasis;
+  watchAt: string;
+  edgeAt: string;
+  breachAt: string;
+  watchBelow: string;
+  edgeBelow: string;
+  breachBelow: string;
+};
 
 type Bands = Record<string, TypedBand>;
 
-const NO_BAND: TypedBand = { watchAt: "", edgeAt: "", breachAt: "" };
+/** One line of a spread by country or by sector, as it is typed. */
+type TypedShare = { key: string; share: string };
+
+/** What is on the model, as lines to edit. Always one blank at the end to type the next into. */
+function sharesOf(held: Record<string, number> | undefined): TypedShare[] {
+  const lines = Object.entries(held ?? {}).map(([key, share]) => ({ key, share: String(share) }));
+  return [...lines, { key: "", share: "" }];
+}
+
+/** What those lines come to, for the running total. */
+function addsUpTo(lines: TypedShare[]) {
+  return lines.reduce((total, one) => total + (Number(one.share) || 0), 0);
+}
+
+/** Only the lines somebody has actually filled in, keyed as the API keeps them. */
+function asTargets(lines: TypedShare[]) {
+  const targets: Record<string, number> = {};
+  for (const one of lines) {
+    const key = one.key.trim().toUpperCase();
+    if (key !== "" && isNumber(one.share) && Number(one.share) > 0) targets[key] = Number(one.share);
+  }
+  return targets;
+}
+
+/** The boxes of a band that hold a figure. The basis is a choice, not something to type into. */
+type BandFigure = Exclude<keyof TypedBand, "basis">;
+
+const NO_BAND: TypedBand = {
+  basis: "ABSOLUTE",
+  watchAt: "",
+  edgeAt: "",
+  breachAt: "",
+  watchBelow: "",
+  edgeBelow: "",
+  breachBelow: "",
+};
 
 /** A blank of each shape, built from whatever classes the firm keeps rather than a list written in here. */
 function noBands(codes: string[]): Bands {
@@ -38,19 +86,39 @@ function bandsOf(model: ModelRow, codes: string[]): Bands {
     const band = model.bands?.[assetClass];
     if (band) {
       typed[assetClass] = {
+        basis: band.basis ?? "ABSOLUTE",
         watchAt: String(band.watchAt),
         edgeAt: String(band.edgeAt),
         breachAt: String(band.breachAt),
+        // The API fills a missing side in from the one above, so what comes back is always both. Shown as
+        // the same distance either way unless it really differs.
+        watchBelow: String(band.watchBelow ?? band.watchAt),
+        edgeBelow: String(band.edgeBelow ?? band.edgeAt),
+        breachBelow: String(band.breachBelow ?? band.breachAt),
       };
     }
   }
   return typed;
 }
 
-/** How much of a class's own tolerance has been filled in: none, all three, or something in between. */
+/**
+ * How much of a class's own tolerance has been filled in: none, all three, or something in between. Only the
+ * above-target levels count — the ones below are an answer to a further question, not part of this one.
+ */
 function howFilled(band: TypedBand) {
   const filled = [band.watchAt, band.edgeAt, band.breachAt].filter((one) => one.trim() !== "").length;
   return filled === 0 ? "none" : filled === 3 ? "all" : "part";
+}
+
+/** Whether any class is allowed a different distance below its target than above it. */
+function anyTwoSided(bands: Bands) {
+  return Object.values(bands).some(
+    (band) =>
+      howFilled(band) === "all" &&
+      (band.watchBelow !== band.watchAt ||
+        band.edgeBelow !== band.edgeAt ||
+        band.breachBelow !== band.breachAt),
+  );
 }
 
 function noTargets(codes: string[]): Targets {
@@ -83,18 +151,19 @@ function linesOf(model: ModelRow, codes: string[]): Lines {
       shareOfClass: String(line.shareOfClass),
       band: line.band
         ? {
+            ...NO_BAND,
             watchAt: String(line.band.watchAt),
             edgeAt: String(line.band.edgeAt),
             breachAt: String(line.band.breachAt),
           }
-        : { watchAt: "", edgeAt: "", breachAt: "" },
+        : NO_BAND,
     }));
   }
   return held;
 }
 
 function blankLine(): TypedLine {
-  return { name: "", shareOfClass: "", band: { watchAt: "", edgeAt: "", breachAt: "" } };
+  return { name: "", shareOfClass: "", band: NO_BAND };
 }
 
 /** What the lines inside one class come to; letters count as nothing until they are numbers. */
@@ -128,6 +197,67 @@ function andList(words: string[]) {
  * The models the firm invests against: what each one targets in every asset class, and how far a
  * portfolio may wander from those targets before somebody should look at it.
  */
+/**
+ * A spread by country or by sector: a key and a share, as many as somebody types. A blank line is kept at
+ * the end so the next one can be written without reaching for a button first.
+ */
+function Spread({
+  label,
+  hint,
+  placeholder,
+  lines,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  placeholder: string;
+  lines: TypedShare[];
+  onChange: (lines: TypedShare[]) => void;
+}) {
+  const total = addsUpTo(lines);
+  const anything = lines.some((one) => one.key.trim() !== "");
+
+  function change(at: number, part: Partial<TypedShare>) {
+    const next = lines.map((one, which) => (which === at ? { ...one, ...part } : one));
+    // Always one blank at the end, and no more than one.
+    const filled = next.filter((one) => one.key.trim() !== "" || one.share.trim() !== "");
+    onChange([...filled, { key: "", share: "" }]);
+  }
+
+  return (
+    <div>
+      <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
+      <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>
+      <div className="mt-2 space-y-2">
+        {lines.map((one, at) => (
+          <div key={at} className="flex items-center gap-2">
+            <TextInput
+              aria-label={`${label} name`}
+              placeholder={placeholder}
+              value={one.key}
+              onChange={(event) => change(at, { key: event.target.value })}
+            />
+            <TextInput
+              aria-label={`${label} share`}
+              inputMode="decimal"
+              className="w-24 text-right"
+              placeholder="0"
+              value={one.share}
+              onChange={(event) => change(at, { share: asFigure(event.target.value, one.share) })}
+            />
+            <span className="text-sm text-ink-muted">%</span>
+          </div>
+        ))}
+      </div>
+      {anything && (
+        <p className={cn("mt-1.5 text-xs", total === 100 ? "text-ink-muted" : "text-amber-700")}>
+          Adds up to {total}%.{total === 100 ? "" : " A spread that does not reach 100% leaves the rest unasked for."}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function ModelDialog({
   model,
   errors,
@@ -153,11 +283,15 @@ export function ModelDialog({
   const [description, setDescription] = useState(model?.description ?? "");
   const [riskProfile, setRiskProfile] = useState(model?.riskProfile ?? "");
   const [status, setStatus] = useState<ModelStatus>((model?.status as ModelStatus) ?? "LIVE");
-  const [targets, setTargets] = useState<Targets>(model ? targetsOf(model, codes) : noTargets(codes));
+  // Seeded on the first render, when the firm's list of classes may not have arrived yet. A class that
+  // turns up afterwards is folded in here, because reading one the state has never heard of is a crash.
+  const [typedTargets, setTargets] = useState<Targets>(model ? targetsOf(model, codes) : noTargets(codes));
+  const targets: Targets = { ...(model ? targetsOf(model, codes) : noTargets(codes)), ...typedTargets };
   const [watchAt, setWatchAt] = useState(String(model?.watchAt ?? 2));
   const [edgeAt, setEdgeAt] = useState(String(model?.edgeAt ?? 4));
   const [breachAt, setBreachAt] = useState(String(model?.breachAt ?? 6));
-  const [bands, setBands] = useState<Bands>(model ? bandsOf(model, codes) : noBands(codes));
+  const [typedBands, setBands] = useState<Bands>(model ? bandsOf(model, codes) : noBands(codes));
+  const bands: Bands = { ...(model ? bandsOf(model, codes) : noBands(codes)), ...typedBands };
   const [benchmarkId, setBenchmarkId] = useState(model?.benchmarkId ?? "");
   // Which indices the firm holds. Without one named here, Model performance has nothing to compare against.
   const benchmarks = useListBenchmarks<BenchmarkRow[], ApiError>();
@@ -179,8 +313,21 @@ export function ModelDialog({
   const ownBandCount = codes.filter((assetClass) => howFilled(bands[assetClass]) !== "none").length;
   // Folded away by default, because most plans judge every class the same way — but opened at once on a model
   // that already has exceptions, so nothing it is carrying is hidden from whoever opened it.
-  const [showingOwnBands, setShowingOwnBands] = useState(ownBandCount > 0);
-  const [lines, setLines] = useState<Lines>(model ? linesOf(model, codes) : noLines(codes));
+  // Read from the model rather than seeded, because the firm's list of classes may not have arrived on the
+  // first render — a model's exceptions would then stay folded away on the very screen that carries them.
+  // Null until somebody says otherwise, and their choice stands from then on.
+  const [openedOwnBands, setShowingOwnBands] = useState<boolean | null>(null);
+  const showingOwnBands = openedOwnBands ?? ownBandCount > 0;
+  // Most plans allow the same distance either way, so the second half is asked for only where it is wanted —
+  // but opened at once on a model that already allows different distances, so nothing it carries is hidden.
+  // A plan may want the money spread by country or by line of business as well as by asset class. Separate
+  // questions, not a breakdown of the split above: a plan can want a third in Asia whatever classes it is in.
+  const [countries, setCountries] = useState<TypedShare[]>(sharesOf(model?.geographyTargets));
+  const [sectors, setSectors] = useState<TypedShare[]>(sharesOf(model?.sectorTargets));
+  const [chosenTwoSided, setTwoSided] = useState<boolean | null>(null);
+  const twoSided = chosenTwoSided ?? anyTwoSided(bands);
+  const [typedLines, setLines] = useState<Lines>(model ? linesOf(model, codes) : noLines(codes));
+  const lines: Lines = { ...(model ? linesOf(model, codes) : noLines(codes)), ...typedLines };
   const [changeNote, setChangeNote] = useState("");
   // A class broken into lines has to be wholly accounted for: 8% belonging to nothing is not a plan.
   // A class with a target and no lines yet is one somebody could break down.
@@ -210,14 +357,19 @@ export function ModelDialog({
       if (targets[assetClass].trim()) wanted[assetClass] = Number(targets[assetClass]);
     }
     // Only the classes given all three of their own bands; the rest are judged by the model's.
-    const perClass: Record<string, { watchAt: number; edgeAt: number; breachAt: number }> = {};
+    const perClass: Record<string, BandRequest> = {};
     for (const assetClass of codes) {
       const band = bands[assetClass];
       if (howFilled(band) === "all") {
         perClass[assetClass] = {
+          basis: band.basis,
           watchAt: Number(band.watchAt),
           edgeAt: Number(band.edgeAt),
           breachAt: Number(band.breachAt),
+          // Left out where both sides are the same, which the API reads as the same distance either way.
+          watchBelow: twoSided ? Number(band.watchBelow) : null,
+          edgeBelow: twoSided ? Number(band.edgeBelow) : null,
+          breachBelow: twoSided ? Number(band.breachBelow) : null,
         };
       }
     }
@@ -232,6 +384,8 @@ export function ModelDialog({
       breachAt: Number(breachAt),
       bands: perClass,
       benchmarkId: benchmarkId || null,
+      geographyTargets: asTargets(countries),
+      sectorTargets: asTargets(sectors),
       // Only the classes somebody has actually broken down; the rest stay a single target.
       subAllocations: Object.fromEntries(
         codes.filter((assetClass) => lines[assetClass].length > 0).map((assetClass) => [
@@ -242,9 +396,13 @@ export function ModelDialog({
             band:
               howFilled(line.band) === "all"
                 ? {
+                    basis: "ABSOLUTE" as const,
                     watchAt: Number(line.band.watchAt),
                     edgeAt: Number(line.band.edgeAt),
                     breachAt: Number(line.band.breachAt),
+                    watchBelow: null,
+                    edgeBelow: null,
+                    breachBelow: null,
                   }
                 : null,
           })),
@@ -428,10 +586,11 @@ export function ModelDialog({
                               // and the three levels cannot be left in an order that makes no sense.
                               const scale = Number(breachAt) > 0 ? Number(breach) / Number(breachAt) : 0;
                               return breach.trim() === "" || !isNumber(breach)
-                                ? { ...one, band: { watchAt: "", edgeAt: "", breachAt: breach } }
+                                ? { ...one, band: { ...NO_BAND, breachAt: breach } }
                                 : {
                                     ...one,
                                     band: {
+                                      ...NO_BAND,
                                       watchAt: String(Math.round(Number(watchAt) * scale * 10) / 10),
                                       edgeAt: String(Math.round(Number(edgeAt) * scale * 10) / 10),
                                       breachAt: breach,
@@ -595,35 +754,77 @@ export function ModelDialog({
               <p className="text-xs text-ink-muted">
                 Cash moves with every payment in and out, so it is usually allowed to wander further than an
                 equity target meant to be held. A class left empty is judged by the figures above, shown greyed.
+                Measured in <span className="font-medium text-ink">points</span> is a fixed distance from the
+                target; <span className="font-medium text-ink">% of target</span> is a share of it, so the same
+                rule holds a large class loosely and a small one tightly.
               </p>
+              <label className="flex items-center gap-2 text-xs text-ink-soft">
+                <input
+                  type="checkbox"
+                  checked={twoSided}
+                  onChange={(event) => setTwoSided(event.target.checked)}
+                  className="size-4 rounded border-line text-primary-600 focus:ring-primary-600/30"
+                />
+                Allow a different distance under the target than over it
+              </label>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                       <th scope="col" className="py-1.5 pr-3">Asset class</th>
-                      <th scope="col" className="px-2 py-1.5">Watching</th>
-                      <th scope="col" className="px-2 py-1.5">Edge</th>
-                      <th scope="col" className="py-1.5 pl-2">Breached</th>
+                      <th scope="col" className="px-2 py-1.5">Measured in</th>
+                      <th scope="col" className="px-2 py-1.5">{twoSided ? "Watching over" : "Watching"}</th>
+                      <th scope="col" className="px-2 py-1.5">{twoSided ? "Edge over" : "Edge"}</th>
+                      <th scope="col" className={twoSided ? "px-2 py-1.5" : "py-1.5 pl-2"}>
+                        {twoSided ? "Breached over" : "Breached"}
+                      </th>
+                      {twoSided && (
+                        <>
+                          <th scope="col" className="px-2 py-1.5">Watching under</th>
+                          <th scope="col" className="px-2 py-1.5">Edge under</th>
+                          <th scope="col" className="py-1.5 pl-2">Breached under</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
                     {codes.map((assetClass) => {
                       const band = bands[assetClass];
-                      const change = (part: keyof TypedBand) => (event: ChangeEvent<HTMLInputElement>) =>
+                      const change = (part: BandFigure) => (event: ChangeEvent<HTMLInputElement>) =>
                         setBands({
                           ...bands,
                           [assetClass]: { ...band, [part]: asFigure(event.target.value, band[part]) },
                         });
+                      // A relative band is a share of the target, so the model's own points mean nothing as
+                      // a hint for it.
+                      const hint = (points: string, share: string) =>
+                        band.basis === "RELATIVE" ? share : points;
                       return (
                         <tr key={assetClass}>
                           <th scope="row" className="py-1.5 pr-3 text-left font-medium text-ink">
                             {(names[assetClass] ?? assetClass)}
                           </th>
                           <td className="px-2 py-1.5">
+                            <SelectInput
+                              aria-label={`${(names[assetClass] ?? assetClass)} measured in`}
+                              value={band.basis ?? "ABSOLUTE"}
+                              className="w-auto"
+                              onChange={(event) =>
+                                setBands({
+                                  ...bands,
+                                  [assetClass]: { ...band, basis: event.target.value as BandRequestBasis },
+                                })
+                              }
+                            >
+                              <option value="ABSOLUTE">points</option>
+                              <option value="RELATIVE">% of target</option>
+                            </SelectInput>
+                          </td>
+                          <td className="px-2 py-1.5">
                             <TextInput
                               aria-label={`${(names[assetClass] ?? assetClass)} worth watching from`}
                               inputMode="decimal"
-                              placeholder={watchAt}
+                              placeholder={hint(watchAt, "10")}
                               value={band.watchAt}
                               onChange={change("watchAt")}
                             />
@@ -632,20 +833,51 @@ export function ModelDialog({
                             <TextInput
                               aria-label={`${(names[assetClass] ?? assetClass)} at the edge from`}
                               inputMode="decimal"
-                              placeholder={edgeAt}
+                              placeholder={hint(edgeAt, "15")}
                               value={band.edgeAt}
                               onChange={change("edgeAt")}
                             />
                           </td>
-                          <td className="py-1.5 pl-2">
+                          <td className={twoSided ? "px-2 py-1.5" : "py-1.5 pl-2"}>
                             <TextInput
                               aria-label={`${(names[assetClass] ?? assetClass)} breached from`}
                               inputMode="decimal"
-                              placeholder={breachAt}
+                              placeholder={hint(breachAt, "20")}
                               value={band.breachAt}
                               onChange={change("breachAt")}
                             />
                           </td>
+                          {twoSided && (
+                            <>
+                              <td className="px-2 py-1.5">
+                                <TextInput
+                                  aria-label={`${(names[assetClass] ?? assetClass)} worth watching under`}
+                                  inputMode="decimal"
+                                  placeholder={band.watchAt || hint(watchAt, "10")}
+                                  value={band.watchBelow}
+                                  onChange={change("watchBelow")}
+                                />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <TextInput
+                                  aria-label={`${(names[assetClass] ?? assetClass)} at the edge under`}
+                                  inputMode="decimal"
+                                  placeholder={band.edgeAt || hint(edgeAt, "15")}
+                                  value={band.edgeBelow}
+                                  onChange={change("edgeBelow")}
+                                />
+                              </td>
+                              <td className="py-1.5 pl-2">
+                                <TextInput
+                                  aria-label={`${(names[assetClass] ?? assetClass)} breached under`}
+                                  inputMode="decimal"
+                                  placeholder={band.breachAt || hint(breachAt, "20")}
+                                  value={band.breachBelow}
+                                  onChange={change("breachBelow")}
+                                />
+                              </td>
+                            </>
+                          )}
                         </tr>
                       );
                     })}
@@ -661,6 +893,40 @@ export function ModelDialog({
               )}
               {errors.fields.bands && <p className="text-xs text-red-600">{errors.fields.bands}</p>}
             </div>
+          )}
+        </fieldset>
+
+        <fieldset className="rounded-xl border border-line px-4 pt-2 pb-4">
+          <legend className="px-1.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Where in the world, and in what
+          </legend>
+          <p className="max-w-prose text-xs text-ink-muted">
+            A separate question from the split above, not a breakdown of it: a plan can want a third of the
+            money in one country whichever classes it arrives in. Read against the holdings written down line
+            by line, because only a line says where it is — a class recorded as one figure says nothing.
+            Leave either empty and the plan asks nothing of it.
+          </p>
+          <div className="mt-3 grid gap-4 lg:grid-cols-2">
+            <Spread
+              label="By country"
+              hint="Two-letter codes, such as US or IN."
+              placeholder="US"
+              lines={countries}
+              onChange={setCountries}
+            />
+            <Spread
+              label="By sector"
+              hint="As the firm writes them, such as Technology."
+              placeholder="Technology"
+              lines={sectors}
+              onChange={setSectors}
+            />
+          </div>
+          {errors.fields.geographyTargets && (
+            <p className="mt-2 text-xs text-red-600">{errors.fields.geographyTargets}</p>
+          )}
+          {errors.fields.sectorTargets && (
+            <p className="mt-2 text-xs text-red-600">{errors.fields.sectorTargets}</p>
           )}
         </fieldset>
 
