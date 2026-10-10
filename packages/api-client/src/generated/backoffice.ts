@@ -1200,16 +1200,21 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  empty?: boolean;
+  array?: boolean;
+  null?: boolean;
+  object?: boolean;
+  float?: boolean;
   number?: boolean;
   container?: boolean;
   floatingPointNumber?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  short?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
+  short?: boolean;
   int?: boolean;
   long?: boolean;
   double?: boolean;
@@ -1219,11 +1224,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  empty?: boolean;
-  array?: boolean;
-  null?: boolean;
-  object?: boolean;
-  float?: boolean;
   embeddedValue?: boolean;
 }
 
@@ -1345,11 +1345,24 @@ export interface FormSection {
   complete: boolean;
 }
 
+export interface RiskStanding {
+  score: number;
+  band: string;
+  dueDiligence: string;
+  nextReviewOn: string;
+  overdue: boolean;
+  /** @nullable */
+  forcedBy: string | null;
+  ratedByName: string;
+  ratedAt: string;
+}
+
 export interface FormDetail {
   summary: FormRow;
   answers: FormDetailAnswers;
   sections: FormSection[];
   attachments: AttachedFile[];
+  amlRating: RiskStanding | null;
 }
 
 export type FormCategoriesRequestCategoriesItem = typeof FormCategoriesRequestCategoriesItem[keyof typeof FormCategoriesRequestCategoriesItem];
@@ -5407,6 +5420,8 @@ customerIds: string[];
 export type GetClientValuationsParams = {
 from?: string;
 };
+
+export type PreviewPortfolioCurrency200 = {[key: string]: number};
 
 export type GetClientAttributionParams = {
 from?: string;
@@ -21366,6 +21381,109 @@ export function useGetClientGeography<TData = Awaited<ReturnType<typeof getClien
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientGeographyQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPreviewPortfolioCurrencyUrl = (customerId: string,
+    currency: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/currency/${currency}`
+}
+
+export const previewPortfolioCurrency = async (customerId: string,
+    currency: string, options?: Parameters<typeof http>[1]): Promise<PreviewPortfolioCurrency200> => {
+
+  return http<PreviewPortfolioCurrency200>(getPreviewPortfolioCurrencyUrl(customerId,currency),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPreviewPortfolioCurrencyQueryKey = (customerId: string,
+    currency: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/currency/${currency}`
+    ] as const;
+    }
+
+
+export const getPreviewPortfolioCurrencyQueryOptions = <TData = Awaited<ReturnType<typeof previewPortfolioCurrency>>, TError = unknown>(customerId: string,
+    currency: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof previewPortfolioCurrency>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPreviewPortfolioCurrencyQueryKey(customerId,currency);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof previewPortfolioCurrency>>> = ({ signal }) => previewPortfolioCurrency(customerId,currency, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined && currency !== null && currency !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof previewPortfolioCurrency>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type PreviewPortfolioCurrencyQueryResult = NonNullable<Awaited<ReturnType<typeof previewPortfolioCurrency>>>
+export type PreviewPortfolioCurrencyQueryError = unknown
+
+
+export function usePreviewPortfolioCurrency<TData = Awaited<ReturnType<typeof previewPortfolioCurrency>>, TError = unknown>(
+ customerId: string,
+    currency: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof previewPortfolioCurrency>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof previewPortfolioCurrency>>,
+          TError,
+          Awaited<ReturnType<typeof previewPortfolioCurrency>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePreviewPortfolioCurrency<TData = Awaited<ReturnType<typeof previewPortfolioCurrency>>, TError = unknown>(
+ customerId: string,
+    currency: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof previewPortfolioCurrency>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof previewPortfolioCurrency>>,
+          TError,
+          Awaited<ReturnType<typeof previewPortfolioCurrency>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePreviewPortfolioCurrency<TData = Awaited<ReturnType<typeof previewPortfolioCurrency>>, TError = unknown>(
+ customerId: string,
+    currency: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof previewPortfolioCurrency>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function usePreviewPortfolioCurrency<TData = Awaited<ReturnType<typeof previewPortfolioCurrency>>, TError = unknown>(
+ customerId: string,
+    currency: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof previewPortfolioCurrency>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getPreviewPortfolioCurrencyQueryOptions(customerId,currency,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

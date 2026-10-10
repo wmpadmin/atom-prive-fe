@@ -29,7 +29,16 @@ const UNGROUPED = "Not grouped";
  * <p>A class written down this way takes its total from its lines, so the figure and the holdings can never
  * disagree. A class nobody has broken down keeps the single figure somebody typed, and says so.
  */
-export function ClientHoldingsPanel({ customerId, onChanged }: { customerId: string; onChanged: () => void }) {
+export function ClientHoldingsPanel({
+  customerId,
+  onChanged,
+  readOnly = false,
+}: {
+  customerId: string;
+  onChanged: () => void;
+  /** Read somewhere other than the portfolio screen, where writing them down is not the job. */
+  readOnly?: boolean;
+}) {
   const queryClient = useQueryClient();
   const held = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   const [opened, setOpened] = useState<Set<string>>(new Set());
@@ -65,10 +74,12 @@ export function ClientHoldingsPanel({ customerId, onChanged }: { customerId: str
             its lines.
           </p>
         </div>
-        <Button variant="secondary" onClick={() => setEditing("new")}>
-          <Plus aria-hidden="true" />
-          Add a holding
-        </Button>
+        {!readOnly && (
+          <Button variant="secondary" onClick={() => setEditing("new")}>
+            <Plus aria-hidden="true" />
+            Add a holding
+          </Button>
+        )}
       </div>
 
       {held.data && held.data.unplaced > 0 && (
@@ -134,13 +145,17 @@ export function ClientHoldingsPanel({ customerId, onChanged }: { customerId: str
                           {group.positions.map((position) => (
                             <li key={position.id} className="flex items-center gap-3 py-1.5 text-sm">
                               <span className="min-w-0 flex-1">
-                                <button
-                                  type="button"
-                                  onClick={() => setEditing(position)}
-                                  className="block truncate text-left font-medium text-primary-700 hover:underline"
-                                >
-                                  {position.name}
-                                </button>
+                                {readOnly ? (
+                                  <span className="block truncate font-medium">{position.name}</span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditing(position)}
+                                    className="block truncate text-left font-medium text-primary-700 hover:underline"
+                                  >
+                                    {position.name}
+                                  </button>
+                                )}
                                 <span className="block truncate text-xs text-ink-muted">
                                   {[position.identifier, position.issuer, position.countryCode, position.sector, position.creditRating]
                                     .filter(Boolean)
@@ -153,14 +168,18 @@ export function ClientHoldingsPanel({ customerId, onChanged }: { customerId: str
                               <span className="w-16 text-right text-xs whitespace-nowrap tabular-nums text-ink-muted">
                                 {position.shareOfPortfolio.toFixed(1)}%
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => setRemoving(position)}
-                                aria-label={`Remove ${position.name}`}
-                                className="rounded p-1 text-ink-muted hover:text-rose-700"
-                              >
-                                <Trash2 aria-hidden="true" className="size-4" />
-                              </button>
+                              {/* A bare grey glyph reads as decoration. Bordered, it reads as a button. */}
+                              {!readOnly && (
+                                <button
+                                  type="button"
+                                  onClick={() => setRemoving(position)}
+                                  aria-label={`Remove ${position.name}`}
+                                  title={`Remove ${position.name}`}
+                                  className="rounded-lg border border-line p-1.5 text-ink-soft hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                                >
+                                  <Trash2 aria-hidden="true" className="size-4" />
+                                </button>
+                              )}
                             </li>
                           ))}
                         </ul>

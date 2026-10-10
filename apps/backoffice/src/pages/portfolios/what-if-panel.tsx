@@ -30,7 +30,16 @@ function asMoves(typed: Record<string, Move>) {
  * <p>Nothing is written down and nothing is placed — the platform never places a trade. It is a question
  * asked of the figures before anybody acts on them.
  */
-export function WhatIfPanel({ customerId, standing }: { customerId: string; standing: PortfolioStanding }) {
+export function WhatIfPanel({
+  customerId,
+  standing,
+  editing,
+}: {
+  customerId: string;
+  standing: PortfolioStanding;
+  /** Asking changes nothing, but it follows the screen's one mode: no boxes to type in while reading. */
+  editing: boolean;
+}) {
   const { names, inUse } = useAssetClasses();
   const [typed, setTyped] = useState<Record<string, Move>>({});
   const [asked, setAsked] = useState<WhatIf | null>(null);
@@ -54,6 +63,10 @@ export function WhatIfPanel({ customerId, standing }: { customerId: string; stan
   const was = standing.standing as DriftStanding | null;
   const would = (asked?.after.standing ?? null) as DriftStanding | null;
 
+  /**
+   * Asking saves nothing, but a screen that is being read should not have boxes to type in: a control that
+   * takes a figure says the page is being changed, and this page says plainly when it is.
+   */
   function change(assetClass: string, part: Partial<Move>) {
     const move = typed[assetClass] ?? { way: "buy" as const, amount: "" };
     setTyped({ ...typed, [assetClass]: { ...move, ...part } });
@@ -68,12 +81,13 @@ export function WhatIfPanel({ customerId, standing }: { customerId: string; stan
         trade — it says where the portfolio would stand if somebody did.
       </p>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <div className="mt-3 space-y-2">
         {inUse.map((one) => {
           const move = typed[one.code] ?? { way: "buy" as const, amount: "" };
           return (
             <div key={one.code} className="flex items-center gap-2">
-              <span className="w-40 shrink-0 truncate text-sm text-ink" title={names[one.code]}>
+              {/* Named in full: a class cut off at a fixed width reads as a different class. */}
+              <span className="w-56 shrink-0 text-sm text-ink">
                 {names[one.code] ?? one.code}
               </span>
               <div className="flex rounded-lg border border-line p-0.5">
@@ -82,10 +96,13 @@ export function WhatIfPanel({ customerId, standing }: { customerId: string; stan
                     key={way}
                     type="button"
                     aria-pressed={move.way === way}
+                    disabled={!editing}
                     onClick={() => change(one.code, { way })}
                     className={cn(
                       "rounded-md px-2 py-1 text-2xs font-semibold uppercase transition-colors",
-                      move.way === way ? "bg-primary-600 text-white" : "text-ink-muted hover:text-ink",
+                      move.way === way ? "bg-primary-600 text-white" : "text-ink-muted",
+                      editing && move.way !== way && "hover:text-ink",
+                      !editing && "opacity-60",
                     )}
                   >
                     {way}
@@ -96,6 +113,8 @@ export function WhatIfPanel({ customerId, standing }: { customerId: string; stan
                 aria-label={`${names[one.code] ?? one.code} amount`}
                 inputMode="decimal"
                 placeholder="0.00"
+                readOnly={!editing}
+                className={editing ? undefined : "bg-canvas text-ink-muted"}
                 value={move.amount}
                 onChange={(event) => change(one.code, { amount: asFigure(event.target.value, move.amount) })}
               />
@@ -106,7 +125,11 @@ export function WhatIfPanel({ customerId, standing }: { customerId: string; stan
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-ink-muted">
-          {anything ? "Nothing is saved by asking." : "Put a figure against a class to ask."}
+          {!editing
+            ? "Press Edit to try a trade. Nothing is saved by asking."
+            : anything
+              ? "Nothing is saved by asking."
+              : "Put a figure against a class to ask."}
         </p>
         <div className="flex gap-2">
           {(anything || asked) && (
@@ -124,7 +147,7 @@ export function WhatIfPanel({ customerId, standing }: { customerId: string; stan
           )}
           <Button
             size="sm"
-            disabled={!anything || whatIf.isPending}
+            disabled={!editing || !anything || whatIf.isPending}
             onClick={() => whatIf.mutate({ customerId, data: { moves } })}
           >
             {whatIf.isPending ? "Working it out…" : "Show me"}

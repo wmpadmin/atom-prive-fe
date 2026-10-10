@@ -486,6 +486,7 @@ function FilledForm<T>({
                 formId: detail.summary.id,
                 documents,
                 firmName,
+                amlRating: detail.amlRating,
               })}
             </FirmContext.Provider>
           </div>

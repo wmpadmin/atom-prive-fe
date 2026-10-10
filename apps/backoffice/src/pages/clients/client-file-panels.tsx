@@ -14,6 +14,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatDateTime } from "../../lib/labels";
 import { hasAnyAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
+import { ClientHoldingsPanel } from "../portfolios/client-holdings-panel";
 import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
 import { clientsHref, kycStatusLabels, kycStatusTones } from "./client-labels";
 
@@ -36,11 +37,31 @@ export function WaitingPanel({ icon, title, children, actions }: { icon: ReactNo
   );
 }
 
-export function HoldingsPanel() {
+/**
+ * What the client holds, as the firm has written it down.
+ *
+ * <p>This tab used to say the holdings were waiting on bank data. They are not: the portfolio screens record
+ * them, so a client could have a portfolio here and an empty tab there. What is still waiting on the feeds
+ * is the positions arriving by themselves rather than being typed, which the note below says — and writing
+ * them down is the portfolio screen's job, so here they are only read.
+ */
+export function HoldingsPanel({ clientId }: { clientId: string }) {
   return (
-    <WaitingPanel icon={<Wallet />} title="No holdings yet">
-      Positions across every linked bank, with the allocation chart, are filled in once bank data is flowing.
-    </WaitingPanel>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Link to={`/portfolio-clients/${clientId}`}>
+          <Button variant="secondary" size="sm">
+            <Wallet aria-hidden="true" />
+            Open the portfolio
+          </Button>
+        </Link>
+      </div>
+      <ClientHoldingsPanel customerId={clientId} onChanged={() => {}} readOnly />
+      <p className="text-xs text-ink-muted">
+        Written down by the portfolio team. Positions pulled from the banks themselves arrive here once the
+        feeds are connected.
+      </p>
+    </div>
   );
 }
 
