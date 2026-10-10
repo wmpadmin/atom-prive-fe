@@ -42,7 +42,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
-import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, UPLOADS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
+import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_AML_RISK, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, UPLOADS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
@@ -240,6 +240,14 @@ const allNavigation: {
     authority: "APPROVE_PROPOSALS:CHANGE",
     at: (path, search) => path === "/manager-review" || ownsSharedScreen(path, search, A_PROPOSAL, "review"),
   },
+  // Three teams read the blotter and each does one thing to an order, so it sits on all three menus.
+  {
+    to: "/trade-orders",
+    label: "Trade blotter",
+    icon: ArrowLeftRight,
+    authority: READS_ORDERS,
+    at: (path) => path === "/trade-orders" || path.startsWith("/trade-orders/"),
+  },
   { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: ONBOARDS_CLIENTS, notFor: ["ADMIN"] },
   {
     to: "/post-onboarding",
@@ -265,6 +273,16 @@ const allNavigation: {
     at: (path, search) =>
       path === "/kyc" || path.startsWith("/kyc/cases/") || path.startsWith("/kyc/forms/")
       || ownsSharedScreen(path, search, A_CLIENT_KYC, "queue"),
+  },
+  // Where every client sits on the firm's money-laundering sheet. Beside KYC, because it is the same
+  // question asked of the same client: how closely do we have to look at them.
+  {
+    to: "/aml-risk",
+    label: "AML risk",
+    icon: ShieldAlert,
+    authority: READS_AML_RISK,
+    notFor: ["ADMIN"],
+    at: (path) => path === "/aml-risk" || path.startsWith("/aml-risk/"),
   },
   {
     to: "/kyc-documents",
@@ -342,9 +360,9 @@ const ENTRY_CLASS = "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm tran
 /**
  * One entry in the menu, with whatever sits under it.
  *
- * <p>An entry that gathers others shows them, and can be shut again by whoever wants the menu shorter. It
- * reopens itself when the screen being read is one of them, so arriving at a screen never leaves it hidden
- * under a closed heading. An entry that gathers nothing is a link and nothing else.
+ * <p>What an entry gathers is always shown. It was collapsible once, and the arrow that did it was the only
+ * way to reach the things underneath — a menu that hides its own contents behind a control nobody thinks to
+ * press is a menu with screens nobody finds. An entry that gathers nothing is a link and nothing else.
  */
 function NavEntry({
   item,
@@ -363,11 +381,6 @@ function NavEntry({
 }) {
   const Icon = item.icon;
   const here = isHere(item, pathname, search);
-  const holdsTheScreen = item.below.some((under) => isHere(under, pathname, search));
-  // Open to begin with: what an entry gathers is the point of it, and a section that starts shut hides the
-  // only thing under it from somebody who has not thought to click the arrow.
-  const [open, setOpen] = useState(true);
-  const showing = open || holdsTheScreen;
 
   return (
     <li>
@@ -384,19 +397,8 @@ function NavEntry({
           <Icon className="size-4.5" aria-hidden="true" />
           {item.label}
         </NavLink>
-        {item.below.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setOpen(!showing)}
-            aria-expanded={showing}
-            aria-label={`${showing ? "Hide" : "Show"} what is under ${item.label}`}
-            className="ml-1 rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-white hover:text-ink"
-          >
-            <ChevronDown className={cn("size-4 transition-transform", showing && "rotate-180")} aria-hidden="true" />
-          </button>
-        )}
       </div>
-      {item.below.length > 0 && showing && (
+      {item.below.length > 0 && (
         <ul className="mt-1 space-y-1 border-l border-line pl-3 ml-5">
           {item.below.map((under) => {
             const UnderIcon = under.icon;

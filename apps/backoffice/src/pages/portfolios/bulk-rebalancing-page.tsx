@@ -3,17 +3,21 @@ import {
   useDraftFromRebalancing,
   useListModelPortfolios,
   useListRebalancing,
+  useRaiseTradeOrdersFromRebalancing,
   useRecordBulkRebalance,
   type BulkDrafted,
   type BulkRebalancing,
   type ClientRebalance,
   type ModelsPage,
+  type OrdersRaised,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, DateInput, SelectInput, cn } from "@atomprive/ui";
-import { FileSignature } from "lucide-react";
+import { FileSignature, Receipt } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
+import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
+import { hasAnyAuthority, RAISES_ORDERS } from "../../lib/permissions";
 import { formatDate } from "../../lib/labels";
 import { ClassStandingTable } from "./class-standing-table";
 import { driftLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
@@ -59,6 +63,13 @@ export function BulkRebalancingPage() {
   const draft = useDraftFromRebalancing<ApiError>({
     mutation: { onSuccess: (result) => setDrafted(result) },
   });
+  const [raised, setRaised] = useState<OrdersRaised | null>(null);
+  const orders = useRaiseTradeOrdersFromRebalancing<ApiError>({
+    mutation: { onSuccess: (result) => setRaised(result) },
+  });
+
+  const user = useStaffUser();
+  const mayRaiseOrders = hasAnyAuthority(user, ...RAISES_ORDERS);
 
   const clients = rebalancing.data?.clients ?? [];
   // Only a portfolio that has actually wandered is worth putting back, so only those can be chosen.
@@ -91,6 +102,7 @@ export function BulkRebalancingPage() {
               setChosen(new Set());
               // What was drafted was drafted for the model that was showing, so it goes with it.
               setDrafted(null);
+              setRaised(null);
             }}
           >
             <option value="">Choose a model</option>
@@ -171,6 +183,32 @@ export function BulkRebalancingPage() {
                   <FileSignature aria-hidden="true" />
                   {draft.isPending ? "Drafting…" : "Draft proposals"}
                 </Button>
+                {/* The same trades, as paper the dealing desk can act on — drafts, so each still goes past
+                    Compliance. Whoever may not raise an order does not see the button. */}
+                {mayRaiseOrders && (
+                  <Button
+                    variant="secondary"
+                    disabled={orders.isPending}
+                    onClick={() =>
+                      orders.mutate({
+                        data: {
+                          modelPortfolioId: modelId,
+                          // Whoever is ticked, or everybody on the model when nobody is.
+                          customerIds: [...chosen],
+                          // The server writes why on each one; the screen does not ask for a reason twice.
+                          reason: null,
+                        },
+                      })
+                    }
+                  >
+                    <Receipt aria-hidden="true" />
+                    {orders.isPending
+                      ? "Raising…"
+                      : chosen.size === 0
+                        ? "Raise orders for everyone"
+                        : `Raise orders for ${chosen.size}`}
+                  </Button>
+                )}
                 <Button
                   disabled={chosen.size === 0 || !on || record.isPending}
                   onClick={() =>
@@ -217,6 +255,25 @@ export function BulkRebalancingPage() {
                     ))}
                   </ul>
                 )}
+              </div>
+            )}
+
+            {orders.isError && (
+              <div className="px-5 pt-4">
+                <Alert tone="danger">{orders.error.message}</Alert>
+              </div>
+            )}
+
+            {raised && (
+              <div className="px-5 pt-4">
+                <Alert tone={raised.raised === 0 ? "info" : "success"}>
+                  {raised.raised === 0
+                    ? "Nothing to raise — every portfolio asked for is where its model wants it, or its trades are under the smallest the firm raises."
+                    : `${raised.raised} order${raised.raised === 1 ? "" : "s"} raised as draft${raised.raised === 1 ? "" : "s"}. Nothing is with Compliance until somebody submits it.`}{" "}
+                  <Link to="/trade-orders" className="font-semibold underline">
+                    Open the blotter
+                  </Link>
+                </Alert>
               </div>
             )}
 
