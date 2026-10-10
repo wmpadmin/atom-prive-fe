@@ -20,6 +20,7 @@ import { barFor, useAssetClasses } from "./asset-classes";
 import { ClientSearch } from "../clients/client-search";
 import {
   driftLabel,
+  driftTones,
   standingLabels,
   standingTones,
   underManagementLabel,
@@ -224,13 +225,8 @@ export function PortfolioClientsPage() {
               <td
                 className={cn(
                   "px-4 py-3 text-right font-semibold whitespace-nowrap",
-                  standing?.drift == null
-                    ? "text-ink-muted"
-                    : standing.drift > 0
-                      ? "text-emerald-700"
-                      : standing.drift < 0
-                        ? "text-red-600"
-                        : "text-ink",
+                  // The ink follows the standing; the sign already says which side of the target it went.
+                  standing?.standing == null ? "text-ink-muted" : driftTones[standing.standing],
                 )}
               >
                 {standing?.drift == null ? NOTHING_YET : driftLabel(standing.drift)}

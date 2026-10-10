@@ -9,6 +9,7 @@ import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress } from "../../lib/use-list-address";
 import {
   driftLabel,
+  driftTones,
   standingLabels,
   standingTones,
   underManagementLabel,
@@ -159,12 +160,12 @@ export function DriftBreachesPage() {
             <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
               {underManagementLabel(row.underManagement, row.currency)}
             </td>
-            {/* Which side of the target it has gone matters: too much cash and too little are not the same
-                problem, so the sign is kept and coloured. */}
+            {/* Which side of the target it has gone is kept in the sign — "+6.4pp" against "−6.4pp" — but
+                the ink follows the standing. Coloured by side, a breach the wrong way read as good news. */}
             <td
               className={cn(
                 "px-4 py-3 text-right font-semibold whitespace-nowrap",
-                row.drift > 0 ? "text-emerald-700" : row.drift < 0 ? "text-red-600" : "text-ink",
+                driftTones[row.standing],
               )}
             >
               {driftLabel(row.drift)}

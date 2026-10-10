@@ -81,13 +81,15 @@ export function WhatIfPanel({
         trade — it says where the portfolio would stand if somebody did.
       </p>
 
-      <div className="mt-3 space-y-2">
+      {/* Two to a row: one class per line left the amount box stretched across the whole screen for a
+          figure four digits long. */}
+      <div className="mt-3 grid gap-x-8 gap-y-2 lg:grid-cols-2">
         {inUse.map((one) => {
           const move = typed[one.code] ?? { way: "buy" as const, amount: "" };
           return (
-            <div key={one.code} className="flex items-center gap-2">
+            <div key={one.code} className="flex min-w-0 items-center gap-2">
               {/* Named in full: a class cut off at a fixed width reads as a different class. */}
-              <span className="w-56 shrink-0 text-sm text-ink">
+              <span className="w-44 shrink-0 text-sm text-ink">
                 {names[one.code] ?? one.code}
               </span>
               <div className="flex rounded-lg border border-line p-0.5">

@@ -2615,9 +2615,17 @@ export interface FromRebalancingRequest {
   reason: string | null;
 }
 
+export interface TradeNotRaised {
+  customerId: string;
+  client: string;
+  assetClass: string;
+  why: string;
+}
+
 export interface OrdersRaised {
   raised: number;
   orders: TradeOrderRow[];
+  skipped: TradeNotRaised[];
 }
 
 export interface BulkCancelRequest {

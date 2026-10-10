@@ -26,6 +26,7 @@ import {
 import { ChevronLeft } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { AgainstTheModelPanel } from "./against-the-model-panel";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { asFigure } from "../../lib/figures";
@@ -238,10 +239,19 @@ export function TradeOrderPage() {
 
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
+      {/* Said with the name on it. "This is yours" is only obvious to somebody who remembers raising it,
+          and whoever signs in wearing two hats reads it as the page refusing them for no reason. */}
       {found!.status === "PENDING_REVIEW" && mine && (
         <Alert tone="info">
-          This is yours, so somebody else passes it. A trade order is passed by somebody other than whoever
-          raised it.
+          You raised this one, so somebody else passes it — a trade order is passed by somebody other than
+          whoever raised it. It stays here until another member of Compliance opens it.
+        </Alert>
+      )}
+      {/* The other half of the same rule: a reviewer who did not raise it is told it is theirs to answer. */}
+      {found!.status === "PENDING_REVIEW" && !mine && mayReview && (
+        <Alert tone="info">
+          Raised by {found!.raisedByName}, and waiting on you. Pass it or refuse it below; refusing asks
+          what is wrong with it, and what you say is kept on the order for whoever raised it to read.
         </Alert>
       )}
 
@@ -251,6 +261,15 @@ export function TradeOrderPage() {
           <p className="mt-2 text-sm leading-6 whitespace-pre-line text-ink">{found!.reason}</p>
         </section>
       )}
+
+      {/* Whoever passes this has to decide whether the trade is right for the client, and a reference, a
+          sum and a class is not something anybody can answer that from. */}
+      <AgainstTheModelPanel
+        customerId={found!.customerId}
+        assetClass={found!.assetClass}
+        side={found!.side}
+        amount={found!.amount}
+      />
 
       <section className="rounded-2xl border border-line bg-white px-6 py-5">
         <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">What has happened</h2>
