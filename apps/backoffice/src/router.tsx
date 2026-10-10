@@ -5,6 +5,11 @@ import { MyClientsPage } from "./pages/advisor/my-clients-page";
 import { ProposalPage } from "./pages/advisor/proposal-page";
 import { ManagerReviewPage } from "./pages/advisor/manager-review-page";
 import { ProposalsPage } from "./pages/advisor/proposals-page";
+import { AmlClientPage } from "./pages/aml/aml-client-page";
+import { AmlMatrixPage } from "./pages/aml/aml-matrix-page";
+import { AmlRiskPage } from "./pages/aml/aml-risk-page";
+import { TradeBlotterPage } from "./pages/trading/trade-blotter-page";
+import { TradeOrderPage } from "./pages/trading/trade-order-page";
 import { AuditLogPage } from "./pages/audit-log/audit-log-page";
 import { IngestionMonitoringPage } from "./pages/bank-syncs/ingestion-monitoring-page";
 import { SyncErrorsPage } from "./pages/bank-syncs/sync-errors-page";
@@ -38,7 +43,11 @@ import {
   OPENS_CLIENT_FILES,
   READS_CLIENT_PORTFOLIOS,
   READS_CLIENT_FORMS,
+  READS_AML_MATRIX,
+  READS_AML_RISK,
+  READS_ORDERS,
   READS_PROPOSALS,
+  RAISES_ORDERS,
   UPLOADS_CLIENT_DOCUMENTS,
   WRITES_PROPOSALS,
 } from "./lib/permissions";
@@ -181,6 +190,34 @@ export const router = createBrowserRouter([
               { path: "proposals", element: <ProposalsPage /> },
               { path: "proposals/:proposalId", element: <ProposalPage /> },
             ],
+          },
+          {
+            // The blotter is read by whoever raises an order, whoever passes one and whoever places one.
+            // What each may actually do to an order is decided on the order itself.
+            element: <RequireAuthority authority={READS_ORDERS} />,
+            children: [
+              { path: "trade-orders", element: <TradeBlotterPage /> },
+              { path: "trade-orders/:orderId", element: <TradeOrderPage /> },
+            ],
+          },
+          {
+            element: <RequireAuthority authority={RAISES_ORDERS} />,
+            children: [{ path: "trade-orders/new", element: <TradeOrderPage /> }],
+          },
+          {
+            // Where clients sit on the firm's AML sheet is read by whoever scores them and by whoever
+            // oversees the scoring; writing the sheet itself is a permission of its own.
+            element: <RequireAuthority authority={READS_AML_RISK} />,
+            children: [
+              { path: "aml-risk", element: <AmlRiskPage /> },
+              { path: "aml-risk/clients/:customerId", element: <AmlClientPage /> },
+            ],
+          },
+          {
+            // Open to whoever may read the sheet, not only whoever may write it: somebody scoring a client
+            // has to be able to see what they are scoring on. The screen itself offers no edit to a reader.
+            element: <RequireAuthority authority={READS_AML_MATRIX} />,
+            children: [{ path: "aml-risk/matrix", element: <AmlMatrixPage /> }],
           },
           {
             // Giving a sign-off is its own permission: whoever passes a proposal need not write any.
