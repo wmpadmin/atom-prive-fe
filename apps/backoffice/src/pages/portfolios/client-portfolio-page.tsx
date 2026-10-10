@@ -229,59 +229,67 @@ export function ClientPortfolioPage() {
    *
    * <p>Only what changed is sent. The two dates are somebody's own record of when a thing was done, and a
    * screen that wrote them again every time it saved would stamp today's reading over last month's.
+   *
+   * <p>One write at a time, stopping at the first refusal. Sent all at once, a model the API refuses — a
+   * draft, say — left the figures beside it saved anyway, so the page came back showing the holdings kept
+   * and the model quietly dropped, over a message that named neither. What is refused now stops the rest,
+   * and the screen stays in edit with everything still typed in it.
    */
-  function save() {
+  async function save() {
     // The note about a conversion belongs to that conversion, not to everything done afterwards.
     setConverted(null);
-    if (chosenModel !== null && chosenModel !== (standing.data?.modelPortfolioId ?? "")) {
-      setModel.mutate({ customerId, data: { modelPortfolioId: chosenModel || null } });
+    setErrors(noErrors);
+    try {
+      // The model first: it is what every figure below is measured against, so there is no sense keeping
+      // figures against a model that was refused.
+      if (chosenModel !== null && chosenModel !== (standing.data?.modelPortfolioId ?? "")) {
+        await setModel.mutateAsync({ customerId, data: { modelPortfolioId: chosenModel || null } });
+      }
+      if (rebalancedOn !== null && rebalancedOn !== (standing.data?.lastRebalancedOn ?? "") && rebalancedOn) {
+        await rebalanced.mutateAsync({ customerId, data: { on: rebalancedOn } });
+      }
+      if (reviewedOn !== null && reviewedOn !== (standing.data?.lastReviewedOn ?? "") && reviewedOn) {
+        await reviewed.mutateAsync({ customerId, data: { on: reviewedOn } });
+      }
+      // Restating what is on file and retyping it are two different things, and the picker does not let
+      // them be asked for together, so only one of these can be what was meant.
+      if (converting) {
+        setConverted(await setCurrency.mutateAsync({ customerId, data: { currency } }));
+        kept();
+      }
+      else {
+        const wanted: Record<string, number> = {};
+        for (const [assetClass, typed] of Object.entries(holdings)) {
+          if (typed.trim()) wanted[assetClass] = Number(typed);
+        }
+        await setHoldings.mutateAsync({ customerId, data: { holdings: wanted, currency } });
+      }
     }
-    if (rebalancedOn !== null && rebalancedOn !== (standing.data?.lastRebalancedOn ?? "") && rebalancedOn) {
-      rebalanced.mutate({ customerId, data: { on: rebalancedOn } });
-    }
-    if (reviewedOn !== null && reviewedOn !== (standing.data?.lastReviewedOn ?? "") && reviewedOn) {
-      reviewed.mutate({ customerId, data: { on: reviewedOn } });
-    }
-    const done = () => {
-      setHeld(null);
-      setChosenModel(null);
-      setChosenCurrency(null);
-      setRebalancedOn(null);
-      setReviewedOn(null);
-      setEditing(false);
-    };
-    // Restating what is on file and retyping it are two different things, and the picker does not let them
-    // be asked for together, so only one of these can be what was meant.
-    if (converting) {
-      setCurrency.mutate(
-        { customerId, data: { currency } },
-        {
-          onSuccess: (answer) => {
-            setConverted(answer);
-            kept();
-            done();
-          },
-        },
-      );
+    catch {
+      // Each mutation reports what it was refused for through onError, which has already put the message
+      // on the screen. Nothing else is written, and nothing typed is thrown away.
       return;
     }
-    const wanted: Record<string, number> = {};
-    for (const [assetClass, typed] of Object.entries(holdings)) {
-      if (typed.trim()) wanted[assetClass] = Number(typed);
-    }
-    setHoldings.mutate({ customerId, data: { holdings: wanted, currency } }, { onSuccess: done });
+    setHeld(null);
+    setChosenModel(null);
+    setChosenCurrency(null);
+    setRebalancedOn(null);
+    setReviewedOn(null);
+    setEditing(false);
   }
 
   const named = client.data?.client.fullName ?? "";
 
   return (
-    <div className="space-y-6">
+    /* Capped: on a wide screen every box stretched to fill the window, which left a date sitting in
+       the corner of an acre of white and a figure typed into a field a thousand pixels across. */
+    <div className="mx-auto w-full max-w-[82rem] space-y-6">
       {/* Typing into a box and walking off used to lose it without a word. */}
       <LeaveWithoutSaving
         when={unsaved}
         what="This client's portfolio"
         saving={saving}
-        onSave={save}
+        onSave={() => void save()}
         onDiscard={discard}
       />
       <Link
@@ -318,7 +326,7 @@ export function ClientPortfolioPage() {
               <Button variant="secondary" disabled={saving} onClick={discard}>
                 Discard
               </Button>
-              <Button disabled={saving} onClick={save}>
+              <Button disabled={saving} onClick={() => void save()}>
                 {saving ? "Saving…" : "Save changes"}
               </Button>
             </div>
@@ -352,9 +360,13 @@ export function ClientPortfolioPage() {
                 onChange={(event) => setChosenModel(event.target.value)}
               >
                 <option value="">No model — nothing to drift from</option>
+                {/* A draft is a model still being written, and the API refuses to measure anybody against
+                    one. Offering it as though it could be picked turned that refusal into a failed save. */}
                 {(models.data?.items ?? []).map((model) => (
-                  <option key={model.id} value={model.id}>
+                  <option key={model.id} value={model.id} disabled={model.status === "DRAFT"}>
                     {model.name}
+                    {model.status === "DRAFT" ? " — still a draft" : ""}
+                    {model.status === "RETIRED" ? " — retired" : ""}
                   </option>
                 ))}
           </SelectInput>
@@ -398,7 +410,7 @@ export function ClientPortfolioPage() {
                   </SelectInput>
                 </Field>
               </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
                 {boxes.map((assetClass) => (
                   <Field
                     key={assetClass}
@@ -496,7 +508,7 @@ export function ClientPortfolioPage() {
       <section className="rounded-2xl border border-line bg-white px-6 py-5">
         <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">When it was dealt with</h2>
 
-        <dl className="mt-4 divide-y divide-line">
+        <dl className="mt-4 grid gap-x-10 gap-y-4 sm:grid-cols-2">
           <Dealt
             id="rebalanced-on"
             label="Last put back to the model"
@@ -588,10 +600,11 @@ function Saved({ said = "Saved" }: { said?: string }) {
 }
 
 /**
- * One line of the record: what is being dated, the date itself, and what the date means.
+ * One dated fact: what is being dated, the date itself, and what the date means.
  *
- * <p>Name on the left and date on the right, on one line each, so two of them read as a pair of facts
- * rather than as six paragraphs in a row.
+ * <p>Side by side with the other, and each stacked the way every other field on the page is stacked. A
+ * label column wide enough for the longer name left the date marooned in the middle of the row with the
+ * whole right-hand side of the screen empty beside it.
  */
 function Dealt({
   id,
@@ -605,14 +618,14 @@ function Dealt({
   children: ReactNode;
 }) {
   return (
-    <div className="grid gap-x-6 gap-y-1 py-3 sm:grid-cols-[18rem_minmax(0,1fr)] sm:items-baseline">
+    <div className="min-w-0">
       <dt>
         <label htmlFor={id} className="text-sm font-medium text-ink">
           {label}
         </label>
-        <span className="mt-0.5 block text-xs text-ink-muted">{said}</span>
       </dt>
-      <dd className="sm:justify-self-start">{children}</dd>
+      <dd className="mt-1.5">{children}</dd>
+      <dd className="mt-1.5 text-xs text-ink-muted">{said}</dd>
     </div>
   );
 }

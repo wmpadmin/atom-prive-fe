@@ -48,12 +48,23 @@ const TABS: { id: Tab; label: string }[] = [
 export function TradeBlotterPage() {
   const navigate = useNavigate();
   const user = useStaffUser();
-  const [tab, setTab] = useState<Tab>("open");
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const mayRaise = hasAnyAuthority(user, ...RAISES_ORDERS);
   const mayReview = hasAnyAuthority(user, ...REVIEWS_ORDERS);
   const mayPlace = hasAnyAuthority(user, ...PLACES_ORDERS);
+  /**
+   * The tab the blotter opens on: whoever's move it is next.
+   *
+   * <p>Compliance pass orders and raise none, so what is waiting on them is their whole working list;
+   * Operations place what has been passed. Opening everybody on "Open" put Compliance in front of a list
+   * they had nothing to do with yet and left their own queue a tab away.
+   */
+  const [tab, setTab] = useState<Tab>(() => {
+    if (mayReview && !mayRaise) return "PENDING_REVIEW";
+    if (mayPlace && !mayRaise && !mayReview) return "APPROVED";
+    return "open";
+  });
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   // An order with no named holding is read by its class, and the firm's own name for it is the one it uses.
   const { names } = useAssetClasses();
 
@@ -125,12 +136,17 @@ export function TradeBlotterPage() {
   }
 
   /**
-   * The steps this person may take on this list. On a tab that is one state, only the step that state can
-   * take; on a mixed list, whatever their job allows — the server names back anything that could not move.
+   * The steps this person may take on what they have actually ticked.
+   *
+   * <p>Read off the selection rather than off the tab. On a mixed list every step the person's job allowed
+   * was offered whatever was ticked, so two orders already with Compliance still showed "Put to Compliance"
+   * — a button that could only ever come back refused. A step is offered when at least one chosen order
+   * could take it; the server still names back anything that has moved on since.
    */
   const ids = [...chosen];
-  const onOneState = tab !== "open" && tab !== "all";
-  const allowed = (status: TradeOrderRowStatus) => !onOneState || tab === status;
+  const chosenStatuses = new Set(rows.filter((one) => chosen.has(one.id)).map((one) => one.status));
+  const allowed = (status: TradeOrderRowStatus) =>
+    chosenStatuses.size === 0 ? tab === "open" || tab === "all" || tab === status : chosenStatuses.has(status);
   const steps = [
     mayRaise && allowed("DRAFT")
       ? { key: "submit", label: "Put to Compliance", run: () => putToCompliance.mutate({ data: { orderIds: ids } }) }
@@ -150,7 +166,10 @@ export function TradeBlotterPage() {
     mayPlace && allowed("EXECUTED")
       ? { key: "settled", label: "Mark settled", run: () => markSettled.mutate({ data: { orderIds: ids } }) }
       : null,
-    (mayRaise || mayReview) && (!onOneState || ["DRAFT", "PENDING_REVIEW", "APPROVED"].includes(tab))
+    // Stopping is the one step that reaches more than one state, so it is offered when anything ticked is
+    // still early enough to be stopped.
+    (mayRaise || mayReview)
+      && (["DRAFT", "PENDING_REVIEW", "APPROVED"] as const).some((status) => allowed(status))
       ? { key: "stop", label: "Stop", run: () => setAsking("stop") }
       : null,
   ].filter((one) => one !== null);
@@ -186,8 +205,11 @@ export function TradeBlotterPage() {
         )}
       </header>
 
+      {/* A draft is the author's until they put it to somebody, so whoever does not raise orders is not
+          offered the tab. The API leaves them out of the list and out of the counts either way; a tab that
+          always read nought would only invite the question. */}
       <div role="tablist" aria-label="Trade orders" className="flex flex-wrap gap-2">
-        {TABS.map((one) => (
+        {TABS.filter((one) => one.id !== "DRAFT" || mayRaise).map((one) => (
           <button
             key={one.id}
             type="button"
@@ -211,7 +233,7 @@ export function TradeBlotterPage() {
 
       {/* What moved and what did not. A selection is made by eye, so some of it is always out of date. */}
       {done && (
-        <Alert tone={done.moved === 0 ? "warning" : "success"}>
+        <Alert tone={done.moved === 0 || done.skipped.length > 0 ? "warning" : "success"}>
           <p>
             {done.moved === 0
               ? `Nothing was ${whatMoved}.`

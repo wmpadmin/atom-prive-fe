@@ -11,7 +11,7 @@ import {
   type ModelsPage,
   type OrdersRaised,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, DateInput, SelectInput, cn } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, DateInput, Dialog, SelectInput, cn } from "@atomprive/ui";
 import { FileSignature, Receipt } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -20,7 +20,8 @@ import { ListPageHeader } from "../../components/record-list";
 import { hasAnyAuthority, RAISES_ORDERS } from "../../lib/permissions";
 import { formatDate } from "../../lib/labels";
 import { ClassStandingTable } from "./class-standing-table";
-import { driftLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
+import { nameOf, useAssetClasses } from "./asset-classes";
+import { driftLabel, driftTones, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
 
 /** Today, as the calendar writes it, so a rebalance can be dated today but no later. */
 function today() {
@@ -46,6 +47,8 @@ export function BulkRebalancingPage() {
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [openClient, setOpenClient] = useState<string | null>(null);
   const [on, setOn] = useState<string>(new Date().toISOString().slice(0, 10));
+  /** Whether the dialog that asks for the date, and writes it, is open. */
+  const [recording, setRecording] = useState(false);
 
   const models = useListModelPortfolios<ModelsPage, ApiError>();
   const rebalancing = useListRebalancing<BulkRebalancing, ApiError>(modelId, {
@@ -55,6 +58,7 @@ export function BulkRebalancingPage() {
     mutation: {
       onSuccess: () => {
         setChosen(new Set());
+        setRecording(false);
         void rebalancing.refetch();
       },
     },
@@ -68,6 +72,7 @@ export function BulkRebalancingPage() {
     mutation: { onSuccess: (result) => setRaised(result) },
   });
 
+  const assetClasses = useAssetClasses();
   const user = useStaffUser();
   const mayRaiseOrders = hasAnyAuthority(user, ...RAISES_ORDERS);
 
@@ -156,19 +161,6 @@ export function BulkRebalancingPage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-end gap-3">
-                <label>
-                  <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                    Put back on
-                  </span>
-                  <DateInput
-                    id="rebalanced-on"
-                    name="on"
-                    value={on}
-                    min={yearsAgo(20)}
-                    max={today()}
-                    onChange={(next) => setOn(next ?? "")}
-                  />
-                </label>
                 {/* Drafts, never a send: eighteen clients drifting the same way is still eighteen
                     conversations, and one button that posted them all would be the platform giving advice. */}
                 <Button
@@ -209,29 +201,31 @@ export function BulkRebalancingPage() {
                         : `Raise orders for ${chosen.size}`}
                   </Button>
                 )}
+                {/* The date is asked for inside the dialog, not over the table.
+                    Standing in the toolbar it read as a filter over the rows below — and choosing a day
+                    and watching the "Last put back" column stay where it was read as a filter that did not
+                    work. Asked when the button is pressed, it can only be the date being written. */}
                 <Button
-                  disabled={chosen.size === 0 || !on || record.isPending}
-                  onClick={() =>
-                    record.mutate({ id: modelId, data: { customerIds: [...chosen], on } })
-                  }
+                  className="border-l border-line pl-3"
+                  disabled={chosen.size === 0 || record.isPending}
+                  onClick={() => setRecording(true)}
                 >
-                  {record.isPending
-                    ? "Recording…"
-                    : `Record ${chosen.size || "no"} rebalance${chosen.size === 1 ? "" : "s"}`}
+                  {chosen.size === 0
+                    ? "Record no rebalances"
+                    : `Record ${chosen.size} rebalance${chosen.size === 1 ? "" : "s"}`}
                 </Button>
               </div>
             </div>
 
-            {record.isError && (
-              <div className="px-5 pt-4">
-                <Alert tone="danger">{record.error.message}</Alert>
-              </div>
-            )}
-
-            {/* The firm's own judgement is what makes a trade list possible; without it, nothing is drafted. */}
+            {/* The firm's own judgement is what makes a holding-by-holding plan possible; without it,
+                nothing is drafted. Shown as a refusal rather than a note: as a quiet yellow aside it read
+                like a standing warning about the page, and the button looked as though it had done
+                nothing at all. */}
             {draft.isError && (
               <div className="px-5 pt-4">
-                <Alert tone="warning">{draft.error.message}</Alert>
+                <Alert tone="danger">
+                  <span className="font-semibold">No proposals were drafted.</span> {draft.error.message}
+                </Alert>
               </div>
             )}
 
@@ -265,15 +259,31 @@ export function BulkRebalancingPage() {
             )}
 
             {raised && (
-              <div className="px-5 pt-4">
-                <Alert tone={raised.raised === 0 ? "info" : "success"}>
+              <div className="space-y-2 px-5 pt-4">
+                <Alert
+                  tone={raised.raised === 0 ? "info" : raised.skipped.length > 0 ? "warning" : "success"}
+                >
                   {raised.raised === 0
-                    ? "Nothing to raise — every portfolio asked for is where its model wants it, or its trades are under the smallest the firm raises."
+                    ? "Nothing raised. Every trade asked for already has an order running, or the portfolios are where their model wants them."
                     : `${raised.raised} order${raised.raised === 1 ? "" : "s"} raised as draft${raised.raised === 1 ? "" : "s"}. Nothing is with Compliance until somebody submits it.`}{" "}
                   <Link to="/trade-orders" className="font-semibold underline">
                     Open the blotter
                   </Link>
                 </Alert>
+                {/* A trade already in flight is left alone rather than raised twice, and saying so is the
+                    whole point — two orders for one class would move twice what the model asked for. */}
+                {raised.skipped.length > 0 && (
+                  <ul className="space-y-1 text-xs text-ink-soft">
+                    {raised.skipped.map((one) => (
+                      <li key={`${one.customerId}-${one.assetClass}`}>
+                        <span className="font-semibold">
+                          {one.client} · {nameOf(one.assetClass, assetClasses.names)}
+                        </span>{" "}
+                        — {one.why}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 
@@ -328,6 +338,47 @@ export function BulkRebalancingPage() {
           </section>
         </>
       )}
+
+      {/* Asked at the moment of writing it, so the date can only be read as part of what is being written.
+          "Put back on" sitting over the table was taken for a filter three times over. */}
+      <Dialog
+        open={recording}
+        title={`Record ${chosen.size} rebalance${chosen.size === 1 ? "" : "s"}?`}
+        onClose={() => setRecording(false)}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-ink-muted">
+            This writes the date onto {chosen.size === 1 ? "that client" : "those clients"}, so drift is read
+            as how far {chosen.size === 1 ? "their portfolio has" : "their portfolios have"} wandered since.
+            It is a record of trades somebody has already done — it places nothing.
+          </p>
+          <label className="block">
+            <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              The day the trades were done
+            </span>
+            <DateInput
+              id="rebalanced-on"
+              name="on"
+              value={on}
+              min={yearsAgo(20)}
+              max={today()}
+              onChange={(next) => setOn(next ?? "")}
+            />
+          </label>
+          {record.isError && <Alert tone="danger">{record.error.message}</Alert>}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setRecording(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!on || record.isPending}
+              onClick={() => record.mutate({ id: modelId, data: { customerIds: [...chosen], on } })}
+            >
+              {record.isPending ? "Recording…" : `Record ${on ? formatDate(on) : "…"}`}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }
@@ -374,7 +425,9 @@ function Row({
         <td
           className={cn(
             "px-4 py-3 text-right font-semibold whitespace-nowrap",
-            client.drift == null ? "text-ink-muted" : client.drift > 0 ? "text-emerald-700" : "text-red-600",
+            // Coloured by where the portfolio stands, not by the sign of the figure: drift is how far it
+            // has wandered either way, so it is never negative and used to read green at its very worst.
+            client.standing == null ? "text-ink-muted" : driftTones[client.standing],
           )}
         >
           {client.drift == null ? "—" : driftLabel(client.drift)}

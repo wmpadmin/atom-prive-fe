@@ -17,6 +17,18 @@ export const standingTones: Record<DriftStanding, "success" | "neutral" | "warni
   BREACHED: "danger",
 };
 
+/**
+ * The ink a drift figure is written in. It follows the standing beside it rather than the sign of the
+ * number: a client's drift adds up how far every class has wandered either way, so it is never negative,
+ * and colouring it by sign painted the worst breach on the page a healthy green.
+ */
+export const driftTones: Record<DriftStanding, string> = {
+  WITHIN_BAND: "text-emerald-700",
+  WATCH: "text-ink",
+  AT_EDGE: "text-amber-700",
+  BREACHED: "text-red-600",
+};
+
 /** Drift as the screens write it: "+6.4pp", "−6.0pp", and a true zero as "0.0pp". */
 export function driftLabel(drift: number) {
   const rounded = drift.toFixed(1);

@@ -52,7 +52,11 @@ export function ClientHoldingsPanel({
   };
   const remove = useRemoveClientHolding<ApiError>({ mutation: { onSuccess: () => { kept(); setRemoving(null); } } });
 
-  if (held.isError) return <Alert tone="danger">{held.error.message}</Alert>;
+  // A client with nothing written down yet is an ordinary state, not a failure. Shown as one, it put a
+  // red banner across the portfolio page of every client whose holdings nobody had typed in.
+  if (held.isError && held.error.status !== 404) {
+    return <Alert tone="danger">{held.error.message}</Alert>;
+  }
 
   const classes = held.data?.classes ?? [];
   const currency = held.data?.currency ?? "USD";
