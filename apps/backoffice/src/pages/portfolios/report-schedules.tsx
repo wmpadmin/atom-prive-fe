@@ -198,6 +198,17 @@ export function ReportSchedules({
               {create.isPending ? "Saving…" : "Schedule"}
             </Button>
           </form>
+
+          {/* A report read by date covers the stretch that has just ended, so each run says something new. */}
+          {kind === "TRADE_ORDERS" && (
+            <p className="mt-2 text-xs text-ink-muted">
+              {cadence === "MONTHLY_FIRST"
+                ? "Each run covers the month just gone."
+                : cadence === "QUARTERLY"
+                  ? "Each run covers the quarter just gone."
+                  : "Each run covers whatever has been raised since the last one."}
+            </p>
+          )}
           <p className="mt-2 text-xs text-ink-muted">
             {canTellSomebody
               ? "Emailed with the report attached, as soon as it is produced."

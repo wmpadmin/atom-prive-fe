@@ -11,7 +11,7 @@ import {
   type ReportRow,
   type ReportsPage,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, Field, SelectInput, cn } from "@atomprive/ui";
+import { Alert, Badge, Button, DateInput, Field, SelectInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Download, FileText } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -39,7 +39,22 @@ const KINDS: { kind: Kind; title: string; answers: string }[] = [
   { kind: "HOLDINGS", title: "Holdings", answers: "Every holding line by line, with its issuer, country and rating." },
   { kind: "DRIFT_HISTORY", title: "Drift history", answers: "What a portfolio was worth on each day somebody wrote it down, and how it was split." },
   { kind: "MODEL_PERFORMANCE", title: "Model performance", answers: "How each plan has done, as the performance screen reads it." },
+  { kind: "TRADE_ORDERS", title: "Trade orders", answers: "Every order raised in the period, with who raised it, who passed it and when it settled." },
 ];
+
+/** Nothing was traded tomorrow, and the firm's record does not go back twenty years. */
+function today() {
+  const day = new Date();
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate());
+}
+
+function yearsAgo(years: number) {
+  const day = new Date();
+  return new Date(day.getFullYear() - years, day.getMonth(), day.getDate());
+}
+
+/** The reports read by date. Only the record of what was traded is a period rather than a position. */
+const OVER_A_PERIOD: Kind[] = ["TRADE_ORDERS"];
 
 /**
  * Reports produced from what the platform holds, and the record of every one that has been.
@@ -58,6 +73,8 @@ export function PortfolioReportsPage() {
   const [scope, setScope] = useState<Scope>("FIRM");
   const [scopeId, setScopeId] = useState("");
   const [format, setFormat] = useState<Format>("CSV");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [taking, setTaking] = useState<string | null>(null);
   // Only fetched when a report for one client is actually being chosen.
@@ -87,11 +104,22 @@ export function PortfolioReportsPage() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    produce.mutate({ data: { kind, scope, scopeId: scope === "FIRM" ? null : scopeId || null, format } });
+    produce.mutate({
+      data: {
+        kind,
+        scope,
+        scopeId: scope === "FIRM" ? null : scopeId || null,
+        format,
+        // A report that is a position rather than a period carries no dates, whatever is left in the fields.
+        from: overAperiod ? from || null : null,
+        to: overAperiod ? to || null : null,
+      },
+    });
   }
 
   const rows = reports.data?.items ?? [];
   const chosen = KINDS.find((one) => one.kind === kind);
+  const overAperiod = OVER_A_PERIOD.includes(kind);
 
   return (
     <div className="space-y-6">
@@ -180,6 +208,35 @@ export function PortfolioReportsPage() {
               {produce.isPending ? "Producing…" : "Produce"}
             </Button>
           </form>
+
+          {/* Only for a report read by date. Left empty, it covers everything on record. */}
+          {overAperiod && (
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <Field id="report-from" label="From" error={errors.fields.from}>
+                <DateInput
+                  id="report-from"
+                  name="from"
+                  value={from}
+                  min={yearsAgo(20)}
+                  max={today()}
+                  onChange={(next) => setFrom(next ?? "")}
+                />
+              </Field>
+              <Field id="report-to" label="To" error={errors.fields.to}>
+                <DateInput
+                  id="report-to"
+                  name="to"
+                  value={to}
+                  min={yearsAgo(20)}
+                  max={today()}
+                  onChange={(next) => setTo(next ?? "")}
+                />
+              </Field>
+              <p className="pb-2 text-xs text-ink-muted">
+                Left empty, it covers everything on record. The last day is counted whole.
+              </p>
+            </div>
+          )}
           {chosen && (
             <p className="mt-2 text-xs text-ink-muted">
               {chosen.answers} {FORMATS.find((one) => one.format === format)?.forWhat}
