@@ -85,6 +85,15 @@
   font-size: var(--text-sm);
 }
 
+/*
+ * The chosen day. react-day-picker's own stylesheet sets `font-size: large` on it, which drew the chosen
+ * date a size bigger than every other day in the grid and knocked its row out of line. It is marked by its
+ * fill and its weight; a calendar whose numbers are different sizes is a calendar that reads as broken.
+ */
+.rdp-selected {
+  font-size: inherit;
+}
+
 .rdp-selected .rdp-day_button {
   background-color: var(--color-primary-600);
   color: white;
