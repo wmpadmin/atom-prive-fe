@@ -1,5 +1,8 @@
+import type { RiskStanding } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, cn } from "@atomprive/ui";
 import { Plus, X } from "lucide-react";
+import { Link } from "react-router";
+import { formatDate } from "../../lib/labels";
 import { Boxes, Tick, Written } from "../../components/form-boxes";
 import { Documents, type FormDocuments } from "../../components/form-documents";
 import { FirmSignsThis } from "../../components/client-signs-this";
@@ -447,17 +450,62 @@ export function WealthStep({
   );
 }
 
+/**
+ * What the firm's own matrix says about this client, beside the line that asks for it.
+ *
+ * <p>Not part of the document. The form's wording is the firm's and is not ours to change, so this sits
+ * above it as the platform's own note: the rating, when it was given and by whom, and a button that writes
+ * it into the line rather than making somebody retype what the platform already knows.
+ */
+function WhatTheMatrixSays({ rating, onUse }: { rating: RiskStanding | null; onUse: (said: string) => void }) {
+  if (!rating) {
+    return (
+      <Alert tone="warning">
+        This client has not been scored on the firm&rsquo;s AML risk matrix yet, so there is no rating to
+        carry over.{" "}
+        <Link to="/aml-risk" className="font-semibold underline">
+          Open AML risk
+        </Link>
+      </Alert>
+    );
+  }
+  const said = `${rating.band} (${rating.score}/100)`;
+  return (
+    <Alert tone={rating.overdue ? "warning" : "info"}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p>
+            The firm&rsquo;s matrix has this client at <span className="font-semibold">{said}</span> —{" "}
+            {rating.dueDiligence.toLowerCase()} due diligence.
+            {rating.forcedBy && <> Settled by {rating.forcedBy}, not by the score.</>}
+          </p>
+          <p className="mt-0.5 text-xs">
+            Scored by {rating.ratedByName} on {formatDate(rating.ratedAt)}
+            {rating.overdue && <span className="font-semibold"> · due to be scored again</span>}
+          </p>
+        </div>
+        <Button variant="secondary" size="sm" onClick={() => onUse(said)}>
+          Use this rating
+        </Button>
+      </div>
+    </Alert>
+  );
+}
+
 /** SECTION 2: the money laundering risk rating the relationship manager carries over from the matrix. */
 export function RiskStep({
   risk,
   formId,
   documents,
+  amlRating,
   onChange,
   field,
 }: {
   risk: DueDiligenceEntity["risk"];
   formId: string;
   documents: FormDocuments;
+  /** Where the client stands on the firm's matrix, which is what this section states. */
+  amlRating: RiskStanding | null;
   onChange: (patch: Partial<DueDiligenceEntity["risk"]>) => void;
   field: FieldFor;
 }) {
@@ -469,6 +517,13 @@ export function RiskStep({
 
   return (
     <div className="space-y-6">
+      {/*
+        The matrix this section states a rating from is in the platform now, so what it says is shown here
+        rather than left to be remembered. The form's own line is untouched: it is the firm's document, the
+        rating written on it is the relationship manager's to write, and this only saves them looking it up.
+      */}
+      <WhatTheMatrixSays rating={amlRating} onUse={(said) => onChange({ overallMlrr: said })} />
+
       <FieldGroup title="1) OVERALL MLRR RISK ASSESSMENT">
         <TextField id="risk.overallMlrr" label="OVERALL MLRR RISK ASSESSMENT" value={risk.overallMlrr} onChange={(overallMlrr) => onChange({ overallMlrr })} field={field} className="sm:col-span-2" />
       </FieldGroup>
