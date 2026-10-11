@@ -191,6 +191,15 @@ const allNavigation: {
     onlyFor: ["PORTFOLIO_MANAGER"],
   },
   {
+    // Asking for a client to be put on another plan. An advisor asks; a manager answers, and the answer
+    // is what moves them.
+    to: "/model-changes",
+    label: "Model changes",
+    icon: ArrowLeftRight,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER", "ADVISOR"],
+  },
+  {
     // How the plans themselves are doing, which is a different question from how any one client is doing.
     to: "/model-performance",
     label: "Model performance",

@@ -65,6 +65,7 @@ import { PortfolioReportsPage } from "./pages/portfolios/reports-page";
 import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-page";
 import { ModelPerformancePage } from "./pages/portfolios/model-performance-page";
 import { BulkRebalancingPage } from "./pages/portfolios/bulk-rebalancing-page";
+import { ModelChangesPage } from "./pages/portfolios/model-changes-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
 import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
@@ -280,6 +281,7 @@ export const router = createBrowserRouter([
               { path: "model-portfolios", element: <ModelPortfoliosPage /> },
               { path: "drift", element: <DriftBreachesPage /> },
               { path: "bulk-rebalancing", element: <BulkRebalancingPage /> },
+              { path: "model-changes", element: <ModelChangesPage /> },
               { path: "model-performance", element: <ModelPerformancePage /> },
               { path: "model-risk", element: <ModelRiskPage /> },
               { path: "reports", element: <PortfolioReportsPage /> },

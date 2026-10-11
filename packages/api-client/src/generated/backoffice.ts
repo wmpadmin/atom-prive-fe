@@ -3120,6 +3120,63 @@ export interface BulkRebalancing {
   breached: number;
 }
 
+export interface ModelChangeRequested {
+  customerId: string;
+  /** @nullable */
+  modelPortfolioId: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  why: string;
+}
+
+export type ModelChangeRowStatus = typeof ModelChangeRowStatus[keyof typeof ModelChangeRowStatus];
+
+
+export const ModelChangeRowStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  WITHDRAWN: 'WITHDRAWN',
+} as const;
+
+export interface ModelChangeRow {
+  id: string;
+  customerId: string;
+  clientName: string;
+  clientCode: string;
+  /** @nullable */
+  fromModelId: string | null;
+  fromModelName: string;
+  /** @nullable */
+  toModelId: string | null;
+  toModelName: string;
+  why: string;
+  status: ModelChangeRowStatus;
+  statusLabel: string;
+  raisedBy: string;
+  raisedByName: string;
+  raisedAt: string;
+  /** @nullable */
+  decidedByName: string | null;
+  /** @nullable */
+  decidedAt: string | null;
+  /** @nullable */
+  decisionNote: string | null;
+  updatedAt: string;
+}
+
+export interface ModelChangeDecision {
+  approved: boolean;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  note: string | null;
+}
+
 export type WhatIfRequestMoves = {[key: string]: number};
 
 export interface WhatIfRequest {
@@ -4249,6 +4306,13 @@ export interface ModelDetail {
   measuredPortfolios: number;
 }
 
+export interface ModelChangePage {
+  items: ModelChangeRow[];
+  page: number;
+  size: number;
+  totalItems: number;
+}
+
 export interface AssetsByModel {
   modelPortfolioId: string;
   modelName: string;
@@ -5287,6 +5351,22 @@ export const ListProposalsStatus = {
 export type AttachToProposalBody = {
   file: Blob | File;
 };
+
+export type ListModelChangesParams = {
+status?: ListModelChangesStatus;
+page?: number;
+size?: number;
+};
+
+export type ListModelChangesStatus = typeof ListModelChangesStatus[keyof typeof ListModelChangesStatus];
+
+
+export const ListModelChangesStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  WITHDRAWN: 'WITHDRAWN',
+} as const;
 
 export type ListOnboardingCasesParams = {
 status?: ListOnboardingCasesStatus;
@@ -13532,6 +13612,341 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRecordBulkRebalanceMutationOptions(options), queryClient);
     }
 
+export const getListModelChangesUrl = (params?: ListModelChangesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/portfolios/model-changes?${stringifiedParams}` : `/api/backoffice/portfolios/model-changes`
+}
+
+export const listModelChanges = async (params?: ListModelChangesParams, options?: Parameters<typeof http>[1]): Promise<ModelChangePage> => {
+
+  return http<ModelChangePage>(getListModelChangesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListModelChangesQueryKey = (params?: ListModelChangesParams,) => {
+    return [
+    `/api/backoffice/portfolios/model-changes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListModelChangesQueryOptions = <TData = Awaited<ReturnType<typeof listModelChanges>>, TError = unknown>(params?: ListModelChangesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListModelChangesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listModelChanges>>> = ({ signal }) => listModelChanges(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listModelChanges>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListModelChangesQueryResult = NonNullable<Awaited<ReturnType<typeof listModelChanges>>>
+export type ListModelChangesQueryError = unknown
+
+
+export function useListModelChanges<TData = Awaited<ReturnType<typeof listModelChanges>>, TError = unknown>(
+ params: undefined |  ListModelChangesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelChanges>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listModelChanges>>,
+          TError,
+          Awaited<ReturnType<typeof listModelChanges>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListModelChanges<TData = Awaited<ReturnType<typeof listModelChanges>>, TError = unknown>(
+ params?: ListModelChangesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelChanges>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listModelChanges>>,
+          TError,
+          Awaited<ReturnType<typeof listModelChanges>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListModelChanges<TData = Awaited<ReturnType<typeof listModelChanges>>, TError = unknown>(
+ params?: ListModelChangesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListModelChanges<TData = Awaited<ReturnType<typeof listModelChanges>>, TError = unknown>(
+ params?: ListModelChangesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListModelChangesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRequestModelChangeUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/model-changes`
+}
+
+export const requestModelChange = async (modelChangeRequested: ModelChangeRequested, options?: Parameters<typeof http>[1]): Promise<ModelChangeRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ModelChangeRow>(getRequestModelChangeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(modelChangeRequested)
+  }
+);}
+
+
+
+
+
+export const getRequestModelChangeMutationKey = () => ['requestModelChange'] as const;
+
+export const getRequestModelChangeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestModelChange>>, TError,RequestModelChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestModelChange>>, TError,RequestModelChangeMutationVariables, TContext> => {
+
+const mutationKey = getRequestModelChangeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestModelChange>>, RequestModelChangeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestModelChange(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestModelChangeMutationResult = NonNullable<Awaited<ReturnType<typeof requestModelChange>>>
+    export type RequestModelChangeMutationBody = ModelChangeRequested
+    export type RequestModelChangeMutationError = unknown
+    export type RequestModelChangeMutationVariables = {data: ModelChangeRequested}
+
+    export const useRequestModelChange = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestModelChange>>, TError,RequestModelChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof requestModelChange>>,
+        TError,
+        RequestModelChangeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestModelChangeMutationOptions(options), queryClient);
+    }
+
+export const getWithdrawModelChangeUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/model-changes/${id}/withdraw`
+}
+
+export const withdrawModelChange = async (id: string, options?: Parameters<typeof http>[1]): Promise<ModelChangeRow> => {
+
+  return http<ModelChangeRow>(getWithdrawModelChangeUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getWithdrawModelChangeMutationKey = () => ['withdrawModelChange'] as const;
+
+export const getWithdrawModelChangeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawModelChange>>, TError,WithdrawModelChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawModelChange>>, TError,WithdrawModelChangeMutationVariables, TContext> => {
+
+const mutationKey = getWithdrawModelChangeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawModelChange>>, WithdrawModelChangeMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  withdrawModelChange(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawModelChangeMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawModelChange>>>
+
+    export type WithdrawModelChangeMutationError = unknown
+    export type WithdrawModelChangeMutationVariables = {id: string}
+
+    export const useWithdrawModelChange = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawModelChange>>, TError,WithdrawModelChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawModelChange>>,
+        TError,
+        WithdrawModelChangeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWithdrawModelChangeMutationOptions(options), queryClient);
+    }
+
+export const getAnswerModelChangeUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/model-changes/${id}/answer`
+}
+
+export const answerModelChange = async (id: string,
+    modelChangeDecision: ModelChangeDecision, options?: Parameters<typeof http>[1]): Promise<ModelChangeRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ModelChangeRow>(getAnswerModelChangeUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(modelChangeDecision)
+  }
+);}
+
+
+
+
+
+export const getAnswerModelChangeMutationKey = () => ['answerModelChange'] as const;
+
+export const getAnswerModelChangeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerModelChange>>, TError,AnswerModelChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerModelChange>>, TError,AnswerModelChangeMutationVariables, TContext> => {
+
+const mutationKey = getAnswerModelChangeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerModelChange>>, AnswerModelChangeMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  answerModelChange(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerModelChangeMutationResult = NonNullable<Awaited<ReturnType<typeof answerModelChange>>>
+    export type AnswerModelChangeMutationBody = ModelChangeDecision
+    export type AnswerModelChangeMutationError = unknown
+    export type AnswerModelChangeMutationVariables = {id: string;data: ModelChangeDecision}
+
+    export const useAnswerModelChange = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerModelChange>>, TError,AnswerModelChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answerModelChange>>,
+        TError,
+        AnswerModelChangeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerModelChangeMutationOptions(options), queryClient);
+    }
+
 export const getWhatIfUrl = (customerId: string,) => {
 
 
@@ -21418,6 +21833,101 @@ export function useGetClientValuations<TData = Awaited<ReturnType<typeof getClie
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientValuationsQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListModelChangesForClientUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/model-changes`
+}
+
+export const listModelChangesForClient = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ModelChangeRow[]> => {
+
+  return http<ModelChangeRow[]>(getListModelChangesForClientUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListModelChangesForClientQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/model-changes`
+    ] as const;
+    }
+
+
+export const getListModelChangesForClientQueryOptions = <TData = Awaited<ReturnType<typeof listModelChangesForClient>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelChangesForClient>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListModelChangesForClientQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listModelChangesForClient>>> = ({ signal }) => listModelChangesForClient(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listModelChangesForClient>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListModelChangesForClientQueryResult = NonNullable<Awaited<ReturnType<typeof listModelChangesForClient>>>
+export type ListModelChangesForClientQueryError = unknown
+
+
+export function useListModelChangesForClient<TData = Awaited<ReturnType<typeof listModelChangesForClient>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelChangesForClient>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listModelChangesForClient>>,
+          TError,
+          Awaited<ReturnType<typeof listModelChangesForClient>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListModelChangesForClient<TData = Awaited<ReturnType<typeof listModelChangesForClient>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelChangesForClient>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listModelChangesForClient>>,
+          TError,
+          Awaited<ReturnType<typeof listModelChangesForClient>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListModelChangesForClient<TData = Awaited<ReturnType<typeof listModelChangesForClient>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelChangesForClient>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListModelChangesForClient<TData = Awaited<ReturnType<typeof listModelChangesForClient>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelChangesForClient>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListModelChangesForClientQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
