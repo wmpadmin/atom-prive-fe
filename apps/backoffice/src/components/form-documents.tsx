@@ -1,18 +1,37 @@
 import { httpFile } from "@atomprive/api-client";
-import type { AttachedFile } from "@atomprive/api-client/backoffice";
-import { Button, IconButton, cn } from "@atomprive/ui";
-import { Download, FileText, Paperclip, X } from "lucide-react";
+import type { AttachedFile, PaperOnFile } from "@atomprive/api-client/backoffice";
+import { Badge, Button, Dialog, IconButton, cn } from "@atomprive/ui";
+import { Download, FileText, FolderOpen, Paperclip, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
-import { formatFileSize } from "../lib/labels";
+import { formatDate, formatFileSize } from "../lib/labels";
 
 /** What a line of a form has been given, and how to give it more or take one back. */
 export interface FormDocuments {
   files: AttachedFile[];
   attach: (field: string, file: File) => void;
+  /** Answers the line with a paper the firm already holds, rather than a second copy of it. */
+  attachFromFile: (field: string, paperId: string) => void;
+  /** Everything on the client's file, for choosing from. */
+  onFile: PaperOnFile[];
   remove: (id: string) => void;
   busy: boolean;
   error?: string;
 }
+
+/**
+ * Where a paper has got to with Compliance, in the words the KYC screens use.
+ *
+ * <p>A paper that was refused or has run out is offered like the rest and says which it is. A form
+ * sometimes wants exactly the paper that was refused, and hiding it would only have somebody upload a
+ * second copy of what the firm already has.
+ */
+const STANDINGS: Record<string, { said: string; tone: "success" | "neutral" | "warning" | "danger" }> = {
+  AWAITING_REVIEW: { said: "Waiting on Compliance", tone: "neutral" },
+  RE_UPLOAD_REQUESTED: { said: "A better copy was asked for", tone: "warning" },
+  REJECTED: { said: "Refused by Compliance", tone: "danger" },
+  APPROVED: { said: "Approved", tone: "success" },
+  EXPIRED: { said: "Expired", tone: "danger" },
+};
 
 /** The types the API takes: a scan of the document, or a photograph of it. */
 const TAKES = "application/pdf,image/jpeg,image/png";
@@ -49,7 +68,12 @@ export function Documents({
   const inputId = useId();
   const picker = useRef<HTMLInputElement>(null);
   const [refused, setRefused] = useState<string>();
+  const [choosing, setChoosing] = useState(false);
   const provided = documents.files.filter((file) => file.field === field);
+  // A paper already answering this very line is not offered again; one answering another line still is,
+  // because the same passport can be what two lines ask for.
+  const alreadyHere = new Set(provided.map((file) => file.fileName));
+  const onFile = documents.onFile.filter((paper) => !paper.alreadyOn.includes(field));
 
   function chosen(file: File | undefined) {
     if (!file) return;
@@ -71,7 +95,10 @@ export function Documents({
               <FileText aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-ink">{file.fileName}</span>
-                <span className="text-xs text-ink-muted">{formatFileSize(file.sizeBytes)}</span>
+                <span className="text-xs text-ink-muted">
+                  {formatFileSize(file.sizeBytes)}
+                  {file.fromTheFile ? " · from the client's file" : ""}
+                </span>
               </span>
               <IconButton label={`Save ${file.fileName}`} onClick={() => void save(file, formId)}>
                 <Download />
@@ -98,13 +125,66 @@ export function Documents({
         onChange={(event) => chosen(event.target.files?.[0])}
       />
       <div className={cn("flex flex-wrap items-center gap-3")}>
+        {/* Offered first: the firm already holds most of what these lines ask for, and uploading a second
+            copy of a passport is how two copies of it end up disagreeing. */}
+        {onFile.length > 0 && (
+          <Button variant="secondary" size="sm" disabled={documents.busy} onClick={() => setChoosing(true)}>
+            <FolderOpen aria-hidden="true" />
+            Use one already on file
+          </Button>
+        )}
         <Button variant="secondary" size="sm" disabled={documents.busy} onClick={() => picker.current?.click()}>
           <Paperclip aria-hidden="true" />
-          {documents.busy ? "Attaching…" : provided.length > 0 ? "Attach another" : label}
+          {documents.busy ? "Attaching…" : provided.length > 0 ? "Upload another" : label}
         </Button>
         <p className="text-xs text-ink-muted">PDF, JPEG or PNG, up to 10 MB.</p>
       </div>
       {(refused ?? documents.error) && <p className="text-xs text-red-600">{refused ?? documents.error}</p>}
+
+      <Dialog open={choosing} title="Papers already on this client's file" onClose={() => setChoosing(false)}>
+        <div className="space-y-3">
+          <p className="text-sm text-ink-muted">
+            Choosing one attaches it to this line. It is not copied — replace the paper on the client's file
+            and this form shows the new one.
+          </p>
+          <ul className="space-y-2">
+            {onFile.map((paper) => {
+              const standing = STANDINGS[paper.standing];
+              return (
+                <li
+                  key={paper.id}
+                  className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-white px-3 py-2"
+                >
+                  <FileText aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-ink">
+                      {paper.kindLabel}
+                      {paper.reference ? ` · ${paper.reference}` : ""}
+                    </span>
+                    <span className="block truncate text-xs text-ink-muted">
+                      {paper.fileName} · {formatFileSize(paper.sizeBytes)}
+                      {paper.expiresOn ? ` · ${paper.expired ? "ran out" : "runs out"} ${formatDate(paper.expiresOn)}` : ""}
+                      {alreadyHere.has(paper.fileName) ? " · already on this line" : ""}
+                    </span>
+                  </span>
+                  {standing && <Badge tone={standing.tone}>{standing.said}</Badge>}
+                  <Button
+                    size="sm"
+                    disabled={documents.busy}
+                    onClick={() => {
+                      documents.attachFromFile(field, paper.id);
+                      setChoosing(false);
+                    }}
+                  >
+                    Use this
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+          {documents.error && <p className="text-xs text-red-600">{documents.error}</p>}
+        </div>
+      </Dialog>
     </div>
   );
 }
