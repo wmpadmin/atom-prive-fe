@@ -33,6 +33,7 @@ import { ExposurePanel } from "./exposure-panel";
 import { FixedIncomePanel } from "./fixed-income-panel";
 import { useAssetClasses } from "./asset-classes";
 import { ClassStandingTable } from "./class-standing-table";
+import { AskToChangeTheModel } from "./ask-to-change-the-model";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
 import { driftLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
 import { LeaveWithoutSaving } from "../../components/leave-without-saving";
@@ -557,6 +558,16 @@ export function ClientPortfolioPage() {
         </dl>
         {errors.fields.on && <p className="mt-3 text-xs text-red-600">{errors.fields.on}</p>}
       </section>
+
+      {/* Asking is not moving. An advisor who thinks they are on the wrong plan says so here, and whoever
+          may move them answers it. */}
+      {standing.data && (
+        <AskToChangeTheModel
+          customerId={customerId}
+          onModelId={standing.data.modelPortfolioId ?? null}
+          onModelName={standing.data.modelName ?? "no model"}
+        />
+      )}
 
       <ClientHoldingsPanel customerId={customerId} onChanged={kept} readOnly={!editing} />
 
