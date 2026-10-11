@@ -61,5 +61,6 @@ export function TextArea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
 }
 
 export function SelectInput({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={cn(controlClasses, "pr-8", className)} {...props} />;
+  // pr-9 keeps the longest option clear of the chevron, which `select-control` draws in from the edge.
+  return <select className={cn(controlClasses, "select-control pr-9", className)} {...props} />;
 }

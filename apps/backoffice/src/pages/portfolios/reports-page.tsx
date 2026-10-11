@@ -18,6 +18,7 @@ import { useState, type FormEvent } from "react";
 import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { NotAsked, ReportFields } from "./report-fields";
 import { saveApiFile } from "../../lib/download";
 import { ReportSchedules } from "./report-schedules";
 import { formatDateTime } from "../../lib/labels";
@@ -35,11 +36,11 @@ const FORMATS: { format: Format; title: string; forWhat: string }[] = [
 
 /** What each report answers, said where it is chosen rather than left to the title. */
 const KINDS: { kind: Kind; title: string; answers: string }[] = [
-  { kind: "ALLOCATION_VS_PLAN", title: "Allocation vs plan", answers: "Every class against what the plan wants, and the trade that would put it back." },
-  { kind: "HOLDINGS", title: "Holdings", answers: "Every holding line by line, with its issuer, country and rating." },
-  { kind: "DRIFT_HISTORY", title: "Drift history", answers: "What a portfolio was worth on each day somebody wrote it down, and how it was split." },
-  { kind: "MODEL_PERFORMANCE", title: "Model performance", answers: "How each plan has done, as the performance screen reads it." },
-  { kind: "TRADE_ORDERS", title: "Trade orders", answers: "Every order raised in the period, with who raised it, who passed it and when it settled." },
+  { kind: "ALLOCATION_VS_PLAN", title: "Allocation vs plan", answers: "What each client holds in each asset class, next to what their model says they should, and what would have to be bought or sold to fix the gap." },
+  { kind: "HOLDINGS", title: "Holdings", answers: "Every individual holding, one per line, with who issued it, which country it is in and its credit rating." },
+  { kind: "DRIFT_HISTORY", title: "Drift history", answers: "What each portfolio was worth on every day somebody wrote the holdings down, and how the money was split between classes on that day." },
+  { kind: "MODEL_PERFORMANCE", title: "Model performance", answers: "How each model has performed, the same figures the Model performance screen shows." },
+  { kind: "TRADE_ORDERS", title: "Trade orders", answers: "Every trade order in the dates you pick, with who raised it, who passed it at Compliance, and when the money changed hands." },
 ];
 
 /** Nothing was traded tomorrow, and the firm's record does not go back twenty years. */
@@ -125,27 +126,37 @@ export function PortfolioReportsPage() {
     <div className="space-y-6">
       <ListPageHeader
         title="Reports"
-        lead="Produced from what the platform holds, and kept with what each one said at the time."
+        lead="Make a spreadsheet or a PDF out of what the platform already holds. Each one is kept, so you can open it again later and see exactly what it said on the day."
       />
 
       {/* The firm's own note: the portfolio review is produced in a template nobody has supplied yet. */}
       <Alert tone="info">
-        The firm's portfolio review is not here yet. It is produced in a template the firm already uses, and
-        that template sets its columns and its sheets — one generated here would be a different document
-        wearing the same name. Everything below can be produced either as a spreadsheet or on the firm's own
+The firm's own portfolio review is not here yet. It is written in a template the firm already uses, and
+        that template decides its columns and its pages — anything made here would be a different document with
+        the same name on it. Everything else below you can get as a spreadsheet or as a PDF on the firm's
         letterhead.
       </Alert>
 
       {mayProduce && (
         <section className="rounded-2xl border border-line bg-white p-5">
-          <h2 className="text-base font-bold">Produce one now</h2>
+          {/* The two panels are told apart by once against over and over, so each heading says which it is
+              rather than leaving the difference to be worked out from the buttons. */}
+          <h2 className="text-base font-bold">Get a report now — just this once</h2>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            Pick what you want, press the button, and download it straight away. Nothing is set up and
+            nothing happens again afterwards.
+          </p>
           {errors.form && (
             <div className="mt-3">
               <Alert tone="danger">{errors.form}</Alert>
             </div>
           )}
-          <form onSubmit={submit} className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr_1fr_1fr_auto] sm:items-end">
-            <Field id="report-kind" label="Report" error={errors.fields.kind}>
+          {/* Four across, the same four the scheduling form below uses, so the two line up down the page.
+              The button sits on its own row: wedged into the grid it squeezed whichever field it sat
+              beside, and the date fields underneath lined up with nothing at all. */}
+          <form onSubmit={submit} className="mt-3 space-y-4">
+            <ReportFields>
+            <Field id="report-kind" label="What you want" error={errors.fields.kind}>
               <SelectInput id="report-kind" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
                 {KINDS.map((one) => (
                   <option key={one.kind} value={one.kind}>
@@ -154,7 +165,7 @@ export function PortfolioReportsPage() {
                 ))}
               </SelectInput>
             </Field>
-            <Field id="report-scope" label="Covering" error={errors.fields.scope}>
+            <Field id="report-scope" label="Who it is about" error={errors.fields.scope}>
               <SelectInput
                 id="report-scope"
                 value={scope}
@@ -164,16 +175,14 @@ export function PortfolioReportsPage() {
                 }}
               >
                 <option value="FIRM">Every client</option>
-                <option value="MODEL">Everyone on a model</option>
-                <option value="CLIENT">One client</option>
+                <option value="MODEL">Everyone on one model</option>
+                <option value="CLIENT">Just one client</option>
               </SelectInput>
             </Field>
-            <Field id="report-which" label="Which" error={errors.fields.scopeId}>
-              {scope === "FIRM" ? (
-                <SelectInput id="report-which" value="" disabled>
-                  <option value="">Not needed</option>
-                </SelectInput>
-              ) : (
+            {scope === "FIRM" ? (
+              <NotAsked id="report-which" label="Which one" says="Every client — nothing to pick" />
+            ) : (
+              <Field id="report-which" label="Which one" error={errors.fields.scopeId}>
                 <SelectInput id="report-which" value={scopeId} onChange={(e) => setScopeId(e.target.value)}>
                   <option value="">{scope === "MODEL" ? "Choose a model" : "Choose a client"}</option>
                   {scope === "MODEL"
@@ -188,9 +197,9 @@ export function PortfolioReportsPage() {
                         </option>
                       ))}
                 </SelectInput>
-              )}
-            </Field>
-            <Field id="report-format" label="As" error={errors.fields.format}>
+              </Field>
+            )}
+            <Field id="report-format" label="File type" error={errors.fields.format}>
               <SelectInput
                 id="report-format"
                 value={format}
@@ -203,45 +212,48 @@ export function PortfolioReportsPage() {
                 ))}
               </SelectInput>
             </Field>
-            <Button type="submit" disabled={produce.isPending || (scope !== "FIRM" && !scopeId)}>
-              <FileText aria-hidden="true" />
-              {produce.isPending ? "Producing…" : "Produce"}
-            </Button>
-          </form>
 
-          {/* Only for a report read by date. Left empty, it covers everything on record. */}
-          {overAperiod && (
-            <div className="mt-3 flex flex-wrap items-end gap-3">
-              <Field id="report-from" label="From" error={errors.fields.from}>
-                <DateInput
-                  id="report-from"
-                  name="from"
-                  value={from}
-                  min={yearsAgo(20)}
-                  max={today()}
-                  onChange={(next) => setFrom(next ?? "")}
-                />
-              </Field>
-              <Field id="report-to" label="To" error={errors.fields.to}>
-                <DateInput
-                  id="report-to"
-                  name="to"
-                  value={to}
-                  min={yearsAgo(20)}
-                  max={today()}
-                  onChange={(next) => setTo(next ?? "")}
-                />
-              </Field>
-              <p className="pb-2 text-xs text-ink-muted">
-                Left empty, it covers everything on record. The last day is counted whole.
+              {/* Only for a report read by date, and in the same grid as the rest so the two sit under
+                  Report and Covering rather than under nothing. */}
+              {overAperiod && (
+                <>
+                  <Field id="report-from" label="From this date" error={errors.fields.from}>
+                    <DateInput
+                      id="report-from"
+                      name="from"
+                      value={from}
+                      min={yearsAgo(20)}
+                      max={today()}
+                      onChange={(next) => setFrom(next ?? "")}
+                    />
+                  </Field>
+                  <Field id="report-to" label="To this date" error={errors.fields.to}>
+                    <DateInput
+                      id="report-to"
+                      name="to"
+                      value={to}
+                      min={yearsAgo(20)}
+                      max={today()}
+                      onChange={(next) => setTo(next ?? "")}
+                    />
+                  </Field>
+                </>
+              )}
+            </ReportFields>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="max-w-prose text-xs text-ink-muted">
+                {chosen ? `${chosen.answers} ${FORMATS.find((one) => one.format === format)?.forWhat}` : ""}
+                {overAperiod
+                  ? " Leave the dates empty to cover everything on record. The last day you pick is included."
+                  : ""}
               </p>
+              <Button type="submit" disabled={produce.isPending || (scope !== "FIRM" && !scopeId)}>
+                <FileText aria-hidden="true" />
+                {produce.isPending ? "Making it…" : "Make it"}
+              </Button>
             </div>
-          )}
-          {chosen && (
-            <p className="mt-2 text-xs text-ink-muted">
-              {chosen.answers} {FORMATS.find((one) => one.format === format)?.forWhat}
-            </p>
-          )}
+          </form>
         </section>
       )}
 
@@ -253,16 +265,16 @@ export function PortfolioReportsPage() {
       />
 
       <section className="overflow-x-auto rounded-2xl border border-line bg-white">
-        <h2 className="px-5 pt-5 text-base font-bold">Produced</h2>
+        <h2 className="px-5 pt-5 text-base font-bold">Reports already made</h2>
         <table className="mt-3 min-w-full text-sm">
           <thead>
             <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               <th scope="col" className="py-3 pr-4 pl-5">Report</th>
-              <th scope="col" className="px-4 py-3">Scope</th>
-              <th scope="col" className="px-4 py-3">Format</th>
+              <th scope="col" className="px-4 py-3">Who it covered</th>
+              <th scope="col" className="px-4 py-3">File type</th>
               <th scope="col" className="px-4 py-3 text-right">Lines</th>
-              <th scope="col" className="px-4 py-3">Produced by</th>
-              <th scope="col" className="px-4 py-3">Schedule</th>
+              <th scope="col" className="px-4 py-3">Made by</th>
+              <th scope="col" className="px-4 py-3">Made how</th>
               <th scope="col" className="py-3 pr-5 pl-4">
                 <span className="sr-only">Download</span>
               </th>
@@ -271,13 +283,13 @@ export function PortfolioReportsPage() {
           <tbody className="divide-y divide-line">
             {reports.isPending && (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">Reading the record…</td>
+                <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">Looking for reports…</td>
               </tr>
             )}
             {reports.data && rows.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">
-                  Nothing has been produced yet.
+                  No reports made yet. Make one above and it appears here.
                 </td>
               </tr>
             )}
