@@ -66,6 +66,32 @@
   --color-access-none: #e5484d;
   --color-access-none-soft: #fdeced;
   --color-access-none-ink: #b4232a;
+
+  /* The arrow on a dropdown, in the muted ink the rest of a control's furniture is drawn in. */
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%2364748b' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/*
+ * The chevron on a dropdown.
+ *
+ * The browser draws its own hard against the right edge of the box, which reads as the arrow falling off
+ * the control rather than sitting inside it. Drawn here instead, inset from the edge by the same gutter the
+ * text sits in, so a row of dropdowns reads as a row of boxes with arrows in them.
+ */
+.select-control {
+  appearance: none;
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right 0.875rem center;
+  background-size: 0.7rem auto;
+}
+
+/* Hidden in a forced-colours mode, which paints over background images; the native arrow comes back. */
+@media (forced-colors: active) {
+  .select-control {
+    appearance: auto;
+    background-image: none;
+  }
 }
 
 /* The date picker's calendar (react-day-picker), in the platform's colours and sized in rem so it scales with the page. */
@@ -133,6 +159,7 @@
   --color-ink: #e7edf6;
   --color-ink-soft: #b6c2d4;
   --color-ink-muted: #8a97aa;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%238a97aa' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --color-slate-300: #7c8a9e;
   --color-slate-400: #6d7b90;
   --color-slate-500: #94a2b6;
