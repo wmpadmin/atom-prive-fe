@@ -10,7 +10,8 @@ import { SignFormDialog } from "./sign-form-dialog";
 import { packTones } from "./to-sign-labels";
 
 /**
- * One pack of forms sent out to be signed, and the advisor's half of the signing. Every form is read and
+ * One pack of forms sent out to be signed. The advisor signs each one on the client's behalf, which is
+ * what finishes it — there is no second signature to wait for. Every form is read and
  * signed on its own, because each of them is its own document.
  */
 export function SignaturePackPage() {
@@ -150,7 +151,13 @@ export function SignaturePackPage() {
         ))}
       </ul>
 
-      <SignFormDialog packId={packId} form={signing} open={signing !== null} onClose={() => setSigning(null)} />
+      <SignFormDialog
+        packId={packId}
+        form={signing}
+        clientName={summary.clientName}
+        open={signing !== null}
+        onClose={() => setSigning(null)}
+      />
       <SendBackDialog
         packId={packId}
         form={sendingBack}

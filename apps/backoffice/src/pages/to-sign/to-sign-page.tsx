@@ -26,8 +26,8 @@ export function ToSignPage() {
         <h1 className="text-[1.625rem] font-bold">To sign</h1>
         <p className="mt-1 text-sm text-ink-muted">
           Your clients' forms, once whoever wrote them up has finished. Open a client to read each form and
-          either sign it or send it back to be put right. Each is signed on its own, because each of them is
-          its own document.
+          either sign it on their behalf or send it back to be put right. Your signature is what completes
+          the form. Each is signed on its own, because each of them is its own document.
         </p>
       </header>
 
