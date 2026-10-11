@@ -13,6 +13,7 @@ import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { PreTradeLimitsPanel } from "./pre-trade-limits-panel";
 import { useShowFirstError } from "../../lib/show-first-error";
 import { asFigure } from "../../lib/figures";
 import { formatDateTime } from "../../lib/labels";
@@ -264,6 +265,9 @@ export function PortfolioSettingsPage() {
           </div>
         )}
       </form>
+
+      {/* Its own record and its own Save: the form above is one row of defaults, these are a row a class. */}
+      <PreTradeLimitsPanel mayChange={mayChange} />
 
       <section className="rounded-2xl border border-line bg-white p-5">
         <h2 className="text-base font-bold">Where the rest of the rules live</h2>
