@@ -25,11 +25,14 @@ const WAYS = [
 export function SignFormDialog({
   packId,
   form,
+  clientName,
   open,
   onClose,
 }: {
   packId: string;
   form: PackFormRow | null;
+  /** Named on the dialog, because this signature is made on their behalf and not merely about them. */
+  clientName: string;
   open: boolean;
   onClose: () => void;
 }) {
@@ -39,6 +42,7 @@ export function SignFormDialog({
   const [how, setHow] = useState<"TYPED" | "DRAWN">("TYPED");
   const [typed, setTyped] = useState("");
   const [drawn, setDrawn] = useState<string | null>(null);
+  const [capacity, setCapacity] = useState("");
 
   const signature = how === "TYPED" ? typed.trim() : (drawn ?? "");
   const ready = signature.length > 0;
@@ -46,6 +50,7 @@ export function SignFormDialog({
   function close() {
     setTyped("");
     setDrawn(null);
+    setCapacity("");
     setHow("TYPED");
     sign.reset();
     onClose();
@@ -54,10 +59,14 @@ export function SignFormDialog({
   function submit() {
     if (!form || !ready) return;
     sign.mutate(
-      // No capacity: an advisor signing here is always signing as the client's relationship advisor, which
-      // is what SignedAs records. The paper's question — "if you are not the Account Holder, indicate the
-      // capacity" — is for whoever signs in a capacity nothing else says, and that is the client's own half.
-      { packId, formId: form.formId, data: { signatureKind: how, signature, capacity: null } },
+      // The capacity the paper asks for: "if you are not the Account Holder, indicate the capacity in which
+      // you sign". This signature finishes the form on the client's behalf, so that question is a real one
+      // and the answer is kept with the signature. Left blank it is simply the relationship advisor.
+      {
+        packId,
+        formId: form.formId,
+        data: { signatureKind: how, signature, capacity: capacity.trim() || null },
+      },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetPackQueryKey(packId) });
@@ -110,6 +119,21 @@ export function SignFormDialog({
           ))}
         </div>
 
+        {/* What authority they sign under. Asked because this signature completes the form for the
+            client, not merely alongside them. */}
+        <Field
+          id="signing-capacity"
+          label="The capacity you sign in"
+          hint="Leave blank if you are signing as the client's relationship advisor. Otherwise say what authority you sign under — power of attorney, authorised signatory, and so on."
+        >
+          <TextInput
+            id="signing-capacity"
+            value={capacity}
+            placeholder="Relationship advisor"
+            onChange={(event) => setCapacity(event.target.value)}
+          />
+        </Field>
+
         {how === "TYPED" ? (
           <Field id="typed-signature" label="Type your full name" required>
             <TextInput
@@ -124,7 +148,9 @@ export function SignFormDialog({
         )}
 
         <p className="text-xs text-ink-muted">
-          The time and the address you sign from are kept with it.
+          Signing this completes the form on the client's behalf. Your name, the capacity you give, the
+          time and the address you sign from are all kept with it, and the audit trail records it as done
+          on behalf of {clientName}.
         </p>
 
         <div className="flex justify-end gap-2">
