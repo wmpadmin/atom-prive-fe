@@ -1294,6 +1294,7 @@ export interface AttachedFile {
   contentType: string;
   sizeBytes: number;
   uploadedAt: string;
+  fromTheFile: boolean;
 }
 
 export interface ComplianceDecision {
@@ -3344,6 +3345,15 @@ export interface StartFormRequest {
   dueOn: string | null;
 }
 
+export interface FromTheFileRequest {
+  /**
+     * @minLength 0
+     * @maxLength 120
+     */
+  field: string;
+  paperId: string;
+}
+
 export interface WriteCommentRequest {
   /**
      * @minLength 0
@@ -4663,6 +4673,24 @@ export interface FormPage {
   page: number;
   size: number;
   totalItems: number;
+}
+
+export interface PaperOnFile {
+  id: string;
+  kind: string;
+  kindLabel: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  /** @nullable */
+  reference: string | null;
+  /** @nullable */
+  expiresOn: string | null;
+  expired: boolean;
+  standing: string;
+  refused: boolean;
+  uploadedAt: string;
+  alreadyOn: string[];
 }
 
 export interface FormCommentList {
@@ -15214,6 +15242,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getAttachToFormMutationOptions(options), queryClient);
     }
 
+export const getAttachPaperOnFileUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/forms/${id}/attachments/from-file`
+}
+
+export const attachPaperOnFile = async (id: string,
+    fromTheFileRequest: FromTheFileRequest, options?: Parameters<typeof http>[1]): Promise<FormDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<FormDetail>(getAttachPaperOnFileUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fromTheFileRequest)
+  }
+);}
+
+
+
+
+
+export const getAttachPaperOnFileMutationKey = () => ['attachPaperOnFile'] as const;
+
+export const getAttachPaperOnFileMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof attachPaperOnFile>>, TError,AttachPaperOnFileMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof attachPaperOnFile>>, TError,AttachPaperOnFileMutationVariables, TContext> => {
+
+const mutationKey = getAttachPaperOnFileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof attachPaperOnFile>>, AttachPaperOnFileMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  attachPaperOnFile(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AttachPaperOnFileMutationResult = NonNullable<Awaited<ReturnType<typeof attachPaperOnFile>>>
+    export type AttachPaperOnFileMutationBody = FromTheFileRequest
+    export type AttachPaperOnFileMutationError = unknown
+    export type AttachPaperOnFileMutationVariables = {id: string;data: FromTheFileRequest}
+
+    export const useAttachPaperOnFile = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof attachPaperOnFile>>, TError,AttachPaperOnFileMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof attachPaperOnFile>>,
+        TError,
+        AttachPaperOnFileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAttachPaperOnFileMutationOptions(options), queryClient);
+    }
+
 export const getListFormCommentsUrl = (formId: string,) => {
 
 
@@ -22593,6 +22704,101 @@ export function useGetClientKycFile<TData = Awaited<ReturnType<typeof getClientK
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientKycFileQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListPapersOnFileUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/forms/${id}/papers-on-file`
+}
+
+export const listPapersOnFile = async (id: string, options?: Parameters<typeof http>[1]): Promise<PaperOnFile[]> => {
+
+  return http<PaperOnFile[]>(getListPapersOnFileUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPapersOnFileQueryKey = (id: string,) => {
+    return [
+    `/api/backoffice/forms/${id}/papers-on-file`
+    ] as const;
+    }
+
+
+export const getListPapersOnFileQueryOptions = <TData = Awaited<ReturnType<typeof listPapersOnFile>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPapersOnFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPapersOnFileQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPapersOnFile>>> = ({ signal }) => listPapersOnFile(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPapersOnFile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPapersOnFileQueryResult = NonNullable<Awaited<ReturnType<typeof listPapersOnFile>>>
+export type ListPapersOnFileQueryError = unknown
+
+
+export function useListPapersOnFile<TData = Awaited<ReturnType<typeof listPapersOnFile>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPapersOnFile>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPapersOnFile>>,
+          TError,
+          Awaited<ReturnType<typeof listPapersOnFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPapersOnFile<TData = Awaited<ReturnType<typeof listPapersOnFile>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPapersOnFile>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPapersOnFile>>,
+          TError,
+          Awaited<ReturnType<typeof listPapersOnFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPapersOnFile<TData = Awaited<ReturnType<typeof listPapersOnFile>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPapersOnFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListPapersOnFile<TData = Awaited<ReturnType<typeof listPapersOnFile>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPapersOnFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListPapersOnFileQueryOptions(id,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

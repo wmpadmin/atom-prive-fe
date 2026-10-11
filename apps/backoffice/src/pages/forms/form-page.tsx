@@ -4,7 +4,10 @@ import {
   getListFormsQueryKey,
   useGetDocumentText,
   useGetForm,
+  useAttachPaperOnFile,
   useAttachToForm,
+  useListPapersOnFile,
+  type PaperOnFile,
   useChangeCaseForm,
   useRemoveFormAttachment,
   useSaveFormDraft,
@@ -237,13 +240,20 @@ function FilledForm<T>({
   // An attached document is kept straight away: it is the client's paper, not a draft answer.
   const keptNow = (saved: FormDetail) => queryClient.setQueryData(getGetFormQueryKey(saved.summary.id), saved);
   const attach = useAttachToForm<ApiError>({ mutation: { onSuccess: keptNow } });
+  const fromTheFile = useAttachPaperOnFile<ApiError>({ mutation: { onSuccess: keptNow } });
   const takeOff = useRemoveFormAttachment<ApiError>({ mutation: { onSuccess: keptNow } });
+  // What the firm already holds for this client. Read once for the form; every line that asks for a
+  // document offers the same list, because the same passport answers more than one of them.
+  const onFile = useListPapersOnFile<PaperOnFile[], ApiError>(detail.summary.id);
   const documents: FormDocuments = {
     files: detail.attachments,
-    busy: attach.isPending || takeOff.isPending,
-    error: attach.error?.message ?? takeOff.error?.message,
+    onFile: onFile.data ?? [],
+    busy: attach.isPending || fromTheFile.isPending || takeOff.isPending,
+    error: attach.error?.message ?? fromTheFile.error?.message ?? takeOff.error?.message,
     attach: (field, file) =>
       attach.mutate({ id: detail.summary.id, params: { field }, data: { file } }),
+    attachFromFile: (field, paperId) =>
+      fromTheFile.mutate({ id: detail.summary.id, data: { field, paperId } }),
     remove: (attachmentId) => takeOff.mutate({ id: detail.summary.id, attachmentId }),
   };
 
