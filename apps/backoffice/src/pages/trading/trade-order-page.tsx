@@ -262,6 +262,27 @@ export function TradeOrderPage() {
         </section>
       )}
 
+      {/* The firm's own ceilings, said before anything else on the page. Whoever is deciding should not
+          have to read to the bottom to find out the order breaks one. */}
+      {found!.limitsBroken.length > 0 && (
+        <Alert tone="danger">
+          <p className="font-semibold">
+            {found!.limitsBroken.length === 1
+              ? "This order would break one of the firm's limits."
+              : `This order would break ${found!.limitsBroken.length} of the firm's limits.`}
+          </p>
+          <ul className="mt-1.5 list-disc space-y-1 pl-5">
+            {found!.limitsBroken.map((broken) => (
+              <li key={broken.assetClass}>{broken.said}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs">
+            It is not refused: whether to place it is Compliance's judgement. Read against the portfolio as
+            it stands today.
+          </p>
+        </Alert>
+      )}
+
       {/* Whoever passes this has to decide whether the trade is right for the client, and a reference, a
           sum and a class is not something anybody can answer that from. */}
       <AgainstTheModelPanel
