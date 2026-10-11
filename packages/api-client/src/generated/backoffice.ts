@@ -61,6 +61,14 @@ export interface TradeOrderRequest {
   reason: string | null;
 }
 
+export interface LimitBroken {
+  assetClass: string;
+  assetClassName: string;
+  wouldBe: number;
+  cap: number;
+  said: string;
+}
+
 export type TradeOrderRowSide = typeof TradeOrderRowSide[keyof typeof TradeOrderRowSide];
 
 
@@ -118,6 +126,7 @@ export interface TradeOrderRow {
   /** @nullable */
   cancelledReason: string | null;
   updatedAt: string;
+  limitsBroken: LimitBroken[];
 }
 
 export interface EntryRequest {
@@ -435,6 +444,23 @@ export interface ScheduleRow {
   /** @nullable */
   createdBy: string | null;
   createdAt: string;
+}
+
+export type PreTradeLimitsRequestLimits = {[key: string]: number};
+
+export interface PreTradeLimitsRequest {
+  limits: PreTradeLimitsRequestLimits;
+}
+
+export interface PreTradeLimitRow {
+  assetClass: string;
+  assetClassName: string;
+  /** @nullable */
+  maxShare: number | null;
+  /** @nullable */
+  updatedAt: string | null;
+  /** @nullable */
+  updatedBy: string | null;
 }
 
 /**
@@ -6477,6 +6503,183 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSwitchReportScheduleMutationOptions(options), queryClient);
+    }
+
+export const getListPreTradeLimitsUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/pre-trade-limits`
+}
+
+export const listPreTradeLimits = async ( options?: Parameters<typeof http>[1]): Promise<PreTradeLimitRow[]> => {
+
+  return http<PreTradeLimitRow[]>(getListPreTradeLimitsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPreTradeLimitsQueryKey = () => {
+    return [
+    `/api/backoffice/portfolios/pre-trade-limits`
+    ] as const;
+    }
+
+
+export const getListPreTradeLimitsQueryOptions = <TData = Awaited<ReturnType<typeof listPreTradeLimits>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPreTradeLimits>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPreTradeLimitsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPreTradeLimits>>> = ({ signal }) => listPreTradeLimits({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPreTradeLimits>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPreTradeLimitsQueryResult = NonNullable<Awaited<ReturnType<typeof listPreTradeLimits>>>
+export type ListPreTradeLimitsQueryError = unknown
+
+
+export function useListPreTradeLimits<TData = Awaited<ReturnType<typeof listPreTradeLimits>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPreTradeLimits>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPreTradeLimits>>,
+          TError,
+          Awaited<ReturnType<typeof listPreTradeLimits>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPreTradeLimits<TData = Awaited<ReturnType<typeof listPreTradeLimits>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPreTradeLimits>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPreTradeLimits>>,
+          TError,
+          Awaited<ReturnType<typeof listPreTradeLimits>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPreTradeLimits<TData = Awaited<ReturnType<typeof listPreTradeLimits>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPreTradeLimits>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListPreTradeLimits<TData = Awaited<ReturnType<typeof listPreTradeLimits>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPreTradeLimits>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListPreTradeLimitsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetPreTradeLimitsUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/pre-trade-limits`
+}
+
+export const setPreTradeLimits = async (preTradeLimitsRequest: PreTradeLimitsRequest, options?: Parameters<typeof http>[1]): Promise<PreTradeLimitRow[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<PreTradeLimitRow[]>(getSetPreTradeLimitsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(preTradeLimitsRequest)
+  }
+);}
+
+
+
+
+
+export const getSetPreTradeLimitsMutationKey = () => ['setPreTradeLimits'] as const;
+
+export const getSetPreTradeLimitsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPreTradeLimits>>, TError,SetPreTradeLimitsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof setPreTradeLimits>>, TError,SetPreTradeLimitsMutationVariables, TContext> => {
+
+const mutationKey = getSetPreTradeLimitsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setPreTradeLimits>>, SetPreTradeLimitsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setPreTradeLimits(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetPreTradeLimitsMutationResult = NonNullable<Awaited<ReturnType<typeof setPreTradeLimits>>>
+    export type SetPreTradeLimitsMutationBody = PreTradeLimitsRequest
+    export type SetPreTradeLimitsMutationError = unknown
+    export type SetPreTradeLimitsMutationVariables = {data: PreTradeLimitsRequest}
+
+    export const useSetPreTradeLimits = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPreTradeLimits>>, TError,SetPreTradeLimitsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setPreTradeLimits>>,
+        TError,
+        SetPreTradeLimitsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetPreTradeLimitsMutationOptions(options), queryClient);
     }
 
 export const getUpdateModelPortfolioUrl = (id: string,) => {

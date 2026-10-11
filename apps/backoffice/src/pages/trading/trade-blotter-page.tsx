@@ -13,7 +13,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Dialog, Field, Pagination, TextArea, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Plus, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -346,6 +346,19 @@ export function TradeBlotterPage() {
                       <span className="block text-xs text-ink-muted">
                         {order.holding ?? names[order.assetClass] ?? order.assetClass}
                       </span>
+                      {/* Said on the row, so a list of orders to work through shows which need reading
+                          first. The order's own page carries the figures. */}
+                      {order.limitsBroken.length > 0 && (
+                        <span
+                          className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-red-600"
+                          title={order.limitsBroken.map((broken) => broken.said).join(" ")}
+                        >
+                          <TriangleAlert aria-hidden="true" className="size-3.5" />
+                          {order.limitsBroken.length === 1
+                            ? "Over a firm limit"
+                            : `Over ${order.limitsBroken.length} firm limits`}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
