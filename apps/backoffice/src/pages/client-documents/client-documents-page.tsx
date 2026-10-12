@@ -1,22 +1,33 @@
 import type { ApiError } from "@atomprive/api-client";
-import { useListMyClients, type CustomerPage } from "@atomprive/api-client/backoffice";
+import { useListClientFiles, type CustomerPage } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Pagination, TextInput } from "@atomprive/ui";
 import { ChevronRight, Search } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
+import { useStaffUser } from "../../auth/session";
+import { hasAuthority } from "../../lib/permissions";
 import { kycStatusLabels, kycStatusTones } from "../clients/client-labels";
 import { formatDate } from "../../lib/labels";
 
 /**
- * Where an advisor puts their clients' papers on file (#83). One client at a time, because a document is
- * only worth keeping against the client it belongs to.
+ * Where a client's papers are put on file (#83). One client at a time, because a document is only worth
+ * keeping against the client it belongs to.
+ *
+ * <p>Whose clients depends on whose job it is. Compliance own KYC for the whole firm, so they see every
+ * client; an advisor is held to their own. This listed only the signed-in person's own clients whoever
+ * they were, which left Compliance looking at "no clients are assigned to you yet" and no way to reach
+ * anybody — on the one screen their job is done from.
  */
 export function ClientDocumentsPage() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
-  const clients = useListMyClients<CustomerPage, ApiError>(
+  const everyClient = hasAuthority(useStaffUser(), "UPLOAD_CLIENT_DOCUMENTS:CHANGE");
+  // One list, scoped by the API the same way putting a paper on a file is scoped — so a client somebody
+  // may act for is a client they can find. The All clients list answers a different question and narrows
+  // a restricted client away from everybody but whoever runs the firm.
+  const clients = useListClientFiles<CustomerPage, ApiError>(
     { query: query.trim() || undefined, page, size: 10 },
-    { query: { placeholderData: (kept) => kept } },
+    { query: { placeholderData: (held) => held } },
   );
   const rows = clients.data?.items ?? [];
 
@@ -25,8 +36,9 @@ export function ClientDocumentsPage() {
       <header>
         <h1 className="text-[1.625rem] font-bold">Client documents</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Your clients' passports, identity papers and proof of address. Open a client to see what is on file and
-          add to it. Compliance check them and decide.
+          {everyClient
+            ? "Every client's passports, identity papers and proof of address. Open a client to see what is on file, add to it, and decide on what is there."
+            : "Your clients' passports, identity papers and proof of address. Open a client to see what is on file and add to it. Compliance check them and decide."}
         </p>
       </header>
 
@@ -51,7 +63,9 @@ export function ClientDocumentsPage() {
         {rows.map((client) => (
           <li key={client.id}>
             <Link
-              to={`/kyc/${client.id}`}
+              // Carries where it was opened from, so Back goes to this list and not to whichever
+              // KYC screen the reader happens to have the permission for.
+              to={`/kyc/${client.id}?from=documents`}
               className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-white px-5 py-4 transition-colors hover:border-primary-600"
             >
               <span className="min-w-0 flex-1">
@@ -65,10 +79,20 @@ export function ClientDocumentsPage() {
             </Link>
           </li>
         ))}
-        {clients.isPending && <li className="text-sm text-ink-muted">Loading your clients…</li>}
+        {clients.isPending && (
+          <li className="text-sm text-ink-muted">
+            {everyClient ? "Loading the clients…" : "Loading your clients…"}
+          </li>
+        )}
         {clients.data && rows.length === 0 && (
           <li className="rounded-2xl border border-dashed border-line px-5 py-10 text-center text-sm text-ink-muted">
-            {query ? "No client of yours matches that." : "No clients are assigned to you yet."}
+            {query
+              ? everyClient
+                ? "No client matches that."
+                : "No client of yours matches that."
+              : everyClient
+                ? "No clients have been registered yet."
+                : "No clients are assigned to you yet."}
           </li>
         )}
       </ul>
