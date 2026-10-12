@@ -14,7 +14,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatDate } from "../../lib/labels";
-import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
+import { hasAnyAuthority, hasAuthority, NAMES_ANY_RELATIONSHIP_MANAGER, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
 import { newApplication, toForm } from "./application";
 import { ApplicationSummary } from "./application-summary";
 import type { SentForSignOff } from "@atomprive/api-client/backoffice";
@@ -43,7 +43,22 @@ export function OnboardingCasePage() {
   const mine = mayWorkOnAnyCase || isNew || detail?.summary.relationshipManager?.id === user.id;
   const editing = canOnboard && mine && (isNew || detail?.summary.submitted === false);
   const managers = useListRelationshipManagers<StaffMember[], ApiError>({ query: { enabled: editing } });
-  const initial = useMemo(() => (detail ? toForm(detail.application) : newApplication()), [detail]);
+  // An advisor onboards their own clients, so the only relationship manager they may name is themselves —
+  // the API refuses anyone else. Offering the whole list let them choose a colleague and be turned back at
+  // submit, so the list holds whoever they are actually allowed to name.
+  const namesAnyone = hasAnyAuthority(user, ...NAMES_ANY_RELATIONSHIP_MANAGER);
+  const choosable = useMemo(() => {
+    if (namesAnyone) return managers.data;
+    if (!managers.data) return undefined;
+    const them = managers.data.find((person) => person.id === user.id);
+    return [them ?? { id: user.id, fullName: user.fullName }];
+  }, [namesAnyone, managers.data, user.id, user.fullName]);
+  const initial = useMemo(() => {
+    if (detail) return toForm(detail.application);
+    const fresh = newApplication();
+    // One name to choose from is not a choice; filling it in saves asking a question with a single answer.
+    return namesAnyone ? fresh : { ...fresh, relationshipManagerId: user.id };
+  }, [detail, namesAnyone, user.id]);
   // The list's search and page, remembered when the case was opened, so going back returns to them.
   const list = (location.state as { list?: string } | null)?.list;
   // The same case is read from two screens, and only one of them is everybody's: Compliance work the KYC
@@ -67,7 +82,7 @@ export function OnboardingCasePage() {
   }
   if (editing) {
     return (
-      <OnboardingWizard caseId={detail?.summary.id ?? null} initial={initial} managers={managers.data} listHref={backTo} onSaved={handleSaved} />
+      <OnboardingWizard caseId={detail?.summary.id ?? null} initial={initial} managers={choosable} listHref={backTo} onSaved={handleSaved} />
     );
   }
   if (!detail) {
