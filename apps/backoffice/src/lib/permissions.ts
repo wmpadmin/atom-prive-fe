@@ -50,6 +50,17 @@ export const ONBOARDS_CLIENTS_CHANGE: Authority[] = ["ONBOARD_CLIENTS:CHANGE", "
  */
 export const ONBOARDS_EVERY_CLIENT: Authority[] = ["ONBOARD_CLIENTS:VIEW", "ONBOARD_CLIENTS:CHANGE"];
 
+/**
+ * Enough to put somebody else down as the client's relationship manager, the same set
+ * ClientOnboardingController works a case for. An advisor without one of these onboards their own clients
+ * and has to name themselves, so offering them the whole list is offering a choice that is then refused.
+ */
+export const NAMES_ANY_RELATIONSHIP_MANAGER: Authority[] = [
+  ...ONBOARDS_EVERY_CLIENT,
+  "APPROVE_ONBOARDING:VIEW",
+  "APPROVE_ONBOARDING:CHANGE",
+];
+
 /** Enough to put a client's papers on file: Compliance for any client, an advisor for their own. */
 export const UPLOADS_CLIENT_DOCUMENTS: Authority[] = [
   "UPLOAD_CLIENT_DOCUMENTS:CHANGE",
