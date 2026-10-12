@@ -5,7 +5,7 @@ import { ChevronRight, Search } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { hasAuthority } from "../../lib/permissions";
+import { hasAnyAuthority, hasAuthority, UPLOADS_CLIENT_DOCUMENTS } from "../../lib/permissions";
 import { kycStatusLabels, kycStatusTones } from "../clients/client-labels";
 import { formatDate } from "../../lib/labels";
 
@@ -21,7 +21,11 @@ import { formatDate } from "../../lib/labels";
 export function ClientDocumentsPage() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
-  const everyClient = hasAuthority(useStaffUser(), "UPLOAD_CLIENT_DOCUMENTS:CHANGE");
+  const user = useStaffUser();
+  // Three different jobs on one screen: Compliance add and decide, an advisor adds for their own clients,
+  // Operations read every client's to service them and add to none.
+  const mayAdd = hasAnyAuthority(user, ...UPLOADS_CLIENT_DOCUMENTS);
+  const everyClient = hasAuthority(user, "UPLOAD_CLIENT_DOCUMENTS:CHANGE") || !mayAdd;
   // One list, scoped by the API the same way putting a paper on a file is scoped — so a client somebody
   // may act for is a client they can find. The All clients list answers a different question and narrows
   // a restricted client away from everybody but whoever runs the firm.
@@ -36,9 +40,11 @@ export function ClientDocumentsPage() {
       <header>
         <h1 className="text-[1.625rem] font-bold">Client documents</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          {everyClient
-            ? "Every client's passports, identity papers and proof of address. Open a client to see what is on file, add to it, and decide on what is there."
-            : "Your clients' passports, identity papers and proof of address. Open a client to see what is on file and add to it. Compliance check them and decide."}
+          {!mayAdd
+            ? "Every client's passports, identity papers and proof of address. Open a client to read what is on file and download it. Compliance put them on file and decide on them."
+            : everyClient
+              ? "Every client's passports, identity papers and proof of address. Open a client to see what is on file, add to it, and decide on what is there."
+              : "Your clients' passports, identity papers and proof of address. Open a client to see what is on file and add to it. Compliance check them and decide."}
         </p>
       </header>
 
