@@ -20,6 +20,7 @@ import {
   documentField,
   holderBlocks,
   holderNotes,
+  holderStarted,
   holderTitles,
   occupations,
   signingMandateLabels,
@@ -31,10 +32,10 @@ import {
 } from "./account-opening-individual";
 
 /** The one phone line the form rules, with the country code picked rather than typed. */
-function PhoneField({ id, label, value, onChange, field }: { id: string; label: string; value: string; onChange: (value: string) => void; field: FieldFor }) {
+function PhoneField({ id, label, value, onChange, field, optional }: { id: string; label: string; value: string; onChange: (value: string) => void; field: FieldFor; optional?: boolean }) {
   const { error, onBlur } = field(id);
   return (
-    <Field id={id} label={label} required error={error}>
+    <Field id={id} label={label} required={!optional} error={error}>
       <MobileNumberInput {...describedBy(id, error)} id={id} value={value} onChange={onChange} onBlur={onBlur} />
     </Field>
   );
@@ -64,11 +65,15 @@ export function HolderStep({
   const where = `holders[${at}]`;
   const otherNationality = field(`${where}.otherNationalityHeld`);
   const occupation = field(`${where}.occupation`);
+  // The second holder is only asked for where the account has one. Until somebody starts the block the form
+  // does not want it, so neither should the browser: marking it required asks for a person who is not there.
+  // The first holder is always asked for, and the moment anything is written in the second it is too.
+  const spare = at > 0 && !holderStarted(holder);
   return (
     <div className="space-y-6">
       <FieldGroup title={holderBlocks.personal}>
         <div className="sm:col-span-2">
-          <Boxes legend={holderNotes.name} required inline error={field(`${where}.title`).error}>
+          <Boxes legend={holderNotes.name} required={!spare} inline error={field(`${where}.title`).error}>
             {holderTitles.map((option) => (
               <Tick
                 key={option.value}
@@ -82,18 +87,18 @@ export function HolderStep({
             ))}
           </Boxes>
         </div>
-        <TextField id={`${where}.fullName`} label="Name in full as in NRIC/ Passport" value={holder.fullName} onChange={(fullName) => onChange({ fullName })} field={field} className="sm:col-span-2" />
-        <TextField id={`${where}.forenames`} label="Forename(s)" value={holder.forenames} onChange={(forenames) => onChange({ forenames })} field={field} />
-        <TextField id={`${where}.surname`} label="Surname" value={holder.surname} onChange={(surname) => onChange({ surname })} field={field} />
+        <TextField id={`${where}.fullName`} label="Name in full as in NRIC/ Passport" value={holder.fullName} onChange={(fullName) => onChange({ fullName })} field={field} optional={spare} className="sm:col-span-2" />
+        <TextField id={`${where}.forenames`} label="Forename(s)" value={holder.forenames} onChange={(forenames) => onChange({ forenames })} field={field} optional={spare} />
+        <TextField id={`${where}.surname`} label="Surname" value={holder.surname} onChange={(surname) => onChange({ surname })} field={field} optional={spare} />
         {at > 0 && (
-          <TextField id={`${where}.relationshipToFirst`} label="Relationship with A/c Holder 1" value={holder.relationshipToFirst} onChange={(relationshipToFirst) => onChange({ relationshipToFirst })} field={field} className="sm:col-span-2" />
+          <TextField id={`${where}.relationshipToFirst`} label="Relationship with A/c Holder 1" value={holder.relationshipToFirst} onChange={(relationshipToFirst) => onChange({ relationshipToFirst })} field={field} optional={spare} className="sm:col-span-2" />
         )}
-        <TextField id={`${where}.passportNumber`} label="NRIC/ Passport Number" value={holder.passportNumber} onChange={(passportNumber) => onChange({ passportNumber })} field={field} />
-        <CountryField id={`${where}.nationality`} label="Nationality" value={holder.nationality} onChange={(nationality) => onChange({ nationality })} field={field} />
-        <CountryField id={`${where}.countryOfBirth`} label="Country of Birth" value={holder.countryOfBirth} onChange={(countryOfBirth) => onChange({ countryOfBirth })} field={field} />
+        <TextField id={`${where}.passportNumber`} label="NRIC/ Passport Number" value={holder.passportNumber} onChange={(passportNumber) => onChange({ passportNumber })} field={field} optional={spare} />
+        <CountryField id={`${where}.nationality`} label="Nationality" value={holder.nationality} onChange={(nationality) => onChange({ nationality })} field={field} optional={spare} />
+        <CountryField id={`${where}.countryOfBirth`} label="Country of Birth" value={holder.countryOfBirth} onChange={(countryOfBirth) => onChange({ countryOfBirth })} field={field} optional={spare} />
         <div className="sm:col-span-2">
           {/* The form prints this as two boxes on the line, and it reads as two boxes on the line. */}
-          <Boxes legend="Other Nationality Held" required inline error={otherNationality.error}>
+          <Boxes legend="Other Nationality Held" required={!spare} inline error={otherNationality.error}>
             <Tick
               kind="radio"
               name={`${where}.otherNationalityHeld`}
@@ -122,14 +127,14 @@ export function HolderStep({
         </div>
         {holder.otherNationalityHeld === true && (
           <FollowUp title="If Yes">
-            <CountryField id={`${where}.otherNationalityCountry`} label="Country" value={holder.otherNationalityCountry} onChange={(otherNationalityCountry) => onChange({ otherNationalityCountry })} field={field} />
-            <TextField id={`${where}.otherPassportNumber`} label="Passport Number" value={holder.otherPassportNumber} onChange={(otherPassportNumber) => onChange({ otherPassportNumber })} field={field} />
-            <DateField id={`${where}.otherPassportExpiry`} label="Date of Expiry" value={holder.otherPassportExpiry} onChange={(otherPassportExpiry) => onChange({ otherPassportExpiry })} field={field} min={daysFromToday(0)} max={daysFromToday(0, 30)} />
+            <CountryField id={`${where}.otherNationalityCountry`} label="Country" value={holder.otherNationalityCountry} onChange={(otherNationalityCountry) => onChange({ otherNationalityCountry })} field={field} optional={spare} />
+            <TextField id={`${where}.otherPassportNumber`} label="Passport Number" value={holder.otherPassportNumber} onChange={(otherPassportNumber) => onChange({ otherPassportNumber })} field={field} optional={spare} />
+            <DateField id={`${where}.otherPassportExpiry`} label="Date of Expiry" value={holder.otherPassportExpiry} onChange={(otherPassportExpiry) => onChange({ otherPassportExpiry })} field={field} optional={spare} min={daysFromToday(0)} max={daysFromToday(0, 30)} />
           </FollowUp>
         )}
       </FieldGroup>
 
-      <Field id={`${where}.occupation`} label="Occupation / Employment Details Occupation Details" required error={occupation.error}>
+      <Field id={`${where}.occupation`} label="Occupation / Employment Details Occupation Details" required={!spare} error={occupation.error}>
         <div className="flex flex-wrap gap-2">
           {occupations.map((option) => (
             <Tick
@@ -159,29 +164,29 @@ export function HolderStep({
 
       {holder.occupation === "SALARIED" && (
         <FieldGroup title={holderBlocks.salaried}>
-          <TextField id={`${where}.employerName`} label="Name of Company" value={holder.employerName} onChange={(employerName) => onChange({ employerName })} field={field} />
-          <CountryField id={`${where}.employerCountry`} label="Country" value={holder.employerCountry} onChange={(employerCountry) => onChange({ employerCountry })} field={field} />
-          <TextField id={`${where}.positionHeld`} label="Position Held" value={holder.positionHeld} onChange={(positionHeld) => onChange({ positionHeld })} field={field} className="sm:col-span-2" />
+          <TextField id={`${where}.employerName`} label="Name of Company" value={holder.employerName} onChange={(employerName) => onChange({ employerName })} field={field} optional={spare} />
+          <CountryField id={`${where}.employerCountry`} label="Country" value={holder.employerCountry} onChange={(employerCountry) => onChange({ employerCountry })} field={field} optional={spare} />
+          <TextField id={`${where}.positionHeld`} label="Position Held" value={holder.positionHeld} onChange={(positionHeld) => onChange({ positionHeld })} field={field} optional={spare} className="sm:col-span-2" />
         </FieldGroup>
       )}
 
       {holder.occupation === "BUSINESS_OWNER" && (
         <FieldGroup title={holderBlocks.businessOwner}>
-          <TextField id={`${where}.companyName`} label="Name of Company" value={holder.companyName} onChange={(companyName) => onChange({ companyName })} field={field} />
-          <CountryField id={`${where}.companyCountry`} label="Country" value={holder.companyCountry} onChange={(companyCountry) => onChange({ companyCountry })} field={field} />
-          <TextField id={`${where}.entityType`} label="Entity Type" value={holder.entityType} onChange={(entityType) => onChange({ entityType })} field={field} />
-          <TextField id={`${where}.natureOfBusiness`} label="Nature of Business" value={holder.natureOfBusiness} onChange={(natureOfBusiness) => onChange({ natureOfBusiness })} field={field} />
-          <CountriesField id={`${where}.businessLinkCountries`} label="Countries the entity does business with or has business links to" value={holder.businessLinkCountries} onChange={(businessLinkCountries) => onChange({ businessLinkCountries })} field={field} className="sm:col-span-2" />
+          <TextField id={`${where}.companyName`} label="Name of Company" value={holder.companyName} onChange={(companyName) => onChange({ companyName })} field={field} optional={spare} />
+          <CountryField id={`${where}.companyCountry`} label="Country" value={holder.companyCountry} onChange={(companyCountry) => onChange({ companyCountry })} field={field} optional={spare} />
+          <TextField id={`${where}.entityType`} label="Entity Type" value={holder.entityType} onChange={(entityType) => onChange({ entityType })} field={field} optional={spare} />
+          <TextField id={`${where}.natureOfBusiness`} label="Nature of Business" value={holder.natureOfBusiness} onChange={(natureOfBusiness) => onChange({ natureOfBusiness })} field={field} optional={spare} />
+          <CountriesField id={`${where}.businessLinkCountries`} label="Countries the entity does business with or has business links to" value={holder.businessLinkCountries} onChange={(businessLinkCountries) => onChange({ businessLinkCountries })} field={field} optional={spare} className="sm:col-span-2" />
         </FieldGroup>
       )}
 
       <FieldGroup title={holderBlocks.contact} description={holderNotes.contact}>
-        <PhoneField id={`${where}.phone`} label="Phone Number" value={holder.phone} onChange={(phone) => onChange({ phone })} field={field} />
-        <TextField id={`${where}.email`} label="Email Address" type="email" value={holder.email} onChange={(email) => onChange({ email })} field={field} />
+        <PhoneField id={`${where}.phone`} label="Phone Number" value={holder.phone} onChange={(phone) => onChange({ phone })} field={field} optional={spare} />
+        <TextField id={`${where}.email`} label="Email Address" type="email" value={holder.email} onChange={(email) => onChange({ email })} field={field} optional={spare} />
       </FieldGroup>
 
       <FieldGroup title={holderBlocks.address} description={holderNotes.address}>
-        <AddressFields at={`${where}.address.`} value={holder.address} onChange={(address) => onChange({ address })} field={field} />
+        <AddressFields at={`${where}.address.`} value={holder.address} onChange={(address) => onChange({ address })} field={field} optional={spare} />
       </FieldGroup>
 
       <div className="rounded-2xl border border-line p-5">

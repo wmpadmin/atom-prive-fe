@@ -126,6 +126,19 @@ function emptyAddress(): FormAddress {
   return { line1: "", line2: "", city: "", state: "", postalCode: "", country: null };
 }
 
+/**
+ * Whether anybody has begun filling this holder in, by the same test FormSections uses on the API side.
+ *
+ * <p>The form asks for a second holder only where the account has one, so a block nobody has started is
+ * finished rather than unfinished. The screen has to agree with that, or the browser asks for a person who
+ * does not exist. A title on its own is not a start — it is one click, easily a mis-click.
+ */
+export function holderStarted(holder: AccountHolder): boolean {
+  return Boolean(
+    holder.fullName || holder.forenames || holder.surname || holder.passportNumber || holder.email,
+  );
+}
+
 export function emptyHolder(): AccountHolder {
   return {
     title: null,
