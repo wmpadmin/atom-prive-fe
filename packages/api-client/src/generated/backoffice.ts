@@ -500,6 +500,20 @@ export interface BandRequest {
   breachBelow: number | null;
 }
 
+/**
+ * @nullable
+ */
+export type ModelRequestRiskProfile = typeof ModelRequestRiskProfile[keyof typeof ModelRequestRiskProfile] | null;
+
+
+export const ModelRequestRiskProfile = {
+  CONSERVATIVE: 'CONSERVATIVE',
+  MODERATE: 'MODERATE',
+  BALANCE: 'BALANCE',
+  GROWTH: 'GROWTH',
+  AGGRESSIVE: 'AGGRESSIVE',
+} as const;
+
 export type ModelRequestStatus = typeof ModelRequestStatus[keyof typeof ModelRequestStatus];
 
 
@@ -557,11 +571,8 @@ export interface ModelRequest {
      * @nullable
      */
   description: string | null;
-  /**
-     * @minLength 0
-     * @maxLength 60
-     */
-  riskProfile: string;
+  /** @nullable */
+  riskProfile: ModelRequestRiskProfile;
   status: ModelRequestStatus;
   targets: ModelRequestTargets;
   /** @minimum 0.01 */
@@ -588,6 +599,20 @@ export interface ModelRequest {
   changeNote: string | null;
 }
 
+/**
+ * @nullable
+ */
+export type ModelRowRiskProfile = typeof ModelRowRiskProfile[keyof typeof ModelRowRiskProfile] | null;
+
+
+export const ModelRowRiskProfile = {
+  CONSERVATIVE: 'CONSERVATIVE',
+  MODERATE: 'MODERATE',
+  BALANCE: 'BALANCE',
+  GROWTH: 'GROWTH',
+  AGGRESSIVE: 'AGGRESSIVE',
+} as const;
+
 export type ModelRowStatus = typeof ModelRowStatus[keyof typeof ModelRowStatus];
 
 
@@ -612,7 +637,8 @@ export interface ModelRow {
   name: string;
   /** @nullable */
   description: string | null;
-  riskProfile: string;
+  /** @nullable */
+  riskProfile: ModelRowRiskProfile;
   status: ModelRowStatus;
   targets: ModelRowTargets;
   watchAt: number;
@@ -1226,14 +1252,8 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  empty?: boolean;
-  array?: boolean;
-  null?: boolean;
-  object?: boolean;
-  float?: boolean;
   number?: boolean;
   container?: boolean;
-  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
@@ -1250,6 +1270,12 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
+  empty?: boolean;
+  array?: boolean;
+  null?: boolean;
+  object?: boolean;
+  float?: boolean;
   embeddedValue?: boolean;
 }
 

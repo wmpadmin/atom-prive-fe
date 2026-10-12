@@ -26,6 +26,7 @@ import {
   modelStatusTones,
   underManagementLabel,
   type ModelStatus,
+  riskProfileLabel,
 } from "./portfolio-labels";
 
 export function ModelPortfoliosPage() {
@@ -61,7 +62,7 @@ export function ModelPortfoliosPage() {
   const looking = search.trim().toLowerCase();
   const shown = looking
     ? rows.filter((model) =>
-        `${model.name} ${model.description ?? ""} ${model.riskProfile}`.toLowerCase().includes(looking),
+        `${model.name} ${model.description ?? ""} ${riskProfileLabel(model.riskProfile)}`.toLowerCase().includes(looking),
       )
     : rows;
 
@@ -151,7 +152,7 @@ export function ModelPortfoliosPage() {
                 ))}
               </div>
             </td>
-            <td className="px-4 py-3 whitespace-nowrap">{model.riskProfile}</td>
+            <td className="px-4 py-3 whitespace-nowrap">{riskProfileLabel(model.riskProfile)}</td>
             <td className="px-4 py-3 text-right tabular-nums">{model.clients}</td>
             <td className="px-4 py-3 text-right whitespace-nowrap">
               {model.aumTracked > 0 ? (

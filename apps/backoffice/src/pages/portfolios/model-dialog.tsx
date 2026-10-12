@@ -3,6 +3,7 @@ import {
   useListBenchmarks,
   type BenchmarkRow,
   type ModelRequest,
+  type ModelRequestRiskProfile,
   type BandRequest,
   type BandRequestBasis,
   type ModelRow,
@@ -13,6 +14,7 @@ import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
 import { asFigure } from "../../lib/figures";
+import { RISK_PROFILES } from "./portfolio-labels";
 import { barFor, useAssetClasses } from "./asset-classes";
 import {
   type ModelStatus,
@@ -281,7 +283,7 @@ export function ModelDialog({
   const codes = classesForModel(assetClasses, model);
   const [name, setName] = useState(model?.name ?? "");
   const [description, setDescription] = useState(model?.description ?? "");
-  const [riskProfile, setRiskProfile] = useState(model?.riskProfile ?? "");
+  const [riskProfile, setRiskProfile] = useState<ModelRequestRiskProfile>(model?.riskProfile ?? null);
   const [status, setStatus] = useState<ModelStatus>((model?.status as ModelStatus) ?? "LIVE");
   // Seeded on the first render, when the firm's list of classes may not have arrived yet. A class that
   // turns up afterwards is folded in here, because reading one the state has never heard of is a crash.
@@ -433,14 +435,28 @@ export function ModelDialog({
                 onChange={(event) => setName(event.target.value)}
               />
             </Field>
-            <Field id="model-risk" label="Risk profile" required error={errors.fields.riskProfile}>
-              <TextInput
+            {/* The five the Investment Risk Profile questionnaire derives, because a client's answer comes
+                from there. A line to type in let a model be written for "Balanced" and a client come out
+                "BALANCE", which is the same thing and matches on nothing. */}
+            <Field
+              id="model-risk"
+              label="Risk profile"
+              error={errors.fields.riskProfile}
+              hint="Who the model is written for. A client is matched to it by the profile their questionnaire came out as."
+            >
+              <SelectInput
                 {...describedBy("model-risk", errors.fields.riskProfile)}
                 id="model-risk"
-                placeholder="Balanced"
-                value={riskProfile}
-                onChange={(event) => setRiskProfile(event.target.value)}
-              />
+                value={riskProfile ?? ""}
+                onChange={(event) => setRiskProfile((event.target.value || null) as ModelRequestRiskProfile)}
+              >
+                <option value="">Nobody has said yet</option>
+                {RISK_PROFILES.map((profile) => (
+                  <option key={profile.value} value={profile.value}>
+                    {profile.label}
+                  </option>
+                ))}
+              </SelectInput>
             </Field>
           </div>
           <Field id="model-description" label="What it is for" error={errors.fields.description}>
