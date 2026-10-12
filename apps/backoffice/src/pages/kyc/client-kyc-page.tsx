@@ -18,6 +18,13 @@ import { paperLabels, paperWaitsOn } from "./kyc-labels-review";
 import { UploadKycDialog } from "./upload-kyc-dialog";
 import { hasAuthority } from "../../lib/permissions";
 
+/** Where a client's file can be opened from, so Back returns to the screen the reader actually left. */
+const CAME_FROM: Record<string, { to: string; label: string }> = {
+  queue: { to: "/kyc", label: "KYC review queue" },
+  review: { to: "/kyc-documents", label: "KYC document review" },
+  documents: { to: "/client-documents", label: "Client documents" },
+};
+
 /** The longest a reason can be, as the API allows. */
 /**
  * One client's KYC pack and the decision on it. A paper is judged against the rest of what they have handed
@@ -243,13 +250,14 @@ function Checklist({ checklist }: { checklist: KycRequirement[] }) {
 
 function BackLink() {
   const decides = hasAuthority(useStaffUser(), "APPROVE_ONBOARDING:VIEW");
-  // A client's file is opened from both KYC screens: from the review queue to see why they are not ready, and
-  // from the document review to decide on what they sent. It carries which, so Back returns there rather than
-  // to whichever one was written down first.
+  // A client's file is opened from three screens: the review queue to see why they are not ready, the
+  // document review to decide on what they sent, and Client documents to add to their file. Each says
+  // which, so Back returns there instead of to whichever one the reader's permissions happen to favour —
+  // which sent anybody who came from Client documents off to a screen they had not been on.
   const [search] = useSearchParams();
-  const fromQueue = search.get("from") === "queue";
-  const to = fromQueue ? "/kyc" : decides ? "/kyc-documents" : "/client-documents";
-  const label = fromQueue ? "KYC review queue" : decides ? "KYC document review" : "Client documents";
+  const came = CAME_FROM[search.get("from") ?? ""];
+  const to = came ? came.to : decides ? "/kyc-documents" : "/client-documents";
+  const label = came ? came.label : decides ? "KYC document review" : "Client documents";
   return (
     <Link to={to} className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700">
       <ChevronLeft aria-hidden="true" className="size-4" />

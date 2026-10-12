@@ -40,7 +40,7 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router";
+import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
 import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_AML_RISK, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, UPLOADS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
@@ -84,8 +84,9 @@ const A_PORTFOLIO = /^\/portfolio-clients\/[^/]+$/;
 const A_PROPOSAL = /^\/proposals\/[^/]+$/;
 
 /**
- * A client's own KYC file. It is opened from both KYC screens — from the review queue to see why a client is
- * not ready, and from the document review to decide on what they sent — so neither owns it outright.
+ * A client's own KYC file. It is opened from three screens — the review queue to see why a client is not
+ * ready, the document review to decide on what they sent, and Client documents to add to their file — so
+ * none of them owns it outright and each says in its query which one it is.
  */
 const A_CLIENT_KYC = /^\/kyc\/[^/]+(\/documents\/[^/]+)?$/;
 
@@ -300,9 +301,20 @@ const allNavigation: {
     authority: "APPROVE_ONBOARDING:CHANGE",
     // A client's own KYC file hangs off /kyc and is opened from here, so this is the menu it belongs to —
     // unless it was opened from the review queue, which says so in its query.
-    at: (path, search) => path.startsWith("/kyc-documents") || livesHere(path, search, A_CLIENT_KYC, ["queue"]),
+    at: (path, search) =>
+      path.startsWith("/kyc-documents") || livesHere(path, search, A_CLIENT_KYC, ["queue", "documents"]),
   },
-  { to: "/client-documents", label: "Client documents", icon: FolderOpen, authority: UPLOADS_CLIENT_DOCUMENTS, notFor: ["ADMIN"] },
+  {
+    to: "/client-documents",
+    label: "Client documents",
+    icon: FolderOpen,
+    authority: UPLOADS_CLIENT_DOCUMENTS,
+    notFor: ["ADMIN"],
+    // A client's file opened from here stays here on the menu, as it does for the review queue. Without
+    // this it lit the document review instead — a screen the reader had not been on.
+    at: (path, search) =>
+      path === "/client-documents" || ownsSharedScreen(path, search, A_CLIENT_KYC, "documents"),
+  },
   { to: "/forms", label: "Forms", icon: FileText, authority: "FILL_CLIENT_FORMS:VIEW", notFor: ["ADMIN"] },
   { to: "/staff-declarations", label: "Staff declarations", icon: ClipboardCheck, authority: "VIEW_STAFF_DECLARATIONS:VIEW", notFor: ["ADMIN"] },
   // An Admin's own screen. Operations keep the declarations register itself, under its own name.
@@ -394,7 +406,11 @@ function NavEntry({
   return (
     <li>
       <div className="flex items-center">
-        <NavLink
+        {/* A plain link, not a NavLink: NavLink decides "active" from the path by itself and overrides the
+            aria-current given to it, so it lit one entry and told a screen reader a different one — a
+            client's file read as the KYC queue because /kyc is the start of /kyc/{id}. These entries work
+            out where they are themselves, and both the highlight and what is announced follow that. */}
+        <Link
           to={item.to}
           aria-current={here ? "page" : undefined}
           className={cn(
@@ -405,7 +421,7 @@ function NavEntry({
         >
           <Icon className="size-4.5" aria-hidden="true" />
           {item.label}
-        </NavLink>
+        </Link>
       </div>
       {item.below.length > 0 && (
         <ul className="mt-1 space-y-1 border-l border-line pl-3 ml-5">
@@ -414,7 +430,7 @@ function NavEntry({
             const onIt = isHere(under, pathname, search);
             return (
               <li key={under.to}>
-                <NavLink
+                <Link
                   to={under.to}
                   aria-current={onIt ? "page" : undefined}
                   className={cn(
@@ -424,7 +440,7 @@ function NavEntry({
                 >
                   <UnderIcon className="size-4" aria-hidden="true" />
                   {under.label}
-                </NavLink>
+                </Link>
               </li>
             );
           })}
