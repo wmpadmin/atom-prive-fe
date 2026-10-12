@@ -22049,6 +22049,109 @@ export function useGetClientValuations<TData = Awaited<ReturnType<typeof getClie
 
 
 
+export const getClientOnThatModelUrl = (customerId: string,
+    modelPortfolioId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/on/${modelPortfolioId}`
+}
+
+export const clientOnThatModel = async (customerId: string,
+    modelPortfolioId: string, options?: Parameters<typeof http>[1]): Promise<PortfolioStanding> => {
+
+  return http<PortfolioStanding>(getClientOnThatModelUrl(customerId,modelPortfolioId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getClientOnThatModelQueryKey = (customerId: string,
+    modelPortfolioId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/on/${modelPortfolioId}`
+    ] as const;
+    }
+
+
+export const getClientOnThatModelQueryOptions = <TData = Awaited<ReturnType<typeof clientOnThatModel>>, TError = unknown>(customerId: string,
+    modelPortfolioId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientOnThatModel>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getClientOnThatModelQueryKey(customerId,modelPortfolioId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof clientOnThatModel>>> = ({ signal }) => clientOnThatModel(customerId,modelPortfolioId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined && modelPortfolioId !== null && modelPortfolioId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof clientOnThatModel>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ClientOnThatModelQueryResult = NonNullable<Awaited<ReturnType<typeof clientOnThatModel>>>
+export type ClientOnThatModelQueryError = unknown
+
+
+export function useClientOnThatModel<TData = Awaited<ReturnType<typeof clientOnThatModel>>, TError = unknown>(
+ customerId: string,
+    modelPortfolioId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientOnThatModel>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof clientOnThatModel>>,
+          TError,
+          Awaited<ReturnType<typeof clientOnThatModel>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useClientOnThatModel<TData = Awaited<ReturnType<typeof clientOnThatModel>>, TError = unknown>(
+ customerId: string,
+    modelPortfolioId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientOnThatModel>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof clientOnThatModel>>,
+          TError,
+          Awaited<ReturnType<typeof clientOnThatModel>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useClientOnThatModel<TData = Awaited<ReturnType<typeof clientOnThatModel>>, TError = unknown>(
+ customerId: string,
+    modelPortfolioId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientOnThatModel>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useClientOnThatModel<TData = Awaited<ReturnType<typeof clientOnThatModel>>, TError = unknown>(
+ customerId: string,
+    modelPortfolioId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientOnThatModel>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getClientOnThatModelQueryOptions(customerId,modelPortfolioId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListModelChangesForClientUrl = (customerId: string,) => {
 
 
