@@ -10,13 +10,14 @@ import { Check, ChevronLeft, ExternalLink, Plus } from "lucide-react";
 import { Fragment, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { openApiFile } from "../../lib/download";
-import { formatDate, formatRelative } from "../../lib/labels";
+import { formatDate } from "../../lib/labels";
 import { kycStatusLabels, kycStatusTones } from "../clients/client-labels";
 import { useStaffUser } from "../../auth/session";
 import { clientLine, fileMark, pageCount, reviewStateLabels, reviewStateTones } from "./kyc-labels";
 import { paperLabels, paperWaitsOn } from "./kyc-labels-review";
+import { DecidedBy, PutOnFileBy } from "./kyc-who";
 import { UploadKycDialog } from "./upload-kyc-dialog";
-import { hasAuthority } from "../../lib/permissions";
+import { hasAnyAuthority, hasAuthority, UPLOADS_CLIENT_DOCUMENTS } from "../../lib/permissions";
 
 /** Where a client's file can be opened from, so Back returns to the screen the reader actually left. */
 const CAME_FROM: Record<string, { to: string; label: string }> = {
@@ -42,6 +43,8 @@ export function ClientKycPage() {
   const from = search.get("from");
   const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
+  // Putting a paper on file is Compliance's for any client and an advisor's for their own.
+  const mayAdd = hasAnyAuthority(useStaffUser(), ...UPLOADS_CLIENT_DOCUMENTS);
 
   const documents = file.data?.documents ?? [];
   const waiting = documents.filter((one) => one.reviewState === "AWAITING_REVIEW");
@@ -75,10 +78,15 @@ export function ClientKycPage() {
             <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">KYC</p>
             <Badge tone={kycStatusTones[file.data.kycStatus]}>{kycStatusLabels[file.data.kycStatus]}</Badge>
           </div>
-          <Button onClick={() => setAdding(true)}>
-            <Plus aria-hidden="true" />
-            Add a document
-          </Button>
+          {/* Reading a client's papers and adding to them are different permissions: Operations read
+              every client's to service them and add to none. A button that only ever came back refused
+              is worse than no button. */}
+          {mayAdd && (
+            <Button onClick={() => setAdding(true)}>
+              <Plus aria-hidden="true" />
+              Add a document
+            </Button>
+          )}
         </div>
       </header>
 
@@ -148,14 +156,20 @@ export function ClientKycPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(row.uploadedAt)}</td>
+                  <td className="px-4 py-3 text-ink-soft">
+                    <PutOnFileBy at={row.uploadedAt} by={row.uploadedByName} />
+                  </td>
                   <td className="px-4 py-3">
                     <Badge tone={reviewStateTones[row.reviewState]}>{reviewStateLabels[row.reviewState]}</Badge>
-                    {row.decisionReason && (
-                      <p className="mt-1 max-w-sm text-2xs leading-relaxed text-ink-muted">
-                        {row.decidedByName}: {row.decisionReason}
-                      </p>
-                    )}
+                    <p className="mt-1 max-w-sm text-2xs leading-relaxed text-ink-muted">
+                      <DecidedBy
+                        by={row.decidedByName}
+                        at={row.decidedAt}
+                        reason={row.decisionReason}
+                      >
+                        Nobody has decided on it yet
+                      </DecidedBy>
+                    </p>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
                     {row.expiresOn ? formatDate(row.expiresOn) : "—"}

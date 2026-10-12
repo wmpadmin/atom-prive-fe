@@ -42,7 +42,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
-import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_AML_RISK, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, UPLOADS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
+import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_AML_RISK, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
@@ -308,7 +308,9 @@ const allNavigation: {
     to: "/client-documents",
     label: "Client documents",
     icon: FolderOpen,
-    authority: UPLOADS_CLIENT_DOCUMENTS,
+    // Whoever may open a client's papers, not only whoever may add to them: Operations read every
+    // client's documents to service them, and had no way in at all.
+    authority: OPENS_CLIENT_DOCUMENTS,
     notFor: ["ADMIN"],
     // A client's file opened from here stays here on the menu, as it does for the review queue. Without
     // this it lit the document review instead — a screen the reader had not been on.

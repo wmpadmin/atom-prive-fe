@@ -15,6 +15,7 @@ import { downloadTextFile, openApiFile } from "../../lib/download";
 import { formatRelative } from "../../lib/labels";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { clientLine, fileMark, pageCount, reviewStateLabels, reviewStateTones } from "./kyc-labels";
+import { PutOnFileBy } from "./kyc-who";
 import { PickClientDialog } from "./pick-client-dialog";
 
 /**
@@ -226,7 +227,9 @@ export function KycDocumentReviewPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(row.uploadedAt)}</td>
+                  <td className="px-4 py-3 text-ink-soft">
+                    <PutOnFileBy at={row.uploadedAt} by={row.uploadedByName} />
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-soft tabular-nums">{pageCount(row.pages)}</td>
                   <td className="px-4 py-3">
                     <Badge tone={reviewStateTones[row.reviewState]}>{reviewStateLabels[row.reviewState]}</Badge>

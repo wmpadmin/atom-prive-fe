@@ -19,6 +19,7 @@ import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
 import { DocumentReader } from "./document-reader";
 import { fileMark, pageCount, reviewStateLabels, reviewStateTones } from "./kyc-labels";
+import { DecidedBy } from "./kyc-who";
 
 const MOST_CHARACTERS = 500;
 
@@ -105,6 +106,7 @@ export function ReviewDocumentPage() {
                 {paper.kindTitle}
                 {paper.reference ? ` · ${paper.reference}` : ""} · {pageCount(paper.pages)} · put on file{" "}
                 {formatRelative(paper.uploadedAt)}
+                {paper.uploadedByName ? ` by ${paper.uploadedByName}` : ""}
                 {paper.expiresOn ? ` · runs out ${formatDate(paper.expiresOn)}` : ""}
               </p>
             </div>
@@ -205,12 +207,12 @@ export function ReviewDocumentPage() {
         ) : (
           <section className="rounded-2xl border border-line bg-white px-5 py-5 lg:sticky lg:top-5">
             <h2 className="text-base font-bold">{reviewStateLabels[paper.reviewState]}</h2>
-            <p className="mt-1 text-xs text-ink-muted">
-              {paper.decisionReason
-                ? `${paper.decidedByName}: ${paper.decisionReason}`
-                : decides
+            <p className="mt-1 space-y-0.5 text-xs text-ink-muted">
+              <DecidedBy by={paper.decidedByName} at={paper.decidedAt} reason={paper.decisionReason}>
+                {decides
                   ? "This one has been decided on already, so there is nothing to record against it."
                   : "Deciding on a client's papers is Compliance's."}
+              </DecidedBy>
             </p>
           </section>
         )}
