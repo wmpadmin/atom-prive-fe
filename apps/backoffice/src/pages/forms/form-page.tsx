@@ -415,9 +415,9 @@ function FilledForm<T>({
             {takeBack.isPending ? "Taking it back…" : "Edit"}
           </Button>
         )}
-        {/* A form taken back arrived with every part answered, so there is no last answer left to send it.
-            This is the one place in the pack where somebody says a form is ready. */}
-        {!locked && detail.summary.takenBack && (
+        {/* Review & submit carries this button of its own, so here it is for the parts before it: a form
+            taken back for one correction is sent from wherever that correction was made. */}
+        {!locked && detail.summary.takenBack && current.id !== "review" && (
           <Button size="sm" disabled={busy || sendAgain.isPending || dirty} onClick={sendItAgain}>
             {sendAgain.isPending ? "Sending…" : "Send for signature"}
           </Button>
@@ -582,11 +582,10 @@ function FilledForm<T>({
             <p className="text-xs text-ink-muted">
               {everythingDone
                 ? dirty
-                  // Saving the last answer is what sends it, so that is what the words say to do.
-                  ? "Every part is answered. Save it and it goes to the advisor to sign."
-                  // Saved, answered, and still here: the only thing that stops it going is having nobody to
-                  // sign it.
-                  : "Every part is answered, but this hasn't gone to be signed. The client needs a relationship advisor before anybody can sign it."
+                  ? "Every part is answered. Save it, then send it when you are ready."
+                  // Nothing goes until somebody sends it, so the words say what to press rather than
+                  // guessing at why it has not gone.
+                  : "Every part is answered. Nothing goes out until you send it."
                 : `${review.steps.filter((step) => !step.complete).length} of ${review.steps.length} parts still to answer.`}
             </p>
             <div className="flex gap-2">
@@ -595,9 +594,16 @@ function FilledForm<T>({
                 Back
               </Button>
               {current.id === "review" ? (
-                <Button onClick={saveDraft} disabled={busy || !dirty}>
-                  {save.isPending ? "Saving…" : "Save draft"}
-                </Button>
+                <>
+                  <Button variant="secondary" onClick={saveDraft} disabled={busy || !dirty}>
+                    {save.isPending ? "Saving…" : "Save draft"}
+                  </Button>
+                  {/* Answering the last question used to be the send. Putting it on a button of its own is
+                      what lets somebody finish a form on Friday and read it again on Monday. */}
+                  <Button onClick={sendItAgain} disabled={busy || sendAgain.isPending || dirty || !everythingDone}>
+                    {sendAgain.isPending ? "Sending…" : "Send for signature"}
+                  </Button>
+                </>
               ) : (
                 // Nothing is locked: a form is filled in whatever order the client's papers arrive in.
                 <Button onClick={() => goTo(steps[index + 1]?.id ?? REVIEW.id)} disabled={busy}>
