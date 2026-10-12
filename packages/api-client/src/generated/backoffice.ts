@@ -4732,6 +4732,13 @@ export interface ClientKycFile {
   checklist: KycRequirement[];
 }
 
+export interface CustomerPage {
+  items: CustomerRow[];
+  page: number;
+  size: number;
+  totalItems: number;
+}
+
 export interface FormPage {
   items: FormRow[];
   page: number;
@@ -4922,13 +4929,6 @@ export interface Dashboard {
   tiles: DashboardTiles;
   recentActivity: DashboardActivity[];
   health: SystemHealth;
-}
-
-export interface CustomerPage {
-  items: CustomerRow[];
-  page: number;
-  size: number;
-  totalItems: number;
 }
 
 export interface Currency {
@@ -5636,6 +5636,24 @@ export const ListKycDocumentsState = {
 export type SearchClientsForKycParams = {
 query?: string;
 };
+
+export type ListClientFilesParams = {
+query?: string;
+kycStatus?: ListClientFilesKycStatus;
+page?: number;
+size?: number;
+};
+
+export type ListClientFilesKycStatus = typeof ListClientFilesKycStatus[keyof typeof ListClientFilesKycStatus];
+
+
+export const ListClientFilesKycStatus = {
+  NOT_SUBMITTED: 'NOT_SUBMITTED',
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  EXPIRED: 'EXPIRED',
+} as const;
 
 export type GetDocumentTextParams = {
 customerId?: string;
@@ -23214,6 +23232,108 @@ export function useGetClientKycFile<TData = Awaited<ReturnType<typeof getClientK
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientKycFileQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListClientFilesUrl = (params?: ListClientFilesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/kyc/client-files?${stringifiedParams}` : `/api/backoffice/kyc/client-files`
+}
+
+export const listClientFiles = async (params?: ListClientFilesParams, options?: Parameters<typeof http>[1]): Promise<CustomerPage> => {
+
+  return http<CustomerPage>(getListClientFilesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientFilesQueryKey = (params?: ListClientFilesParams,) => {
+    return [
+    `/api/backoffice/kyc/client-files`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListClientFilesQueryOptions = <TData = Awaited<ReturnType<typeof listClientFiles>>, TError = unknown>(params?: ListClientFilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientFiles>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientFilesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientFiles>>> = ({ signal }) => listClientFiles(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientFiles>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListClientFilesQueryResult = NonNullable<Awaited<ReturnType<typeof listClientFiles>>>
+export type ListClientFilesQueryError = unknown
+
+
+export function useListClientFiles<TData = Awaited<ReturnType<typeof listClientFiles>>, TError = unknown>(
+ params: undefined |  ListClientFilesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientFiles>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientFiles>>,
+          TError,
+          Awaited<ReturnType<typeof listClientFiles>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientFiles<TData = Awaited<ReturnType<typeof listClientFiles>>, TError = unknown>(
+ params?: ListClientFilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientFiles>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientFiles>>,
+          TError,
+          Awaited<ReturnType<typeof listClientFiles>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientFiles<TData = Awaited<ReturnType<typeof listClientFiles>>, TError = unknown>(
+ params?: ListClientFilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientFiles>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListClientFiles<TData = Awaited<ReturnType<typeof listClientFiles>>, TError = unknown>(
+ params?: ListClientFilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientFiles>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListClientFilesQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

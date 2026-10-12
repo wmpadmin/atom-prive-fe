@@ -86,7 +86,7 @@ export function KycDocumentReviewPage() {
             variant="secondary"
             disabled={oldest === undefined}
             title={oldest === undefined ? "Nothing is waiting" : undefined}
-            onClick={() => oldest && void navigate(`/kyc/${oldest.customerId}`)}
+            onClick={() => oldest && void navigate(`/kyc/${oldest.customerId}?from=review`)}
           >
             Review oldest
           </Button>
@@ -100,7 +100,7 @@ export function KycDocumentReviewPage() {
       <PickClientDialog
         open={picking}
         onClose={() => setPicking(false)}
-        onChoose={(client) => void navigate(`/kyc/${client.id}`)}
+        onChoose={(client) => void navigate(`/kyc/${client.id}?from=review`)}
       />
 
       {queue.isError && <Alert tone="danger">{queue.error.message}</Alert>}
@@ -237,7 +237,7 @@ export function KycDocumentReviewPage() {
                       onClick={(event) => {
                         // The row opens the paper; this opens the client's pack, where it is decided on.
                         event.stopPropagation();
-                        void navigate(`/kyc/${row.customerId}`);
+                        void navigate(`/kyc/${row.customerId}?from=review`);
                       }}
                       className="inline-flex items-center gap-1 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50"
                     >
