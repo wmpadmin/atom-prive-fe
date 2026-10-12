@@ -664,10 +664,23 @@ export function ComplianceReviewStep({
         <TextField id="review.otherMatters" label="Any other matters not previously covered in this form:" value={review.otherMatters} onChange={(otherMatters) => onChange({ otherMatters })} field={field} multiline optional className="sm:col-span-2" />
       </FieldGroup>
 
+      {/* The paper form asks each approver to put their name, the date and their signature to it, and the
+          form is not approved without them. These were taken out when the firm's signatures moved to the
+          signing pack, but that pack signs as the client or the advisor — it has no MLRO and no SEO — so
+          the lines went nowhere and the part could never be finished. They are asked for here until there
+          is somewhere better to take them. */}
       <div className="space-y-4">
         <h3 className="text-sm font-bold text-ink">Approvals:</h3>
-        <FirmSignsThis what="The MLRO's name, date and signature" />
-        <FirmSignsThis what="The SEO's name, date and signature" />
+        <FieldGroup title="MLRO">
+          <TextField id="review.mlro" label="MLRO" value={review.mlro} onChange={(mlro) => onChange({ mlro })} field={field} />
+          <DateField id="review.mlroDate" label="Date" value={review.mlroDate} onChange={(mlroDate) => onChange({ mlroDate })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
+          <TextField id="review.mlroSignature" label="Signature" value={review.mlroSignature} onChange={(mlroSignature) => onChange({ mlroSignature })} field={field} placeholder="Their name, as they sign it" className="sm:col-span-2" />
+        </FieldGroup>
+        <FieldGroup title="SEO">
+          <TextField id="review.seo" label="SEO" value={review.seo} onChange={(seo) => onChange({ seo })} field={field} />
+          <DateField id="review.seoDate" label="Date" value={review.seoDate} onChange={(seoDate) => onChange({ seoDate })} field={field} min={yearsFromToday(0)} max={yearsFromToday(1)} />
+          <TextField id="review.seoSignature" label="Signature" value={review.seoSignature} onChange={(seoSignature) => onChange({ seoSignature })} field={field} placeholder="Their name, as they sign it" className="sm:col-span-2" />
+        </FieldGroup>
       </div>
     </div>
   );
