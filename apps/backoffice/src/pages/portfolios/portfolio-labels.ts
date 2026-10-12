@@ -63,3 +63,21 @@ export const modelStatusTones: Record<ModelStatus, "success" | "neutral" | "warn
 export function averageDriftLabel(drift: number) {
   return `${drift.toFixed(1)}pp`;
 }
+
+/**
+ * The five profiles the Investment Risk Profile questionnaire derives, least to most that a client can be
+ * asked to bear — the order the questionnaire itself prints them in. A model says which it is written for,
+ * and a client is matched to it by the one their questionnaire came out as, so both sides read from here.
+ */
+export const RISK_PROFILES = [
+  { value: "CONSERVATIVE", label: "Conservative" },
+  { value: "MODERATE", label: "Moderate" },
+  { value: "BALANCE", label: "Balance" },
+  { value: "GROWTH", label: "Growth" },
+  { value: "AGGRESSIVE", label: "Aggressive" },
+] as const;
+
+/** What a model's risk profile is called on screen; a model nobody has set one on says so. */
+export function riskProfileLabel(profile: string | null | undefined) {
+  return RISK_PROFILES.find((one) => one.value === profile)?.label ?? "Not set";
+}

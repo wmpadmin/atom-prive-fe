@@ -19,6 +19,7 @@ import {
   standingTones,
   underManagementLabel,
   type DriftStanding,
+  riskProfileLabel,
 } from "./portfolio-labels";
 
 /** Everything off plan: within band is not work, and nothing written down is not an answer. */
@@ -242,7 +243,7 @@ export function PortfolioManagerDashboard() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{model.name}</p>
                     <p className="text-xs text-ink-muted">
-                      {model.clients} {model.clients === 1 ? "client" : "clients"} · {model.riskProfile}
+                      {model.clients} {model.clients === 1 ? "client" : "clients"} · {riskProfileLabel(model.riskProfile)}
                     </p>
                   </div>
                   <div className="flex items-baseline gap-6 text-sm whitespace-nowrap tabular-nums">
