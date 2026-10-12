@@ -57,19 +57,19 @@ export function ClassStandingTable({
                 Asset class
               </th>
               <th scope="col" className="px-4 py-3 text-right">
-                Target
+                Current target
               </th>
               <th scope="col" className="px-4 py-3 text-right">
-                Target value
+                Current target value
               </th>
               <th scope="col" className="px-4 py-3 text-right">
-                Held
+                Current
               </th>
               <th scope="col" className="px-4 py-3 text-right">
-                Held value
+                Current value
               </th>
               <th scope="col" className="px-4 py-3 text-right">
-                Filled
+                Gap
               </th>
               <th scope="col" className="py-3 pl-4 text-right">
                 Suggestion
@@ -99,15 +99,12 @@ export function ClassStandingTable({
                   <td className={NUMBER}>{money(row.targetValue)}</td>
                   <td className={NUMBER}>{share(row.actualShare)}</td>
                   <td className={NUMBER}>{money(row.actualValue)}</td>
-                  {/* A share of nothing has no answer: the model asks for none of this class. */}
-                  <td className={NUMBER}>
-                    {row.filled === null ? (
-                      <span className="text-ink-muted" title="The model asks for none of this class.">
-                        —
-                      </span>
-                    ) : (
-                      share(row.filled)
-                    )}
+                  {/* How far the holding sits from its target, in percentage points: what "gap" means
+                      beside a target and a current share. Signed, so over and under read apart at a
+                      glance. The class the model asks none of has a gap like any other, where the old
+                      share-of-target had no answer at all and showed a dash. */}
+                  <td className={NUMBER} title={`${driftLabel(row.drift)} from target.`}>
+                    {driftLabel(row.drift)}
                   </td>
                   <td className={`${NUMBER} pr-0 pl-4`}>
                     <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
