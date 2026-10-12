@@ -133,6 +133,20 @@ function emptyAddress(): FormAddress {
  * finished rather than unfinished. The screen has to agree with that, or the browser asks for a person who
  * does not exist. A title on its own is not a start — it is one click, easily a mis-click.
  */
+/**
+ * Whether this account is held by two people. A joint account is onboarded with both, so the second holder
+ * arrives on the form named; an account held by one person has nobody to put in the block.
+ *
+ * <p>A second entry existing is not enough to go on. Clicking a title on the empty block was enough to
+ * create one holding nothing but that title, which then showed on the summary as "HE —". A second holder is
+ * somebody with a name, a passport number or an email — the same test that decides whether the block has
+ * been started at all.
+ */
+export function hasSecondHolder(value: AccountOpeningIndividual): boolean {
+  const second = value.holders[1];
+  return Boolean(second && holderStarted(second));
+}
+
 export function holderStarted(holder: AccountHolder): boolean {
   return Boolean(
     holder.fullName || holder.forenames || holder.surname || holder.passportNumber || holder.email,
@@ -360,12 +374,20 @@ export function reviewAccountOpeningIndividual(value: AccountOpeningIndividual):
         label: "Account holder 1",
         complete: none(problems, "holders[0]"),
       },
-      {
-        id: "holder2",
-        group: "ACCOUNT HOLDER 2",
-        label: "Account holder 2",
-        complete: none(problems, "holders[1]"),
-      },
+      // The paper rules a block for a second holder, and a joint account is onboarded with one, which is
+      // where the block comes from. An account held by one person has no second holder to ask about, so the
+      // block is not ruled at all rather than ruled and left empty. FormSections does the same on the API
+      // side, or the two would disagree about how many parts the form has.
+      ...(hasSecondHolder(value)
+        ? [
+            {
+              id: "holder2",
+              group: "ACCOUNT HOLDER 2",
+              label: "Account holder 2",
+              complete: none(problems, "holders[1]"),
+            },
+          ]
+        : []),
       {
         id: "mailing",
         group: "MAILING INSTRUCTIONS",

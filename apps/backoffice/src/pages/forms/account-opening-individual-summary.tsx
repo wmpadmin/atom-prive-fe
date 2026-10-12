@@ -7,6 +7,7 @@ import { countryName } from "../../lib/countries";
 import { formatDate } from "../../lib/labels";
 import type { FormAddress } from "./account-opening-entity";
 import {
+  holderStarted,
   MANDATORY_DOCUMENTS,
   documentField,
   holderTitles,
@@ -48,11 +49,15 @@ export function AccountOpeningIndividualSummary({
   const declarations = value.declarations;
   return (
     <div className="space-y-5">
-      {value.holders.map((holder, at) => (
-        <Part key={at} title={`Account holder ${at + 1}`} stepId={at === 0 ? "holder1" : "holder2"} onEdit={onEdit}>
-          <Holder holder={holder} at={at} attachments={attachments} formId={formId} />
-        </Part>
-      ))}
+      {/* The account's holders, and nobody else. A second block nobody filled in is not a second holder:
+          clicking a title created one holding only that, which read here as "HE —" against empty lines. */}
+      {value.holders
+        .filter((holder, at) => at === 0 || holderStarted(holder))
+        .map((holder, at) => (
+          <Part key={at} title={`Account holder ${at + 1}`} stepId={at === 0 ? "holder1" : "holder2"} onEdit={onEdit}>
+            <Holder holder={holder} at={at} attachments={attachments} formId={formId} />
+          </Part>
+        ))}
 
       <Part title="Mailing instructions" stepId="mailing" onEdit={onEdit}>
         <dl className="grid gap-3 sm:grid-cols-2">
