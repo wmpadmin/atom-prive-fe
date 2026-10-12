@@ -21,6 +21,15 @@ interface TextFieldProps {
   placeholder?: string;
   type?: "text" | "email";
   multiline?: boolean;
+  /**
+   * What the browser should take this box to be, as an HTML autofill token such as `organization-title`.
+   *
+   * <p>"off" is not the safe default it looks like. Chrome throws it away — too many sites used it to break
+   * password managers — and then guesses the field from its name and its neighbours. A guess of "a payment
+   * field" is how an Occupation box came to offer a saved credit card. A box that says plainly what it is
+   * is never guessed at, so name the ones whose meaning the browser can be told.
+   */
+  autoComplete?: string;
   /** A field the form does not insist on, such as a postal code the jurisdiction may not issue. */
   optional?: boolean;
   /**
@@ -31,9 +40,9 @@ interface TextFieldProps {
   className?: string;
 }
 
-export function TextField({ id, label, value, onChange, field, placeholder, type = "text", multiline, optional, disabled, className }: TextFieldProps) {
+export function TextField({ id, label, value, onChange, field, placeholder, type = "text", multiline, autoComplete = "off", optional, disabled, className }: TextFieldProps) {
   const { error, onBlur } = field(id);
-  const control = { ...describedBy(id, error), value: value ?? "", onBlur, placeholder, autoComplete: "off", required: !optional && !disabled, disabled };
+  const control = { ...describedBy(id, error), value: value ?? "", onBlur, placeholder, autoComplete, required: !optional && !disabled, disabled };
   return (
     <Field id={id} label={label} required={!optional && !disabled} error={error} className={className}>
       {multiline ? (

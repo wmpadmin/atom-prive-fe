@@ -188,19 +188,19 @@ export function OccupationStep({ index, holder, onChange, field }: HolderStepPro
       <div className="grid gap-4 sm:grid-cols-2">
         {holder.occupation === "OTHER" && (
           <FollowUp title="Their occupation">
-            <TextField id={`${at}occupationOther`} label="Occupation" value={holder.occupationOther} onChange={(occupationOther) => onChange({ occupationOther })} field={field} placeholder="e.g. Freelance consultant" className="sm:col-span-2" />
+            <TextField id={`${at}occupationOther`} autoComplete="organization-title" label="Occupation" value={holder.occupationOther} onChange={(occupationOther) => onChange({ occupationOther })} field={field} placeholder="e.g. Freelance consultant" className="sm:col-span-2" />
           </FollowUp>
         )}
         {holder.occupation === "SALARIED" && (
           <FollowUp title="Employer">
-            <TextField id={`${at}employer.companyName`} label="Company name" value={employer.companyName} onChange={(companyName) => onChange({ employer: { ...employer, companyName } })} field={field} placeholder="e.g. Global Pvt Ltd" />
+            <TextField id={`${at}employer.companyName`} autoComplete="organization" label="Company name" value={employer.companyName} onChange={(companyName) => onChange({ employer: { ...employer, companyName } })} field={field} placeholder="e.g. Global Pvt Ltd" />
             <CountryField id={`${at}employer.country`} label="Country" value={employer.country} onChange={(country) => onChange({ employer: { ...employer, country } })} field={field} />
-            <TextField id={`${at}employer.position`} label="Position held" value={employer.position} onChange={(position) => onChange({ employer: { ...employer, position } })} field={field} placeholder="e.g. Senior Manager" />
+            <TextField id={`${at}employer.position`} autoComplete="organization-title" label="Position held" value={employer.position} onChange={(position) => onChange({ employer: { ...employer, position } })} field={field} placeholder="e.g. Senior Manager" />
           </FollowUp>
         )}
         {holder.occupation === "BUSINESS_OWNER" && (
           <FollowUp title="Their business">
-            <TextField id={`${at}business.companyName`} label="Company name" value={business.companyName} onChange={(companyName) => onChange({ business: { ...business, companyName } })} field={field} placeholder="e.g. Sharma Exports Pvt Ltd" />
+            <TextField id={`${at}business.companyName`} autoComplete="organization" label="Company name" value={business.companyName} onChange={(companyName) => onChange({ business: { ...business, companyName } })} field={field} placeholder="e.g. Sharma Exports Pvt Ltd" />
             <CountryField id={`${at}business.country`} label="Country" value={business.country} onChange={(country) => onChange({ business: { ...business, country } })} field={field} />
             <TextField id={`${at}business.entityType`} label="Entity type" value={business.entityType} onChange={(entityType) => onChange({ business: { ...business, entityType } })} field={field} placeholder="e.g. Private limited company" />
             <TextField id={`${at}business.natureOfBusiness`} label="Nature of business" value={business.natureOfBusiness} onChange={(natureOfBusiness) => onChange({ business: { ...business, natureOfBusiness } })} field={field} placeholder="e.g. Textile exports" />
@@ -286,7 +286,7 @@ export function EntityDetailsStep({ entity, onChange, field }: EntityStepProps) 
   return (
     <div className="space-y-8">
       <FormSection title="Entity" description="As shown on the certificate of incorporation.">
-        <TextField id="entity.legalName" label="Full legal name" value={entity.legalName} onChange={(legalName) => onChange({ legalName })} field={field} placeholder="e.g. The Tan Family Office Pte Ltd" className="sm:col-span-2" />
+        <TextField id="entity.legalName" autoComplete="organization" label="Full legal name" value={entity.legalName} onChange={(legalName) => onChange({ legalName })} field={field} placeholder="e.g. The Tan Family Office Pte Ltd" className="sm:col-span-2" />
         <TextField id="entity.legalForm" label="Legal form" value={entity.legalForm} onChange={(legalForm) => onChange({ legalForm })} field={field} placeholder="e.g. Private company limited by shares" optional />
         <CountryField id="entity.countryOfIncorporation" label="Country of incorporation" value={entity.countryOfIncorporation} onChange={(countryOfIncorporation) => onChange({ countryOfIncorporation })} field={field} />
         <DateField id="entity.dateOfIncorporation" label="Date of incorporation" value={entity.dateOfIncorporation} onChange={(dateOfIncorporation) => onChange({ dateOfIncorporation })} field={field} min={new Date(1900, 0, 1)} max={daysFromToday(-1)} />
