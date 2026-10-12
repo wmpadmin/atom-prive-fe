@@ -20,6 +20,7 @@ import {
   type PortfolioStanding,
   type Redenomination,
   type RiskMatch,
+  useClientOnThatModel,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, DateInput, Field, SelectInput, TextInput, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -202,6 +203,12 @@ export function ClientPortfolioPage() {
   // not kept would otherwise be contradicted by the standings beside it with nothing to say why.
   // The portfolio arrives after the first render, so the box reads from it until somebody picks another.
   const model = chosenModel ?? standing.data?.modelPortfolioId ?? "";
+  // A model picked in the box but not yet saved. Reading what it would do is how somebody chooses one,
+  // rather than how they find out what they chose: nothing is written down to ask the question.
+  const tryingOn = chosenModel !== null && chosenModel !== "" && chosenModel !== (standing.data?.modelPortfolioId ?? "");
+  const preview = useClientOnThatModel<PortfolioStanding, ApiError>(customerId, tryingOn ? model : "", {
+    query: { enabled: tryingOn },
+  });
   const figuresChanged =
     held !== null && JSON.stringify(held) !== JSON.stringify(heldFrom(standing.data, boxes));
   const unsaved =
@@ -376,7 +383,28 @@ export function ClientPortfolioPage() {
                 ))}
           </SelectInput>
         </Field>
-        <RiskMatchNote match={standing.data?.riskMatch ?? null} />
+        <RiskMatchNote match={(tryingOn ? preview.data?.riskMatch : standing.data?.riskMatch) ?? null} />
+        {/* What the picked model would make of this client's own money, before anybody is put on it. The
+            same table they read afterwards, so the figures are compared like with like. */}
+        {tryingOn && preview.isError && <Alert tone="danger">{preview.error.message}</Alert>}
+        {tryingOn && preview.data && (
+          <div className="mt-4">
+            <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              On {preview.data.modelName ?? "this model"}, before saving
+            </p>
+            <p className="mt-1 max-w-prose text-xs text-ink-muted">
+              This client's own figures against the model picked above. Nothing is saved until you press Save,
+              and the table further down still reads what is on file.
+            </p>
+            <div className="mt-3">
+              <ClassStandingTable
+                classes={preview.data.classes}
+                currency={preview.data.currency}
+                underManagement={preview.data.underManagement}
+              />
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-line bg-white px-6 py-5">
