@@ -302,13 +302,35 @@
       }
     },
     {
-      "name": "Account opening, individual: a second holder nobody has started is not asked for",
+      "name": "Account opening, individual: an account held by one person is not asked about a second holder",
       "kind": "ACCOUNT_OPENING_INDIVIDUAL",
       "answers": {},
       "provided": [],
       "sections": {
         "holder1": false,
-        "holder2": true,
+        "mailing": false,
+        "declarations": false
+      }
+    },
+    {
+      "name": "Account opening, individual: a title on its own does not make somebody a second holder",
+      "kind": "ACCOUNT_OPENING_INDIVIDUAL",
+      "answers": { "holders": [{}, { "title": "HE" }] },
+      "provided": [],
+      "sections": {
+        "holder1": false,
+        "mailing": false,
+        "declarations": false
+      }
+    },
+    {
+      "name": "Account opening, individual: a joint account is asked about its second holder",
+      "kind": "ACCOUNT_OPENING_INDIVIDUAL",
+      "answers": { "holders": [{}, { "surname": "Nair" }] },
+      "provided": [],
+      "sections": {
+        "holder1": false,
+        "holder2": false,
         "mailing": false,
         "declarations": false
       }
