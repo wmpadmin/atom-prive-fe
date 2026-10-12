@@ -48,7 +48,6 @@ import {
   READS_ORDERS,
   READS_PROPOSALS,
   RAISES_ORDERS,
-  UPLOADS_CLIENT_DOCUMENTS,
   WRITES_PROPOSALS,
 } from "./lib/permissions";
 import { ForgotPasswordPage } from "./pages/sign-in/forgot-password-page";
@@ -171,7 +170,9 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            element: <RequireAuthority authority={UPLOADS_CLIENT_DOCUMENTS} />,
+            // Whoever may open a client's papers, which is the same set the menu offers it to: Operations
+            // read every client's to service them, and adding to them is refused on its own.
+            element: <RequireAuthority authority={OPENS_CLIENT_DOCUMENTS} />,
             children: [{ path: "client-documents", element: <ClientDocumentsPage /> }],
           },
           {
