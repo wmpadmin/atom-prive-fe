@@ -5,7 +5,6 @@ import { Link } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Boxes, Tick, Written } from "../../components/form-boxes";
 import { Documents, type FormDocuments } from "../../components/form-documents";
-import { FirmSignsThis } from "../../components/client-signs-this";
 import {
   CountriesField,
   DateField,
@@ -619,7 +618,13 @@ export function RiskStep({
         </ul>
       </div>
 
-      <FirmSignsThis what="The Relationship Manager's name, date and place, and signature" />
+      {/* The same lines as the MLRO's and the SEO's below, and asked for again for the same reason: the API
+          will not call this part finished without them, and nothing takes them anywhere else. */}
+      <FieldGroup title="Relationship Manager">
+        <TextField id="risk.relationshipManagerName" label="Relationship Manager Name" value={risk.relationshipManagerName} onChange={(relationshipManagerName) => onChange({ relationshipManagerName })} field={field} />
+        <TextField id="risk.dateAndPlace" label="Date &amp; Place" value={risk.dateAndPlace} onChange={(dateAndPlace) => onChange({ dateAndPlace })} field={field} placeholder="e.g. 12 Oct 2026, Dubai" />
+        <TextField id="risk.signature" label="Signature" value={risk.signature} onChange={(signature) => onChange({ signature })} field={field} placeholder="Their name, as they sign it" className="sm:col-span-2" />
+      </FieldGroup>
     </div>
   );
 }
