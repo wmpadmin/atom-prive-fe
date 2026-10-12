@@ -709,6 +709,28 @@ export const PortfolioStandingStanding = {
   BREACHED: 'BREACHED',
 } as const;
 
+/**
+ * @nullable
+ */
+export type RiskMatchModelProfile = typeof RiskMatchModelProfile[keyof typeof RiskMatchModelProfile] | null;
+
+
+export const RiskMatchModelProfile = {
+  CONSERVATIVE: 'CONSERVATIVE',
+  MODERATE: 'MODERATE',
+  BALANCE: 'BALANCE',
+  GROWTH: 'GROWTH',
+  AGGRESSIVE: 'AGGRESSIVE',
+} as const;
+
+export interface RiskMatch {
+  clientProfile: string;
+  /** @nullable */
+  modelProfile: RiskMatchModelProfile;
+  matches: boolean;
+  settled: boolean;
+}
+
 export interface PortfolioStanding {
   customerId: string;
   /** @nullable */
@@ -733,6 +755,7 @@ export interface PortfolioStanding {
   /** @nullable */
   reviewDueOn: string | null;
   reviewOverdue: boolean;
+  riskMatch: RiskMatch | null;
 }
 
 export type HoldingsRequestHoldings = {[key: string]: number};

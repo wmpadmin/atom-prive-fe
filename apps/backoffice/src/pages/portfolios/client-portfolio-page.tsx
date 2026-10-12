@@ -19,6 +19,7 @@ import {
   type ModelsPage,
   type PortfolioStanding,
   type Redenomination,
+  type RiskMatch,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, DateInput, Field, SelectInput, TextInput, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -35,7 +36,7 @@ import { useAssetClasses } from "./asset-classes";
 import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
-import { driftLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
+import { driftLabel, riskProfileLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
 import { LeaveWithoutSaving } from "../../components/leave-without-saving";
 import { useJustSaved } from "../../lib/just-saved";
 import { formatDate } from "../../lib/labels";
@@ -366,12 +367,16 @@ export function ClientPortfolioPage() {
                 {(models.data?.items ?? []).map((model) => (
                   <option key={model.id} value={model.id} disabled={model.status === "DRAFT"}>
                     {model.name}
-                    {model.status === "DRAFT" ? " — still a draft" : ""}
-                    {model.status === "RETIRED" ? " — retired" : ""}
+                    {/* What each model is written for, so it can be picked by the client's risk rather than
+                        picked and then checked. */}
+                    {` — ${riskProfileLabel(model.riskProfile)}`}
+                    {model.status === "DRAFT" ? " · still a draft" : ""}
+                    {model.status === "RETIRED" ? " · retired" : ""}
                   </option>
                 ))}
           </SelectInput>
         </Field>
+        <RiskMatchNote match={standing.data?.riskMatch ?? null} />
       </section>
 
       <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -637,6 +642,44 @@ function Dealt({
       </dt>
       <dd className="mt-1.5">{children}</dd>
       <dd className="mt-1.5 text-xs text-ink-muted">{said}</dd>
+    </div>
+  );
+}
+
+/**
+ * Whether the model this client is on was written for the risk they came out as.
+ *
+ * <p>A client nobody has profiled says so rather than showing as a mismatch: the question has not been
+ * answered, and treating silence as a wrong answer would have every client the questionnaire has not reached
+ * look wrongly placed.
+ */
+function RiskMatchNote({ match }: { match: RiskMatch | null }) {
+  if (!match) {
+    return (
+      <p className="mt-3 text-xs text-ink-muted">
+        Nobody has profiled this client yet, so there is nothing to match a model against. Their Investment
+        risk profile form is where that answer comes from.
+      </p>
+    );
+  }
+  const client = riskProfileLabel(match.clientProfile);
+  if (!match.modelProfile) {
+    return (
+      <p className="mt-3 text-xs text-ink-muted">
+        This client came out <strong className="font-semibold text-ink">{client}</strong>. Nobody has said
+        what this model is written for, so it has not been matched to them — only not ruled out.
+      </p>
+    );
+  }
+  const model = riskProfileLabel(match.modelProfile);
+  return (
+    <div className="mt-3">
+      <Alert tone={match.matches ? "success" : "warning"}>
+        {match.matches
+          ? `This client came out ${client}, and this model is written for ${client}.`
+          : `This client came out ${client}, and this model is written for ${model}. Putting them on it means putting them on a portfolio built for a different risk.`}
+        {!match.settled && " Their questionnaire is still a draft, so this may yet change."}
+      </Alert>
     </div>
   );
 }
