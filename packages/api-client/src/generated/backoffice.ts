@@ -1363,6 +1363,7 @@ export interface FormRow {
   updatedAt: string;
   /** @nullable */
   submittedAt: string | null;
+  takenBack: boolean;
   compliance: ComplianceDecision | null;
 }
 
@@ -15591,6 +15592,142 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getStartFormMutationOptions(options), queryClient);
+    }
+
+export const getTakeFormBackUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/forms/${id}/take-back`
+}
+
+export const takeFormBack = async (id: string, options?: Parameters<typeof http>[1]): Promise<FormDetail> => {
+
+  return http<FormDetail>(getTakeFormBackUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTakeFormBackMutationKey = () => ['takeFormBack'] as const;
+
+export const getTakeFormBackMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeFormBack>>, TError,TakeFormBackMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof takeFormBack>>, TError,TakeFormBackMutationVariables, TContext> => {
+
+const mutationKey = getTakeFormBackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof takeFormBack>>, TakeFormBackMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  takeFormBack(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TakeFormBackMutationResult = NonNullable<Awaited<ReturnType<typeof takeFormBack>>>
+
+    export type TakeFormBackMutationError = unknown
+    export type TakeFormBackMutationVariables = {id: string}
+
+    export const useTakeFormBack = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeFormBack>>, TError,TakeFormBackMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof takeFormBack>>,
+        TError,
+        TakeFormBackMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTakeFormBackMutationOptions(options), queryClient);
+    }
+
+export const getSendFormForSignatureUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/forms/${id}/send-for-signature`
+}
+
+export const sendFormForSignature = async (id: string, options?: Parameters<typeof http>[1]): Promise<FormDetail> => {
+
+  return http<FormDetail>(getSendFormForSignatureUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSendFormForSignatureMutationKey = () => ['sendFormForSignature'] as const;
+
+export const getSendFormForSignatureMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendFormForSignature>>, TError,SendFormForSignatureMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendFormForSignature>>, TError,SendFormForSignatureMutationVariables, TContext> => {
+
+const mutationKey = getSendFormForSignatureMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendFormForSignature>>, SendFormForSignatureMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  sendFormForSignature(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendFormForSignatureMutationResult = NonNullable<Awaited<ReturnType<typeof sendFormForSignature>>>
+
+    export type SendFormForSignatureMutationError = unknown
+    export type SendFormForSignatureMutationVariables = {id: string}
+
+    export const useSendFormForSignature = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendFormForSignature>>, TError,SendFormForSignatureMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendFormForSignature>>,
+        TError,
+        SendFormForSignatureMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendFormForSignatureMutationOptions(options), queryClient);
     }
 
 export const getAttachToFormUrl = (id: string,

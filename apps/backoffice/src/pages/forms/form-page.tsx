@@ -11,6 +11,8 @@ import {
   useChangeCaseForm,
   useRemoveFormAttachment,
   useSaveFormDraft,
+  useSendFormForSignature,
+  useTakeFormBack,
   type DocumentText,
   type DocumentGap,
   type DocumentTextKind,
@@ -205,11 +207,49 @@ function FilledForm<T>({
   const canChange = !fromKyc && hasAnyAuthority(user, ...FILLS_CLIENT_FORMS, ...ONBOARDS_CLIENTS_CHANGE);
 
   const reopen = useChangeCaseForm<ApiError>();
+  // Taking a form back from the advisor is its own thing, and not what the others do. The client's copy or a
+  // signed one is unpicked by clearing the form and filling it in afresh; this one keeps every answer and
+  // only undoes its being finished, because nobody outside the firm has seen it yet.
+  const takeBack = useTakeFormBack<ApiError>();
+  const sendAgain = useSendFormForSignature<ApiError>();
+  const [takingBack, setTakingBack] = useState(false);
+  const mayFillItIn = hasAnyAuthority(user, ...FILLS_CLIENT_FORMS);
   const onCase = detail.summary.onboardingCaseId;
   // A form with the advisor is nobody's to edit — not the advisor reading it in To sign, and not whoever
   // wrote it up. They sign it or send it back saying what is wrong, and sending it back is what opens it
   // again. An Edit here would let either side change a form out from under the other one's signature.
   const canWorkOnIt = Boolean(onCase) && !withTheAdvisor;
+  // A form with the advisor is taken back by whoever may write it up. The advisor reading it in To sign is
+  // not offered it: theirs is to sign or to send back, and a form changed under its own signature is no
+  // record of anything.
+  const canTakeItBack = withTheAdvisor && mayFillItIn && !fromKyc;
+
+  /** Takes the form back from the advisor, with every answer left in it. */
+  function takeItBack() {
+    takeBack.mutate(
+      { id: detail.summary.id },
+      {
+        onSuccess: () => {
+          setTakingBack(false);
+          void queryClient.invalidateQueries({ queryKey: getGetFormQueryKey(detail.summary.id) });
+          void queryClient.invalidateQueries({ queryKey: getListFormsQueryKey() });
+        },
+      },
+    );
+  }
+
+  /** Sends it back for signature once whoever took it is done: it has no last answer left to send it. */
+  function sendItAgain() {
+    sendAgain.mutate(
+      { id: detail.summary.id },
+      {
+        onSuccess: () => {
+          void queryClient.invalidateQueries({ queryKey: getGetFormQueryKey(detail.summary.id) });
+          void queryClient.invalidateQueries({ queryKey: getListFormsQueryKey() });
+        },
+      },
+    );
+  }
 
   /** Puts the form back to being filled in, so it can be corrected and sent out afresh. */
   function fillItInAgain() {
@@ -369,6 +409,19 @@ function FilledForm<T>({
             {reopen.isPending ? "Opening…" : "Edit"}
           </Button>
         )}
+        {locked && canTakeItBack && (
+          <Button variant="secondary" size="sm" disabled={takeBack.isPending} onClick={() => setTakingBack(true)}>
+            <PencilLine aria-hidden="true" />
+            {takeBack.isPending ? "Taking it back…" : "Edit"}
+          </Button>
+        )}
+        {/* A form taken back arrived with every part answered, so there is no last answer left to send it.
+            This is the one place in the pack where somebody says a form is ready. */}
+        {!locked && detail.summary.takenBack && (
+          <Button size="sm" disabled={busy || sendAgain.isPending || dirty} onClick={sendItAgain}>
+            {sendAgain.isPending ? "Sending…" : "Send for signature"}
+          </Button>
+        )}
       </div>
     </header>
   );
@@ -386,9 +439,10 @@ function FilledForm<T>({
         ) : withTheAdvisor ? (
           <Alert tone="info">
             Every part is answered, so this has gone to {detail.summary.clientName}'s advisor to sign. Nobody
-            sent it: finishing it is what sends it. Nobody changes it while it is with them either — the
-            advisor signs it, sends it back saying what is wrong, or leaves a comment below asking for a
-            change.
+            sent it: finishing it is what sends it.{" "}
+            {canTakeItBack
+              ? "The advisor signs it, sends it back saying what is wrong, or leaves a comment below asking for a change. To put something right yourself, Edit takes it back — every answer stays in it, and it goes again when you say so."
+              : "Nobody changes it while it is with them either — the advisor signs it, sends it back saying what is wrong, or leaves a comment below asking for a change."}
           </Alert>
         ) : (
           <Alert tone="info">
@@ -398,6 +452,7 @@ function FilledForm<T>({
           </Alert>
         )}
         {reopen.isError && <Alert tone="danger">{reopen.error.message}</Alert>}
+        {takeBack.isError && <Alert tone="danger">{takeBack.error.message}</Alert>}
         {kit.summary(value, detail.attachments, detail.summary.id)}
         {/* The parts come from the API's own sections rather than the rail, which a read form has none of:
             the two are the same list, and a comment has to name a part the other side will recognise. */}
@@ -406,6 +461,17 @@ function FilledForm<T>({
           parts={detail.sections.map((section) => ({ id: section.id, label: section.label }))}
           packId={readFromPack}
           canWrite={canChange}
+        />
+        <ConfirmDialog
+          open={takingBack}
+          title="Take this form back?"
+          // Nothing is cleared and nobody outside the firm has seen it, so this says what actually happens
+          // rather than borrowing the warning the other two need.
+          description={`This is with ${detail.summary.clientName}'s advisor to sign. Taking it back leaves every answer in it, but the form is no longer finished: go through it again and send it when you are done, and it will need signing afresh. Do you want to continue?`}
+          confirmLabel="Yes, take it back"
+          busy={takeBack.isPending}
+          onConfirm={() => takeItBack()}
+          onClose={() => setTakingBack(false)}
         />
         <ConfirmDialog
           open={editing}
@@ -429,6 +495,17 @@ function FilledForm<T>({
   return (
     <div className="space-y-6">
       {header}
+
+      {/* It was finished once, so there is nothing left to fill in that would send it. Saying so is the
+          difference between a form waiting on somebody and one everybody thinks has gone. */}
+      {detail.summary.takenBack && (
+        <Alert tone="info">
+          You took this back from {detail.summary.clientName}'s advisor, and every answer is still in it. Go
+          through it, put right what is wrong, and press Send for signature when you are done — it will need
+          signing afresh. Until then nobody is waiting on it.
+        </Alert>
+      )}
+      {sendAgain.isError && <Alert tone="danger">{sendAgain.error.message}</Alert>}
 
       <div className="grid items-start gap-6 lg:grid-cols-[18rem_1fr]">
         <StepRail
