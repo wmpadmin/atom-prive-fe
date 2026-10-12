@@ -119,13 +119,15 @@ interface CountriesFieldProps {
   value: string[];
   onChange: (codes: string[]) => void;
   field: FieldFor;
+  /** A list the form does not insist on, as on a holder block nobody has started. */
+  optional?: boolean;
   className?: string;
 }
 
-export function CountriesField({ id, label, value, onChange, field, className }: CountriesFieldProps) {
+export function CountriesField({ id, label, value, onChange, field, optional, className }: CountriesFieldProps) {
   const { error, onBlur } = field(id);
   return (
-    <Field id={id} label={label} required error={error} className={className}>
+    <Field id={id} label={label} required={!optional} error={error} className={className}>
       <CountriesPicker
         {...describedBy(id, error)}
         value={value}
