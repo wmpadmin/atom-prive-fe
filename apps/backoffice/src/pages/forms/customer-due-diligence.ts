@@ -463,7 +463,12 @@ export function sharedDueDiligenceProblems(
       if (!risk.pep[row.id]?.rating) problems[`risk.pep.${row.id}`] = "Tick one.";
     }
   }
-  // The Relationship Manager's block is a sign-off, taken when the form is signed off rather than typed here.
+  // The form has the RM put their name, the date and place, and their signature to the rating. Nothing takes
+  // these anywhere else — the signing pack signs as the client or the advisor — and the API will not call
+  // this part finished without them, so they are asked for here and insisted on here.
+  if (!risk.relationshipManagerName.trim()) problems["risk.relationshipManagerName"] = REQUIRED;
+  if (!risk.dateAndPlace.trim()) problems["risk.dateAndPlace"] = REQUIRED;
+  if (!risk.signature.trim()) problems["risk.signature"] = REQUIRED;
 
   if (!review.overallMlrr.trim()) problems["review.overallMlrr"] = REQUIRED;
   if (!review.comments.trim()) problems["review.comments"] = REQUIRED;
