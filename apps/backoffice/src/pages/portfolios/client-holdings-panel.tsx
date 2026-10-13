@@ -523,7 +523,7 @@ export function ClientHoldingsPanel({
           modelSubClasses={held.data?.modelSubClasses ?? {}}
           measuredAgainst={held.data?.measuredAgainst ?? null}
           underManagement={held.data?.underManagement ?? 0}
-          classTotals={Object.fromEntries(classes.map((one) => [one.assetClass, one.valueAmount]))}
+          unwritten={held.data?.unwritten ?? 0}
           currency={currency}
           onClose={closeDialog}
           onSaved={(id, before) => {
@@ -566,8 +566,8 @@ function HoldingDialog({
   startOn,
   modelSubClasses,
   measuredAgainst,
+  unwritten,
   underManagement,
-  classTotals,
   currency,
   onClose,
   onSaved,
@@ -580,10 +580,10 @@ function HoldingDialog({
   /** What the client holds altogether, so the model's share can be read as money rather than a percentage. */
   underManagement: number;
   /**
-   * What each class comes to today, so a figure being typed can be read as a share of what its class would
-   * come to with it in. By class, because which class a new holding is in is chosen in this dialog.
+   * How much of that nobody has written down yet. Writing a holding places some of it rather than adding
+   * to the portfolio, so a figure being typed is read against the same whole as the figures already there.
    */
-  classTotals: Record<string, number>;
+  unwritten: number;
   currency: string;
   onClose: () => void;
   /** The class to open on, where a new holding was asked for from a particular one. */
@@ -619,19 +619,23 @@ function HoldingDialog({
   const [valueAmount, setValueAmount] = useState(position ? String(position.valueAmount) : "");
   // Where the figure being typed would land this group, worked out as it is typed.
   //
-  // A class takes its total from its lines, so writing this one changes the class it sits in: the share is
-  // against what the class would come to with this figure in it, not what it comes to now. Without that, the
-  // first holding in an empty class reads as nothing rather than as all of it.
+  // Out of everything the client has, because that is what every other figure on the screen is out of. Read
+  // as a share of its own class instead, this said one thing while the table behind the dialog said another
+  // about the very same holding — "14.7% of Equities, breached" against "5.0% of the portfolio, at edge".
+  //
+  // The whole can grow as the figure is typed. Where the firm has said what the client has in all, writing a
+  // holding places money that was already counted and the whole stands; where it has not, the whole is the
+  // sum of what is written down and this figure adds to it.
   const typed = Number(valueAmount);
   const wouldBe =
     asked && valueAmount.trim() !== "" && Number.isFinite(typed) && typed >= 0
       ? (() => {
-          const classNow = (classTotals[assetClass] ?? 0)
-            - (position?.assetClass === assetClass ? position.valueAmount : 0);
-          const classThen = classNow + typed;
-          if (classThen <= 0) return null;
-          const share = (typed / classThen) * 100;
-          return { share, over: share - asked.shareOfClass };
+          const written = underManagement - unwritten;
+          const writtenThen = written - (position?.valueAmount ?? 0) + typed;
+          const wholeThen = Math.max(underManagement, writtenThen);
+          if (wholeThen <= 0) return null;
+          const share = (typed / wholeThen) * 100;
+          return { share, over: share - asked.shareOfPortfolio };
         })()
       : null;
   const standing =
@@ -771,8 +775,8 @@ function HoldingDialog({
                 <Badge tone="success">Within band</Badge>
               )}
               <span>
-                This would make it {wouldBe.share.toFixed(1)}% of {assetClasses.names[assetClass] ?? assetClass},
-                against {asked.shareOfClass.toFixed(1)}% asked for — {driftLabel(wouldBe.over)} from target.
+                This would make it {wouldBe.share.toFixed(1)}% of the portfolio, against{" "}
+                {asked.shareOfPortfolio.toFixed(1)}% asked for — {driftLabel(wouldBe.over)} from target.
               </span>
             </p>
           )}

@@ -4545,6 +4545,7 @@ export interface ClientHoldings {
   unplaced: number;
   /** @nullable */
   measuredAgainst: string | null;
+  unwritten: number;
   modelSubClasses: ClientHoldingsModelSubClasses;
   classes: ClassPositions[];
 }
