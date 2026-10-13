@@ -4460,6 +4460,19 @@ export interface ValuationHistory {
 /**
  * @nullable
  */
+export type ClassPositionsStanding = typeof ClassPositionsStanding[keyof typeof ClassPositionsStanding] | null;
+
+
+export const ClassPositionsStanding = {
+  WITHIN_BAND: 'WITHIN_BAND',
+  WATCH: 'WATCH',
+  AT_EDGE: 'AT_EDGE',
+  BREACHED: 'BREACHED',
+} as const;
+
+/**
+ * @nullable
+ */
 export type SubClassGroupStanding = typeof SubClassGroupStanding[keyof typeof SubClassGroupStanding] | null;
 
 
@@ -4493,6 +4506,16 @@ export interface ClassPositions {
   assetClassName: string;
   valueAmount: number;
   heldAsPositions: boolean;
+  /** @nullable */
+  targetShare: number | null;
+  /** @nullable */
+  shareOfPortfolio: number | null;
+  /** @nullable */
+  drift: number | null;
+  /** @nullable */
+  standing: ClassPositionsStanding;
+  /** @nullable */
+  suggestion: number | null;
   subClasses: SubClassGroup[];
 }
 

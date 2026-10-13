@@ -7,6 +7,7 @@ import {
   useRecordClientHolding,
   useRemoveClientHolding,
   type ModelLine,
+  type ClassPositions,
   type ClientHoldings,
   type PositionRow,
 } from "@atomprive/api-client/backoffice";
@@ -123,7 +124,7 @@ export function ClientHoldingsPanel({
   // Every class the page offers gets a row, whether or not anything is in it: a class holding nothing is
   // exactly the one somebody is about to write the first figure into, and a list of only what is already
   // there has nowhere to put it. Where no list is handed in, the panel shows what is written and no more.
-  const classes = offer
+  const classes: ClassPositions[] = offer
     ? [
         ...offer.map(
           (code) =>
@@ -132,6 +133,12 @@ export function ClientHoldingsPanel({
               assetClassName: catalogue.names[code] ?? code,
               valueAmount: 0,
               heldAsPositions: false,
+              // Nothing is held and nothing has been read, so there is nothing to say about where it stands.
+              targetShare: null,
+              shareOfPortfolio: null,
+              drift: null,
+              standing: null,
+              suggestion: null,
               subClasses: [],
             },
         ),
@@ -216,10 +223,17 @@ export function ClientHoldingsPanel({
                     ) : (
                       <span aria-hidden="true" className="size-4 shrink-0" />
                     )}
-                    <span className="flex-1 font-semibold">
+                    <span className="flex items-center gap-2 font-semibold">
                       {/* Named by the API from the firm's own list; the code stands in for one it has since taken off. */}
                       {one.assetClassName || one.assetClass}
+                      {/* The class's own standing, which is not the standing of the lines inside it: a class
+                          can breach while every line inside it sits exactly where the model asks, because it
+                          is the class that holds too much. */}
+                      {one.standing && one.standing !== "WITHIN_BAND" && (
+                        <Badge tone={standingTones[one.standing]}>{standingLabels[one.standing]}</Badge>
+                      )}
                     </span>
+                    <span className="flex-1" />
                   </button>
                   {/* A class listed holding by holding is read here, never typed: the API refuses a figure
                       that disagrees with its lines, and a box that can only be refused is a box that should
@@ -264,6 +278,19 @@ export function ClientHoldingsPanel({
                     </button>
                   )}
                 </div>
+
+                {/* What buying or selling would put the class back where the model asks for it, said whether
+                    or not the class is opened: the verdict and what to do about it belong together. */}
+                {one.standing && one.standing !== "WITHIN_BAND" && one.suggestion !== null
+                  && one.suggestion !== undefined && one.suggestion.toFixed(2) !== "0.00" && (
+                  <p className="px-4 pb-1.5 pl-10 text-xs tabular-nums text-ink-muted">
+                    <span className="font-semibold tracking-wider uppercase">
+                      {one.suggestion > 0 ? "Buy" : "Sell"}
+                    </span>{" "}
+                    {underManagementLabel(Math.abs(one.suggestion), currency)}
+                    {one.drift !== null && one.drift !== undefined && ` · ${driftLabel(one.drift)} from target`}
+                  </p>
+                )}
 
                 {isOpen && (
                   <div className="border-t border-line bg-slate-50/40 px-4 py-2">
