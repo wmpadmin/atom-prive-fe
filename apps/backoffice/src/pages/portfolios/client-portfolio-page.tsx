@@ -325,6 +325,11 @@ export function ClientPortfolioPage() {
           durationYears: before.durationYears,
           creditRating: before.creditRating,
           valueAmount: before.valueAmount,
+          // Put back as it stood, tolerance and all: a Discard that quietly dropped a client's own figures
+          // would be putting back something other than what was there.
+          watchPp: before.watchPp,
+          edgePp: before.edgePp,
+          breachPp: before.breachPp,
         };
         try {
           await putBack.mutateAsync({ customerId, id, data: was });
