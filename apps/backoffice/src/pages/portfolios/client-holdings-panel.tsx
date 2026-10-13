@@ -11,7 +11,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
@@ -211,6 +211,20 @@ export function ClientHoldingsPanel({
                               <span className="w-16 text-right text-xs whitespace-nowrap tabular-nums text-ink-muted">
                                 {position.shareOfPortfolio.toFixed(1)}%
                               </span>
+                              {/* The name opens the same dialog, but a coloured word beside a bordered bin
+                                  reads as a link to somewhere rather than as the other half of the pair.
+                                  Two buttons, so what can be done to a line is visible without hovering. */}
+                              {!readOnly && (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditing(position)}
+                                  aria-label={`Edit ${position.name}`}
+                                  title={`Edit ${position.name}`}
+                                  className="rounded-lg border border-line p-1.5 text-ink-soft hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                                >
+                                  <Pencil aria-hidden="true" className="size-4" />
+                                </button>
+                              )}
                               {/* A bare grey glyph reads as decoration. Bordered, it reads as a button. */}
                               {!readOnly && (
                                 <button
