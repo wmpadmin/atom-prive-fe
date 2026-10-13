@@ -56,7 +56,7 @@ export function HoldingsPanel({ clientId }: { clientId: string }) {
           </Button>
         </Link>
       </div>
-      <ClientHoldingsPanel customerId={clientId} readOnly />
+      <ClientHoldingsPanel customerId={clientId} onChanged={() => {}} readOnly />
       <p className="text-xs text-ink-muted">
         Written down by the portfolio team. Positions pulled from the banks themselves arrive here once the
         feeds are connected.

@@ -1,6 +1,6 @@
 import type { ClassStanding } from "@atomprive/api-client/backoffice";
 import { Badge } from "@atomprive/ui";
-import { driftLabel, standingLabels, standingTones } from "./portfolio-labels";
+import { driftLabel, insideLabel, standingLabels, standingTones, type DriftStanding } from "./portfolio-labels";
 
 /** Money the way the firm's review writes it: grouped thousands, always two decimal places. */
 function money(amount: number) {
@@ -31,6 +31,7 @@ export function ClassStandingTable({
   currency,
   underManagement,
   unwritten,
+  inside,
   suggestions = true,
   onPick,
 }: {
@@ -53,6 +54,11 @@ export function ClassStandingTable({
    * while it is there — the buying includes putting it somewhere — and that is an answer, not a fault.
    */
   unwritten?: number;
+  /**
+   * The worst standing among the groups inside each class, by asset class. A class can sit well inside its
+   * own band while its money is in the wrong groups, and this table is where somebody looks first.
+   */
+  inside?: Record<string, { standing: DriftStanding; count: number }>;
 }) {
   if (classes.length === 0) return null;
 
@@ -137,6 +143,16 @@ export function ClassStandingTable({
                         title={`${driftLabel(row.drift)} from target. Watched from ${row.band.watchAt}, at the edge from ${row.band.edgeAt}, breached from ${row.band.breachAt}.`}
                       >
                         <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>
+                      </span>
+                    )}
+                    {/* And what is wrong inside it. A class on its target whose money sits in the wrong
+                        groups looked perfectly sound here, and the only way to find out otherwise was to
+                        open a class that gave no reason to be opened. */}
+                    {inside?.[row.assetClass] && (
+                      <span className="mt-1 block font-normal">
+                        <Badge tone={standingTones[inside[row.assetClass].standing]}>
+                          {insideLabel(inside[row.assetClass])}
+                        </Badge>
                       </span>
                     )}
                   </th>
