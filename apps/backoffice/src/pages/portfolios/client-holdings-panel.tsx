@@ -19,7 +19,15 @@ import { useRef, useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
 import { useAssetClasses } from "./asset-classes";
-import { anchorFor, driftLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
+import {
+  anchorFor,
+  driftLabel,
+  insideLabel,
+  standingLabels,
+  standingTones,
+  underManagementLabel,
+  worstInside,
+} from "./portfolio-labels";
 import { asFigure } from "../../lib/figures";
 
 /** Where the sub-class is left blank, the holdings still need a heading to sit under. */
@@ -274,6 +282,17 @@ export function ClientHoldingsPanel({
                     {one.standing && one.standing !== "WITHIN_BAND" && (
                       <Badge tone={standingTones[one.standing]}>{standingLabels[one.standing]}</Badge>
                     )}
+                    {/* And what is wrong inside it, which is not the same question. A class can sit well
+                        within its own band while its money is in the wrong groups, because being over in
+                        one and under in another cancels out — and said only on the groups, that reads as a
+                        class with nothing wrong until somebody opens it. Nobody opens a class with nothing
+                        wrong. */}
+                    {(() => {
+                      const inside = worstInside(one.subClasses);
+                      return inside === null ? null : (
+                        <Badge tone={standingTones[inside.standing]}>{insideLabel(inside)}</Badge>
+                      );
+                    })()}
                   </button>
                   {/* What to buy or sell, and how far the class has wandered, used to be written here as
                       "SELL USD 350 · +70.0pp from target" — a row of figures with no heading over any of
