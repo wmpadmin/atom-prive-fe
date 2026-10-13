@@ -10,11 +10,7 @@ import {
   useRecordRebalance,
   useRecordReview,
   useSetClientHoldings,
-  useChangeClientHolding,
-  useRecordClientHolding,
-  useRemoveClientHolding,
   useWriteTheirOwnAllocation,
-  type PositionRow,
   useSetClientModelPortfolio,
   usePreviewPortfolioCurrency,
   useSetPortfolioCurrency,
@@ -50,10 +46,7 @@ import {
   standingLabels,
   standingTones,
   underManagementLabel,
-  worstInside,
-  type DriftStanding,
 } from "./portfolio-labels";
-import { ConfirmDialog } from "../config/confirm-dialog";
 import { LeaveWithoutSaving } from "../../components/leave-without-saving";
 import { useJustSaved } from "../../lib/just-saved";
 import { formatDate } from "../../lib/labels";
@@ -156,26 +149,16 @@ export function ClientPortfolioPage() {
   //
   // The first entry per holding wins. Edited twice, what Discard restores is how it stood before the first
   // edit, not the state between the two.
-  const [touchedHoldings, setTouchedHoldings] = useState<Map<string, PositionRow | null>>(new Map());
-  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   // Writing this client an allocation of their own: the same dialog a model is written in, because that is
   // what it is — targets, bands and the lines inside a class, belonging to one person.
   const [writingOwn, setWritingOwn] = useState(false);
-  // The class somebody asked to see the inside of, from the table that measures it. Kept so the card opens
-  // even if they had shut it: being sent to a class and finding it closed is being sent nowhere.
   // What the client has in all, as the firm has been told it. Blank where nobody has said, and then the
-  // holdings written down are the whole story — which is how every portfolio worked before this.
+  // figures written down are the whole story.
   const [chosenNetAum, setNetAum] = useState<string | null>(null);
-  const [revealed, setRevealed] = useState<string | null>(null);
+  // A class picked in the table above takes the reader to its figure below, which is the one they are about
+  // to change on the strength of what the table just told them.
   const showClass = (assetClass: string) => {
-    setRevealed(assetClass);
-    // After the card has opened, not before. Opening it does not move its own top — but it does make the
-    // page longer, and a card near the foot of a short page cannot be scrolled to the top of the window
-    // until the page is long enough to allow it. Scrolled first, the browser went as far as it could and
-    // stopped short, leaving the class somebody had just asked for below the fold.
-    requestAnimationFrame(() => {
-      document.getElementById(anchorFor(assetClass))?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    document.getElementById(anchorFor(assetClass))?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   const [ownErrors, setOwnErrors] = useState<FormErrors>(noErrors);
   const writeOwn = useWriteTheirOwnAllocation<ApiError>({
@@ -209,9 +192,6 @@ export function ClientPortfolioPage() {
   };
   const setModel = useSetClientModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
   // Taking back a holding added since Edit was pressed, when Discard is confirmed.
-  const forget = useRemoveClientHolding<ApiError>();
-  const putBack = useChangeClientHolding<ApiError>();
-  const writeAgain = useRecordClientHolding<ApiError>();
   const setHoldings = useSetClientHoldings<ApiError>({
     mutation: { onSuccess: () => { kept(); sayHoldingsSaved(); }, onError },
   });
@@ -259,13 +239,6 @@ export function ClientPortfolioPage() {
   // What is said to be there that nobody has written down, worked out from what is typed rather than from
   // what is on file, so it answers as somebody types instead of after they save.
   const unwritten = Math.max(0, (Number(netAum) || 0) - total);
-  // What is wrong inside each class, read off the holdings this page has already loaded for the panel
-  // below, so the table can say it without the API answering the same question twice.
-  const insideByClass = Object.fromEntries(
-    (lines.data?.classes ?? [])
-      .map((one) => [one.assetClass, worstInside(one.subClasses)] as const)
-      .filter(([, worst]) => worst !== null) as [string, { standing: DriftStanding; count: number }][],
-  );
   // What is typed but not yet saved. The table below reads what is on file, so a figure changed in a box and
   // not kept would otherwise be contradicted by the standings beside it with nothing to say why.
   // The portfolio arrives after the first render, so the box reads from it until somebody picks another.
@@ -291,62 +264,11 @@ export function ClientPortfolioPage() {
     || reviewed.isPending;
 
   /** Puts the screen back to what is on file, throwing away whatever was typed. */
-  /**
-   * Puts the page back, and takes off the holdings added since Edit was pressed.
-   *
-   * <p>A holding changed or removed meanwhile is left as it is. Putting those back is not what Discard was
-   * asked to do, and a Discard that quietly restored a line somebody deleted would be its own surprise.
-   */
   function discard() {
-    if (touchedHoldings.size > 0) {
-      setConfirmingDiscard(true);
-      return;
-    }
     putTheBoxesBack();
-  }
-
-  async function discardIncludingHoldings() {
-    for (const [id, before] of touchedHoldings) {
-      try {
-        if (before === null) {
-          // It did not exist when Edit was pressed, so putting it back means taking it off.
-          await forget.mutateAsync({ customerId, id });
-          continue;
-        }
-        const was = {
-          assetClass: before.assetClass,
-          subClass: before.subClass,
-          name: before.name,
-          identifier: before.identifier,
-          issuer: before.issuer,
-          countryCode: before.countryCode,
-          sector: before.sector,
-          yieldPercent: before.yieldPercent,
-          durationYears: before.durationYears,
-          creditRating: before.creditRating,
-          valueAmount: before.valueAmount,
-        };
-        try {
-          await putBack.mutateAsync({ customerId, id, data: was });
-        }
-        catch {
-          // Changed is one thing; removed is another. A holding taken off during this sitting has no row
-          // left to write over, so it is written down again — a new line saying what the old one said.
-          await writeAgain.mutateAsync({ customerId, data: was });
-        }
-      }
-      catch {
-        // One holding that will not go back does not strand the others, and the page still comes back to
-        // what is on file, which is what the reader is about to be shown.
-      }
-    }
-    setConfirmingDiscard(false);
-    putTheBoxesBack();
-    kept();
   }
 
   function putTheBoxesBack() {
-    setTouchedHoldings(new Map());
     setHeld(null);
     setChosenModel(null);
     setChosenCurrency(null);
@@ -413,8 +335,6 @@ export function ClientPortfolioPage() {
     setChosenCurrency(null);
     setRebalancedOn(null);
     setReviewedOn(null);
-    // Saved is kept: what was written down in this sitting is the client's now, not this sitting's.
-    setTouchedHoldings(new Map());
     setEditing(false);
   }
 
@@ -475,7 +395,7 @@ export function ClientPortfolioPage() {
               {holdingsSaved && <Saved />}
               {/* The one thing to do on a screen that is otherwise read, so it is the one thing that
                   looks like a button rather than part of the furniture. */}
-              <Button onClick={() => { setTouchedHoldings(new Map()); setEditing(true); }}>
+              <Button onClick={() => setEditing(true)}>
                 <Pencil aria-hidden="true" />
                 Edit
               </Button>
@@ -615,7 +535,6 @@ export function ClientPortfolioPage() {
                   suggestions={!standing.data.customModel}
                   underManagement={standing.data.underManagement}
                   unwritten={standing.data.unwritten}
-                  inside={insideByClass}
                   onPick={showClass}
                 />
               </div>
@@ -667,17 +586,12 @@ export function ClientPortfolioPage() {
               <div className="mt-3">
                 <ClientHoldingsPanel
                   customerId={customerId}
-                  onChanged={kept}
                   against={tryingOn ? model : null}
                   figures={editing ? holdings : undefined}
                   onFigure={(assetClass, said) =>
                     setHeld({ ...holdings, [assetClass]: asFigure(said, holdings[assetClass]) })
                   }
                   offer={boxes}
-                  reveal={revealed}
-                  onTouched={(id, before) =>
-                    setTouchedHoldings((were) => (were.has(id) ? were : new Map(were).set(id, before)))
-                  }
                   readOnly={!editing}
                 />
               </div>
@@ -806,20 +720,6 @@ export function ClientPortfolioPage() {
           onSave={(data) => writeOwn.mutate({ customerId, data })}
         />
       )}
-
-      <ConfirmDialog
-        open={confirmingDiscard}
-        title={touchedHoldings.size === 1 ? "Discard, and put the holding back?" : "Discard, and put the holdings back?"}
-        description={
-          touchedHoldings.size === 1
-            ? "A holding is written down the moment you confirm it, so discarding puts it back as it stood when you pressed Edit — one added is taken off, one changed goes back to what it said, one removed is written down again."
-            : `${touchedHoldings.size} holdings were written down since you pressed Edit, each kept the moment it was confirmed. Discarding puts them back as they stood — any added are taken off, any changed go back to what they said, any removed are written down again.`
-        }
-        confirmLabel={touchedHoldings.size === 1 ? "Discard and put it back" : "Discard and put them back"}
-        busy={forget.isPending || putBack.isPending || writeAgain.isPending}
-        onConfirm={() => void discardIncludingHoldings()}
-        onClose={() => setConfirmingDiscard(false)}
-      />
 
       <ValuationHistoryPanel customerId={customerId} />
 
