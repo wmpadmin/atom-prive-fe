@@ -495,6 +495,56 @@ export function ClientPortfolioPage() {
         <RiskMatchNote match={(tryingOn ? preview.data?.riskMatch : standing.data?.riskMatch) ?? null} />
       </section>
 
+
+      {/* What the picked model would make of this client's own money, before anybody is put on it. Beside
+          the table of what is on file rather than up by the picker, so the two read one after the other and
+          are plainly measuring the same holdings. */}
+      {tryingOn && preview.isError && <Alert tone="danger">{preview.error.message}</Alert>}
+      {tryingOn && preview.data && (
+        <section className="rounded-2xl border border-line bg-white px-6 py-5">
+          <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            On {preview.data.modelName ?? "this model"}, before saving
+          </h2>
+          <p className="mt-1 max-w-prose text-xs text-ink-muted">
+            This client's own figures against the model picked above. Nothing is saved until you press Save,
+            and the table below still reads what is on file.
+          </p>
+          <div className="mt-3">
+            <ClassStandingTable
+              classes={preview.data.classes}
+              currency={preview.data.currency}
+              suggestions={!preview.data.customModel}
+              underManagement={preview.data.underManagement}
+            />
+          </div>
+        </section>
+      )}
+
+      {standing.data && standing.data.classes.length > 0 && (
+            <section className="rounded-2xl border border-line bg-white px-6 py-5">
+              <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                Against the model
+              </h2>
+              {/* A table that disagrees with the figures under it has to say why where it is read, rather
+                  than leaving somebody to find the difference themselves. */}
+              {unsaved && (
+                <p className="mt-1 text-xs text-amber-700">
+                  This reads what is on file. The page has been changed and not saved.
+                </p>
+              )}
+              <div className="mt-3">
+                <ClassStandingTable
+                  classes={standing.data.classes}
+                  currency={standing.data.currency}
+                  suggestions={!standing.data.customModel}
+                  underManagement={standing.data.underManagement}
+                />
+              </div>
+            </section>
+          )}
+
+      {/* What they actually hold, under the tables that measure it: the plan is read first, then how far
+          this client sits from it, and then the holdings themselves line by line. */}
       <section className="rounded-2xl border border-line bg-white px-6 py-5">
         <fieldset>
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -592,53 +642,6 @@ export function ClientPortfolioPage() {
           </div>
         </fieldset>
       </section>
-
-      {/* What the picked model would make of this client's own money, before anybody is put on it. Beside
-          the table of what is on file rather than up by the picker, so the two read one after the other and
-          the figures above them are the ones both are measuring. */}
-      {tryingOn && preview.isError && <Alert tone="danger">{preview.error.message}</Alert>}
-      {tryingOn && preview.data && (
-        <section className="rounded-2xl border border-line bg-white px-6 py-5">
-          <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            On {preview.data.modelName ?? "this model"}, before saving
-          </h2>
-          <p className="mt-1 max-w-prose text-xs text-ink-muted">
-            This client's own figures against the model picked above. Nothing is saved until you press Save,
-            and the table below still reads what is on file.
-          </p>
-          <div className="mt-3">
-            <ClassStandingTable
-              classes={preview.data.classes}
-              currency={preview.data.currency}
-              suggestions={!preview.data.customModel}
-              underManagement={preview.data.underManagement}
-            />
-          </div>
-        </section>
-      )}
-
-      {standing.data && standing.data.classes.length > 0 && (
-            <section className="rounded-2xl border border-line bg-white px-6 py-5">
-              <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                Against the model
-              </h2>
-              {/* Said where the figures are, not at the foot of the screen: a table that disagrees with the
-                  boxes beside it has to say why where it is read. */}
-              {unsaved && (
-                <p className="mt-1 text-xs text-amber-700">
-                  This reads what is on file. The page has been changed and not saved.
-                </p>
-              )}
-              <div className="mt-3">
-                <ClassStandingTable
-                  classes={standing.data.classes}
-                  currency={standing.data.currency}
-                  suggestions={!standing.data.customModel}
-                  underManagement={standing.data.underManagement}
-                />
-              </div>
-            </section>
-          )}
 
       {/* Two dates the platform cannot work out for itself: the trading happens at the custodian and the
           reading happens in somebody's head. Written down here, they are what the review cadence and the
