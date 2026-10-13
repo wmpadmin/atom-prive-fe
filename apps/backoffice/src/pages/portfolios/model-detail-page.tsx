@@ -20,11 +20,7 @@ import { hasAuthority } from "../../lib/permissions";
 import { ModelDialog } from "./model-dialog";
 import { barFor, useAssetClasses } from "./asset-classes";
 import {
-  driftLabel,
   modelStatusLabels,
-  standingLabels,
-  standingTones,
-  type DriftStanding,
   type ModelStatus,
 } from "./portfolio-labels";
 
@@ -70,7 +66,7 @@ export function ModelDetailPage() {
   if (!detail.data) {
     return <p className="py-10 text-center text-sm text-ink-muted">Reading the plan…</p>;
   }
-  const { summary, allocations, composition, revisions, assignedPortfolios, measuredPortfolios } = detail.data;
+  const { summary, allocations, composition, revisions, assignedPortfolios } = detail.data;
 
   return (
     <div className="space-y-6">
@@ -109,12 +105,12 @@ export function ModelDetailPage() {
         <section className="rounded-2xl border border-line bg-white">
           <div className="px-6 pt-5">
             <h2 className="text-base font-bold">Target weights &amp; tolerance bands</h2>
+            {/* What the plan asks for, and nothing about who is on it: a client's drift moves with their
+                money, and reading it here made a fixed plan look like it was moving. */}
             <p className="mt-0.5 text-xs text-ink-muted">
-              {measuredPortfolios === 0
-                ? assignedPortfolios === 0
-                  ? "No client is measured against this plan yet."
-                  : `None of the ${assignedPortfolios} assigned portfolios has holdings written down, so there is nothing to average.`
-                : `Actual is the average across ${measuredPortfolios} of ${assignedPortfolios} assigned ${assignedPortfolios === 1 ? "portfolio" : "portfolios"}.`}
+              What this plan asks for. How far any client has wandered from it is on their own portfolio.
+              {assignedPortfolios > 0
+                && ` ${assignedPortfolios} ${assignedPortfolios === 1 ? "portfolio is" : "portfolios are"} on it.`}
             </p>
           </div>
           <div className="mt-4 overflow-x-auto">
@@ -124,18 +120,16 @@ export function ModelDetailPage() {
                   <th scope="col" className="py-2.5 pr-4 pl-6">Allocation level</th>
                   <th scope="col" className="px-4 py-2.5 text-right">Target</th>
                   <th scope="col" className="px-4 py-2.5 text-right">Band</th>
-                  <th scope="col" className="px-4 py-2.5 text-right">Actual avg</th>
-                  <th scope="col" className="px-4 py-2.5 text-right">Deviation</th>
-                  {/* Whose standing this is. A red "Breached" under a bare "Status", on a page named after
-                      the model, reads as the model being breached — it is the clients on it that are out.
-                      The note above the table says so once; a column heading says it on every row. */}
-                  <th scope="col" className="py-2.5 pr-6 pl-4">Assigned portfolios</th>
+                  {/* What the clients on this plan are actually holding used to sit here, and reading it on
+                      a page named after the model had the plan looking like it moved every time somebody
+                      edited a holding. The plan is fixed; drift is a fact about a client, and belongs on
+                      the client. */}
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {allocations.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-ink-muted">
+                    <td colSpan={3} className="px-6 py-10 text-center text-ink-muted">
                       This plan has no targets yet.
                     </td>
                   </tr>
@@ -252,32 +246,6 @@ function Row({ row }: { row: AllocationRow }) {
       {/* The band is the class's, shown on its lines too: tolerance is set per class, not per line. */}
       <td className="px-4 py-3 text-right whitespace-nowrap font-normal tabular-nums text-ink-muted">
         ±{percent(row.band.breachAt)}
-      </td>
-      <td className="px-4 py-3 text-right whitespace-nowrap font-normal tabular-nums">
-        {row.actualAverage === null ? <span className="text-ink-muted">—</span> : percent(row.actualAverage)}
-      </td>
-      <td
-        className={cn(
-          "px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums",
-          row.deviation === null
-            ? "text-ink-muted"
-            : row.standing === "BREACHED"
-              ? "text-rose-700"
-              : row.deviation < 0
-                ? "text-ink-soft"
-                : "text-emerald-700",
-        )}
-      >
-        {row.deviation === null ? "—" : driftLabel(row.deviation)}
-      </td>
-      <td className="py-3 pr-6 pl-4">
-        {row.standing === null ? (
-          <span className="text-xs font-normal text-ink-muted">Not measured</span>
-        ) : (
-          <Badge tone={standingTones[row.standing as DriftStanding]}>
-            {standingLabels[row.standing as DriftStanding]}
-          </Badge>
-        )}
       </td>
     </tr>
   );
