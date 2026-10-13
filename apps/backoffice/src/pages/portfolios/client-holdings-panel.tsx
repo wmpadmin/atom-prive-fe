@@ -22,6 +22,9 @@ import { asFigure } from "../../lib/figures";
 /** Where the sub-class is left blank, the holdings still need a heading to sit under. */
 const UNGROUPED = "Not grouped";
 
+/** The row that puts the box back, for a group the model does not name. Never a group's own name. */
+const OTHER_GROUP = "\u0000other";
+
 /**
  * What a client actually holds: asset class, then sub-class, then the holdings themselves — the three levels
  * the firm's own review opens downward through.
@@ -222,6 +225,7 @@ export function ClientHoldingsPanel({
         <HoldingDialog
           customerId={customerId}
           position={editing === "new" ? null : editing}
+          modelSubClasses={held.data?.modelSubClasses ?? {}}
           onClose={() => setEditing(null)}
           onSaved={() => {
             kept();
@@ -259,21 +263,32 @@ export function ClientHoldingsPanel({
 function HoldingDialog({
   customerId,
   position,
+  modelSubClasses,
   onClose,
   onSaved,
 }: {
   customerId: string;
   position: PositionRow | null;
+  /** What the client's model calls the lines inside each class, by class. Empty where it names none. */
+  modelSubClasses: Record<string, string[]>;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const assetClasses = useAssetClasses();
   // A holding already filed under a class keeps it, even one the firm has since retired; a new one starts
   // at the first class still in use rather than at a name compiled in here.
-  const [assetClass, setAssetClass] = useState<string>(
-    position?.assetClass ?? assetClasses.inUse[0]?.code ?? "",
-  );
+  const [picked, setAssetClass] = useState<string>(position?.assetClass ?? "");
+  // The firm's classes arrive after the first render, so seeding the box from them once leaves the state
+  // empty while the box on screen shows the first class — and an empty class is what gets submitted. What is
+  // shown and what is sent are worked out together instead, so they cannot come apart.
+  const assetClass = picked || position?.assetClass || assetClasses.inUse[0]?.code || "";
   const [subClass, setSubClass] = useState(position?.subClass ?? "");
+  // A holding already filed under a group the model does not name is edited where it was written, rather
+  // than having its group quietly cleared because the list has no row for it.
+  const [writingIn, setWritingIn] = useState(
+    position?.subClass != null
+      && !(modelSubClasses[position.assetClass] ?? []).some((one) => one === position.subClass),
+  );
   const [name, setName] = useState(position?.name ?? "");
   const [identifier, setIdentifier] = useState(position?.identifier ?? "");
   const [issuer, setIssuer] = useState(position?.issuer ?? "");
@@ -336,13 +351,43 @@ function HoldingDialog({
               ))}
             </SelectInput>
           </Field>
+          {/* The groups the model names for this class, so a holding goes into one of them by being picked
+              rather than by somebody typing its name again. A name typed a shade differently is a group the
+              model says nothing about, and the holding then sits outside it with nothing to say why. */}
           <Field
             id="holding-subclass"
             label="Sub-class"
-            hint="What the firm calls the group, such as US Equities — S&P 500."
+            hint={
+              (modelSubClasses[assetClass] ?? []).length > 0
+                ? "The groups this client's model breaks the class into. Choose Something else to write one it does not name."
+                : "What the firm calls the group, such as US Equities — S&P 500. This client's model does not break this class down."
+            }
             error={errors.fields.subClass}
           >
-            <TextInput id="holding-subclass" value={subClass} onChange={(e) => setSubClass(e.target.value)} />
+            {(modelSubClasses[assetClass] ?? []).length > 0 && !writingIn ? (
+              <SelectInput
+                id="holding-subclass"
+                value={subClass}
+                onChange={(event) => {
+                  if (event.target.value === OTHER_GROUP) {
+                    setWritingIn(true);
+                    setSubClass("");
+                    return;
+                  }
+                  setSubClass(event.target.value);
+                }}
+              >
+                <option value="">Not grouped</option>
+                {(modelSubClasses[assetClass] ?? []).map((one) => (
+                  <option key={one} value={one}>
+                    {one}
+                  </option>
+                ))}
+                <option value={OTHER_GROUP}>Something else…</option>
+              </SelectInput>
+            ) : (
+              <TextInput id="holding-subclass" value={subClass} onChange={(e) => setSubClass(e.target.value)} />
+            )}
           </Field>
         </div>
         <Field id="holding-name" label="Holding" required error={errors.fields.name}>
