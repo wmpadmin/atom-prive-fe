@@ -37,6 +37,8 @@ export function ClientHoldingsPanel({
   customerId,
   onChanged,
   onTouched,
+  addingFor = null,
+  onAddingHandled,
   readOnly = false,
 }: {
   customerId: string;
@@ -49,6 +51,12 @@ export function ClientHoldingsPanel({
    * when Edit was pressed, however the change was made.
    */
   onTouched?: (id: string, before: PositionRow | null) => void;
+  /**
+   * A class the page has asked to write a holding under, so the dialog opens on it without anybody scrolling
+   * down to find this panel. Cleared through onAddingHandled once the dialog is open.
+   */
+  addingFor?: string | null;
+  onAddingHandled?: () => void;
   /** Read somewhere other than the portfolio screen, where writing them down is not the job. */
   readOnly?: boolean;
 }) {
@@ -56,7 +64,19 @@ export function ClientHoldingsPanel({
   const held = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   const [opened, setOpened] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<PositionRow | "new" | null>(null);
+  /** The class a new holding opens on, where this panel's own button was the one pressed. */
+  const [newFor, setNewFor] = useState<string | null>(null);
   const [removing, setRemoving] = useState<PositionRow | null>(null);
+
+  // The dialog is open because this panel was asked to open it, or because the page was: worked out as it
+  // renders rather than copied into state by an effect, which would render twice to say the same thing.
+  const open = editing ?? (addingFor === null ? null : "new");
+  const startOn = editing === "new" ? newFor : addingFor;
+  const closeDialog = () => {
+    setEditing(null);
+    setNewFor(null);
+    onAddingHandled?.();
+  };
 
   const kept = () => {
     void queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) });
@@ -262,19 +282,20 @@ export function ClientHoldingsPanel({
         </ul>
       )}
 
-      {editing && (
+      {open && (
         <HoldingDialog
           customerId={customerId}
-          position={editing === "new" ? null : editing}
+          position={open === "new" ? null : open}
+          startOn={startOn}
           modelSubClasses={held.data?.modelSubClasses ?? {}}
           underManagement={held.data?.underManagement ?? 0}
           classTotals={Object.fromEntries(classes.map((one) => [one.assetClass, one.valueAmount]))}
           currency={currency}
-          onClose={() => setEditing(null)}
+          onClose={closeDialog}
           onSaved={(id, before) => {
             onTouched?.(id, before);
             kept();
-            setEditing(null);
+            closeDialog();
           }}
         />
       )}
@@ -308,6 +329,7 @@ export function ClientHoldingsPanel({
 function HoldingDialog({
   customerId,
   position,
+  startOn,
   modelSubClasses,
   underManagement,
   classTotals,
@@ -328,13 +350,15 @@ function HoldingDialog({
   classTotals: Record<string, number>;
   currency: string;
   onClose: () => void;
+  /** The class to open on, where a new holding was asked for from a particular one. */
+  startOn: string | null;
   /** The holding's id, and what it looked like before — null where it did not exist until now. */
   onSaved: (id: string, before: PositionRow | null) => void;
 }) {
   const assetClasses = useAssetClasses();
   // A holding already filed under a class keeps it, even one the firm has since retired; a new one starts
   // at the first class still in use rather than at a name compiled in here.
-  const [picked, setAssetClass] = useState<string>(position?.assetClass ?? "");
+  const [picked, setAssetClass] = useState<string>(position?.assetClass ?? startOn ?? "");
   // The firm's classes arrive after the first render, so seeding the box from them once leaves the state
   // empty while the box on screen shows the first class — and an empty class is what gets submitted. What is
   // shown and what is sent are worked out together instead, so they cannot come apart.
