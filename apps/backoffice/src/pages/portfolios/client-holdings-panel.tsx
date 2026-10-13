@@ -35,17 +35,19 @@ const OTHER_GROUP = "\u0000other";
 export function ClientHoldingsPanel({
   customerId,
   onChanged,
-  onAdded,
+  onTouched,
   readOnly = false,
 }: {
   customerId: string;
   onChanged: () => void;
   /**
-   * A holding that was just written down, by id. The page keeps these so Discard can take back what was
-   * added while it was being edited; a holding changed or removed is not one of these, because putting
-   * those back is not what Discard was asked to do.
+   * A holding this panel has just touched, with what it looked like beforehand — null where it did not
+   * exist, because it was being added.
+   *
+   * <p>The page keeps the first of these per holding, so Discard can put the portfolio back as it stood
+   * when Edit was pressed, however the change was made.
    */
-  onAdded?: (id: string) => void;
+  onTouched?: (id: string, before: PositionRow | null) => void;
   /** Read somewhere other than the portfolio screen, where writing them down is not the job. */
   readOnly?: boolean;
 }) {
@@ -60,7 +62,16 @@ export function ClientHoldingsPanel({
     void queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) });
     onChanged();
   };
-  const remove = useRemoveClientHolding<ApiError>({ mutation: { onSuccess: () => { kept(); setRemoving(null); } } });
+  const remove = useRemoveClientHolding<ApiError>({
+    mutation: {
+      onSuccess: (_result, sent) => {
+        // What it was before it went, so Discard can put it back. The row is gone from the server now.
+        if (removing && removing.id === sent.id) onTouched?.(removing.id, removing);
+        kept();
+        setRemoving(null);
+      },
+    },
+  });
 
   // A client with nothing written down yet is an ordinary state, not a failure. Shown as one, it put a
   // red banner across the portfolio page of every client whose holdings nobody had typed in.
@@ -91,8 +102,8 @@ export function ClientHoldingsPanel({
               back off rather than simply forget them. It asks first, and names how many. */}
           {!readOnly && (
             <p className="mt-1 text-xs text-ink-muted">
-              A holding is kept as soon as you add it. Discard above takes off the ones you added since you
-              pressed Edit, and asks first; use the bin beside a line to remove one at any time.
+              A holding is written down the moment you confirm it, not when you press Save. Discard above puts
+              these back as they stood when you pressed Edit, and asks first.
             </p>
           )}
         </div>
@@ -256,8 +267,8 @@ export function ClientHoldingsPanel({
           position={editing === "new" ? null : editing}
           modelSubClasses={held.data?.modelSubClasses ?? {}}
           onClose={() => setEditing(null)}
-          onSaved={(added) => {
-            if (added) onAdded?.(added);
+          onSaved={(id, before) => {
+            onTouched?.(id, before);
             kept();
             setEditing(null);
           }}
@@ -302,8 +313,8 @@ function HoldingDialog({
   /** What the client's model calls the lines inside each class, by class. Empty where it names none. */
   modelSubClasses: Record<string, string[]>;
   onClose: () => void;
-  /** Called with the new holding's id when one was written down, and with nothing when one was changed. */
-  onSaved: (added?: string) => void;
+  /** The holding's id, and what it looked like before — null where it did not exist until now. */
+  onSaved: (id: string, before: PositionRow | null) => void;
 }) {
   const assetClasses = useAssetClasses();
   // A holding already filed under a class keeps it, even one the firm has since retired; a new one starts
@@ -336,9 +347,12 @@ function HoldingDialog({
 
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
   const create = useRecordClientHolding<ApiError>({
-    mutation: { onSuccess: (written) => onSaved(written.id), onError },
+    mutation: { onSuccess: (written) => onSaved(written.id, null), onError },
   });
-  const change = useChangeClientHolding<ApiError>({ mutation: { onSuccess: () => onSaved(), onError } });
+  const change = useChangeClientHolding<ApiError>({
+    // The row as it stood when this dialog opened is what Discard would put back.
+    mutation: { onSuccess: () => onSaved(position!.id, position!), onError },
+  });
   const busy = create.isPending || change.isPending;
   // Letters in a figure box are not a small mistake to round away: nothing is saved until it is a number.
   const readable = valueAmount.trim() !== "" && Number.isFinite(Number(valueAmount)) && Number(valueAmount) >= 0;
