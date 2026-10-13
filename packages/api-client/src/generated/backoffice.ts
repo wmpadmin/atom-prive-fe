@@ -4545,6 +4545,12 @@ export interface ClassPositions {
   standing: ClassPositionsStanding;
   /** @nullable */
   suggestion: number | null;
+  /** @nullable */
+  watchAt: number | null;
+  /** @nullable */
+  edgeAt: number | null;
+  /** @nullable */
+  breachAt: number | null;
   subClasses: SubClassGroup[];
 }
 
