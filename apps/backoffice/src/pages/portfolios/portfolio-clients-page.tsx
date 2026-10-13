@@ -83,13 +83,6 @@ export function PortfolioClientsPage() {
         lead="Every client the firm has, with who advises them and how their portfolio stands."
       />
 
-      <Alert tone="info">
-        <span className="font-semibold">Holdings are written down by hand.</span> No custodian feed delivers
-        them yet, so a client's portfolio is empty until somebody records it. Open a client to put them on a
-        model and write down what they hold; drift follows from those two. Each writing down is also the one
-        point the platform learns a value at, so return reads over as many days as somebody has recorded.
-      </Alert>
-
       <RecordList
         caption="Clients"
         subtitle="Newest first"
