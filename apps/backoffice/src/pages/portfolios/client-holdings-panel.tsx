@@ -80,6 +80,16 @@ export function ClientHoldingsPanel({
             Asset class, then sub-class, then the holdings. A class written down here takes its total from
             its lines.
           </p>
+          {/* These are written down one at a time, each with its own confirmation, and each is kept the
+              moment it is confirmed. Discard above puts back what was typed into the boxes on this page; a
+              holding was never in one of those boxes, so it is not Discard's to take away. Saying so is the
+              whole of the fix: a Discard that quietly deleted somebody's holding would be worse. */}
+          {!readOnly && (
+            <p className="mt-1 text-xs text-ink-muted">
+              A holding is kept as soon as you add it, so Discard above will not take it off again. Use the
+              bin beside a line to remove one.
+            </p>
+          )}
         </div>
         {!readOnly && (
           <Button variant="secondary" onClick={() => setEditing("new")}>
