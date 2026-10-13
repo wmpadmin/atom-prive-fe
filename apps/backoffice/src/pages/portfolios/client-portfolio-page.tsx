@@ -152,6 +152,8 @@ export function ClientPortfolioPage() {
   // Writing this client an allocation of their own: the same dialog a model is written in, because that is
   // what it is — targets, bands and the lines inside a class, belonging to one person.
   const [writingOwn, setWritingOwn] = useState(false);
+  // A class somebody asked to write a holding under, from the figures rather than from the panel below.
+  const [addingFor, setAddingFor] = useState<string | null>(null);
   const [ownErrors, setOwnErrors] = useState<FormErrors>(noErrors);
   const writeOwn = useWriteTheirOwnAllocation<ApiError>({
     mutation: {
@@ -557,6 +559,19 @@ export function ClientPortfolioPage() {
                         setHeld({ ...holdings, [assetClass]: asFigure(event.target.value, holdings[assetClass]) })
                       }
                     />
+                    {/* Written down from where the class is being read, rather than by scrolling past three
+                        panels to find the one that takes them. The first holding under a class takes the
+                        figure out of the box above and works it out from the lines instead, so this is also
+                        the way out of typing a total somebody will have to keep in step by hand. */}
+                    {editing && (
+                      <button
+                        type="button"
+                        onClick={() => setAddingFor(assetClass)}
+                        className="mt-1 text-xs font-medium text-primary-700 hover:underline"
+                      >
+                        {fromLines.has(assetClass) ? "Add another holding" : "Break it into holdings"}
+                      </button>
+                    )}
                   </Field>
                 ))}
               </div>
@@ -721,6 +736,8 @@ export function ClientPortfolioPage() {
       <ClientHoldingsPanel
         customerId={customerId}
         onChanged={kept}
+        addingFor={addingFor}
+        onAddingHandled={() => setAddingFor(null)}
         onTouched={(id, before) =>
           setTouchedHoldings((were) => (were.has(id) ? were : new Map(were).set(id, before)))
         }
