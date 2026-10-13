@@ -35,10 +35,17 @@ const OTHER_GROUP = "\u0000other";
 export function ClientHoldingsPanel({
   customerId,
   onChanged,
+  onAdded,
   readOnly = false,
 }: {
   customerId: string;
   onChanged: () => void;
+  /**
+   * A holding that was just written down, by id. The page keeps these so Discard can take back what was
+   * added while it was being edited; a holding changed or removed is not one of these, because putting
+   * those back is not what Discard was asked to do.
+   */
+  onAdded?: (id: string) => void;
   /** Read somewhere other than the portfolio screen, where writing them down is not the job. */
   readOnly?: boolean;
 }) {
@@ -80,14 +87,12 @@ export function ClientHoldingsPanel({
             Asset class, then sub-class, then the holdings. A class written down here takes its total from
             its lines.
           </p>
-          {/* These are written down one at a time, each with its own confirmation, and each is kept the
-              moment it is confirmed. Discard above puts back what was typed into the boxes on this page; a
-              holding was never in one of those boxes, so it is not Discard's to take away. Saying so is the
-              whole of the fix: a Discard that quietly deleted somebody's holding would be worse. */}
+          {/* Written down one at a time and kept the moment each is confirmed, so Discard has to take them
+              back off rather than simply forget them. It asks first, and names how many. */}
           {!readOnly && (
             <p className="mt-1 text-xs text-ink-muted">
-              A holding is kept as soon as you add it, so Discard above will not take it off again. Use the
-              bin beside a line to remove one.
+              A holding is kept as soon as you add it. Discard above takes off the ones you added since you
+              pressed Edit, and asks first; use the bin beside a line to remove one at any time.
             </p>
           )}
         </div>
@@ -237,7 +242,8 @@ export function ClientHoldingsPanel({
           position={editing === "new" ? null : editing}
           modelSubClasses={held.data?.modelSubClasses ?? {}}
           onClose={() => setEditing(null)}
-          onSaved={() => {
+          onSaved={(added) => {
+            if (added) onAdded?.(added);
             kept();
             setEditing(null);
           }}
@@ -282,7 +288,8 @@ function HoldingDialog({
   /** What the client's model calls the lines inside each class, by class. Empty where it names none. */
   modelSubClasses: Record<string, string[]>;
   onClose: () => void;
-  onSaved: () => void;
+  /** Called with the new holding's id when one was written down, and with nothing when one was changed. */
+  onSaved: (added?: string) => void;
 }) {
   const assetClasses = useAssetClasses();
   // A holding already filed under a class keeps it, even one the firm has since retired; a new one starts
@@ -314,8 +321,10 @@ function HoldingDialog({
   useShowFirstError(errors, form);
 
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
-  const create = useRecordClientHolding<ApiError>({ mutation: { onSuccess: onSaved, onError } });
-  const change = useChangeClientHolding<ApiError>({ mutation: { onSuccess: onSaved, onError } });
+  const create = useRecordClientHolding<ApiError>({
+    mutation: { onSuccess: (written) => onSaved(written.id), onError },
+  });
+  const change = useChangeClientHolding<ApiError>({ mutation: { onSuccess: () => onSaved(), onError } });
   const busy = create.isPending || change.isPending;
   // Letters in a figure box are not a small mistake to round away: nothing is saved until it is a number.
   const readable = valueAmount.trim() !== "" && Number.isFinite(Number(valueAmount)) && Number(valueAmount) >= 0;

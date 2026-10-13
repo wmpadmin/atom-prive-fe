@@ -10,6 +10,7 @@ import {
   useRecordRebalance,
   useRecordReview,
   useSetClientHoldings,
+  useRemoveClientHolding,
   useSetClientModelPortfolio,
   usePreviewPortfolioCurrency,
   useSetPortfolioCurrency,
@@ -38,6 +39,7 @@ import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
 import { driftLabel, riskProfileLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
+import { ConfirmDialog } from "../config/confirm-dialog";
 import { LeaveWithoutSaving } from "../../components/leave-without-saving";
 import { useJustSaved } from "../../lib/just-saved";
 import { formatDate } from "../../lib/labels";
@@ -134,6 +136,10 @@ export function ClientPortfolioPage() {
    * brushing a box, and somebody changing one thing is not asked to save it separately from the next.
    */
   const [editing, setEditing] = useState(false);
+  // Holdings written down since Edit was pressed. A holding is kept the moment it is added, so these are
+  // already on file: Discard takes them back off, and Save leaves them where they are.
+  const [addedHoldings, setAddedHoldings] = useState<string[]>([]);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   /** The model picked but not yet kept. Nothing on this screen writes until Save is pressed. */
   const [chosenModel, setChosenModel] = useState<string | null>(null);
 
@@ -153,6 +159,8 @@ export function ClientPortfolioPage() {
     void queryClient.invalidateQueries({ queryKey: getGetClientAttributionQueryKey(customerId) });
   };
   const setModel = useSetClientModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
+  // Taking back a holding added since Edit was pressed, when Discard is confirmed.
+  const forget = useRemoveClientHolding<ApiError>();
   const setHoldings = useSetClientHoldings<ApiError>({
     mutation: { onSuccess: () => { kept(); sayHoldingsSaved(); }, onError },
   });
@@ -222,7 +230,36 @@ export function ClientPortfolioPage() {
     || reviewed.isPending;
 
   /** Puts the screen back to what is on file, throwing away whatever was typed. */
+  /**
+   * Puts the page back, and takes off the holdings added since Edit was pressed.
+   *
+   * <p>A holding changed or removed meanwhile is left as it is. Putting those back is not what Discard was
+   * asked to do, and a Discard that quietly restored a line somebody deleted would be its own surprise.
+   */
   function discard() {
+    if (addedHoldings.length > 0) {
+      setConfirmingDiscard(true);
+      return;
+    }
+    putTheBoxesBack();
+  }
+
+  async function discardIncludingHoldings() {
+    for (const id of addedHoldings) {
+      try {
+        await forget.mutateAsync({ customerId, id });
+      }
+      catch {
+        // One that is already gone is one less to take off; the rest still go.
+      }
+    }
+    setConfirmingDiscard(false);
+    putTheBoxesBack();
+    kept();
+  }
+
+  function putTheBoxesBack() {
+    setAddedHoldings([]);
     setHeld(null);
     setChosenModel(null);
     setChosenCurrency(null);
@@ -284,6 +321,8 @@ export function ClientPortfolioPage() {
     setChosenCurrency(null);
     setRebalancedOn(null);
     setReviewedOn(null);
+    // Saved is kept: a holding added in this sitting is now one of the client's, not one to take back.
+    setAddedHoldings([]);
     setEditing(false);
   }
 
@@ -344,7 +383,7 @@ export function ClientPortfolioPage() {
               {holdingsSaved && <Saved />}
               {/* The one thing to do on a screen that is otherwise read, so it is the one thing that
                   looks like a button rather than part of the furniture. */}
-              <Button onClick={() => setEditing(true)}>
+              <Button onClick={() => { setAddedHoldings([]); setEditing(true); }}>
                 <Pencil aria-hidden="true" />
                 Edit
               </Button>
@@ -602,7 +641,28 @@ export function ClientPortfolioPage() {
         />
       )}
 
-      <ClientHoldingsPanel customerId={customerId} onChanged={kept} readOnly={!editing} />
+      <ClientHoldingsPanel
+        customerId={customerId}
+        onChanged={kept}
+        onAdded={(id) => setAddedHoldings((were) => [...were, id])}
+        readOnly={!editing}
+      />
+
+      {/* A holding is kept the moment it is added, so Discard has to take it off again rather than simply
+          forget it. What is about to go is counted, because it is a line of somebody's portfolio. */}
+      <ConfirmDialog
+        open={confirmingDiscard}
+        title={addedHoldings.length === 1 ? "Discard, and take off the holding?" : "Discard, and take off the holdings?"}
+        description={
+          addedHoldings.length === 1
+            ? "The holding added since you pressed Edit was kept as soon as you added it, so discarding takes it back off. Anything you changed or removed meanwhile stays as it is."
+            : `The ${addedHoldings.length} holdings added since you pressed Edit were kept as soon as you added them, so discarding takes them back off. Anything you changed or removed meanwhile stays as it is.`
+        }
+        confirmLabel={addedHoldings.length === 1 ? "Discard and take it off" : "Discard and take them off"}
+        busy={forget.isPending}
+        onConfirm={() => void discardIncludingHoldings()}
+        onClose={() => setConfirmingDiscard(false)}
+      />
 
       <ValuationHistoryPanel customerId={customerId} />
 
