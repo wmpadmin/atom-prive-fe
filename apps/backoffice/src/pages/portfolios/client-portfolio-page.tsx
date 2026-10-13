@@ -43,7 +43,16 @@ import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
 import { ModelDialog } from "./model-dialog";
-import { anchorFor, driftLabel, riskProfileLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
+import {
+  anchorFor,
+  driftLabel,
+  riskProfileLabel,
+  standingLabels,
+  standingTones,
+  underManagementLabel,
+  worstInside,
+  type DriftStanding,
+} from "./portfolio-labels";
 import { ConfirmDialog } from "../config/confirm-dialog";
 import { LeaveWithoutSaving } from "../../components/leave-without-saving";
 import { useJustSaved } from "../../lib/just-saved";
@@ -250,6 +259,13 @@ export function ClientPortfolioPage() {
   // What is said to be there that nobody has written down, worked out from what is typed rather than from
   // what is on file, so it answers as somebody types instead of after they save.
   const unwritten = Math.max(0, (Number(netAum) || 0) - total);
+  // What is wrong inside each class, read off the holdings this page has already loaded for the panel
+  // below, so the table can say it without the API answering the same question twice.
+  const insideByClass = Object.fromEntries(
+    (lines.data?.classes ?? [])
+      .map((one) => [one.assetClass, worstInside(one.subClasses)] as const)
+      .filter(([, worst]) => worst !== null) as [string, { standing: DriftStanding; count: number }][],
+  );
   // What is typed but not yet saved. The table below reads what is on file, so a figure changed in a box and
   // not kept would otherwise be contradicted by the standings beside it with nothing to say why.
   // The portfolio arrives after the first render, so the box reads from it until somebody picks another.
@@ -599,6 +615,7 @@ export function ClientPortfolioPage() {
                   suggestions={!standing.data.customModel}
                   underManagement={standing.data.underManagement}
                   unwritten={standing.data.unwritten}
+                  inside={insideByClass}
                   onPick={showClass}
                 />
               </div>
