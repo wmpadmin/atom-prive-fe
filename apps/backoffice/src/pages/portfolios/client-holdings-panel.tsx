@@ -37,8 +37,9 @@ export function ClientHoldingsPanel({
   customerId,
   onChanged,
   onTouched,
-  addingFor = null,
-  onAddingHandled,
+  figures,
+  onFigure,
+  offer,
   against = null,
   readOnly = false,
 }: {
@@ -53,11 +54,18 @@ export function ClientHoldingsPanel({
    */
   onTouched?: (id: string, before: PositionRow | null) => void;
   /**
-   * A class the page has asked to write a holding under, so the dialog opens on it without anybody scrolling
-   * down to find this panel. Cleared through onAddingHandled once the dialog is open.
+   * What each class is worth, where this panel is the place those figures are written rather than only read.
+   *
+   * <p>A class written down holding by holding takes its total from its lines and is never typed; one that
+   * is a single figure has nowhere else to be typed, so the row itself takes it.
    */
-  addingFor?: string | null;
-  onAddingHandled?: () => void;
+  figures?: Record<string, string>;
+  onFigure?: (assetClass: string, said: string) => void;
+  /**
+   * Every class to list, in the firm's own order, so a class holding nothing still has a row to start it
+   * in. Without it the list can only show what is already there, and a client holding nothing shows nothing.
+   */
+  offer?: string[];
   /** A model picked on screen but not saved, whose groups these holdings should be offered against. */
   against?: string | null;
   /** Read somewhere other than the portfolio screen, where writing them down is not the job. */
@@ -77,14 +85,11 @@ export function ClientHoldingsPanel({
   const [newFor, setNewFor] = useState<string | null>(null);
   const [removing, setRemoving] = useState<PositionRow | null>(null);
 
-  // The dialog is open because this panel was asked to open it, or because the page was: worked out as it
-  // renders rather than copied into state by an effect, which would render twice to say the same thing.
-  const open = editing ?? (addingFor === null ? null : "new");
-  const startOn = editing === "new" ? newFor : addingFor;
+  const open = editing;
+  const startOn = editing === "new" ? newFor : null;
   const closeDialog = () => {
     setEditing(null);
     setNewFor(null);
-    onAddingHandled?.();
   };
 
   const kept = () => {
@@ -103,14 +108,36 @@ export function ClientHoldingsPanel({
     },
   });
 
+  // The firm's own names for the classes, read before anything returns: a hook skipped on the way out of
+  // an early return is a hook React counts as missing on the render after it.
+  const catalogue = useAssetClasses();
+
   // A client with nothing written down yet is an ordinary state, not a failure. Shown as one, it put a
   // red banner across the portfolio page of every client whose holdings nobody had typed in.
   if (held.isError && held.error.status !== 404) {
     return <Alert tone="danger">{held.error.message}</Alert>;
   }
 
-  const classes = held.data?.classes ?? [];
+  const written = held.data?.classes ?? [];
   const currency = held.data?.currency ?? "USD";
+  // Every class the page offers gets a row, whether or not anything is in it: a class holding nothing is
+  // exactly the one somebody is about to write the first figure into, and a list of only what is already
+  // there has nowhere to put it. Where no list is handed in, the panel shows what is written and no more.
+  const classes = offer
+    ? [
+        ...offer.map(
+          (code) =>
+            written.find((one) => one.assetClass === code) ?? {
+              assetClass: code,
+              assetClassName: catalogue.names[code] ?? code,
+              valueAmount: 0,
+              heldAsPositions: false,
+              subClasses: [],
+            },
+        ),
+        ...written.filter((one) => !offer.includes(one.assetClass)),
+      ]
+    : written;
   const toggle = (key: string) =>
     setOpened((was) => {
       const next = new Set(was);
@@ -162,20 +189,22 @@ export function ClientHoldingsPanel({
         <ul className="divide-y divide-line rounded-xl border border-line">
           {classes.map((one) => {
             const classKey = one.assetClass;
+            // Written here rather than only read: the page hands in the figures and takes them back.
+            const typing = !readOnly && figures !== undefined && onFigure !== undefined;
             const isOpen = opened.has(classKey);
             return (
               <li key={classKey}>
                 {/* The class and the way to write something under it, side by side rather than nested: a
                     button inside a button is not a thing a browser will render, and the way to break a class
                     down used to live three panels up the page from the class it breaks down. */}
-                <div className="flex items-center">
+                <div className="flex items-center gap-2 px-4 py-1.5">
                   <button
                     type="button"
                     onClick={() => one.heldAsPositions && toggle(classKey)}
                     disabled={!one.heldAsPositions}
                     className={cn(
-                      "flex flex-1 items-center gap-2 px-4 py-2.5 text-left text-sm",
-                      one.heldAsPositions ? "hover:bg-slate-50/60" : "cursor-default",
+                      "flex flex-1 items-center gap-2 py-1 text-left text-sm",
+                      one.heldAsPositions ? "hover:underline" : "cursor-default",
                     )}
                   >
                     {one.heldAsPositions ? (
@@ -191,11 +220,33 @@ export function ClientHoldingsPanel({
                       {/* Named by the API from the firm's own list; the code stands in for one it has since taken off. */}
                       {one.assetClassName || one.assetClass}
                     </span>
-                    {!one.heldAsPositions && (
-                      <span className="text-2xs tracking-wider text-ink-muted uppercase">No holdings listed</span>
-                    )}
-                    <span className="tabular-nums">{underManagementLabel(one.valueAmount, currency)}</span>
                   </button>
+                  {/* A class listed holding by holding is read here, never typed: the API refuses a figure
+                      that disagrees with its lines, and a box that can only be refused is a box that should
+                      not take a figure in the first place. */}
+                  {typing && !one.heldAsPositions ? (
+                    <TextInput
+                      id={`holding-${classKey}`}
+                      aria-label={`What they hold in ${one.assetClassName || one.assetClass}`}
+                      inputMode="decimal"
+                      className="h-9 w-36 text-right"
+                      value={figures?.[classKey] ?? ""}
+                      onChange={(event) => onFigure?.(classKey, event.target.value)}
+                    />
+                  ) : (
+                    <span className="flex items-center gap-2 text-sm">
+                      {one.heldAsPositions ? (
+                        <span className="text-2xs tracking-wider text-ink-muted uppercase">
+                          From its holdings
+                        </span>
+                      ) : (
+                        <span className="text-2xs tracking-wider text-ink-muted uppercase">
+                          No holdings listed
+                        </span>
+                      )}
+                      <span className="tabular-nums">{underManagementLabel(one.valueAmount, currency)}</span>
+                    </span>
+                  )}
                   {/* Opened on this class, so the sub-classes offered are the ones this client's model names
                       inside it rather than the ones inside whichever class the list happened to start on. */}
                   {!readOnly && (
