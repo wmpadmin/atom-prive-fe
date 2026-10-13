@@ -18,7 +18,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
 import { useAssetClasses } from "./asset-classes";
-import { driftLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
+import { anchorFor, driftLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
 import { asFigure } from "../../lib/figures";
 
 /** Where the sub-class is left blank, the holdings still need a heading to sit under. */
@@ -41,6 +41,7 @@ export function ClientHoldingsPanel({
   figures,
   onFigure,
   offer,
+  reveal = null,
   against = null,
   readOnly = false,
 }: {
@@ -67,6 +68,11 @@ export function ClientHoldingsPanel({
    * in. Without it the list can only show what is already there, and a client holding nothing shows nothing.
    */
   offer?: string[];
+  /**
+   * A class somebody has asked to see the inside of, from the table that measures it. It opens whether or
+   * not it had been shut: being sent to a class and finding it closed is being sent nowhere.
+   */
+  reveal?: string | null;
   /** A model picked on screen but not saved, whose groups these holdings should be offered against. */
   against?: string | null;
   /** Read somewhere other than the portfolio screen, where writing them down is not the job. */
@@ -204,9 +210,15 @@ export function ClientHoldingsPanel({
             const classKey = one.assetClass;
             // Written here rather than only read: the page hands in the figures and takes them back.
             const typing = !readOnly && figures !== undefined && onFigure !== undefined;
-            const isOpen = one.heldAsPositions && !shut.has(classKey);
+            const isOpen = one.heldAsPositions && (!shut.has(classKey) || reveal === classKey);
             return (
-              <li key={classKey} className="overflow-hidden rounded-xl border border-line bg-white">
+              // Named so the table above can send somebody straight here, and given room above it so the
+              // card does not land flush against the top of the window when they arrive.
+              <li
+                key={classKey}
+                id={anchorFor(classKey)}
+                className="scroll-mt-20 overflow-hidden rounded-xl border border-line bg-white"
+              >
                 {/* One row, in columns: the class, what to do about it, what it is worth, and the way to
                     write something under it. The figures used to be pushed left and right by whatever
                     happened to sit beside them, so no two lined up, and what to do about a class hung

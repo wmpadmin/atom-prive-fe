@@ -43,7 +43,7 @@ import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
 import { ModelDialog } from "./model-dialog";
-import { driftLabel, riskProfileLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
+import { anchorFor, driftLabel, riskProfileLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
 import { ConfirmDialog } from "../config/confirm-dialog";
 import { LeaveWithoutSaving } from "../../components/leave-without-saving";
 import { useJustSaved } from "../../lib/just-saved";
@@ -152,6 +152,19 @@ export function ClientPortfolioPage() {
   // Writing this client an allocation of their own: the same dialog a model is written in, because that is
   // what it is — targets, bands and the lines inside a class, belonging to one person.
   const [writingOwn, setWritingOwn] = useState(false);
+  // The class somebody asked to see the inside of, from the table that measures it. Kept so the card opens
+  // even if they had shut it: being sent to a class and finding it closed is being sent nowhere.
+  const [revealed, setRevealed] = useState<string | null>(null);
+  const showClass = (assetClass: string) => {
+    setRevealed(assetClass);
+    // After the card has opened, not before. Opening it does not move its own top — but it does make the
+    // page longer, and a card near the foot of a short page cannot be scrolled to the top of the window
+    // until the page is long enough to allow it. Scrolled first, the browser went as far as it could and
+    // stopped short, leaving the class somebody had just asked for below the fold.
+    requestAnimationFrame(() => {
+      document.getElementById(anchorFor(assetClass))?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
   const [ownErrors, setOwnErrors] = useState<FormErrors>(noErrors);
   const writeOwn = useWriteTheirOwnAllocation<ApiError>({
     mutation: {
@@ -538,6 +551,7 @@ export function ClientPortfolioPage() {
                   currency={standing.data.currency}
                   suggestions={!standing.data.customModel}
                   underManagement={standing.data.underManagement}
+                  onPick={showClass}
                 />
               </div>
             </section>
@@ -595,6 +609,7 @@ export function ClientPortfolioPage() {
                     setHeld({ ...holdings, [assetClass]: asFigure(said, holdings[assetClass]) })
                   }
                   offer={boxes}
+                  reveal={revealed}
                   onTouched={(id, before) =>
                     setTouchedHoldings((were) => (were.has(id) ? were : new Map(were).set(id, before)))
                   }
