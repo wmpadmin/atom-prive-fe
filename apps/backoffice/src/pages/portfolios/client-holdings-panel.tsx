@@ -312,95 +312,149 @@ export function ClientHoldingsPanel({
                 </div>
 
                 {isOpen && (
-                  <div className="border-t border-line bg-slate-50/40 px-4 py-2">
-                    {one.subClasses.map((group) => (
-                      <div key={group.subClass ?? UNGROUPED} className="py-1.5">
-                        <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs font-semibold text-ink-soft">
-                          <span className="flex items-center gap-2">
-                            {group.subClass ?? UNGROUPED}
-                            {/* A class can sit on its target while the money inside it sits in the wrong
-                                places, because the halves cancel out. This is where that shows. */}
-                            {group.standing && group.standing !== "WITHIN_BAND" && (
-                              <Badge tone={standingTones[group.standing]}>{standingLabels[group.standing]}</Badge>
-                            )}
-                          </span>
-                          <span className="tabular-nums text-ink-muted">
-                            {underManagementLabel(group.valueAmount, currency)} · {group.shareOfClass.toFixed(1)}% of
-                            the class
-                            {group.targetShare !== null && group.targetShare !== undefined && (
-                              <> · {group.targetShare.toFixed(1)}% asked for</>
-                            )}
-                          </span>
-                        </p>
-                        {/* What buying or selling would put the line back where the model asks for it. */}
-                        {group.suggestion !== null && group.suggestion !== undefined
-                          && group.suggestion.toFixed(2) !== "0.00" && (
-                          <p className="text-xs tabular-nums text-ink-muted">
-                            <span className="font-semibold tracking-wider uppercase">
-                              {group.suggestion > 0 ? "Buy" : "Sell"}
-                            </span>{" "}
-                            {underManagementLabel(Math.abs(group.suggestion), currency)}
-                            {group.drift !== null && group.drift !== undefined && ` · ${driftLabel(group.drift)} from target`}
-                          </p>
-                        )}
-                        <ul className="mt-1 divide-y divide-line/70">
+                  <div className="overflow-x-auto border-t border-line bg-slate-50/40">
+                    {/* A table with its columns named. These were six figures and two phrases run together
+                        on one line — "USD 56 · 50.0% of the class · 0.0% asked for" — which told somebody
+                        who already knew what each number meant what it was, and told everybody else
+                        nothing. Named columns say it once at the top instead. */}
+                    <table className="min-w-full text-sm">
+                      <caption className="sr-only">
+                        What {one.assetClassName || one.assetClass} is made of, by sub-class and then by
+                        holding.
+                      </caption>
+                      <thead>
+                        <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                          <th scope="col" className="py-2 pr-3 pl-4">
+                            Sub-class and holdings
+                          </th>
+                          <th scope="col" className="px-3 py-2 text-right">
+                            Value
+                          </th>
+                          <th scope="col" className="px-3 py-2 text-right">
+                            Share of class
+                          </th>
+                          <th scope="col" className="px-3 py-2 text-right">
+                            Model asks for
+                          </th>
+                          <th scope="col" className="px-3 py-2 text-right">
+                            Gap
+                          </th>
+                          <th scope="col" className="px-3 py-2 text-right">
+                            What to do
+                          </th>
+                          {!readOnly && <th scope="col" className="py-2 pr-4 pl-3" />}
+                        </tr>
+                      </thead>
+                      {one.subClasses.map((group) => (
+                        <tbody key={group.subClass ?? UNGROUPED} className="border-b border-line last:border-0">
+                          <tr className="align-middle">
+                            <th scope="rowgroup" className="py-2 pr-3 pl-4 text-left font-semibold text-ink">
+                              <span className="flex flex-wrap items-center gap-2">
+                                {group.subClass ?? UNGROUPED}
+                                {/* A class can sit on its target while the money inside it sits in the
+                                    wrong places, because the halves cancel out. This is where that shows. */}
+                                {group.standing && group.standing !== "WITHIN_BAND" && (
+                                  <Badge tone={standingTones[group.standing]}>
+                                    {standingLabels[group.standing]}
+                                  </Badge>
+                                )}
+                              </span>
+                            </th>
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              {underManagementLabel(group.valueAmount, currency)}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              {group.shareOfClass.toFixed(1)}%
+                            </td>
+                            {/* A dash, not a nought: the model naming no target for this group is a
+                                different thing from it asking for none of it. */}
+                            <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
+                              {group.targetShare === null || group.targetShare === undefined
+                                ? "—"
+                                : `${group.targetShare.toFixed(1)}%`}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
+                              {group.drift === null || group.drift === undefined ? "—" : driftLabel(group.drift)}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              {group.suggestion === null || group.suggestion === undefined
+                                || group.suggestion.toFixed(2) === "0.00" ? (
+                                <span className="text-ink-muted">—</span>
+                              ) : (
+                                <>
+                                  <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                                    {group.suggestion > 0 ? "Buy" : "Sell"}
+                                  </span>{" "}
+                                  {underManagementLabel(Math.abs(group.suggestion), currency)}
+                                </>
+                              )}
+                            </td>
+                            {!readOnly && <td className="py-2 pr-4 pl-3" />}
+                          </tr>
                           {group.positions.map((position) => (
-                            <li key={position.id} className="flex items-center gap-3 py-1.5 text-sm">
-                              <span className="min-w-0 flex-1">
+                            <tr key={position.id} className="border-t border-line/60">
+                              <td className="py-2 pr-3 pl-10">
                                 {readOnly ? (
-                                  <span className="block truncate font-medium">{position.name}</span>
+                                  <span className="block font-medium">{position.name}</span>
                                 ) : (
                                   <button
                                     type="button"
                                     onClick={() => setEditing(position)}
-                                    className="block truncate text-left font-medium text-primary-700 hover:underline"
+                                    className="block text-left font-medium text-primary-700 hover:underline"
                                   >
                                     {position.name}
                                   </button>
                                 )}
-                                <span className="block truncate text-xs text-ink-muted">
+                                <span className="block text-xs text-ink-muted">
                                   {[position.identifier, position.issuer, position.countryCode, position.sector, position.creditRating]
                                     .filter(Boolean)
                                     .join(" · ") || "No issuer recorded"}
                                 </span>
-                              </span>
-                              <span className="whitespace-nowrap tabular-nums">
+                              </td>
+                              <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                                 {underManagementLabel(position.valueAmount, currency)}
-                              </span>
-                              <span className="w-16 text-right text-xs whitespace-nowrap tabular-nums text-ink-muted">
-                                {position.shareOfPortfolio.toFixed(1)}%
-                              </span>
+                              </td>
+                              <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
+                                {position.shareOfClass.toFixed(1)}%
+                              </td>
+                              {/* The model asks things of groups, not of the holdings inside them: one
+                                  holding is not asked to be any particular size. */}
+                              <td className="px-3 py-2 text-right text-ink-muted">—</td>
+                              <td className="px-3 py-2 text-right text-ink-muted">—</td>
+                              <td className="px-3 py-2 text-right text-ink-muted">—</td>
                               {/* The name opens the same dialog, but a coloured word beside a bordered bin
                                   reads as a link to somewhere rather than as the other half of the pair.
                                   Two buttons, so what can be done to a line is visible without hovering. */}
                               {!readOnly && (
-                                <button
-                                  type="button"
-                                  onClick={() => setEditing(position)}
-                                  aria-label={`Edit ${position.name}`}
-                                  title={`Edit ${position.name}`}
-                                  className="rounded-lg border border-line p-1.5 text-ink-soft hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-                                >
-                                  <Pencil aria-hidden="true" className="size-4" />
-                                </button>
+                                <td className="py-2 pr-4 pl-3">
+                                  <span className="flex items-center justify-end gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditing(position)}
+                                      aria-label={`Edit ${position.name}`}
+                                      title={`Edit ${position.name}`}
+                                      className="rounded-lg border border-line p-1.5 text-ink-soft hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                                    >
+                                      <Pencil aria-hidden="true" className="size-4" />
+                                    </button>
+                                    {/* A bare grey glyph reads as decoration. Bordered, it reads as a button. */}
+                                    <button
+                                      type="button"
+                                      onClick={() => setRemoving(position)}
+                                      aria-label={`Remove ${position.name}`}
+                                      title={`Remove ${position.name}`}
+                                      className="rounded-lg border border-line p-1.5 text-ink-soft hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                                    >
+                                      <Trash2 aria-hidden="true" className="size-4" />
+                                    </button>
+                                  </span>
+                                </td>
                               )}
-                              {/* A bare grey glyph reads as decoration. Bordered, it reads as a button. */}
-                              {!readOnly && (
-                                <button
-                                  type="button"
-                                  onClick={() => setRemoving(position)}
-                                  aria-label={`Remove ${position.name}`}
-                                  title={`Remove ${position.name}`}
-                                  className="rounded-lg border border-line p-1.5 text-ink-soft hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-                                >
-                                  <Trash2 aria-hidden="true" className="size-4" />
-                                </button>
-                              )}
-                            </li>
+                            </tr>
                           ))}
-                        </ul>
-                      </div>
-                    ))}
+                        </tbody>
+                      ))}
+                    </table>
                   </div>
                 )}
               </li>
