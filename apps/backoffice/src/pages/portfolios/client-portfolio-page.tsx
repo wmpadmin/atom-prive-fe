@@ -736,6 +736,7 @@ export function ClientPortfolioPage() {
       <ClientHoldingsPanel
         customerId={customerId}
         onChanged={kept}
+        against={tryingOn ? model : null}
         addingFor={addingFor}
         onAddingHandled={() => setAddingFor(null)}
         onTouched={(id, before) =>

@@ -1282,11 +1282,11 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -5387,6 +5387,10 @@ export type SwitchReportScheduleParams = {
 on: boolean;
 };
 
+export type ListClientHoldingsParams = {
+against?: string;
+};
+
 export type ListTradeOrdersParams = {
 status?: ListTradeOrdersStatus;
 open?: boolean;
@@ -7132,17 +7136,26 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getSetClientModelPortfolioMutationOptions(options), queryClient);
     }
 
-export const getListClientHoldingsUrl = (customerId: string,) => {
+export const getListClientHoldingsUrl = (customerId: string,
+    params?: ListClientHoldingsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/backoffice/portfolios/clients/${customerId}/holdings`
+  return stringifiedParams.length > 0 ? `/api/backoffice/portfolios/clients/${customerId}/holdings?${stringifiedParams}` : `/api/backoffice/portfolios/clients/${customerId}/holdings`
 }
 
-export const listClientHoldings = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientHoldings> => {
+export const listClientHoldings = async (customerId: string,
+    params?: ListClientHoldingsParams, options?: Parameters<typeof http>[1]): Promise<ClientHoldings> => {
 
-  return http<ClientHoldings>(getListClientHoldingsUrl(customerId),
+  return http<ClientHoldings>(getListClientHoldingsUrl(customerId,params),
   {
     ...options,
     method: 'GET'
@@ -7155,23 +7168,25 @@ export const listClientHoldings = async (customerId: string, options?: Parameter
 
 
 
-export const getListClientHoldingsQueryKey = (customerId: string,) => {
+export const getListClientHoldingsQueryKey = (customerId: string,
+    params?: ListClientHoldingsParams,) => {
     return [
-    `/api/backoffice/portfolios/clients/${customerId}/holdings`
+    `/api/backoffice/portfolios/clients/${customerId}/holdings`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListClientHoldingsQueryOptions = <TData = Awaited<ReturnType<typeof listClientHoldings>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getListClientHoldingsQueryOptions = <TData = Awaited<ReturnType<typeof listClientHoldings>>, TError = unknown>(customerId: string,
+    params?: ListClientHoldingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListClientHoldingsQueryKey(customerId);
+  const queryKey =  queryOptions?.queryKey ?? getListClientHoldingsQueryKey(customerId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientHoldings>>> = ({ signal }) => listClientHoldings(customerId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientHoldings>>> = ({ signal }) => listClientHoldings(customerId,params, { signal, ...requestOptions });
 
 
 
@@ -7185,7 +7200,8 @@ export type ListClientHoldingsQueryError = unknown
 
 
 export function useListClientHoldings<TData = Awaited<ReturnType<typeof listClientHoldings>>, TError = unknown>(
- customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientHoldings>>, TError, TData>> & Pick<
+ customerId: string,
+    params: undefined |  ListClientHoldingsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientHoldings>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listClientHoldings>>,
           TError,
@@ -7195,7 +7211,8 @@ export function useListClientHoldings<TData = Awaited<ReturnType<typeof listClie
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListClientHoldings<TData = Awaited<ReturnType<typeof listClientHoldings>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientHoldings>>, TError, TData>> & Pick<
+ customerId: string,
+    params?: ListClientHoldingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientHoldings>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listClientHoldings>>,
           TError,
@@ -7205,16 +7222,18 @@ export function useListClientHoldings<TData = Awaited<ReturnType<typeof listClie
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListClientHoldings<TData = Awaited<ReturnType<typeof listClientHoldings>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: ListClientHoldingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useListClientHoldings<TData = Awaited<ReturnType<typeof listClientHoldings>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: ListClientHoldingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListClientHoldingsQueryOptions(customerId,options)
+  const queryOptions = getListClientHoldingsQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
