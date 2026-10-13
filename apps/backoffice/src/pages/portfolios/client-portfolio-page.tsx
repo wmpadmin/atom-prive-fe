@@ -10,7 +10,10 @@ import {
   useRecordRebalance,
   useRecordReview,
   useSetClientHoldings,
+  useChangeClientHolding,
+  useRecordClientHolding,
   useRemoveClientHolding,
+  type PositionRow,
   useSetClientModelPortfolio,
   usePreviewPortfolioCurrency,
   useSetPortfolioCurrency,
@@ -136,9 +139,13 @@ export function ClientPortfolioPage() {
    * brushing a box, and somebody changing one thing is not asked to save it separately from the next.
    */
   const [editing, setEditing] = useState(false);
-  // Holdings written down since Edit was pressed. A holding is kept the moment it is added, so these are
-  // already on file: Discard takes them back off, and Save leaves them where they are.
-  const [addedHoldings, setAddedHoldings] = useState<string[]>([]);
+  // Every holding touched since Edit was pressed, with what it looked like beforehand — null where it did
+  // not exist. A holding is written to the server the moment it is confirmed, so these are already on file:
+  // Discard puts them back as they were, and Save leaves them.
+  //
+  // The first entry per holding wins. Edited twice, what Discard restores is how it stood before the first
+  // edit, not the state between the two.
+  const [touchedHoldings, setTouchedHoldings] = useState<Map<string, PositionRow | null>>(new Map());
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   /** The model picked but not yet kept. Nothing on this screen writes until Save is pressed. */
   const [chosenModel, setChosenModel] = useState<string | null>(null);
@@ -161,6 +168,8 @@ export function ClientPortfolioPage() {
   const setModel = useSetClientModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
   // Taking back a holding added since Edit was pressed, when Discard is confirmed.
   const forget = useRemoveClientHolding<ApiError>();
+  const putBack = useChangeClientHolding<ApiError>();
+  const writeAgain = useRecordClientHolding<ApiError>();
   const setHoldings = useSetClientHoldings<ApiError>({
     mutation: { onSuccess: () => { kept(); sayHoldingsSaved(); }, onError },
   });
@@ -237,7 +246,7 @@ export function ClientPortfolioPage() {
    * asked to do, and a Discard that quietly restored a line somebody deleted would be its own surprise.
    */
   function discard() {
-    if (addedHoldings.length > 0) {
+    if (touchedHoldings.size > 0) {
       setConfirmingDiscard(true);
       return;
     }
@@ -245,12 +254,38 @@ export function ClientPortfolioPage() {
   }
 
   async function discardIncludingHoldings() {
-    for (const id of addedHoldings) {
+    for (const [id, before] of touchedHoldings) {
       try {
-        await forget.mutateAsync({ customerId, id });
+        if (before === null) {
+          // It did not exist when Edit was pressed, so putting it back means taking it off.
+          await forget.mutateAsync({ customerId, id });
+          continue;
+        }
+        const was = {
+          assetClass: before.assetClass,
+          subClass: before.subClass,
+          name: before.name,
+          identifier: before.identifier,
+          issuer: before.issuer,
+          countryCode: before.countryCode,
+          sector: before.sector,
+          yieldPercent: before.yieldPercent,
+          durationYears: before.durationYears,
+          creditRating: before.creditRating,
+          valueAmount: before.valueAmount,
+        };
+        try {
+          await putBack.mutateAsync({ customerId, id, data: was });
+        }
+        catch {
+          // Changed is one thing; removed is another. A holding taken off during this sitting has no row
+          // left to write over, so it is written down again — a new line saying what the old one said.
+          await writeAgain.mutateAsync({ customerId, data: was });
+        }
       }
       catch {
-        // One that is already gone is one less to take off; the rest still go.
+        // One holding that will not go back does not strand the others, and the page still comes back to
+        // what is on file, which is what the reader is about to be shown.
       }
     }
     setConfirmingDiscard(false);
@@ -259,7 +294,7 @@ export function ClientPortfolioPage() {
   }
 
   function putTheBoxesBack() {
-    setAddedHoldings([]);
+    setTouchedHoldings(new Map());
     setHeld(null);
     setChosenModel(null);
     setChosenCurrency(null);
@@ -321,8 +356,8 @@ export function ClientPortfolioPage() {
     setChosenCurrency(null);
     setRebalancedOn(null);
     setReviewedOn(null);
-    // Saved is kept: a holding added in this sitting is now one of the client's, not one to take back.
-    setAddedHoldings([]);
+    // Saved is kept: what was written down in this sitting is the client's now, not this sitting's.
+    setTouchedHoldings(new Map());
     setEditing(false);
   }
 
@@ -383,7 +418,7 @@ export function ClientPortfolioPage() {
               {holdingsSaved && <Saved />}
               {/* The one thing to do on a screen that is otherwise read, so it is the one thing that
                   looks like a button rather than part of the furniture. */}
-              <Button onClick={() => { setAddedHoldings([]); setEditing(true); }}>
+              <Button onClick={() => { setTouchedHoldings(new Map()); setEditing(true); }}>
                 <Pencil aria-hidden="true" />
                 Edit
               </Button>
@@ -644,7 +679,9 @@ export function ClientPortfolioPage() {
       <ClientHoldingsPanel
         customerId={customerId}
         onChanged={kept}
-        onAdded={(id) => setAddedHoldings((were) => [...were, id])}
+        onTouched={(id, before) =>
+          setTouchedHoldings((were) => (were.has(id) ? were : new Map(were).set(id, before)))
+        }
         readOnly={!editing}
       />
 
@@ -652,14 +689,14 @@ export function ClientPortfolioPage() {
           forget it. What is about to go is counted, because it is a line of somebody's portfolio. */}
       <ConfirmDialog
         open={confirmingDiscard}
-        title={addedHoldings.length === 1 ? "Discard, and take off the holding?" : "Discard, and take off the holdings?"}
+        title={touchedHoldings.size === 1 ? "Discard, and put the holding back?" : "Discard, and put the holdings back?"}
         description={
-          addedHoldings.length === 1
-            ? "The holding added since you pressed Edit was kept as soon as you added it, so discarding takes it back off. Anything you changed or removed meanwhile stays as it is."
-            : `The ${addedHoldings.length} holdings added since you pressed Edit were kept as soon as you added them, so discarding takes them back off. Anything you changed or removed meanwhile stays as it is.`
+          touchedHoldings.size === 1
+            ? "A holding is written down the moment you confirm it, so discarding puts it back as it stood when you pressed Edit — one added is taken off, one changed goes back to what it said, one removed is written down again."
+            : `${touchedHoldings.size} holdings were written down since you pressed Edit, each kept the moment it was confirmed. Discarding puts them back as they stood — any added are taken off, any changed go back to what they said, any removed are written down again.`
         }
-        confirmLabel={addedHoldings.length === 1 ? "Discard and take it off" : "Discard and take them off"}
-        busy={forget.isPending}
+        confirmLabel={touchedHoldings.size === 1 ? "Discard and put it back" : "Discard and put them back"}
+        busy={forget.isPending || putBack.isPending || writeAgain.isPending}
         onConfirm={() => void discardIncludingHoldings()}
         onClose={() => setConfirmingDiscard(false)}
       />
