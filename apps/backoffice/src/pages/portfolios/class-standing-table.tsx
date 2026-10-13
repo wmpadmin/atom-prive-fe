@@ -31,8 +31,15 @@ export function ClassStandingTable({
   currency,
   underManagement,
   suggestions = true,
+  onPick,
 }: {
   classes: ClassStanding[];
+  /**
+   * Where to go to read a class line by line. Given, every row leads there: a class marked breached is the
+   * one somebody wants to see the inside of, and the table said what was wrong without a way through to
+   * what it was made of.
+   */
+  onPick?: (assetClass: string) => void;
   /**
    * Whether to say what would put each class back. An allocation written for one client is measured like
    * any other and acted on by nothing, so a suggestion beside it would be advice the platform will not take.
@@ -88,10 +95,29 @@ export function ClassStandingTable({
             {classes.map((row) => {
               const move = suggestion(row.suggestion);
               return (
-                <tr key={row.assetClass}>
+                <tr
+                  key={row.assetClass}
+                  onClick={onPick ? () => onPick(row.assetClass) : undefined}
+                  className={onPick ? "cursor-pointer hover:bg-slate-50/60" : undefined}
+                >
                   <th scope="row" className="py-3 pr-4 text-left font-medium text-ink">
                     {/* Named by the API, which reads the firm's own list; the code is the fallback for one it has since taken off. */}
-                    {row.assetClassName || row.assetClass}
+                    {/* The whole row leads to the breakdown, but a row is not something a keyboard can reach:
+                        the name itself is the button, and the row is the larger target for a mouse. */}
+                    {onPick ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onPick(row.assetClass);
+                        }}
+                        className="text-left font-medium text-primary-700 hover:underline"
+                      >
+                        {row.assetClassName || row.assetClass}
+                      </button>
+                    ) : (
+                      (row.assetClassName || row.assetClass)
+                    )}
                     {/* Each class is judged by its own tolerance, so the one that broke the model says so
                         here rather than leaving the reader to work it out from the figures. */}
                     {row.standing && row.standing !== "WITHIN_BAND" && (
