@@ -512,6 +512,20 @@ function HoldingDialog({
             ) : (
               <TextInput id="holding-subclass" value={subClass} onChange={(e) => setSubClass(e.target.value)} />
             )}
+            {/* Choosing to write one in was a door that only opened one way: the list was gone and the only
+                way back to it was to close the dialog and start again. */}
+            {(modelSubClasses[assetClass] ?? []).length > 0 && writingIn && (
+              <button
+                type="button"
+                onClick={() => {
+                  setWritingIn(false);
+                  setSubClass("");
+                }}
+                className="mt-1 text-xs font-medium text-primary-700 hover:underline"
+              >
+                Choose one of the model's groups instead
+              </button>
+            )}
           </Field>
           {/* What the model asks of the group picked, as a guide and nothing more. Nothing is refused on the
               strength of it: a portfolio that has wandered is exactly the one somebody has to be able to
