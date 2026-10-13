@@ -628,16 +628,25 @@ function HoldingDialog({
           return { share, over: share - asked.shareOfPortfolio };
         })()
       : null;
+  // What this figure would be judged by: this client's own tolerance where all three are typed into the
+  // boxes below, and the model's otherwise. Read from the model alone, the dialog went on judging by
+  // figures somebody was in the middle of writing over.
+  const heldTo: { watchAt: number; edgeAt: number; breachAt: number } | null =
+    ownBand === 3
+      ? { watchAt: Number(watchPp), edgeAt: Number(edgePp), breachAt: Number(breachPp) }
+      : asked;
   const standing =
-    wouldBe === null || !asked
+    wouldBe === null || heldTo === null
       ? null
-      : wouldBe.over >= asked.breachAt
-        ? "BREACHED"
-        : wouldBe.over >= asked.edgeAt
-          ? "AT_EDGE"
-          : wouldBe.over >= asked.watchAt
-            ? "WATCH"
-            : null;
+      : (() => {
+          // How far it has wandered, whichever side of the target. Judged only on being over it, a
+          // sub-asset far short of what the model asks read as within band in here while the table behind
+          // the dialog called the very same figure at edge.
+          const howFar = Math.abs(wouldBe.over);
+          if (howFar >= heldTo.breachAt) return "BREACHED";
+          if (howFar >= heldTo.edgeAt) return "AT_EDGE";
+          return howFar >= heldTo.watchAt ? "WATCH" : null;
+        })();
   const form = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   // A refusal takes the reader to it: a short window puts the first fields above the fold.
