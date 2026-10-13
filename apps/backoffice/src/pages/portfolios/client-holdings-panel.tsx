@@ -190,8 +190,11 @@ export function ClientHoldingsPanel({
 
   return (
     <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
+      {/* The words take the width they need and no more, so the button keeps its place at the right of the
+          row. Left to fill the line, they pushed it onto one of its own, where it began at the left margin
+          under the text rather than beside it. */}
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold">Holdings</h3>
           <p className="text-xs text-ink-muted">
             Asset class, then the sub-assets inside it. A class written down here takes its total from them.
@@ -206,10 +209,12 @@ export function ClientHoldingsPanel({
           )}
         </div>
         {!readOnly && (
-          <Button variant="secondary" onClick={() => setEditing("new")}>
-            <Plus aria-hidden="true" />
-            Add a sub-asset
-          </Button>
+          <div className="ml-auto shrink-0">
+            <Button variant="secondary" onClick={() => setEditing("new")}>
+              <Plus aria-hidden="true" />
+              Add a sub-asset
+            </Button>
+          </div>
         )}
       </div>
 
