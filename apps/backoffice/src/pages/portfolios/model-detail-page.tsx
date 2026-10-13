@@ -8,13 +8,14 @@ import {
   type AllocationRow,
   type ModelDetail,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, Dialog, cn } from "@atomprive/ui";
+import { Alert, Badge, Button, Dialog, Field, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, PencilLine, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useState } from "react";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { asFigure } from "../../lib/figures";
 import { formatDate } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
 import { ModelDialog } from "./model-dialog";
@@ -33,6 +34,9 @@ export function ModelDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const detail = useGetModelPortfolio<ModelDetail, ApiError>(modelId);
+  // A sum to read the plan against, typed on the page and not kept. Blank, or anything that is not a
+  // positive figure, and the money column simply is not there.
+  const [netAum, setNetAum] = useState("");
   const assetClasses = useAssetClasses();
   // Changing a plan and deleting one are done on the plan, where whoever is doing it can see what they are
   // changing. The list only lists.
@@ -67,6 +71,9 @@ export function ModelDetailPage() {
     return <p className="py-10 text-center text-sm text-ink-muted">Reading the plan…</p>;
   }
   const { summary, allocations, composition, revisions, assignedPortfolios } = detail.data;
+  // Nothing typed, or nothing that makes sense as a sum of money, and the plan is read as percentages alone.
+  const typed = Number(netAum);
+  const onThisMuch = netAum.trim() !== "" && Number.isFinite(typed) && typed > 0 ? typed : null;
 
   return (
     <div className="space-y-6">
@@ -104,7 +111,27 @@ export function ModelDetailPage() {
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr] lg:items-start">
         <section className="rounded-2xl border border-line bg-white">
           <div className="px-6 pt-5">
-            <h2 className="text-base font-bold">Target weights &amp; tolerance bands</h2>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <h2 className="text-base font-bold">Target weights &amp; tolerance bands</h2>
+              {/* What the plan comes to in money, for whoever is working out what can be put where. It is
+                  typed here and not kept: a plan is a set of percentages, the same plan whatever sum is
+                  measured against it, and a figure saved on it would read as the model's own money rather
+                  than as somebody's arithmetic. */}
+              <Field
+                id="model-net-aum"
+                label={`Net AUM (${summary.aumCurrency})`}
+                hint="Not saved. What the plan would come to on this much money."
+              >
+                <TextInput
+                  id="model-net-aum"
+                  inputMode="decimal"
+                  className="w-44 text-right"
+                  placeholder="0"
+                  value={netAum}
+                  onChange={(event) => setNetAum(asFigure(event.target.value, netAum))}
+                />
+              </Field>
+            </div>
             {/* What the plan asks for, and nothing about who is on it: a client's drift moves with their
                 money, and reading it here made a fixed plan look like it was moving. */}
             <p className="mt-0.5 text-xs text-ink-muted">
@@ -118,7 +145,14 @@ export function ModelDetailPage() {
               <thead>
                 <tr className="border-y border-line bg-slate-50/60 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                   <th scope="col" className="py-2.5 pr-4 pl-6">Allocation level</th>
-                  <th scope="col" className="px-4 py-2.5 text-right">Target</th>
+                  <th scope="col" className="px-4 py-2.5 text-right">Target allocation</th>
+                  {/* Only where there is a sum to work it out from: a column of dashes says nothing that
+                      an absent column does not say more quietly. */}
+                  {onThisMuch !== null && (
+                    <th scope="col" className="px-4 py-2.5 text-right">
+                      Target value
+                    </th>
+                  )}
                   <th scope="col" className="px-4 py-2.5 text-right">Band</th>
                   {/* What the clients on this plan are actually holding used to sit here, and reading it on
                       a page named after the model had the plan looking like it moved every time somebody
@@ -129,13 +163,13 @@ export function ModelDetailPage() {
               <tbody className="divide-y divide-line">
                 {allocations.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="px-6 py-10 text-center text-ink-muted">
+                    <td colSpan={onThisMuch === null ? 3 : 4} className="px-6 py-10 text-center text-ink-muted">
                       This plan has no targets yet.
                     </td>
                   </tr>
                 )}
                 {allocations.map((row) => (
-                  <Row key={`${row.assetClass}-${row.subClass ?? ""}`} row={row} />
+                  <Row key={`${row.assetClass}-${row.subClass ?? ""}`} row={row} onThisMuch={onThisMuch} />
                 ))}
               </tbody>
             </table>
@@ -232,7 +266,7 @@ export function ModelDetailPage() {
   );
 }
 
-function Row({ row }: { row: AllocationRow }) {
+function Row({ row, onThisMuch }: { row: AllocationRow; onThisMuch: number | null }) {
   const inside = row.depth > 0;
   return (
     <tr className={cn(inside ? "bg-white" : "bg-white font-semibold")}>
@@ -243,12 +277,24 @@ function Row({ row }: { row: AllocationRow }) {
         {row.label}
       </th>
       <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{percent(row.target)}</td>
+      {/* Every target in this table is already a share of the whole plan — the lines inside a class add up
+          to the class's own figure — so each is read off the sum directly. */}
+      {onThisMuch !== null && (
+        <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+          {money((onThisMuch * row.target) / 100)}
+        </td>
+      )}
       {/* The band is the class's, shown on its lines too: tolerance is set per class, not per line. */}
       <td className="px-4 py-3 text-right whitespace-nowrap font-normal tabular-nums text-ink-muted">
         ±{percent(row.band.breachAt)}
       </td>
     </tr>
   );
+}
+
+/** Money the way the firm's own review writes it: grouped thousands, always two decimal places. */
+function money(amount: number) {
+  return amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /** "42.0%" — a plan is written to one place, because a tenth of a point is a real decision. */
