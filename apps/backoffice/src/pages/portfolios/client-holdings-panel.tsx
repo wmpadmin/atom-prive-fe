@@ -6,6 +6,7 @@ import {
   useListClientHoldings,
   useRecordClientHolding,
   useRemoveClientHolding,
+  type ModelLine,
   type ClientHoldings,
   type PositionRow,
 } from "@atomprive/api-client/backoffice";
@@ -266,6 +267,8 @@ export function ClientHoldingsPanel({
           customerId={customerId}
           position={editing === "new" ? null : editing}
           modelSubClasses={held.data?.modelSubClasses ?? {}}
+          underManagement={held.data?.underManagement ?? 0}
+          currency={currency}
           onClose={() => setEditing(null)}
           onSaved={(id, before) => {
             onTouched?.(id, before);
@@ -305,13 +308,18 @@ function HoldingDialog({
   customerId,
   position,
   modelSubClasses,
+  underManagement,
+  currency,
   onClose,
   onSaved,
 }: {
   customerId: string;
   position: PositionRow | null;
   /** What the client's model calls the lines inside each class, by class. Empty where it names none. */
-  modelSubClasses: Record<string, string[]>;
+  modelSubClasses: Record<string, ModelLine[]>;
+  /** What the client holds altogether, so the model's share can be read as money rather than a percentage. */
+  underManagement: number;
+  currency: string;
   onClose: () => void;
   /** The holding's id, and what it looked like before — null where it did not exist until now. */
   onSaved: (id: string, before: PositionRow | null) => void;
@@ -329,8 +337,10 @@ function HoldingDialog({
   // than having its group quietly cleared because the list has no row for it.
   const [writingIn, setWritingIn] = useState(
     position?.subClass != null
-      && !(modelSubClasses[position.assetClass] ?? []).some((one) => one === position.subClass),
+      && !(modelSubClasses[position.assetClass] ?? []).some((one) => one.name === position.subClass),
   );
+  // What the model asks of the group picked. Read after subClass exists, not beside the class above it.
+  const asked = (modelSubClasses[assetClass] ?? []).find((one) => one.name === subClass) ?? null;
   const [name, setName] = useState(position?.name ?? "");
   const [identifier, setIdentifier] = useState(position?.identifier ?? "");
   const [issuer, setIssuer] = useState(position?.issuer ?? "");
@@ -426,8 +436,8 @@ function HoldingDialog({
               >
                 <option value="">Not grouped</option>
                 {(modelSubClasses[assetClass] ?? []).map((one) => (
-                  <option key={one} value={one}>
-                    {one}
+                  <option key={one.name} value={one.name}>
+                    {one.name}
                   </option>
                 ))}
                 <option value={OTHER_GROUP}>Something else…</option>
@@ -436,6 +446,17 @@ function HoldingDialog({
               <TextInput id="holding-subclass" value={subClass} onChange={(e) => setSubClass(e.target.value)} />
             )}
           </Field>
+          {/* What the model asks of the group picked, as a guide and nothing more. Nothing is refused on the
+              strength of it: a portfolio that has wandered is exactly the one somebody has to be able to
+              write down, and the figure is here to be seen while they do, not to argue with them. */}
+          {asked && (
+            <p className="-mt-1 text-xs text-ink-muted sm:col-span-2">
+              The model asks for <span className="font-semibold text-ink">{asked.shareOfPortfolio.toFixed(1)}%</span>
+              {" "}of the portfolio here
+              {underManagement > 0 && <> — about {underManagementLabel((asked.shareOfPortfolio / 100) * underManagement, currency)} at what they hold today</>}
+              . Write what they actually hold; this is a guide, not a limit.
+            </p>
+          )}
         </div>
         <Field id="holding-name" label="Holding" required error={errors.fields.name}>
           <TextInput
