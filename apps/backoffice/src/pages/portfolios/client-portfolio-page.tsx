@@ -474,15 +474,15 @@ export function ClientPortfolioPage() {
       {/* One column, read top to bottom. Side by side, two panels are never the same height, so whichever
           is shorter leaves a hole beside the other — and the hole moves about as the figures change. */}
       <section className="rounded-2xl border border-line bg-white px-6 py-5">
-        {/* The plan and the sum it is read against, side by side: the two together are what every figure
-            further down the page is worked out from, and neither says much without the other. */}
-        <div className="flex flex-wrap items-start gap-4">
-        <Field id="client-model" label="Measured against" className="min-w-0 max-w-full">
+        {/* The plan and the sum it is read against, side by side and a half of the row each: the two
+            together are what every figure further down the page is worked out from, and neither says much
+            without the other. One column at the width of a phone, where half a row is no row at all. */}
+        <div className="grid gap-4 sm:grid-cols-2">
+        <Field id="client-model" label="Measured against" className="min-w-0">
               {/* Kept by Save like everything else. Written the moment it was picked, a reader who brushed
                   the list changed what the client is measured against and was never asked. */}
               <SelectInput
                 id="client-model"
-                className="w-auto max-w-full"
                 value={model}
                 disabled={!editing || saving}
                 onChange={(event) => setChosenModel(event.target.value)}
@@ -522,7 +522,7 @@ export function ClientPortfolioPage() {
           <TextInput
             id="client-net-aum"
             inputMode="decimal"
-            className="w-44 text-right"
+            className="text-right"
             placeholder="Not said"
             readOnly={!editing}
             aria-readonly={!editing}
