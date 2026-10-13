@@ -3,31 +3,20 @@
 @source "../../../packages/ui/src";
 
 /*
- * The Figma screens are drawn on a 1920 x 1080 frame. Tying the root font size to the window width scales every
- * rem-based size (text, spacing, widths, radii) with it, so a laptop shows the layout the way Figma does when it fits
- * the frame to the screen, rather than the 1920-wide design at full size. Breakpoints don't move: media queries
- * resolve rem against the browser default, not this root size.
+ * Every size in the platform — text, spacing, widths, radii — is a multiple of the root font size, so this is
+ * the one number that decides how the screens read.
+ *
+ * It used to grow with the window, on the reasoning that the Figma screens are drawn on a 1920 frame and a
+ * wide screen can carry more of a dense back office. In practice that meant the same screen was read at one
+ * size on a laptop and another on a monitor, and whoever moved between them saw the platform change size
+ * under them. It is pinned now: one size, everywhere, whatever it is read on.
  */
 @layer base {
   html {
-    /* Every size in the platform is a multiple of this, so this is the one number that decides whether the
-       screens are comfortable to read. It grows with the window, because a back office is dense and a wide
-       screen can carry more of it — but it used to bottom out at 12px, which is what nearly every laptop
-       got: 1440px of window divided by 120 is exactly the floor. So the whole scale was being read a
-       quarter smaller than it was drawn, on most of the screens it is read on. */
-    font-size: clamp(15px, calc(100vw / 110), 16px);
+    font-size: 16px;
   }
 
   body {
     font-size: var(--text-base);
   }
-}
-
-/* Scaled down that far, small text would be hard to read, so it stops shrinking at these sizes. */
-@theme {
-  --text-3xs: max(0.625rem, 10px);
-  --text-2xs: max(0.6875rem, 10px);
-  --text-xs: max(0.75rem, 11px);
-  --text-sm: max(0.875rem, 12px);
-  --text-base: max(1rem, 13px);
 }
