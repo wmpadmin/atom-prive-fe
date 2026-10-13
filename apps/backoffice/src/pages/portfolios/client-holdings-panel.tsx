@@ -39,6 +39,7 @@ export function ClientHoldingsPanel({
   onTouched,
   addingFor = null,
   onAddingHandled,
+  against = null,
   readOnly = false,
 }: {
   customerId: string;
@@ -57,11 +58,19 @@ export function ClientHoldingsPanel({
    */
   addingFor?: string | null;
   onAddingHandled?: () => void;
+  /** A model picked on screen but not saved, whose groups these holdings should be offered against. */
+  against?: string | null;
   /** Read somewhere other than the portfolio screen, where writing them down is not the job. */
   readOnly?: boolean;
 }) {
   const queryClient = useQueryClient();
-  const held = useListClientHoldings<ClientHoldings, ApiError>(customerId);
+  // Read against the model picked on screen where one is, rather than the one on file: somebody setting a
+  // client up picks the model and then writes the holdings into its groups, and the groups have to be the
+  // ones they are looking at.
+  const held = useListClientHoldings<ClientHoldings, ApiError>(
+    customerId,
+    against ? { against } : undefined,
+  );
   const [opened, setOpened] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<PositionRow | "new" | null>(null);
   /** The class a new holding opens on, where this panel's own button was the one pressed. */
