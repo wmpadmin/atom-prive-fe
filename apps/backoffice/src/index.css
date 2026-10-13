@@ -10,7 +10,12 @@
  */
 @layer base {
   html {
-    font-size: clamp(12px, calc(100vw / 120), 16px);
+    /* Every size in the platform is a multiple of this, so this is the one number that decides whether the
+       screens are comfortable to read. It grows with the window, because a back office is dense and a wide
+       screen can carry more of it — but it used to bottom out at 12px, which is what nearly every laptop
+       got: 1440px of window divided by 120 is exactly the floor. So the whole scale was being read a
+       quarter smaller than it was drawn, on most of the screens it is read on. */
+    font-size: clamp(15px, calc(100vw / 110), 16px);
   }
 
   body {
