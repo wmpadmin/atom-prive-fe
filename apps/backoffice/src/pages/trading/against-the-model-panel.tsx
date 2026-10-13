@@ -118,7 +118,13 @@ export function AgainstTheModelPanel({
               <tr>
                 <th scope="row" className="py-2.5 pr-4 text-left font-medium">
                   They hold{" "}
-                  <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>
+                  {/* Nothing written down is not a standing: a portfolio with no money in it has not
+                      wandered from anything. */}
+                  {row.standing ? (
+                    <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>
+                  ) : (
+                    <span className="text-xs font-normal text-ink-muted">nothing written down yet</span>
+                  )}
                 </th>
                 <td className="py-2.5 pr-4 text-right tabular-nums">{share(row.actualShare)}</td>
                 <td className="py-2.5 text-right tabular-nums">{money(row.actualValue, held.currency)}</td>

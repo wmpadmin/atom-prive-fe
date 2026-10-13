@@ -667,7 +667,10 @@ export interface ModelChoice {
   modelPortfolioId: string | null;
 }
 
-export type ClassStandingStanding = typeof ClassStandingStanding[keyof typeof ClassStandingStanding];
+/**
+ * @nullable
+ */
+export type ClassStandingStanding = typeof ClassStandingStanding[keyof typeof ClassStandingStanding] | null;
 
 
 export const ClassStandingStanding = {
@@ -688,6 +691,7 @@ export interface ClassStanding {
   filled: number | null;
   suggestion: number;
   drift: number;
+  /** @nullable */
   standing: ClassStandingStanding;
   band: BandRequest;
 }
