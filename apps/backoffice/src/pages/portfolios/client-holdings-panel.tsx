@@ -387,7 +387,7 @@ export function ClientHoldingsPanel({
                                 : underManagementLabel(group.targetValue, currency)}
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums">
-                              {group.shareOfClass.toFixed(1)}%
+                              {group.shareOfPortfolio.toFixed(1)}%
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums">
                               {underManagementLabel(group.valueAmount, currency)}
@@ -445,8 +445,10 @@ export function ClientHoldingsPanel({
                                   gap — only what it is and what it comes to. */}
                               <td className="px-3 py-2 text-right text-ink-muted">—</td>
                               <td className="px-3 py-2 text-right text-ink-muted">—</td>
+                              {/* Against the same whole as the group above it, so a holding and its group
+                                  are read on one scale rather than two. */}
                               <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                                {position.shareOfClass.toFixed(1)}%
+                                {position.shareOfPortfolio.toFixed(1)}%
                               </td>
                               <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                                 {underManagementLabel(position.valueAmount, currency)}
