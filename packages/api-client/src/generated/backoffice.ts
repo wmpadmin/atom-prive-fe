@@ -4491,11 +4491,14 @@ export interface ClassPositions {
   subClasses: SubClassGroup[];
 }
 
+export type ClientHoldingsModelSubClasses = {[key: string]: string[]};
+
 export interface ClientHoldings {
   customerId: string;
   currency: string;
   underManagement: number;
   unplaced: number;
+  modelSubClasses: ClientHoldingsModelSubClasses;
   classes: ClassPositions[];
 }
 
