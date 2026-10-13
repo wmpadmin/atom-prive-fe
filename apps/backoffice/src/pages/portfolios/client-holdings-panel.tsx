@@ -268,6 +268,7 @@ export function ClientHoldingsPanel({
           position={editing === "new" ? null : editing}
           modelSubClasses={held.data?.modelSubClasses ?? {}}
           underManagement={held.data?.underManagement ?? 0}
+          classTotals={Object.fromEntries(classes.map((one) => [one.assetClass, one.valueAmount]))}
           currency={currency}
           onClose={() => setEditing(null)}
           onSaved={(id, before) => {
@@ -309,6 +310,7 @@ function HoldingDialog({
   position,
   modelSubClasses,
   underManagement,
+  classTotals,
   currency,
   onClose,
   onSaved,
@@ -319,6 +321,11 @@ function HoldingDialog({
   modelSubClasses: Record<string, ModelLine[]>;
   /** What the client holds altogether, so the model's share can be read as money rather than a percentage. */
   underManagement: number;
+  /**
+   * What each class comes to today, so a figure being typed can be read as a share of what its class would
+   * come to with it in. By class, because which class a new holding is in is chosen in this dialog.
+   */
+  classTotals: Record<string, number>;
   currency: string;
   onClose: () => void;
   /** The holding's id, and what it looked like before — null where it did not exist until now. */
@@ -350,6 +357,33 @@ function HoldingDialog({
   const [duration, setDuration] = useState(position?.durationYears == null ? "" : String(position.durationYears));
   const [creditRating, setCreditRating] = useState(position?.creditRating ?? "");
   const [valueAmount, setValueAmount] = useState(position ? String(position.valueAmount) : "");
+  // Where the figure being typed would land this group, worked out as it is typed.
+  //
+  // A class takes its total from its lines, so writing this one changes the class it sits in: the share is
+  // against what the class would come to with this figure in it, not what it comes to now. Without that, the
+  // first holding in an empty class reads as nothing rather than as all of it.
+  const typed = Number(valueAmount);
+  const wouldBe =
+    asked && valueAmount.trim() !== "" && Number.isFinite(typed) && typed >= 0
+      ? (() => {
+          const classNow = (classTotals[assetClass] ?? 0)
+            - (position?.assetClass === assetClass ? position.valueAmount : 0);
+          const classThen = classNow + typed;
+          if (classThen <= 0) return null;
+          const share = (typed / classThen) * 100;
+          return { share, over: share - asked.shareOfClass };
+        })()
+      : null;
+  const standing =
+    wouldBe === null || !asked
+      ? null
+      : wouldBe.over >= asked.breachAt
+        ? "BREACHED"
+        : wouldBe.over >= asked.edgeAt
+          ? "AT_EDGE"
+          : wouldBe.over >= asked.watchAt
+            ? "WATCH"
+            : null;
   const form = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   // A refusal takes the reader to it: a short window puts the first fields above the fold.
@@ -455,6 +489,21 @@ function HoldingDialog({
               {" "}of the portfolio here
               {underManagement > 0 && <> — about {underManagementLabel((asked.shareOfPortfolio / 100) * underManagement, currency)} at what they hold today</>}
               . Write what they actually hold; this is a guide, not a limit.
+            </p>
+          )}
+          {/* Where the figure being typed would land this group, said as it is typed rather than after the
+              dialog closes. It is said, not enforced: the holding is still written down as given. */}
+          {asked && wouldBe && (
+            <p className="-mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-muted sm:col-span-2">
+              {standing ? (
+                <Badge tone={standingTones[standing]}>{standingLabels[standing]}</Badge>
+              ) : (
+                <Badge tone="success">Within band</Badge>
+              )}
+              <span>
+                This would make it {wouldBe.share.toFixed(1)}% of {assetClasses.names[assetClass] ?? assetClass},
+                against {asked.shareOfClass.toFixed(1)}% asked for — {driftLabel(wouldBe.over)} from target.
+              </span>
             </p>
           )}
         </div>

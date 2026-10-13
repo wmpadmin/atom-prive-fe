@@ -4496,6 +4496,9 @@ export interface ModelLine {
   name: string;
   shareOfClass: number;
   shareOfPortfolio: number;
+  watchAt: number;
+  edgeAt: number;
+  breachAt: number;
 }
 
 export type ClientHoldingsModelSubClasses = {[key: string]: ModelLine[]};
