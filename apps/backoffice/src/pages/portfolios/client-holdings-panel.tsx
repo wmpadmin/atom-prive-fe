@@ -495,7 +495,14 @@ export function ClientHoldingsPanel({
       )}
 
       {removing && (
-        <Dialog open title={`Remove ${removing.name}?`} onClose={() => setRemoving(null)}>
+        /* Named by the sub-asset it is, not by whatever is stored against it. Titled from the stored
+           name, these headed themselves with the instrument somebody wrote down before a row was a
+           sub-asset at all — "Remove test?" over a row reading Global Equities. */
+        <Dialog
+          open
+          title={`Remove ${removing.subClass ?? UNGROUPED}?`}
+          onClose={() => setRemoving(null)}
+        >
           <div className="space-y-4">
             <p className="text-sm text-ink">
               The class total goes back to what its remaining sub-assets come to. Taking the last one off
@@ -641,7 +648,12 @@ function HoldingDialog({
   }
 
   return (
-    <Dialog open title={position ? `Edit ${position.name}` : "Add a sub-asset"} size="lg" onClose={onClose}>
+    <Dialog
+      open
+      title={position ? `Edit ${position.subClass ?? UNGROUPED}` : "Add a sub-asset"}
+      size="lg"
+      onClose={onClose}
+    >
       <form ref={form} onSubmit={submit} className="space-y-4">
         {errors.form && <Alert tone="danger">{errors.form}</Alert>}
         {/* The sub-class carries three lines of explanation under it and the other two boxes carry none, so
