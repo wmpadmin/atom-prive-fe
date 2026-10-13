@@ -27,7 +27,7 @@ import {
   type RiskMatch,
   useClientOnThatModel,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, DateInput, Field, SelectInput } from "@atomprive/ui";
+import { Alert, Badge, Button, DateInput, Field, SelectInput, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
@@ -154,6 +154,9 @@ export function ClientPortfolioPage() {
   const [writingOwn, setWritingOwn] = useState(false);
   // The class somebody asked to see the inside of, from the table that measures it. Kept so the card opens
   // even if they had shut it: being sent to a class and finding it closed is being sent nowhere.
+  // What the client has in all, as the firm has been told it. Blank where nobody has said, and then the
+  // holdings written down are the whole story — which is how every portfolio worked before this.
+  const [chosenNetAum, setNetAum] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<string | null>(null);
   const showClass = (assetClass: string) => {
     setRevealed(assetClass);
@@ -243,6 +246,10 @@ export function ClientPortfolioPage() {
   const on = rebalancedOn ?? standing.data?.lastRebalancedOn ?? "";
   const looked = reviewedOn ?? standing.data?.lastReviewedOn ?? "";
   const total = Object.values(holdings).reduce((sum, typed) => sum + (Number(typed) || 0), 0);
+  const netAum = chosenNetAum ?? (standing.data?.netAum == null ? "" : String(standing.data.netAum));
+  // What is said to be there that nobody has written down, worked out from what is typed rather than from
+  // what is on file, so it answers as somebody types instead of after they save.
+  const unwritten = Math.max(0, (Number(netAum) || 0) - total);
   // What is typed but not yet saved. The table below reads what is on file, so a figure changed in a box and
   // not kept would otherwise be contradicted by the standings beside it with nothing to say why.
   // The portfolio arrives after the first render, so the box reads from it until somebody picks another.
@@ -257,6 +264,8 @@ export function ClientPortfolioPage() {
     held !== null && JSON.stringify(held) !== JSON.stringify(heldFrom(standing.data, boxes));
   const unsaved =
     figuresChanged ||
+    (chosenNetAum !== null
+      && chosenNetAum !== (standing.data?.netAum == null ? "" : String(standing.data.netAum))) ||
     (standing.data !== undefined && currency !== standing.data.currency) ||
     (chosenModel !== null && chosenModel !== (standing.data?.modelPortfolioId ?? "")) ||
     (rebalancedOn !== null && rebalancedOn !== (standing.data?.lastRebalancedOn ?? "")) ||
@@ -370,7 +379,12 @@ export function ClientPortfolioPage() {
         for (const [assetClass, typed] of Object.entries(holdings)) {
           if (typed.trim()) wanted[assetClass] = Number(typed);
         }
-        await setHoldings.mutateAsync({ customerId, data: { holdings: wanted, currency } });
+        await setHoldings.mutateAsync({
+          customerId,
+          // Left out rather than sent as nought: nobody saying what the client has is a different thing
+          // from somebody saying they have nothing.
+          data: { holdings: wanted, currency, netAum: netAum.trim() === "" ? null : Number(netAum) },
+        });
       }
     }
     catch {
@@ -572,7 +586,35 @@ export function ClientPortfolioPage() {
                     Written down by hand: no custodian feed delivers these yet.
                   </p>
                 </div>
-                <Field id="holdings-currency" label="Currency">
+                <div className="flex flex-wrap items-start gap-4">
+                  {/* What the client has in all, where the firm has been told. Every share on this page is
+                      a share of it: measured instead against the part that has been typed in, a client with
+                      one holding recorded reads as wholly in that class and so breached, when they may be
+                      exactly on their model. Left blank, the holdings below are the whole story — which is
+                      how this screen has always worked, and still works for anybody who does not know. */}
+                  <Field
+                    id="holdings-net-aum"
+                    label="Net AUM"
+                    hint={
+                      netAum.trim() === ""
+                        ? "Optional. What the client has in all, if you know it before writing the holdings."
+                        : unwritten > 0
+                          ? `${currency} ${unwritten.toLocaleString()} of this is not written down below yet.`
+                          : "Every figure below is a share of this."
+                    }
+                  >
+                    <TextInput
+                      id="holdings-net-aum"
+                      inputMode="decimal"
+                      className="w-44 text-right"
+                      placeholder="Not said"
+                      readOnly={!editing}
+                      aria-readonly={!editing}
+                      value={netAum}
+                      onChange={(event) => setNetAum(asFigure(event.target.value, netAum))}
+                    />
+                  </Field>
+                  <Field id="holdings-currency" label="Currency">
                   {/* Restating a portfolio and retyping its figures cannot be asked for in one go: the
                       typed figures would be in the currency being left behind, and nothing could say
                       which of the two was meant. */}
@@ -594,7 +636,8 @@ export function ClientPortfolioPage() {
                       </option>
                     ))}
                   </SelectInput>
-                </Field>
+                  </Field>
+                </div>
               </div>
               {/* What each class is worth, and what it is made of, in one list. The figures used to be a
                   grid of boxes with the breakdown of them at the foot of the page, so a class was typed in

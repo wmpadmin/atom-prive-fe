@@ -761,6 +761,9 @@ export interface PortfolioStanding {
   reviewOverdue: boolean;
   customModel: boolean;
   riskMatch: RiskMatch | null;
+  /** @nullable */
+  netAum: number | null;
+  unwritten: number;
 }
 
 export type HoldingsRequestHoldings = {[key: string]: number};
@@ -773,6 +776,11 @@ export interface HoldingsRequest {
      * @nullable
      */
   currency: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  netAum: number | null;
 }
 
 export interface PositionRequest {
