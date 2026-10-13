@@ -450,6 +450,77 @@ export function ClientPortfolioPage() {
       {/* One column, read top to bottom. Side by side, two panels are never the same height, so whichever
           is shorter leaves a hole beside the other — and the hole moves about as the figures change. */}
       <section className="rounded-2xl border border-line bg-white px-6 py-5">
+        <Field id="client-model" label="Measured against">
+              {/* Kept by Save like everything else. Written the moment it was picked, a reader who brushed
+                  the list changed what the client is measured against and was never asked. */}
+              <SelectInput
+                id="client-model"
+                value={model}
+                disabled={!editing || saving}
+                onChange={(event) => setChosenModel(event.target.value)}
+              >
+                <option value="">No model — nothing to drift from</option>
+                {/* A draft is a model still being written, and the API refuses to measure anybody against
+                    one. Offering it as though it could be picked turned that refusal into a failed save. */}
+                {(models.data?.items ?? []).map((model) => (
+                  <option key={model.id} value={model.id} disabled={model.status === "DRAFT"}>
+                    {model.name}
+                    {/* What each model is written for, so it can be picked by the client's risk rather than
+                        picked and then checked. */}
+                    {` — ${riskProfileLabel(model.riskProfile)}`}
+                    {model.status === "DRAFT" ? " · still a draft" : ""}
+                    {model.status === "RETIRED" ? " · retired" : ""}
+                  </option>
+                ))}
+          </SelectInput>
+        </Field>
+        {/* An allocation of their own is written in the same dialog a model is, because it is the same
+            thing: targets, bands, and the lines inside a class. What differs is who it belongs to. */}
+        {editing && !standing.data?.customModel && (
+          <p className="mt-3 text-xs text-ink-muted">
+            None of these fit?{" "}
+            <button
+              type="button"
+              onClick={() => setWritingOwn(true)}
+              className="font-medium text-primary-700 hover:underline"
+            >
+              Write this client an allocation of their own
+            </button>
+            . It is measured like any plan, and nothing acts on it by itself.
+          </p>
+        )}
+        {standing.data?.customModel && (
+          <p className="mt-3 text-xs text-ink-muted">
+            This client is on an allocation written for them alone. It is not offered to anybody else, not
+            rebalanced with the firm's plans, and nobody is told overnight when it drifts.
+          </p>
+        )}
+        <RiskMatchNote match={(tryingOn ? preview.data?.riskMatch : standing.data?.riskMatch) ?? null} />
+        {/* What the picked model would make of this client's own money, before anybody is put on it. The
+            same table they read afterwards, so the figures are compared like with like. */}
+        {tryingOn && preview.isError && <Alert tone="danger">{preview.error.message}</Alert>}
+        {tryingOn && preview.data && (
+          <div className="mt-4">
+            <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              On {preview.data.modelName ?? "this model"}, before saving
+            </p>
+            <p className="mt-1 max-w-prose text-xs text-ink-muted">
+              This client's own figures against the model picked above. Nothing is saved until you press Save,
+              and the table further down still reads what is on file.
+            </p>
+            <div className="mt-3">
+              <ClassStandingTable
+                classes={preview.data.classes}
+                currency={preview.data.currency}
+                suggestions={!preview.data.customModel}
+                underManagement={preview.data.underManagement}
+              />
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-line bg-white px-6 py-5">
         <fieldset>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -551,77 +622,6 @@ export function ClientPortfolioPage() {
                 </p>
           </div>
         </fieldset>
-      </section>
-
-      <section className="rounded-2xl border border-line bg-white px-6 py-5">
-        <Field id="client-model" label="Measured against">
-              {/* Kept by Save like everything else. Written the moment it was picked, a reader who brushed
-                  the list changed what the client is measured against and was never asked. */}
-              <SelectInput
-                id="client-model"
-                value={model}
-                disabled={!editing || saving}
-                onChange={(event) => setChosenModel(event.target.value)}
-              >
-                <option value="">No model — nothing to drift from</option>
-                {/* A draft is a model still being written, and the API refuses to measure anybody against
-                    one. Offering it as though it could be picked turned that refusal into a failed save. */}
-                {(models.data?.items ?? []).map((model) => (
-                  <option key={model.id} value={model.id} disabled={model.status === "DRAFT"}>
-                    {model.name}
-                    {/* What each model is written for, so it can be picked by the client's risk rather than
-                        picked and then checked. */}
-                    {` — ${riskProfileLabel(model.riskProfile)}`}
-                    {model.status === "DRAFT" ? " · still a draft" : ""}
-                    {model.status === "RETIRED" ? " · retired" : ""}
-                  </option>
-                ))}
-          </SelectInput>
-        </Field>
-        {/* An allocation of their own is written in the same dialog a model is, because it is the same
-            thing: targets, bands, and the lines inside a class. What differs is who it belongs to. */}
-        {editing && !standing.data?.customModel && (
-          <p className="mt-3 text-xs text-ink-muted">
-            None of these fit?{" "}
-            <button
-              type="button"
-              onClick={() => setWritingOwn(true)}
-              className="font-medium text-primary-700 hover:underline"
-            >
-              Write this client an allocation of their own
-            </button>
-            . It is measured like any plan, and nothing acts on it by itself.
-          </p>
-        )}
-        {standing.data?.customModel && (
-          <p className="mt-3 text-xs text-ink-muted">
-            This client is on an allocation written for them alone. It is not offered to anybody else, not
-            rebalanced with the firm's plans, and nobody is told overnight when it drifts.
-          </p>
-        )}
-        <RiskMatchNote match={(tryingOn ? preview.data?.riskMatch : standing.data?.riskMatch) ?? null} />
-        {/* What the picked model would make of this client's own money, before anybody is put on it. The
-            same table they read afterwards, so the figures are compared like with like. */}
-        {tryingOn && preview.isError && <Alert tone="danger">{preview.error.message}</Alert>}
-        {tryingOn && preview.data && (
-          <div className="mt-4">
-            <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              On {preview.data.modelName ?? "this model"}, before saving
-            </p>
-            <p className="mt-1 max-w-prose text-xs text-ink-muted">
-              This client's own figures against the model picked above. Nothing is saved until you press Save,
-              and the table further down still reads what is on file.
-            </p>
-            <div className="mt-3">
-              <ClassStandingTable
-                classes={preview.data.classes}
-                currency={preview.data.currency}
-                suggestions={!preview.data.customModel}
-                underManagement={preview.data.underManagement}
-              />
-            </div>
-          </div>
-        )}
       </section>
 
       {standing.data && standing.data.classes.length > 0 && (
