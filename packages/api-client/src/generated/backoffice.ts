@@ -4512,6 +4512,8 @@ export interface ClientHoldings {
   currency: string;
   underManagement: number;
   unplaced: number;
+  /** @nullable */
+  measuredAgainst: string | null;
   modelSubClasses: ClientHoldingsModelSubClasses;
   classes: ClassPositions[];
 }

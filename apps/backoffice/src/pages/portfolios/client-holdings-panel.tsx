@@ -297,6 +297,7 @@ export function ClientHoldingsPanel({
           position={open === "new" ? null : open}
           startOn={startOn}
           modelSubClasses={held.data?.modelSubClasses ?? {}}
+          measuredAgainst={held.data?.measuredAgainst ?? null}
           underManagement={held.data?.underManagement ?? 0}
           classTotals={Object.fromEntries(classes.map((one) => [one.assetClass, one.valueAmount]))}
           currency={currency}
@@ -340,6 +341,7 @@ function HoldingDialog({
   position,
   startOn,
   modelSubClasses,
+  measuredAgainst,
   underManagement,
   classTotals,
   currency,
@@ -350,6 +352,7 @@ function HoldingDialog({
   position: PositionRow | null;
   /** What the client's model calls the lines inside each class, by class. Empty where it names none. */
   modelSubClasses: Record<string, ModelLine[]>;
+  measuredAgainst: string | null;
   /** What the client holds altogether, so the model's share can be read as money rather than a percentage. */
   underManagement: number;
   /**
@@ -481,11 +484,7 @@ function HoldingDialog({
           <Field
             id="holding-subclass"
             label="Sub-class"
-            hint={
-              (modelSubClasses[assetClass] ?? []).length > 0
-                ? "The groups this client's model breaks the class into. Choose Something else to write one it does not name."
-                : "What the firm calls the group, such as US Equities — S&P 500. This client's model does not break this class down."
-            }
+            hint={subClassHint(measuredAgainst, (modelSubClasses[assetClass] ?? []).length > 0)}
             error={errors.fields.subClass}
           >
             {(modelSubClasses[assetClass] ?? []).length > 0 && !writingIn ? (
@@ -678,6 +677,23 @@ function HoldingDialog({
  * The classes this holding may sit in: the ones still in use, plus the one it is already filed under. A line
  * written before a class was retired keeps naming it rather than quietly reading as something else.
  */
+/**
+ * What to say under the Sub-class box.
+ *
+ * <p>A client nobody has put on a model has no groups to offer, and so did a model that breaks none of its
+ * classes down — one sentence covered both, and it blamed the model. Somebody who had simply not picked one
+ * yet went looking for a fault in the model instead of at the box at the top of the screen.
+ */
+function subClassHint(measuredAgainst: string | null, breaksItDown: boolean): string {
+  if (measuredAgainst === null) {
+    return "This client is on no model yet. Pick one under Measured against and the groups it names are offered here.";
+  }
+  if (breaksItDown) {
+    return "The groups this client's model breaks the class into. Choose Something else to write one it does not name.";
+  }
+  return `What the firm calls the group, such as US Equities — S&P 500. ${measuredAgainst} does not break this class down.`;
+}
+
 function classesOffered(assetClasses: ReturnType<typeof useAssetClasses>, held: string | undefined): string[] {
   const codes = assetClasses.inUse.map((one) => one.code);
   return held && !codes.includes(held) ? [held, ...codes] : codes;
