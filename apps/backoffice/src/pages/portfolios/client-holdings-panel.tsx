@@ -18,6 +18,7 @@ import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
+import { asFigure } from "../../lib/figures";
 import { useAssetClasses } from "./asset-classes";
 import {
   anchorFor,
@@ -581,6 +582,12 @@ function HoldingDialog({
   // What the model asks of the group picked. Read after subClass exists, not beside the class above it.
   const asked = (modelSubClasses[assetClass] ?? []).find((one) => one.name === subClass) ?? null;
   const [valueAmount, setValueAmount] = useState(position ? String(position.valueAmount) : "");
+  // What this client's own papers allow this sub-asset to wander. Blank where nobody has said, and then the
+  // model's own tolerance stands — which is what nearly every sub-asset is measured by.
+  const [watchPp, setWatchPp] = useState(position?.watchPp == null ? "" : String(position.watchPp));
+  const [edgePp, setEdgePp] = useState(position?.edgePp == null ? "" : String(position.edgePp));
+  const [breachPp, setBreachPp] = useState(position?.breachPp == null ? "" : String(position.breachPp));
+  const ownBand = [watchPp, edgePp, breachPp].filter((one) => one.trim() !== "").length;
   // Where the figure being typed would land this group, worked out as it is typed.
   //
   // Out of everything the client has, because that is what every other figure on the screen is out of. Read
@@ -647,6 +654,11 @@ function HoldingDialog({
       durationYears: null,
       creditRating: null,
       valueAmount: Number(valueAmount),
+      // Three or none. The API keeps a tolerance whole for the same reason: two of them say nothing a band
+      // can be read from, and the levels nobody filled in would quietly fall back to the model.
+      watchPp: ownBand === 3 ? Number(watchPp) : null,
+      edgePp: ownBand === 3 ? Number(edgePp) : null,
+      breachPp: ownBand === 3 ? Number(breachPp) : null,
     };
     if (position) change.mutate({ customerId, id: position.id, data });
     else create.mutate({ customerId, data });
@@ -766,6 +778,62 @@ function HoldingDialog({
             </p>
           )}
         </div>
+        {/* What this client's sub-asset may wander before it is watched, at the edge and breached. The model
+            sets these for every line in it and that is what nearly every client is measured by — but a plan
+            written for the firm cannot answer for one client's circumstances, and the only way to hold one
+            of them tighter was to edit the model, which moves the ground under everybody else on it. */}
+        <fieldset className="rounded-xl border border-line px-4 py-3">
+          <legend className="px-1 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            How far it may wander
+          </legend>
+          <p className="text-xs text-ink-muted">
+            {asked
+              ? `Left blank, this client is held to the model's own figures: watched from ${asked.watchAt}pp, at the edge from ${asked.edgeAt}pp, breached from ${asked.breachAt}pp.`
+              : "Left blank, this client is held to the model's own figures."}
+          </p>
+          <div className="mt-2 grid gap-3 sm:grid-cols-3">
+            <Field id="holding-watch" label="Watched from" error={errors.fields.watchPp}>
+              <TextInput
+                {...describedBy("holding-watch", errors.fields.watchPp)}
+                id="holding-watch"
+                inputMode="decimal"
+                className="text-right"
+                placeholder={asked ? String(asked.watchAt) : ""}
+                value={watchPp}
+                onChange={(event) => setWatchPp(asFigure(event.target.value, watchPp))}
+              />
+            </Field>
+            <Field id="holding-edge" label="At the edge from" error={errors.fields.edgePp}>
+              <TextInput
+                {...describedBy("holding-edge", errors.fields.edgePp)}
+                id="holding-edge"
+                inputMode="decimal"
+                className="text-right"
+                placeholder={asked ? String(asked.edgeAt) : ""}
+                value={edgePp}
+                onChange={(event) => setEdgePp(asFigure(event.target.value, edgePp))}
+              />
+            </Field>
+            <Field id="holding-breach" label="Breached from" error={errors.fields.breachPp}>
+              <TextInput
+                {...describedBy("holding-breach", errors.fields.breachPp)}
+                id="holding-breach"
+                inputMode="decimal"
+                className="text-right"
+                placeholder={asked ? String(asked.breachAt) : ""}
+                value={breachPp}
+                onChange={(event) => setBreachPp(asFigure(event.target.value, breachPp))}
+              />
+            </Field>
+          </div>
+          {/* Said rather than refused: somebody half way through typing three figures has not made a
+              mistake, they are half way through. */}
+          {ownBand > 0 && ownBand < 3 && (
+            <p className="mt-2 text-xs text-amber-700">
+              All three or none. With any of them blank this client is held to the model's figures.
+            </p>
+          )}
+        </fieldset>
         {valueAmount.trim() !== "" && !readable && (
           <p className="text-xs text-rose-700">What a sub-asset is worth is a number, and not less than nothing.</p>
         )}

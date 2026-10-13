@@ -839,6 +839,21 @@ export interface PositionRequest {
   durationYears: number | null;
   /** @minimum 0 */
   valueAmount: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  watchPp: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  edgePp: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  breachPp: number | null;
 }
 
 export interface PositionRow {
@@ -865,6 +880,12 @@ export interface PositionRow {
   valueAmount: number;
   shareOfClass: number;
   shareOfPortfolio: number;
+  /** @nullable */
+  watchPp: number | null;
+  /** @nullable */
+  edgePp: number | null;
+  /** @nullable */
+  breachPp: number | null;
 }
 
 export interface CurrencyChoice {
