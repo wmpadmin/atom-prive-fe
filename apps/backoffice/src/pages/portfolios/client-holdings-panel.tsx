@@ -175,6 +175,9 @@ export function ClientHoldingsPanel({
               drift: null,
               standing: null,
               suggestion: null,
+              watchAt: null,
+              edgeAt: null,
+              breachAt: null,
               subClasses: [],
             },
         ),
@@ -487,6 +490,12 @@ export function ClientHoldingsPanel({
           position={open === "new" ? null : open}
           startOn={startOn}
           modelSubClasses={held.data?.modelSubClasses ?? {}}
+          classBands={Object.fromEntries(
+            classes.map((one) => [
+              one.assetClass,
+              { watchAt: one.watchAt, edgeAt: one.edgeAt, breachAt: one.breachAt },
+            ]),
+          )}
           measuredAgainst={held.data?.measuredAgainst ?? null}
           underManagement={held.data?.underManagement ?? 0}
           unwritten={held.data?.unwritten ?? 0}
@@ -538,6 +547,7 @@ function HoldingDialog({
   position,
   startOn,
   modelSubClasses,
+  classBands,
   measuredAgainst,
   unwritten,
   underManagement,
@@ -549,6 +559,12 @@ function HoldingDialog({
   position: PositionRow | null;
   /** What the client's model calls the lines inside each class, by class. Empty where it names none. */
   modelSubClasses: Record<string, ModelLine[]>;
+  /**
+   * What each class is allowed to wander. Read where the model names no line to read it from — a class it
+   * does not break down, or a sub-asset sitting in no group at all — so the boxes can still say what this
+   * client is being held to.
+   */
+  classBands: Record<string, { watchAt: number | null; edgeAt: number | null; breachAt: number | null }>;
   measuredAgainst: string | null;
   /** What the client holds altogether, so the model's share can be read as money rather than a percentage. */
   underManagement: number;
@@ -588,6 +604,9 @@ function HoldingDialog({
   const [edgePp, setEdgePp] = useState(position?.edgePp == null ? "" : String(position.edgePp));
   const [breachPp, setBreachPp] = useState(position?.breachPp == null ? "" : String(position.breachPp));
   const ownBand = [watchPp, edgePp, breachPp].filter((one) => one.trim() !== "").length;
+  // What the model holds this sub-asset to: the line's own tolerance where it names one, and otherwise the
+  // class's, which is what a sub-asset in no group at all is measured by.
+  const modelBand = asked ?? classBands[assetClass] ?? null;
   // Where the figure being typed would land this group, worked out as it is typed.
   //
   // Out of everything the client has, because that is what every other figure on the screen is out of. Read
@@ -787,8 +806,8 @@ function HoldingDialog({
             How far it may wander
           </legend>
           <p className="text-xs text-ink-muted">
-            {asked
-              ? `Left blank, this client is held to the model's own figures: watched from ${asked.watchAt}pp, at the edge from ${asked.edgeAt}pp, breached from ${asked.breachAt}pp.`
+            {modelBand?.watchAt != null
+              ? `Left blank, this client is held to the model's own figures: watched from ${modelBand.watchAt}pp, at the edge from ${modelBand.edgeAt}pp, breached from ${modelBand.breachAt}pp.`
               : "Left blank, this client is held to the model's own figures."}
           </p>
           <div className="mt-2 grid gap-3 sm:grid-cols-3">
@@ -798,7 +817,7 @@ function HoldingDialog({
                 id="holding-watch"
                 inputMode="decimal"
                 className="text-right"
-                placeholder={asked ? String(asked.watchAt) : ""}
+                placeholder={modelBand?.watchAt == null ? "" : String(modelBand.watchAt)}
                 value={watchPp}
                 onChange={(event) => setWatchPp(asFigure(event.target.value, watchPp))}
               />
@@ -809,7 +828,7 @@ function HoldingDialog({
                 id="holding-edge"
                 inputMode="decimal"
                 className="text-right"
-                placeholder={asked ? String(asked.edgeAt) : ""}
+                placeholder={modelBand?.edgeAt == null ? "" : String(modelBand.edgeAt)}
                 value={edgePp}
                 onChange={(event) => setEdgePp(asFigure(event.target.value, edgePp))}
               />
@@ -820,7 +839,7 @@ function HoldingDialog({
                 id="holding-breach"
                 inputMode="decimal"
                 className="text-right"
-                placeholder={asked ? String(asked.breachAt) : ""}
+                placeholder={modelBand?.breachAt == null ? "" : String(modelBand.breachAt)}
                 value={breachPp}
                 onChange={(event) => setBreachPp(asFigure(event.target.value, breachPp))}
               />
