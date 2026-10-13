@@ -6,6 +6,7 @@ import {
   useListClientHoldings,
   useRecordClientHolding,
   useRemoveClientHolding,
+  useSetClassTolerance,
   type ModelLine,
   type ClassPositions,
   type SubClassGroup,
@@ -14,7 +15,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Pencil, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
@@ -29,6 +30,115 @@ import {
   underManagementLabel,
   worstInside,
 } from "./portfolio-labels";
+
+/**
+ * How far one client's asset class may wander, where the firm wants it held to something other than the
+ * model's own figures.
+ *
+ * <p>Its own small dialog rather than three more boxes on a row already carrying a figure and two buttons:
+ * it is a decision somebody takes once and rarely, not a thing to be typed past on the way to something
+ * else.
+ */
+function ToleranceDialog({
+  customerId,
+  one,
+  onClose,
+  onSaved,
+}: {
+  customerId: string;
+  one: ClassPositions;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  // Filled in where this client has figures of its own, and blank where the model's stand — so a box with
+  // something in it always means an exception somebody wrote on purpose.
+  const [watchPp, setWatchPp] = useState(one.ownTolerance && one.watchAt != null ? String(one.watchAt) : "");
+  const [edgePp, setEdgePp] = useState(one.ownTolerance && one.edgeAt != null ? String(one.edgeAt) : "");
+  const [breachPp, setBreachPp] = useState(
+    one.ownTolerance && one.breachAt != null ? String(one.breachAt) : "",
+  );
+  const [errors, setErrors] = useState<FormErrors>(noErrors);
+  const given = [watchPp, edgePp, breachPp].filter((each) => each.trim() !== "").length;
+  const set = useSetClassTolerance<ApiError>({
+    mutation: { onSuccess: onSaved, onError: (failed) => setErrors(toFormErrors(failed)) },
+  });
+  const name = one.assetClassName || one.assetClass;
+  // What the model holds it to, which is what the boxes fall back to. Only knowable where this client is on
+  // a model at all; on none, there is nothing to fall back to and nothing to say.
+  const model = one.ownTolerance ? null : { watchAt: one.watchAt, edgeAt: one.edgeAt, breachAt: one.breachAt };
+
+  return (
+    <Dialog open title={`How far ${name} may wander`} onClose={onClose}>
+      <form
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setErrors(noErrors);
+          set.mutate({
+            customerId,
+            assetClass: one.assetClass,
+            // All three or none. Sent empty, the class goes back on the model's own figures.
+            data: given === 3
+              ? { watchPp: Number(watchPp), edgePp: Number(edgePp), breachPp: Number(breachPp) }
+              : { watchPp: null, edgePp: null, breachPp: null },
+          });
+        }}
+      >
+        {errors.form && <Alert tone="danger">{errors.form}</Alert>}
+        <p className="text-xs text-ink-muted">
+          {model?.watchAt != null
+            ? `Left blank, this client is held to the model's own figures: watched from ${model.watchAt}pp, at the edge from ${model.edgeAt}pp, breached from ${model.breachAt}pp.`
+            : "Left blank, this client is held to the model's own figures."}
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field id="class-watch" label="Watched from" error={errors.fields.watchPp}>
+            <TextInput
+              {...describedBy("class-watch", errors.fields.watchPp)}
+              id="class-watch"
+              inputMode="decimal"
+              className="text-right"
+              value={watchPp}
+              onChange={(event) => setWatchPp(asFigure(event.target.value, watchPp))}
+            />
+          </Field>
+          <Field id="class-edge" label="At the edge from" error={errors.fields.edgePp}>
+            <TextInput
+              {...describedBy("class-edge", errors.fields.edgePp)}
+              id="class-edge"
+              inputMode="decimal"
+              className="text-right"
+              value={edgePp}
+              onChange={(event) => setEdgePp(asFigure(event.target.value, edgePp))}
+            />
+          </Field>
+          <Field id="class-breach" label="Breached from" error={errors.fields.breachPp}>
+            <TextInput
+              {...describedBy("class-breach", errors.fields.breachPp)}
+              id="class-breach"
+              inputMode="decimal"
+              className="text-right"
+              value={breachPp}
+              onChange={(event) => setBreachPp(asFigure(event.target.value, breachPp))}
+            />
+          </Field>
+        </div>
+        {given > 0 && given < 3 && (
+          <p className="text-xs text-amber-700">
+            All three or none. With any of them blank this client is held to the model's figures.
+          </p>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} disabled={set.isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={set.isPending}>
+            {set.isPending ? "Saving…" : given === 3 ? "Hold it to these" : "Hold it to the model"}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
 
 /** Where the sub-class is left blank, the holdings still need a heading to sit under. */
 const UNGROUPED = "Not grouped";
@@ -121,6 +231,8 @@ export function ClientHoldingsPanel({
   /** The class a new holding opens on, where this panel's own button was the one pressed. */
   const [newFor, setNewFor] = useState<string | null>(null);
   const [removing, setRemoving] = useState<PositionRow | null>(null);
+  /** The class whose tolerance is being set, where somebody asked to change what it may wander. */
+  const [tolerating, setTolerating] = useState<ClassPositions | null>(null);
 
   const open = editing;
   const startOn = editing === "new" ? newFor : null;
@@ -178,6 +290,7 @@ export function ClientHoldingsPanel({
               watchAt: null,
               edgeAt: null,
               breachAt: null,
+              ownTolerance: false,
               subClasses: [],
             },
         ),
@@ -327,6 +440,22 @@ export function ClientHoldingsPanel({
                       <span className="tabular-nums">{underManagementLabel(one.valueAmount, currency)}</span>
                     )}
                   </span>
+                  {/* What this class may wander, for a client the firm wants held to something other than
+                      the model. Changing it on the model moves it for every client on that model. */}
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => setTolerating(one)}
+                      aria-label={`How far ${one.assetClassName || one.assetClass} may wander`}
+                      title={`How far ${one.assetClassName || one.assetClass} may wander`}
+                      className={cn(
+                        "shrink-0 rounded-lg border border-line p-1.5 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
+                        one.ownTolerance ? "text-primary-700" : "text-ink-soft",
+                      )}
+                    >
+                      <SlidersHorizontal aria-hidden="true" className="size-4" />
+                    </button>
+                  )}
                   {/* Opened on this class, so the sub-classes offered are the ones this client's model names
                       inside it rather than the ones inside whichever class the list happened to start on. */}
                   {!readOnly && (
@@ -482,6 +611,18 @@ export function ClientHoldingsPanel({
             );
           })}
         </ul>
+      )}
+
+      {tolerating && (
+        <ToleranceDialog
+          customerId={customerId}
+          one={tolerating}
+          onClose={() => setTolerating(null)}
+          onSaved={() => {
+            setTolerating(null);
+            kept();
+          }}
+        />
       )}
 
       {open && (
