@@ -94,7 +94,7 @@ export function ClassStandingTable({
                     {row.assetClassName || row.assetClass}
                     {/* Each class is judged by its own tolerance, so the one that broke the model says so
                         here rather than leaving the reader to work it out from the figures. */}
-                    {row.standing !== "WITHIN_BAND" && (
+                    {row.standing && row.standing !== "WITHIN_BAND" && (
                       <span
                         className="mt-1 block font-normal"
                         title={`${driftLabel(row.drift)} from target. Watched from ${row.band.watchAt}, at the edge from ${row.band.edgeAt}, breached from ${row.band.breachAt}.`}
