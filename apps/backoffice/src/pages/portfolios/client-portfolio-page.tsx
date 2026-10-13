@@ -617,6 +617,21 @@ export function ClientPortfolioPage() {
         </fieldset>
       </section>
 
+      {/* What each class is actually made of, under the figures themselves. It used to sit at the foot of
+          the page, below every table measuring it, so the breakdown of a class was read long after the
+          verdict on it — and writing a holding down meant scrolling past the lot and back. */}
+      <ClientHoldingsPanel
+        customerId={customerId}
+        onChanged={kept}
+        against={tryingOn ? model : null}
+        addingFor={addingFor}
+        onAddingHandled={() => setAddingFor(null)}
+        onTouched={(id, before) =>
+          setTouchedHoldings((were) => (were.has(id) ? were : new Map(were).set(id, before)))
+        }
+        readOnly={!editing}
+      />
+
       {/* What the picked model would make of this client's own money, before anybody is put on it. Beside
           the table of what is on file rather than up by the picker, so the two read one after the other and
           the figures above them are the ones both are measuring. */}
@@ -732,18 +747,6 @@ export function ClientPortfolioPage() {
           onModelName={standing.data.modelName ?? "no model"}
         />
       )}
-
-      <ClientHoldingsPanel
-        customerId={customerId}
-        onChanged={kept}
-        against={tryingOn ? model : null}
-        addingFor={addingFor}
-        onAddingHandled={() => setAddingFor(null)}
-        onTouched={(id, before) =>
-          setTouchedHoldings((were) => (were.has(id) ? were : new Map(were).set(id, before)))
-        }
-        readOnly={!editing}
-      />
 
       {/* A holding is kept the moment it is added, so Discard has to take it off again rather than simply
           forget it. What is about to go is counted, because it is a line of somebody's portfolio. */}
