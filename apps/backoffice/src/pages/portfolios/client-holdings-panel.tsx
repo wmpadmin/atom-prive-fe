@@ -644,7 +644,11 @@ function HoldingDialog({
     <Dialog open title={position ? `Edit ${position.name}` : "Add a sub-asset"} size="lg" onClose={onClose}>
       <form ref={form} onSubmit={submit} className="space-y-4">
         {errors.form && <Alert tone="danger">{errors.form}</Alert>}
-        <div className="grid gap-3 sm:grid-cols-2">
+        {/* The sub-class carries three lines of explanation under it and the other two boxes carry none, so
+            side by side in one row they left a hole under the asset class and the figure stranded on a row
+            of its own. A column each instead: the short boxes stacked together, the long note beside them. */}
+        <div className="grid items-start gap-3 sm:grid-cols-2">
+          <div className="space-y-3">
           <Field id="holding-class" label="Asset class" required error={errors.fields.assetClass}>
             <SelectInput
               id="holding-class"
@@ -660,6 +664,16 @@ function HoldingDialog({
               ))}
             </SelectInput>
           </Field>
+          <Field id="holding-value" label="Worth" required error={errors.fields.valueAmount}>
+            <TextInput
+              {...describedBy("holding-value", errors.fields.valueAmount)}
+              id="holding-value"
+              inputMode="decimal"
+              value={valueAmount}
+              onChange={(event) => setValueAmount(event.target.value)}
+            />
+          </Field>
+          </div>
           {/* The groups the model names for this class, so a holding goes into one of them by being picked
               rather than by somebody typing its name again. A name typed a shade differently is a group the
               model says nothing about, and the holding then sits outside it with nothing to say why. */}
@@ -734,17 +748,6 @@ function HoldingDialog({
               </span>
             </p>
           )}
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field id="holding-value" label="Worth" required error={errors.fields.valueAmount}>
-            <TextInput
-              {...describedBy("holding-value", errors.fields.valueAmount)}
-              id="holding-value"
-              inputMode="decimal"
-              value={valueAmount}
-              onChange={(event) => setValueAmount(event.target.value)}
-            />
-          </Field>
         </div>
         {valueAmount.trim() !== "" && !readable && (
           <p className="text-xs text-rose-700">What a sub-asset is worth is a number, and not less than nothing.</p>
