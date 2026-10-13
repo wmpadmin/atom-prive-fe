@@ -4452,11 +4452,34 @@ export interface ValuationHistory {
   changeShare: number | null;
 }
 
+/**
+ * @nullable
+ */
+export type SubClassGroupStanding = typeof SubClassGroupStanding[keyof typeof SubClassGroupStanding] | null;
+
+
+export const SubClassGroupStanding = {
+  WITHIN_BAND: 'WITHIN_BAND',
+  WATCH: 'WATCH',
+  AT_EDGE: 'AT_EDGE',
+  BREACHED: 'BREACHED',
+} as const;
+
 export interface SubClassGroup {
   /** @nullable */
   subClass: string | null;
   valueAmount: number;
   shareOfClass: number;
+  /** @nullable */
+  targetShare: number | null;
+  /** @nullable */
+  targetValue: number | null;
+  /** @nullable */
+  drift: number | null;
+  /** @nullable */
+  standing: SubClassGroupStanding;
+  /** @nullable */
+  suggestion: number | null;
   positions: PositionRow[];
 }
 

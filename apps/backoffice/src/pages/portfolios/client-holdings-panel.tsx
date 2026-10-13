@@ -9,14 +9,14 @@ import {
   type ClientHoldings,
   type PositionRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
+import { Alert, Badge, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
 import { useAssetClasses } from "./asset-classes";
-import { underManagementLabel } from "./portfolio-labels";
+import { driftLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
 import { asFigure } from "../../lib/figures";
 
 /** Where the sub-class is left blank, the holdings still need a heading to sit under. */
@@ -138,13 +138,34 @@ export function ClientHoldingsPanel({
                   <div className="border-t border-line bg-slate-50/40 px-4 py-2">
                     {one.subClasses.map((group) => (
                       <div key={group.subClass ?? UNGROUPED} className="py-1.5">
-                        <p className="flex items-baseline justify-between gap-3 text-xs font-semibold text-ink-soft">
-                          <span>{group.subClass ?? UNGROUPED}</span>
+                        <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs font-semibold text-ink-soft">
+                          <span className="flex items-center gap-2">
+                            {group.subClass ?? UNGROUPED}
+                            {/* A class can sit on its target while the money inside it sits in the wrong
+                                places, because the halves cancel out. This is where that shows. */}
+                            {group.standing && group.standing !== "WITHIN_BAND" && (
+                              <Badge tone={standingTones[group.standing]}>{standingLabels[group.standing]}</Badge>
+                            )}
+                          </span>
                           <span className="tabular-nums text-ink-muted">
                             {underManagementLabel(group.valueAmount, currency)} · {group.shareOfClass.toFixed(1)}% of
                             the class
+                            {group.targetShare !== null && group.targetShare !== undefined && (
+                              <> · {group.targetShare.toFixed(1)}% asked for</>
+                            )}
                           </span>
                         </p>
+                        {/* What buying or selling would put the line back where the model asks for it. */}
+                        {group.suggestion !== null && group.suggestion !== undefined
+                          && group.suggestion.toFixed(2) !== "0.00" && (
+                          <p className="text-xs tabular-nums text-ink-muted">
+                            <span className="font-semibold tracking-wider uppercase">
+                              {group.suggestion > 0 ? "Buy" : "Sell"}
+                            </span>{" "}
+                            {underManagementLabel(Math.abs(group.suggestion), currency)}
+                            {group.drift !== null && group.drift !== undefined && ` · ${driftLabel(group.drift)} from target`}
+                          </p>
+                        )}
                         <ul className="mt-1 divide-y divide-line/70">
                           {group.positions.map((position) => (
                             <li key={position.id} className="flex items-center gap-3 py-1.5 text-sm">
