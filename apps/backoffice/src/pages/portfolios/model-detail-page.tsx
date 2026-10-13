@@ -126,7 +126,10 @@ export function ModelDetailPage() {
                   <th scope="col" className="px-4 py-2.5 text-right">Band</th>
                   <th scope="col" className="px-4 py-2.5 text-right">Actual avg</th>
                   <th scope="col" className="px-4 py-2.5 text-right">Deviation</th>
-                  <th scope="col" className="py-2.5 pr-6 pl-4">Status</th>
+                  {/* Whose standing this is. A red "Breached" under a bare "Status", on a page named after
+                      the model, reads as the model being breached — it is the clients on it that are out.
+                      The note above the table says so once; a column heading says it on every row. */}
+                  <th scope="col" className="py-2.5 pr-6 pl-4">Assigned portfolios</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
