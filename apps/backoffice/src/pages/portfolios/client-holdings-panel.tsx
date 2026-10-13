@@ -165,33 +165,54 @@ export function ClientHoldingsPanel({
             const isOpen = opened.has(classKey);
             return (
               <li key={classKey}>
-                <button
-                  type="button"
-                  onClick={() => one.heldAsPositions && toggle(classKey)}
-                  disabled={!one.heldAsPositions}
-                  className={cn(
-                    "flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm",
-                    one.heldAsPositions ? "hover:bg-slate-50/60" : "cursor-default",
-                  )}
-                >
-                  {one.heldAsPositions ? (
-                    isOpen ? (
-                      <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
+                {/* The class and the way to write something under it, side by side rather than nested: a
+                    button inside a button is not a thing a browser will render, and the way to break a class
+                    down used to live three panels up the page from the class it breaks down. */}
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => one.heldAsPositions && toggle(classKey)}
+                    disabled={!one.heldAsPositions}
+                    className={cn(
+                      "flex flex-1 items-center gap-2 px-4 py-2.5 text-left text-sm",
+                      one.heldAsPositions ? "hover:bg-slate-50/60" : "cursor-default",
+                    )}
+                  >
+                    {one.heldAsPositions ? (
+                      isOpen ? (
+                        <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
+                      ) : (
+                        <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
+                      )
                     ) : (
-                      <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
-                    )
-                  ) : (
-                    <span aria-hidden="true" className="size-4 shrink-0" />
+                      <span aria-hidden="true" className="size-4 shrink-0" />
+                    )}
+                    <span className="flex-1 font-semibold">
+                      {/* Named by the API from the firm's own list; the code stands in for one it has since taken off. */}
+                      {one.assetClassName || one.assetClass}
+                    </span>
+                    {!one.heldAsPositions && (
+                      <span className="text-2xs tracking-wider text-ink-muted uppercase">No holdings listed</span>
+                    )}
+                    <span className="tabular-nums">{underManagementLabel(one.valueAmount, currency)}</span>
+                  </button>
+                  {/* Opened on this class, so the sub-classes offered are the ones this client's model names
+                      inside it rather than the ones inside whichever class the list happened to start on. */}
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewFor(classKey);
+                        setEditing("new");
+                      }}
+                      aria-label={`Add a holding to ${one.assetClassName || one.assetClass}`}
+                      className="mr-3 ml-2 flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 hover:underline"
+                    >
+                      <Plus aria-hidden="true" className="size-3.5" />
+                      Add
+                    </button>
                   )}
-                  <span className="flex-1 font-semibold">
-                    {/* Named by the API from the firm's own list; the code stands in for one it has since taken off. */}
-                    {one.assetClassName || one.assetClass}
-                  </span>
-                  {!one.heldAsPositions && (
-                    <span className="text-2xs tracking-wider text-ink-muted uppercase">No holdings listed</span>
-                  )}
-                  <span className="tabular-nums">{underManagementLabel(one.valueAmount, currency)}</span>
-                </button>
+                </div>
 
                 {isOpen && (
                   <div className="border-t border-line bg-slate-50/40 px-4 py-2">
