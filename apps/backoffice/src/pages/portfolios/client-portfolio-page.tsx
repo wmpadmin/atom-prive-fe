@@ -18,6 +18,7 @@ import {
   useSetClientModelPortfolio,
   usePreviewPortfolioCurrency,
   useSetPortfolioCurrency,
+  type ClassStanding,
   type ClientHoldings,
   type Currency,
   type CustomerDetail,
@@ -245,6 +246,10 @@ export function ClientPortfolioPage() {
   const preview = useClientOnThatModel<PortfolioStanding, ApiError>(customerId, tryingOn ? model : "", {
     query: { enabled: tryingOn },
   });
+  // How each class stands, read against whatever the screen is showing: the model picked but not yet saved
+  // where there is one, so a badge beside a box and the table under it are never measuring different plans.
+  const measuring = tryingOn ? preview.data : standing.data;
+  const classStandings = new Map((measuring?.classes ?? []).map((row) => [row.assetClass, row]));
   const figuresChanged =
     held !== null && JSON.stringify(held) !== JSON.stringify(heldFrom(standing.data, boxes));
   const unsaved =
@@ -559,6 +564,16 @@ export function ClientPortfolioPage() {
                         setHeld({ ...holdings, [assetClass]: asFigure(event.target.value, holdings[assetClass]) })
                       }
                     />
+                    {/* How this class stands, said where the figure itself is. The table below says it of
+                        every class at once, and the panel under that says it of every line inside one — but
+                        the box somebody actually changes said nothing, so the one place the figure moves was
+                        the one place that would not say what moving it had done.
+
+                        Held back while a figure is typed and not saved: every share is worked out against the
+                        total, so one box changed makes the standing beside any of them wrong. */}
+                    {!figuresChanged && (
+                      <ClassStandingNote row={classStandings.get(assetClass)} currency={currency} />
+                    )}
                     {/* Written down from where the class is being read, rather than by scrolling past three
                         panels to find the one that takes them. The first holding under a class takes the
                         figure out of the box above and works it out from the lines instead, so this is also
@@ -851,6 +866,42 @@ function Dealt({
  * answered, and treating silence as a wrong answer would have every client the questionnaire has not reached
  * look wrongly placed.
  */
+/**
+ * How one class stands against the model, written the way the holdings panel writes a line inside a class:
+ * the standing as a badge, where the class sits against what is asked of it, and what buying or selling
+ * would put it back.
+ *
+ * <p>Quiet where there is nothing to say. A class sitting inside its band with nothing to move still shows
+ * where it sits, because that is the figure somebody is about to change; a client on no model shows nothing
+ * at all, because nothing has been asked of them.
+ */
+function ClassStandingNote({ row, currency }: { row: ClassStanding | undefined; currency: string }) {
+  if (!row) return null;
+  // Rounded before it is judged, so a figure that prints as nothing to do does not also say to sell it.
+  const move = Math.abs(row.suggestion) < 0.005 ? 0 : row.suggestion;
+  return (
+    <div className="space-y-0.5">
+      <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs font-semibold text-ink-soft">
+        <span>
+          {row.standing && row.standing !== "WITHIN_BAND" && (
+            <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>
+          )}
+        </span>
+        <span className="tabular-nums text-ink-muted">
+          {row.actualShare.toFixed(1)}% of the portfolio · {row.targetShare.toFixed(1)}% asked for
+        </span>
+      </p>
+      {/* What buying or selling would put the class back where the model asks for it. */}
+      {move !== 0 && (
+        <p className="text-xs tabular-nums text-ink-muted">
+          <span className="font-semibold tracking-wider uppercase">{move > 0 ? "Buy" : "Sell"}</span>{" "}
+          {underManagementLabel(Math.abs(move), currency)} · {driftLabel(row.drift)} from target
+        </p>
+      )}
+    </div>
+  );
+}
+
 function RiskMatchNote({ match }: { match: RiskMatch | null }) {
   if (!match) {
     return (
