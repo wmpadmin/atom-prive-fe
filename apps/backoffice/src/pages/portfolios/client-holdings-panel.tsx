@@ -256,21 +256,10 @@ export function ClientHoldingsPanel({
                       <Badge tone={standingTones[one.standing]}>{standingLabels[one.standing]}</Badge>
                     )}
                   </button>
-                  {/* What buying or selling would put the class back where the model asks for it, beside the
-                      verdict rather than under it: the two are one statement. */}
-                  <span className="min-w-0 flex-1 truncate text-right text-xs tabular-nums text-ink-muted">
-                    {one.standing && one.standing !== "WITHIN_BAND" && one.suggestion !== null
-                      && one.suggestion !== undefined && one.suggestion.toFixed(2) !== "0.00" && (
-                      <>
-                        <span className="font-semibold tracking-wider uppercase">
-                          {one.suggestion > 0 ? "Buy" : "Sell"}
-                        </span>{" "}
-                        {underManagementLabel(Math.abs(one.suggestion), currency)}
-                        {one.drift !== null && one.drift !== undefined
-                          && ` · ${driftLabel(one.drift)} from target`}
-                      </>
-                    )}
-                  </span>
+                  {/* What to buy or sell, and how far the class has wandered, used to be written here as
+                      "SELL USD 350 · +70.0pp from target" — a row of figures with no heading over any of
+                      them. The same facts are in the table above this one, under columns that name them. */}
+                  <span className="flex-1" />
                   {/* Said in the same word the list above uses for them, and on one line: wrapped onto two
                       it made its own row taller than every other. */}
                   <span className="hidden w-32 shrink-0 text-right text-2xs tracking-wider whitespace-nowrap text-ink-muted uppercase sm:block">
