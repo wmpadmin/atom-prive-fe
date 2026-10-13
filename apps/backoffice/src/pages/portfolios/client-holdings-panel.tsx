@@ -196,14 +196,17 @@ export function ClientHoldingsPanel({
           Nothing is written down yet.
         </p>
       ) : (
-        <ul className="divide-y divide-line rounded-xl border border-line">
+        /* A card each, rather than one unbroken list. Run together, the holdings of one class sat directly
+           above the next class's own row with nothing but a hairline between them, so where one class ended
+           and the next began had to be worked out from the indent. */
+        <ul className="space-y-3">
           {classes.map((one) => {
             const classKey = one.assetClass;
             // Written here rather than only read: the page hands in the figures and takes them back.
             const typing = !readOnly && figures !== undefined && onFigure !== undefined;
             const isOpen = one.heldAsPositions && !shut.has(classKey);
             return (
-              <li key={classKey}>
+              <li key={classKey} className="overflow-hidden rounded-xl border border-line bg-white">
                 {/* One row, in columns: the class, what to do about it, what it is worth, and the way to
                     write something under it. The figures used to be pushed left and right by whatever
                     happened to sit beside them, so no two lined up, and what to do about a class hung
