@@ -80,7 +80,10 @@ export function ClientHoldingsPanel({
     customerId,
     against ? { against } : undefined,
   );
-  const [opened, setOpened] = useState<Set<string>>(new Set());
+  // What has been shut, rather than what has been opened: a class is open until somebody closes it. Kept
+  // this way round because the classes arrive after the first render, and a set of what is open would have
+  // to be filled in from them by an effect that renders twice to say what the list already said.
+  const [shut, setShut] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<PositionRow | "new" | null>(null);
   /** The class a new holding opens on, where this panel's own button was the one pressed. */
   const [newFor, setNewFor] = useState<string | null>(null);
@@ -146,7 +149,7 @@ export function ClientHoldingsPanel({
       ]
     : written;
   const toggle = (key: string) =>
-    setOpened((was) => {
+    setShut((was) => {
       const next = new Set(was);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -198,19 +201,23 @@ export function ClientHoldingsPanel({
             const classKey = one.assetClass;
             // Written here rather than only read: the page hands in the figures and takes them back.
             const typing = !readOnly && figures !== undefined && onFigure !== undefined;
-            const isOpen = opened.has(classKey);
+            const isOpen = one.heldAsPositions && !shut.has(classKey);
             return (
               <li key={classKey}>
-                {/* The class and the way to write something under it, side by side rather than nested: a
-                    button inside a button is not a thing a browser will render, and the way to break a class
-                    down used to live three panels up the page from the class it breaks down. */}
-                <div className="flex items-center gap-2 px-4 py-1.5">
+                {/* One row, in columns: the class, what to do about it, what it is worth, and the way to
+                    write something under it. The figures used to be pushed left and right by whatever
+                    happened to sit beside them, so no two lined up, and what to do about a class hung
+                    underneath it on a line of its own that made every row a different height.
+
+                    The class and the way to write under it are side by side rather than nested: a button
+                    inside a button is not a thing a browser will render. */}
+                <div className="flex items-center gap-3 px-4 py-2 text-sm">
                   <button
                     type="button"
                     onClick={() => one.heldAsPositions && toggle(classKey)}
                     disabled={!one.heldAsPositions}
                     className={cn(
-                      "flex flex-1 items-center gap-2 py-1 text-left text-sm",
+                      "flex shrink-0 items-center gap-2 rounded text-left",
                       one.heldAsPositions ? "hover:underline" : "cursor-default",
                     )}
                   >
@@ -223,44 +230,54 @@ export function ClientHoldingsPanel({
                     ) : (
                       <span aria-hidden="true" className="size-4 shrink-0" />
                     )}
-                    <span className="flex items-center gap-2 font-semibold">
+                    <span className="font-semibold">
                       {/* Named by the API from the firm's own list; the code stands in for one it has since taken off. */}
                       {one.assetClassName || one.assetClass}
-                      {/* The class's own standing, which is not the standing of the lines inside it: a class
-                          can breach while every line inside it sits exactly where the model asks, because it
-                          is the class that holds too much. */}
-                      {one.standing && one.standing !== "WITHIN_BAND" && (
-                        <Badge tone={standingTones[one.standing]}>{standingLabels[one.standing]}</Badge>
-                      )}
                     </span>
-                    <span className="flex-1" />
+                    {/* The class's own standing, which is not the standing of the lines inside it: a class
+                        can breach while every line inside it sits exactly where the model asks, because it
+                        is the class that holds too much. */}
+                    {one.standing && one.standing !== "WITHIN_BAND" && (
+                      <Badge tone={standingTones[one.standing]}>{standingLabels[one.standing]}</Badge>
+                    )}
                   </button>
+                  {/* What buying or selling would put the class back where the model asks for it, beside the
+                      verdict rather than under it: the two are one statement. */}
+                  <span className="min-w-0 flex-1 truncate text-right text-xs tabular-nums text-ink-muted">
+                    {one.standing && one.standing !== "WITHIN_BAND" && one.suggestion !== null
+                      && one.suggestion !== undefined && one.suggestion.toFixed(2) !== "0.00" && (
+                      <>
+                        <span className="font-semibold tracking-wider uppercase">
+                          {one.suggestion > 0 ? "Buy" : "Sell"}
+                        </span>{" "}
+                        {underManagementLabel(Math.abs(one.suggestion), currency)}
+                        {one.drift !== null && one.drift !== undefined
+                          && ` · ${driftLabel(one.drift)} from target`}
+                      </>
+                    )}
+                  </span>
+                  {/* Said in the same word the list above uses for them, and on one line: wrapped onto two
+                      it made its own row taller than every other. */}
+                  <span className="hidden w-32 shrink-0 text-right text-2xs tracking-wider whitespace-nowrap text-ink-muted uppercase sm:block">
+                    {one.heldAsPositions ? "From its lines" : typing ? "" : "No lines"}
+                  </span>
                   {/* A class listed holding by holding is read here, never typed: the API refuses a figure
                       that disagrees with its lines, and a box that can only be refused is a box that should
                       not take a figure in the first place. */}
-                  {typing && !one.heldAsPositions ? (
-                    <TextInput
-                      id={`holding-${classKey}`}
-                      aria-label={`What they hold in ${one.assetClassName || one.assetClass}`}
-                      inputMode="decimal"
-                      className="h-9 w-36 text-right"
-                      value={figures?.[classKey] ?? ""}
-                      onChange={(event) => onFigure?.(classKey, event.target.value)}
-                    />
-                  ) : (
-                    <span className="flex items-center gap-2 text-sm">
-                      {one.heldAsPositions ? (
-                        <span className="text-2xs tracking-wider text-ink-muted uppercase">
-                          From its holdings
-                        </span>
-                      ) : (
-                        <span className="text-2xs tracking-wider text-ink-muted uppercase">
-                          No holdings listed
-                        </span>
-                      )}
+                  <span className="w-32 shrink-0 text-right">
+                    {typing && !one.heldAsPositions ? (
+                      <TextInput
+                        id={`holding-${classKey}`}
+                        aria-label={`What they hold in ${one.assetClassName || one.assetClass}`}
+                        inputMode="decimal"
+                        className="h-9 text-right"
+                        value={figures?.[classKey] ?? ""}
+                        onChange={(event) => onFigure?.(classKey, event.target.value)}
+                      />
+                    ) : (
                       <span className="tabular-nums">{underManagementLabel(one.valueAmount, currency)}</span>
-                    </span>
-                  )}
+                    )}
+                  </span>
                   {/* Opened on this class, so the sub-classes offered are the ones this client's model names
                       inside it rather than the ones inside whichever class the list happened to start on. */}
                   {!readOnly && (
@@ -271,26 +288,13 @@ export function ClientHoldingsPanel({
                         setEditing("new");
                       }}
                       aria-label={`Add a holding to ${one.assetClassName || one.assetClass}`}
-                      className="mr-3 ml-2 flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 hover:underline"
+                      className="flex w-16 shrink-0 items-center justify-end gap-1 rounded-lg py-1 text-xs font-medium text-primary-700 hover:underline"
                     >
                       <Plus aria-hidden="true" className="size-3.5" />
                       Add
                     </button>
                   )}
                 </div>
-
-                {/* What buying or selling would put the class back where the model asks for it, said whether
-                    or not the class is opened: the verdict and what to do about it belong together. */}
-                {one.standing && one.standing !== "WITHIN_BAND" && one.suggestion !== null
-                  && one.suggestion !== undefined && one.suggestion.toFixed(2) !== "0.00" && (
-                  <p className="px-4 pb-1.5 pl-10 text-xs tabular-nums text-ink-muted">
-                    <span className="font-semibold tracking-wider uppercase">
-                      {one.suggestion > 0 ? "Buy" : "Sell"}
-                    </span>{" "}
-                    {underManagementLabel(Math.abs(one.suggestion), currency)}
-                    {one.drift !== null && one.drift !== undefined && ` · ${driftLabel(one.drift)} from target`}
-                  </p>
-                )}
 
                 {isOpen && (
                   <div className="border-t border-line bg-slate-50/40 px-4 py-2">
