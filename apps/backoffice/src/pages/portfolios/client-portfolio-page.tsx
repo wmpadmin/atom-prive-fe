@@ -13,6 +13,7 @@ import {
   useChangeClientHolding,
   useRecordClientHolding,
   useRemoveClientHolding,
+  useWriteTheirOwnAllocation,
   type PositionRow,
   useSetClientModelPortfolio,
   usePreviewPortfolioCurrency,
@@ -41,6 +42,7 @@ import { useAssetClasses } from "./asset-classes";
 import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
+import { ModelDialog } from "./model-dialog";
 import { driftLabel, riskProfileLabel, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
 import { ConfirmDialog } from "../config/confirm-dialog";
 import { LeaveWithoutSaving } from "../../components/leave-without-saving";
@@ -147,6 +149,21 @@ export function ClientPortfolioPage() {
   // edit, not the state between the two.
   const [touchedHoldings, setTouchedHoldings] = useState<Map<string, PositionRow | null>>(new Map());
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  // Writing this client an allocation of their own: the same dialog a model is written in, because that is
+  // what it is — targets, bands and the lines inside a class, belonging to one person.
+  const [writingOwn, setWritingOwn] = useState(false);
+  const [ownErrors, setOwnErrors] = useState<FormErrors>(noErrors);
+  const writeOwn = useWriteTheirOwnAllocation<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        setWritingOwn(false);
+        setOwnErrors(noErrors);
+        setChosenModel(null);
+        kept();
+      },
+      onError: (caught) => setOwnErrors(toFormErrors(caught)),
+    },
+  });
   /** The model picked but not yet kept. Nothing on this screen writes until Save is pressed. */
   const [chosenModel, setChosenModel] = useState<string | null>(null);
 
@@ -457,6 +474,27 @@ export function ClientPortfolioPage() {
                 ))}
           </SelectInput>
         </Field>
+        {/* An allocation of their own is written in the same dialog a model is, because it is the same
+            thing: targets, bands, and the lines inside a class. What differs is who it belongs to. */}
+        {editing && !standing.data?.customModel && (
+          <p className="mt-3 text-xs text-ink-muted">
+            None of these fit?{" "}
+            <button
+              type="button"
+              onClick={() => setWritingOwn(true)}
+              className="font-medium text-primary-700 hover:underline"
+            >
+              Write this client an allocation of their own
+            </button>
+            . It is measured like any plan, and nothing acts on it by itself.
+          </p>
+        )}
+        {standing.data?.customModel && (
+          <p className="mt-3 text-xs text-ink-muted">
+            This client is on an allocation written for them alone. It is not offered to anybody else, not
+            rebalanced with the firm's plans, and nobody is told overnight when it drifts.
+          </p>
+        )}
         <RiskMatchNote match={(tryingOn ? preview.data?.riskMatch : standing.data?.riskMatch) ?? null} />
         {/* What the picked model would make of this client's own money, before anybody is put on it. The
             same table they read afterwards, so the figures are compared like with like. */}
@@ -474,6 +512,7 @@ export function ClientPortfolioPage() {
               <ClassStandingTable
                 classes={preview.data.classes}
                 currency={preview.data.currency}
+                suggestions={!preview.data.customModel}
                 underManagement={preview.data.underManagement}
               />
             </div>
@@ -601,6 +640,7 @@ export function ClientPortfolioPage() {
                 <ClassStandingTable
                   classes={standing.data.classes}
                   currency={standing.data.currency}
+                  suggestions={!standing.data.customModel}
                   underManagement={standing.data.underManagement}
                 />
               </div>
@@ -687,6 +727,19 @@ export function ClientPortfolioPage() {
 
       {/* A holding is kept the moment it is added, so Discard has to take it off again rather than simply
           forget it. What is about to go is counted, because it is a line of somebody's portfolio. */}
+      {writingOwn && (
+        <ModelDialog
+          model={null}
+          errors={ownErrors}
+          busy={writeOwn.isPending}
+          onClose={() => {
+            setWritingOwn(false);
+            setOwnErrors(noErrors);
+          }}
+          onSave={(data) => writeOwn.mutate({ customerId, data })}
+        />
+      )}
+
       <ConfirmDialog
         open={confirmingDiscard}
         title={touchedHoldings.size === 1 ? "Discard, and put the holding back?" : "Discard, and put the holdings back?"}

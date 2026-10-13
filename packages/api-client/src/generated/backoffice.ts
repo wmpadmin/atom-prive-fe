@@ -755,6 +755,7 @@ export interface PortfolioStanding {
   /** @nullable */
   reviewDueOn: string | null;
   reviewOverdue: boolean;
+  customModel: boolean;
   riskMatch: RiskMatch | null;
 }
 
@@ -14288,6 +14289,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordRebalanceMutationOptions(options), queryClient);
+    }
+
+export const getWriteTheirOwnAllocationUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/own-allocation`
+}
+
+export const writeTheirOwnAllocation = async (customerId: string,
+    modelRequest: ModelRequest, options?: Parameters<typeof http>[1]): Promise<PortfolioStanding> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<PortfolioStanding>(getWriteTheirOwnAllocationUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(modelRequest)
+  }
+);}
+
+
+
+
+
+export const getWriteTheirOwnAllocationMutationKey = () => ['writeTheirOwnAllocation'] as const;
+
+export const getWriteTheirOwnAllocationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeTheirOwnAllocation>>, TError,WriteTheirOwnAllocationMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof writeTheirOwnAllocation>>, TError,WriteTheirOwnAllocationMutationVariables, TContext> => {
+
+const mutationKey = getWriteTheirOwnAllocationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof writeTheirOwnAllocation>>, WriteTheirOwnAllocationMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  writeTheirOwnAllocation(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WriteTheirOwnAllocationMutationResult = NonNullable<Awaited<ReturnType<typeof writeTheirOwnAllocation>>>
+    export type WriteTheirOwnAllocationMutationBody = ModelRequest
+    export type WriteTheirOwnAllocationMutationError = unknown
+    export type WriteTheirOwnAllocationMutationVariables = {customerId: string;data: ModelRequest}
+
+    export const useWriteTheirOwnAllocation = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeTheirOwnAllocation>>, TError,WriteTheirOwnAllocationMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof writeTheirOwnAllocation>>,
+        TError,
+        WriteTheirOwnAllocationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWriteTheirOwnAllocationMutationOptions(options), queryClient);
     }
 
 export const getListClientCashflowsUrl = (customerId: string,) => {

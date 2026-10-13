@@ -30,8 +30,14 @@ export function ClassStandingTable({
   classes,
   currency,
   underManagement,
+  suggestions = true,
 }: {
   classes: ClassStanding[];
+  /**
+   * Whether to say what would put each class back. An allocation written for one client is measured like
+   * any other and acted on by nothing, so a suggestion beside it would be advice the platform will not take.
+   */
+  suggestions?: boolean;
   currency: string;
   underManagement: number;
 }) {
@@ -71,9 +77,11 @@ export function ClassStandingTable({
               <th scope="col" className="px-4 py-3 text-right">
                 Gap
               </th>
-              <th scope="col" className="py-3 pl-4 text-right">
-                Suggestion
-              </th>
+              {suggestions && (
+                <th scope="col" className="py-3 pl-4 text-right">
+                  Suggestion
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -106,12 +114,14 @@ export function ClassStandingTable({
                   <td className={NUMBER} title={`${driftLabel(row.drift)} from target.`}>
                     {driftLabel(row.drift)}
                   </td>
-                  <td className={`${NUMBER} pr-0 pl-4`}>
-                    <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                      {move.word}
-                    </span>{" "}
-                    {move.figure}
-                  </td>
+                  {suggestions && (
+                    <td className={`${NUMBER} pr-0 pl-4`}>
+                      <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                        {move.word}
+                      </span>{" "}
+                      {move.figure}
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -126,12 +136,19 @@ export function ClassStandingTable({
               <td className={NUMBER}>{share(classes.reduce((sum, row) => sum + row.actualShare, 0))}</td>
               <td className={NUMBER}>{money(underManagement)}</td>
               <td className={NUMBER} />
-              <td className={`${NUMBER} pr-0 pl-4`}>{money(moving)}</td>
+              {suggestions && <td className={`${NUMBER} pr-0 pl-4`}>{money(moving)}</td>}
             </tr>
           </tfoot>
         </table>
       </div>
       <p className="mt-2 text-xs text-ink-muted">
+        {!suggestions && (
+          <>
+            Figures in {currency}. This allocation was written for this client alone, so nothing acts on it:
+            the drift is here to be read, and what to do about it is yours.
+          </>
+        )}
+        {suggestions && <>
         Figures in {currency}. Buying and selling cancel out, because a rebalance only moves money between
         classes — it never adds or takes any away.{" "}
         {balances ? (
@@ -142,6 +159,7 @@ export function ClassStandingTable({
             looking at before anything is traded on them.
           </span>
         )}
+        </>}
       </p>
     </div>
   );
