@@ -474,11 +474,15 @@ export function ClientPortfolioPage() {
       {/* One column, read top to bottom. Side by side, two panels are never the same height, so whichever
           is shorter leaves a hole beside the other — and the hole moves about as the figures change. */}
       <section className="rounded-2xl border border-line bg-white px-6 py-5">
-        <Field id="client-model" label="Measured against">
+        {/* The plan and the sum it is read against, side by side: the two together are what every figure
+            further down the page is worked out from, and neither says much without the other. */}
+        <div className="flex flex-wrap items-start gap-4">
+        <Field id="client-model" label="Measured against" className="min-w-0 max-w-full">
               {/* Kept by Save like everything else. Written the moment it was picked, a reader who brushed
                   the list changed what the client is measured against and was never asked. */}
               <SelectInput
                 id="client-model"
+                className="w-auto max-w-full"
                 value={model}
                 disabled={!editing || saving}
                 onChange={(event) => setChosenModel(event.target.value)}
@@ -498,6 +502,35 @@ export function ClientPortfolioPage() {
                 ))}
           </SelectInput>
         </Field>
+        {/* What the client has in all, where the firm has been told. Every share on this page is a share of
+            it: measured instead against the part that has been typed in, a client with one holding recorded
+            reads as wholly in that class and so breached, when they may be exactly on their model. Left
+            blank, the holdings are the whole story — which is how this screen has always worked, and still
+            works for anybody who does not know the total until they have added it up. */}
+        <Field
+          id="client-net-aum"
+          label="Net AUM"
+          hint={
+            netAum.trim() === ""
+              ? "Optional. What the client has in all, if you know it."
+              : unwritten > 0
+                ? `${currency} ${unwritten.toLocaleString()} of this is not written down yet.`
+                : "Every share below is a share of this."
+          }
+        >
+          {/* Figures only, and at most one decimal point: anything else never reaches the box. */}
+          <TextInput
+            id="client-net-aum"
+            inputMode="decimal"
+            className="w-44 text-right"
+            placeholder="Not said"
+            readOnly={!editing}
+            aria-readonly={!editing}
+            value={netAum}
+            onChange={(event) => setNetAum(asFigure(event.target.value, netAum))}
+          />
+        </Field>
+        </div>
         {/* An allocation of their own is written in the same dialog a model is, because it is the same
             thing: targets, bands, and the lines inside a class. What differs is who it belongs to. */}
         {editing && !standing.data?.customModel && (
@@ -586,35 +619,7 @@ export function ClientPortfolioPage() {
                     Written down by hand: no custodian feed delivers these yet.
                   </p>
                 </div>
-                <div className="flex flex-wrap items-start gap-4">
-                  {/* What the client has in all, where the firm has been told. Every share on this page is
-                      a share of it: measured instead against the part that has been typed in, a client with
-                      one holding recorded reads as wholly in that class and so breached, when they may be
-                      exactly on their model. Left blank, the holdings below are the whole story — which is
-                      how this screen has always worked, and still works for anybody who does not know. */}
-                  <Field
-                    id="holdings-net-aum"
-                    label="Net AUM"
-                    hint={
-                      netAum.trim() === ""
-                        ? "Optional. What the client has in all, if you know it before writing the holdings."
-                        : unwritten > 0
-                          ? `${currency} ${unwritten.toLocaleString()} of this is not written down below yet.`
-                          : "Every figure below is a share of this."
-                    }
-                  >
-                    <TextInput
-                      id="holdings-net-aum"
-                      inputMode="decimal"
-                      className="w-44 text-right"
-                      placeholder="Not said"
-                      readOnly={!editing}
-                      aria-readonly={!editing}
-                      value={netAum}
-                      onChange={(event) => setNetAum(asFigure(event.target.value, netAum))}
-                    />
-                  </Field>
-                  <Field id="holdings-currency" label="Currency">
+                <Field id="holdings-currency" label="Currency">
                   {/* Restating a portfolio and retyping its figures cannot be asked for in one go: the
                       typed figures would be in the currency being left behind, and nothing could say
                       which of the two was meant. */}
@@ -636,8 +641,7 @@ export function ClientPortfolioPage() {
                       </option>
                     ))}
                   </SelectInput>
-                  </Field>
-                </div>
+                </Field>
               </div>
               {/* What each class is worth, and what it is made of, in one list. The figures used to be a
                   grid of boxes with the breakdown of them at the foot of the page, so a class was typed in
