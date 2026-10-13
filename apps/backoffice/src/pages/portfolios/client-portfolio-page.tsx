@@ -27,7 +27,7 @@ import {
   type RiskMatch,
   useClientOnThatModel,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, DateInput, Field, SelectInput, TextInput, describedBy } from "@atomprive/ui";
+import { Alert, Badge, Button, DateInput, Field, SelectInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
@@ -152,8 +152,6 @@ export function ClientPortfolioPage() {
   // Writing this client an allocation of their own: the same dialog a model is written in, because that is
   // what it is — targets, bands and the lines inside a class, belonging to one person.
   const [writingOwn, setWritingOwn] = useState(false);
-  // A class somebody asked to write a holding under, from the figures rather than from the panel below.
-  const [addingFor, setAddingFor] = useState<string | null>(null);
   const [ownErrors, setOwnErrors] = useState<FormErrors>(noErrors);
   const writeOwn = useWriteTheirOwnAllocation<ApiError>({
     mutation: {
@@ -232,9 +230,6 @@ export function ClientPortfolioPage() {
   const on = rebalancedOn ?? standing.data?.lastRebalancedOn ?? "";
   const looked = reviewedOn ?? standing.data?.lastReviewedOn ?? "";
   const total = Object.values(holdings).reduce((sum, typed) => sum + (Number(typed) || 0), 0);
-  const fromLines = new Set(
-    (lines.data?.classes ?? []).filter((one) => one.heldAsPositions).map((one) => one.assetClass),
-  );
   // What is typed but not yet saved. The table below reads what is on file, so a figure changed in a box and
   // not kept would otherwise be contradicted by the standings beside it with nothing to say why.
   // The portfolio arrives after the first render, so the box reads from it until somebody picks another.
@@ -507,10 +502,10 @@ export function ClientPortfolioPage() {
                   <legend className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                     What they hold
                   </legend>
+                  {/* What a class listed holding by holding does with its total is said by the list itself
+                      now that the list is here, rather than twice over by the heading above it. */}
                   <p className="mt-1 max-w-prose text-xs text-ink-muted">
-                    Written down by hand: no custodian feed delivers these yet. A class listed holding by
-                    holding below takes its total from those holdings, so its figure here is worked out
-                    rather than typed.
+                    Written down by hand: no custodian feed delivers these yet.
                   </p>
                 </div>
                 <Field id="holdings-currency" label="Currency">
@@ -537,43 +532,24 @@ export function ClientPortfolioPage() {
                   </SelectInput>
                 </Field>
               </div>
-              <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
-                {boxes.map((assetClass) => (
-                  <Field
-                    key={assetClass}
-                    id={`holding-${assetClass}`}
-                    label={assetClasses.names[assetClass] ?? assetClass}
-                    hint={fromLines.has(assetClass) ? "Worked out from its holdings below." : undefined}
-                  >
-                    {/* A class listed holding by holding is read here, never typed: the API refuses a figure
-                        that disagrees with its lines, and a box that can only be refused is a box that should
-                        not take a figure in the first place. */}
-                    <TextInput
-                      {...describedBy(`holding-${assetClass}`, errors.fields.holdings)}
-                      id={`holding-${assetClass}`}
-                      inputMode="decimal"
-                      readOnly={!editing || fromLines.has(assetClass)}
-                      className={!editing || fromLines.has(assetClass) ? "bg-canvas text-ink-muted" : undefined}
-                      value={holdings[assetClass]}
-                      onChange={(event) =>
-                        setHeld({ ...holdings, [assetClass]: asFigure(event.target.value, holdings[assetClass]) })
-                      }
-                    />
-                    {/* Written down from where the class is being read, rather than by scrolling past three
-                        panels to find the one that takes them. The first holding under a class takes the
-                        figure out of the box above and works it out from the lines instead, so this is also
-                        the way out of typing a total somebody will have to keep in step by hand. */}
-                    {editing && (
-                      <button
-                        type="button"
-                        onClick={() => setAddingFor(assetClass)}
-                        className="mt-1 text-xs font-medium text-primary-700 hover:underline"
-                      >
-                        {fromLines.has(assetClass) ? "Add another holding" : "Break it into holdings"}
-                      </button>
-                    )}
-                  </Field>
-                ))}
+              {/* What each class is worth, and what it is made of, in one list. The figures used to be a
+                  grid of boxes with the breakdown of them at the foot of the page, so a class was typed in
+                  one place and read in another, and the two were never on screen together. */}
+              <div className="mt-3">
+                <ClientHoldingsPanel
+                  customerId={customerId}
+                  onChanged={kept}
+                  against={tryingOn ? model : null}
+                  figures={editing ? holdings : undefined}
+                  onFigure={(assetClass, said) =>
+                    setHeld({ ...holdings, [assetClass]: asFigure(said, holdings[assetClass]) })
+                  }
+                  offer={boxes}
+                  onTouched={(id, before) =>
+                    setTouchedHoldings((were) => (were.has(id) ? were : new Map(were).set(id, before)))
+                  }
+                  readOnly={!editing}
+                />
               </div>
               {/* Said under the boxes rather than beside the picker: a line of explanation hung off a
                   control stretches the row it is in, and the heading next to it moves with it. */}
@@ -616,21 +592,6 @@ export function ClientPortfolioPage() {
           </div>
         </fieldset>
       </section>
-
-      {/* What each class is actually made of, under the figures themselves. It used to sit at the foot of
-          the page, below every table measuring it, so the breakdown of a class was read long after the
-          verdict on it — and writing a holding down meant scrolling past the lot and back. */}
-      <ClientHoldingsPanel
-        customerId={customerId}
-        onChanged={kept}
-        against={tryingOn ? model : null}
-        addingFor={addingFor}
-        onAddingHandled={() => setAddingFor(null)}
-        onTouched={(id, before) =>
-          setTouchedHoldings((were) => (were.has(id) ? were : new Map(were).set(id, before)))
-        }
-        readOnly={!editing}
-      />
 
       {/* What the picked model would make of this client's own money, before anybody is put on it. Beside
           the table of what is on file rather than up by the picker, so the two read one after the other and
