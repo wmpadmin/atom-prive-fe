@@ -496,28 +496,6 @@ export function ClientPortfolioPage() {
           </p>
         )}
         <RiskMatchNote match={(tryingOn ? preview.data?.riskMatch : standing.data?.riskMatch) ?? null} />
-        {/* What the picked model would make of this client's own money, before anybody is put on it. The
-            same table they read afterwards, so the figures are compared like with like. */}
-        {tryingOn && preview.isError && <Alert tone="danger">{preview.error.message}</Alert>}
-        {tryingOn && preview.data && (
-          <div className="mt-4">
-            <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              On {preview.data.modelName ?? "this model"}, before saving
-            </p>
-            <p className="mt-1 max-w-prose text-xs text-ink-muted">
-              This client's own figures against the model picked above. Nothing is saved until you press Save,
-              and the table further down still reads what is on file.
-            </p>
-            <div className="mt-3">
-              <ClassStandingTable
-                classes={preview.data.classes}
-                currency={preview.data.currency}
-                suggestions={!preview.data.customModel}
-                underManagement={preview.data.underManagement}
-              />
-            </div>
-          </div>
-        )}
       </section>
 
       <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -623,6 +601,30 @@ export function ClientPortfolioPage() {
           </div>
         </fieldset>
       </section>
+
+      {/* What the picked model would make of this client's own money, before anybody is put on it. Beside
+          the table of what is on file rather than up by the picker, so the two read one after the other and
+          the figures above them are the ones both are measuring. */}
+      {tryingOn && preview.isError && <Alert tone="danger">{preview.error.message}</Alert>}
+      {tryingOn && preview.data && (
+        <section className="rounded-2xl border border-line bg-white px-6 py-5">
+          <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            On {preview.data.modelName ?? "this model"}, before saving
+          </h2>
+          <p className="mt-1 max-w-prose text-xs text-ink-muted">
+            This client's own figures against the model picked above. Nothing is saved until you press Save,
+            and the table below still reads what is on file.
+          </p>
+          <div className="mt-3">
+            <ClassStandingTable
+              classes={preview.data.classes}
+              currency={preview.data.currency}
+              suggestions={!preview.data.customModel}
+              underManagement={preview.data.underManagement}
+            />
+          </div>
+        </section>
+      )}
 
       {standing.data && standing.data.classes.length > 0 && (
             <section className="rounded-2xl border border-line bg-white px-6 py-5">
