@@ -24,11 +24,9 @@ import { useAssetClasses } from "./asset-classes";
 import {
   anchorFor,
   driftLabel,
-  insideLabel,
   standingLabels,
   standingTones,
   underManagementLabel,
-  worstInside,
 } from "./portfolio-labels";
 
 /**
@@ -402,17 +400,8 @@ export function ClientHoldingsPanel({
                     {one.standing && one.standing !== "WITHIN_BAND" && (
                       <Badge tone={standingTones[one.standing]}>{standingLabels[one.standing]}</Badge>
                     )}
-                    {/* And what is wrong inside it, which is not the same question. A class can sit well
-                        within its own band while its money is in the wrong groups, because being over in
-                        one and under in another cancels out — and said only on the groups, that reads as a
-                        class with nothing wrong until somebody opens it. Nobody opens a class with nothing
-                        wrong. */}
-                    {(() => {
-                      const inside = worstInside(one.subClasses);
-                      return inside === null ? null : (
-                        <Badge tone={standingTones[inside.standing]}>{insideLabel(inside)}</Badge>
-                      );
-                    })()}
+                    {/* A class written down sub-asset by sub-asset carries their verdict as its own now, so
+                        a second badge counting what is wrong inside it said the same thing twice over. */}
                   </button>
                   {/* What to buy or sell, and how far the class has wandered, used to be written here as
                       "SELL USD 350 · +70.0pp from target" — a row of figures with no heading over any of

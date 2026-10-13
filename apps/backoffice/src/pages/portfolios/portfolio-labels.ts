@@ -89,37 +89,3 @@ export function riskProfileLabel(profile: string | null | undefined) {
 export function anchorFor(assetClass: string) {
   return `holdings-${assetClass}`;
 }
-
-/**
- * The worst standing among the groups inside a class, and how many are at it.
- *
- * <p>A class can sit well inside its own band while the money in it is in the wrong places, because being
- * over in one group and under in another cancels out. Said only on the groups themselves, that reads as a
- * class with nothing wrong until somebody opens it — and nobody opens a class with nothing wrong.
- *
- * <p>Nothing where every group is where it should be, or where the model says nothing about them.
- */
-export function worstInside(
-  groups: { standing: DriftStanding | null | undefined }[],
-): { standing: DriftStanding; count: number } | null {
-  const order: DriftStanding[] = ["WITHIN_BAND", "WATCH", "AT_EDGE", "BREACHED"];
-  let worst: DriftStanding | null = null;
-  for (const group of groups) {
-    const its = group.standing;
-    if (!its || its === "WITHIN_BAND") continue;
-    if (worst === null || order.indexOf(its) > order.indexOf(worst)) worst = its;
-  }
-  if (worst === null) return null;
-  return { standing: worst, count: groups.filter((one) => one.standing === worst).length };
-}
-
-/** "1 group breached", "2 groups at edge" — what a class is carrying, in the fewest words that say it. */
-export function insideLabel(worst: { standing: DriftStanding; count: number }) {
-  const said: Record<DriftStanding, string> = {
-    WITHIN_BAND: "within band",
-    WATCH: "to watch",
-    AT_EDGE: "at edge",
-    BREACHED: "breached",
-  };
-  return `${worst.count} ${worst.count === 1 ? "group" : "groups"} ${said[worst.standing]}`;
-}
