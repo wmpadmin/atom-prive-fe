@@ -3,7 +3,7 @@ import { cn } from "./cn";
 
 /** Shared look of every text box, select and the date picker's button. */
 export const controlClasses =
-  "block h-10 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink " +
+  "block h-10 w-full rounded-lg border border-line bg-white px-3 text-base text-ink " +
   "placeholder:text-slate-400 focus:border-primary-600 focus:ring-2 focus:ring-primary-600/15 focus:outline-none " +
   "disabled:bg-slate-50 disabled:text-ink-muted aria-invalid:border-red-500";
 
@@ -22,20 +22,20 @@ interface FieldProps {
 export function Field({ id, label, required, hint, error, children, className }: FieldProps) {
   return (
     <div className={cn("space-y-1.5", className)}>
-      <label htmlFor={id} className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+      <label htmlFor={id} className="block text-xs font-semibold tracking-wider text-ink-muted uppercase">
         {label}
         {required && <RequiredMark />}
       </label>
       {children}
       {error ? (
-        <p id={`${id}-error`} className="text-xs text-red-600">
+        <p id={`${id}-error`} className="text-sm text-red-600">
           {error}
         </p>
       ) : hint ? (
         // A note under a box is there to be read before the box is filled in, not after it is got wrong —
         // so it is quiet. Red is what the error above it uses, and a hint wearing the same colour tells
         // somebody they have made a mistake before they have typed anything.
-        <p id={`${id}-hint`} className="text-xs text-ink-muted">
+        <p id={`${id}-hint`} className="text-sm text-ink-muted">
           {hint}
         </p>
       ) : null}
