@@ -81,3 +81,11 @@ export const RISK_PROFILES = [
 export function riskProfileLabel(profile: string | null | undefined) {
   return RISK_PROFILES.find((one) => one.value === profile)?.label ?? "Not set";
 }
+
+/**
+ * Where a class's own card sits on the page, so the table that measures a class can send somebody to what
+ * it is made of. Shared with the table's side of the journey rather than spelled out twice.
+ */
+export function anchorFor(assetClass: string) {
+  return `holdings-${assetClass}`;
+}
