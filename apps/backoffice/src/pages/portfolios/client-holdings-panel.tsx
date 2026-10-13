@@ -8,6 +8,7 @@ import {
   useRemoveClientHolding,
   type ModelLine,
   type ClassPositions,
+  type SubClassGroup,
   type ClientHoldings,
   type PositionRow,
 } from "@atomprive/api-client/backoffice";
@@ -23,6 +24,24 @@ import { asFigure } from "../../lib/figures";
 
 /** Where the sub-class is left blank, the holdings still need a heading to sit under. */
 const UNGROUPED = "Not grouped";
+
+/**
+ * The groups inside this class that are short of what the model asks of them, named.
+ *
+ * <p>A class is the sum of its groups, so money taken out of one holding too much belongs in the ones
+ * holding too little. Which those are is already on the screen — in the rows above and below — and leaving
+ * somebody to read them off and work it out is leaving them to do arithmetic the page has already done.
+ *
+ * <p>Nothing where the model asks nothing of the others, or where they are all where they should be: then
+ * the money has to leave the class altogether, which is a question the class's own row answers.
+ */
+function shortfalls(groups: SubClassGroup[], except: SubClassGroup): string[] {
+  return groups
+    .filter((one) => one !== except && one.suggestion !== null && one.suggestion !== undefined
+      && one.suggestion > 0 && one.subClass !== null)
+    .sort((first, second) => (second.suggestion ?? 0) - (first.suggestion ?? 0))
+    .map((one) => one.subClass as string);
+}
 
 /** The row that puts the box back, for a group the model does not name. Never a group's own name. */
 const OTHER_GROUP = "\u0000other";
@@ -316,14 +335,20 @@ export function ClientHoldingsPanel({
                           <th scope="col" className="py-2 pr-3 pl-4">
                             Sub-class and holdings
                           </th>
+                          {/* The same columns, in the same words, as the table that measures the classes
+                              above: what the model asks for and what that comes to, then what is actually
+                              there and what that comes to, then the difference. */}
                           <th scope="col" className="px-3 py-2 text-right">
-                            Value
+                            Target allocation
                           </th>
                           <th scope="col" className="px-3 py-2 text-right">
-                            Share of class
+                            Target value
                           </th>
                           <th scope="col" className="px-3 py-2 text-right">
-                            Model asks for
+                            Current
+                          </th>
+                          <th scope="col" className="px-3 py-2 text-right">
+                            Current value
                           </th>
                           <th scope="col" className="px-3 py-2 text-right">
                             Gap
@@ -349,18 +374,23 @@ export function ClientHoldingsPanel({
                                 )}
                               </span>
                             </th>
-                            <td className="px-3 py-2 text-right tabular-nums">
-                              {underManagementLabel(group.valueAmount, currency)}
-                            </td>
-                            <td className="px-3 py-2 text-right tabular-nums">
-                              {group.shareOfClass.toFixed(1)}%
-                            </td>
                             {/* A dash, not a nought: the model naming no target for this group is a
                                 different thing from it asking for none of it. */}
                             <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
                               {group.targetShare === null || group.targetShare === undefined
                                 ? "—"
                                 : `${group.targetShare.toFixed(1)}%`}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
+                              {group.targetValue === null || group.targetValue === undefined
+                                ? "—"
+                                : underManagementLabel(group.targetValue, currency)}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              {group.shareOfClass.toFixed(1)}%
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              {underManagementLabel(group.valueAmount, currency)}
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
                               {group.drift === null || group.drift === undefined ? "—" : driftLabel(group.drift)}
@@ -375,6 +405,16 @@ export function ClientHoldingsPanel({
                                     {group.suggestion > 0 ? "Buy" : "Sell"}
                                   </span>{" "}
                                   {underManagementLabel(Math.abs(group.suggestion), currency)}
+                                  {/* Where the money should go, named. A class is the sum of its groups, so
+                                      money taken out of one that holds too much belongs in the ones that
+                                      hold too little — and which those are is on this very screen. Without
+                                      saying so, "sell 350" leaves somebody to read every other row and work
+                                      out where it was meant to land. */}
+                                  {group.suggestion < 0 && shortfalls(one.subClasses, group).length > 0 && (
+                                    <span className="mt-0.5 block text-2xs font-normal text-ink-muted">
+                                      into {shortfalls(one.subClasses, group).join(", ")}
+                                    </span>
+                                  )}
                                 </>
                               )}
                             </td>
@@ -400,15 +440,17 @@ export function ClientHoldingsPanel({
                                     .join(" · ") || "No issuer recorded"}
                                 </span>
                               </td>
-                              <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
-                                {underManagementLabel(position.valueAmount, currency)}
-                              </td>
+                              {/* The model asks things of groups, not of the holdings inside them: one
+                                  holding is not asked to be any particular size, so it has no target and no
+                                  gap — only what it is and what it comes to. */}
+                              <td className="px-3 py-2 text-right text-ink-muted">—</td>
+                              <td className="px-3 py-2 text-right text-ink-muted">—</td>
                               <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
                                 {position.shareOfClass.toFixed(1)}%
                               </td>
-                              {/* The model asks things of groups, not of the holdings inside them: one
-                                  holding is not asked to be any particular size. */}
-                              <td className="px-3 py-2 text-right text-ink-muted">—</td>
+                              <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                                {underManagementLabel(position.valueAmount, currency)}
+                              </td>
                               <td className="px-3 py-2 text-right text-ink-muted">—</td>
                               <td className="px-3 py-2 text-right text-ink-muted">—</td>
                               {/* The name opens the same dialog, but a coloured word beside a bordered bin
