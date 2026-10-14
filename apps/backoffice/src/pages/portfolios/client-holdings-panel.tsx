@@ -15,6 +15,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router";
 import { ChevronDown, ChevronRight, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
@@ -285,6 +286,15 @@ function AgainstTheModel({ classes, currency }: {
               : `${exactly(toBuy - toSell, currency)} short — only new money fills that`}
           </span>
         )}
+        {/* Where this is acted on. Bulk rebalancing raises the orders from these very figures, so this is
+            a way through rather than a second one: a button here would write the holdings as though the
+            trades had already filled, and the trade that was to make them real would never be raised. */}
+        <Link
+          to="/bulk-rebalancing"
+          className="text-xs font-medium text-primary-700 hover:underline"
+        >
+          Raise the orders
+        </Link>
       </div>
     </section>
   );
