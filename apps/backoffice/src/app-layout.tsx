@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ClipboardCheck,
   Clock,
-  ChartPie,
   Contact,
   FileCheck,
   FileSignature,
@@ -23,7 +22,6 @@ import {
   PenLine,
   BellRing,
   Radio,
-  Ruler,
   Scale,
   TrendingUp,
   TriangleAlert,
@@ -221,23 +219,6 @@ const allNavigation: {
     to: "/reports",
     label: "Reports",
     icon: FileSpreadsheet,
-    authority: READS_CLIENT_PORTFOLIOS,
-    onlyFor: ["PORTFOLIO_MANAGER"],
-  },
-  {
-    // Numbers for the partners rather than the working day. Read only: nothing here changes a client.
-    to: "/mis",
-    label: "MIS",
-    icon: ChartPie,
-    authority: READS_CLIENT_PORTFOLIOS,
-    onlyFor: ["PORTFOLIO_MANAGER"],
-  },
-  {
-    // The indices the plans are measured against. Its own screen rather than a tab on Model performance:
-    // maintaining the reference data is a different job from reading what it says.
-    to: "/benchmarks",
-    label: "Benchmarks",
-    icon: Ruler,
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
   },
