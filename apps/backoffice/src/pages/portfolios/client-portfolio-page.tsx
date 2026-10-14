@@ -15,6 +15,7 @@ import {
   useRemoveClientHolding,
   useWriteTheirOwnAllocation,
   type PositionRow,
+  useSetClassTolerance,
   useSetClientModelPortfolio,
   usePreviewPortfolioCurrency,
   useSetPortfolioCurrency,
@@ -207,6 +208,12 @@ export function ClientPortfolioPage() {
   };
   const setModel = useSetClientModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
   // Taking back a holding added since Edit was pressed, when Discard is confirmed.
+  // What each class was held to before this sitting wrote over it. A tolerance is not a holding and has no
+  // row for the replay below to put back, so it is kept here beside the holdings. The first entry per class
+  // wins, the way it does for holdings: changed twice, what Discard restores is how it stood at Edit.
+  const [touchedTolerances, setTouchedTolerances] =
+    useState<Map<string, { watchPp: number; edgePp: number; breachPp: number } | null>>(new Map());
+  const putClassBack = useSetClassTolerance<ApiError>();
   const forget = useRemoveClientHolding<ApiError>();
   const putBack = useChangeClientHolding<ApiError>();
   const writeAgain = useRecordClientHolding<ApiError>();
@@ -289,7 +296,7 @@ export function ClientPortfolioPage() {
    * asked to do, and a Discard that quietly restored a line somebody deleted would be its own surprise.
    */
   function discard() {
-    if (touchedHoldings.size > 0) {
+    if (touchedHoldings.size > 0 || touchedTolerances.size > 0) {
       setConfirmingDiscard(true);
       return;
     }
@@ -336,6 +343,21 @@ export function ClientPortfolioPage() {
         // what is on file, which is what the reader is about to be shown.
       }
     }
+    // The tolerances last, because putting a sub-asset's own figures back is what decides whether the class
+    // figure above it is the one being measured by.
+    for (const [assetClass, before] of touchedTolerances) {
+      try {
+        await putClassBack.mutateAsync({
+          customerId,
+          assetClass,
+          // Nothing kept means it was following the model, and following the model is what it goes back to.
+          data: before ?? { watchPp: null, edgePp: null, breachPp: null },
+        });
+      }
+      catch {
+        // Said once, below, rather than per failure: the page is about to show what is actually on file.
+      }
+    }
     setConfirmingDiscard(false);
     putTheBoxesBack();
     kept();
@@ -343,6 +365,7 @@ export function ClientPortfolioPage() {
 
   function putTheBoxesBack() {
     setTouchedHoldings(new Map());
+    setTouchedTolerances(new Map());
     setHeld(null);
     setChosenModel(null);
     setChosenCurrency(null);
@@ -411,6 +434,7 @@ export function ClientPortfolioPage() {
     setReviewedOn(null);
     // Saved is kept: what was written down in this sitting is the client's now, not this sitting's.
     setTouchedHoldings(new Map());
+    setTouchedTolerances(new Map());
     setEditing(false);
   }
 
@@ -471,7 +495,11 @@ export function ClientPortfolioPage() {
               {holdingsSaved && <Saved />}
               {/* The one thing to do on a screen that is otherwise read, so it is the one thing that
                   looks like a button rather than part of the furniture. */}
-              <Button onClick={() => { setTouchedHoldings(new Map()); setEditing(true); }}>
+              <Button onClick={() => {
+                setTouchedHoldings(new Map());
+                setTouchedTolerances(new Map());
+                setEditing(true);
+              }}>
                 <Pencil aria-hidden="true" />
                 Edit
               </Button>
@@ -673,6 +701,10 @@ export function ClientPortfolioPage() {
                   onTouched={(id, before) =>
                     setTouchedHoldings((were) => (were.has(id) ? were : new Map(were).set(id, before)))
                   }
+                  onClassTouched={(assetClass, before) =>
+                    setTouchedTolerances((were) =>
+                      were.has(assetClass) ? were : new Map(were).set(assetClass, before))
+                  }
                   readOnly={!editing}
                 />
               </div>
@@ -804,14 +836,29 @@ export function ClientPortfolioPage() {
 
       <ConfirmDialog
         open={confirmingDiscard}
-        title={touchedHoldings.size === 1 ? "Discard, and put the holding back?" : "Discard, and put the holdings back?"}
+        title="Discard, and put it back as it was?"
         description={
-          touchedHoldings.size === 1
-            ? "A holding is written down the moment you confirm it, so discarding puts it back as it stood when you pressed Edit — one added is taken off, one changed goes back to what it said, one removed is written down again."
-            : `${touchedHoldings.size} holdings were written down since you pressed Edit, each kept the moment it was confirmed. Discarding puts them back as they stood — any added are taken off, any changed go back to what they said, any removed are written down again.`
+          [
+            touchedHoldings.size === 1
+              ? "One holding was written down since you pressed Edit."
+              : touchedHoldings.size > 1
+                ? `${touchedHoldings.size} holdings were written down since you pressed Edit.`
+                : "",
+            // Said in its own breath: a tolerance is not a holding, and somebody who changed only a
+            // tolerance was being asked about holdings that did not exist.
+            touchedTolerances.size === 1
+              ? "One class had what it may wander written over."
+              : touchedTolerances.size > 1
+                ? `${touchedTolerances.size} classes had what they may wander written over.`
+                : "",
+            "Each was kept the moment it was confirmed, so discarding puts it back as it stood when you"
+            + " pressed Edit — anything added is taken off, anything changed goes back to what it said,"
+            + " anything removed is written down again, and any figures a class or sub-asset was held to"
+            + " go back to what they were.",
+          ].filter(Boolean).join(" ")
         }
-        confirmLabel={touchedHoldings.size === 1 ? "Discard and put it back" : "Discard and put them back"}
-        busy={forget.isPending || putBack.isPending || writeAgain.isPending}
+        confirmLabel="Discard and put it back"
+        busy={forget.isPending || putBack.isPending || writeAgain.isPending || putClassBack.isPending}
         onConfirm={() => void discardIncludingHoldings()}
         onClose={() => setConfirmingDiscard(false)}
       />
