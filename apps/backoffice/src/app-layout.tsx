@@ -40,7 +40,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
-import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_AML_RISK, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
+import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
@@ -264,16 +264,6 @@ const allNavigation: {
     at: (path, search) =>
       path === "/kyc" || path.startsWith("/kyc/cases/") || path.startsWith("/kyc/forms/")
       || ownsSharedScreen(path, search, A_CLIENT_KYC, "queue"),
-  },
-  // Where every client sits on the firm's money-laundering sheet. Beside KYC, because it is the same
-  // question asked of the same client: how closely do we have to look at them.
-  {
-    to: "/aml-risk",
-    label: "AML risk",
-    icon: ShieldAlert,
-    authority: READS_AML_RISK,
-    notFor: ["ADMIN"],
-    at: (path) => path === "/aml-risk" || path.startsWith("/aml-risk/"),
   },
   {
     to: "/kyc-documents",
