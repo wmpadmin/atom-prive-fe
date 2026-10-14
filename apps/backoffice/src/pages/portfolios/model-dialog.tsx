@@ -394,6 +394,12 @@ export function ModelDialog({
     (assetClass) =>
       lines[assetClass].length === 0 && isNumber(targets[assetClass]) && Number(targets[assetClass]) > 0,
   );
+  // The same sub-asset twice in one class. Taken off the list where it is picked, but a name written by
+  // hand can still land on one already there, so it is checked rather than only made awkward.
+  const twiceNamed = codes.filter((assetClass) => {
+    const said = lines[assetClass].map((line) => line.name.trim()).filter((name) => name !== "");
+    return new Set(said).size !== said.length;
+  });
   const shortLines = codes.filter((assetClass) => {
     const inClass = lines[assetClass];
     if (inClass.length === 0) return false;
@@ -406,7 +412,8 @@ export function ModelDialog({
   // Letters in a figure box are not a small mistake to round away: nothing is saved until they are numbers.
   const readable =
     unreadable.length === 0 && unreadableBands.length === 0 && halfBanded.length === 0 && overWhole.length === 0
-    && shortLines.length === 0 && codes.every((a) => lines[a].every((line) => line.name.trim() !== ""));
+    && shortLines.length === 0 && twiceNamed.length === 0
+    && codes.every((a) => lines[a].every((line) => line.name.trim() !== ""));
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -663,9 +670,14 @@ export function ModelDialog({
                         }
                       >
                         <option value="">Pick a sub-asset…</option>
-                        {(usedNames[assetClass] ?? []).map((used) => (
-                          <option key={used} value={used}>{used}</option>
-                        ))}
+                        {/* Not the ones this class has already spoken for. A sub-asset is one line of a
+                            plan: named twice it has two targets, and nothing can say which it is held to. */}
+                        {(usedNames[assetClass] ?? [])
+                          .filter((used) => used === line.name
+                            || !lines[assetClass].some((other, which) => which !== at && other.name === used))
+                          .map((used) => (
+                            <option key={used} value={used}>{used}</option>
+                          ))}
                         <option value={WRITE_ONE}>Something else…</option>
                       </SelectInput>
                     )}
@@ -776,6 +788,13 @@ export function ModelDialog({
               ))}
             </div>
           )}
+
+          {twiceNamed.map((assetClass) => (
+            <p key={assetClass} className="mt-1.5 text-xs text-red-600">
+              {names[assetClass] ?? assetClass} names the same sub-asset twice. Each one is a line of the
+              plan, and a line named twice has two targets with nothing to say which it is held to.
+            </p>
+          ))}
 
           {/* Which way, and by how much. "Do not come to 100%" was said the same whether a class was half
               written or asked for more of itself than exists — and the second is the one somebody has to
