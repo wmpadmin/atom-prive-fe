@@ -155,22 +155,34 @@ function exactly(amount: number, currency: string) {
 type Destination = { name: string; room: number; into: PositionRow | null };
 
 /**
- * How much each of the other groups in this class can take, biggest room first.
+ * How much each of the other sub-assets in this class can take, biggest room first.
  *
- * <p>Room is the distance to its own target, never past it. A group filled to its target has drifted
+ * <p>Room is the distance to its own target, never past it. A sub-asset filled to its target has drifted
  * nowhere, so money placed this way cannot push anything into a breach of its own — which is the whole
  * point of saying the amounts rather than only the names.
+ *
+ * <p>Every sub-asset the model names, not only the ones already written down. A client who holds six of a
+ * class's nine lines has three standing empty with their whole target free, and reading only what is on the
+ * page said "no sub-asset has room" while the model was asking for money in three of them.
  */
-function roomIn(groups: SubClassGroup[], except: SubClassGroup): Destination[] {
-  return groups
+function roomIn(groups: SubClassGroup[], except: SubClassGroup, model: ModelLine[],
+  whole: number): Destination[] {
+  const places: Destination[] = groups
     .filter((one) => one !== except && one.subClass !== null
       && one.suggestion !== null && one.suggestion !== undefined && one.suggestion > 0)
     .map((one) => ({
       name: one.subClass as string,
       room: one.suggestion as number,
       into: one.positions[0] ?? null,
-    }))
-    .sort((first, second) => second.room - first.room);
+    }));
+  const written = new Set(groups.map((one) => one.subClass));
+  for (const line of model) {
+    if (written.has(line.name)) continue;
+    const room = (whole * line.shareOfPortfolio) / 100;
+    // Nothing for a line the model names but asks nothing of, and nothing for the sub-asset we are emptying.
+    if (room > 0 && line.name !== except.subClass) places.push({ name: line.name, room, into: null });
+  }
+  return places.sort((first, second) => second.room - first.room);
 }
 
 /** The split this screen suggests: fill the emptiest first, never past its target, until the money runs out. */
@@ -246,15 +258,16 @@ function sameBut(row: PositionRow, valueAmount: number) {
  * <p>Move writes it down: the figure comes off this sub-asset and goes on to that one, in one go. Discard
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
-function MoveOutPlan({ customerId, spare, out, places, className, currency, span, onMoved }: {
+function MoveOutPlan({ customerId, assetClass, spare, out, places, className, currency, span, onMoved }: {
   customerId: string;
+  assetClass: string;
   spare: number;
   out: PositionRow | null;
   places: Destination[];
   className: string;
   currency: string;
   span: number;
-  onMoved: (id: string, before: PositionRow) => void;
+  onMoved: (id: string, before: PositionRow | null) => void;
 }) {
   const from = out?.subClass ?? UNGROUPED;
   const suggested = suggest(spare, places);
@@ -265,6 +278,7 @@ function MoveOutPlan({ customerId, spare, out, places, className, currency, span
   const [failed, setFailed] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
   const change = useChangeClientHolding<ApiError>();
+  const write = useRecordClientHolding<ApiError>();
   const placed = places.reduce((sum, place) => sum + typed(moves[place.name]), 0);
   const left = spare - placed;
   // Only where there is something to go back to. Money moved is money written down: the sub-asset is worth
@@ -276,7 +290,7 @@ function MoveOutPlan({ customerId, spare, out, places, className, currency, span
   // rather than counted twice, which is the half somebody would notice.
   async function move(place: Destination) {
     const amount = typed(moves[place.name]);
-    if (!out || !place.into || amount <= 0) return;
+    if (!out || amount <= 0) return;
     setFailed(null);
     setMoving(place.name);
     try {
@@ -284,10 +298,24 @@ function MoveOutPlan({ customerId, spare, out, places, className, currency, span
         customerId, id: out.id, data: sameBut(out, out.valueAmount - amount),
       });
       onMoved(out.id, out);
-      await change.mutateAsync({
-        customerId, id: place.into.id, data: sameBut(place.into, place.into.valueAmount + amount),
-      });
-      onMoved(place.into.id, place.into);
+      if (place.into) {
+        await change.mutateAsync({
+          customerId, id: place.into.id, data: sameBut(place.into, place.into.valueAmount + amount),
+        });
+        onMoved(place.into.id, place.into);
+      } else {
+        // A sub-asset the model names and nobody has written down yet. Discard puts it back by removing it,
+        // which is what a null before means to the page above.
+        const made = await write.mutateAsync({
+          customerId,
+          data: {
+            assetClass, subClass: place.name, name: place.name, identifier: null, issuer: null,
+            countryCode: null, sector: null, yieldPercent: null, durationYears: null, creditRating: null,
+            valueAmount: amount, watchPp: null, edgePp: null, breachPp: null,
+          },
+        });
+        onMoved(made.id, null);
+      }
     } catch (caught) {
       setFailed((caught as ApiError)?.message ?? "That could not be written down.");
     } finally {
@@ -350,8 +378,14 @@ function MoveOutPlan({ customerId, spare, out, places, className, currency, span
                       <tr key={place.name} className="border-b border-line last:border-0 align-top">
                         <th scope="row" className="px-5 py-4 text-left font-medium text-ink">
                           {place.name}
-                          {/* Under the name, where it is read at the moment the figure beside it is being
-                              decided, rather than in a column of its own at the far end of the row. */}
+                          {/* Said plainly: this one does not exist yet, and moving into it writes it down
+                              for the first time. Its whole target is free, which is why it is usually at
+                              the top of this list. */}
+                          {!place.into && (
+                            <span className="mt-1 block text-xs font-normal text-ink-muted">
+                              nothing held here yet
+                            </span>
+                          )}
                           {past > 0 && (
                             <span className="mt-1 block text-xs font-normal text-amber-700">
                               {exactly(past, currency)} past its own target
@@ -377,7 +411,7 @@ function MoveOutPlan({ customerId, spare, out, places, className, currency, span
                         <td className="px-5 py-4 text-right">
                           <Button
                             size="sm"
-                            disabled={amount <= 0 || !place.into || !out || moving !== null}
+                            disabled={amount <= 0 || !out || moving !== null}
                             onClick={() => move(place)}
                           >
                             {moving === place.name ? "Moving…" : `Move ${exactly(amount, currency)}`}
@@ -841,7 +875,10 @@ export function ClientHoldingsPanel({
                               customerId={customerId}
                               spare={spareIn(group) as number}
                               out={group.positions[0] ?? null}
-                              places={roomIn(one.subClasses, group)}
+                              assetClass={one.assetClass}
+                              places={roomIn(one.subClasses, group,
+                                held.data?.modelSubClasses?.[one.assetClass] ?? [],
+                                held.data?.underManagement ?? 0)}
                               className={one.assetClassName || one.assetClass}
                               currency={currency}
                               span={readOnly ? 6 : 7}
