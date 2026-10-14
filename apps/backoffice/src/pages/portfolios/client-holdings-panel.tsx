@@ -64,10 +64,6 @@ function ToleranceDialog({
     mutation: { onSuccess: onSaved, onError: (failed) => setErrors(toFormErrors(failed)) },
   });
   const name = one.assetClassName || one.assetClass;
-  // What the model holds it to, which is what the boxes fall back to. Only knowable where this client is on
-  // a model at all; on none, there is nothing to fall back to and nothing to say.
-  const model = one.ownTolerance ? null : { watchAt: one.watchAt, edgeAt: one.edgeAt, breachAt: one.breachAt };
-
   return (
     <Dialog open title={`How far ${name} may wander`} onClose={onClose}>
       <form
@@ -87,9 +83,12 @@ function ToleranceDialog({
       >
         {errors.form && <Alert tone="danger">{errors.form}</Alert>}
         <p className="text-xs text-ink-muted">
-          {model?.watchAt != null
-            ? `Left blank, this client is held to the model's own figures: watched from ${model.watchAt}pp, at the edge from ${model.edgeAt}pp, breached from ${model.breachAt}pp.`
-            : "Left blank, this client is held to the model's own figures."}
+          {one.ownTolerance
+            ? "Held to its own figures, not the model's. Clear all three to go back to the model."
+            : one.watchAt != null
+              ? `Held to the model's ${one.watchAt} / ${one.edgeAt} / ${one.breachAt}.`
+                + " Change them to hold this client to something of its own."
+              : "Held to the model's own figures."}
         </p>
         <div className="grid gap-3 sm:grid-cols-3">
           <Field id="class-watch" label="Watched from" error={errors.fields.watchPp}>
@@ -1329,10 +1328,18 @@ function HoldingDialog({
           <legend className="px-1 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             How far it may wander
           </legend>
+          {/* Which of the two it is standing on today. With the boxes filled in either case, "blank: held
+              to the model's 2 / 4 / 6" left somebody who had just written 2 / 40 / 60 with no way to tell
+              whether it had taken. */}
           <p className="text-xs text-ink-muted">
-            {modelBand?.watchAt != null
-              ? `Blank: held to the model's ${modelBand.watchAt} / ${modelBand.edgeAt} / ${modelBand.breachAt}.`
-              : "Blank: held to the model's own figures."}
+            {position?.watchPp != null
+              ? `Held to its own figures, not the model's${modelBand?.watchAt == null ? ""
+                : ` ${modelBand.watchAt} / ${modelBand.edgeAt} / ${modelBand.breachAt}`}. `
+                + "Clear all three to go back to the model."
+              : modelBand?.watchAt != null
+                ? `Held to the model's ${modelBand.watchAt} / ${modelBand.edgeAt} / ${modelBand.breachAt}.`
+                  + " Change them to hold this sub-asset to something of its own."
+                : "Held to the model's own figures."}
           </p>
           <div className="mt-2 grid gap-3 sm:grid-cols-3">
             <Field id="holding-watch" label="Watched from" error={errors.fields.watchPp}>
