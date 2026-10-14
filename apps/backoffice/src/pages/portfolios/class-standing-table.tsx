@@ -81,13 +81,13 @@ export function ClassStandingTable({
                 Asset class
               </th>
               <th scope="col" className="px-4 py-3 text-right">
-                Target
+                Target %
               </th>
               <th scope="col" className="px-4 py-3 text-right">
                 Target value
               </th>
               <th scope="col" className="px-4 py-3 text-right">
-                Current
+                Current %
               </th>
               <th scope="col" className="px-4 py-3 text-right">
                 Current value
