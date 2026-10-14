@@ -344,7 +344,7 @@ function sameBut(row: PositionRow, valueAmount: number) {
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
 function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, currency, span, readOnly,
-  claim, release, elsewhere, asksForNone, onMoved }: {
+  claim, release, elsewhere, asksForNone, waiting, onMoved }: {
   customerId: string;
   assetClass: string;
   spare: number;
@@ -370,6 +370,8 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   elsewhere: boolean;
   /** Whether the model asks for none of this sub-asset at all, rather than less of it than is held. */
   asksForNone: boolean;
+  /** How many other sub-assets in this class have breached and are waiting their turn behind this one. */
+  waiting: number;
   onMoved: (touched: { id: string; before: PositionRow | null }[]) => void | Promise<void>;
 }) {
   const from = rows[0]?.subClass ?? UNGROUPED;
@@ -521,6 +523,17 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                   : "A sub-asset can take money until it is a tenth of a point short of breaching its own"
                     + " band. Past that it breaches, which is how one breach becomes two."}
               </p>
+              {/* Why the others are quiet. Each one planning at the same time offered the same sibling the
+                  same room over and over, so the plans only added up one at a time anyway. */}
+              {waiting > 0 && (
+                <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                  {waiting === 1
+                    ? `One more sub-asset in ${className} has breached. It comes next: what is left after `
+                      + "this move is what there will be for it."
+                    : `${waiting} more sub-assets in ${className} have breached. They come after this one, `
+                      + "because what each can be offered depends on what this move leaves."}
+                </p>
+              )}
             </div>
             {edited && !readOnly && (
               <Button variant="secondary" size="sm" onClick={() => setMoves(asSuggested())}>
@@ -905,6 +918,14 @@ export function ClientHoldingsPanel({
             // Written here rather than only read: the page hands in the figures and takes them back.
             const typing = !readOnly && figures !== undefined && onFigure !== undefined;
             const isOpen = one.heldAsPositions && (!shut.has(classKey) || reveal === classKey);
+            // One plan at a time, for the sub-asset with most to shed. Every breached line used to open
+            // its own, and each worked out where its money could go as though it were the only one asking
+            // — eight tables under one class, all offering the same sibling the same room it had once.
+            // Taken at their word they promised it seven times over.
+            const breached = one.subClasses
+              .filter((group) => spareIn(group) !== null)
+              .sort((first, second) => (spareIn(second) as number) - (spareIn(first) as number));
+            const first = breached[0] ?? null;
             return (
               // Named so the table above can send somebody straight here, and given room above it so the
               // card does not land flush against the top of the window when they arrive.
@@ -1124,7 +1145,7 @@ export function ClientHoldingsPanel({
                           </tr>
                           {/* Under the row it belongs to and across the whole width, because it is a
                               working-out rather than another measurement of this sub-asset. */}
-                          {spareIn(group) !== null && (
+                          {group === first && (
                             <MoveOutPlan
                               /* The sub-asset and the sitting, and nothing about what it is worth. Keyed
                                  on the figures, this was built again after every write, which wiped what
@@ -1154,6 +1175,7 @@ export function ClientHoldingsPanel({
                               release={releaseTheMove}
                               elsewhere={moveSomewhere}
                               asksForNone={group.targetShare === 0}
+                              waiting={breached.length - 1}
                               onMoved={async (touched) => {
                                 for (const each of touched) onTouched?.(each.id, each.before);
                                 await kept();
