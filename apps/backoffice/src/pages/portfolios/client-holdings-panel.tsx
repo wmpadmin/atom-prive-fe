@@ -162,7 +162,7 @@ function ToleranceDialog({
             {exceptions.length === 1
               ? `${exceptions[0].subClass ?? UNGROUPED} has figures of its own.`
               : `${exceptions.length} sub-assets in ${name} have figures of their own.`}{" "}
-            Saving here clears them, so the whole class is measured by one set.
+            Saving here clears them, so the whole class is measured by these.
           </p>
         )}
         <div className="flex justify-end gap-2">
@@ -219,15 +219,16 @@ function roomFor(targetShare: number, share: number, breachAt: number, whole: nu
  * room" while the model was asking for money in three of them.
  */
 function roomIn(groups: SubClassGroup[], except: SubClassGroup, model: ModelLine[], whole: number,
-  classBreach: number | null | undefined): Destination[] {
-  // What the firm holds this line to: the client's own figure where somebody wrote one on the holding,
-  // then the model's for that line, then the class's. The same order the rest of the screen reads them in.
+  theirClass: number | null | undefined, classBreach: number | null | undefined): Destination[] {
+  // What the firm holds this line to, in the order the API reads them: the figure somebody wrote on the
+  // holding, then the one they wrote on the class it sits in, then the model's for that line, then the
+  // model's for the class. A client's own figure beats the model's at whatever level it was written.
   const modelBreach = Object.fromEntries(model.map((line) => [line.name, line.breachAt]));
   const places: Destination[] = [];
   for (const one of groups) {
     if (one === except || one.subClass === null) continue;
     const held = one.positions[0] ?? null;
-    const breachAt = held?.breachPp ?? modelBreach[one.subClass] ?? classBreach;
+    const breachAt = held?.breachPp ?? theirClass ?? modelBreach[one.subClass] ?? classBreach;
     if (breachAt === null || breachAt === undefined) continue;
     const room = roomFor(one.targetShare ?? 0, one.shareOfPortfolio, breachAt, whole);
     if (room > 0) places.push({ name: one.subClass, room, into: held });
@@ -236,7 +237,7 @@ function roomIn(groups: SubClassGroup[], except: SubClassGroup, model: ModelLine
   for (const line of model) {
     if (written.has(line.name) || line.name === except.subClass) continue;
     // Nothing is held here, so it starts at none of the portfolio and its whole band is ahead of it.
-    const room = roomFor(line.shareOfPortfolio, 0, line.breachAt, whole);
+    const room = roomFor(line.shareOfPortfolio, 0, theirClass ?? line.breachAt, whole);
     if (room > 0) places.push({ name: line.name, room, into: null });
   }
   return places.sort((first, second) => second.room - first.room);
@@ -952,7 +953,8 @@ export function ClientHoldingsPanel({
                               assetClass={one.assetClass}
                               places={roomIn(one.subClasses, group,
                                 held.data?.modelSubClasses?.[one.assetClass] ?? [],
-                                held.data?.underManagement ?? 0, one.breachAt)}
+                                held.data?.underManagement ?? 0,
+                                one.ownTolerance ? one.breachAt : null, one.breachAt)}
                               className={one.assetClassName || one.assetClass}
                               currency={currency}
                               span={readOnly ? 6 : 7}
