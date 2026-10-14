@@ -857,7 +857,8 @@ export function ClientHoldingsPanel({
           under the text rather than beside it. */}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold">Holdings</h3>
+          {/* No heading of its own: the panel above already says what this is, and a second word for the
+              same thing between the two read as a different section starting. */}
           <p className="text-xs text-ink-muted">
             Asset class, then the sub-assets inside it. A class written down here takes its total from them.
           </p>
@@ -883,7 +884,7 @@ export function ClientHoldingsPanel({
       {held.data && held.data.unplaced > 0 && (
         <Alert tone="info">
           {underManagementLabel(held.data.unplaced, currency)} sits in classes nobody has broken down yet —
-          a single figure each, with no holdings under them.
+          a single figure each, with no sub-assets under them.
         </Alert>
       )}
 
