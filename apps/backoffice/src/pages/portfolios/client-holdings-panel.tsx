@@ -142,21 +142,44 @@ function ToleranceDialog({
 const UNGROUPED = "Not grouped";
 
 /**
- * The groups inside this class that are short of what the model asks of them, named.
+ * The groups inside this class that can take money without trouble of their own, named.
  *
- * <p>A class is the sum of its groups, so money taken out of one holding too much belongs in the ones
- * holding too little. Which those are is already on the screen — in the rows above and below — and leaving
- * somebody to read them off and work it out is leaving them to do arithmetic the page has already done.
- *
- * <p>Nothing where the model asks nothing of the others, or where they are all where they should be: then
- * the money has to leave the class altogether, which is a question the class's own row answers.
+ * <p>A class is the sum of its groups, so money coming out of one holding too much belongs in the ones
+ * holding too little. Not all of them, though: a group already at its edge is one step from breaching, and
+ * sending it more is trading one problem for another. Only the ones with real room are named.
  */
-function shortfalls(groups: SubClassGroup[], except: SubClassGroup): string[] {
+function roomIn(groups: SubClassGroup[], except: SubClassGroup): string[] {
   return groups
-    .filter((one) => one !== except && one.suggestion !== null && one.suggestion !== undefined
-      && one.suggestion > 0 && one.subClass !== null)
+    .filter((one) => one !== except && one.subClass !== null
+      && one.suggestion !== null && one.suggestion !== undefined && one.suggestion > 0
+      && one.standing !== "AT_EDGE" && one.standing !== "BREACHED")
     .sort((first, second) => (second.suggestion ?? 0) - (first.suggestion ?? 0))
     .map((one) => one.subClass as string);
+}
+
+/**
+ * What can be done about a sub-asset that has gone past what it is allowed, in a sentence, or nothing.
+ *
+ * <p>Only past the breach: a line inside its band needs nothing done to it, and saying so on every row
+ * buried the one row that mattered. And only ever "can" — the platform places no trades, so the sentence
+ * names what is open to whoever is reading it rather than instructing them.
+ */
+function whatIsOpen(group: SubClassGroup, siblings: SubClassGroup[], currency: string): string | null {
+  const amount = group.suggestion;
+  if (group.standing !== "BREACHED" || amount === null || amount === undefined
+    || amount.toFixed(2) === "0.00") {
+    return null;
+  }
+  if (amount > 0) {
+    return `You can add ${underManagementLabel(amount, currency)} to this sub-asset.`;
+  }
+  const room = roomIn(siblings, group);
+  const spare = underManagementLabel(-amount, currency);
+  // Naming nobody is better than naming a group that would breach on the way in. Said plainly, because
+  // "take it out" with nowhere named is a half-finished instruction.
+  return room.length === 0
+    ? `You can take ${spare} out of this sub-asset. No other sub-asset here has room for it.`
+    : `You can take ${spare} out of this sub-asset and add it to ${room.join(", ")}.`;
 }
 
 /** The row that puts the box back, for a group the model does not name. Never a group's own name. */
@@ -496,9 +519,6 @@ export function ClientHoldingsPanel({
                           <th scope="col" className="px-3 py-2 text-right">
                             Gap
                           </th>
-                          <th scope="col" className="px-3 py-2 text-right">
-                            What to do
-                          </th>
                           {!readOnly && <th scope="col" className="py-2 pr-4 pl-3" />}
                         </tr>
                       </thead>
@@ -516,6 +536,14 @@ export function ClientHoldingsPanel({
                                   </Badge>
                                 )}
                               </span>
+                              {/* Under the name rather than out at the end of the row: it is a sentence
+                                  about this sub-asset, and a column of its own made every other row carry
+                                  an empty cell to hold a space the breached one needed. */}
+                              {whatIsOpen(group, one.subClasses, currency) && (
+                                <span className="mt-1 block text-xs font-normal text-ink-muted">
+                                  {whatIsOpen(group, one.subClasses, currency)}
+                                </span>
+                              )}
                             </th>
                             {/* A dash, not a nought: the model naming no target for this group is a
                                 different thing from it asking for none of it. */}
@@ -537,33 +565,6 @@ export function ClientHoldingsPanel({
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
                               {group.drift === null || group.drift === undefined ? "—" : driftLabel(group.drift)}
-                            </td>
-                            <td className="px-3 py-2 text-right tabular-nums">
-                              {group.standing !== "BREACHED" || group.suggestion === null
-                                || group.suggestion === undefined
-                                || group.suggestion.toFixed(2) === "0.00" ? (
-                                <span className="text-ink-muted">—</span>
-                              ) : (
-                                <>
-                                  {/* "Could", not "Buy": nobody is being told to trade. The screen names
-                                      what would put the line back and leaves the decision where it
-                                      belongs — with whoever is reading it. */}
-                                  <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                                    {group.suggestion > 0 ? "Could add" : "Could sell"}
-                                  </span>{" "}
-                                  {underManagementLabel(Math.abs(group.suggestion), currency)}
-                                  {/* Where the money could go, named. A class is the sum of its groups, so
-                                      money taken out of one that holds too much belongs in the ones that
-                                      hold too little — and which those are is on this very screen. Without
-                                      saying so, "sell 350" leaves somebody to read every other row and work
-                                      out where it was meant to land. */}
-                                  {group.suggestion < 0 && shortfalls(one.subClasses, group).length > 0 && (
-                                    <span className="mt-0.5 block text-2xs font-normal text-ink-muted">
-                                      into {shortfalls(one.subClasses, group).join(", ")}
-                                    </span>
-                                  )}
-                                </>
-                              )}
                             </td>
                             {/* The sub-asset is the thing written down, so what can be done to it sits on
                                 its own row. The buttons used to belong to the instruments underneath. */}
