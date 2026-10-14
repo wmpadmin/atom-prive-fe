@@ -15,7 +15,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Pencil, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
@@ -142,7 +142,7 @@ function ToleranceDialog({
 const UNGROUPED = "Not grouped";
 
 /**
- * An amount of money, exactly, for a sentence that somebody is going to act on.
+ * An amount of money, exactly, for a figure that somebody is going to act on.
  *
  * <p>Not the short form the columns use: "3.3K into one, 310 into another" does not add up on the page,
  * and a figure rounded to the nearest hundred is the wrong thing to hand to a dealer.
@@ -151,14 +151,17 @@ function exactly(amount: number, currency: string) {
   return `${currency} ${amount.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
+/** A sub-asset that can take money, and how much it can take before it passes its own target. */
+type Destination = { name: string; room: number };
+
 /**
- * How much each of the other groups in this class can take, and what it is called.
+ * How much each of the other groups in this class can take, biggest room first.
  *
  * <p>Room is the distance to its own target, never past it. A group filled to its target has drifted
  * nowhere, so money placed this way cannot push anything into a breach of its own — which is the whole
  * point of saying the amounts rather than only the names.
  */
-function roomIn(groups: SubClassGroup[], except: SubClassGroup): { name: string; room: number }[] {
+function roomIn(groups: SubClassGroup[], except: SubClassGroup): Destination[] {
   return groups
     .filter((one) => one !== except && one.subClass !== null
       && one.suggestion !== null && one.suggestion !== undefined && one.suggestion > 0)
@@ -166,44 +169,181 @@ function roomIn(groups: SubClassGroup[], except: SubClassGroup): { name: string;
     .sort((first, second) => second.room - first.room);
 }
 
-/**
- * What can be done about a sub-asset that has gone past what it is allowed, in a sentence, or nothing.
- *
- * <p>Only past the breach: a line inside its band needs nothing done to it, and saying so on every row
- * buried the one row that mattered. And only ever "can" — the platform places no trades, so the sentence
- * names what is open to whoever is reading it rather than instructing them.
- *
- * <p>Where money has to come out, every figure is named. Naming the groups alone was worse than naming
- * none: it reads as permission to put the whole sum into any one of them, and the first group to take more
- * than its own target breaches on the way in. A group can only ever absorb the distance to its target, and
- * what will not fit has to leave the class altogether — which is said rather than left to be discovered.
- */
-function whatIsOpen(group: SubClassGroup, siblings: SubClassGroup[], className: string,
-  currency: string): string | null {
-  const amount = group.suggestion;
-  if (group.standing !== "BREACHED" || amount === null || amount === undefined
-    || amount.toFixed(2) === "0.00") {
-    return null;
-  }
-  if (amount > 0) {
-    return `You can add ${exactly(amount, currency)} to this sub-asset.`;
-  }
-  const spare = -amount;
+/** The split this screen suggests: fill the emptiest first, never past its target, until the money runs out. */
+function suggest(spare: number, places: Destination[]): Record<string, number> {
   let left = spare;
-  const parts: string[] = [];
-  for (const place of roomIn(siblings, group)) {
-    if (left <= 0) break;
-    const takes = Math.min(left, place.room);
-    parts.push(`${exactly(takes, currency)} into ${place.name}`);
+  const split: Record<string, number> = {};
+  for (const place of places) {
+    const takes = Math.max(0, Math.min(left, place.room));
+    split[place.name] = Math.round(takes);
     left -= takes;
   }
-  const over = left > 0
-    ? ` The remaining ${exactly(left, currency)} has nowhere to go inside ${className} — it has to leave the class.`
-    : "";
-  return parts.length === 0
-    ? `You can take ${exactly(spare, currency)} out of this sub-asset. No other sub-asset here has room for `
-      + `it, so it has to leave ${className}.`
-    : `You can take ${exactly(spare, currency)} out of this sub-asset: ${parts.join(", ")}.${over}`;
+  return split;
+}
+
+/** What a sub-asset holding less than it is allowed can take, in a sentence. Nothing to split up. */
+function shortBy(group: SubClassGroup, currency: string): string | null {
+  const amount = group.suggestion;
+  if (group.standing !== "BREACHED" || amount === null || amount === undefined || amount <= 0) {
+    return null;
+  }
+  return `You can add ${exactly(amount, currency)} to this sub-asset.`;
+}
+
+/** How much has to come out of a sub-asset holding more than it is allowed, or nothing. */
+function spareIn(group: SubClassGroup): number | null {
+  const amount = group.suggestion;
+  if (group.standing !== "BREACHED" || amount === null || amount === undefined
+    || amount >= 0 || amount.toFixed(2) === "0.00") {
+    return null;
+  }
+  return -amount;
+}
+
+/** What somebody typed into one of the boxes, as a figure. A half-typed box is worth nothing, not NaN. */
+function typed(value: string | undefined) {
+  const figure = Number(value);
+  return value === undefined || value.trim() === "" || Number.isNaN(figure) ? 0 : figure;
+}
+
+/**
+ * Where the money coming out of one sub-asset can go, as a table somebody can argue with.
+ *
+ * <p>Naming the groups and no figures read as permission to put the whole sum into any one of them, and the
+ * first group to take more than its own target breached on the way in. So every figure is named — and
+ * because the screen cannot know what else is going on, every figure can be typed over. Reset puts the
+ * suggestion back.
+ *
+ * <p>Nothing here is saved. It is arithmetic done in front of somebody rather than behind them: what is
+ * placed, what each group has room for, and what is left over with nowhere inside the class to go.
+ */
+function MoveOutPlan({ spare, places, from, className, currency, span }: {
+  spare: number;
+  places: Destination[];
+  from: string;
+  className: string;
+  currency: string;
+  span: number;
+}) {
+  const suggested = suggest(spare, places);
+  const [moves, setMoves] = useState<Record<string, string>>(
+    () => Object.fromEntries(places.map((place) => [place.name, String(suggested[place.name])])),
+  );
+  const placed = places.reduce((sum, place) => sum + typed(moves[place.name]), 0);
+  const left = spare - placed;
+
+  return (
+    <tr>
+      <td colSpan={span} className="px-4 pb-4">
+        <div className="rounded-xl border border-line bg-white p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-ink">
+                Where {exactly(spare, currency)} out of {from} can go
+              </p>
+              <p className="mt-0.5 text-xs text-ink-muted">
+                A sub-asset can take what is left between it and its own target. Past that it has drifted the
+                other way, which is how one breach becomes two.
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMoves(Object.fromEntries(
+                places.map((place) => [place.name, String(suggested[place.name])]),
+              ))}
+            >
+              <RotateCcw aria-hidden="true" className="size-3.5" />
+              Reset to suggestion
+            </Button>
+          </div>
+
+          {places.length === 0 ? (
+            <p className="mt-3 text-sm text-ink">
+              No other sub-asset in {className} has room for it, so all {exactly(spare, currency)} has to
+              leave the class.
+            </p>
+          ) : (
+            <table className="mt-3 min-w-full text-sm">
+              <caption className="sr-only">Where the money coming out of {from} can go.</caption>
+              <thead>
+                <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  <th scope="col" className="py-2 pr-3">
+                    Sub-asset
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right">
+                    Has room for
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right">
+                    Move
+                  </th>
+                  <th scope="col" className="py-2 pl-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {places.map((place) => {
+                  const past = typed(moves[place.name]) - place.room;
+                  return (
+                    <tr key={place.name} className="border-b border-line last:border-0">
+                      <th scope="row" className="py-2 pr-3 text-left font-medium text-ink">
+                        {place.name}
+                      </th>
+                      <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
+                        {exactly(place.room, currency)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <span className="flex items-center justify-end gap-1.5">
+                          <span className="text-xs text-ink-muted">{currency}</span>
+                          <TextInput
+                            inputMode="decimal"
+                            aria-label={`Move into ${place.name}`}
+                            value={moves[place.name] ?? ""}
+                            onChange={(event) =>
+                              setMoves((was) => ({ ...was, [place.name]: event.target.value }))}
+                            className="h-8 w-32 text-right tabular-nums"
+                          />
+                        </span>
+                      </td>
+                      {/* Said on the row it belongs to, while the figure is still being typed: this is the
+                          thing that went wrong when the screen named places and left the amounts open. */}
+                      <td className="py-2 pl-3 text-xs">
+                        {past > 0 ? (
+                          <span className="text-amber-700">
+                            {exactly(past, currency)} past its target
+                          </span>
+                        ) : (
+                          <span className="text-ink-muted">&nbsp;</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                {/* A minus sign in a money column is a figure somebody has to stop and decode. The row
+                    says which way it has gone instead, and the figure stays a plain amount. */}
+                <tr className="border-t border-line">
+                  <th scope="row" className="py-2 pr-3 text-left font-semibold text-ink">
+                    {left < -0.5 ? "Placed more than there is" : "Still to place"}
+                  </th>
+                  <td />
+                  <td className={cn("px-3 py-2 text-right font-semibold tabular-nums",
+                    left < -0.5 ? "text-amber-700" : "text-ink")}>
+                    {exactly(Math.abs(left), currency)}
+                  </td>
+                  <td className="py-2 pl-3 text-xs text-ink-muted">
+                    {left > 0.5 && `nowhere inside ${className} — it has to leave the class`}
+                    {left < -0.5 && `more than is coming out of ${from}`}
+                    {Math.abs(left) <= 0.5 && "all of it placed"}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
 }
 
 /** The row that puts the box back, for a group the model does not name. Never a group's own name. */
@@ -563,9 +703,9 @@ export function ClientHoldingsPanel({
                               {/* Under the name rather than out at the end of the row: it is a sentence
                                   about this sub-asset, and a column of its own made every other row carry
                                   an empty cell to hold a space the breached one needed. */}
-                              {whatIsOpen(group, one.subClasses, one.assetClassName || one.assetClass, currency) && (
+                              {shortBy(group, currency) && (
                                 <span className="mt-1 block text-xs font-normal text-ink-muted">
-                                  {whatIsOpen(group, one.subClasses, one.assetClassName || one.assetClass, currency)}
+                                  {shortBy(group, currency)}
                                 </span>
                               )}
                             </th>
@@ -620,6 +760,19 @@ export function ClientHoldingsPanel({
                               </td>
                             )}
                           </tr>
+                          {/* Under the row it belongs to and across the whole width, because it is a
+                              working-out rather than another measurement of this sub-asset. */}
+                          {spareIn(group) !== null && (
+                            <MoveOutPlan
+                              key={`${group.subClass ?? UNGROUPED}-${group.valueAmount}`}
+                              spare={spareIn(group) as number}
+                              places={roomIn(one.subClasses, group)}
+                              from={group.subClass ?? UNGROUPED}
+                              className={one.assetClassName || one.assetClass}
+                              currency={currency}
+                              span={readOnly ? 6 : 7}
+                            />
+                          )}
                         </tbody>
                       ))}
                     </table>
