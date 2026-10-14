@@ -316,21 +316,25 @@ function exactly(amount: number, currency: string) {
 /** A sub-asset that can take money, how much it can take before it would breach, and the row it is. */
 type Destination = { name: string; room: number; into: PositionRow | null };
 
-/** How close to the breach line money may be placed. A hair inside it, never on it. */
-const SHORT_OF_BREACH = 0.1;
-
 /**
- * What a sub-asset can take, in money, before it would breach.
+ * What a sub-asset can take, in money: the distance to what the model asks of it, and no further.
  *
- * <p>Measured to the band rather than to the target. Filling only to the target is the safest rule there
- * is and on a portfolio where every line already sits at or above what the model asks it finds nothing at
- * all — which left the screen saying no sub-asset had room while every one of them had a band it was
- * nowhere near the end of. The last tenth of a point is left alone: landing exactly on the breach figure
- * is breaching.
+ * <p>Measured to the target rather than to the band. A band is the room a sub-asset is allowed to wander
+ * in, not a place to be put: filled to a hair inside its breach figure a line reads clean today and goes
+ * over on the first week the market moves, having been moved there on purpose. At its target it is as far
+ * from breaching either way as it can be, and less money has to change hands to get it there — which
+ * matters, because every one of these is a real trade with a cost behind it.
+ *
+ * <p>This rule finds nothing where a whole class already holds more than the model asks of it, since then
+ * every line in it is over its own target too. That is the honest answer, and the table above the classes
+ * is where it is explained: the money has to leave the class, and no shuffle inside can do it.
  */
-function roomFor(targetShare: number, share: number, breachAt: number, whole: number) {
-  const points = targetShare + breachAt - SHORT_OF_BREACH - share;
-  return points <= 0 ? 0 : (whole * points) / 100;
+function roomFor(targetShare: number, share: number, whole: number) {
+  const room = (whole * (targetShare - share)) / 100;
+  // A whole unit or it is nothing. A share worked out by division lands a hair either side of its target,
+  // so a sub-asset sitting exactly where the model asks came out with room for a ten-thousandth of a penny
+  // and took a row in the table to say USD 0.
+  return room < 1 ? 0 : room;
 }
 
 /**
@@ -340,26 +344,19 @@ function roomFor(targetShare: number, share: number, breachAt: number, whole: nu
  * class's nine lines has three standing empty, and reading only what is on the page said "no sub-asset has
  * room" while the model was asking for money in three of them.
  */
-function roomIn(groups: SubClassGroup[], except: SubClassGroup, model: ModelLine[], whole: number,
-  theirClass: number | null | undefined, classBreach: number | null | undefined): Destination[] {
-  // What the firm holds this line to, in the order the API reads them: the figure somebody wrote on the
-  // holding, then the one they wrote on the class it sits in, then the model's for that line, then the
-  // model's for the class. A client's own figure beats the model's at whatever level it was written.
-  const modelBreach = Object.fromEntries(model.map((line) => [line.name, line.breachAt]));
+function roomIn(groups: SubClassGroup[], except: SubClassGroup, model: ModelLine[],
+  whole: number): Destination[] {
   const places: Destination[] = [];
   for (const one of groups) {
     if (one === except || one.subClass === null) continue;
-    const held = one.positions[0] ?? null;
-    const breachAt = held?.breachPp ?? theirClass ?? modelBreach[one.subClass] ?? classBreach;
-    if (breachAt === null || breachAt === undefined) continue;
-    const room = roomFor(one.targetShare ?? 0, one.shareOfPortfolio, breachAt, whole);
-    if (room > 0) places.push({ name: one.subClass, room, into: held });
+    const room = roomFor(one.targetShare ?? 0, one.shareOfPortfolio, whole);
+    if (room > 0) places.push({ name: one.subClass, room, into: one.positions[0] ?? null });
   }
   const written = new Set(groups.map((one) => one.subClass));
   for (const line of model) {
     if (written.has(line.name) || line.name === except.subClass) continue;
-    // Nothing is held here, so it starts at none of the portfolio and its whole band is ahead of it.
-    const room = roomFor(line.shareOfPortfolio, 0, theirClass ?? line.breachAt, whole);
+    // Nothing is held here, so the whole of what the model asks of it is still to be put there.
+    const room = roomFor(line.shareOfPortfolio, 0, whole);
     if (room > 0) places.push({ name: line.name, room, into: null });
   }
   return places.sort((first, second) => second.room - first.room);
@@ -686,7 +683,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                               hold" is a warning about nothing. */}
                           {past > 0.5 && (
                             <span className="mt-1 block text-xs font-normal text-amber-700">
-                              {exactly(past, currency)} more than it may hold
+                              {exactly(past, currency)} past what the model asks of it
                             </span>
                           )}
                         </th>
@@ -1261,8 +1258,7 @@ export function ClientHoldingsPanel({
                               assetClass={one.assetClass}
                               places={roomIn(one.subClasses, group,
                                 held.data?.modelSubClasses?.[one.assetClass] ?? [],
-                                held.data?.underManagement ?? 0,
-                                one.ownTolerance ? one.breachAt : null, one.breachAt)}
+                                held.data?.underManagement ?? 0)}
                               className={one.assetClassName || one.assetClass}
                               currency={currency}
                               span={readOnly ? 6 : 7}
