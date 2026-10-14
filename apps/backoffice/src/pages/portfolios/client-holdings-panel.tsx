@@ -340,17 +340,20 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   onMoved: (touched: { id: string; before: PositionRow | null }[]) => void;
 }) {
   const from = out?.subClass ?? UNGROUPED;
-  // The order the rows were in when this panel opened, kept for as long as it stays open. Sorted afresh on
-  // every render, a move re-ordered the table under the hand that had just clicked it — the row that was
-  // fourth a moment ago is now eighth, and the next click lands on something else entirely. Rooms still
-  // change as money moves; only where each row sits is held still.
-  const [order] = useState(() => places.map((place) => place.name));
-  const at = (name: string) => {
-    const seen = order.indexOf(name);
-    return seen === -1 ? order.length : seen;
-  };
-  const inOrder = [...places].sort((first, second) =>
-    at(first.name) === at(second.name) ? second.room - first.room : at(first.name) - at(second.name));
+  // The rows as they stood when this panel opened, kept for as long as it stays open — the same rows, in
+  // the same order, in the same places on the screen.
+  //
+  // Sorted afresh on every render, a move re-ordered the table under the hand that had just clicked it.
+  // Worse, a sub-asset filled to the end of its band has no room left and dropped out of the list
+  // altogether, so every row beneath it slid up by one. A second press in the same spot then landed on a
+  // different sub-asset and moved money into it — three of them a second apart, from somebody pressing
+  // one button. A row that can take nothing more stays where it is, saying so, with no button on it.
+  const [opened] = useState(() => places);
+  const now = new Map(places.map((place) => [place.name, place]));
+  const inOrder = [
+    ...opened.map((place) => now.get(place.name) ?? { ...place, room: 0 }),
+    ...places.filter((place) => !opened.some((was) => was.name === place.name)),
+  ];
   const suggested = suggest(spare, inOrder);
   const asSuggested = () => Object.fromEntries(
     inOrder.map((place) => [place.name, String(suggested[place.name])]),
@@ -457,23 +460,6 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
           </div>
 
           {failed && <div className="mt-4"><Alert tone="danger">{failed}</Alert></div>}
-          {/* The emptied boxes and the vanished buttons are the safety doing its job, and they look exactly
-              like five moves that have just gone through. So it is said: one move, and what became of the
-              rest. */}
-          {done && (
-            <div className="mt-4">
-              <Alert tone="success">
-                <p className="font-semibold">
-                  Moved {exactly(done.amount, currency)} into {done.into}.
-                </p>
-                <p className="mt-1 text-sm">
-                  Nothing else moved. The other rows are still as you left them, and each one moves only
-                  when its own button is pressed.
-                </p>
-              </Alert>
-            </div>
-          )}
-
           {inOrder.length === 0 ? (
             <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-ink">
               No other sub-asset in {className} has room for it, so all {exactly(spare, currency)} has to
@@ -574,6 +560,22 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Under the table, never above it: put over the rows, the notice pushed every one of them down
+              the instant a move landed, which moves the next button under a finger that has not moved. */}
+          {done && (
+            <div className="mt-4">
+              <Alert tone="success">
+                <p className="font-semibold">
+                  Moved {exactly(done.amount, currency)} into {done.into}.
+                </p>
+                <p className="mt-1 text-sm">
+                  Nothing else moved. The other rows are still as you left them, and each one moves only
+                  when its own button is pressed.
+                </p>
+              </Alert>
             </div>
           )}
 
