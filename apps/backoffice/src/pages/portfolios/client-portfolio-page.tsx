@@ -214,9 +214,11 @@ export function ClientPortfolioPage() {
   const [touchedTolerances, setTouchedTolerances] =
     useState<Map<string, { watchPp: number; edgePp: number; breachPp: number } | null>>(new Map());
   const putClassBack = useSetClassTolerance<ApiError>();
-  const forget = useRemoveClientHolding<ApiError>();
-  const putBack = useChangeClientHolding<ApiError>();
-  const writeAgain = useRecordClientHolding<ApiError>();
+  // Each reports what it was refused for: a Discard that cannot put something back is the last moment to
+  // be quiet about it.
+  const forget = useRemoveClientHolding<ApiError>({ mutation: { onError } });
+  const putBack = useChangeClientHolding<ApiError>({ mutation: { onError } });
+  const writeAgain = useRecordClientHolding<ApiError>({ mutation: { onError } });
   const setHoldings = useSetClientHoldings<ApiError>({
     mutation: { onSuccess: () => { kept(); sayHoldingsSaved(); }, onError },
   });
@@ -308,7 +310,18 @@ export function ClientPortfolioPage() {
     putTheBoxesBack();
   }
 
+  /**
+   * Puts back everything written down since Edit was pressed, and keeps a record of whatever would not go.
+   *
+   * <p>Every failure used to be swallowed and the record thrown away in the same breath, which destroyed
+   * the only list of what still had to be put back at the moment it was known to be needed — and then left
+   * edit mode and refetched, so the screen showed the un-reverted figures as the truth. Pressing Discard
+   * again had nothing to replay.
+   */
   async function discardIncludingHoldings() {
+    const stuck = new Map<string, PositionRow | null>();
+    const stuckClasses = new Map<string, { watchPp: number; edgePp: number; breachPp: number } | null>();
+    let refused: ApiError | null = null;
     for (const [id, before] of touchedHoldings) {
       try {
         if (before === null) {
@@ -343,9 +356,11 @@ export function ClientPortfolioPage() {
           await writeAgain.mutateAsync({ customerId, data: was });
         }
       }
-      catch {
-        // One holding that will not go back does not strand the others, and the page still comes back to
-        // what is on file, which is what the reader is about to be shown.
+      catch (caught) {
+        // One holding that will not go back does not strand the others. It is kept, though, so Discard can
+        // be pressed again for it rather than the work being lost with the record of it.
+        stuck.set(id, before);
+        refused ??= caught as ApiError;
       }
     }
     // The tolerances last, because putting a sub-asset's own figures back is what decides whether the class
@@ -359,11 +374,22 @@ export function ClientPortfolioPage() {
           data: before ?? { watchPp: null, edgePp: null, breachPp: null },
         });
       }
-      catch {
-        // Said once, below, rather than per failure: the page is about to show what is actually on file.
+      catch (caught) {
+        stuckClasses.set(assetClass, before);
+        refused ??= caught as ApiError;
       }
     }
     setConfirmingDiscard(false);
+    if (stuck.size > 0 || stuckClasses.size > 0) {
+      // What is left to put back, and nothing else. The page stays in edit so Discard can be pressed
+      // again, and says what happened — after the refetch, because reading the portfolio back clears the
+      // message along with everything else.
+      setTouchedHoldings(stuck);
+      setTouchedTolerances(stuckClasses);
+      kept();
+      setErrors(toFormErrors(refused as ApiError));
+      return;
+    }
     putTheBoxesBack();
     kept();
   }
