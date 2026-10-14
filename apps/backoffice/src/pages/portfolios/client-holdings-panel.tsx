@@ -284,7 +284,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   className: string;
   currency: string;
   span: number;
-  onMoved: (id: string, before: PositionRow | null) => void;
+  onMoved: (touched: { id: string; before: PositionRow | null }[]) => void;
 }) {
   const from = out?.subClass ?? UNGROUPED;
   const suggested = suggest(spare, places);
@@ -303,8 +303,12 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   // back a suggestion nobody has changed is a button offering to undo the move — which it cannot do.
   const edited = places.some((place) => (moves[place.name] ?? "") !== String(suggested[place.name]));
 
-  // Both sides in one go, the source first: if the second leg fails, the money is missing from the screen
-  // rather than counted twice, which is the half somebody would notice.
+  // Both sides first, the page afterwards. Telling the page between the two legs had it read the portfolio
+  // back half way through the move — money gone from one sub-asset and not yet on the other — and every box
+  // on the screen re-filled itself against figures that were true for no more than a moment.
+  //
+  // The source goes first of the two: if the second leg fails, the money is missing rather than counted
+  // twice, which is the half somebody notices.
   async function move(place: Destination) {
     const amount = typed(moves[place.name]);
     if (!out || amount <= 0) return;
@@ -314,12 +318,11 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
       await change.mutateAsync({
         customerId, id: out.id, data: sameBut(out, out.valueAmount - amount),
       });
-      onMoved(out.id, out);
       if (place.into) {
         await change.mutateAsync({
           customerId, id: place.into.id, data: sameBut(place.into, place.into.valueAmount + amount),
         });
-        onMoved(place.into.id, place.into);
+        onMoved([{ id: out.id, before: out }, { id: place.into.id, before: place.into }]);
       } else {
         // A sub-asset the model names and nobody has written down yet. Discard puts it back by removing it,
         // which is what a null before means to the page above.
@@ -331,9 +334,12 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
             valueAmount: amount, watchPp: null, edgePp: null, breachPp: null,
           },
         });
-        onMoved(made.id, null);
+        onMoved([{ id: out.id, before: out }, { id: made.id, before: null }]);
       }
     } catch (caught) {
+      // The source may already be written down, so the page is told either way: a move that stopped half
+      // way is still a change somebody has to be able to discard.
+      onMoved([{ id: out.id, before: out }]);
       setFailed((caught as ApiError)?.message ?? "That could not be written down.");
     } finally {
       setMoving(null);
@@ -904,8 +910,8 @@ export function ClientHoldingsPanel({
                               className={one.assetClassName || one.assetClass}
                               currency={currency}
                               span={readOnly ? 6 : 7}
-                              onMoved={(id, before) => {
-                                onTouched?.(id, before);
+                              onMoved={(touched) => {
+                                for (const each of touched) onTouched?.(each.id, each.before);
                                 kept();
                               }}
                             />
