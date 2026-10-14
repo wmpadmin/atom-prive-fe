@@ -337,9 +337,20 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   onMoved: (touched: { id: string; before: PositionRow | null }[]) => void;
 }) {
   const from = out?.subClass ?? UNGROUPED;
-  const suggested = suggest(spare, places);
+  // The order the rows were in when this panel opened, kept for as long as it stays open. Sorted afresh on
+  // every render, a move re-ordered the table under the hand that had just clicked it — the row that was
+  // fourth a moment ago is now eighth, and the next click lands on something else entirely. Rooms still
+  // change as money moves; only where each row sits is held still.
+  const [order] = useState(() => places.map((place) => place.name));
+  const at = (name: string) => {
+    const seen = order.indexOf(name);
+    return seen === -1 ? order.length : seen;
+  };
+  const inOrder = [...places].sort((first, second) =>
+    at(first.name) === at(second.name) ? second.room - first.room : at(first.name) - at(second.name));
+  const suggested = suggest(spare, inOrder);
   const asSuggested = () => Object.fromEntries(
-    places.map((place) => [place.name, String(suggested[place.name])]),
+    inOrder.map((place) => [place.name, String(suggested[place.name])]),
   );
   const [moves, setMoves] = useState<Record<string, string>>(asSuggested);
   const [failed, setFailed] = useState<string | null>(null);
@@ -354,17 +365,17 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   const underway = useRef(false);
   const change = useChangeClientHolding<ApiError>();
   const write = useRecordClientHolding<ApiError>();
-  const placed = places.reduce((sum, place) => sum + typed(moves[place.name]), 0);
+  const placed = inOrder.reduce((sum, place) => sum + typed(moves[place.name]), 0);
   const left = spare - placed;
   // What this class could take in all, however it is split up, and so what genuinely cannot stay in it.
   // Money nobody has placed yet is not money with nowhere to go, and saying it has to leave the class
   // while eight sub-assets sit there with room for it is telling somebody the opposite of the truth.
-  const beyond = spare - places.reduce((sum, place) => sum + place.room, 0);
+  const beyond = spare - inOrder.reduce((sum, place) => sum + place.room, 0);
   // Only where there is something to go back to. Money moved is money written down: the sub-asset is worth
   // what it is worth now, these boxes hold the suggestion made against that, and a button offering to put
   // back a suggestion nobody has changed is a button offering to undo the move — which it cannot do.
   const edited = done === null
-    && places.some((place) => (moves[place.name] ?? "") !== String(suggested[place.name]));
+    && inOrder.some((place) => (moves[place.name] ?? "") !== String(suggested[place.name]));
 
   // Both sides first, the page afterwards. Telling the page between the two legs had it read the portfolio
   // back half way through the move — money gone from one sub-asset and not yet on the other — and every box
@@ -372,10 +383,10 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   //
   // The source goes first of the two: if the second leg fails, the money is missing rather than counted
   // twice, which is the half somebody notices.
-  // Nothing is left armed. Every other box goes back to nothing, so the next move is one somebody types
-  // and means, rather than one the screen had already filled in and put a button under.
+  // Only the row that has just gone. Emptying the rest made one click look like eight, and took away
+  // figures somebody had lined up on purpose — the plan for the other rows is still the plan.
   function settled(place: Destination, amount: number) {
-    setMoves(Object.fromEntries(places.map((each) => [each.name, "0"])));
+    setMoves((was) => ({ ...was, [place.name]: "0" }));
     setDone({ amount, into: place.name });
   }
 
@@ -453,14 +464,14 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                   Moved {exactly(done.amount, currency)} into {done.into}.
                 </p>
                 <p className="mt-1 text-sm">
-                  Nothing else moved. Every other box was emptied so that a second click cannot send money
-                  on its own — type a figure into a row to move more.
+                  Nothing else moved. The other rows are still as you left them, and each one moves only
+                  when its own button is pressed.
                 </p>
               </Alert>
             </div>
           )}
 
-          {places.length === 0 ? (
+          {inOrder.length === 0 ? (
             <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-ink">
               No other sub-asset in {className} has room for it, so all {exactly(spare, currency)} has to
               leave the class.
@@ -484,7 +495,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                   </tr>
                 </thead>
                 <tbody>
-                  {places.map((place) => {
+                  {inOrder.map((place) => {
                     const past = typed(moves[place.name]) - place.room;
                     const amount = typed(moves[place.name]);
                     return (
@@ -556,7 +567,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
 
           {/* A minus sign in a money column is a figure somebody has to stop and decode. This says which way
               it has gone instead, and the figure stays a plain amount. */}
-          {places.length > 0 && (
+          {inOrder.length > 0 && (
             <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1">
               <span className="text-sm font-semibold text-ink">
                 {left < -0.5 ? "Placed more than there is" : "Still to place"}
