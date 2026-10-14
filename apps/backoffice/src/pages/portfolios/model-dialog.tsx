@@ -139,7 +139,12 @@ function targetsOf(model: ModelRow, codes: string[]): Targets {
 }
 
 /** One line inside a class, as it is typed: a name and a share of its own class. */
-type TypedLine = { name: string; shareOfClass: string; band: TypedBand };
+/**
+ * @param written whether this line's name is being typed rather than picked. A name the firm has used
+ * before is chosen from the list; anything else is written on purpose, and saying so is what keeps the two
+ * apart — an empty box is otherwise indistinguishable from one nobody has reached yet.
+ */
+type TypedLine = { name: string; shareOfClass: string; band: TypedBand; written: boolean };
 
 type Lines = Record<string, TypedLine[]>;
 
@@ -152,6 +157,8 @@ function linesOf(model: ModelRow, codes: string[]): Lines {
   for (const assetClass of codes) {
     held[assetClass] = (model.subAllocations?.[assetClass] ?? []).map((line) => ({
       name: line.name,
+      // Settled once the names are in hand, below: a model's own line may be one nobody else has used.
+      written: false,
       shareOfClass: String(line.shareOfClass),
       band: line.band
         ? {
@@ -167,8 +174,11 @@ function linesOf(model: ModelRow, codes: string[]): Lines {
 }
 
 function blankLine(): TypedLine {
-  return { name: "", shareOfClass: "", band: NO_BAND };
+  return { name: "", shareOfClass: "", band: NO_BAND, written: false };
 }
+
+/** The value the list carries for writing a name nobody has used before. Never a name itself. */
+const WRITE_ONE = "\u0000write";
 
 /** What the lines inside one class come to; letters count as nothing until they are numbers. */
 function addsInClass(inClass: TypedLine[]) {
@@ -587,34 +597,78 @@ export function ModelDialog({
             <div key={assetClass} className="mt-3 rounded-lg border border-line bg-slate-50/50 p-3">
               <p className="flex items-baseline justify-between gap-2 text-xs font-semibold text-ink-soft">
                 <span>Inside {(names[assetClass] ?? assetClass)} — name, share of the class, its own band</span>
-                <span className={cn("tabular-nums", addsInClass(lines[assetClass]) === 100 ? "text-emerald-700" : "text-amber-700")}>
-                  {addsInClass(lines[assetClass])}% of the class
+                <span className={cn(
+                  "tabular-nums",
+                  addsInClass(lines[assetClass]) === 100 ? "text-emerald-700"
+                    : addsInClass(lines[assetClass]) > 100 ? "text-red-600" : "text-amber-700",
+                )}>
+                  {addsInClass(lines[assetClass]).toFixed(2)}% of the class
                 </span>
               </p>
-              <datalist id={`used-in-${assetClass}`}>
-                {(usedNames[assetClass] ?? []).map((used) => <option key={used} value={used} />)}
-              </datalist>
               <ul className="mt-2 space-y-1.5">
                 {lines[assetClass].map((line, at) => (
                   <li key={at} className="flex items-center gap-2">
-                    {/* A list to pick from, and still a box to type in. The firm keeps no master list of
-                        sub-assets — the names live only inside the models somebody has written — so what
-                        has been used before is offered, and anything new can still be written. */}
-                    <TextInput
-                      aria-label={`Name of line ${at + 1} inside ${(names[assetClass] ?? assetClass)}`}
-                      placeholder="US large-cap"
-                      list={`used-in-${assetClass}`}
-                      className="flex-1"
-                      value={line.name}
-                      onChange={(event) =>
-                        setLines({
-                          ...lines,
-                          [assetClass]: lines[assetClass].map((one, which) =>
-                            which === at ? { ...one, name: event.target.value } : one,
-                          ),
-                        })
-                      }
-                    />
+                    {/* Picked from the list, or written on purpose — never half way between. The firm
+                        keeps no master list of sub-assets; the names live only inside the models somebody
+                        has written, so those are offered and anything else has to be asked for by name.
+                        Left as a box to type in, the same line went down three ways across three models
+                        and nothing joined them up. */}
+                    {line.written || (line.name !== "" && !(usedNames[assetClass] ?? []).includes(line.name)) ? (
+                      <span className="flex min-w-0 flex-1 items-center gap-2">
+                        <TextInput
+                          aria-label={`Name of line ${at + 1} inside ${(names[assetClass] ?? assetClass)}`}
+                          placeholder="A name nobody has used yet"
+                          className="min-w-0 flex-1"
+                          value={line.name}
+                          onChange={(event) =>
+                            setLines({
+                              ...lines,
+                              [assetClass]: lines[assetClass].map((one, which) =>
+                                which === at ? { ...one, name: event.target.value, written: true } : one,
+                              ),
+                            })
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="shrink-0 text-xs font-medium text-primary-700 hover:underline"
+                          onClick={() =>
+                            setLines({
+                              ...lines,
+                              [assetClass]: lines[assetClass].map((one, which) =>
+                                which === at ? { ...one, name: "", written: false } : one,
+                              ),
+                            })
+                          }
+                        >
+                          Pick from the list
+                        </button>
+                      </span>
+                    ) : (
+                      <SelectInput
+                        aria-label={`Name of line ${at + 1} inside ${(names[assetClass] ?? assetClass)}`}
+                        className="min-w-0 flex-1"
+                        value={line.name}
+                        onChange={(event) =>
+                          setLines({
+                            ...lines,
+                            [assetClass]: lines[assetClass].map((one, which) =>
+                              which === at
+                                ? event.target.value === WRITE_ONE
+                                  ? { ...one, name: "", written: true }
+                                  : { ...one, name: event.target.value, written: false }
+                                : one,
+                            ),
+                          })
+                        }
+                      >
+                        <option value="">Pick a sub-asset…</option>
+                        {(usedNames[assetClass] ?? []).map((used) => (
+                          <option key={used} value={used}>{used}</option>
+                        ))}
+                        <option value={WRITE_ONE}>Something else…</option>
+                      </SelectInput>
+                    )}
                     <div className="relative w-24 shrink-0">
                       <TextInput
                         aria-label={`Share of ${(names[assetClass] ?? assetClass)} for line ${at + 1}`}
@@ -641,9 +695,7 @@ export function ModelDialog({
                     <span className="w-24 shrink-0 text-right text-xs whitespace-nowrap tabular-nums text-ink-muted">
                       {(() => {
                         const share = ofWholePortfolio(targets[assetClass], line.shareOfClass);
-                        return share === null
-                          ? ""
-                          : `= ${Number(share.toFixed(2))}% of all`;
+                        return share === null ? "" : `= ${share.toFixed(2)}% of all`;
                       })()}
                     </span>
                     {/* Where this line wanders differently from its class. Left empty it is judged by the
@@ -725,12 +777,22 @@ export function ModelDialog({
             </div>
           )}
 
-          {shortLines.length > 0 && (
-            <p className="mt-1.5 text-xs text-red-600">
-              The lines inside {andList(shortLines.map((assetClass) => (names[assetClass] ?? assetClass)))} do not come
-              to 100% of the class. Every part of a class a plan breaks down has to belong to something.
-            </p>
-          )}
+          {/* Which way, and by how much. "Do not come to 100%" was said the same whether a class was half
+              written or asked for more of itself than exists — and the second is the one somebody has to
+              take something off to fix. */}
+          {shortLines.map((assetClass) => {
+            const inClass = addsInClass(lines[assetClass]);
+            const named = names[assetClass] ?? assetClass;
+            return (
+              <p key={assetClass} className="mt-1.5 text-xs text-red-600">
+                {inClass > 100
+                  ? `The lines inside ${named} come to ${inClass.toFixed(2)}% of the class. `
+                    + `Take ${(inClass - 100).toFixed(2)}% off: a class is only ever the whole of itself.`
+                  : `The lines inside ${named} come to ${inClass.toFixed(2)}% of the class. `
+                    + `${(100 - inClass).toFixed(2)}% of it belongs to nothing yet.`}
+              </p>
+            );
+          })}
           {errors.fields.subAllocations && (
             <p className="mt-1 text-xs text-red-600">{errors.fields.subAllocations}</p>
           )}
