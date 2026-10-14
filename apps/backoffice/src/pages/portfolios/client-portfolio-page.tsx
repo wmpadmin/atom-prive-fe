@@ -913,16 +913,25 @@ export function ClientPortfolioPage() {
 }
 
 /**
- * Which classes get a box: the ones the firm still uses, plus any retired one this client is already counted
- * under — that figure has to be movable, and a box that never appears is a figure nobody can take out.
+ * Which classes this client's screen offers: the ones their model asks for, plus any they are already
+ * counted under.
+ *
+ * <p>A plan naming three classes is a plan for three: listing the firm's other six beside them invites
+ * money into places the model has nothing to say about, and every one of them would then be measured
+ * against a target of nothing. What is already written down stays listed whatever the model says — a class
+ * with no box is a figure nobody can take out, and a retired class holding money is exactly that.
+ *
+ * <p>A client on no model has nothing to narrow the list by, so they get the firm's own.
  */
 function classesShown(
   assetClasses: ReturnType<typeof useAssetClasses>,
   standing: PortfolioStanding | undefined,
 ): string[] {
   const held = new Set(Object.keys(standing?.holdings ?? {}));
+  const asked = new Set((standing?.classes ?? []).map((one) => one.assetClass));
   return assetClasses.all
-    .filter((one) => one.retiredAt === null || held.has(one.code))
+    .filter((one) => (one.retiredAt === null || held.has(one.code))
+      && (asked.size === 0 || asked.has(one.code) || held.has(one.code)))
     .map((one) => one.code);
 }
 
