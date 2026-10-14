@@ -198,6 +198,20 @@ function andList(words: string[]) {
 }
 
 /**
+ * What a line comes to as a share of the whole portfolio: its share of the class, of the class's share.
+ *
+ * <p>Two percentages away from the figure that is actually measured. Typing 89% of a class that is 12% of
+ * the portfolio means 10.68% of it, and that 10.68 is what every drift, band and breach on every other
+ * screen is read against — so it is worked out here rather than left to be done in somebody's head while
+ * they type the next line.
+ */
+function ofWholePortfolio(classTarget: string, shareOfClass: string): number | null {
+  if (!isNumber(classTarget) || !isNumber(shareOfClass)) return null;
+  if (classTarget.trim() === "" || shareOfClass.trim() === "") return null;
+  return (Number(classTarget) * Number(shareOfClass)) / 100;
+}
+
+/**
  * The sub-asset names the firm has already written under each class, across every model it has.
  *
  * <p>Offered rather than imposed. There is no firm-wide list of sub-assets to pick from — the names exist
@@ -622,6 +636,16 @@ export function ModelDialog({
                         %
                       </span>
                     </div>
+                    {/* The figure the rest of the platform actually measures against, beside the one being
+                        typed: a share of a share is two sums away from it. */}
+                    <span className="w-24 shrink-0 text-right text-xs whitespace-nowrap tabular-nums text-ink-muted">
+                      {(() => {
+                        const share = ofWholePortfolio(targets[assetClass], line.shareOfClass);
+                        return share === null
+                          ? ""
+                          : `= ${Number(share.toFixed(2))}% of all`;
+                      })()}
+                    </span>
                     {/* Where this line wanders differently from its class. Left empty it is judged by the
                         class, which is in turn judged by the model. */}
                     <div className="w-20 shrink-0">
