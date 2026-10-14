@@ -344,7 +344,7 @@ function sameBut(row: PositionRow, valueAmount: number) {
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
 function MoveOutPlan({ customerId, assetClass, spare, out, places, className, currency, span, readOnly,
-  onMoved }: {
+  claim, release, elsewhere, onMoved }: {
   customerId: string;
   assetClass: string;
   spare: number;
@@ -355,6 +355,11 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   span: number;
   /** Read somewhere other than the portfolio screen's own Edit, where nothing may be written down. */
   readOnly: boolean;
+  /** Takes the one turn there is to write, for the whole screen. False where somebody else already has it. */
+  claim: () => boolean;
+  release: () => void;
+  /** Whether a move is going on anywhere on this screen, including in another class's table. */
+  elsewhere: boolean;
   onMoved: (touched: { id: string; before: PositionRow | null }[]) => void | Promise<void>;
 }) {
   const from = out?.subClass ?? UNGROUPED;
@@ -383,10 +388,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   // every remaining box filled with a fresh split and the buttons back where they were, so it never looked
   // as though anything had happened — and the whole table sat one click away from going out the door.
   const [done, setDone] = useState<{ amount: number; into: string } | null>(null);
-  // Shut the door in the same breath as the click, not on the render after it. Disabling the button is a
-  // piece of state, and state arrives a render later: two events landing in the same tick both read it as
-  // open and both go through, which is how one press of one button moved money twice.
-  const underway = useRef(false);
+
   const change = useChangeClientHolding<ApiError>();
   const write = useRecordClientHolding<ApiError>();
   const placed = inOrder.reduce((sum, place) => sum + typed(moves[place.name]), 0);
@@ -416,8 +418,10 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
 
   async function move(place: Destination) {
     const amount = typed(moves[place.name]);
-    if (!out || amount <= 0 || underway.current) return;
-    underway.current = true;
+    // One turn for the whole screen, taken in the same breath as the click rather than on the render
+    // after it. Kept per table, two breached sub-assets could be emptied into the same sibling at once,
+    // each working its new figure out from the same row — and one of the two deposits was written off.
+    if (!out || amount <= 0 || !claim()) return;
     setFailed(null);
     setMoving(place.name);
     // Whether the money is already out of the source. What that is worth now is a different figure from
@@ -466,7 +470,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
         setFailed(said ?? "That could not be written down. Nothing has moved.");
       }
     } finally {
-      underway.current = false;
+      release();
       setMoving(null);
     }
   }
@@ -582,7 +586,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                               size="sm"
                               className="w-20 justify-center"
                               aria-label={`Move ${exactly(amount, currency)} into ${place.name}`}
-                              disabled={!out || moving !== null}
+                              disabled={!out || moving !== null || elsewhere}
                               onClick={() => move(place)}
                             >
                               {moving === place.name ? "Moving…" : "Move"}
@@ -732,6 +736,22 @@ export function ClientHoldingsPanel({
   // Settles once the portfolio has actually been read back, so a caller that must not act on yesterday's
   // figures can wait for it. Fired and forgotten, this let a second Move go out against the rows the first
   // one had already written over.
+  // One move at a time across the whole screen. The ref is what a click reads, because state arrives a
+  // render later and two clicks in the same tick would both find the door open; the flag beside it is what
+  // the buttons read, so every table greys out while any one of them is writing.
+  const moveUnderway = useRef(false);
+  const [moveSomewhere, setMoveSomewhere] = useState(false);
+  const claimTheMove = () => {
+    if (moveUnderway.current) return false;
+    moveUnderway.current = true;
+    setMoveSomewhere(true);
+    return true;
+  };
+  const releaseTheMove = () => {
+    moveUnderway.current = false;
+    setMoveSomewhere(false);
+  };
+
   const kept = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),
@@ -1091,6 +1111,9 @@ export function ClientHoldingsPanel({
                               currency={currency}
                               span={readOnly ? 6 : 7}
                               readOnly={readOnly}
+                              claim={claimTheMove}
+                              release={releaseTheMove}
+                              elsewhere={moveSomewhere}
                               onMoved={async (touched) => {
                                 for (const each of touched) onTouched?.(each.id, each.before);
                                 await kept();
