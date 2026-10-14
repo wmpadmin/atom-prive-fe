@@ -344,7 +344,7 @@ function sameBut(row: PositionRow, valueAmount: number) {
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
 function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, currency, span, readOnly,
-  claim, release, elsewhere, onMoved }: {
+  claim, release, elsewhere, asksForNone, onMoved }: {
   customerId: string;
   assetClass: string;
   spare: number;
@@ -368,6 +368,8 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   release: () => void;
   /** Whether a move is going on anywhere on this screen, including in another class's table. */
   elsewhere: boolean;
+  /** Whether the model asks for none of this sub-asset at all, rather than less of it than is held. */
+  asksForNone: boolean;
   onMoved: (touched: { id: string; before: PositionRow | null }[]) => void | Promise<void>;
 }) {
   const from = rows[0]?.subClass ?? UNGROUPED;
@@ -408,7 +410,11 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // What this class could take in all, however it is split up, and so what genuinely cannot stay in it.
   // Money nobody has placed yet is not money with nowhere to go, and saying it has to leave the class
   // while eight sub-assets sit there with room for it is telling somebody the opposite of the truth.
-  const beyond = spare - inOrder.reduce((sum, place) => sum + place.room, 0);
+  const canTake = inOrder.reduce((sum, place) => sum + place.room, 0);
+  const beyond = spare - canTake;
+  // A table of noughts offering to place a twentieth of what has to move is not a plan, it is eight rows
+  // of nothing over the one sentence that matters. Said instead.
+  const nowhere = canTake < 1 || canTake < spare / 20;
   // Only where there is something to go back to. Money moved is money written down: the sub-asset is worth
   // what it is worth now, these boxes hold the suggestion made against that, and a button offering to put
   // back a suggestion nobody has changed is a button offering to undo the move — which it cannot do.
@@ -500,12 +506,20 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
         <div className="rounded-2xl border border-line bg-slate-50/70 p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-xl">
+              {/* A sub-asset the model asks nothing of is not one holding too much of something — it is
+                  one holding something the model does not want at all, and no amount of it belongs here.
+                  Shuffling cannot answer that, so the heading does not offer to. */}
               <p className="text-sm font-semibold text-ink">
-                Where {exactly(spare, currency)} out of {from} can go
+                {asksForNone
+                  ? `The model asks for none of ${from}`
+                  : `Where ${exactly(spare, currency)} out of ${from} can go`}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                A sub-asset can take money until it is a tenth of a point short of breaching its own band.
-                Past that it breaches, which is how one breach becomes two.
+                {asksForNone
+                  ? `All ${exactly(spare, currency)} of it has to go. Where ${className} has room it can go `
+                    + "to a sub-asset inside it; the rest has to leave the class."
+                  : "A sub-asset can take money until it is a tenth of a point short of breaching its own"
+                    + " band. Past that it breaches, which is how one breach becomes two."}
               </p>
             </div>
             {edited && !readOnly && (
@@ -517,10 +531,13 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
           </div>
 
           {failed && <div className="mt-4"><Alert tone="danger">{failed}</Alert></div>}
-          {inOrder.length === 0 ? (
+          {nowhere ? (
             <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-ink">
-              No other sub-asset in {className} has room for it, so all {exactly(spare, currency)} has to
-              leave the class.
+              {canTake < 1
+                ? `No other sub-asset in ${className} has room for it, so all `
+                  + `${exactly(spare, currency)} has to leave the class.`
+                : `${className} has room for only ${exactly(canTake, currency)} of it, so the other `
+                  + `${exactly(spare - canTake, currency)} has to leave the class.`}
             </p>
           ) : (
             <div className="mt-4 overflow-hidden rounded-xl border border-line bg-white">
@@ -641,7 +658,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
 
           {/* A minus sign in a money column is a figure somebody has to stop and decode. This says which way
               it has gone instead, and the figure stays a plain amount. */}
-          {inOrder.length > 0 && (
+          {!nowhere && (
             <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1">
               <span className="text-sm font-semibold text-ink">
                 {left < -0.5 ? "Placed more than there is" : "Still to place"}
@@ -1136,6 +1153,7 @@ export function ClientHoldingsPanel({
                               claim={claimTheMove}
                               release={releaseTheMove}
                               elsewhere={moveSomewhere}
+                              asksForNone={group.targetShare === 0}
                               onMoved={async (touched) => {
                                 for (const each of touched) onTouched?.(each.id, each.before);
                                 await kept();
@@ -1324,17 +1342,38 @@ function HoldingDialog({
   // holding places money that was already counted and the whole stands; where it has not, the whole is the
   // sum of what is written down and this figure adds to it.
   const typed = Number(valueAmount);
+  // What the firm has said this client has in all. The whole never falls below it — but where nobody has
+  // said, there is no floor and the whole is simply the sum of what is written down. Read as the whole
+  // itself, this floor could never be gone under, so writing a holding down looked like it changed nothing
+  // and the figures beside it went on being worked out against a portfolio that no longer existed.
+  const declared = unwritten > 0 ? underManagement : 0;
   const wouldBe =
     asked && valueAmount.trim() !== "" && Number.isFinite(typed) && typed >= 0
       ? (() => {
           const written = underManagement - unwritten;
           const writtenThen = written - (position?.valueAmount ?? 0) + typed;
-          const wholeThen = Math.max(underManagement, writtenThen);
+          const wholeThen = Math.max(declared, writtenThen);
           if (wholeThen <= 0) return null;
           const share = (typed / wholeThen) * 100;
           return { share, over: share - asked.shareOfPortfolio };
         })()
       : null;
+  /**
+   * What the whole portfolio would come to, where writing this figure down would make it smaller.
+   *
+   * <p>Every share on these screens is out of the whole, and where the firm has not said what the client
+   * has in all, the whole is the sum of what is written down. So writing a holding down does not move
+   * money, it takes it out of the count — and every other sub-asset's share of a smaller whole is larger.
+   * Eight of them sitting a tenth of a point inside their bands went past them at once that way, with
+   * nothing on this screen having warned that it would happen.
+   */
+  const shrinks = (() => {
+    if (valueAmount.trim() === "" || !Number.isFinite(typed) || typed < 0) return null;
+    const written = underManagement - unwritten;
+    const writtenThen = written - (position?.valueAmount ?? 0) + typed;
+    const wholeThen = Math.max(declared, writtenThen);
+    return wholeThen < underManagement - 0.005 ? { was: underManagement, now: wholeThen } : null;
+  })();
   // What this figure would be judged by: this client's own tolerance where all three are typed into the
   // boxes below, and the model's otherwise. Read from the model alone, the dialog went on judging by
   // figures somebody was in the middle of writing over.
@@ -1622,6 +1661,19 @@ function HoldingDialog({
         </fieldset>
         {valueAmount.trim() !== "" && !readable && (
           <p className="text-xs text-rose-700">What a sub-asset is worth is a number, and not less than nothing.</p>
+        )}
+        {shrinks && (
+          <Alert tone="warning">
+            <p className="font-semibold">
+              This takes the portfolio from {underManagementLabel(shrinks.was, currency)} to{" "}
+              {underManagementLabel(shrinks.now, currency)}.
+            </p>
+            <p className="mt-1 text-sm">
+              Every other sub-asset keeps what it is worth, but each one is a larger share of a smaller
+              whole — so gaps widen everywhere, and anything sitting near its band may go past it. To take
+              money out of this sub-asset without shrinking the portfolio, move it to another one instead.
+            </p>
+          </Alert>
         )}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={busy}>
