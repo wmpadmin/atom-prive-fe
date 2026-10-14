@@ -325,7 +325,8 @@ function sameBut(row: PositionRow, valueAmount: number) {
  * <p>Move writes it down: the figure comes off this sub-asset and goes on to that one, in one go. Discard
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
-function MoveOutPlan({ customerId, assetClass, spare, out, places, className, currency, span, onMoved }: {
+function MoveOutPlan({ customerId, assetClass, spare, out, places, className, currency, span, readOnly,
+  onMoved }: {
   customerId: string;
   assetClass: string;
   spare: number;
@@ -334,6 +335,8 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   className: string;
   currency: string;
   span: number;
+  /** Read somewhere other than the portfolio screen's own Edit, where nothing may be written down. */
+  readOnly: boolean;
   onMoved: (touched: { id: string; before: PositionRow | null }[]) => void;
 }) {
   const from = out?.subClass ?? UNGROUPED;
@@ -445,7 +448,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                 Past that it breaches, which is how one breach becomes two.
               </p>
             </div>
-            {edited && (
+            {edited && !readOnly && (
               <Button variant="secondary" size="sm" onClick={() => setMoves(asSuggested())}>
                 <RotateCcw aria-hidden="true" className="size-3.5" />
                 Reset to suggestion
@@ -522,26 +525,35 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                         <td className="px-5 py-4 text-right tabular-nums whitespace-nowrap text-ink-muted">
                           {exactly(place.room, currency)}
                         </td>
+                        {/* Off the portfolio screen there is no Edit, and so no Discard to undo a move
+                            with. What it would put there is still worth reading, so it is read rather than
+                            typed. */}
                         <td className="px-5 py-4 text-right">
-                          <span className="flex items-center justify-end gap-2">
-                            <span className="text-xs text-ink-muted">{currency}</span>
-                            <TextInput
-                              inputMode="decimal"
-                              aria-label={`Move into ${place.name}`}
-                              value={moves[place.name] ?? "0"}
-                              onChange={(event) => {
-                                setDone(null);
-                                setMoves((was) => ({ ...was, [place.name]: event.target.value }));
-                              }}
-                              className="h-9 w-32 text-right tabular-nums"
-                            />
-                          </span>
+                          {readOnly ? (
+                            <span className="tabular-nums text-ink-muted">
+                              {exactly(typed(moves[place.name]), currency)}
+                            </span>
+                          ) : (
+                            <span className="flex items-center justify-end gap-2">
+                              <span className="text-xs text-ink-muted">{currency}</span>
+                              <TextInput
+                                inputMode="decimal"
+                                aria-label={`Move into ${place.name}`}
+                                value={moves[place.name] ?? "0"}
+                                onChange={(event) => {
+                                  setDone(null);
+                                  setMoves((was) => ({ ...was, [place.name]: event.target.value }));
+                                }}
+                                className="h-9 w-32 text-right tabular-nums"
+                              />
+                            </span>
+                          )}
                         </td>
                         {/* No button on a row nothing is going to. A line of greyed-out "Move USD 0"
                             down the table reads as six things that cannot be done, when it is really
                             six boxes waiting for a figure. */}
                         <td className="px-5 py-4 text-right">
-                          {amount > 0 && (
+                          {amount > 0 && !readOnly && (
                             /* The figure is in the box beside it, so the button does not carry it too:
                                a column of buttons each a different width, because each named a different
                                amount, read as a column of different buttons. The amount still goes to
@@ -1026,6 +1038,7 @@ export function ClientHoldingsPanel({
                               className={one.assetClassName || one.assetClass}
                               currency={currency}
                               span={readOnly ? 6 : 7}
+                              readOnly={readOnly}
                               onMoved={(touched) => {
                                 for (const each of touched) onTouched?.(each.id, each.before);
                                 kept();
