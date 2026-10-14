@@ -8,12 +8,11 @@ function money(amount: number) {
 }
 
 /**
- * How much of what the model asks for is actually there — the firm's sheet calls it "% allocated".
+ * How much of what the model asks for is actually there — the column the firm's sheet calls "% allocated".
  *
- * <p>A different question from the gap beside it. The gap is the distance in points, which is what the
- * bands are set in and what decides the badge; this is the proportion, which says at a glance whether a
- * class is a third filled or two and a half times over. A class the model asks nothing of can have no
- * proportion of nothing, so it has none to show.
+ * <p>A third filled and two and a half times over are both plain in it at a glance, which neither of the
+ * two money columns beside it says on its own. A class the model asks nothing of has no proportion of
+ * nothing to show.
  */
 function filled(targetValue: number, actualValue: number) {
   return targetValue === 0 ? "—" : `${((actualValue / targetValue) * 100).toFixed(2)}%`;
@@ -89,9 +88,10 @@ export function ClassStandingTable({
           </caption>
           <thead>
             <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              {/* The firm's own sheet is where this table is read against, line for line, so it is worded
-                  the way that sheet words it. Gap is the one column the sheet does not have — it is in
-                  points, which is what the bands are set in and what decides which badge a class wears. */}
+              {/* The firm's own sheet is where this table is read against, line for line — so these are
+                  its columns, in its words and its order, and nothing besides. How far a class has
+                  wandered in points is not one of them; it is said by the badge under the class's name,
+                  which is what the bands are set in points for. */}
               <th scope="col" className="py-3 pr-4">
                 Asset allocation
               </th>
@@ -109,9 +109,6 @@ export function ClassStandingTable({
               </th>
               <th scope="col" className="px-4 py-3 text-right">
                 % allocated
-              </th>
-              <th scope="col" className="px-4 py-3 text-right">
-                Gap
               </th>
               {suggestions && (
                 <th scope="col" className="py-3 pl-4 text-right">
@@ -166,11 +163,11 @@ export function ClassStandingTable({
                       beside a target and a current share. Signed, so over and under read apart at a
                       glance. The class the model asks none of has a gap like any other, where the old
                       share-of-target had no answer at all and showed a dash. */}
-                  <td className={NUMBER} title="What is held, as a proportion of what the model asks for.">
+                  <td
+                    className={NUMBER}
+                    title={`What is held, as a proportion of what the model asks for. ${driftLabel(row.drift)} from target.`}
+                  >
                     {filled(row.targetValue, row.actualValue)}
-                  </td>
-                  <td className={NUMBER} title={`${driftLabel(row.drift)} from target.`}>
-                    {driftLabel(row.drift)}
                   </td>
                   {suggestions && (
                     <td className={`${NUMBER} pr-0 pl-4`}>
@@ -196,7 +193,6 @@ export function ClassStandingTable({
               <td className={NUMBER}>
                 {filled(classes.reduce((sum, row) => sum + row.targetValue, 0), underManagement)}
               </td>
-              <td className={NUMBER} />
               {suggestions && <td className={`${NUMBER} pr-0 pl-4`}>{money(moving)}</td>}
             </tr>
           </tfoot>
