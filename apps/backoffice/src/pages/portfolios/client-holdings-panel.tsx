@@ -1175,6 +1175,9 @@ export function ClientHoldingsPanel({
           position={open === "new" ? null : open}
           startOn={startOn}
           modelSubClasses={held.data?.modelSubClasses ?? {}}
+          alreadyWritten={Object.fromEntries(
+            classes.map((one) => [one.assetClass, one.subClasses.map((group) => group.subClass ?? "")]),
+          )}
           classBands={Object.fromEntries(
             classes.map((one) => [
               one.assetClass,
@@ -1242,6 +1245,7 @@ function HoldingDialog({
   position,
   startOn,
   modelSubClasses,
+  alreadyWritten,
   classBands,
   measuredAgainst,
   unwritten,
@@ -1251,6 +1255,14 @@ function HoldingDialog({
   onSaved,
 }: {
   customerId: string;
+  /**
+   * The sub-assets this client already has written down, by class.
+   *
+   * <p>A sub-asset is one line of a portfolio. Written down twice it is two rows with one name, each with
+   * its own figure and its own tolerance, and nothing can say which of them the model's line is measured
+   * against. The one being edited is its own exception.
+   */
+  alreadyWritten: Record<string, string[]>;
   position: PositionRow | null;
   /** What the client's model calls the lines inside each class, by class. Empty where it names none. */
   modelSubClasses: Record<string, ModelLine[]>;
@@ -1393,6 +1405,9 @@ function HoldingDialog({
   const busy = create.isPending || change.isPending;
   // Letters in a figure box are not a small mistake to round away: nothing is saved until it is a number.
   const readable = valueAmount.trim() !== "" && Number.isFinite(Number(valueAmount)) && Number(valueAmount) >= 0;
+  // A name taken off the list can still be written back on by hand, so it is checked as well as hidden.
+  const taken = subClass.trim() !== (position?.subClass ?? "")
+    && (alreadyWritten[assetClass] ?? []).includes(subClass.trim());
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -1483,12 +1498,19 @@ function HoldingDialog({
                   setSubClass(event.target.value);
                 }}
               >
-                <option value="">Not grouped</option>
-                {(modelSubClasses[assetClass] ?? []).map((one) => (
-                  <option key={one.name} value={one.name}>
-                    {one.name}
-                  </option>
-                ))}
+                {/* Not the ones already written down under this class. Offering a name the client
+                    already holds is offering to split one sub-asset across two rows. */}
+                {(!(alreadyWritten[assetClass] ?? []).includes("") || position?.subClass == null) && (
+                  <option value="">Not grouped</option>
+                )}
+                {(modelSubClasses[assetClass] ?? [])
+                  .filter((one) => one.name === position?.subClass
+                    || !(alreadyWritten[assetClass] ?? []).includes(one.name))
+                  .map((one) => (
+                    <option key={one.name} value={one.name}>
+                      {one.name}
+                    </option>
+                  ))}
                 <option value={OTHER_GROUP}>Something else…</option>
               </SelectInput>
             ) : (
@@ -1646,6 +1668,12 @@ function HoldingDialog({
         {valueAmount.trim() !== "" && !readable && (
           <p className="text-xs text-rose-700">What a sub-asset is worth is a number, and not less than nothing.</p>
         )}
+        {taken && (
+          <p className="text-xs text-rose-700">
+            {subClass.trim() === "" ? "Not grouped" : subClass.trim()} is already written down under{" "}
+            {assetClasses.names[assetClass] ?? assetClass}. Edit that one, or give this a name of its own.
+          </p>
+        )}
         {shrinks && (
           <Alert tone="warning">
             <p className="font-semibold">
@@ -1664,7 +1692,7 @@ function HoldingDialog({
           </Button>
           {/* A sub-asset the model does not name can still be written down — somebody holding it is the
               fact, and the model saying nothing about it is a separate one. */}
-          <Button type="submit" disabled={!readable || outOfOrder || busy}>
+          <Button type="submit" disabled={!readable || outOfOrder || taken || busy}>
             {busy ? "Saving…" : position ? "Save it" : "Add it"}
           </Button>
         </div>
