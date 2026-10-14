@@ -1,10 +1,5 @@
 import { ApiError } from "@atomprive/api-client";
-import {
-  useGetAmlMatrix,
-  useListAmlRatedClients,
-  type RatedClientsPage,
-  type Sheet,
-} from "@atomprive/api-client/backoffice";
+import { useListAmlRatedClients, type RatedClientsPage } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Pagination, TextInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { ShieldAlert } from "lucide-react";
@@ -14,7 +9,6 @@ import { ListPageHeader } from "../../components/record-list";
 import { formatDate } from "../../lib/labels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { bandTone } from "./aml-labels";
-import { SheetNotReady } from "./sheet-not-ready";
 
 /**
  * Where every client sits on the firm's money-laundering risk matrix.
@@ -27,10 +21,6 @@ export function AmlRiskPage() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
-
-  // Read here as well as on the client, so that a screen full of "Never rated" says why before anybody
-  // opens one and finds a dead end.
-  const sheet = useGetAmlMatrix<Sheet, ApiError>();
 
   const clients = useListAmlRatedClients<RatedClientsPage, ApiError>(
     { query: query.trim() || undefined, page, size: pageSize },
@@ -51,10 +41,6 @@ export function AmlRiskPage() {
           lead="Where each client sits on the firm's money-laundering risk matrix, and when they are due to be looked at again."
         />
       </div>
-
-      {sheet.data && !sheet.data.complete && (
-        <SheetNotReady faults={sheet.data.faults} />
-      )}
 
       {counts && (
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
