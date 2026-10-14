@@ -277,6 +277,11 @@ export function ClientPortfolioPage() {
   const figuresChanged =
     held !== null && JSON.stringify(held) !== JSON.stringify(heldFrom(standing.data, boxes));
   const unsaved =
+    // A holding written down in this sitting, or a tolerance written over, is unkept work exactly as a
+    // typed-over box is. Counting only the boxes, a move made and walked away from asked nothing and took
+    // its own undo with it.
+    touchedHoldings.size > 0 ||
+    touchedTolerances.size > 0 ||
     figuresChanged ||
     (chosenNetAum !== null
       && chosenNetAum !== (standing.data?.netAum == null ? "" : String(standing.data.netAum))) ||
@@ -450,7 +455,8 @@ export function ClientPortfolioPage() {
         what="This client's portfolio"
         saving={saving}
         onSave={() => void save()}
-        onDiscard={discard}
+        /* Straight to the putting-back: somebody who has just answered "discard" has been asked. */
+        onDiscard={() => discardIncludingHoldings()}
       />
       <Link
         to={back.to}
