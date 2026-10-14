@@ -267,6 +267,10 @@ function MoveOutPlan({ customerId, spare, out, places, className, currency, span
   const change = useChangeClientHolding<ApiError>();
   const placed = places.reduce((sum, place) => sum + typed(moves[place.name]), 0);
   const left = spare - placed;
+  // Only where there is something to go back to. Money moved is money written down: the sub-asset is worth
+  // what it is worth now, these boxes hold the suggestion made against that, and a button offering to put
+  // back a suggestion nobody has changed is a button offering to undo the move — which it cannot do.
+  const edited = places.some((place) => (moves[place.name] ?? "") !== String(suggested[place.name]));
 
   // Both sides in one go, the source first: if the second leg fails, the money is missing from the screen
   // rather than counted twice, which is the half somebody would notice.
@@ -305,10 +309,12 @@ function MoveOutPlan({ customerId, spare, out, places, className, currency, span
                 other way, which is how one breach becomes two.
               </p>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => setMoves(asSuggested())}>
-              <RotateCcw aria-hidden="true" className="size-3.5" />
-              Reset to suggestion
-            </Button>
+            {edited && (
+              <Button variant="secondary" size="sm" onClick={() => setMoves(asSuggested())}>
+                <RotateCcw aria-hidden="true" className="size-3.5" />
+                Reset to suggestion
+              </Button>
+            )}
           </div>
 
           {failed && <div className="mt-4"><Alert tone="danger">{failed}</Alert></div>}
@@ -827,7 +833,11 @@ export function ClientHoldingsPanel({
                               working-out rather than another measurement of this sub-asset. */}
                           {spareIn(group) !== null && (
                             <MoveOutPlan
-                              key={`${group.subClass ?? UNGROUPED}-${group.valueAmount}`}
+                              /* Every figure in the class, not just this one's: a move writes two
+                                 sub-assets, and keying on one of them left the other's box holding a
+                                 suggestion made against a figure that had already changed. */
+                              key={`${group.subClass ?? UNGROUPED}-`
+                                + one.subClasses.map((each) => each.valueAmount).join("-")}
                               customerId={customerId}
                               spare={spareIn(group) as number}
                               out={group.positions[0] ?? null}
