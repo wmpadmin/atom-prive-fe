@@ -347,6 +347,10 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   const write = useRecordClientHolding<ApiError>();
   const placed = places.reduce((sum, place) => sum + typed(moves[place.name]), 0);
   const left = spare - placed;
+  // What this class could take in all, however it is split up, and so what genuinely cannot stay in it.
+  // Money nobody has placed yet is not money with nowhere to go, and saying it has to leave the class
+  // while eight sub-assets sit there with room for it is telling somebody the opposite of the truth.
+  const beyond = spare - places.reduce((sum, place) => sum + place.room, 0);
   // Only where there is something to go back to. Money moved is money written down: the sub-asset is worth
   // what it is worth now, these boxes hold the suggestion made against that, and a button offering to put
   // back a suggestion nobody has changed is a button offering to undo the move — which it cannot do.
@@ -489,7 +493,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                             <TextInput
                               inputMode="decimal"
                               aria-label={`Move into ${place.name}`}
-                              value={moves[place.name] ?? ""}
+                              value={moves[place.name] ?? "0"}
                               onChange={(event) => {
                                 setDone(null);
                                 setMoves((was) => ({ ...was, [place.name]: event.target.value }));
@@ -538,7 +542,10 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                 {exactly(Math.abs(left), currency)}
               </span>
               <span className="text-xs text-ink-muted">
-                {left > 0.5 && `nowhere inside ${className} — it has to leave the class`}
+                {left > 0.5 && (beyond > 0.5
+                  ? `${exactly(beyond, currency)} of it has nowhere to go inside ${className} and has to`
+                    + " leave the class"
+                  : `${className} has room for it — it has not been put anywhere yet`)}
                 {left < -0.5 && `more than is coming out of ${from}`}
                 {Math.abs(left) <= 0.5 && "all of it placed"}
               </span>
