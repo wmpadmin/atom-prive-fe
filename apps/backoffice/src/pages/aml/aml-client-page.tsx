@@ -14,7 +14,7 @@ import { Link, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { formatDate, formatDateTime } from "../../lib/labels";
-import { hasAnyAuthority, RATES_AML_RISK, READS_AML_MATRIX } from "../../lib/permissions";
+import { hasAnyAuthority, RATES_AML_RISK } from "../../lib/permissions";
 import { bandTone } from "./aml-labels";
 import { SheetNotReady } from "./sheet-not-ready";
 
@@ -28,7 +28,6 @@ export function AmlClientPage() {
   const { customerId } = useParams();
   const user = useStaffUser();
   const mayRate = hasAnyAuthority(user, ...RATES_AML_RISK);
-  const mayReadSheet = hasAnyAuthority(user, ...READS_AML_MATRIX);
   const [chosen, setChosen] = useState<Record<string, string>>({});
   // Why somebody set the record's own answer aside, by line. Required for each one they did.
   const [overrides, setOverrides] = useState<Record<string, string>>({});
@@ -119,7 +118,7 @@ export function AmlClientPage() {
         right and how to get there — a person told only that something is missing is left with nothing to do
         about it.
       */}
-      {!sheet.complete && <SheetNotReady faults={sheet.faults} mayRead={mayReadSheet} />}
+      {!sheet.complete && <SheetNotReady faults={sheet.faults} />}
 
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
       {errors.fields.chosen && <Alert tone="danger">{errors.fields.chosen}</Alert>}

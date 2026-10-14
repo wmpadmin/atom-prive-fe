@@ -5,16 +5,14 @@ import {
   type RatedClientsPage,
   type Sheet,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, Pagination, TextInput, cn } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Pagination, TextInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { ShieldAlert, SlidersHorizontal } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
 import { formatDate } from "../../lib/labels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
-import { hasAnyAuthority, READS_AML_MATRIX } from "../../lib/permissions";
 import { bandTone } from "./aml-labels";
 import { SheetNotReady } from "./sheet-not-ready";
 
@@ -26,8 +24,6 @@ import { SheetNotReady } from "./sheet-not-ready";
  */
 export function AmlRiskPage() {
   const navigate = useNavigate();
-  const user = useStaffUser();
-  const mayReadSheet = hasAnyAuthority(user, ...READS_AML_MATRIX);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
@@ -54,18 +50,10 @@ export function AmlRiskPage() {
           title="AML risk"
           lead="Where each client sits on the firm's money-laundering risk matrix, and when they are due to be looked at again."
         />
-        {mayReadSheet && (
-          <Link to="/aml-risk/matrix">
-            <Button variant="secondary">
-              <SlidersHorizontal aria-hidden="true" />
-              The firm's matrix
-            </Button>
-          </Link>
-        )}
       </div>
 
       {sheet.data && !sheet.data.complete && (
-        <SheetNotReady faults={sheet.data.faults} mayRead={mayReadSheet} />
+        <SheetNotReady faults={sheet.data.faults} />
       )}
 
       {counts && (
