@@ -739,16 +739,11 @@ export function ClientHoldingsPanel({
     ]);
     onChanged();
   };
-  const remove = useRemoveClientHolding<ApiError>({
-    mutation: {
-      onSuccess: (_result, sent) => {
-        // What it was before it went, so Discard can put it back. The row is gone from the server now.
-        if (removing && removing.id === sent.id) onTouched?.(removing.id, removing);
-        kept();
-        setRemoving(null);
-      },
-    },
-  });
+  // No hook-level onSuccess: what the row was before it went has to be held from the moment Remove is
+  // pressed, not read back out of state afterwards. The dialog can be shut while the write is in flight —
+  // its X and Escape are not disabled, only Cancel is — and a callback reading `removing` then reads null,
+  // writes nothing down, and leaves a deletion Discard has never heard of.
+  const remove = useRemoveClientHolding<ApiError>();
 
   // The firm's own names for the classes, read before anything returns: a hook skipped on the way out of
   // an early return is a hook React counts as missing on the render after it.
@@ -1173,7 +1168,17 @@ export function ClientHoldingsPanel({
               <Button
                 variant="danger"
                 disabled={remove.isPending}
-                onClick={() => remove.mutate({ customerId, id: removing.id })}
+                onClick={() => {
+                  // Held here, where it is certainly still the row being removed.
+                  const gone = removing;
+                  remove.mutate({ customerId, id: gone.id }, {
+                    onSuccess: () => {
+                      onTouched?.(gone.id, gone);
+                      void kept();
+                      setRemoving(null);
+                    },
+                  });
+                }}
               >
                 {remove.isPending ? "Removing…" : "Remove it"}
               </Button>
