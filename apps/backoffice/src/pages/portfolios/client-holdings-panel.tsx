@@ -476,12 +476,18 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                             six boxes waiting for a figure. */}
                         <td className="px-5 py-4 text-right">
                           {amount > 0 && (
+                            /* The figure is in the box beside it, so the button does not carry it too:
+                               a column of buttons each a different width, because each named a different
+                               amount, read as a column of different buttons. The amount still goes to
+                               anybody reading the page aloud. */
                             <Button
                               size="sm"
+                              className="w-20 justify-center"
+                              aria-label={`Move ${exactly(amount, currency)} into ${place.name}`}
                               disabled={!out || moving !== null}
                               onClick={() => move(place)}
                             >
-                              {moving === place.name ? "Moving…" : `Move ${exactly(amount, currency)}`}
+                              {moving === place.name ? "Moving…" : "Move"}
                             </Button>
                           )}
                         </td>
