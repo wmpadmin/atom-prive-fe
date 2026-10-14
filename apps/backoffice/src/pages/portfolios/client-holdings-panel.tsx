@@ -912,28 +912,66 @@ function HoldingDialog({
           {/* What the model asks of the group picked, as a guide and nothing more. Nothing is refused on the
               strength of it: a portfolio that has wandered is exactly the one somebody has to be able to
               write down, and the figure is here to be seen while they do, not to argue with them. */}
+          {/* What the model asks, what this figure would make it, and the distance between them — in the
+              same words and the same order as the table behind the dialog. It was three sentences of prose
+              carrying six figures between them, which had to be read through rather than looked at. */}
           {asked && (
-            <p className="-mt-1 text-xs text-ink-muted sm:col-span-2">
-              The model asks for <span className="font-semibold text-ink">{asked.shareOfPortfolio.toFixed(1)}%</span>
-              {" "}of the portfolio here
-              {underManagement > 0 && <> — about {underManagementLabel((asked.shareOfPortfolio / 100) * underManagement, currency)} at what they hold today</>}
-              . Write what they actually hold; this is a guide, not a limit.
-            </p>
-          )}
-          {/* Where the figure being typed would land this group, said as it is typed rather than after the
-              dialog closes. It is said, not enforced: the holding is still written down as given. */}
-          {asked && wouldBe && (
-            <p className="-mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-muted sm:col-span-2">
-              {standing ? (
-                <Badge tone={standingTones[standing]}>{standingLabels[standing]}</Badge>
-              ) : (
-                <Badge tone="success">Within band</Badge>
-              )}
-              <span>
-                This would make it {wouldBe.share.toFixed(1)}% of the portfolio, against{" "}
-                {asked.shareOfPortfolio.toFixed(1)}% asked for — {driftLabel(wouldBe.over)} from target.
-              </span>
-            </p>
+            <dl className="grid gap-x-6 gap-y-2 rounded-xl border border-line bg-canvas px-4 py-3 text-sm sm:col-span-2 sm:grid-cols-3">
+              <div>
+                <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  Model asks for
+                </dt>
+                <dd className="tabular-nums">
+                  {asked.shareOfPortfolio.toFixed(1)}%
+                  {underManagement > 0 && (
+                    <span className="text-ink-muted">
+                      {" · "}
+                      {underManagementLabel((asked.shareOfPortfolio / 100) * underManagement, currency)}
+                    </span>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  This would be
+                </dt>
+                <dd className="tabular-nums">
+                  {wouldBe === null ? (
+                    <span className="text-ink-muted">—</span>
+                  ) : (
+                    <>
+                      {wouldBe.share.toFixed(1)}%
+                      <span className="text-ink-muted">
+                        {" · "}
+                        {underManagementLabel(typed, currency)}
+                      </span>
+                    </>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Gap</dt>
+                <dd className="flex flex-wrap items-center gap-2 tabular-nums">
+                  {wouldBe === null ? (
+                    <span className="text-ink-muted">—</span>
+                  ) : (
+                    <>
+                      {driftLabel(wouldBe.over)}
+                      {standing ? (
+                        <Badge tone={standingTones[standing]}>{standingLabels[standing]}</Badge>
+                      ) : (
+                        <Badge tone="success">Within band</Badge>
+                      )}
+                    </>
+                  )}
+                </dd>
+              </div>
+              {/* Nothing here refuses a figure: a portfolio that has wandered is exactly the one somebody
+                  has to be able to write down. */}
+              <p className="text-xs text-ink-muted sm:col-span-3">
+                A guide, not a limit. Write what they actually hold.
+              </p>
+            </dl>
           )}
         </div>
         {/* What this client's sub-asset may wander before it is watched, at the edge and breached. The model
@@ -946,8 +984,8 @@ function HoldingDialog({
           </legend>
           <p className="text-xs text-ink-muted">
             {modelBand?.watchAt != null
-              ? `Left blank, this client is held to the model's own figures: watched from ${modelBand.watchAt}pp, at the edge from ${modelBand.edgeAt}pp, breached from ${modelBand.breachAt}pp.`
-              : "Left blank, this client is held to the model's own figures."}
+              ? `Blank: held to the model's ${modelBand.watchAt} / ${modelBand.edgeAt} / ${modelBand.breachAt}.`
+              : "Blank: held to the model's own figures."}
           </p>
           <div className="mt-2 grid gap-3 sm:grid-cols-3">
             <Field id="holding-watch" label="Watched from" error={errors.fields.watchPp}>
