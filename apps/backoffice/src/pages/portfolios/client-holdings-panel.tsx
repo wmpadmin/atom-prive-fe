@@ -1501,12 +1501,19 @@ function HoldingDialog({
                   setSubClass(event.target.value);
                 }}
               >
-                {/* Only where one is already written down that way. A holding with no sub-asset named is
-                    money in a class with nothing saying what it is — the same figure that used to be typed
-                    on the class row, by another door. Nothing new goes in without a name; what is already
-                    there can still be opened and read. */}
-                {position !== null && position.subClass === null && (
+                {/* Something for the empty state to sit on. Taking the blank option away left the box
+                    showing the first name on the list while holding none of it — a browser shows the first
+                    option when a select's value matches no option at all, so it read as chosen and would
+                    not save, with the complaint pointing at a box that looked filled in.
+
+                    Where a holding is already written down with no sub-asset named, that is what this box
+                    holds and it says so. Nothing new goes in that way: money in a class with nothing
+                    saying what it is was the figure that used to be typed on the class row, by another
+                    door. What is already there can still be opened and read. */}
+                {position !== null && position.subClass === null ? (
                   <option value="">Not grouped</option>
+                ) : (
+                  <option value="" disabled>Pick a sub-asset…</option>
                 )}
                 {(modelSubClasses[assetClass] ?? [])
                   .filter((one) => one.name === position?.subClass
