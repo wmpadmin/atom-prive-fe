@@ -343,12 +343,20 @@ function sameBut(row: PositionRow, valueAmount: number) {
  * <p>Move writes it down: the figure comes off this sub-asset and goes on to that one, in one go. Discard
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
-function MoveOutPlan({ customerId, assetClass, spare, out, places, className, currency, span, readOnly,
+function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, currency, span, readOnly,
   claim, release, elsewhere, onMoved }: {
   customerId: string;
   assetClass: string;
   spare: number;
-  out: PositionRow | null;
+  /**
+   * Every row written down under this sub-asset, not just the first.
+   *
+   * <p>A sub-asset is one line on the screen and may be several in the ledger. The figure to shed is the
+   * whole group's, so taking it out of one row alone asked that row to go below nothing wherever the group
+   * held more than one — refused by the API, and the only thing on screen was "that could not be written
+   * down".
+   */
+  rows: PositionRow[];
   places: Destination[];
   className: string;
   currency: string;
@@ -362,7 +370,11 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   elsewhere: boolean;
   onMoved: (touched: { id: string; before: PositionRow | null }[]) => void | Promise<void>;
 }) {
-  const from = out?.subClass ?? UNGROUPED;
+  const from = rows[0]?.subClass ?? UNGROUPED;
+  // Emptied from the fullest first, so the smaller lines are left whole where the whole sum does not need
+  // them. Nothing is ever asked to go below nothing.
+  const deepest = [...rows].sort((first, second) => second.valueAmount - first.valueAmount);
+  const inHand = deepest.reduce((sum, row) => sum + row.valueAmount, 0);
   // The rows as they stood when this panel opened, kept for as long as it stays open — the same rows, in
   // the same order, in the same places on the screen.
   //
@@ -421,17 +433,24 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
     // One turn for the whole screen, taken in the same breath as the click rather than on the render
     // after it. Kept per table, two breached sub-assets could be emptied into the same sibling at once,
     // each working its new figure out from the same row — and one of the two deposits was written off.
-    if (!out || amount <= 0 || !claim()) return;
+    if (!rows.length || amount <= 0 || amount > inHand || !claim()) return;
     setFailed(null);
     setMoving(place.name);
-    // Whether the money is already out of the source. What that is worth now is a different figure from
-    // the one this move started with, and the difference is what somebody has to be told about.
-    let taken = false;
+    // What has already come out, and which rows it came out of. What those rows are worth now is a
+    // different figure from the one this move started with, and the difference is what somebody has to be
+    // told about.
+    const taken: { id: string; before: PositionRow }[] = [];
     try {
-      await change.mutateAsync({
-        customerId, id: out.id, data: sameBut(out, out.valueAmount - amount),
-      });
-      taken = true;
+      let left = amount;
+      for (const row of deepest) {
+        if (left <= 0) break;
+        const takes = Math.min(left, row.valueAmount);
+        await change.mutateAsync({
+          customerId, id: row.id, data: sameBut(row, row.valueAmount - takes),
+        });
+        taken.push({ id: row.id, before: row });
+        left -= takes;
+      }
       if (place.into) {
         await change.mutateAsync({
           customerId, id: place.into.id, data: sameBut(place.into, place.into.valueAmount + amount),
@@ -440,7 +459,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
         // worked out from rows that came with the last read: released the moment the writes returned, a
         // second Move went out against the source as it stood before the first, which wrote off the first
         // move's deduction while its deposit stood — money out of nowhere.
-        await onMoved([{ id: out.id, before: out }, { id: place.into.id, before: place.into }]);
+        await onMoved([...taken, { id: place.into.id, before: place.into }]);
         settled(place, amount);
       } else {
         // A sub-asset the model names and nobody has written down yet. Discard puts it back by removing it,
@@ -453,16 +472,16 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
             valueAmount: amount, watchPp: null, edgePp: null, breachPp: null,
           },
         });
-        await onMoved([{ id: out.id, before: out }, { id: made.id, before: null }]);
+        await onMoved([...taken, { id: made.id, before: null }]);
         settled(place, amount);
       }
     } catch (caught) {
       const said = (caught as ApiError)?.message;
-      if (taken) {
+      if (taken.length > 0) {
         // Half way: out of one and not into the other. The page is told, because that is a change somebody
         // has to be able to discard — and the row is disarmed, because pressing it again would take the
         // money out a second time.
-        await onMoved([{ id: out.id, before: out }]);
+        await onMoved(taken);
         setMoves((was) => ({ ...was, [place.name]: "0" }));
         setFailed(`${exactly(amount, currency)} came out of ${from} but could not be put into `
           + `${place.name}${said ? `: ${said}` : "."} Discard puts it back.`);
@@ -566,7 +585,10 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                                 value={moves[place.name] ?? "0"}
                                 onChange={(event) => {
                                   setDone(null);
-                                  setMoves((was) => ({ ...was, [place.name]: event.target.value }));
+                                  setMoves((was) => ({
+                                    ...was,
+                                    [place.name]: asFigure(event.target.value, was[place.name] ?? "0"),
+                                  }));
                                 }}
                                 className="h-9 w-32 text-right tabular-nums"
                               />
@@ -586,7 +608,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                               size="sm"
                               className="w-20 justify-center"
                               aria-label={`Move ${exactly(amount, currency)} into ${place.name}`}
-                              disabled={!out || moving !== null || elsewhere}
+                              disabled={!rows.length || moving !== null || elsewhere}
                               onClick={() => move(place)}
                             >
                               {moving === place.name ? "Moving…" : "Move"}
@@ -1100,8 +1122,8 @@ export function ClientHoldingsPanel({
                                  of what this panel remembers about it. */
                               key={`${group.subClass ?? UNGROUPED}-${readOnly ? "reading" : "editing"}`}
                               customerId={customerId}
-                              spare={spareIn(group) as number}
-                              out={group.positions[0] ?? null}
+                              spare={Math.min(spareIn(group) as number, group.valueAmount)}
+                              rows={group.positions}
                               assetClass={one.assetClass}
                               places={roomIn(one.subClasses, group,
                                 held.data?.modelSubClasses?.[one.assetClass] ?? [],
