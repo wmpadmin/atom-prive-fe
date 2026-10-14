@@ -539,16 +539,20 @@ export function ClientHoldingsPanel({
                               {group.drift === null || group.drift === undefined ? "—" : driftLabel(group.drift)}
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums">
-                              {group.suggestion === null || group.suggestion === undefined
+                              {group.standing !== "BREACHED" || group.suggestion === null
+                                || group.suggestion === undefined
                                 || group.suggestion.toFixed(2) === "0.00" ? (
                                 <span className="text-ink-muted">—</span>
                               ) : (
                                 <>
+                                  {/* "Could", not "Buy": nobody is being told to trade. The screen names
+                                      what would put the line back and leaves the decision where it
+                                      belongs — with whoever is reading it. */}
                                   <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                                    {group.suggestion > 0 ? "Buy" : "Sell"}
+                                    {group.suggestion > 0 ? "Could add" : "Could sell"}
                                   </span>{" "}
                                   {underManagementLabel(Math.abs(group.suggestion), currency)}
-                                  {/* Where the money should go, named. A class is the sum of its groups, so
+                                  {/* Where the money could go, named. A class is the sum of its groups, so
                                       money taken out of one that holds too much belongs in the ones that
                                       hold too little — and which those are is on this very screen. Without
                                       saying so, "sell 350" leaves somebody to read every other row and work
