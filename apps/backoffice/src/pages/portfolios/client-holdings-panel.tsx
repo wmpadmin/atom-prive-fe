@@ -347,7 +347,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   // What the last click did, and the fact that it was a click rather than typing. A move used to leave
   // every remaining box filled with a fresh split and the buttons back where they were, so it never looked
   // as though anything had happened — and the whole table sat one click away from going out the door.
-  const [done, setDone] = useState<string | null>(null);
+  const [done, setDone] = useState<{ amount: number; into: string } | null>(null);
   // Shut the door in the same breath as the click, not on the render after it. Disabling the button is a
   // piece of state, and state arrives a render later: two events landing in the same tick both read it as
   // open and both go through, which is how one press of one button moved money twice.
@@ -376,7 +376,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   // and means, rather than one the screen had already filled in and put a button under.
   function settled(place: Destination, amount: number) {
     setMoves(Object.fromEntries(places.map((each) => [each.name, "0"])));
-    setDone(`Moved ${exactly(amount, currency)} into ${place.name}.`);
+    setDone({ amount, into: place.name });
   }
 
   async function move(place: Destination) {
@@ -443,7 +443,22 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
           </div>
 
           {failed && <div className="mt-4"><Alert tone="danger">{failed}</Alert></div>}
-          {done && <div className="mt-4"><Alert tone="success">{done}</Alert></div>}
+          {/* The emptied boxes and the vanished buttons are the safety doing its job, and they look exactly
+              like five moves that have just gone through. So it is said: one move, and what became of the
+              rest. */}
+          {done && (
+            <div className="mt-4">
+              <Alert tone="success">
+                <p className="font-semibold">
+                  Moved {exactly(done.amount, currency)} into {done.into}.
+                </p>
+                <p className="mt-1 text-sm">
+                  Nothing else moved. Every other box was emptied so that a second click cannot send money
+                  on its own — type a figure into a row to move more.
+                </p>
+              </Alert>
+            </div>
+          )}
 
           {places.length === 0 ? (
             <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-ink">
