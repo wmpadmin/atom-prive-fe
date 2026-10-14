@@ -211,10 +211,9 @@ function ToleranceDialog({
  * choosing which sub-asset inside it receives the money, and nothing on this screen knows that. So the
  * figures are named exactly and the judgement is left where it belongs.
  */
-function AgainstTheModel({ classes, currency, whole }: {
+function AgainstTheModel({ classes, currency }: {
   classes: ClassPositions[];
   currency: string;
-  whole: number;
 }) {
   // Only classes the model has something to say about. A class it names nothing of is not off target; it
   // is simply not in the plan, and a row saying so would be a row about nothing.
@@ -255,12 +254,7 @@ function AgainstTheModel({ classes, currency, whole }: {
 
   return (
     <section className="rounded-2xl border border-line bg-slate-50/70 p-5">
-      <p className="text-sm font-semibold text-ink">Against the model, class by class</p>
-      <p className="mt-1 max-w-2xl text-xs leading-relaxed text-ink-muted">
-        Moving money between classes is the only thing that changes these. Nothing leaves the portfolio, so
-        the total stays {underManagementLabel(whole, currency)} and no class moves except the two at either
-        end of the move.
-      </p>
+      <p className="text-sm font-semibold text-ink">Against the model</p>
       <div className="mt-4 overflow-hidden rounded-xl border border-line bg-white">
         <table className="min-w-full text-sm">
           <caption className="sr-only">Each class against what the model asks of it.</caption>
@@ -283,20 +277,15 @@ function AgainstTheModel({ classes, currency, whole }: {
         <span className="text-sm font-semibold tabular-nums text-ink">{exactly(moving, currency)}</span>
         {/* Where the two sides do not match, the portfolio is the wrong size for the model and no move
             between classes closes the difference — somebody has to put money in or take it out. */}
-        <span className="text-xs text-ink-muted">
-          {Math.abs(toSell - toBuy) < 1
-            ? "out of the classes above, into the ones below"
-            : toSell > toBuy
-              ? `out of the classes above, into the ones below. The other `
-                + `${exactly(toSell - toBuy, currency)} has nowhere in the model to go — the portfolio `
-                + "holds more than the model is written for."
-              : `out of the classes above, into the ones below. The classes below are still `
-                + `${exactly(toBuy - toSell, currency)} short after that, which only new money can fill.`}
-        </span>
+        {/* Said only where the two sides do not match, which is the case somebody has to know about. */}
+        {Math.abs(toSell - toBuy) >= 1 && (
+          <span className="text-xs text-ink-muted">
+            {toSell > toBuy
+              ? `${exactly(toSell - toBuy, currency)} more has nowhere in the model to go`
+              : `${exactly(toBuy - toSell, currency)} short — only new money fills that`}
+          </span>
+        )}
       </div>
-      <p className="mt-3 px-1 text-xs text-ink-muted">
-        Write these down once the trades have settled, for what actually filled.
-      </p>
     </section>
   );
 }
@@ -621,22 +610,13 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                   ? `The model asks for none of ${from}`
                   : `Where ${exactly(spare, currency)} out of ${from} can go`}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                {asksForNone
-                  ? `All ${exactly(spare, currency)} of it has to go. Where ${className} has room it can go `
-                    + "to a sub-asset inside it; the rest has to leave the class."
-                  : "A sub-asset can take money until it is a tenth of a point short of breaching its own"
-                    + " band. Past that it breaches, which is how one breach becomes two."}
-              </p>
-              {/* Why the others are quiet. Each one planning at the same time offered the same sibling the
-                  same room over and over, so the plans only added up one at a time anyway. */}
-              {waiting > 0 && (
-                <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                  {waiting === 1
-                    ? `One more sub-asset in ${className} has breached. It comes next: what is left after `
-                      + "this move is what there will be for it."
-                    : `${waiting} more sub-assets in ${className} have breached. They come after this one, `
-                      + "because what each can be offered depends on what this move leaves."}
+              {/* Why the others are quiet. Each one planning at once offered the same sibling the same
+                  room over and over, so the plans only ever added up one at a time. */}
+              {(asksForNone || waiting > 0) && (
+                <p className="mt-1 text-xs text-ink-muted">
+                  {asksForNone && `All ${exactly(spare, currency)} has to go. `}
+                  {waiting === 1 && "One more here has breached; it comes next."}
+                  {waiting > 1 && `${waiting} more here have breached; they come next.`}
                 </p>
               )}
             </div>
@@ -766,10 +746,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                 <p className="font-semibold">
                   Moved {exactly(done.amount, currency)} into {done.into}.
                 </p>
-                <p className="mt-1 text-sm">
-                  Nothing else moved. The other rows are still as you left them, and each one moves only
-                  when its own button is pressed.
-                </p>
+                <p className="mt-1 text-sm">Nothing else moved.</p>
               </Alert>
             </div>
           )}
@@ -1008,11 +985,7 @@ export function ClientHoldingsPanel({
       )}
 
       {held.data && (
-        <AgainstTheModel
-          classes={classes}
-          currency={currency}
-          whole={held.data.underManagement}
-        />
+        <AgainstTheModel classes={classes} currency={currency} />
       )}
 
       {held.isPending ? (
@@ -1804,9 +1777,8 @@ function HoldingDialog({
               {underManagementLabel(shrinks.now, currency)}.
             </p>
             <p className="mt-1 text-sm">
-              Every other sub-asset keeps what it is worth, but each one is a larger share of a smaller
-              whole — so gaps widen everywhere, and anything sitting near its band may go past it. To take
-              money out of this sub-asset without shrinking the portfolio, move it to another one instead.
+              Every other sub-asset becomes a larger share of a smaller whole, so gaps widen everywhere.
+              Move it to another sub-asset instead and the total holds.
             </p>
           </Alert>
         )}
