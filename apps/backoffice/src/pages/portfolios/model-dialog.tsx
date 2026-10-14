@@ -1,7 +1,9 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useListBenchmarks,
+  useListModelPortfolios,
   type BenchmarkRow,
+  type ModelsPage,
   type ModelRequest,
   type ModelRequestRiskProfile,
   type BandRequest,
@@ -196,6 +198,30 @@ function andList(words: string[]) {
 }
 
 /**
+ * The sub-asset names the firm has already written under each class, across every model it has.
+ *
+ * <p>Offered rather than imposed. There is no firm-wide list of sub-assets to pick from — the names exist
+ * only inside the models somebody has written — so this gathers them and hands them over as suggestions.
+ * The box stays a box: a name nobody has used before can still be typed, which is how the first one got
+ * there and how the next new thing will.
+ */
+function namesAlreadyUsed(models: ModelRow[]): Record<string, string[]> {
+  const seen: Record<string, Set<string>> = {};
+  for (const model of models) {
+    for (const [assetClass, inClass] of Object.entries(model.subAllocations ?? {})) {
+      for (const line of inClass) {
+        const name = line.name.trim();
+        if (name === "") continue;
+        (seen[assetClass] ??= new Set()).add(name);
+      }
+    }
+  }
+  return Object.fromEntries(
+    Object.entries(seen).map(([assetClass, names]) => [assetClass, [...names].sort()]),
+  );
+}
+
+/**
  * The models the firm invests against: what each one targets in every asset class, and how far a
  * portfolio may wander from those targets before somebody should look at it.
  */
@@ -253,7 +279,10 @@ function Spread({
       </div>
       {anything && (
         <p className={cn("mt-1.5 text-xs", total === 100 ? "text-ink-muted" : "text-amber-700")}>
-          Adds up to {total}%.{total === 100 ? "" : " A spread that does not reach 100% leaves the rest unasked for."}
+          Adds up to {total}%.
+          {total < 100 && ` ${(100 - total).toFixed(2).replace(/\.?0+$/, "")}% of the portfolio is left unasked for.`}
+          {total > 100 && ` That is ${(total - 100).toFixed(2).replace(/\.?0+$/, "")}% more than there is to`
+            + " give. Take it off somewhere before this can be saved."}
         </p>
       )}
     </div>
@@ -297,6 +326,10 @@ export function ModelDialog({
   const [benchmarkId, setBenchmarkId] = useState(model?.benchmarkId ?? "");
   // Which indices the firm holds. Without one named here, Model performance has nothing to compare against.
   const benchmarks = useListBenchmarks<BenchmarkRow[], ApiError>();
+  // Already in hand on the screen this dialog opens from, so asking again costs nothing and the names are
+  // there on the first render rather than a moment later.
+  const everyModel = useListModelPortfolios<ModelsPage, ApiError>();
+  const usedNames = namesAlreadyUsed(everyModel.data?.items ?? []);
   const total = adds(targets);
   const unreadable = notNumbers(targets);
   // A form nobody has typed in yet is not wrong, it is empty: it says what is wanted rather than warning.
@@ -544,12 +577,19 @@ export function ModelDialog({
                   {addsInClass(lines[assetClass])}% of the class
                 </span>
               </p>
+              <datalist id={`used-in-${assetClass}`}>
+                {(usedNames[assetClass] ?? []).map((used) => <option key={used} value={used} />)}
+              </datalist>
               <ul className="mt-2 space-y-1.5">
                 {lines[assetClass].map((line, at) => (
                   <li key={at} className="flex items-center gap-2">
+                    {/* A list to pick from, and still a box to type in. The firm keeps no master list of
+                        sub-assets — the names live only inside the models somebody has written — so what
+                        has been used before is offered, and anything new can still be written. */}
                     <TextInput
                       aria-label={`Name of line ${at + 1} inside ${(names[assetClass] ?? assetClass)}`}
                       placeholder="US large-cap"
+                      list={`used-in-${assetClass}`}
                       className="flex-1"
                       value={line.name}
                       onChange={(event) =>
