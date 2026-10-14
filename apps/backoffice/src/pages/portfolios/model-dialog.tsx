@@ -144,7 +144,7 @@ function targetsOf(model: ModelRow, codes: string[]): Targets {
  * before is chosen from the list; anything else is written on purpose, and saying so is what keeps the two
  * apart — an empty box is otherwise indistinguishable from one nobody has reached yet.
  */
-type TypedLine = { name: string; shareOfClass: string; band: TypedBand; written: boolean };
+type TypedLine = { name: string; shareOfClass: string; written: boolean };
 
 type Lines = Record<string, TypedLine[]>;
 
@@ -160,21 +160,13 @@ function linesOf(model: ModelRow, codes: string[]): Lines {
       // Settled once the names are in hand, below: a model's own line may be one nobody else has used.
       written: false,
       shareOfClass: String(line.shareOfClass),
-      band: line.band
-        ? {
-            ...NO_BAND,
-            watchAt: String(line.band.watchAt),
-            edgeAt: String(line.band.edgeAt),
-            breachAt: String(line.band.breachAt),
-          }
-        : NO_BAND,
     }));
   }
   return held;
 }
 
 function blankLine(): TypedLine {
-  return { name: "", shareOfClass: "", band: NO_BAND, written: false };
+  return { name: "", shareOfClass: "", written: false };
 }
 
 /** The value the list carries for writing a name nobody has used before. Never a name itself. */
@@ -456,21 +448,13 @@ export function ModelDialog({
       subAllocations: Object.fromEntries(
         codes.filter((assetClass) => lines[assetClass].length > 0).map((assetClass) => [
           assetClass,
+          // Every sub-asset in a class is held to the same figures — the class's, or the model's where
+          // the class has none of its own. One line allowed to wander four times as far as the rest was a
+          // rule nothing on the page explained and nobody could see from the class it sat in.
           lines[assetClass].map((line) => ({
             name: line.name.trim(),
             shareOfClass: Number(line.shareOfClass),
-            band:
-              howFilled(line.band) === "all"
-                ? {
-                    basis: "ABSOLUTE" as const,
-                    watchAt: Number(line.band.watchAt),
-                    edgeAt: Number(line.band.edgeAt),
-                    breachAt: Number(line.band.breachAt),
-                    watchBelow: null,
-                    edgeBelow: null,
-                    breachBelow: null,
-                  }
-                : null,
+            band: null,
           })),
         ]),
       ),
@@ -603,7 +587,7 @@ export function ModelDialog({
           {codes.filter((assetClass) => lines[assetClass].length > 0).map((assetClass) => (
             <div key={assetClass} className="mt-3 rounded-lg border border-line bg-slate-50/50 p-3">
               <p className="flex items-baseline justify-between gap-2 text-xs font-semibold text-ink-soft">
-                <span>Inside {(names[assetClass] ?? assetClass)} — name, share of the class, its own band</span>
+                <span>Inside {(names[assetClass] ?? assetClass)} — name and share of the class</span>
                 <span className={cn(
                   "tabular-nums",
                   addsInClass(lines[assetClass]) === 100 ? "text-emerald-700"
@@ -710,41 +694,6 @@ export function ModelDialog({
                         return share === null ? "" : `= ${share.toFixed(2)}% of all`;
                       })()}
                     </span>
-                    {/* Where this line wanders differently from its class. Left empty it is judged by the
-                        class, which is in turn judged by the model. */}
-                    <div className="w-20 shrink-0">
-                      <TextInput
-                        aria-label={`Breach band for line ${at + 1} inside ${(names[assetClass] ?? assetClass)}`}
-                        inputMode="decimal"
-                        className="text-right"
-                        placeholder={`\u00b1${bands[assetClass].breachAt || breachAt}`}
-                        value={line.band.breachAt}
-                        onChange={(event) =>
-                          setLines({
-                            ...lines,
-                            [assetClass]: lines[assetClass].map((one, which) => {
-                              if (which !== at) return one;
-                              const breach = asFigure(event.target.value, one.band.breachAt);
-                              // A line is given a whole band or none. The watch and edge levels follow the
-                              // breach in the proportion the model itself uses, so one box is enough to type
-                              // and the three levels cannot be left in an order that makes no sense.
-                              const scale = Number(breachAt) > 0 ? Number(breach) / Number(breachAt) : 0;
-                              return breach.trim() === "" || !isNumber(breach)
-                                ? { ...one, band: { ...NO_BAND, breachAt: breach } }
-                                : {
-                                    ...one,
-                                    band: {
-                                      ...NO_BAND,
-                                      watchAt: String(Math.round(Number(watchAt) * scale * 10) / 10),
-                                      edgeAt: String(Math.round(Number(edgeAt) * scale * 10) / 10),
-                                      breachAt: breach,
-                                    },
-                                  };
-                            }),
-                          })
-                        }
-                      />
-                    </div>
                     <button
                       type="button"
                       aria-label={`Remove line ${at + 1} inside ${(names[assetClass] ?? assetClass)}`}
