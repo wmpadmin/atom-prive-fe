@@ -15,7 +15,6 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router";
 import { ChevronDown, ChevronRight, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
@@ -194,109 +193,6 @@ function ToleranceDialog({
         </div>
       </form>
     </Dialog>
-  );
-}
-
-/**
- * What the portfolio is doing wrong one level up: between the classes, not inside them.
- *
- * <p>Every plan below this one moves money inside a single class, and on a portfolio four fifths in
- * equities against a model asking for three tenths, none of them can reach the problem — they said so,
- * one by one, and then had nowhere to send anybody. This says the thing they cannot: which classes are
- * holding too much, which are holding too little, and what moving between them would be.
- *
- * <p>It advises and does not act. A class-level move is a decision about what the client owns — sell
- * equities, buy bonds — not a figure to be corrected on a screen: the trades are placed elsewhere and the
- * holdings written down when they settle, for what actually filled rather than what was planned. The two
- * sides are also not symmetrical. Taking money out of a class has one honest reading; putting it in means
- * choosing which sub-asset inside it receives the money, and nothing on this screen knows that. So the
- * figures are named exactly and the judgement is left where it belongs.
- */
-function AgainstTheModel({ classes, currency }: {
-  classes: ClassPositions[];
-  currency: string;
-}) {
-  // Only classes the model has something to say about. A class it names nothing of is not off target; it
-  // is simply not in the plan, and a row saying so would be a row about nothing.
-  const measured = classes.filter((one) =>
-    one.targetShare !== null && one.targetShare !== undefined
-    && one.suggestion !== null && one.suggestion !== undefined);
-  const over = measured.filter((one) => (one.suggestion as number) <= -1)
-    .sort((first, second) => (first.suggestion as number) - (second.suggestion as number));
-  const under = measured.filter((one) => (one.suggestion as number) >= 1)
-    .sort((first, second) => (second.suggestion as number) - (first.suggestion as number));
-  if (over.length === 0 || under.length === 0) return null;
-
-  const toSell = over.reduce((sum, one) => sum - (one.suggestion as number), 0);
-  const toBuy = under.reduce((sum, one) => sum + (one.suggestion as number), 0);
-  // What can actually change hands is the smaller of the two. Where they differ, the portfolio itself is
-  // the wrong size for the model, and no move between classes closes that.
-  const moving = Math.min(toSell, toBuy);
-
-  const row = (one: ClassPositions, selling: boolean) => (
-    <tr key={one.assetClass} className="border-b border-line last:border-0">
-      <th scope="row" className="px-5 py-3 text-left font-medium text-ink">
-        {one.assetClassName || one.assetClass}
-      </th>
-      <td className="px-5 py-3 text-right tabular-nums text-ink-muted">
-        {(one.shareOfPortfolio ?? 0).toFixed(1)}%
-      </td>
-      <td className="px-5 py-3 text-right tabular-nums text-ink-muted">
-        {(one.targetShare ?? 0).toFixed(1)}%
-      </td>
-      <td className="px-5 py-3 text-right tabular-nums">
-        <span className={selling ? "text-amber-700" : "text-ink"}>
-          {selling ? "Sell " : "Buy "}
-          {exactly(Math.abs(one.suggestion as number), currency)}
-        </span>
-      </td>
-    </tr>
-  );
-
-  return (
-    <section className="rounded-2xl border border-line bg-slate-50/70 p-5">
-      <p className="text-sm font-semibold text-ink">Against the model</p>
-      <div className="mt-4 overflow-hidden rounded-xl border border-line bg-white">
-        <table className="min-w-full text-sm">
-          <caption className="sr-only">Each class against what the model asks of it.</caption>
-          <thead>
-            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              <th scope="col" className="px-5 py-3">Asset class</th>
-              <th scope="col" className="px-5 py-3 text-right">Holds</th>
-              <th scope="col" className="px-5 py-3 text-right">Model asks</th>
-              <th scope="col" className="px-5 py-3 text-right">What to do</th>
-            </tr>
-          </thead>
-          <tbody>
-            {over.map((one) => row(one, true))}
-            {under.map((one) => row(one, false))}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1">
-        <span className="text-sm font-semibold text-ink">To move</span>
-        <span className="text-sm font-semibold tabular-nums text-ink">{exactly(moving, currency)}</span>
-        {/* Where the two sides do not match, the portfolio is the wrong size for the model and no move
-            between classes closes the difference — somebody has to put money in or take it out. */}
-        {/* Said only where the two sides do not match, which is the case somebody has to know about. */}
-        {Math.abs(toSell - toBuy) >= 1 && (
-          <span className="text-xs text-ink-muted">
-            {toSell > toBuy
-              ? `${exactly(toSell - toBuy, currency)} more has nowhere in the model to go`
-              : `${exactly(toBuy - toSell, currency)} short — only new money fills that`}
-          </span>
-        )}
-        {/* Where this is acted on. Bulk rebalancing raises the orders from these very figures, so this is
-            a way through rather than a second one: a button here would write the holdings as though the
-            trades had already filled, and the trade that was to make them real would never be raised. */}
-        <Link
-          to="/bulk-rebalancing"
-          className="text-xs font-medium text-primary-700 hover:underline"
-        >
-          Raise the orders
-        </Link>
-      </div>
-    </section>
   );
 }
 
@@ -989,10 +885,6 @@ export function ClientHoldingsPanel({
           {underManagementLabel(held.data.unplaced, currency)} sits in classes nobody has broken down yet —
           a single figure each, with no holdings under them.
         </Alert>
-      )}
-
-      {held.data && (
-        <AgainstTheModel classes={classes} currency={currency} />
       )}
 
       {held.isPending ? (
