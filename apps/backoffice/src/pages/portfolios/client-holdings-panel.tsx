@@ -339,6 +339,10 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   // every remaining box filled with a fresh split and the buttons back where they were, so it never looked
   // as though anything had happened — and the whole table sat one click away from going out the door.
   const [done, setDone] = useState<string | null>(null);
+  // Shut the door in the same breath as the click, not on the render after it. Disabling the button is a
+  // piece of state, and state arrives a render later: two events landing in the same tick both read it as
+  // open and both go through, which is how one press of one button moved money twice.
+  const underway = useRef(false);
   const change = useChangeClientHolding<ApiError>();
   const write = useRecordClientHolding<ApiError>();
   const placed = places.reduce((sum, place) => sum + typed(moves[place.name]), 0);
@@ -364,7 +368,8 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
 
   async function move(place: Destination) {
     const amount = typed(moves[place.name]);
-    if (!out || amount <= 0) return;
+    if (!out || amount <= 0 || underway.current) return;
+    underway.current = true;
     setFailed(null);
     setMoving(place.name);
     try {
@@ -397,6 +402,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
       onMoved([{ id: out.id, before: out }]);
       setFailed((caught as ApiError)?.message ?? "That could not be written down.");
     } finally {
+      underway.current = false;
       setMoving(null);
     }
   }
