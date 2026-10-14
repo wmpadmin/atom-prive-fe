@@ -1408,6 +1408,9 @@ function HoldingDialog({
   // A name taken off the list can still be written back on by hand, so it is checked as well as hidden.
   const taken = subClass.trim() !== (position?.subClass ?? "")
     && (alreadyWritten[assetClass] ?? []).includes(subClass.trim());
+  // Every sub-asset is something. One written down with no name is a figure in a class and nothing more:
+  // no target to measure it against, no band, no trade. The ones already recorded that way keep their row.
+  const unnamed = subClass.trim() === "" && !(position !== null && position.subClass === null);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -1498,9 +1501,11 @@ function HoldingDialog({
                   setSubClass(event.target.value);
                 }}
               >
-                {/* Not the ones already written down under this class. Offering a name the client
-                    already holds is offering to split one sub-asset across two rows. */}
-                {(!(alreadyWritten[assetClass] ?? []).includes("") || position?.subClass == null) && (
+                {/* Only where one is already written down that way. A holding with no sub-asset named is
+                    money in a class with nothing saying what it is — the same figure that used to be typed
+                    on the class row, by another door. Nothing new goes in without a name; what is already
+                    there can still be opened and read. */}
+                {position !== null && position.subClass === null && (
                   <option value="">Not grouped</option>
                 )}
                 {(modelSubClasses[assetClass] ?? [])
@@ -1668,6 +1673,12 @@ function HoldingDialog({
         {valueAmount.trim() !== "" && !readable && (
           <p className="text-xs text-rose-700">What a sub-asset is worth is a number, and not less than nothing.</p>
         )}
+        {unnamed && (
+          <p className="text-xs text-rose-700">
+            Pick which sub-asset this is. A figure under a class with nothing saying what it is cannot be
+            measured against the model, or moved, or traded.
+          </p>
+        )}
         {taken && (
           <p className="text-xs text-rose-700">
             {subClass.trim() === "" ? "Not grouped" : subClass.trim()} is already written down under{" "}
@@ -1692,7 +1703,7 @@ function HoldingDialog({
           </Button>
           {/* A sub-asset the model does not name can still be written down — somebody holding it is the
               fact, and the model saying nothing about it is a separate one. */}
-          <Button type="submit" disabled={!readable || outOfOrder || taken || busy}>
+          <Button type="submit" disabled={!readable || outOfOrder || taken || unnamed || busy}>
             {busy ? "Saving…" : position ? "Save it" : "Add it"}
           </Button>
         </div>
