@@ -1174,6 +1174,7 @@ export function ClientHoldingsPanel({
           customerId={customerId}
           position={open === "new" ? null : open}
           startOn={startOn}
+          only={offer}
           modelSubClasses={held.data?.modelSubClasses ?? {}}
           alreadyWritten={Object.fromEntries(
             classes.map((one) => [one.assetClass, one.subClasses.map((group) => group.subClass ?? "")]),
@@ -1244,6 +1245,7 @@ function HoldingDialog({
   customerId,
   position,
   startOn,
+  only,
   modelSubClasses,
   alreadyWritten,
   classBands,
@@ -1255,6 +1257,8 @@ function HoldingDialog({
   onSaved,
 }: {
   customerId: string;
+  /** The classes the screen behind this lists, which is what the client's model asks for. */
+  only: string[] | undefined;
   /**
    * The sub-assets this client already has written down, by class.
    *
@@ -1462,7 +1466,7 @@ function HoldingDialog({
               disabled={position !== null}
               onChange={(event) => setAssetClass(event.target.value)}
             >
-              {classesOffered(assetClasses, position?.assetClass).map((one) => (
+              {classesOffered(assetClasses, only, position?.assetClass).map((one) => (
                 <option key={one} value={one}>
                   {assetClasses.names[one] ?? one}
                 </option>
@@ -1740,7 +1744,17 @@ function subClassHint(measuredAgainst: string | null, breaksItDown: boolean): st
   return `What the firm calls the group, such as US Equities — S&P 500. ${measuredAgainst} does not break this class down.`;
 }
 
-function classesOffered(assetClasses: ReturnType<typeof useAssetClasses>, held: string | undefined): string[] {
-  const codes = assetClasses.inUse.map((one) => one.code);
+/**
+ * The classes this holding may sit in: the ones the screen behind it lists, plus the one it is already
+ * under.
+ *
+ * <p>The screen lists what the client's model asks for. Offering more here would let money be written into
+ * a class the plan says nothing about, from a dialog opened on a screen that does not show that class —
+ * and nothing would be able to measure it afterwards.
+ */
+function classesOffered(assetClasses: ReturnType<typeof useAssetClasses>, only: string[] | undefined,
+  held: string | undefined): string[] {
+  const inUse = assetClasses.inUse.map((one) => one.code);
+  const codes = only === undefined ? inUse : inUse.filter((code) => only.includes(code));
   return held && !codes.includes(held) ? [held, ...codes] : codes;
 }
