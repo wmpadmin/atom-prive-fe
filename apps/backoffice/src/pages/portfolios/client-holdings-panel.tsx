@@ -243,13 +243,22 @@ function roomIn(groups: SubClassGroup[], except: SubClassGroup, model: ModelLine
   return places.sort((first, second) => second.room - first.room);
 }
 
-/** The split this screen suggests: fill the emptiest first, never past its target, until the money runs out. */
+/**
+ * The split this screen suggests: fill the one with most room first, never past it, until the money is gone.
+ *
+ * <p>Counted in whole units throughout. Rounding each share on its own while the remainder went on being
+ * counted to the penny put the parts a unit above the whole — five rows adding to 18,784 against 18,783 to
+ * move, and a notice saying a dollar more had been placed than there was, with nowhere it had gone.
+ *
+ * <p>Each share is rounded down rather than to the nearest, so a figure in a box is never a shade past what
+ * the sub-asset beside it is said to have room for.
+ */
 function suggest(spare: number, places: Destination[]): Record<string, number> {
-  let left = spare;
+  let left = Math.round(spare);
   const split: Record<string, number> = {};
   for (const place of places) {
-    const takes = Math.max(0, Math.min(left, place.room));
-    split[place.name] = Math.round(takes);
+    const takes = Math.max(0, Math.min(left, Math.floor(place.room)));
+    split[place.name] = takes;
     left -= takes;
   }
   return split;
