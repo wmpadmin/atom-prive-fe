@@ -1727,9 +1727,9 @@ function subClassHint(measuredAgainst: string | null, breaksItDown: boolean): st
   if (measuredAgainst === null) {
     return "This client is on no model yet. Pick one under Measured against and the groups it names are offered here.";
   }
-  if (breaksItDown) {
-    return "The groups this client's model breaks the class into. Choose Something else to write one it does not name.";
-  }
+  // Nothing where the model names the groups: the list under the box is already every one of them, and
+  // the last of them says what to do when none fits.
+  if (breaksItDown) return "";
   return `What the firm calls the group, such as US Equities — S&P 500. ${measuredAgainst} does not break this class down.`;
 }
 
