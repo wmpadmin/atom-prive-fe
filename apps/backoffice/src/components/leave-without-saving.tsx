@@ -1,5 +1,5 @@
 import { Button, Dialog } from "@atomprive/ui";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useBlocker } from "react-router";
 
 /**
@@ -25,8 +25,13 @@ export function LeaveWithoutSaving({
   what: string;
   saving: boolean;
   onSave: () => void;
-  onDiscard: () => void;
+  /**
+   * Puts the changes back. Awaited before the page goes: throwing the work away takes writes of its own,
+   * and leaving while they were still going meant leaving without them.
+   */
+  onDiscard: () => void | Promise<void>;
 }) {
+  const [putting, setPutting] = useState(false);
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) => when && currentLocation.pathname !== nextLocation.pathname,
   );
@@ -50,20 +55,29 @@ export function LeaveWithoutSaving({
           {what} has been changed and not saved yet. Leaving without saving loses it.
         </p>
         <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="ghost" disabled={saving} onClick={() => blocker.reset?.()}>
+          <Button variant="ghost" disabled={saving || putting} onClick={() => blocker.reset?.()}>
             Stay here
           </Button>
+          {/* Gone when it is done, not when it is asked. Putting the work back is a string of writes, and
+              leaving the moment they were started left the page before any of them landed — so the button
+              said it had put everything back and nothing had been. */}
           <Button
             variant="secondary"
-            disabled={saving}
-            onClick={() => {
-              onDiscard();
+            disabled={saving || putting}
+            onClick={async () => {
+              setPutting(true);
+              try {
+                await onDiscard();
+              }
+              finally {
+                setPutting(false);
+              }
               blocker.proceed?.();
             }}
           >
-            Discard changes
+            {putting ? "Putting it back…" : "Discard changes"}
           </Button>
-          <Button disabled={saving} onClick={onSave}>
+          <Button disabled={saving || putting} onClick={onSave}>
             {saving ? "Saving…" : "Save and leave"}
           </Button>
         </div>
