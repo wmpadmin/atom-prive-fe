@@ -696,8 +696,6 @@ export function ClientHoldingsPanel({
   onChanged,
   onTouched,
   onClassTouched,
-  figures,
-  onFigure,
   offer,
   reveal = null,
   against = null,
@@ -721,14 +719,6 @@ export function ClientHoldingsPanel({
    */
   onClassTouched?: (assetClass: string, before: { watchPp: number; edgePp: number; breachPp: number } | null)
     => void;
-  /**
-   * What each class is worth, where this panel is the place those figures are written rather than only read.
-   *
-   * <p>A class written down holding by holding takes its total from its lines and is never typed; one that
-   * is a single figure has nowhere else to be typed, so the row itself takes it.
-   */
-  figures?: Record<string, string>;
-  onFigure?: (assetClass: string, said: string) => void;
   /**
    * Every class to list, in the firm's own order, so a class holding nothing still has a row to start it
    * in. Without it the list can only show what is already there, and a client holding nothing shows nothing.
@@ -901,8 +891,6 @@ export function ClientHoldingsPanel({
         <ul className="space-y-3">
           {classes.map((one) => {
             const classKey = one.assetClass;
-            // Written here rather than only read: the page hands in the figures and takes them back.
-            const typing = !readOnly && figures !== undefined && onFigure !== undefined;
             const isOpen = one.heldAsPositions && (!shut.has(classKey) || reveal === classKey);
             // One plan at a time, for the sub-asset with most to shed. Every breached line used to open
             // its own, and each worked out where its money could go as though it were the only one asking
@@ -966,24 +954,13 @@ export function ClientHoldingsPanel({
                   {/* Said in the same word the list above uses for them, and on one line: wrapped onto two
                       it made its own row taller than every other. */}
                   <span className="hidden w-32 shrink-0 text-right text-2xs tracking-wider whitespace-nowrap text-ink-muted uppercase sm:block">
-                    {one.heldAsPositions ? "From its lines" : typing ? "" : "No lines"}
+                    {one.heldAsPositions ? "From its lines" : "No lines"}
                   </span>
-                  {/* A class listed holding by holding is read here, never typed: the API refuses a figure
-                      that disagrees with its lines, and a box that can only be refused is a box that should
-                      not take a figure in the first place. */}
+                  {/* Read, never typed. A class is the sum of the sub-assets written under it, and a figure
+                      put straight on the class says a client holds something without saying what — which no
+                      drift, no band and no trade can be worked out from. Money goes in through Add. */}
                   <span className="w-32 shrink-0 text-right">
-                    {typing && !one.heldAsPositions ? (
-                      <TextInput
-                        id={`holding-${classKey}`}
-                        aria-label={`What they hold in ${one.assetClassName || one.assetClass}`}
-                        inputMode="decimal"
-                        className="h-9 text-right"
-                        value={figures?.[classKey] ?? ""}
-                        onChange={(event) => onFigure?.(classKey, event.target.value)}
-                      />
-                    ) : (
-                      <span className="tabular-nums">{underManagementLabel(one.valueAmount, currency)}</span>
-                    )}
+                    <span className="tabular-nums">{underManagementLabel(one.valueAmount, currency)}</span>
                   </span>
                   {/* What this class may wander, for a client the firm wants held to something other than
                       the model. Changing it on the model moves it for every client on that model. */}

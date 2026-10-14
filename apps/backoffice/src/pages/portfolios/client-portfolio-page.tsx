@@ -730,14 +730,6 @@ export function ClientPortfolioPage() {
                   customerId={customerId}
                   onChanged={kept}
                   against={tryingOn ? model : null}
-                  figures={editing ? holdings : undefined}
-                  /* Only this class, not a copy of every one of them. */
-                  onFigure={(assetClass, said) =>
-                    setHeld((were) => ({
-                      ...(were ?? {}),
-                      [assetClass]: asFigure(said, holdings[assetClass]),
-                    }))
-                  }
                   offer={boxes}
                   reveal={revealed}
                   onTouched={(id, before) =>
