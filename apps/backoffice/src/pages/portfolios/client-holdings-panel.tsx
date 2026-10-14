@@ -196,6 +196,111 @@ function ToleranceDialog({
   );
 }
 
+/**
+ * What the portfolio is doing wrong one level up: between the classes, not inside them.
+ *
+ * <p>Every plan below this one moves money inside a single class, and on a portfolio four fifths in
+ * equities against a model asking for three tenths, none of them can reach the problem — they said so,
+ * one by one, and then had nowhere to send anybody. This says the thing they cannot: which classes are
+ * holding too much, which are holding too little, and what moving between them would be.
+ *
+ * <p>It advises and does not act. A class-level move is a decision about what the client owns — sell
+ * equities, buy bonds — not a figure to be corrected on a screen: the trades are placed elsewhere and the
+ * holdings written down when they settle, for what actually filled rather than what was planned. The two
+ * sides are also not symmetrical. Taking money out of a class has one honest reading; putting it in means
+ * choosing which sub-asset inside it receives the money, and nothing on this screen knows that. So the
+ * figures are named exactly and the judgement is left where it belongs.
+ */
+function AgainstTheModel({ classes, currency, whole }: {
+  classes: ClassPositions[];
+  currency: string;
+  whole: number;
+}) {
+  // Only classes the model has something to say about. A class it names nothing of is not off target; it
+  // is simply not in the plan, and a row saying so would be a row about nothing.
+  const measured = classes.filter((one) =>
+    one.targetShare !== null && one.targetShare !== undefined
+    && one.suggestion !== null && one.suggestion !== undefined);
+  const over = measured.filter((one) => (one.suggestion as number) <= -1)
+    .sort((first, second) => (first.suggestion as number) - (second.suggestion as number));
+  const under = measured.filter((one) => (one.suggestion as number) >= 1)
+    .sort((first, second) => (second.suggestion as number) - (first.suggestion as number));
+  if (over.length === 0 || under.length === 0) return null;
+
+  const toSell = over.reduce((sum, one) => sum - (one.suggestion as number), 0);
+  const toBuy = under.reduce((sum, one) => sum + (one.suggestion as number), 0);
+  // What can actually change hands is the smaller of the two. Where they differ, the portfolio itself is
+  // the wrong size for the model, and no move between classes closes that.
+  const moving = Math.min(toSell, toBuy);
+
+  const row = (one: ClassPositions, selling: boolean) => (
+    <tr key={one.assetClass} className="border-b border-line last:border-0">
+      <th scope="row" className="px-5 py-3 text-left font-medium text-ink">
+        {one.assetClassName || one.assetClass}
+      </th>
+      <td className="px-5 py-3 text-right tabular-nums text-ink-muted">
+        {(one.shareOfPortfolio ?? 0).toFixed(1)}%
+      </td>
+      <td className="px-5 py-3 text-right tabular-nums text-ink-muted">
+        {(one.targetShare ?? 0).toFixed(1)}%
+      </td>
+      <td className="px-5 py-3 text-right tabular-nums">
+        <span className={selling ? "text-amber-700" : "text-ink"}>
+          {selling ? "Sell " : "Buy "}
+          {exactly(Math.abs(one.suggestion as number), currency)}
+        </span>
+      </td>
+    </tr>
+  );
+
+  return (
+    <section className="rounded-2xl border border-line bg-slate-50/70 p-5">
+      <p className="text-sm font-semibold text-ink">Against the model, class by class</p>
+      <p className="mt-1 max-w-2xl text-xs leading-relaxed text-ink-muted">
+        Moving money between classes is the only thing that changes these. Nothing leaves the portfolio, so
+        the total stays {underManagementLabel(whole, currency)} and no class moves except the two at either
+        end of the move.
+      </p>
+      <div className="mt-4 overflow-hidden rounded-xl border border-line bg-white">
+        <table className="min-w-full text-sm">
+          <caption className="sr-only">Each class against what the model asks of it.</caption>
+          <thead>
+            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              <th scope="col" className="px-5 py-3">Asset class</th>
+              <th scope="col" className="px-5 py-3 text-right">Holds</th>
+              <th scope="col" className="px-5 py-3 text-right">Model asks</th>
+              <th scope="col" className="px-5 py-3 text-right">What to do</th>
+            </tr>
+          </thead>
+          <tbody>
+            {over.map((one) => row(one, true))}
+            {under.map((one) => row(one, false))}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1">
+        <span className="text-sm font-semibold text-ink">To move</span>
+        <span className="text-sm font-semibold tabular-nums text-ink">{exactly(moving, currency)}</span>
+        {/* Where the two sides do not match, the portfolio is the wrong size for the model and no move
+            between classes closes the difference — somebody has to put money in or take it out. */}
+        <span className="text-xs text-ink-muted">
+          {Math.abs(toSell - toBuy) < 1
+            ? "out of the classes above, into the ones below"
+            : toSell > toBuy
+              ? `out of the classes above, into the ones below. The other `
+                + `${exactly(toSell - toBuy, currency)} has nowhere in the model to go — the portfolio `
+                + "holds more than the model is written for."
+              : `out of the classes above, into the ones below. The classes below are still `
+                + `${exactly(toBuy - toSell, currency)} short after that, which only new money can fill.`}
+        </span>
+      </div>
+      <p className="mt-3 px-1 text-xs text-ink-muted">
+        Write these down once the trades have settled, for what actually filled.
+      </p>
+    </section>
+  );
+}
+
 /** Where the sub-class is left blank, the holdings still need a heading to sit under. */
 const UNGROUPED = "Not grouped";
 
@@ -900,6 +1005,14 @@ export function ClientHoldingsPanel({
           {underManagementLabel(held.data.unplaced, currency)} sits in classes nobody has broken down yet —
           a single figure each, with no holdings under them.
         </Alert>
+      )}
+
+      {held.data && (
+        <AgainstTheModel
+          classes={classes}
+          currency={currency}
+          whole={held.data.underManagement}
+        />
       )}
 
       {held.isPending ? (
