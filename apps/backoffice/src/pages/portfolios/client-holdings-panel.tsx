@@ -48,15 +48,18 @@ function ToleranceDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  // Filled in where this client has figures of its own, and blank where the model's stand — so a box with
-  // something in it always means an exception somebody wrote on purpose.
-  const [watchPp, setWatchPp] = useState(one.ownTolerance && one.watchAt != null ? String(one.watchAt) : "");
-  const [edgePp, setEdgePp] = useState(one.ownTolerance && one.edgeAt != null ? String(one.edgeAt) : "");
-  const [breachPp, setBreachPp] = useState(
-    one.ownTolerance && one.breachAt != null ? String(one.breachAt) : "",
-  );
+  // Filled in with what this class is held to today, whether that is this client's own figures or the
+  // model's. Shown rather than left empty behind placeholders: typing over one of three empty boxes saved
+  // none of them, because a tolerance is three figures or none.
+  const stands = (figure: number | null | undefined) => (figure == null ? "" : String(figure));
+  const [watchPp, setWatchPp] = useState(stands(one.watchAt));
+  const [edgePp, setEdgePp] = useState(stands(one.edgeAt));
+  const [breachPp, setBreachPp] = useState(stands(one.breachAt));
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const given = [watchPp, edgePp, breachPp].filter((each) => each.trim() !== "").length;
+  // Watched, then the edge, then breached: each further out than the one before.
+  const outOfOrder = given === 3
+    && !(Number(watchPp) < Number(edgePp) && Number(edgePp) < Number(breachPp));
   const set = useSetClassTolerance<ApiError>({
     mutation: { onSuccess: onSaved, onError: (failed) => setErrors(toFormErrors(failed)) },
   });
@@ -125,11 +128,16 @@ function ToleranceDialog({
             All three or none. With any of them blank this client is held to the model's figures.
           </p>
         )}
+        {outOfOrder && (
+          <p className="text-xs text-rose-700">
+            Each has to be further out than the one before: watched, then the edge, then breached.
+          </p>
+        )}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={set.isPending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={set.isPending}>
+          <Button type="submit" disabled={outOfOrder || set.isPending}>
             {set.isPending ? "Saving…" : given === 3 ? "Hold it to these" : "Hold it to the model"}
           </Button>
         </div>
@@ -1053,12 +1061,26 @@ function HoldingDialog({
   // What the model asks of the group picked. Read after subClass exists, not beside the class above it.
   const asked = (modelSubClasses[assetClass] ?? []).find((one) => one.name === subClass) ?? null;
   const [valueAmount, setValueAmount] = useState(position ? String(position.valueAmount) : "");
-  // What this client's own papers allow this sub-asset to wander. Blank where nobody has said, and then the
-  // model's own tolerance stands — which is what nearly every sub-asset is measured by.
-  const [watchPp, setWatchPp] = useState(position?.watchPp == null ? "" : String(position.watchPp));
-  const [edgePp, setEdgePp] = useState(position?.edgePp == null ? "" : String(position.edgePp));
-  const [breachPp, setBreachPp] = useState(position?.breachPp == null ? "" : String(position.breachPp));
+  // What this client's own papers allow this sub-asset to wander. Opening a holding fills the boxes with
+  // what it is actually held to today — its own figures where somebody wrote them, the model's otherwise —
+  // rather than leaving them empty behind grey placeholders. Typing over one of three empty boxes wrote
+  // nothing at all, because a tolerance is three figures or none, and the screen said so in small print
+  // after the fact. Adding a sub-asset still starts blank: there is no group chosen yet to read a band from.
+  const opened = position
+    ? ((modelSubClasses[position.assetClass] ?? []).find((one) => one.name === position.subClass)
+      ?? classBands[position.assetClass] ?? null)
+    : null;
+  const standsAt = (own: number | null | undefined, model: number | null | undefined) =>
+    own != null ? String(own) : (position && model != null) ? String(model) : "";
+  const [watchPp, setWatchPp] = useState(standsAt(position?.watchPp, opened?.watchAt));
+  const [edgePp, setEdgePp] = useState(standsAt(position?.edgePp, opened?.edgeAt));
+  const [breachPp, setBreachPp] = useState(standsAt(position?.breachPp, opened?.breachAt));
   const ownBand = [watchPp, edgePp, breachPp].filter((one) => one.trim() !== "").length;
+  // Watched, then the edge, then breached: each further out than the one before. Two the same way round
+  // would make a sub-asset breach before it was ever watched, and the API refuses it — better said here,
+  // beside the boxes, than returned as a failure after Save.
+  const outOfOrder = ownBand === 3
+    && !(Number(watchPp) < Number(edgePp) && Number(edgePp) < Number(breachPp));
   // What the model holds this sub-asset to: the line's own tolerance where it names one, and otherwise the
   // class's, which is what a sub-asset in no group at all is measured by.
   const modelBand = asked ?? classBands[assetClass] ?? null;
@@ -1354,6 +1376,11 @@ function HoldingDialog({
               All three or none. With any of them blank this client is held to the model's figures.
             </p>
           )}
+          {outOfOrder && (
+            <p className="mt-2 text-xs text-rose-700">
+              Each has to be further out than the one before: watched, then the edge, then breached.
+            </p>
+          )}
         </fieldset>
         {valueAmount.trim() !== "" && !readable && (
           <p className="text-xs text-rose-700">What a sub-asset is worth is a number, and not less than nothing.</p>
@@ -1364,7 +1391,7 @@ function HoldingDialog({
           </Button>
           {/* A sub-asset the model does not name can still be written down — somebody holding it is the
               fact, and the model saying nothing about it is a separate one. */}
-          <Button type="submit" disabled={!readable || busy}>
+          <Button type="submit" disabled={!readable || outOfOrder || busy}>
             {busy ? "Saving…" : position ? "Save it" : "Add it"}
           </Button>
         </div>
