@@ -256,9 +256,15 @@ export function ClientPortfolioPage() {
    * The figures the boxes show: what somebody typed, or what the currency they picked would make of what is
    * on file, or what is on file. Shown the moment the currency changes so that the figures and the money
    * they are counted in never read as two different things — and still written only by Save.
+   *
+   * <p>Only the classes somebody actually typed into are kept, and they are laid over the live figures
+   * rather than replacing them. Snapshotting every class at the first keystroke froze the ones that are
+   * worked out from their lines rather than typed: add or remove a sub-asset afterwards and Save sent that
+   * class's total as it stood before, which is the one figure the API refuses for disagreeing with its own
+   * lines.
    */
-  const holdings =
-    held ?? (converting && wouldRead.data ? asBoxes(wouldRead.data, boxes) : heldFrom(standing.data, boxes));
+  const live = converting && wouldRead.data ? asBoxes(wouldRead.data, boxes) : heldFrom(standing.data, boxes);
+  const holdings = held === null ? live : { ...live, ...held };
   const on = rebalancedOn ?? standing.data?.lastRebalancedOn ?? "";
   const looked = reviewedOn ?? standing.data?.lastReviewedOn ?? "";
   const total = Object.values(holdings).reduce((sum, typed) => sum + (Number(typed) || 0), 0);
@@ -277,7 +283,7 @@ export function ClientPortfolioPage() {
     query: { enabled: tryingOn },
   });
   const figuresChanged =
-    held !== null && JSON.stringify(held) !== JSON.stringify(heldFrom(standing.data, boxes));
+    held !== null && JSON.stringify(holdings) !== JSON.stringify(heldFrom(standing.data, boxes));
   const unsaved =
     // A holding written down in this sitting, or a tolerance written over, is unkept work exactly as a
     // typed-over box is. Counting only the boxes, a move made and walked away from asked nothing and took
@@ -725,8 +731,12 @@ export function ClientPortfolioPage() {
                   onChanged={kept}
                   against={tryingOn ? model : null}
                   figures={editing ? holdings : undefined}
+                  /* Only this class, not a copy of every one of them. */
                   onFigure={(assetClass, said) =>
-                    setHeld({ ...holdings, [assetClass]: asFigure(said, holdings[assetClass]) })
+                    setHeld((were) => ({
+                      ...(were ?? {}),
+                      [assetClass]: asFigure(said, holdings[assetClass]),
+                    }))
                   }
                   offer={boxes}
                   reveal={revealed}
