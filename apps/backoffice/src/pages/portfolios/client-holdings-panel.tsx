@@ -335,6 +335,10 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   const [moves, setMoves] = useState<Record<string, string>>(asSuggested);
   const [failed, setFailed] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
+  // What the last click did, and the fact that it was a click rather than typing. A move used to leave
+  // every remaining box filled with a fresh split and the buttons back where they were, so it never looked
+  // as though anything had happened — and the whole table sat one click away from going out the door.
+  const [done, setDone] = useState<string | null>(null);
   const change = useChangeClientHolding<ApiError>();
   const write = useRecordClientHolding<ApiError>();
   const placed = places.reduce((sum, place) => sum + typed(moves[place.name]), 0);
@@ -342,7 +346,8 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   // Only where there is something to go back to. Money moved is money written down: the sub-asset is worth
   // what it is worth now, these boxes hold the suggestion made against that, and a button offering to put
   // back a suggestion nobody has changed is a button offering to undo the move — which it cannot do.
-  const edited = places.some((place) => (moves[place.name] ?? "") !== String(suggested[place.name]));
+  const edited = done === null
+    && places.some((place) => (moves[place.name] ?? "") !== String(suggested[place.name]));
 
   // Both sides first, the page afterwards. Telling the page between the two legs had it read the portfolio
   // back half way through the move — money gone from one sub-asset and not yet on the other — and every box
@@ -350,6 +355,13 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   //
   // The source goes first of the two: if the second leg fails, the money is missing rather than counted
   // twice, which is the half somebody notices.
+  // Nothing is left armed. Every other box goes back to nothing, so the next move is one somebody types
+  // and means, rather than one the screen had already filled in and put a button under.
+  function settled(place: Destination, amount: number) {
+    setMoves(Object.fromEntries(places.map((each) => [each.name, "0"])));
+    setDone(`Moved ${exactly(amount, currency)} into ${place.name}.`);
+  }
+
   async function move(place: Destination) {
     const amount = typed(moves[place.name]);
     if (!out || amount <= 0) return;
@@ -364,6 +376,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
           customerId, id: place.into.id, data: sameBut(place.into, place.into.valueAmount + amount),
         });
         onMoved([{ id: out.id, before: out }, { id: place.into.id, before: place.into }]);
+        settled(place, amount);
       } else {
         // A sub-asset the model names and nobody has written down yet. Discard puts it back by removing it,
         // which is what a null before means to the page above.
@@ -376,6 +389,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
           },
         });
         onMoved([{ id: out.id, before: out }, { id: made.id, before: null }]);
+        settled(place, amount);
       }
     } catch (caught) {
       // The source may already be written down, so the page is told either way: a move that stopped half
@@ -410,6 +424,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
           </div>
 
           {failed && <div className="mt-4"><Alert tone="danger">{failed}</Alert></div>}
+          {done && <div className="mt-4"><Alert tone="success">{done}</Alert></div>}
 
           {places.length === 0 ? (
             <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-ink">
@@ -450,7 +465,10 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                               nothing held here yet
                             </span>
                           )}
-                          {past > 0 && (
+                          {/* Half a unit, not nought: room worked out in points of a portfolio lands a
+                              hair above the figure in the box beside it, and "USD 0 more than it may
+                              hold" is a warning about nothing. */}
+                          {past > 0.5 && (
                             <span className="mt-1 block text-xs font-normal text-amber-700">
                               {exactly(past, currency)} more than it may hold
                             </span>
@@ -466,8 +484,10 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                               inputMode="decimal"
                               aria-label={`Move into ${place.name}`}
                               value={moves[place.name] ?? ""}
-                              onChange={(event) =>
-                                setMoves((was) => ({ ...was, [place.name]: event.target.value }))}
+                              onChange={(event) => {
+                                setDone(null);
+                                setMoves((was) => ({ ...was, [place.name]: event.target.value }));
+                              }}
                               className="h-9 w-32 text-right tabular-nums"
                             />
                           </span>
@@ -942,11 +962,11 @@ export function ClientHoldingsPanel({
                               working-out rather than another measurement of this sub-asset. */}
                           {spareIn(group) !== null && (
                             <MoveOutPlan
-                              /* Every figure in the class, not just this one's: a move writes two
-                                 sub-assets, and keying on one of them left the other's box holding a
-                                 suggestion made against a figure that had already changed. */
-                              key={`${group.subClass ?? UNGROUPED}-`
-                                + one.subClasses.map((each) => each.valueAmount).join("-")}
+                              /* The sub-asset, and nothing about what it is worth. Keyed on the figures,
+                                 this was built again after every write, which wiped what the last click
+                                 had said it did and filled every box back up with a fresh split — so a
+                                 move that had just happened looked like one still waiting to be made. */
+                              key={group.subClass ?? UNGROUPED}
                               customerId={customerId}
                               spare={spareIn(group) as number}
                               out={group.positions[0] ?? null}
