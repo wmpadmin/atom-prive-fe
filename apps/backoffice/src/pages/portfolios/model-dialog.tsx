@@ -726,10 +726,13 @@ export function ModelDialog({
 
           <p className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
             <span className="font-semibold tabular-nums">{total}% placed</span>
+            {/* Short of a hundred is a plan half written; past it is a plan that cannot exist. The second
+                is not a shade worse than the first, so it is not said in the same colour. */}
             <span
               className={cn(
-                "text-xs",
-                untouched ? "text-ink-muted" : addsUp ? "font-medium text-emerald-700" : "font-medium text-amber-700",
+                "text-xs font-medium",
+                untouched ? "text-ink-muted" : addsUp ? "text-emerald-700"
+                  : total < 100 ? "text-amber-700" : "text-red-600",
               )}
             >
               {untouched
@@ -741,6 +744,16 @@ export function ModelDialog({
                     : `${total - 100}% over.`}
             </span>
           </p>
+
+          {/* Said in full, under the bar, where the figures are. A portfolio is the whole of what somebody
+              has: a plan for more than all of it cannot be followed, and nothing is saved until it comes
+              down — so it is put as plainly as the thing that is wrong. */}
+          {!untouched && total > 100 && (
+            <p className="mt-1.5 text-xs text-red-600">
+              The split comes to {total}%, and a portfolio is only ever 100%. Take{" "}
+              {total - 100}% off before this can be saved.
+            </p>
+          )}
 
           {unreadable.length > 0 && (
             <p className="mt-1.5 text-xs text-red-600">
