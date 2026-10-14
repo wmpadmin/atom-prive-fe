@@ -151,36 +151,53 @@ function exactly(amount: number, currency: string) {
   return `${currency} ${amount.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
-/** A sub-asset that can take money, how much it can take before it passes its own target, and the row it is. */
+/** A sub-asset that can take money, how much it can take before it would breach, and the row it is. */
 type Destination = { name: string; room: number; into: PositionRow | null };
+
+/** How close to the breach line money may be placed. A hair inside it, never on it. */
+const SHORT_OF_BREACH = 0.1;
+
+/**
+ * What a sub-asset can take, in money, before it would breach.
+ *
+ * <p>Measured to the band rather than to the target. Filling only to the target is the safest rule there
+ * is and on a portfolio where every line already sits at or above what the model asks it finds nothing at
+ * all — which left the screen saying no sub-asset had room while every one of them had a band it was
+ * nowhere near the end of. The last tenth of a point is left alone: landing exactly on the breach figure
+ * is breaching.
+ */
+function roomFor(targetShare: number, share: number, breachAt: number, whole: number) {
+  const points = targetShare + breachAt - SHORT_OF_BREACH - share;
+  return points <= 0 ? 0 : (whole * points) / 100;
+}
 
 /**
  * How much each of the other sub-assets in this class can take, biggest room first.
  *
- * <p>Room is the distance to its own target, never past it. A sub-asset filled to its target has drifted
- * nowhere, so money placed this way cannot push anything into a breach of its own — which is the whole
- * point of saying the amounts rather than only the names.
- *
  * <p>Every sub-asset the model names, not only the ones already written down. A client who holds six of a
- * class's nine lines has three standing empty with their whole target free, and reading only what is on the
- * page said "no sub-asset has room" while the model was asking for money in three of them.
+ * class's nine lines has three standing empty, and reading only what is on the page said "no sub-asset has
+ * room" while the model was asking for money in three of them.
  */
-function roomIn(groups: SubClassGroup[], except: SubClassGroup, model: ModelLine[],
-  whole: number): Destination[] {
-  const places: Destination[] = groups
-    .filter((one) => one !== except && one.subClass !== null
-      && one.suggestion !== null && one.suggestion !== undefined && one.suggestion > 0)
-    .map((one) => ({
-      name: one.subClass as string,
-      room: one.suggestion as number,
-      into: one.positions[0] ?? null,
-    }));
+function roomIn(groups: SubClassGroup[], except: SubClassGroup, model: ModelLine[], whole: number,
+  classBreach: number | null | undefined): Destination[] {
+  // What the firm holds this line to: the client's own figure where somebody wrote one on the holding,
+  // then the model's for that line, then the class's. The same order the rest of the screen reads them in.
+  const modelBreach = Object.fromEntries(model.map((line) => [line.name, line.breachAt]));
+  const places: Destination[] = [];
+  for (const one of groups) {
+    if (one === except || one.subClass === null) continue;
+    const held = one.positions[0] ?? null;
+    const breachAt = held?.breachPp ?? modelBreach[one.subClass] ?? classBreach;
+    if (breachAt === null || breachAt === undefined) continue;
+    const room = roomFor(one.targetShare ?? 0, one.shareOfPortfolio, breachAt, whole);
+    if (room > 0) places.push({ name: one.subClass, room, into: held });
+  }
   const written = new Set(groups.map((one) => one.subClass));
   for (const line of model) {
-    if (written.has(line.name)) continue;
-    const room = (whole * line.shareOfPortfolio) / 100;
-    // Nothing for a line the model names but asks nothing of, and nothing for the sub-asset we are emptying.
-    if (room > 0 && line.name !== except.subClass) places.push({ name: line.name, room, into: null });
+    if (written.has(line.name) || line.name === except.subClass) continue;
+    // Nothing is held here, so it starts at none of the portfolio and its whole band is ahead of it.
+    const room = roomFor(line.shareOfPortfolio, 0, line.breachAt, whole);
+    if (room > 0) places.push({ name: line.name, room, into: null });
   }
   return places.sort((first, second) => second.room - first.room);
 }
@@ -333,8 +350,8 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                 Where {exactly(spare, currency)} out of {from} can go
               </p>
               <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                A sub-asset can take what is left between it and its own target. Past that it has drifted the
-                other way, which is how one breach becomes two.
+                A sub-asset can take money until it is a tenth of a point short of breaching its own band.
+                Past that it breaches, which is how one breach becomes two.
               </p>
             </div>
             {edited && (
@@ -388,7 +405,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                           )}
                           {past > 0 && (
                             <span className="mt-1 block text-xs font-normal text-amber-700">
-                              {exactly(past, currency)} past its own target
+                              {exactly(past, currency)} more than it may hold
                             </span>
                           )}
                         </th>
@@ -408,14 +425,19 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
                             />
                           </span>
                         </td>
+                        {/* No button on a row nothing is going to. A line of greyed-out "Move USD 0"
+                            down the table reads as six things that cannot be done, when it is really
+                            six boxes waiting for a figure. */}
                         <td className="px-5 py-4 text-right">
-                          <Button
-                            size="sm"
-                            disabled={amount <= 0 || !out || moving !== null}
-                            onClick={() => move(place)}
-                          >
-                            {moving === place.name ? "Moving…" : `Move ${exactly(amount, currency)}`}
-                          </Button>
+                          {amount > 0 && (
+                            <Button
+                              size="sm"
+                              disabled={!out || moving !== null}
+                              onClick={() => move(place)}
+                            >
+                              {moving === place.name ? "Moving…" : `Move ${exactly(amount, currency)}`}
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -878,7 +900,7 @@ export function ClientHoldingsPanel({
                               assetClass={one.assetClass}
                               places={roomIn(one.subClasses, group,
                                 held.data?.modelSubClasses?.[one.assetClass] ?? [],
-                                held.data?.underManagement ?? 0)}
+                                held.data?.underManagement ?? 0, one.breachAt)}
                               className={one.assetClassName || one.assetClass}
                               currency={currency}
                               span={readOnly ? 6 : 7}
