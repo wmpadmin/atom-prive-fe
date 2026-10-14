@@ -142,19 +142,28 @@ function ToleranceDialog({
 const UNGROUPED = "Not grouped";
 
 /**
- * The groups inside this class that can take money without trouble of their own, named.
+ * An amount of money, exactly, for a sentence that somebody is going to act on.
  *
- * <p>A class is the sum of its groups, so money coming out of one holding too much belongs in the ones
- * holding too little. Not all of them, though: a group already at its edge is one step from breaching, and
- * sending it more is trading one problem for another. Only the ones with real room are named.
+ * <p>Not the short form the columns use: "3.3K into one, 310 into another" does not add up on the page,
+ * and a figure rounded to the nearest hundred is the wrong thing to hand to a dealer.
  */
-function roomIn(groups: SubClassGroup[], except: SubClassGroup): string[] {
+function exactly(amount: number, currency: string) {
+  return `${currency} ${amount.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+/**
+ * How much each of the other groups in this class can take, and what it is called.
+ *
+ * <p>Room is the distance to its own target, never past it. A group filled to its target has drifted
+ * nowhere, so money placed this way cannot push anything into a breach of its own — which is the whole
+ * point of saying the amounts rather than only the names.
+ */
+function roomIn(groups: SubClassGroup[], except: SubClassGroup): { name: string; room: number }[] {
   return groups
     .filter((one) => one !== except && one.subClass !== null
-      && one.suggestion !== null && one.suggestion !== undefined && one.suggestion > 0
-      && one.standing !== "AT_EDGE" && one.standing !== "BREACHED")
-    .sort((first, second) => (second.suggestion ?? 0) - (first.suggestion ?? 0))
-    .map((one) => one.subClass as string);
+      && one.suggestion !== null && one.suggestion !== undefined && one.suggestion > 0)
+    .map((one) => ({ name: one.subClass as string, room: one.suggestion as number }))
+    .sort((first, second) => second.room - first.room);
 }
 
 /**
@@ -163,23 +172,38 @@ function roomIn(groups: SubClassGroup[], except: SubClassGroup): string[] {
  * <p>Only past the breach: a line inside its band needs nothing done to it, and saying so on every row
  * buried the one row that mattered. And only ever "can" — the platform places no trades, so the sentence
  * names what is open to whoever is reading it rather than instructing them.
+ *
+ * <p>Where money has to come out, every figure is named. Naming the groups alone was worse than naming
+ * none: it reads as permission to put the whole sum into any one of them, and the first group to take more
+ * than its own target breaches on the way in. A group can only ever absorb the distance to its target, and
+ * what will not fit has to leave the class altogether — which is said rather than left to be discovered.
  */
-function whatIsOpen(group: SubClassGroup, siblings: SubClassGroup[], currency: string): string | null {
+function whatIsOpen(group: SubClassGroup, siblings: SubClassGroup[], className: string,
+  currency: string): string | null {
   const amount = group.suggestion;
   if (group.standing !== "BREACHED" || amount === null || amount === undefined
     || amount.toFixed(2) === "0.00") {
     return null;
   }
   if (amount > 0) {
-    return `You can add ${underManagementLabel(amount, currency)} to this sub-asset.`;
+    return `You can add ${exactly(amount, currency)} to this sub-asset.`;
   }
-  const room = roomIn(siblings, group);
-  const spare = underManagementLabel(-amount, currency);
-  // Naming nobody is better than naming a group that would breach on the way in. Said plainly, because
-  // "take it out" with nowhere named is a half-finished instruction.
-  return room.length === 0
-    ? `You can take ${spare} out of this sub-asset. No other sub-asset here has room for it.`
-    : `You can take ${spare} out of this sub-asset and add it to ${room.join(", ")}.`;
+  const spare = -amount;
+  let left = spare;
+  const parts: string[] = [];
+  for (const place of roomIn(siblings, group)) {
+    if (left <= 0) break;
+    const takes = Math.min(left, place.room);
+    parts.push(`${exactly(takes, currency)} into ${place.name}`);
+    left -= takes;
+  }
+  const over = left > 0
+    ? ` The remaining ${exactly(left, currency)} has nowhere to go inside ${className} — it has to leave the class.`
+    : "";
+  return parts.length === 0
+    ? `You can take ${exactly(spare, currency)} out of this sub-asset. No other sub-asset here has room for `
+      + `it, so it has to leave ${className}.`
+    : `You can take ${exactly(spare, currency)} out of this sub-asset: ${parts.join(", ")}.${over}`;
 }
 
 /** The row that puts the box back, for a group the model does not name. Never a group's own name. */
@@ -539,9 +563,9 @@ export function ClientHoldingsPanel({
                               {/* Under the name rather than out at the end of the row: it is a sentence
                                   about this sub-asset, and a column of its own made every other row carry
                                   an empty cell to hold a space the breached one needed. */}
-                              {whatIsOpen(group, one.subClasses, currency) && (
+                              {whatIsOpen(group, one.subClasses, one.assetClassName || one.assetClass, currency) && (
                                 <span className="mt-1 block text-xs font-normal text-ink-muted">
-                                  {whatIsOpen(group, one.subClasses, currency)}
+                                  {whatIsOpen(group, one.subClasses, one.assetClassName || one.assetClass, currency)}
                                 </span>
                               )}
                             </th>
