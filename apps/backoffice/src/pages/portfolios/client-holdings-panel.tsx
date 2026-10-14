@@ -337,7 +337,7 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
   span: number;
   /** Read somewhere other than the portfolio screen's own Edit, where nothing may be written down. */
   readOnly: boolean;
-  onMoved: (touched: { id: string; before: PositionRow | null }[]) => void;
+  onMoved: (touched: { id: string; before: PositionRow | null }[]) => void | Promise<void>;
 }) {
   const from = out?.subClass ?? UNGROUPED;
   // The rows as they stood when this panel opened, kept for as long as it stays open — the same rows, in
@@ -402,15 +402,23 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
     underway.current = true;
     setFailed(null);
     setMoving(place.name);
+    // Whether the money is already out of the source. What that is worth now is a different figure from
+    // the one this move started with, and the difference is what somebody has to be told about.
+    let taken = false;
     try {
       await change.mutateAsync({
         customerId, id: out.id, data: sameBut(out, out.valueAmount - amount),
       });
+      taken = true;
       if (place.into) {
         await change.mutateAsync({
           customerId, id: place.into.id, data: sameBut(place.into, place.into.valueAmount + amount),
         });
-        onMoved([{ id: out.id, before: out }, { id: place.into.id, before: place.into }]);
+        // Awaited, so this move is not over until the portfolio has been read back. Every figure below is
+        // worked out from rows that came with the last read: released the moment the writes returned, a
+        // second Move went out against the source as it stood before the first, which wrote off the first
+        // move's deduction while its deposit stood — money out of nowhere.
+        await onMoved([{ id: out.id, before: out }, { id: place.into.id, before: place.into }]);
         settled(place, amount);
       } else {
         // A sub-asset the model names and nobody has written down yet. Discard puts it back by removing it,
@@ -423,14 +431,22 @@ function MoveOutPlan({ customerId, assetClass, spare, out, places, className, cu
             valueAmount: amount, watchPp: null, edgePp: null, breachPp: null,
           },
         });
-        onMoved([{ id: out.id, before: out }, { id: made.id, before: null }]);
+        await onMoved([{ id: out.id, before: out }, { id: made.id, before: null }]);
         settled(place, amount);
       }
     } catch (caught) {
-      // The source may already be written down, so the page is told either way: a move that stopped half
-      // way is still a change somebody has to be able to discard.
-      onMoved([{ id: out.id, before: out }]);
-      setFailed((caught as ApiError)?.message ?? "That could not be written down.");
+      const said = (caught as ApiError)?.message;
+      if (taken) {
+        // Half way: out of one and not into the other. The page is told, because that is a change somebody
+        // has to be able to discard — and the row is disarmed, because pressing it again would take the
+        // money out a second time.
+        await onMoved([{ id: out.id, before: out }]);
+        setMoves((was) => ({ ...was, [place.name]: "0" }));
+        setFailed(`${exactly(amount, currency)} came out of ${from} but could not be put into `
+          + `${place.name}${said ? `: ${said}` : "."} Discard puts it back.`);
+      } else {
+        setFailed(said ?? "That could not be written down. Nothing has moved.");
+      }
     } finally {
       underway.current = false;
       setMoving(null);
@@ -686,9 +702,14 @@ export function ClientHoldingsPanel({
     setNewFor(null);
   };
 
-  const kept = () => {
-    void queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) });
-    void queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) });
+  // Settles once the portfolio has actually been read back, so a caller that must not act on yesterday's
+  // figures can wait for it. Fired and forgotten, this let a second Move go out against the rows the first
+  // one had already written over.
+  const kept = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),
+      queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) }),
+    ]);
     onChanged();
   };
   const remove = useRemoveClientHolding<ApiError>({
@@ -1048,9 +1069,9 @@ export function ClientHoldingsPanel({
                               currency={currency}
                               span={readOnly ? 6 : 7}
                               readOnly={readOnly}
-                              onMoved={(touched) => {
+                              onMoved={async (touched) => {
                                 for (const each of touched) onTouched?.(each.id, each.before);
-                                kept();
+                                await kept();
                               }}
                             />
                           )}
