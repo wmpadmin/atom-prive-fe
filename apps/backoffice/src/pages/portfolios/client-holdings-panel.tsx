@@ -61,24 +61,48 @@ function ToleranceDialog({
   const outOfOrder = given === 3
     && !(Number(watchPp) < Number(edgePp) && Number(edgePp) < Number(breachPp));
   const set = useSetClassTolerance<ApiError>({
-    mutation: { onSuccess: onSaved, onError: (failed) => setErrors(toFormErrors(failed)) },
+    mutation: { onError: (failed) => setErrors(toFormErrors(failed)) },
   });
+  const change = useChangeClientHolding<ApiError>({
+    mutation: { onError: (failed) => setErrors(toFormErrors(failed)) },
+  });
+  // Sub-assets inside this class that somebody has given figures of their own. They beat whatever is set
+  // here, so setting this and watching nothing change was the obvious thing to do and the wrong one.
+  const exceptions = one.subClasses
+    .flatMap((group) => group.positions)
+    .filter((row) => row.watchPp != null || row.edgePp != null || row.breachPp != null);
   const name = one.assetClassName || one.assetClass;
+  const busy = set.isPending || change.isPending;
   return (
     <Dialog open title={`How far ${name} may wander`} onClose={onClose}>
       <form
         className="space-y-4"
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
           setErrors(noErrors);
-          set.mutate({
-            customerId,
-            assetClass: one.assetClass,
-            // All three or none. Sent empty, the class goes back on the model's own figures.
-            data: given === 3
-              ? { watchPp: Number(watchPp), edgePp: Number(edgePp), breachPp: Number(breachPp) }
-              : { watchPp: null, edgePp: null, breachPp: null },
-          });
+          try {
+            await set.mutateAsync({
+              customerId,
+              assetClass: one.assetClass,
+              // All three or none. Sent empty, the class goes back on the model's own figures.
+              data: given === 3
+                ? { watchPp: Number(watchPp), edgePp: Number(edgePp), breachPp: Number(breachPp) }
+                : { watchPp: null, edgePp: null, breachPp: null },
+            });
+            // A figure set here is what the whole class is held to, so the sub-assets holding figures of
+            // their own are put back on it. Left standing, they went on being measured by something nobody
+            // could see from this screen.
+            for (const row of exceptions) {
+              await change.mutateAsync({
+                customerId,
+                id: row.id,
+                data: { ...sameBut(row, row.valueAmount), watchPp: null, edgePp: null, breachPp: null },
+              });
+            }
+            onSaved();
+          } catch {
+            // The error is already on the screen, put there by whichever call failed.
+          }
         }}
       >
         {errors.form && <Alert tone="danger">{errors.form}</Alert>}
@@ -132,12 +156,21 @@ function ToleranceDialog({
             Each has to be further out than the one before: watched, then the edge, then breached.
           </p>
         )}
+        {/* Said before it happens, not found out afterwards: these are figures somebody wrote on purpose. */}
+        {exceptions.length > 0 && (
+          <p className="text-xs text-amber-700">
+            {exceptions.length === 1
+              ? `${exceptions[0].subClass ?? UNGROUPED} has figures of its own.`
+              : `${exceptions.length} sub-assets in ${name} have figures of their own.`}{" "}
+            Saving here clears them, so the whole class is measured by one set.
+          </p>
+        )}
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose} disabled={set.isPending}>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button type="submit" disabled={outOfOrder || set.isPending}>
-            {set.isPending ? "Saving…" : given === 3 ? "Hold it to these" : "Hold it to the model"}
+          <Button type="submit" disabled={outOfOrder || busy}>
+            {busy ? "Saving…" : given === 3 ? "Hold it to these" : "Hold it to the model"}
           </Button>
         </div>
       </form>
