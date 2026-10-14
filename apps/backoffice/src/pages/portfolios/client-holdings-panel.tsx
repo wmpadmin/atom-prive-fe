@@ -1022,11 +1022,18 @@ export function ClientHoldingsPanel({
                               working-out rather than another measurement of this sub-asset. */}
                           {spareIn(group) !== null && (
                             <MoveOutPlan
-                              /* The sub-asset, and nothing about what it is worth. Keyed on the figures,
-                                 this was built again after every write, which wiped what the last click
-                                 had said it did and filled every box back up with a fresh split — so a
-                                 move that had just happened looked like one still waiting to be made. */
-                              key={group.subClass ?? UNGROUPED}
+                              /* The sub-asset and the sitting, and nothing about what it is worth. Keyed
+                                 on the figures, this was built again after every write, which wiped what
+                                 the last click had said it did and filled every box back up with a fresh
+                                 split — so a move that had just happened looked like one still waiting to
+                                 be made.
+
+                                 Keyed on the sub-asset alone, it outlived the sitting instead: Discard put
+                                 the money back and this panel went on saying "Moved USD 4,123 into Indian
+                                 Equities" over figures that no longer showed it, which reads as a Discard
+                                 that did nothing. Leaving edit is the end of the sitting, so it is the end
+                                 of what this panel remembers about it. */
+                              key={`${group.subClass ?? UNGROUPED}-${readOnly ? "reading" : "editing"}`}
                               customerId={customerId}
                               spare={spareIn(group) as number}
                               out={group.positions[0] ?? null}
