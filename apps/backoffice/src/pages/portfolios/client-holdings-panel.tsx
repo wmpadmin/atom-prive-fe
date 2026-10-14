@@ -42,11 +42,18 @@ function ToleranceDialog({
   one,
   onClose,
   onSaved,
+  onTouched,
+  onClassTouched,
 }: {
   customerId: string;
   one: ClassPositions;
   onClose: () => void;
   onSaved: () => void;
+  /** Each sub-asset whose own figures this is about to clear, as it stood, so Discard can put them back. */
+  onTouched?: (id: string, before: PositionRow | null) => void;
+  /** What the class was held to beforehand — its own figures, or nothing where it followed the model. */
+  onClassTouched?: (assetClass: string, before: { watchPp: number; edgePp: number; breachPp: number } | null)
+    => void;
 }) {
   // Filled in with what this class is held to today, whether that is this client's own figures or the
   // model's. Shown rather than left empty behind placeholders: typing over one of three empty boxes saved
@@ -81,6 +88,12 @@ function ToleranceDialog({
           event.preventDefault();
           setErrors(noErrors);
           try {
+            // What the class stood on before this, so Discard can put the class itself back and not only
+            // the sub-assets underneath it.
+            onClassTouched?.(one.assetClass, one.ownTolerance && one.watchAt != null && one.edgeAt != null
+              && one.breachAt != null
+              ? { watchPp: one.watchAt, edgePp: one.edgeAt, breachPp: one.breachAt }
+              : null);
             await set.mutateAsync({
               customerId,
               assetClass: one.assetClass,
@@ -92,12 +105,17 @@ function ToleranceDialog({
             // A figure set here is what the whole class is held to, so the sub-assets holding figures of
             // their own are put back on it. Left standing, they went on being measured by something nobody
             // could see from this screen.
+            //
+            // Each one is handed to the page as it stood before its figures went, row by row: these are
+            // numbers somebody typed on purpose, and Discard said it would put them back while knowing
+            // nothing about them at all.
             for (const row of exceptions) {
               await change.mutateAsync({
                 customerId,
                 id: row.id,
                 data: { ...sameBut(row, row.valueAmount), watchPp: null, edgePp: null, breachPp: null },
               });
+              onTouched?.(row.id, row);
             }
             onSaved();
           } catch {
@@ -636,6 +654,7 @@ export function ClientHoldingsPanel({
   customerId,
   onChanged,
   onTouched,
+  onClassTouched,
   figures,
   onFigure,
   offer,
@@ -653,6 +672,14 @@ export function ClientHoldingsPanel({
    * when Edit was pressed, however the change was made.
    */
   onTouched?: (id: string, before: PositionRow | null) => void;
+  /**
+   * A class whose own tolerance is about to be written over, with what it was held to beforehand — its own
+   * three figures, or null where it was following the model.
+   *
+   * <p>A tolerance is not a holding, so it has no row for Discard to put back. The page keeps it instead.
+   */
+  onClassTouched?: (assetClass: string, before: { watchPp: number; edgePp: number; breachPp: number } | null)
+    => void;
   /**
    * What each class is worth, where this panel is the place those figures are written rather than only read.
    *
@@ -1090,10 +1117,12 @@ export function ClientHoldingsPanel({
         <ToleranceDialog
           customerId={customerId}
           one={tolerating}
+          onTouched={onTouched}
+          onClassTouched={onClassTouched}
           onClose={() => setTolerating(null)}
           onSaved={() => {
             setTolerating(null);
-            kept();
+            void kept();
           }}
         />
       )}
