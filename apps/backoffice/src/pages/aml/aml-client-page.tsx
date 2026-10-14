@@ -16,7 +16,6 @@ import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { formatDate, formatDateTime } from "../../lib/labels";
 import { hasAnyAuthority, RATES_AML_RISK } from "../../lib/permissions";
 import { bandTone } from "./aml-labels";
-import { SheetNotReady } from "./sheet-not-ready";
 
 /**
  * One client, scored against the firm's sheet.
@@ -112,13 +111,6 @@ export function AmlClientPage() {
           {justRated.forcedBy && ` Settled by ${justRated.forcedBy} rather than by the score.`}
         </Alert>
       )}
-
-      {/*
-        Nothing can be scored against a sheet that is not finished. It says what is missing, who puts it
-        right and how to get there — a person told only that something is missing is left with nothing to do
-        about it.
-      */}
-      {!sheet.complete && <SheetNotReady faults={sheet.faults} />}
 
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
       {errors.fields.chosen && <Alert tone="danger">{errors.fields.chosen}</Alert>}
