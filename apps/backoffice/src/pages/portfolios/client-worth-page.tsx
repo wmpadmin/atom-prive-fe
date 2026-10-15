@@ -273,10 +273,10 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
         </ul>
       </section>
 
-      {/* What they owe. One line of text, because who it is from and what it is secured on is one answer. */}
+      {/* Loans. One line of text, because who it is from and what it is secured on is one answer. */}
       <section className="rounded-2xl border border-line bg-white">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-2">
-          <h2 className="font-semibold text-ink">What they owe</h2>
+          <h2 className="font-semibold text-ink">Loan</h2>
           <p className={cn("text-sm font-bold tabular-nums", owedTotal > 0 ? "text-red-700" : "text-ink")}>
             {owedTotal > 0 ? `${money(owedTotal, true)} ${currency}` : "—"}
           </p>
