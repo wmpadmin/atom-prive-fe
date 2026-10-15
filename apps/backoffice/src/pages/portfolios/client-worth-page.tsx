@@ -18,7 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
-import type { StepProps } from "./portfolio-setup-dialog";
+import { BOX, type StepProps } from "./portfolio-setup-dialog";
 
 /**
  * One line of either list: what it is, whatever else has to be said about it, and a figure.
@@ -237,6 +237,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
               <TextInput
                 aria-label={`What the client owns, line ${at + 1}`}
                 placeholder="Flat, Juhu"
+                className={BOX}
                 value={one.item}
                 onChange={(event) => putOwned(at, { item: event.target.value })}
               />
@@ -244,6 +245,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
                 aria-label={`About ${one.item || `line ${at + 1}`}`}
                 placeholder="Whatever else has to be said about it"
                 rows={1}
+                className={BOX}
                 value={one.description}
                 onChange={(event) => putOwned(at, { description: event.target.value })}
               />
@@ -251,7 +253,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
                 <TextInput
                   aria-label={`What ${one.item || `line ${at + 1}`} is worth`}
                   inputMode="decimal"
-                  className={cn("text-right", currency && "pr-11")}
+                  className={cn(BOX, "text-right", currency && "pr-11")}
                   value={one.amount}
                   onChange={(event) => putOwned(at, { amount: asFigure(event.target.value, one.amount) })}
                 />
@@ -317,6 +319,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
                 aria-label={`What the client owes, line ${at + 1}`}
                 placeholder="Mortgage on the Juhu flat — HDFC, secured on the flat"
                 rows={1}
+                className={BOX}
                 value={one.description}
                 onChange={(event) => putOwed(at, { description: event.target.value })}
               />
@@ -324,7 +327,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
                 <TextInput
                   aria-label={`What is owed on ${one.description || `line ${at + 1}`}`}
                   inputMode="decimal"
-                  className={cn("text-right", currency && "pr-11")}
+                  className={cn(BOX, "text-right", currency && "pr-11")}
                   value={one.amount}
                   onChange={(event) => putOwed(at, { amount: asFigure(event.target.value, one.amount) })}
                 />

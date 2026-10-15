@@ -17,7 +17,7 @@ import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { barFor, useAssetClasses } from "./asset-classes";
-import type { StepProps } from "./portfolio-setup-dialog";
+import { BOX, type StepProps } from "./portfolio-setup-dialog";
 import { useSubAssetClasses } from "./sub-asset-classes";
 
 /** One line somebody is writing down: where it sits, what it is called, and what it is worth. */
@@ -225,7 +225,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
         </label>
         <SelectInput
           id="holdings-currency"
-          className="w-auto"
+          className={cn(BOX, "w-auto")}
           value={currency}
           disabled={figuresTyped}
           onChange={(event) => setCurrency(event.target.value)}
@@ -291,7 +291,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
                     <TextInput
                       aria-label={`Name of the line added under ${one.name}`}
                       placeholder="What this client holds it in"
-                      className="min-w-0 flex-1"
+                      className={cn(BOX, "min-w-0 flex-1")}
                       value={line.name}
                       onChange={(event) =>
                         put(one.code, rows.map((was, which) =>
@@ -303,7 +303,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
                     <TextInput
                       aria-label={`What is in ${line.name || "this line"}`}
                       inputMode="decimal"
-                      className={cn("text-right", currency && "pr-12")}
+                      className={cn(BOX, "text-right", currency && "pr-12")}
                       value={line.amount}
                       onChange={(event) =>
                         put(one.code, rows.map((was, which) =>
