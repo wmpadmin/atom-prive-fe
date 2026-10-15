@@ -68,6 +68,7 @@ import { ModelChangesPage } from "./pages/portfolios/model-changes-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
 import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
+import { ClientAllocationPage } from "./pages/portfolios/client-allocation-page";
 import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
 import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
@@ -272,6 +273,10 @@ export const router = createBrowserRouter([
               // One client's portfolio, written down and read against its model. Its own address, so a
               // sitting over it can be left and come back to, and linked to from the queues.
               { path: "portfolio-clients/:customerId", element: <ClientPortfolioPage /> },
+              // What the client actually holds, written down class by class. Its own address, because it is
+              // asked for once — when somebody first puts them on a model — and is long enough to leave and
+              // come back to.
+              { path: "portfolio-clients/:customerId/allocation", element: <ClientAllocationPage /> },
             ],
           },
           {
