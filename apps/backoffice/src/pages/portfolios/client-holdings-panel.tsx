@@ -15,7 +15,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
@@ -879,23 +879,18 @@ export function ClientHoldingsPanel({
           <p className="text-xs text-ink-muted">
             Asset class, then the sub-assets inside it. A class written down here takes its total from them.
           </p>
-          {/* Written down one at a time and kept the moment each is confirmed, so Discard has to take them
-              back off rather than simply forget them. It asks first, and names how many. */}
+          {/* Figures are not written here. The calculator works a client's Net AUM out of what they hold,
+              what they own that nobody manages and what they owe, and every share on this screen is a share
+              of that figure — so a holding added, retyped or taken away here would move the ground under
+              every other line on the page. What this screen does is move money between the lines that are
+              already there, which leaves the total where the calculator left it. */}
           {!readOnly && (
             <p className="mt-1 text-xs text-ink-muted">
-              A sub-asset is written down the moment you confirm it, not when you press Save. Discard above puts
-              these back as they stood when you pressed Edit, and asks first.
+              The figures are the ones the Net AUM calculator was given. Money is moved between sub-assets
+              from a breached line&apos;s suggestion, never added to or taken off here.
             </p>
           )}
         </div>
-        {!readOnly && (
-          <div className="ml-auto shrink-0">
-            <Button variant="secondary" onClick={() => setEditing("new")}>
-              <Plus aria-hidden="true" />
-              Add a sub-asset
-            </Button>
-          </div>
-        )}
       </div>
 
       {held.data && held.data.unplaced > 0 && (
@@ -1001,22 +996,6 @@ export function ClientHoldingsPanel({
                       <SlidersHorizontal aria-hidden="true" className="size-4" />
                     </button>
                   )}
-                  {/* Opened on this class, so the sub-classes offered are the ones this client's model names
-                      inside it rather than the ones inside whichever class the list happened to start on. */}
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNewFor(classKey);
-                        setEditing("new");
-                      }}
-                      aria-label={`Add a sub-asset to ${one.assetClassName || one.assetClass}`}
-                      className="flex w-16 shrink-0 items-center justify-end gap-1 rounded-lg py-1 text-xs font-medium text-primary-700 hover:underline"
-                    >
-                      <Plus aria-hidden="true" className="size-3.5" />
-                      Add
-                    </button>
-                  )}
                 </div>
 
                 {isOpen && (
@@ -1065,7 +1044,6 @@ export function ClientHoldingsPanel({
                           <th scope="col" className="px-3 py-2 text-right">
                             Suggestion
                           </th>
-                          {!readOnly && <th scope="col" className="py-2 pr-4 pl-3" />}
                         </tr>
                       </thead>
                       {one.subClasses.map((group) => {
@@ -1160,49 +1138,10 @@ export function ClientHoldingsPanel({
                                 </button>
                               )}
                             </td>
-                            {/* The sub-asset is the thing written down, so what can be done to it sits on
-                                its own row. The buttons used to belong to the instruments underneath.
-
-                                And only where there is something to do it to. A line the model names and
-                                nobody has written yet comes back as a row holding nought, so it can say it
-                                has breached — but there is no holding behind it to edit or to remove, and
-                                two greyed-out glyphs on the end of it read as a thing switched off rather
-                                than a thing that was never there. Money goes into that line through Add,
-                                on the class above. */}
-                            {!readOnly && (
-                              <td className="py-3.5 pr-4 pl-3">
-                                {group.positions.length > 0 && (
-                                  <span className="flex items-center justify-end gap-2">
-                                    {/* Their own errands, so they stop the row's. */}
-                                    <button
-                                      type="button"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        setEditing(group.positions[0] ?? null);
-                                      }}
-                                      aria-label={`Edit ${group.subClass ?? UNGROUPED}`}
-                                      title={`Edit ${group.subClass ?? UNGROUPED}`}
-                                      className="rounded-lg border border-line p-1.5 text-ink-soft hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-                                    >
-                                      <Pencil aria-hidden="true" className="size-4" />
-                                    </button>
-                                    {/* A bare grey glyph reads as decoration. Bordered, it reads as a button. */}
-                                    <button
-                                      type="button"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        setRemoving(group.positions[0] ?? null);
-                                      }}
-                                      aria-label={`Remove ${group.subClass ?? UNGROUPED}`}
-                                      title={`Remove ${group.subClass ?? UNGROUPED}`}
-                                      className="rounded-lg border border-line p-1.5 text-ink-soft hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-                                    >
-                                      <Trash2 aria-hidden="true" className="size-4" />
-                                    </button>
-                                  </span>
-                                )}
-                              </td>
-                            )}
+                            {/* Nothing is done to a sub-asset here. Its figure came from the calculator,
+                                which worked the Net AUM out of it; retyping or deleting it on this screen
+                                would move the ground under every other share on the page. Money leaves a
+                                line through the plan on its suggestion, and lands in another. */}
                           </tr>
                         </tbody>
                         );
