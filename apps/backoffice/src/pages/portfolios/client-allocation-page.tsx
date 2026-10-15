@@ -13,7 +13,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
@@ -310,16 +310,9 @@ export function ClientAllocationPage() {
               </div>
             )}
 
-            <div className="border-t border-line px-5 py-2.5">
-              <button
-                type="button"
-                onClick={() => put(one.code, [...rows, { id: null, name: "", amount: "", theFirms: false }])}
-                className="flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
-              >
-                <Plus aria-hidden="true" className="size-3.5" />
-                Add a line under {one.name}
-              </button>
-            </div>
+            {/* Writing a line the firm has not named is off for now. A client who already has one keeps
+                it, with its name to reword and its bin, because it is already part of what they hold —
+                there is just no way to write another. Putting this back is putting the button back. */}
           </section>
         );
       })}
