@@ -67,8 +67,7 @@ import { BulkRebalancingPage } from "./pages/portfolios/bulk-rebalancing-page";
 import { ModelChangesPage } from "./pages/portfolios/model-changes-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
-import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
-import { ClientAllocationPage } from "./pages/portfolios/client-allocation-page";
+import { ClientAllocationPage, ToTheAllocation } from "./pages/portfolios/client-allocation-page";
 import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
 import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
@@ -272,7 +271,10 @@ export const router = createBrowserRouter([
               { path: "portfolio-clients", element: <PortfolioClientsPage /> },
               // One client's portfolio, written down and read against its model. Its own address, so a
               // sitting over it can be left and come back to, and linked to from the queues.
-              { path: "portfolio-clients/:customerId", element: <ClientPortfolioPage /> },
+              // The portfolio screen is off for now: anybody sent to it lands on the allocation instead,
+              // so every link into it from the queues, the dashboard and the client file goes on working
+              // and nothing has to be repointed. Putting it back is deleting this redirect.
+              { path: "portfolio-clients/:customerId", element: <ToTheAllocation /> },
               // What the client actually holds, written down class by class. Its own address, because it is
               // asked for once — when somebody first puts them on a model — and is long enough to leave and
               // come back to.

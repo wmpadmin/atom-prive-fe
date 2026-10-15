@@ -12,7 +12,7 @@ import { Alert, Button, IconButton, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { barFor, useAssetClasses } from "./asset-classes";
 import { useSubAssetClasses } from "./sub-asset-classes";
@@ -120,7 +120,7 @@ export function ClientAllocationPage() {
         queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),
         queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) }),
       ]);
-      void navigate(`/portfolio-clients/${customerId}`);
+      void navigate("/portfolio-clients");
     }
     catch (caught) {
       setErrors(toFormErrors(caught as ApiError));
@@ -134,8 +134,8 @@ export function ClientAllocationPage() {
   return (
     <div className="space-y-6 pb-28">
       <div>
-        <Link to={`/portfolio-clients/${customerId}`} className="text-xs font-semibold text-primary-700 hover:underline">
-          ← Back to the portfolio
+        <Link to="/portfolio-clients" className="text-xs font-semibold text-primary-700 hover:underline">
+          ← Back to the clients
         </Link>
         <h1 className="mt-2 text-xl font-bold text-ink">Write down the allocation</h1>
         <p className="mt-1 max-w-prose text-sm text-ink-muted">
@@ -262,7 +262,7 @@ export function ClientAllocationPage() {
               {whole > 0 ? `${whole.toLocaleString()} ${currency}` : "nothing yet"}
             </span>
           </p>
-          <Button variant="secondary" type="button" onClick={() => void navigate(`/portfolio-clients/${customerId}`)}>
+          <Button variant="secondary" type="button" onClick={() => void navigate("/portfolio-clients")}>
             Cancel
           </Button>
           <Button type="button" disabled={write.isPending || !readable || !anything} onClick={() => void save()}>
@@ -272,4 +272,16 @@ export function ClientAllocationPage() {
       </div>
     </div>
   );
+}
+
+/**
+ * Where a client's portfolio screen used to be. Keeps that address working while the screen is off, so
+ * every link into it — from the queues, the dashboard, the client file — goes on working untouched.
+ *
+ * <p>The screen itself is still there, in client-portfolio-page.tsx, unreferenced and unchanged: putting
+ * it back is giving it its route again and taking this off.
+ */
+export function ToTheAllocation() {
+  const { customerId = "" } = useParams();
+  return <Navigate replace to={`/portfolio-clients/${customerId}/allocation`} />;
 }
