@@ -231,7 +231,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
             {ownedTotal > 0 ? `${money(ownedTotal, false)} ${currency}` : "—"}
           </p>
         </header>
-        <div className="grid grid-cols-[1fr_1.5fr_8rem_2.25rem] items-center gap-3 px-4 pt-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+        <div className="grid grid-cols-[1fr_1.5fr_9rem_2.25rem] items-center gap-3 px-4 pt-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           <span>Item</span>
           <span>Description</span>
           <span className="text-right">Value</span>
@@ -241,7 +241,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
           {ownedRows.map((one, at) => (
             <li
               key={one.id ?? `new-${at}`}
-              className="grid grid-cols-[1fr_1.5fr_8rem_2.25rem] items-start gap-3 px-4 py-1.5"
+              className="grid grid-cols-[1fr_1.5fr_9rem_2.25rem] items-start gap-3 px-4 py-1.5"
             >
               <TextInput
                 aria-label={`What the client owns, line ${at + 1}`}
@@ -262,7 +262,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
                 <TextInput
                   aria-label={`What ${one.item || `line ${at + 1}`} is worth`}
                   inputMode="decimal"
-                  className={cn(BOX, "text-right", currency && "pr-11")}
+                  className={cn(BOX, "text-right tabular-nums", currency && "pr-10")}
                   value={one.amount}
                   onChange={(event) => putOwned(at, { amount: asFigure(event.target.value, one.amount) })}
                 />
@@ -309,7 +309,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
             {owedTotal > 0 ? `${money(owedTotal, true)} ${currency}` : "—"}
           </p>
         </header>
-        <div className="grid grid-cols-[1fr_8rem_2.25rem] items-center gap-3 px-4 pt-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+        <div className="grid grid-cols-[1fr_9rem_2.25rem] items-center gap-3 px-4 pt-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           <span>Description</span>
           <span className="text-right">Owed</span>
           <span className="sr-only">Take it off</span>
@@ -318,7 +318,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
           {owedRows.map((one, at) => (
             <li
               key={one.id ?? `new-${at}`}
-              className="grid grid-cols-[1fr_8rem_2.25rem] items-start gap-3 px-4 py-1.5"
+              className="grid grid-cols-[1fr_9rem_2.25rem] items-start gap-3 px-4 py-1.5"
             >
               <TextArea
                 aria-label={`What the client owes, line ${at + 1}`}
@@ -332,7 +332,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
                 <TextInput
                   aria-label={`What is owed on ${one.description || `line ${at + 1}`}`}
                   inputMode="decimal"
-                  className={cn(BOX, "text-right", currency && "pr-11")}
+                  className={cn(BOX, "text-right tabular-nums", currency && "pr-10")}
                   value={one.amount}
                   onChange={(event) => putOwed(at, { amount: asFigure(event.target.value, one.amount) })}
                 />
