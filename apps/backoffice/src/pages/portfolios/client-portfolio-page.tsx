@@ -28,14 +28,13 @@ import {
   type RiskMatch,
   useClientOnThatModel,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, DateInput, Field, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Badge, Button, DateInput, Field, SelectInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
-import { asFigure } from "../../lib/figures";
 import { AttributionPanel } from "./attribution-panel";
 import { ExposurePanel } from "./exposure-panel";
 import { FixedIncomePanel } from "./fixed-income-panel";
@@ -162,9 +161,6 @@ export function ClientPortfolioPage() {
   const [writingOwn, setWritingOwn] = useState(false);
   // The class somebody asked to see the inside of, from the table that measures it. Kept so the card opens
   // even if they had shut it: being sent to a class and finding it closed is being sent nowhere.
-  // What the client has in all, as the firm has been told it. Blank where nobody has said, and then the
-  // holdings written down are the whole story — which is how every portfolio worked before this.
-  const [chosenNetAum, setNetAum] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<string | null>(null);
   const showClass = (assetClass: string) => {
     setRevealed(assetClass);
@@ -268,10 +264,9 @@ export function ClientPortfolioPage() {
   const on = rebalancedOn ?? standing.data?.lastRebalancedOn ?? "";
   const looked = reviewedOn ?? standing.data?.lastReviewedOn ?? "";
   const total = Object.values(holdings).reduce((sum, typed) => sum + (Number(typed) || 0), 0);
-  const netAum = chosenNetAum ?? (standing.data?.netAum == null ? "" : String(standing.data.netAum));
-  // What is said to be there that nobody has written down, worked out from what is typed rather than from
-  // what is on file, so it answers as somebody types instead of after they save.
-  const unwritten = Math.max(0, (Number(netAum) || 0) - total);
+  // Read off the client and sent back untouched when the holdings are saved, so keeping a figure on this
+  // screen never writes over what the calculator worked out.
+  const netAum = standing.data?.netAum == null ? "" : String(standing.data.netAum);
   // What is typed but not yet saved. The table below reads what is on file, so a figure changed in a box and
   // not kept would otherwise be contradicted by the standings beside it with nothing to say why.
   // The portfolio arrives after the first render, so the box reads from it until somebody picks another.
@@ -291,8 +286,6 @@ export function ClientPortfolioPage() {
     touchedHoldings.size > 0 ||
     touchedTolerances.size > 0 ||
     figuresChanged ||
-    (chosenNetAum !== null
-      && chosenNetAum !== (standing.data?.netAum == null ? "" : String(standing.data.netAum))) ||
     (standing.data !== undefined && currency !== standing.data.currency) ||
     (chosenModel !== null && chosenModel !== (standing.data?.modelPortfolioId ?? "")) ||
     (rebalancedOn !== null && rebalancedOn !== (standing.data?.lastRebalancedOn ?? "")) ||
@@ -568,10 +561,10 @@ export function ClientPortfolioPage() {
       {/* One column, read top to bottom. Side by side, two panels are never the same height, so whichever
           is shorter leaves a hole beside the other — and the hole moves about as the figures change. */}
       <section className="rounded-2xl border border-line bg-white px-6 py-5">
-        {/* The plan and the sum it is read against, side by side and a half of the row each: the two
-            together are what every figure further down the page is worked out from, and neither says much
-            without the other. One column at the width of a phone, where half a row is no row at all. */}
-        <div className="grid gap-4 sm:grid-cols-2">
+        {/* The plan on its own. The Net AUM used to sit beside it, typed into this screen — it is worked
+            out by the calculator now, out of what the client holds, what they own that nobody manages and
+            what they owe, and a box here that could be typed over was a second answer to a question that
+            already has one. */}
         <Field id="client-model" label="Measured against" className="min-w-0">
               {/* Kept by Save like everything else. Written the moment it was picked, a reader who brushed
                   the list changed what the client is measured against and was never asked. */}
@@ -596,35 +589,6 @@ export function ClientPortfolioPage() {
                 ))}
           </SelectInput>
         </Field>
-        {/* What the client has in all, where the firm has been told. Every share on this page is a share of
-            it: measured instead against the part that has been typed in, a client with one holding recorded
-            reads as wholly in that class and so breached, when they may be exactly on their model. Left
-            blank, the holdings are the whole story — which is how this screen has always worked, and still
-            works for anybody who does not know the total until they have added it up. */}
-        <Field
-          id="client-net-aum"
-          label="Net AUM"
-          hint={
-            netAum.trim() === ""
-              ? "Optional. What the client has in all, if you know it."
-              : unwritten > 0
-                ? `${currency} ${unwritten.toLocaleString()} of this is not written down yet.`
-                : "Every share below is a share of this."
-          }
-        >
-          {/* Figures only, and at most one decimal point: anything else never reaches the box. */}
-          <TextInput
-            id="client-net-aum"
-            inputMode="decimal"
-            className="text-right"
-            placeholder="Not said"
-            readOnly={!editing}
-            aria-readonly={!editing}
-            value={netAum}
-            onChange={(event) => setNetAum(asFigure(event.target.value, netAum))}
-          />
-        </Field>
-        </div>
         {/* An allocation of their own is written in the same dialog a model is, because it is the same
             thing: targets, bands, and the lines inside a class. What differs is who it belongs to. */}
         {editing && !standing.data?.customModel && (
