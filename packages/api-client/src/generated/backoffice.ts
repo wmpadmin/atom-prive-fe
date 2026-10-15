@@ -662,6 +662,30 @@ export interface ModelRow {
   updatedAt: string;
 }
 
+export interface NonFinancialAssetRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  item: string;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  description: string | null;
+  /** @minimum 0 */
+  valueAmount: number;
+}
+
+export interface NonFinancialAssetRow {
+  id: string;
+  item: string;
+  /** @nullable */
+  description: string | null;
+  valueAmount: number;
+}
+
 export interface ModelChoice {
   /** @nullable */
   modelPortfolioId: string | null;
@@ -1329,11 +1353,11 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -4504,6 +4528,13 @@ export interface ValuationHistory {
   changeShare: number | null;
 }
 
+export interface ClientNonFinancialAssets {
+  customerId: string;
+  currency: string;
+  total: number;
+  items: NonFinancialAssetRow[];
+}
+
 /**
  * @nullable
  */
@@ -7131,6 +7162,161 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeleteModelPortfolioMutationOptions(options), queryClient);
+    }
+
+export const getChangeNonFinancialAssetUrl = (customerId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/non-financial-assets/${id}`
+}
+
+export const changeNonFinancialAsset = async (customerId: string,
+    id: string,
+    nonFinancialAssetRequest: NonFinancialAssetRequest, options?: Parameters<typeof http>[1]): Promise<NonFinancialAssetRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<NonFinancialAssetRow>(getChangeNonFinancialAssetUrl(customerId,id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(nonFinancialAssetRequest)
+  }
+);}
+
+
+
+
+
+export const getChangeNonFinancialAssetMutationKey = () => ['changeNonFinancialAsset'] as const;
+
+export const getChangeNonFinancialAssetMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeNonFinancialAsset>>, TError,ChangeNonFinancialAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeNonFinancialAsset>>, TError,ChangeNonFinancialAssetMutationVariables, TContext> => {
+
+const mutationKey = getChangeNonFinancialAssetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeNonFinancialAsset>>, ChangeNonFinancialAssetMutationVariables> = (props) => {
+          const {customerId,id,data} = props ?? {};
+
+          return  changeNonFinancialAsset(customerId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeNonFinancialAssetMutationResult = NonNullable<Awaited<ReturnType<typeof changeNonFinancialAsset>>>
+    export type ChangeNonFinancialAssetMutationBody = NonFinancialAssetRequest
+    export type ChangeNonFinancialAssetMutationError = unknown
+    export type ChangeNonFinancialAssetMutationVariables = {customerId: string;id: string;data: NonFinancialAssetRequest}
+
+    export const useChangeNonFinancialAsset = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeNonFinancialAsset>>, TError,ChangeNonFinancialAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeNonFinancialAsset>>,
+        TError,
+        ChangeNonFinancialAssetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeNonFinancialAssetMutationOptions(options), queryClient);
+    }
+
+export const getRemoveNonFinancialAssetUrl = (customerId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/non-financial-assets/${id}`
+}
+
+export const removeNonFinancialAsset = async (customerId: string,
+    id: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getRemoveNonFinancialAssetUrl(customerId,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveNonFinancialAssetMutationKey = () => ['removeNonFinancialAsset'] as const;
+
+export const getRemoveNonFinancialAssetMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeNonFinancialAsset>>, TError,RemoveNonFinancialAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeNonFinancialAsset>>, TError,RemoveNonFinancialAssetMutationVariables, TContext> => {
+
+const mutationKey = getRemoveNonFinancialAssetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeNonFinancialAsset>>, RemoveNonFinancialAssetMutationVariables> = (props) => {
+          const {customerId,id} = props ?? {};
+
+          return  removeNonFinancialAsset(customerId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveNonFinancialAssetMutationResult = NonNullable<Awaited<ReturnType<typeof removeNonFinancialAsset>>>
+
+    export type RemoveNonFinancialAssetMutationError = unknown
+    export type RemoveNonFinancialAssetMutationVariables = {customerId: string;id: string}
+
+    export const useRemoveNonFinancialAsset = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeNonFinancialAsset>>, TError,RemoveNonFinancialAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeNonFinancialAsset>>,
+        TError,
+        RemoveNonFinancialAssetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveNonFinancialAssetMutationOptions(options), queryClient);
     }
 
 export const getSetClientModelPortfolioUrl = (customerId: string,) => {
@@ -14569,6 +14755,184 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getWriteTheirOwnAllocationMutationOptions(options), queryClient);
+    }
+
+export const getListNonFinancialAssetsUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/non-financial-assets`
+}
+
+export const listNonFinancialAssets = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientNonFinancialAssets> => {
+
+  return http<ClientNonFinancialAssets>(getListNonFinancialAssetsUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListNonFinancialAssetsQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/non-financial-assets`
+    ] as const;
+    }
+
+
+export const getListNonFinancialAssetsQueryOptions = <TData = Awaited<ReturnType<typeof listNonFinancialAssets>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNonFinancialAssets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListNonFinancialAssetsQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listNonFinancialAssets>>> = ({ signal }) => listNonFinancialAssets(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listNonFinancialAssets>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListNonFinancialAssetsQueryResult = NonNullable<Awaited<ReturnType<typeof listNonFinancialAssets>>>
+export type ListNonFinancialAssetsQueryError = unknown
+
+
+export function useListNonFinancialAssets<TData = Awaited<ReturnType<typeof listNonFinancialAssets>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNonFinancialAssets>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listNonFinancialAssets>>,
+          TError,
+          Awaited<ReturnType<typeof listNonFinancialAssets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListNonFinancialAssets<TData = Awaited<ReturnType<typeof listNonFinancialAssets>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNonFinancialAssets>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listNonFinancialAssets>>,
+          TError,
+          Awaited<ReturnType<typeof listNonFinancialAssets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListNonFinancialAssets<TData = Awaited<ReturnType<typeof listNonFinancialAssets>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNonFinancialAssets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListNonFinancialAssets<TData = Awaited<ReturnType<typeof listNonFinancialAssets>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNonFinancialAssets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListNonFinancialAssetsQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordNonFinancialAssetUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/non-financial-assets`
+}
+
+export const recordNonFinancialAsset = async (customerId: string,
+    nonFinancialAssetRequest: NonFinancialAssetRequest, options?: Parameters<typeof http>[1]): Promise<NonFinancialAssetRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<NonFinancialAssetRow>(getRecordNonFinancialAssetUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(nonFinancialAssetRequest)
+  }
+);}
+
+
+
+
+
+export const getRecordNonFinancialAssetMutationKey = () => ['recordNonFinancialAsset'] as const;
+
+export const getRecordNonFinancialAssetMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordNonFinancialAsset>>, TError,RecordNonFinancialAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordNonFinancialAsset>>, TError,RecordNonFinancialAssetMutationVariables, TContext> => {
+
+const mutationKey = getRecordNonFinancialAssetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordNonFinancialAsset>>, RecordNonFinancialAssetMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  recordNonFinancialAsset(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordNonFinancialAssetMutationResult = NonNullable<Awaited<ReturnType<typeof recordNonFinancialAsset>>>
+    export type RecordNonFinancialAssetMutationBody = NonFinancialAssetRequest
+    export type RecordNonFinancialAssetMutationError = unknown
+    export type RecordNonFinancialAssetMutationVariables = {customerId: string;data: NonFinancialAssetRequest}
+
+    export const useRecordNonFinancialAsset = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordNonFinancialAsset>>, TError,RecordNonFinancialAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordNonFinancialAsset>>,
+        TError,
+        RecordNonFinancialAssetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordNonFinancialAssetMutationOptions(options), queryClient);
     }
 
 export const getListClientCashflowsUrl = (customerId: string,) => {

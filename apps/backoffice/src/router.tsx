@@ -68,6 +68,7 @@ import { ModelChangesPage } from "./pages/portfolios/model-changes-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
 import { ClientAllocationPage, ToTheAllocation } from "./pages/portfolios/client-allocation-page";
+import { ClientNonFinancialPage } from "./pages/portfolios/client-non-financial-page";
 import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
 import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
@@ -279,6 +280,9 @@ export const router = createBrowserRouter([
               // asked for once — when somebody first puts them on a model — and is long enough to leave and
               // come back to.
               { path: "portfolio-clients/:customerId/allocation", element: <ClientAllocationPage /> },
+              // What they own that nobody manages. Its own address, apart from the allocation, because it
+              // is a different question and belongs nowhere near a target.
+              { path: "portfolio-clients/:customerId/non-financial", element: <ClientNonFinancialPage /> },
             ],
           },
           {
