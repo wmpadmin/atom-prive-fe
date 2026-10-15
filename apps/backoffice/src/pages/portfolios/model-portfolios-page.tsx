@@ -1,24 +1,18 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   getListModelPortfoliosQueryKey,
-  useCreateModelPortfolio,
   useDeleteModelPortfolio,
   useListModelPortfolios,
-  useUpdateModelPortfolio,
   type ModelRow,
   type ModelsPage,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ListPageHeader, RecordList } from "../../components/record-list";
-import { ModelDialog } from "./model-dialog";
 import { formatRelative } from "../../lib/labels";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
-import { useStaffUser } from "../../auth/session";
-import { hasAuthority } from "../../lib/permissions";
 import { barFor, useAssetClasses } from "./asset-classes";
 import {
   averageDriftLabel,
@@ -37,23 +31,18 @@ export function ModelPortfoliosPage() {
   // Every class, not only those still in use: a model written before one was retired still targets it, and a
   // bar that quietly left the slice out would show a plan that no longer came to 100%.
   const codes = all.map((one) => one.code);
-  const canChange = hasAuthority(useStaffUser(), "SEND_PROPOSALS:CHANGE");
-  const [editing, setEditing] = useState<ModelRow | "new" | null>(null);
   const [removing, setRemoving] = useState<ModelRow | null>(null);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [search, setSearch] = useState("");
 
   function kept() {
-    setEditing(null);
     setRemoving(null);
     setErrors(noErrors);
     void queryClient.invalidateQueries({ queryKey: getListModelPortfoliosQueryKey() });
   }
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
-  const create = useCreateModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
-  const update = useUpdateModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
   const remove = useDeleteModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
-  const busy = create.isPending || update.isPending || remove.isPending;
+  const busy = remove.isPending;
 
   if (models.isError) {
     return <Alert tone="danger">{models.error.message}</Alert>;
@@ -72,17 +61,9 @@ export function ModelPortfoliosPage() {
         title="Model portfolios"
         lead="What a client's money is supposed to be spread across, and how far it may wander before somebody looks."
       >
-        {canChange && (
-          <Button
-            onClick={() => {
-              setErrors(noErrors);
-              setEditing("new");
-            }}
-          >
-            <Plus aria-hidden="true" />
-            New model
-          </Button>
-        )}
+        {/* Writing a new model is off for now. Everything behind it is left standing — the dialog, the
+            create call, the "new" branch below — because what was asked for was the way in, not the
+            feature: putting this button back is the whole of turning it on again. */}
       </ListPageHeader>
 
       <RecordList
@@ -194,20 +175,6 @@ export function ModelPortfoliosPage() {
           </tr>
         ))}
       </RecordList>
-
-      {editing && (
-        <ModelDialog
-          model={editing === "new" ? null : editing}
-          errors={errors}
-          busy={busy}
-          onClose={() => setEditing(null)}
-          onSave={(data) =>
-            editing === "new"
-              ? create.mutate({ data })
-              : update.mutate({ id: editing.id, data })
-          }
-        />
-      )}
 
       <Dialog open={removing !== null} title="Delete this model?" onClose={() => setRemoving(null)}>
         <div className="space-y-4">
