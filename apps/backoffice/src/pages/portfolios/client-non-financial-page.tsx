@@ -135,8 +135,13 @@ export function ClientNonFinancialPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link to="/portfolio-clients" className="text-xs font-semibold text-primary-700 hover:underline">
-          ← Back to the clients
+        {/* Back to the screen before it: this is asked for straight after the allocation, and jumped to
+            from the link on it, so either way that is where somebody came from. */}
+        <Link
+          to={`/portfolio-clients/${customerId}/allocation`}
+          className="text-xs font-semibold text-primary-700 hover:underline"
+        >
+          ← Back to the allocation
         </Link>
         <h1 className="mt-2 text-xl font-bold text-ink">What they own but nobody manages</h1>
         <p className="mt-1 max-w-prose text-sm text-ink-muted">
