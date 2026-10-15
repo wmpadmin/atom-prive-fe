@@ -216,7 +216,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
   return (
     // A class and its total are one block to read; the next class is another. Room between them so the
     // eye stops at the end of one rather than running into the heading of the next.
-    <div className="space-y-8">
+    <div className="flex flex-1 flex-col space-y-8">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -394,7 +394,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
 
       {/* In the page rather than lying over it: the figure that had to be kept in sight is said at the
           end now, so the buttons can line up with the cards above them like every other screen's do. */}
-      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
+      <div className="mt-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
         <Button variant="secondary" size="lg" type="button" onClick={onDone}>
           Skip
         </Button>

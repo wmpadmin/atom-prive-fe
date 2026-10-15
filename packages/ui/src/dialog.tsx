@@ -9,6 +9,12 @@ interface DialogProps {
    * over the same few inches.
    */
   size?: "md" | "lg" | "xl" | "2xl";
+  /**
+   * Hold it at its full height whatever is in it. For a dialog somebody steps through, where one step is
+   * long and the next is short: left to its content it grows and shrinks under the cursor, and the button
+   * they are about to press moves with it.
+   */
+  tall?: boolean;
   title: string;
   description?: ReactNode;
   onClose: () => void;
@@ -18,7 +24,7 @@ interface DialogProps {
 const WIDTHS = { md: "max-w-lg", lg: "max-w-3xl", xl: "max-w-5xl", "2xl": "max-w-7xl" } as const;
 
 /** Modal built on the native dialog element: focus trapping, Escape and the backdrop come for free. */
-export function Dialog({ open, size = "md", title, description, onClose, children }: DialogProps) {
+export function Dialog({ open, size = "md", tall, title, description, onClose, children }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -34,7 +40,7 @@ export function Dialog({ open, size = "md", title, description, onClose, childre
       ref={ref}
       onClose={onClose}
       aria-labelledby={titleId}
-      className={`m-auto flex max-h-[calc(100dvh-3rem)] w-full flex-col ${WIDTHS[size]} overflow-hidden rounded-2xl bg-white p-0 font-sans text-ink shadow-2xl backdrop:bg-slate-900/40 backdrop:backdrop-blur-[2px]`}
+      className={`m-auto flex max-h-[calc(100dvh-3rem)] w-full flex-col ${tall ? "h-[calc(100dvh-3rem)]" : ""} ${WIDTHS[size]} overflow-hidden rounded-2xl bg-white p-0 font-sans text-ink shadow-2xl backdrop:bg-slate-900/40 backdrop:backdrop-blur-[2px]`}
     >
       {open && (
         <>
@@ -56,7 +62,11 @@ export function Dialog({ open, size = "md", title, description, onClose, childre
               {description && <div className="mt-1 text-sm text-ink-muted">{description}</div>}
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">{children}</div>
+          <div
+            className={`min-h-0 flex-1 overflow-y-auto px-6 pb-6 ${tall ? "flex flex-col" : ""}`}
+          >
+            {children}
+          </div>
         </>
       )}
     </dialog>
