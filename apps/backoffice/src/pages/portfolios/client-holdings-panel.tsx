@@ -1161,39 +1161,46 @@ export function ClientHoldingsPanel({
                               )}
                             </td>
                             {/* The sub-asset is the thing written down, so what can be done to it sits on
-                                its own row. The buttons used to belong to the instruments underneath. */}
+                                its own row. The buttons used to belong to the instruments underneath.
+
+                                And only where there is something to do it to. A line the model names and
+                                nobody has written yet comes back as a row holding nought, so it can say it
+                                has breached — but there is no holding behind it to edit or to remove, and
+                                two greyed-out glyphs on the end of it read as a thing switched off rather
+                                than a thing that was never there. Money goes into that line through Add,
+                                on the class above. */}
                             {!readOnly && (
                               <td className="py-3.5 pr-4 pl-3">
-                                <span className="flex items-center justify-end gap-2">
-                                  {/* Their own errands, so they stop the row's. */}
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      setEditing(group.positions[0] ?? null);
-                                    }}
-                                    disabled={group.positions.length === 0}
-                                    aria-label={`Edit ${group.subClass ?? UNGROUPED}`}
-                                    title={`Edit ${group.subClass ?? UNGROUPED}`}
-                                    className="rounded-lg border border-line p-1.5 text-ink-soft hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-                                  >
-                                    <Pencil aria-hidden="true" className="size-4" />
-                                  </button>
-                                  {/* A bare grey glyph reads as decoration. Bordered, it reads as a button. */}
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      setRemoving(group.positions[0] ?? null);
-                                    }}
-                                    disabled={group.positions.length === 0}
-                                    aria-label={`Remove ${group.subClass ?? UNGROUPED}`}
-                                    title={`Remove ${group.subClass ?? UNGROUPED}`}
-                                    className="rounded-lg border border-line p-1.5 text-ink-soft hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-                                  >
-                                    <Trash2 aria-hidden="true" className="size-4" />
-                                  </button>
-                                </span>
+                                {group.positions.length > 0 && (
+                                  <span className="flex items-center justify-end gap-2">
+                                    {/* Their own errands, so they stop the row's. */}
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setEditing(group.positions[0] ?? null);
+                                      }}
+                                      aria-label={`Edit ${group.subClass ?? UNGROUPED}`}
+                                      title={`Edit ${group.subClass ?? UNGROUPED}`}
+                                      className="rounded-lg border border-line p-1.5 text-ink-soft hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                                    >
+                                      <Pencil aria-hidden="true" className="size-4" />
+                                    </button>
+                                    {/* A bare grey glyph reads as decoration. Bordered, it reads as a button. */}
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setRemoving(group.positions[0] ?? null);
+                                      }}
+                                      aria-label={`Remove ${group.subClass ?? UNGROUPED}`}
+                                      title={`Remove ${group.subClass ?? UNGROUPED}`}
+                                      className="rounded-lg border border-line p-1.5 text-ink-soft hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                                    >
+                                      <Trash2 aria-hidden="true" className="size-4" />
+                                    </button>
+                                  </span>
+                                )}
                               </td>
                             )}
                           </tr>
