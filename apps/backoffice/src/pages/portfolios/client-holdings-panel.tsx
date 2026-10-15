@@ -258,8 +258,13 @@ type Destination = { name: string; room: number; into: PositionRow | null };
  * what the class is worth. Worked against the whole portfolio instead, a line in a class holding a tenth of
  * the book came out with ten times the room it had.
  */
-function capacityFor(targetShare: number, share: number, band: number, classTotal: number) {
-  const room = (classTotal * (targetShare + band - share)) / 100;
+function capacityFor(shareOfClass: number, held: number, classTarget: number, band: number,
+  whole: number) {
+  // The firm's rule: the line's share of its class times the class's own upper limit. Everything here is
+  // a share of the whole portfolio, because that is the frame the line's verdict is read in — and a plan
+  // worked out in any other would offer room the breach beside it does not recognise.
+  const ceiling = (whole * shareOfClass * (classTarget + band)) / 10_000;
+  const room = ceiling - held;
   // A whole unit or it is nothing. A share worked out by division lands a hair either side of its figure,
   // so a sub-asset sitting exactly at the end of its band came out with room for a ten-thousandth of a
   // penny and took a row in the table to say USD 0.
@@ -274,12 +279,12 @@ function capacityFor(targetShare: number, share: number, band: number, classTota
  * room" while the model was asking for money in three of them. The lines nobody has written arrive as
  * groups holding nothing now, so there is one list to read rather than two to stitch together.
  */
-function capacityIn(groups: SubClassGroup[], except: SubClassGroup, band: number,
-  classTotal: number): Destination[] {
+function capacityIn(groups: SubClassGroup[], except: SubClassGroup, classTarget: number, band: number,
+  whole: number): Destination[] {
   const places: Destination[] = [];
   for (const one of groups) {
     if (one === except || one.subClass === null) continue;
-    const room = capacityFor(one.targetShare ?? 0, one.shareOfClass, band, classTotal);
+    const room = capacityFor(one.targetShare ?? 0, one.valueAmount, classTarget, band, whole);
     if (room > 0) places.push({ name: one.subClass, room, into: one.positions[0] ?? null });
   }
   return places.sort((first, second) => second.room - first.room);
@@ -314,11 +319,13 @@ function suggest(spare: number, places: Destination[]): Record<string, number> {
  * line breached the other way, short of its range, has nothing to shed and is left to the sentence beside
  * it saying what it can take.
  */
-function overIts(group: SubClassGroup, band: number, classTotal: number): number | null {
+function overIts(group: SubClassGroup, classTarget: number, band: number, whole: number): number | null {
   if (group.standing !== "BREACHED" || group.targetShare === null || group.targetShare === undefined) {
     return null;
   }
-  const over = (classTotal * (group.shareOfClass - (group.targetShare + band))) / 100;
+  // Down to the line's own upper limit, which is its share of the class taken through the class's.
+  const ceiling = (whole * group.targetShare * (classTarget + band)) / 10_000;
+  const over = group.valueAmount - ceiling;
   return over < 1 ? null : over;
 }
 
@@ -912,9 +919,9 @@ export function ClientHoldingsPanel({
           {classes.map((one) => {
             const classKey = one.assetClass;
             const isOpen = one.heldAsPositions && (!shut.has(classKey) || reveal === classKey);
-            // What every line in this class may wander from its target, which is the class's own figure:
-            // the model allows a sub-asset the distance it allows the class around it, and the band is in
-            // percentage points, so the one number answers for both.
+            // What the class may wander, in points. A line inside it gets that same figure scaled by the
+            // share of the class it is asked for — the firm's rule is its share times the class's own
+            // limits, which comes to the same thing.
             const band = one.breachAt ?? 0;
             return (
               // Named so the table above can send somebody straight here, and given room above it so the
@@ -1079,7 +1086,7 @@ export function ClientHoldingsPanel({
                         // Whether there is a plan to open behind this row's suggestion: a line holding more
                         // than its band allows has money that has to go somewhere, and where it can go is
                         // the question this opens.
-                        const toShed = overIts(group, band, one.valueAmount);
+                        const toShed = overIts(group, one.targetShare ?? 0, band, whole);
                         const openThePlan = () => setPlanning({
                           assetClass: one.assetClass,
                           subClass: group.subClass,
@@ -1210,7 +1217,7 @@ export function ClientHoldingsPanel({
         const its = classes.find((one) => one.assetClass === planning.assetClass);
         const group = its?.subClasses.find((each) => each.subClass === planning.subClass);
         const band = its?.breachAt ?? 0;
-        const toShed = (its && group) ? overIts(group, band, its.valueAmount) : null;
+        const toShed = (its && group) ? overIts(group, its.targetShare ?? 0, band, whole) : null;
         // Gone, or put right by the move that was just made. Either way there is nothing left to plan.
         if (!its || !group || toShed === null) return null;
         return (
@@ -1226,7 +1233,7 @@ export function ClientHoldingsPanel({
               spare={Math.min(toShed, group.valueAmount)}
               rows={group.positions}
               assetClass={its.assetClass}
-              places={capacityIn(its.subClasses, group, band, its.valueAmount)}
+              places={capacityIn(its.subClasses, group, its.targetShare ?? 0, band, whole)}
               className={its.assetClassName || its.assetClass}
               currency={currency}
               readOnly={readOnly}
