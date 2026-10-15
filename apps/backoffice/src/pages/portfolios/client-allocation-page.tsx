@@ -157,8 +157,10 @@ export function ClientAllocationPage() {
                 <span aria-hidden="true" className={cn("size-2.5 rounded-full", barFor(one.code, assetClasses.all))} />
                 {one.name}
               </h2>
-              <p className="text-sm tabular-nums text-ink-soft">
-                {inClass > 0 ? inClass.toLocaleString() : "—"}
+              <p className="text-sm text-ink-soft">
+                <span className="font-bold tabular-nums text-ink">
+                  {inClass > 0 ? `${inClass.toLocaleString()} ${currency}` : "—"}
+                </span>
                 {inClass > 0 && whole > 0 && (
                   <span className="ml-2 text-xs text-ink-muted">
                     {((inClass / whole) * 100).toFixed(2)}% of the portfolio
@@ -223,6 +225,20 @@ export function ClientAllocationPage() {
                 </li>
               )}
             </ul>
+
+            {/* A class is not typed in: it is what the lines inside it come to. Set out under them, in
+                the column they were typed in, so it reads as the sum rather than a figure of its own. */}
+            {rows.length > 0 && (
+              <div className="flex items-center gap-3 border-t-2 border-ink/15 px-5 py-2.5">
+                <span className="min-w-0 flex-1 text-sm font-semibold text-ink">
+                  {one.name}, added up
+                </span>
+                <span className="w-40 shrink-0 pr-3 text-right text-sm font-bold tabular-nums text-ink">
+                  {inClass > 0 ? inClass.toLocaleString() : "—"}
+                </span>
+                <span className="w-9 shrink-0" />
+              </div>
+            )}
 
             <div className="border-t border-line px-5 py-2.5">
               <button
