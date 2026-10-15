@@ -1044,8 +1044,9 @@ export function ClientHoldingsPanel({
                           <th scope="col" className="py-2 pr-3 pl-4">
                             Sub-asset
                           </th>
-                          {/* The firm's own sheet, column for column, and in the same words as the table
-                              that measures the classes above it.
+                          {/* The firm's own sheet, column for column, in the firm's own words. Close to
+                              the table that measures the classes above, but not word for word: a value
+                              column says so here, where up there the figure beside it makes it plain.
 
                               Two frames, because the sheet keeps two. Share of class is what the model
                               asks of this line inside its own class, and it is the figure the line is
@@ -1063,13 +1064,13 @@ export function ClientHoldingsPanel({
                             Target allocation %
                           </th>
                           <th scope="col" className="px-3 py-2 text-right">
-                            Target allocation
+                            Target allocation value
                           </th>
                           <th scope="col" className="px-3 py-2 text-right">
-                            Actual allocation %
+                            Current allocation %
                           </th>
                           <th scope="col" className="px-3 py-2 text-right">
-                            Actual allocation
+                            Actual allocation value
                           </th>
                           <th scope="col" className="px-3 py-2 text-right">
                             % allocated
