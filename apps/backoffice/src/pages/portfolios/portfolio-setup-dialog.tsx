@@ -3,6 +3,7 @@ import { useGetCustomer, type CustomerDetail } from "@atomprive/api-client/backo
 import { Dialog, cn } from "@atomprive/ui";
 import { useState } from "react";
 import { AllocationStep } from "./client-allocation-page";
+import { NetAumStep } from "./client-net-aum-page";
 import { WorthStep } from "./client-worth-page";
 
 /** What each step is handed: whose portfolio it is, and the two ways out of it. */
@@ -24,6 +25,7 @@ export const BOX = "border-ink/20";
 const STEPS = [
   { at: 1, name: "What they hold" },
   { at: 2, name: "Non financial assets and loans" },
+  { at: 3, name: "Net AUM" },
 ] as const;
 
 /**
@@ -45,7 +47,7 @@ export function PortfolioSetupDialog({
   // queue and the manager's dashboard hold an id and nothing else.
   const client = useGetCustomer<CustomerDetail, ApiError>(customerId);
   const clientName = client.data?.client.fullName ?? "this client";
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   return (
     <Dialog
@@ -62,7 +64,7 @@ export function PortfolioSetupDialog({
             <button
               type="button"
               disabled={one.at >= step}
-              onClick={() => setStep(one.at as 1 | 2)}
+              onClick={() => setStep(one.at as 1 | 2 | 3)}
               aria-label={`Back to step ${one.at}, ${one.name.toLowerCase()}`}
               className="block w-full"
             >
@@ -90,7 +92,8 @@ export function PortfolioSetupDialog({
 
       <div className="mt-4">
         {step === 1 && <AllocationStep customerId={customerId} onDone={() => setStep(2)} />}
-        {step === 2 && <WorthStep customerId={customerId} onDone={onClose} onBack={() => setStep(1)} />}
+        {step === 2 && <WorthStep customerId={customerId} onDone={() => setStep(3)} onBack={() => setStep(1)} />}
+        {step === 3 && <NetAumStep customerId={customerId} onDone={onClose} onBack={() => setStep(2)} />}
       </div>
     </Dialog>
   );
