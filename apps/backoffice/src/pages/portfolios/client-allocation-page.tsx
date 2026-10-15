@@ -207,7 +207,9 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
   }
 
   return (
-    <div className="space-y-4">
+    // A class and its total are one block to read; the next class is another. Room between them so the
+    // eye stops at the end of one rather than running into the heading of the next.
+    <div className="space-y-8">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       <div className="flex flex-wrap items-center justify-end gap-2">
