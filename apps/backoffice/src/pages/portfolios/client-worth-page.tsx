@@ -77,8 +77,10 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
   const writeOwed = useRecordClientLoan<ApiError>();
   const changeOwed = useChangeClientLoan<ApiError>();
   const forgetOwed = useRemoveClientLoan<ApiError>();
-  const busy = writeOwned.isPending || changeOwned.isPending || forgetOwned.isPending
-    || writeOwed.isPending || changeOwed.isPending || forgetOwed.isPending;
+  // One flag for the whole save, not the six mutations' own. They run one after another, so between
+  // any two of them every one of them is idle for a tick, and the button flicked back and in again on
+  // each one.
+  const [busy, setBusy] = useState(false);
 
   // Seeded from what is already written down, with one blank line at the end of each so the next thing
   // can be written without reaching for a button first.
@@ -140,6 +142,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
    */
   async function save() {
     setErrors(noErrors);
+    setBusy(true);
     try {
       for (const one of ownedRows) {
         if (!named(one, true)) {
@@ -190,6 +193,9 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
     }
     catch (caught) {
       setErrors(toFormErrors(caught as ApiError));
+    }
+    finally {
+      setBusy(false);
     }
   }
 
