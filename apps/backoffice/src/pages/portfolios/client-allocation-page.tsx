@@ -2,23 +2,20 @@ import { ApiError } from "@atomprive/api-client";
 import {
   getGetClientPortfolioQueryKey,
   getListClientHoldingsQueryKey,
-  useGetCustomer,
   useListClientHoldings,
   useChangeClientHolding,
   useRecordClientHolding,
   useRemoveClientHolding,
   useSetClientHoldings,
   type ClientHoldings,
-  type CustomerDetail,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { barFor, useAssetClasses } from "./asset-classes";
-import { SetUpSteps } from "./portfolio-setup-steps";
+import type { StepProps } from "./portfolio-setup-dialog";
 import { useSubAssetClasses } from "./sub-asset-classes";
 
 /** One line somebody is writing down: where it sits, what it is called, and what it is worth. */
@@ -58,13 +55,10 @@ function adds(lines: Line[]) {
  * ready to be filled in; a portfolio holds what it holds, though, so anything the firm has not named can be
  * added here and belongs to this client.
  */
-export function ClientAllocationPage() {
-  const { customerId = "" } = useParams();
-  const navigate = useNavigate();
+export function AllocationStep({ customerId, onDone }: StepProps) {
   const queryClient = useQueryClient();
   const assetClasses = useAssetClasses();
   const subAssets = useSubAssetClasses();
-  const client = useGetCustomer<CustomerDetail, ApiError>(customerId);
   const holdings = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const write = useRecordClientHolding<ApiError>();
@@ -194,9 +188,7 @@ export function ClientAllocationPage() {
         queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),
         queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) }),
       ]);
-      // On to what they own that nobody manages, which is the other half of what a client is worth and
-      // the only part of it this screen cannot be asked for.
-      void navigate(`/portfolio-clients/${customerId}/non-financial`);
+      onDone();
     }
     catch (caught) {
       setErrors(toFormErrors(caught as ApiError));
@@ -208,18 +200,7 @@ export function ClientAllocationPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <SetUpSteps
-        step={1}
-        customerId={customerId}
-        heading="What they hold"
-        lead={<>
-          What {client.data?.client.fullName ?? "this client"}&apos;s money is spread across today. A model
-          says what a portfolio should be and can say nothing until this is written down. Leave a line empty
-          where there is nothing in it.
-        </>}
-      />
-
+    <div className="space-y-4">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       {assetClasses.inUse.map((one) => {
@@ -227,7 +208,7 @@ export function ClientAllocationPage() {
         const inClass = adds(rows);
         return (
           <section key={one.code} className="rounded-2xl border border-line bg-white">
-            <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-5 py-3">
+            <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-2">
               <h2 className="flex items-center gap-2.5 font-semibold text-ink">
                 <span aria-hidden="true" className={cn("size-2.5 rounded-full", barFor(one.code, assetClasses.all))} />
                 {one.name}
@@ -241,7 +222,7 @@ export function ClientAllocationPage() {
 
             <ul className="divide-y divide-line">
               {rows.map((line, at) => (
-                <li key={at} className="flex items-center gap-3 px-5 py-2.5">
+                <li key={at} className="flex items-center gap-3 px-4 py-1">
                   {line.theFirms ? (
                     <span className="min-w-0 flex-1 truncate text-sm text-ink">{line.name}</span>
                   ) : (
@@ -256,7 +237,7 @@ export function ClientAllocationPage() {
                       }
                     />
                   )}
-                  <div className="relative w-40 shrink-0">
+                  <div className="relative w-32 shrink-0">
                     <TextInput
                       aria-label={`What is in ${line.name || "this line"}`}
                       inputMode="decimal"
@@ -290,7 +271,7 @@ export function ClientAllocationPage() {
                 </li>
               ))}
               {rows.length === 0 && (
-                <li className="px-5 py-3 text-sm text-ink-muted">
+                <li className="px-4 py-2 text-sm text-ink-muted">
                   The firm names nothing under {one.name}. Add what this client holds.
                 </li>
               )}
@@ -299,11 +280,11 @@ export function ClientAllocationPage() {
             {/* A class is not typed in: it is what the lines inside it come to. Set out under them, in
                 the column they were typed in, so it reads as the sum rather than a figure of its own. */}
             {rows.length > 0 && (
-              <div className="flex items-center gap-3 border-t-2 border-ink/15 px-5 py-2.5">
+              <div className="flex items-center gap-3 border-t-2 border-ink/15 px-4 py-1.5">
                 <span className="min-w-0 flex-1 text-sm font-semibold text-ink">
                   {one.name}, added up
                 </span>
-                <span className="w-40 shrink-0 pr-3 text-right text-sm font-bold tabular-nums text-ink">
+                <span className="w-32 shrink-0 pr-3 text-right text-sm font-bold tabular-nums text-ink">
                   {inClass > 0 ? inClass.toLocaleString() : "—"}
                 </span>
                 <span className="w-9 shrink-0" />
@@ -320,7 +301,7 @@ export function ClientAllocationPage() {
       {/* What the six classes come to, said once and at the end — after the last of them has been
           written down, not following the page down beside the buttons. This is the figure every
           percentage the portfolio is read against is a share of. */}
-      <section className="rounded-2xl border border-line bg-white px-5 py-4">
+      <section className="rounded-2xl border border-line bg-white px-4 py-3">
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
           <div>
             <h2 className="font-semibold text-ink">Total</h2>
@@ -352,8 +333,8 @@ export function ClientAllocationPage() {
       {/* In the page rather than lying over it: the figure that had to be kept in sight is said at the
           end now, so the buttons can line up with the cards above them like every other screen's do. */}
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
-        <Button variant="secondary" type="button" onClick={() => void navigate("/portfolio-clients")}>
-          Cancel
+        <Button variant="secondary" type="button" onClick={onDone}>
+          Skip
         </Button>
         <Button
           type="button"
@@ -365,16 +346,4 @@ export function ClientAllocationPage() {
       </div>
     </div>
   );
-}
-
-/**
- * Where a client's portfolio screen used to be. Keeps that address working while the screen is off, so
- * every link into it — from the queues, the dashboard, the client file — goes on working untouched.
- *
- * <p>The screen itself is still there, in client-portfolio-page.tsx, unreferenced and unchanged: putting
- * it back is giving it its route again and taking this off.
- */
-export function ToTheAllocation() {
-  const { customerId = "" } = useParams();
-  return <Navigate replace to={`/portfolio-clients/${customerId}/allocation`} />;
 }

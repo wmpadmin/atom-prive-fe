@@ -2,20 +2,17 @@ import { ApiError } from "@atomprive/api-client";
 import {
   getListNonFinancialAssetsQueryKey,
   useChangeNonFinancialAsset,
-  useGetCustomer,
   useListNonFinancialAssets,
   useRecordNonFinancialAsset,
   useRemoveNonFinancialAsset,
   type ClientNonFinancialAssets,
-  type CustomerDetail,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, TextArea, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
-import { SetUpSteps } from "./portfolio-setup-steps";
+import type { StepProps } from "./portfolio-setup-dialog";
 
 /** One thing somebody is writing down: what it is, whatever else has to be said, and what it is worth. */
 type Owned = {
@@ -47,11 +44,8 @@ function isNumber(typed: string) {
  * nothing and counting it in would make every percentage on the portfolio a share of money that is not
  * there to invest. It belongs in what the client is worth, and nowhere else.
  */
-export function ClientNonFinancialPage() {
-  const { customerId = "" } = useParams();
-  const navigate = useNavigate();
+export function OwnStep({ customerId, onDone, onBack }: StepProps) {
   const queryClient = useQueryClient();
-  const client = useGetCustomer<CustomerDetail, ApiError>(customerId);
   const owned = useListNonFinancialAssets<ClientNonFinancialAssets, ApiError>(customerId);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const write = useRecordNonFinancialAsset<ApiError>();
@@ -122,8 +116,7 @@ export function ClientNonFinancialPage() {
       }
       await queryClient.invalidateQueries({ queryKey: getListNonFinancialAssetsQueryKey(customerId) });
       setTyped(null);
-      // On to what they owe, which is the last of the three and the one the other two are read against.
-      void navigate(`/portfolio-clients/${customerId}/loans`);
+      onDone();
     }
     catch (caught) {
       setErrors(toFormErrors(caught as ApiError));
@@ -136,17 +129,6 @@ export function ClientNonFinancialPage() {
 
   return (
     <div className="space-y-6">
-      <SetUpSteps
-        step={2}
-        customerId={customerId}
-        heading="What they own but nobody manages"
-        lead={<>
-          A house, a painting, a stake in {client.data?.client.fullName ?? "the client"}&apos;s own company.
-          It counts towards what they are worth. It is not on the allocation, because none of it can be sold
-          to put a portfolio back where its plan wants it.
-        </>}
-      />
-
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       <section className="rounded-2xl border border-line bg-white">
@@ -242,11 +224,7 @@ export function ClientNonFinancialPage() {
       </section>
 
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
-        <Button
-          variant="secondary"
-          type="button"
-          onClick={() => void navigate(`/portfolio-clients/${customerId}/allocation`)}
-        >
+        <Button variant="secondary" type="button" onClick={onBack}>
           Back
         </Button>
         <Button type="button" disabled={busy || !readable} onClick={() => void save()}>
