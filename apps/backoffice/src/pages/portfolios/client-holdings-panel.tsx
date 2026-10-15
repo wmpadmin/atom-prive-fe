@@ -1048,18 +1048,14 @@ export function ClientHoldingsPanel({
                               the table that measures the classes above, but not word for word: a value
                               column says so here, where up there the figure beside it makes it plain.
 
-                              Two frames, because the sheet keeps two. Share of class is what the model
-                              asks of this line inside its own class, and it is the figure the line is
-                              judged against — a line asked for 9% of equities may sit between 4% and 14%
-                              of equities whatever equities itself is doing. Everything after it is a share
-                              of the whole portfolio, which is the only frame in which a target value and
-                              an actual value can be set beside each other and subtracted.
+                              Every share is of the whole portfolio, which is the only frame in which a
+                              target value and an actual value can be set beside each other and subtracted.
+                              What the model asks of a line inside its own class — 9% of equities, say — is
+                              still what the line is judged against, and it is still what the target below
+                              is worked out from; it is simply not a column any more.
 
                               Gap used to sit where % allocated does. It said the same thing in points that
                               % allocated says as a proportion, and the sheet has never had it. */}
-                          <th scope="col" className="px-3 py-2 text-right">
-                            Share of class
-                          </th>
                           <th scope="col" className="px-3 py-2 text-right">
                             Target allocation %
                           </th>
@@ -1113,9 +1109,6 @@ export function ClientHoldingsPanel({
                             </th>
                             {/* A dash, not a nought: the model naming no target for this group is a
                                 different thing from it asking for none of it. */}
-                            <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                              {group.targetShare == null ? "—" : percent(group.targetShare)}
-                            </td>
                             <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
                               {ofPortfolio == null ? "—" : percent(ofPortfolio)}
                             </td>
@@ -1196,8 +1189,8 @@ export function ClientHoldingsPanel({
                               className={one.assetClassName || one.assetClass}
                               currency={currency}
                               /* Every column of the table above, so the plan sits square under it rather
-                                 than stopping two columns short of its right edge. */
-                              span={readOnly ? 8 : 9}
+                                 than stopping short of its right edge. */
+                              span={readOnly ? 7 : 8}
                               readOnly={readOnly}
                               claim={claimTheMove}
                               release={releaseTheMove}
