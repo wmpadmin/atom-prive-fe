@@ -121,7 +121,10 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
   // Restating a portfolio and retyping its figures cannot be asked for in one go: the typed figures
   // would be in the currency being left behind, and nothing could say which of the two was meant.
   const figuresTyped = Object.keys(typed).length > 0;
-  const busy = write.isPending || change.isPending || forget.isPending || setHoldings.isPending;
+  // One flag for the whole save, not the mutations' own. They run one after another, so between any
+  // two of them every one of them is idle for a tick — and the button flicked back to Next and in
+  // again on each, two dozen times over a portfolio written down line by line.
+  const [busy, setBusy] = useState(false);
   const whole = codes.reduce((total, code) => total + adds(lines[code] ?? []), 0);
   // Nothing is written down until every figure is a figure, and a line nobody has named cannot be stored.
   const unreadable = codes.flatMap((code) =>
@@ -146,6 +149,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
    */
   async function save() {
     setErrors(noErrors);
+    setBusy(true);
     try {
       for (const assetClass of codes) {
         for (const line of lines[assetClass] ?? []) {
@@ -199,6 +203,9 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
     }
     catch (caught) {
       setErrors(toFormErrors(caught as ApiError));
+    }
+    finally {
+      setBusy(false);
     }
   }
 
