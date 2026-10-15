@@ -212,6 +212,31 @@ function exactly(amount: number, currency: string) {
   return `${currency} ${amount.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
+/**
+ * A figure as the firm's own sheet writes one: grouped, to the penny, with the currency said once above it
+ * rather than on every cell of a row seven figures wide.
+ */
+function figure(amount: number) {
+  return amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** A share, to the hundredth of a point, as the sheet shows it. */
+function percent(share: number) {
+  return `${share.toFixed(2)}%`;
+}
+
+/** How much of what the model asks for is actually there — the column the firm's sheet calls % allocated. */
+function filled(targetValue: number, actualValue: number) {
+  return targetValue === 0 ? "—" : `${((actualValue / targetValue) * 100).toFixed(2)}%`;
+}
+
+/** What to do about a line: a figure to buy, or one to sell, never a bare minus sign. */
+function toDo(amount: number) {
+  if (amount > 0) return { word: "Buy", figure: figure(amount) };
+  if (amount < 0) return { word: "Sell", figure: figure(-amount) };
+  return { word: "Hold", figure: figure(0) };
+}
+
 /** A sub-asset that can take money, how much it can take before it would breach, and the row it is. */
 type Destination = { name: string; room: number; into: PositionRow | null };
 
@@ -279,15 +304,6 @@ function suggest(spare: number, places: Destination[]): Record<string, number> {
     left -= takes;
   }
   return split;
-}
-
-/** What a sub-asset holding less than it is allowed can take, in a sentence. Nothing to split up. */
-function shortBy(group: SubClassGroup, currency: string): string | null {
-  const amount = group.suggestion;
-  if (group.standing !== "BREACHED" || amount === null || amount === undefined || amount <= 0) {
-    return null;
-  }
-  return `You can add ${exactly(amount, currency)} to this sub-asset.`;
 }
 
 /**
@@ -812,6 +828,9 @@ export function ClientHoldingsPanel({
 
   const written = held.data?.classes ?? [];
   const currency = held.data?.currency ?? "USD";
+  // What every share and every target value below is out of. The sheet the firm reads sets a line's target
+  // against the whole portfolio, not against the money its class happens to hold.
+  const whole = held.data?.underManagement ?? 0;
   // Every class the page offers gets a row, whether or not anything is in it: a class holding nothing is
   // exactly the one somebody is about to write the first figure into, and a list of only what is already
   // there has nowhere to put it. Where no list is handed in, the panel shows what is written and no more.
@@ -1017,35 +1036,66 @@ export function ClientHoldingsPanel({
                         nothing. Named columns say it once at the top instead. */}
                     <table className="min-w-full text-sm">
                       <caption className="sr-only">
-                        What {one.assetClassName || one.assetClass} is made of, by sub-asset.
+                        What {one.assetClassName || one.assetClass} is made of, by sub-asset. Figures in{" "}
+                        {currency}.
                       </caption>
                       <thead>
                         <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                           <th scope="col" className="py-2 pr-3 pl-4">
                             Sub-asset
                           </th>
-                          {/* The same columns, in the same words, as the table that measures the classes
-                              above: what the model asks for and what that comes to, then what is actually
-                              there and what that comes to, then the difference. */}
+                          {/* The firm's own sheet, column for column, and in the same words as the table
+                              that measures the classes above it.
+
+                              Two frames, because the sheet keeps two. Share of class is what the model
+                              asks of this line inside its own class, and it is the figure the line is
+                              judged against — a line asked for 9% of equities may sit between 4% and 14%
+                              of equities whatever equities itself is doing. Everything after it is a share
+                              of the whole portfolio, which is the only frame in which a target value and
+                              an actual value can be set beside each other and subtracted.
+
+                              Gap used to sit where % allocated does. It said the same thing in points that
+                              % allocated says as a proportion, and the sheet has never had it. */}
+                          <th scope="col" className="px-3 py-2 text-right">
+                            Share of class
+                          </th>
+                          <th scope="col" className="px-3 py-2 text-right">
+                            Target allocation %
+                          </th>
                           <th scope="col" className="px-3 py-2 text-right">
                             Target allocation
                           </th>
                           <th scope="col" className="px-3 py-2 text-right">
-                            Target value
+                            Actual allocation %
                           </th>
                           <th scope="col" className="px-3 py-2 text-right">
-                            Current
+                            Actual allocation
                           </th>
                           <th scope="col" className="px-3 py-2 text-right">
-                            Current value
+                            % allocated
                           </th>
                           <th scope="col" className="px-3 py-2 text-right">
-                            Gap
+                            Suggestion
                           </th>
                           {!readOnly && <th scope="col" className="py-2 pr-4 pl-3" />}
                         </tr>
                       </thead>
-                      {one.subClasses.map((group) => (
+                      {one.subClasses.map((group) => {
+                        // What the model asks of this line as a share of the whole portfolio: its share of
+                        // its class carried through the class's own share of the book. Where the model
+                        // names no target for either, there is no figure to carry and the row says so.
+                        const ofPortfolio = (group.targetShare == null || one.targetShare == null)
+                          ? null
+                          : (group.targetShare * one.targetShare) / 100;
+                        // Against what the class should be worth, not what it is. A line asked for a tenth
+                        // of a class that is itself a sixth of the size the model wants is short by the
+                        // whole of that shortfall too, and reading it against the money actually in the
+                        // class would hide it: it would sit on its target inside a class holding a sixth
+                        // of what it should.
+                        const targetValue = ofPortfolio == null ? null : (ofPortfolio * whole) / 100;
+                        const actualShare = whole === 0 ? null : (group.valueAmount / whole) * 100;
+                        const move = targetValue == null ? null : toDo(targetValue - group.valueAmount);
+                        return (
                         <tbody key={group.subClass ?? UNGROUPED} className="border-b border-line last:border-0">
                           <tr className="align-middle">
                             <th scope="rowgroup" className="py-2 pr-3 pl-4 text-left font-semibold text-ink">
@@ -1059,37 +1109,36 @@ export function ClientHoldingsPanel({
                                   </Badge>
                                 )}
                               </span>
-                              {/* Under the name rather than out at the end of the row: it is a sentence
-                                  about this sub-asset, and a column of its own made every other row carry
-                                  an empty cell to hold a space the breached one needed. */}
-                              {shortBy(group, currency) && (
-                                <span className="mt-1 block text-xs font-normal text-ink-muted">
-                                  {shortBy(group, currency)}
-                                </span>
-                              )}
                             </th>
                             {/* A dash, not a nought: the model naming no target for this group is a
                                 different thing from it asking for none of it. */}
                             <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                              {group.targetShare === null || group.targetShare === undefined
-                                ? "—"
-                                : `${group.targetShare.toFixed(1)}%`}
+                              {group.targetShare == null ? "—" : percent(group.targetShare)}
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                              {group.targetValue === null || group.targetValue === undefined
-                                ? "—"
-                                : underManagementLabel(group.targetValue, currency)}
-                            </td>
-                            <td className="px-3 py-2 text-right tabular-nums">
-                              {/* Of its class, not of the portfolio — the column heading above it still
-                                  says otherwise, and will until this screen is reworked or taken away. */}
-                              {group.shareOfClass.toFixed(1)}%
-                            </td>
-                            <td className="px-3 py-2 text-right tabular-nums">
-                              {underManagementLabel(group.valueAmount, currency)}
+                              {ofPortfolio == null ? "—" : percent(ofPortfolio)}
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                              {group.drift === null || group.drift === undefined ? "—" : driftLabel(group.drift)}
+                              {targetValue == null ? "—" : figure(targetValue)}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              {actualShare == null ? "—" : percent(actualShare)}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              {figure(group.valueAmount)}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
+                              {targetValue == null ? "—" : filled(targetValue, group.valueAmount)}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
+                              {move == null ? "—" : (
+                                <>
+                                  <span className="text-2xs font-semibold tracking-wider uppercase">
+                                    {move.word}
+                                  </span>{" "}
+                                  {move.figure}
+                                </>
+                              )}
                             </td>
                             {/* The sub-asset is the thing written down, so what can be done to it sits on
                                 its own row. The buttons used to belong to the instruments underneath. */}
@@ -1159,7 +1208,8 @@ export function ClientHoldingsPanel({
                             />
                           )}
                         </tbody>
-                      ))}
+                        );
+                      })}
                     </table>
                   </div>
                 )}
