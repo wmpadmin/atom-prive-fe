@@ -18,6 +18,7 @@ import { formatDate } from "../../lib/labels";
 import { AdvisorChips } from "../clients/advisor-chips";
 import { ClientSearch } from "../clients/client-search";
 import { PortfolioSetupDialog } from "./portfolio-setup-dialog";
+import { isSetUp } from "./set-up";
 import {
   driftLabel,
   driftTones,
@@ -153,11 +154,8 @@ export function PortfolioClientsPage() {
       >
         {rows.map((client: CustomerRow) => {
           const standing = standingOf.get(client.id);
-          // Whether the calculator has been worked through to the end. Being on a plan is the last of its
-          // four steps and cannot be reached without the three before it, so it is the one figure that says
-          // the whole of it is done — an allocation written and nothing else means somebody stopped half
-          // way, and half way is not a portfolio anybody can read.
-          const done = standing?.modelPortfolioId != null;
+          // Whether the calculator has been worked through to the end: the figures and the plan both.
+          const done = isSetUp(standing);
           // Finished opens at the portfolio, which is what there is to read. Unfinished goes back into the
           // calculator, at whichever step the writing stopped.
           const opens = done
