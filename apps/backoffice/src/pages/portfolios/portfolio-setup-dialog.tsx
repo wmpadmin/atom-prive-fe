@@ -51,8 +51,7 @@ export function PortfolioSetupDialog({
     <Dialog
       open
       size="xl"
-      title="Set the portfolio up"
-      description={`What ${clientName} holds, what they own that nobody manages, and what they owe.`}
+      title={`Set up ${clientName}'s portfolio`}
       onClose={onClose}
     >
       {/* One bar a step, named, filled behind where somebody is. A step already done is a way back to
