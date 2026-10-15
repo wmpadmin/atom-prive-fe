@@ -153,14 +153,14 @@ export function PortfolioClientsPage() {
       >
         {rows.map((client: CustomerRow) => {
           const standing = standingOf.get(client.id);
-          // Whether anybody has written down what this client holds. Not whether they are on a model:
-          // a model says what a portfolio should be and can say nothing until what it is has been set
-          // out, so the allocation is what is asked for first.
-          const written = (standing?.underManagement ?? 0) > 0;
-          // A client whose allocation has been written down opens at their portfolio, which is what there
-          // is to read. One whose has not goes to the calculator instead: a portfolio cannot be read
-          // against anything until what is in it is known, so that is the first thing asked of them.
-          const opens = written
+          // Whether the calculator has been worked through to the end. Being on a plan is the last of its
+          // four steps and cannot be reached without the three before it, so it is the one figure that says
+          // the whole of it is done — an allocation written and nothing else means somebody stopped half
+          // way, and half way is not a portfolio anybody can read.
+          const done = standing?.modelPortfolioId != null;
+          // Finished opens at the portfolio, which is what there is to read. Unfinished goes back into the
+          // calculator, at whichever step the writing stopped.
+          const opens = done
             ? `/portfolio-clients/${client.id}`
             : `/portfolio-clients/${client.id}/net-aum`;
           // What a client holds is drawn as a share of what is written down. There is more to come that
@@ -233,7 +233,7 @@ export function PortfolioClientsPage() {
                   to={opens}
                   className="text-sm font-medium text-primary-700 hover:underline"
                 >
-                  {written ? "Open" : "Assign"}
+                  {done ? "Open" : "Assign"}
                 </Link>
               </td>
             </tr>

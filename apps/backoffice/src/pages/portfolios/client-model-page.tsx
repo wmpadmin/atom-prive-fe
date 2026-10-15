@@ -56,7 +56,12 @@ export function ModelStep({ customerId, onDone, onBack }: StepProps) {
     setBusy(true);
     try {
       if (model !== on) {
-        await put.mutateAsync({ customerId, data: { modelPortfolioId: model || null } });
+        // The answer is written straight into the cache rather than waited for a second time. The screen
+        // this hands over to turns somebody away who is on no plan, and it reads that from here: a refetch
+        // that was slow or refused would have it reading the standing from before the save, and bouncing
+        // the client back into the step they had just finished.
+        const saved = await put.mutateAsync({ customerId, data: { modelPortfolioId: model || null } });
+        queryClient.setQueryData(getGetClientPortfolioQueryKey(customerId), saved);
         await queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) });
       }
       onDone();
@@ -98,7 +103,8 @@ export function ModelStep({ customerId, onDone, onBack }: StepProps) {
 
       {model === "" && (
         <Alert tone="info">
-          Pick a plan to see what it asks of this client&apos;s money. Nothing is saved until you finish.
+          Pick a plan to see what it asks of this client&apos;s money. This is the last of the four steps,
+          and their portfolio cannot be read against anything until it is answered.
         </Alert>
       )}
 
@@ -128,8 +134,11 @@ export function ModelStep({ customerId, onDone, onBack }: StepProps) {
         <Button variant="secondary" size="lg" type="button" onClick={onBack}>
           Back
         </Button>
-        <Button type="button" size="lg" disabled={busy} onClick={() => void save()}>
-          {busy ? "Saving…" : (model === on ? "Done" : "Put them on this plan")}
+        {/* Nothing to finish on. The button used to read Done over an empty picker and finish anyway,
+            which left the client written down, worked out, and measured against nothing — the one state
+            the screen after this cannot draw. */}
+        <Button type="button" size="lg" disabled={busy || model === ""} onClick={() => void save()}>
+          {busy ? "Saving…" : model === "" ? "Pick a plan" : model === on ? "Done" : "Put them on this plan"}
         </Button>
       </div>
     </div>
