@@ -151,6 +151,10 @@ export function PortfolioClientsPage() {
       >
         {rows.map((client: CustomerRow) => {
           const standing = standingOf.get(client.id);
+          // Whether anybody has written down what this client holds. Not whether they are on a model:
+          // a model says what a portfolio should be and can say nothing until what it is has been set
+          // out, so the allocation is what is asked for first.
+          const written = (standing?.underManagement ?? 0) > 0;
           const shares = standing?.shares ?? {};
           // In the firm's own order, so one client's spread reads the same way as the next one's.
           const spread = assetClasses.all.map((one) => one.code).filter((assetClass) => shares[assetClass]);
@@ -239,11 +243,15 @@ export function PortfolioClientsPage() {
                 )}
               </td>
               <td className="px-4 py-3 text-right">
+                {/* A client nobody has written an allocation down for goes to the screen that asks for
+                    one: a portfolio cannot be read against anything until what is in it is known, so
+                    that is the first thing asked of whoever opens them. */}
                 <Link
-                  to={`/portfolio-clients/${client.id}`}
+                  to={written ? `/portfolio-clients/${client.id}`
+                    : `/portfolio-clients/${client.id}/allocation`}
                   className="text-sm font-medium text-primary-700 hover:underline"
                 >
-                  {standing?.modelPortfolioId ? "Open" : "Assign"}
+                  {written ? "Open" : "Assign"}
                 </Link>
               </td>
             </tr>
