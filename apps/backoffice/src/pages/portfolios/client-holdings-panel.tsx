@@ -64,9 +64,11 @@ function ToleranceDialog({
   const [breachPp, setBreachPp] = useState(stands(one.breachAt));
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const given = [watchPp, edgePp, breachPp].filter((each) => each.trim() !== "").length;
-  // Watched, then the edge, then breached: each further out than the one before.
+  // Watched, then the edge, then breached: none of them nearer than the one before. Equal is allowed, and
+  // is how the firm writes a band now — one figure in all three, which leaves the single verdict it asked
+  // for and nothing in between.
   const outOfOrder = given === 3
-    && !(Number(watchPp) < Number(edgePp) && Number(edgePp) < Number(breachPp));
+    && !(Number(watchPp) <= Number(edgePp) && Number(edgePp) <= Number(breachPp));
   const set = useSetClassTolerance<ApiError>({
     mutation: { onError: (failed) => setErrors(toFormErrors(failed)) },
   });
@@ -171,7 +173,8 @@ function ToleranceDialog({
         )}
         {outOfOrder && (
           <p className="text-xs text-rose-700">
-            Each has to be further out than the one before: watched, then the edge, then breached.
+            None of them can be nearer than the one before: watched, then the edge, then breached. The same
+            figure in all three is allowed, and leaves one verdict rather than three.
           </p>
         )}
         {/* Said before it happens, not found out afterwards: these are figures somebody wrote on purpose. */}
@@ -1336,7 +1339,7 @@ function HoldingDialog({
   // would make a sub-asset breach before it was ever watched, and the API refuses it — better said here,
   // beside the boxes, than returned as a failure after Save.
   const outOfOrder = ownBand === 3
-    && !(Number(watchPp) < Number(edgePp) && Number(edgePp) < Number(breachPp));
+    && !(Number(watchPp) <= Number(edgePp) && Number(edgePp) <= Number(breachPp));
   // What the model holds this sub-asset to: the line's own tolerance where it names one, and otherwise the
   // class's, which is what a sub-asset in no group at all is measured by.
   const modelBand = asked ?? classBands[assetClass] ?? null;
@@ -1396,10 +1399,15 @@ function HoldingDialog({
           // How far it has wandered, whichever side of the target. Judged only on being over it, a
           // sub-asset far short of what the model asks read as within band in here while the table behind
           // the dialog called the very same figure at edge.
+          //
+          // Past what is allowed, not level with it, which is the rule the platform is judged by
+          // everywhere else: a class at 20 allowed five points may sit at 25, and it is 25.01 that has
+          // broken the model. Read as "at least", this dialog called a figure breached while the table
+          // behind it, asking the API the same question, called it sound.
           const howFar = Math.abs(wouldBe.over);
-          if (howFar >= heldTo.breachAt) return "BREACHED";
-          if (howFar >= heldTo.edgeAt) return "AT_EDGE";
-          return howFar >= heldTo.watchAt ? "WATCH" : null;
+          if (howFar > heldTo.breachAt) return "BREACHED";
+          if (howFar > heldTo.edgeAt) return "AT_EDGE";
+          return howFar > heldTo.watchAt ? "WATCH" : null;
         })();
   const form = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
@@ -1685,7 +1693,8 @@ function HoldingDialog({
           )}
           {outOfOrder && (
             <p className="mt-2 text-xs text-rose-700">
-              Each has to be further out than the one before: watched, then the edge, then breached.
+              None of them can be nearer than the one before: watched, then the edge, then breached. The same
+            figure in all three is allowed, and leaves one verdict rather than three.
             </p>
           )}
         </fieldset>
