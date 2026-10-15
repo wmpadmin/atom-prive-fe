@@ -33,7 +33,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { asFigure } from "../../lib/figures";
 import { AttributionPanel } from "./attribution-panel";
@@ -476,6 +476,22 @@ export function ClientPortfolioPage() {
   }
 
   const named = client.data?.client.fullName ?? "";
+
+  // Every figure below this line is a share of a target, so a client with no plan has no screen here:
+  // what would be drawn is a column of dashes beside a column of money, which reads as a portfolio
+  // nobody has looked at rather than one nobody has finished setting up. They go back into the
+  // calculator, which is the only place the missing answer can come from.
+  //
+  // Said here rather than only on the link that got here. Eight other screens — the drift queue, the
+  // manager's dashboard, the client file, the trading panel, and the role's own idea of where a client
+  // lives — name a client and come straight to this address, and a rule each of them has to remember is
+  // a rule one of them will forget.
+  //
+  // Only once the standing has actually arrived: undefined is not "no model", it is "not asked yet", and
+  // redirecting on it would throw everybody out of the page for the length of a request.
+  if (standing.isSuccess && standing.data.modelPortfolioId === null) {
+    return <Navigate to={`/portfolio-clients/${customerId}/net-aum`} replace />;
+  }
 
   return (
     /* Capped: on a wide screen every box stretched to fill the window, which left a date sitting in
