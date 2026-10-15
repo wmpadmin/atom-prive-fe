@@ -395,11 +395,12 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
       {/* In the page rather than lying over it: the figure that had to be kept in sight is said at the
           end now, so the buttons can line up with the cards above them like every other screen's do. */}
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
-        <Button variant="secondary" type="button" onClick={onDone}>
+        <Button variant="secondary" size="lg" type="button" onClick={onDone}>
           Skip
         </Button>
         <Button
           type="button"
+          size="lg"
           disabled={busy || !readable || !anything}
           onClick={() => void save()}
         >
