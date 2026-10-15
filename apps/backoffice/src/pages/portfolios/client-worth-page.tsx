@@ -15,7 +15,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, TextArea, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import type { StepProps } from "./portfolio-setup-dialog";
@@ -271,6 +271,17 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
             </li>
           ))}
         </ul>
+
+        <div className="border-t border-line px-4 py-1.5">
+          <button
+            type="button"
+            onClick={() => setOwned([...ownedRows, NOTHING_YET])}
+            className="flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
+          >
+            <Plus aria-hidden="true" className="size-3.5" />
+            Add another
+          </button>
+        </div>
       </section>
 
       {/* Loans. One line of text, because who it is from and what it is secured on is one answer. */}
@@ -333,6 +344,17 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
             </li>
           ))}
         </ul>
+
+        <div className="border-t border-line px-4 py-1.5">
+          <button
+            type="button"
+            onClick={() => setOwed([...owedRows, NOTHING_YET])}
+            className="flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
+          >
+            <Plus aria-hidden="true" className="size-3.5" />
+            Add another
+          </button>
+        </div>
       </section>
 
       {unnamed.length > 0 && (
@@ -347,7 +369,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
           Back
         </Button>
         <Button type="button" disabled={busy || !readable} onClick={() => void save()}>
-          {busy ? "Writing it down…" : "Finish"}
+          {busy ? "Saving…" : "Save as draft"}
         </Button>
       </div>
     </div>
