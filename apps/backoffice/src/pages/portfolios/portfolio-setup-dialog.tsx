@@ -16,7 +16,7 @@ export type StepProps = {
 
 const STEPS = [
   { at: 1, name: "What they hold" },
-  { at: 2, name: "What they own, and what they owe" },
+  { at: 2, name: "NFA, and what they owe" },
 ] as const;
 
 /**

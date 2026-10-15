@@ -207,7 +207,9 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
       {/* What they own. Three boxes, because a flat and a painting need different things said about them. */}
       <section className="rounded-2xl border border-line bg-white">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-2">
-          <h2 className="font-semibold text-ink">What they own but nobody manages</h2>
+          {/* The firm's own name for it. What it means is said in the line under it, because an acronym
+              over a set of boxes tells somebody filling them in nothing. */}
+          <h2 className="font-semibold text-ink">NFA</h2>
           <p className="text-sm font-bold tabular-nums text-ink">
             {ownedTotal > 0 ? `${money(ownedTotal, false)} ${currency}` : "—"}
           </p>
