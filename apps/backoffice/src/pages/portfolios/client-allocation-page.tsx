@@ -220,9 +220,11 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
               </p>
             </header>
 
-            <ul className="divide-y divide-line">
+            {/* Two to a row. A class of nine lines ran the height of the dialog on its own, so half of
+                it was read by scrolling past the half above. */}
+            <ul className="grid grid-cols-1 gap-x-6 px-4 sm:grid-cols-2">
               {rows.map((line, at) => (
-                <li key={at} className="flex items-center gap-3 px-4 py-1">
+                <li key={at} className="flex items-center gap-3 border-b border-line py-1">
                   {line.theFirms ? (
                     <span className="min-w-0 flex-1 truncate text-sm text-ink">{line.name}</span>
                   ) : (
@@ -237,7 +239,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
                       }
                     />
                   )}
-                  <div className="relative w-32 shrink-0">
+                  <div className="relative w-28 shrink-0">
                     <TextInput
                       aria-label={`What is in ${line.name || "this line"}`}
                       inputMode="decimal"
@@ -271,7 +273,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
                 </li>
               ))}
               {rows.length === 0 && (
-                <li className="px-4 py-2 text-sm text-ink-muted">
+                <li className="py-2 text-sm text-ink-muted sm:col-span-2">
                   The firm names nothing under {one.name}. Add what this client holds.
                 </li>
               )}
