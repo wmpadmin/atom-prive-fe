@@ -2,20 +2,17 @@ import { ApiError } from "@atomprive/api-client";
 import {
   getListClientLoansQueryKey,
   useChangeClientLoan,
-  useGetCustomer,
   useListClientLoans,
   useRecordClientLoan,
   useRemoveClientLoan,
   type ClientLoans,
-  type CustomerDetail,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, TextArea, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
-import { SetUpSteps } from "./portfolio-setup-steps";
+import type { StepProps } from "./portfolio-setup-dialog";
 
 /** One thing somebody is writing down: what it is, whatever else has to be said, and what it is worth. */
 type Owed = {
@@ -46,11 +43,8 @@ function isNumber(typed: string) {
  * negative one by the API, because every sum that has to allow for debt then simply adds it. The total is
  * shown the way it is kept, so the screen says what it is doing.
  */
-export function ClientLoansPage() {
-  const { customerId = "" } = useParams();
-  const navigate = useNavigate();
+export function OweStep({ customerId, onDone, onBack }: StepProps) {
   const queryClient = useQueryClient();
-  const client = useGetCustomer<CustomerDetail, ApiError>(customerId);
   const owed = useListClientLoans<ClientLoans, ApiError>(customerId);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const write = useRecordClientLoan<ApiError>();
@@ -122,7 +116,7 @@ export function ClientLoansPage() {
       }
       await queryClient.invalidateQueries({ queryKey: getListClientLoansQueryKey(customerId) });
       setTyped(null);
-      void navigate("/portfolio-clients");
+      onDone();
     }
     catch (caught) {
       setErrors(toFormErrors(caught as ApiError));
@@ -135,17 +129,6 @@ export function ClientLoansPage() {
 
   return (
     <div className="space-y-6">
-      <SetUpSteps
-        step={3}
-        customerId={customerId}
-        heading="What they owe"
-        lead={<>
-          What {client.data?.client.fullName ?? "the client"} has borrowed — against the portfolio, against
-          a property, against anything. Write what is owed as a plain figure: it is kept as a figure that is
-          owed, so everything that has to allow for it adds it rather than remembering to take it off.
-        </>}
-      />
-
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       <section className="rounded-2xl border border-line bg-white">
@@ -236,11 +219,7 @@ export function ClientLoansPage() {
       </section>
 
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
-        <Button
-          variant="secondary"
-          type="button"
-          onClick={() => void navigate(`/portfolio-clients/${customerId}/non-financial`)}
-        >
+        <Button variant="secondary" type="button" onClick={onBack}>
           Back
         </Button>
         <Button type="button" disabled={busy || !readable} onClick={() => void save()}>

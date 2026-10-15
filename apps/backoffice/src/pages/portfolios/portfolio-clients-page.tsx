@@ -10,6 +10,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
 import { PAGE_SIZES } from "../../lib/page-sizes";
@@ -17,6 +18,7 @@ import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { formatDate } from "../../lib/labels";
 import { AdvisorChips } from "../clients/advisor-chips";
 import { ClientSearch } from "../clients/client-search";
+import { PortfolioSetupDialog } from "./portfolio-setup-dialog";
 import {
   driftLabel,
   driftTones,
@@ -44,6 +46,9 @@ const NOTHING_YET = "—";
 export function PortfolioClientsPage() {
   const navigate = useNavigate();
   const { params, update } = useListAddress();
+  // Whose portfolio is being set up, or nobody. Opened over the list rather than navigated to, so
+  // closing it leaves the list exactly as it was read.
+  const [settingUp, setSettingUp] = useState<CustomerRow | null>(null);
   const query = params.get("q") ?? "";
   const advisorId = params.get("advisor") ?? "";
   const page = Number(params.get("page")) || 0;
@@ -221,19 +226,30 @@ export function PortfolioClientsPage() {
                 {/* A client nobody has written an allocation down for goes to the screen that asks for
                     one: a portfolio cannot be read against anything until what is in it is known, so
                     that is the first thing asked of whoever opens them. */}
-                <Link
-                  to={written ? `/portfolio-clients/${client.id}`
-                    : `/portfolio-clients/${client.id}/allocation`}
+                <button
+                  type="button"
+                  onClick={() => setSettingUp(client)}
                   className="text-sm font-medium text-primary-700 hover:underline"
                 >
                   {written ? "Open" : "Assign"}
-                </Link>
+                </button>
               </td>
             </tr>
           );
         })}
       </RecordList>
 
+      {settingUp && (
+        <PortfolioSetupDialog
+          customerId={settingUp.id}
+          clientName={settingUp.fullName}
+          onClose={() => {
+            setSettingUp(null);
+            // What was written reaches the row it was written for without a reload.
+            void standings.refetch();
+          }}
+        />
+      )}
     </div>
   );
 }
