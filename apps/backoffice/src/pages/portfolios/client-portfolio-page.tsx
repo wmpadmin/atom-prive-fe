@@ -1,6 +1,5 @@
 import { ApiError } from "@atomprive/api-client";
 import {
-  getGetClientAttributionQueryKey,
   getGetClientValuationsQueryKey,
   useGetClientPortfolio,
   useGetCustomer,
@@ -36,9 +35,6 @@ import { useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
-import { AttributionPanel } from "./attribution-panel";
-import { ExposurePanel } from "./exposure-panel";
-import { FixedIncomePanel } from "./fixed-income-panel";
 import { useAssetClasses } from "./asset-classes";
 import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
@@ -205,7 +201,6 @@ export function ClientPortfolioPage() {
     void lines.refetch();
     // Saving the holdings is what writes a day of history, and converting rewrites every day of it.
     void queryClient.invalidateQueries({ queryKey: getGetClientValuationsQueryKey(customerId) });
-    void queryClient.invalidateQueries({ queryKey: getGetClientAttributionQueryKey(customerId) });
   };
   const setModel = useSetClientModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
   // Taking back a holding added since Edit was pressed, when Discard is confirmed.
@@ -899,12 +894,12 @@ export function ClientPortfolioPage() {
 
       <ValuationHistoryPanel customerId={customerId} />
 
-      <FixedIncomePanel customerId={customerId} />
-
-      <ExposurePanel customerId={customerId} />
-
-      <AttributionPanel customerId={customerId} />
-
+      {/* What the bonds do, where the money sits and where the change came from used to follow. Each was
+          built for a feed the firm does not have yet: no holding carries a yield, a duration, a country or
+          a sector, and a day of history is only written when somebody saves — so the first two said "no
+          bond carries a yield yet" under every client, and the third measured one client's whole portfolio
+          as ninety-nine per cent down because the only other day it had was an old test figure. Three
+          panels that cannot answer are worse than three panels that are not there. */}
       {standing.data && (
         <WhatIfPanel customerId={customerId} standing={standing.data} editing={editing} />
       )}
