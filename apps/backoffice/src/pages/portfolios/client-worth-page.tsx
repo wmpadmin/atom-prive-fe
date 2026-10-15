@@ -11,9 +11,10 @@ import {
   useRemoveClientLoan,
   useRemoveNonFinancialAsset,
   type ClientLoans,
+  type LoanRequestSecuredOn,
   type ClientNonFinancialAssets,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, IconButton, TextArea, TextInput, cn } from "@atomprive/ui";
+import { Alert, Button, IconButton, SelectInput, TextArea, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -31,12 +32,17 @@ type Line = {
   id: string | null;
   /** The short name. Empty on a loan, which says what it is in one line and has no second box. */
   item: string;
+  /**
+   * What a loan is secured on. Only one against the portfolio comes off the Net AUM: a mortgage on a
+   * flat is money the portfolio never received and cannot be sold to repay. Nothing on what they own.
+   */
+  securedOn: LoanRequestSecuredOn;
   description: string;
   /** Kept as a string so a half-typed figure is not rounded away under the cursor. */
   amount: string;
 };
 
-const NOTHING_YET: Line = { id: null, item: "", description: "", amount: "" };
+const NOTHING_YET: Line = { id: null, item: "", description: "", amount: "", securedOn: "PORTFOLIO" };
 
 /** Figures only, and one point. Letters in a money box are not a small mistake to round away. */
 function asFigure(typed: string, before: string) {
@@ -93,6 +99,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
       item: one.item,
       description: one.description ?? "",
       amount: String(one.valueAmount),
+      securedOn: "PORTFOLIO" as const,
     })),
     NOTHING_YET,
   ], [owned.data]);
@@ -101,6 +108,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
       id: one.id,
       item: "",
       description: one.description,
+      securedOn: one.securedOn,
       // Shown as a plain figure, because nobody writes a minus sign to say what they owe. It is kept
       // negative, so what comes back is turned round to be read.
       amount: String(Math.abs(one.valueAmount)),
@@ -173,13 +181,17 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
         const data = {
           description: one.description.trim(),
           valueAmount: isNumber(one.amount) ? Number(one.amount) : 0,
+          securedOn: one.securedOn,
         };
         if (one.id === null) {
           await writeOwed.mutateAsync({ customerId, data });
           continue;
         }
         const was = wasOwed.get(one.id);
-        if (was?.description === one.description && was.amount === one.amount) continue;
+        if (was?.description === one.description && was.amount === one.amount
+            && was.securedOn === one.securedOn) {
+          continue;
+        }
         await changeOwed.mutateAsync({ customerId, id: one.id, data });
       }
 
@@ -296,8 +308,9 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
             {owedTotal > 0 ? `${money(owedTotal, true)} ${currency}` : "—"}
           </p>
         </header>
-        <div className="grid grid-cols-[1fr_8rem_2.25rem] items-center gap-3 px-4 pt-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+        <div className="grid grid-cols-[1fr_11rem_8rem_2.25rem] items-center gap-3 px-4 pt-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           <span>Description</span>
+          <span>Secured on</span>
           <span className="text-right">Owed</span>
           <span className="sr-only">Take it off</span>
         </div>
@@ -305,7 +318,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
           {owedRows.map((one, at) => (
             <li
               key={one.id ?? `new-${at}`}
-              className="grid grid-cols-[1fr_8rem_2.25rem] items-start gap-3 px-4 py-1.5"
+              className="grid grid-cols-[1fr_11rem_8rem_2.25rem] items-start gap-3 px-4 py-1.5"
             >
               <TextArea
                 aria-label={`What the client owes, line ${at + 1}`}
@@ -315,6 +328,18 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
                 value={one.description}
                 onChange={(event) => putOwed(at, { description: event.target.value })}
               />
+              {/* Only a loan against the portfolio comes off the Net AUM. One against a flat belongs
+                  against the flat: the portfolio never had the money and cannot be sold to repay it. */}
+              <SelectInput
+                aria-label={`What ${one.description || `line ${at + 1}`} is secured on`}
+                className={BOX}
+                value={one.securedOn}
+                onChange={(event) =>
+                  putOwed(at, { securedOn: event.target.value as LoanRequestSecuredOn })}
+              >
+                <option value="PORTFOLIO">The portfolio</option>
+                <option value="NON_FINANCIAL">Something they own</option>
+              </SelectInput>
               <div className="relative">
                 <TextInput
                   aria-label={`What is owed on ${one.description || `line ${at + 1}`}`}
