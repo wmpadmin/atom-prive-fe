@@ -193,7 +193,9 @@ export function ClientAllocationPage() {
         queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),
         queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) }),
       ]);
-      void navigate("/portfolio-clients");
+      // On to what they own that nobody manages, which is the other half of what a client is worth and
+      // the only part of it this screen cannot be asked for.
+      void navigate(`/portfolio-clients/${customerId}/non-financial`);
     }
     catch (caught) {
       setErrors(toFormErrors(caught as ApiError));
