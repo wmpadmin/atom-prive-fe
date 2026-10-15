@@ -1195,7 +1195,9 @@ export function ClientHoldingsPanel({
                               places={capacityIn(one.subClasses, group, band, one.valueAmount)}
                               className={one.assetClassName || one.assetClass}
                               currency={currency}
-                              span={readOnly ? 6 : 7}
+                              /* Every column of the table above, so the plan sits square under it rather
+                                 than stopping two columns short of its right edge. */
+                              span={readOnly ? 8 : 9}
                               readOnly={readOnly}
                               claim={claimTheMove}
                               release={releaseTheMove}

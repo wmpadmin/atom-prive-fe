@@ -505,9 +505,11 @@ export function ClientPortfolioPage() {
   }
 
   return (
-    /* Capped: on a wide screen every box stretched to fill the window, which left a date sitting in
-       the corner of an acre of white and a figure typed into a field a thousand pixels across. */
-    <div className="mx-auto w-full max-w-[82rem] space-y-6">
+    /* Capped, but wide enough for the widest thing on it. Uncapped, every box stretched to fill the
+       window and left a date sitting in the corner of an acre of white; at the old cap the sub-asset
+       table had eight columns to fit and wrapped half its headings onto a second line. This is the
+       width at which they stop wrapping. */
+    <div className="mx-auto w-full max-w-[100rem] space-y-6">
       {/* Typing into a box and walking off used to lose it without a word. */}
       <LeaveWithoutSaving
         when={unsaved}
