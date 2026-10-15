@@ -206,7 +206,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
 
       {/* What they own. Three boxes, because a flat and a painting need different things said about them. */}
       <section className="rounded-2xl border border-line bg-white">
-        <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-2">
+        <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink/15 px-4 py-2">
           <h2 className="font-semibold text-ink">Non Financial Asset</h2>
           <p className="text-sm font-bold tabular-nums text-ink">
             {ownedTotal > 0 ? `${money(ownedTotal, false)} ${currency}` : "—"}
@@ -222,7 +222,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
           <span className="text-right">Value</span>
           <span className="sr-only">Take it off</span>
         </div>
-        <ul className="divide-y divide-line">
+        <ul className="divide-y divide-ink/15">
           {ownedRows.map((one, at) => (
             <li
               key={one.id ?? `new-${at}`}
@@ -272,7 +272,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
           ))}
         </ul>
 
-        <div className="border-t border-line px-4 py-1.5">
+        <div className="border-t border-ink/15 px-4 py-1.5">
           <button
             type="button"
             onClick={() => setOwned([...ownedRows, NOTHING_YET])}
@@ -286,7 +286,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
 
       {/* Loans. One line of text, because who it is from and what it is secured on is one answer. */}
       <section className="rounded-2xl border border-line bg-white">
-        <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-2">
+        <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink/15 px-4 py-2">
           <h2 className="font-semibold text-ink">Loan</h2>
           <p className={cn("text-sm font-bold tabular-nums", owedTotal > 0 ? "text-red-700" : "text-ink")}>
             {owedTotal > 0 ? `${money(owedTotal, true)} ${currency}` : "—"}
@@ -301,7 +301,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
           <span className="text-right">Owed</span>
           <span className="sr-only">Take it off</span>
         </div>
-        <ul className="divide-y divide-line">
+        <ul className="divide-y divide-ink/15">
           {owedRows.map((one, at) => (
             <li
               key={one.id ?? `new-${at}`}
@@ -345,7 +345,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
           ))}
         </ul>
 
-        <div className="border-t border-line px-4 py-1.5">
+        <div className="border-t border-ink/15 px-4 py-1.5">
           <button
             type="button"
             onClick={() => setOwed([...owedRows, NOTHING_YET])}

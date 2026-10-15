@@ -246,7 +246,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
         const inClass = adds(rows);
         return (
           <section key={one.code} className="rounded-2xl border border-line bg-white">
-            <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-2">
+            <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink/15 px-4 py-2">
               <h2 className="flex items-center gap-2.5 font-semibold text-ink">
                 <span aria-hidden="true" className={cn("size-2.5 rounded-full", barFor(one.code, assetClasses.all))} />
                 {one.name}
@@ -267,7 +267,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
                 <li
                   key={`head-${half}`}
                   className={cn(
-                    "flex items-center gap-3 border-b border-line py-1 text-2xs font-semibold tracking-wider text-ink-muted uppercase",
+                    "flex items-center gap-3 border-b border-ink/15 py-1 text-2xs font-semibold tracking-wider text-ink-muted uppercase",
                     half === 1 && "hidden sm:flex",
                   )}
                 >
@@ -277,7 +277,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
                 </li>
               ))}
               {rows.map((line, at) => (
-                <li key={at} className="flex items-center gap-3 border-b border-line py-1">
+                <li key={at} className="flex items-center gap-3 border-b border-ink/15 py-1">
                   {line.theFirms ? (
                     <span className="min-w-0 flex-1 truncate text-sm text-ink">{line.name}</span>
                   ) : (
@@ -335,7 +335,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
             {/* A class is not typed in: it is what the lines inside it come to. Set out under them, in
                 the column they were typed in, so it reads as the sum rather than a figure of its own. */}
             {rows.length > 0 && (
-              <div className="flex items-center gap-3 border-t-2 border-ink/15 px-4 py-1.5">
+              <div className="flex items-center gap-3 border-t-2 border-ink/30 px-4 py-1.5">
                 <span className="min-w-0 flex-1 text-sm font-semibold text-ink">
                   {one.name}, added up
                 </span>
