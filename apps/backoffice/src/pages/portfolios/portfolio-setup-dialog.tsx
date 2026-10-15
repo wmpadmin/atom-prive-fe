@@ -1,5 +1,6 @@
-import { cn } from "@atomprive/ui";
-import { Dialog } from "@atomprive/ui";
+import { ApiError } from "@atomprive/api-client";
+import { useGetCustomer, type CustomerDetail } from "@atomprive/api-client/backoffice";
+import { Dialog, cn } from "@atomprive/ui";
 import { useState } from "react";
 import { AllocationStep } from "./client-allocation-page";
 import { OweStep } from "./client-loans-page";
@@ -29,13 +30,15 @@ const STEPS = [
  */
 export function PortfolioSetupDialog({
   customerId,
-  clientName,
   onClose,
 }: {
   customerId: string;
-  clientName: string;
   onClose: () => void;
 }) {
+  // Looked up here rather than handed in, so anything that can name a client can open this — the drift
+  // queue and the manager's dashboard hold an id and nothing else.
+  const client = useGetCustomer<CustomerDetail, ApiError>(customerId);
+  const clientName = client.data?.client.fullName ?? "this client";
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const back = (at: 1 | 2) => () => setStep(at);
 
