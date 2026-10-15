@@ -51,7 +51,7 @@ export function PortfolioSetupDialog({
     <Dialog
       open
       size="xl"
-      title={`Set up ${clientName}'s portfolio`}
+      title={`Net AUM calculator for ${clientName}`}
       onClose={onClose}
     >
       {/* One bar a step, named, filled behind where somebody is. A step already done is a way back to
