@@ -5,6 +5,7 @@ import {
   useGetCustomer,
   useListClientHoldings,
   useRecordClientHolding,
+  useSetClientHoldings,
   type ClientHoldings,
   type CustomerDetail,
 } from "@atomprive/api-client/backoffice";
@@ -38,7 +39,10 @@ function isNumber(typed: string) {
 }
 
 function adds(lines: Line[]) {
-  return lines.reduce((total, one) => total + (isNumber(one.amount) ? Number(one.amount) : 0), 0);
+  const total = lines.reduce((sum, one) => sum + (isNumber(one.amount) ? Number(one.amount) : 0), 0);
+  // To the penny the figures are kept in. A sum carried at full floating-point precision is refused by
+  // the API, which compares it against a class total worked out to two places from the same lines.
+  return Math.round(total * 100) / 100;
 }
 
 /**
@@ -59,6 +63,7 @@ export function ClientAllocationPage() {
   const holdings = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const write = useRecordClientHolding<ApiError>();
+  const setHoldings = useSetClientHoldings<ApiError>();
 
   // Seeded once from the firm's list, which may not have arrived on the first render — so it is rebuilt
   // when it does, and anything typed by then is kept over the top of it.
@@ -116,6 +121,20 @@ export function ClientAllocationPage() {
           });
         }
       }
+      // And then the figure they all come to, kept as the portfolio's own. Every class's total is sent
+      // back exactly as its lines come to, because the API refuses to be told a different total for a
+      // class written down line by line — which is the whole of what was just written.
+      const perClass: Record<string, number> = {};
+      for (const assetClass of codes) {
+        const inClass = adds(lines[assetClass] ?? []);
+        if (inClass > 0) {
+          perClass[assetClass] = inClass;
+        }
+      }
+      await setHoldings.mutateAsync({
+        customerId,
+        data: { holdings: perClass, currency: currency || null, netAum: whole },
+      });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),
         queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) }),
@@ -286,8 +305,12 @@ export function ClientAllocationPage() {
         <Button variant="secondary" type="button" onClick={() => void navigate("/portfolio-clients")}>
           Cancel
         </Button>
-        <Button type="button" disabled={write.isPending || !readable || !anything} onClick={() => void save()}>
-          {write.isPending ? "Writing it down…" : "Write it down"}
+        <Button
+          type="button"
+          disabled={write.isPending || setHoldings.isPending || !readable || !anything}
+          onClick={() => void save()}
+        >
+          {(write.isPending || setHoldings.isPending) ? "Writing it down…" : "Write it down"}
         </Button>
       </div>
     </div>
