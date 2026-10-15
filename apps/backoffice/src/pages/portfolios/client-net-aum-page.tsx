@@ -102,7 +102,7 @@ export function NetAumStep({ customerId, onDone, onBack }: StepProps) {
   const leverage = investmentAum === 0 ? null : (netCash / investmentAum) * 100;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-1 flex-col space-y-6">
       <section className="rounded-2xl border border-line bg-white">
         <header className="border-b border-ink/15 px-4 py-2">
           <h2 className="font-semibold text-ink">What it comes to</h2>
@@ -145,7 +145,7 @@ export function NetAumStep({ customerId, onDone, onBack }: StepProps) {
         </p>
       </section>
 
-      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
+      <div className="mt-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
         <Button variant="secondary" size="lg" type="button" onClick={onBack}>
           Back
         </Button>

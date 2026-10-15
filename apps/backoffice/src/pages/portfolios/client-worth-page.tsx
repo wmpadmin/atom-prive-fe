@@ -219,7 +219,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
     (figure > 0 ? (brackets ? `(${figure.toLocaleString()})` : figure.toLocaleString()) : "—");
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-1 flex-col space-y-4">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       {/* What they own. Three boxes, because a flat and a painting need different things said about them. */}
@@ -390,7 +390,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
         <Alert tone="danger">A figure box has something in it that is not a figure.</Alert>
       )}
 
-      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
+      <div className="mt-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
         <Button variant="secondary" size="lg" type="button" onClick={onBack}>
           Back
         </Button>
