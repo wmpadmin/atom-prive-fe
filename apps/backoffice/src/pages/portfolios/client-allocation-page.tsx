@@ -4,7 +4,9 @@ import {
   getListClientHoldingsQueryKey,
   useGetCustomer,
   useListClientHoldings,
+  useChangeClientHolding,
   useRecordClientHolding,
+  useRemoveClientHolding,
   useSetClientHoldings,
   type ClientHoldings,
   type CustomerDetail,
@@ -20,6 +22,8 @@ import { useSubAssetClasses } from "./sub-asset-classes";
 
 /** One line somebody is writing down: where it sits, what it is called, and what it is worth. */
 type Line = {
+  /** What this line is already written down as, where it is. Null for one nobody has written yet. */
+  id: string | null;
   /** The name as it will be stored. The firm's lines keep theirs; a line of this client's own is theirs to reword. */
   name: string;
   /** What is in it, as typed. Kept as a string so a half-typed figure is not rounded away under the cursor. */
@@ -63,6 +67,8 @@ export function ClientAllocationPage() {
   const holdings = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const write = useRecordClientHolding<ApiError>();
+  const change = useChangeClientHolding<ApiError>();
+  const forget = useRemoveClientHolding<ApiError>();
   const setHoldings = useSetClientHoldings<ApiError>();
 
   // Seeded once from the firm's list, which may not have arrived on the first render — so it is rebuilt
@@ -71,11 +77,41 @@ export function ClientAllocationPage() {
   const blank = useMemo(() => {
     const made: Record<string, Line[]> = {};
     for (const one of assetClasses.inUse) {
-      made[one.code] = (subAssets.byClass[one.code] ?? []).map((name) => ({ name, amount: "", theFirms: true }));
+      // What this client already has written down under this class, by the name it was written under.
+      const written = (holdings.data?.classes ?? [])
+        .find((each) => each.assetClass === one.code)?.subClasses
+        .flatMap((group) => group.positions) ?? [];
+      const byName = new Map(written.map((each) => [(each.subClass ?? each.name).trim(), each]));
+      const rows: Line[] = (subAssets.byClass[one.code] ?? []).map((name) => {
+        const already = byName.get(name);
+        byName.delete(name);
+        return {
+          id: already?.id ?? null,
+          name,
+          amount: (already == null) ? "" : String(already.valueAmount),
+          theFirms: true,
+        };
+      });
+      // Written down under a name the firm does not list: this client's own, and theirs to reword.
+      for (const each of byName.values()) {
+        rows.push({
+          id: each.id,
+          name: (each.subClass ?? each.name).trim(),
+          amount: String(each.valueAmount),
+          theFirms: false,
+        });
+      }
+      made[one.code] = rows;
     }
     return made;
-  }, [assetClasses.inUse, subAssets.byClass]);
+  }, [assetClasses.inUse, subAssets.byClass, holdings.data]);
   const lines: Record<string, Line[]> = { ...blank, ...typed };
+  // What each written line was when it was read, so a save can leave alone the ones nobody touched.
+  // Pressing Write it down on a portfolio of two dozen lines was two dozen calls, every one of them
+  // sending a figure back exactly as it came.
+  const asRead = new Map(Object.values(blank).flat()
+    .filter((line) => line.id !== null)
+    .map((line) => [line.id, line]));
   const codes = assetClasses.inUse.map((one) => one.code);
 
   function put(assetClass: string, rows: Line[]) {
@@ -83,6 +119,7 @@ export function ClientAllocationPage() {
   }
 
   const currency = holdings.data?.currency ?? "";
+  const busy = write.isPending || change.isPending || forget.isPending || setHoldings.isPending;
   const whole = codes.reduce((total, code) => total + adds(lines[code] ?? []), 0);
   // Nothing is written down until every figure is a figure, and a line nobody has named cannot be stored.
   const unreadable = codes.flatMap((code) =>
@@ -97,28 +134,45 @@ export function ClientAllocationPage() {
   const readable = unreadable.length === 0 && unnamed.length === 0 && twiceNamed.length === 0;
   const anything = whole > 0;
 
-  // Written one line at a time, because that is what the API takes. Anything already written down is left
-  // alone: this screen is for a portfolio nobody has set out yet, not a second way to edit one.
+  /**
+   * Written one line at a time, because that is what the API takes.
+   *
+   * <p>A line already written down is changed where it has a figure and taken off where it no longer has
+   * one — emptying a box is how somebody says the client holds none of it, and leaving the line standing
+   * at its old figure would be ignoring them. A line nobody has written yet is only written where it has
+   * a figure, so a class left untouched writes nothing at all.
+   */
   async function save() {
     setErrors(noErrors);
     try {
       for (const assetClass of codes) {
         for (const line of lines[assetClass] ?? []) {
-          if (!isNumber(line.amount) || Number(line.amount) <= 0) {
+          const holds = isNumber(line.amount) && Number(line.amount) > 0;
+          if (!holds) {
+            if (line.id !== null) {
+              await forget.mutateAsync({ customerId, id: line.id });
+            }
             continue;
           }
-          await write.mutateAsync({
-            customerId,
-            data: {
-              assetClass,
-              subClass: line.name.trim(),
-              name: line.name.trim(),
-              identifier: null, issuer: null, countryCode: null, creditRating: null, sector: null,
-              yieldPercent: null, durationYears: null,
-              valueAmount: Number(line.amount),
-              watchPp: null, edgePp: null, breachPp: null,
-            },
-          });
+          const data = {
+            assetClass,
+            subClass: line.name.trim(),
+            name: line.name.trim(),
+            identifier: null, issuer: null, countryCode: null, creditRating: null, sector: null,
+            yieldPercent: null, durationYears: null,
+            valueAmount: Number(line.amount),
+            watchPp: null, edgePp: null, breachPp: null,
+          };
+          if (line.id !== null) {
+            const was = asRead.get(line.id);
+            if (was?.amount === line.amount && was.name === line.name) {
+              continue;
+            }
+            await change.mutateAsync({ customerId, id: line.id, data });
+          }
+          else {
+            await write.mutateAsync({ customerId, data });
+          }
         }
       }
       // And then the figure they all come to, kept as the portfolio's own. Every class's total is sent
@@ -257,7 +311,7 @@ export function ClientAllocationPage() {
             <div className="border-t border-line px-5 py-2.5">
               <button
                 type="button"
-                onClick={() => put(one.code, [...rows, { name: "", amount: "", theFirms: false }])}
+                onClick={() => put(one.code, [...rows, { id: null, name: "", amount: "", theFirms: false }])}
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
               >
                 <Plus aria-hidden="true" className="size-3.5" />
@@ -307,10 +361,10 @@ export function ClientAllocationPage() {
         </Button>
         <Button
           type="button"
-          disabled={write.isPending || setHoldings.isPending || !readable || !anything}
+          disabled={busy || !readable || !anything}
           onClick={() => void save()}
         >
-          {(write.isPending || setHoldings.isPending) ? "Writing it down…" : "Write it down"}
+          {busy ? "Writing it down…" : "Write it down"}
         </Button>
       </div>
     </div>
