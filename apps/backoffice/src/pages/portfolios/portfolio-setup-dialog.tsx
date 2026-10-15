@@ -46,9 +46,13 @@ const STEPS = [
 export function PortfolioSetupDialog({
   customerId,
   onClose,
+  onFinish,
 }: {
   customerId: string;
+  /** Left without finishing: the X, Escape, the ground beside the dialog. */
   onClose: () => void;
+  /** Done on the last step. Worked through to the end, which is a different thing from walking away. */
+  onFinish: () => void;
 }) {
   // Looked up here rather than handed in, so anything that can name a client can open this — the drift
   // queue and the manager's dashboard hold an id and nothing else.
@@ -114,7 +118,7 @@ export function PortfolioSetupDialog({
         {settled && step === 1 && <AllocationStep customerId={customerId} onDone={() => setStep(2)} />}
         {settled && step === 2 && <WorthStep customerId={customerId} onDone={() => setStep(3)} onBack={() => setStep(1)} />}
         {settled && step === 3 && <NetAumStep customerId={customerId} onDone={() => setStep(4)} onBack={() => setStep(2)} />}
-        {settled && step === 4 && <ModelStep customerId={customerId} onDone={onClose} onBack={() => setStep(3)} />}
+        {settled && step === 4 && <ModelStep customerId={customerId} onDone={onFinish} onBack={() => setStep(3)} />}
       </div>
     </Dialog>
   );

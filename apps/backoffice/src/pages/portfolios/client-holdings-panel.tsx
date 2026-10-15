@@ -224,9 +224,14 @@ type Destination = { name: string; room: number; into: PositionRow | null };
  * <p>This rule finds nothing where a whole class already holds more than the model asks of it, since then
  * every line in it is over its own target too. That is the honest answer, and the table above the classes
  * is where it is explained: the money has to leave the class, and no shuffle inside can do it.
+ *
+ * <p>Measured inside the class, which is the frame a sub-asset is judged in: the model asks a sub-asset for
+ * a share of its own class, so the distance to that is a share of what the class is worth. Worked against
+ * the whole portfolio instead, a line in a class holding a tenth of the book came out with ten times the
+ * room it had, and the split below would have offered money to a sub-asset that could not take it.
  */
-function roomFor(targetShare: number, share: number, whole: number) {
-  const room = (whole * (targetShare - share)) / 100;
+function roomFor(targetShare: number, share: number, classTotal: number) {
+  const room = (classTotal * (targetShare - share)) / 100;
   // A whole unit or it is nothing. A share worked out by division lands a hair either side of its target,
   // so a sub-asset sitting exactly where the model asks came out with room for a ten-thousandth of a penny
   // and took a row in the table to say USD 0.
@@ -241,22 +246,19 @@ function roomFor(targetShare: number, share: number, whole: number) {
  * room" while the model was asking for money in three of them.
  */
 function roomIn(groups: SubClassGroup[], except: SubClassGroup, model: ModelLine[],
-  whole: number): Destination[] {
+  classTotal: number): Destination[] {
   const places: Destination[] = [];
   for (const one of groups) {
     if (one === except || one.subClass === null) continue;
-    // A group's share is of its class now, and roomFor works it against the whole portfolio: this
-    // figure is wrong until the screen is reworked for that. It is left standing rather than quietly
-    // corrected because the screen itself is off — nothing reaches it, and guessing at what the room
-    // should be would bury the question rather than answer it.
-    const room = roomFor(one.targetShare ?? 0, one.shareOfClass, whole);
+    const room = roomFor(one.targetShare ?? 0, one.shareOfClass, classTotal);
     if (room > 0) places.push({ name: one.subClass, room, into: one.positions[0] ?? null });
   }
   const written = new Set(groups.map((one) => one.subClass));
   for (const line of model) {
     if (written.has(line.name) || line.name === except.subClass) continue;
-    // Nothing is held here, so the whole of what the model asks of it is still to be put there.
-    const room = roomFor(line.shareOfPortfolio, 0, whole);
+    // Nothing is held here, so the whole of what the model asks of it is still to be put there — asked of
+    // the class, the same as every line above, rather than of the book.
+    const room = roomFor(line.shareOfClass, 0, classTotal);
     if (room > 0) places.push({ name: line.name, room, into: null });
   }
   return places.sort((first, second) => second.room - first.room);
@@ -1134,7 +1136,7 @@ export function ClientHoldingsPanel({
                               assetClass={one.assetClass}
                               places={roomIn(one.subClasses, group,
                                 held.data?.modelSubClasses?.[one.assetClass] ?? [],
-                                held.data?.underManagement ?? 0)}
+                                one.valueAmount)}
                               className={one.assetClassName || one.assetClass}
                               currency={currency}
                               span={readOnly ? 6 : 7}
