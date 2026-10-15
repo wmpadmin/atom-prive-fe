@@ -64,8 +64,11 @@ export function PortfolioSettingsPage() {
 
   const figures = [watchAt, edgeAt, breachAt, minimumTrade, reviewEveryMonths];
   const readable = figures.every((typed) => typed.trim() !== "" && Number.isFinite(Number(typed)));
-  // The bands have to widen, or a drift would be at the edge before it was worth watching.
-  const widen = readable && Number(watchAt) < Number(edgeAt) && Number(edgeAt) < Number(breachAt);
+  // The bands may not narrow, or a drift would be broken before it was worth watching. Equal is allowed
+  // and is how the firm writes them now: one figure said three times, which collapses the ladder to the
+  // single verdict the firm asked for — nothing can be past an edge equal to the breach without being past
+  // the breach first.
+  const widen = readable && Number(watchAt) <= Number(edgeAt) && Number(edgeAt) <= Number(breachAt);
 
   function submit(event: FormEvent) {
     event.preventDefault();
