@@ -84,12 +84,17 @@ export function NetAumStep({ customerId, onDone, onBack }: StepProps) {
   const allocation = holdings.data?.underManagement ?? 0;
   const cash = (holdings.data?.classes ?? []).find((one) => one.assetClass === CASH)?.valueAmount ?? 0;
   const nonFinancial = owned.data?.total ?? 0;
-  // Negative, as it is kept, so everything below adds it.
-  const loans = owed.data?.total ?? 0;
+  // Negative, as they are kept, so everything below adds them. Only the part secured on the portfolio
+  // belongs in a Net AUM: a mortgage on a flat is money the portfolio never received and cannot be sold
+  // to repay, so allowing for it would make the portfolio smaller than it is.
+  const loans = owed.data?.againstThePortfolio ?? 0;
+  const againstWhatTheyOwn = owed.data?.againstNonFinancial ?? 0;
 
-  const nav = allocation + nonFinancial;
+  // What they own, less what is borrowed against it — the flat net of its mortgage.
+  const nonFinancialNet = nonFinancial + againstWhatTheyOwn;
+  const nav = allocation + nonFinancialNet;
   // Everything owned, less the part of it nobody manages — which is the allocation again, by construction.
-  const investmentAum = nav - nonFinancial;
+  const investmentAum = nav - nonFinancialNet;
   const grossAum = investmentAum;
   const netCash = cash + loans;
   const netAum = grossAum + loans;
@@ -104,8 +109,16 @@ export function NetAumStep({ customerId, onDone, onBack }: StepProps) {
         </header>
         <Row label="Total allocation" working="the six classes, added up" value={allocation} lead currency={currency} />
         <Row label="Non Financial Asset" working="the list of what nobody manages" value={nonFinancial} lead currency={currency} />
+        {againstWhatTheyOwn !== 0 && (
+          <Row
+            label="less: borrowed against what they own"
+            working="a mortgage belongs against the flat, not the portfolio"
+            value={againstWhatTheyOwn}
+            currency={currency}
+          />
+        )}
         <Row label="Investment NAV ($)" working="allocation + non-financial" value={nav} currency={currency} />
-        <Row label="less: Non Financial Asset" value={-nonFinancial} currency={currency} />
+        <Row label="less: Non Financial Asset" value={-nonFinancialNet} currency={currency} />
         <Row label="Investment AUM ($)" working="NAV − non-financial" value={investmentAum} currency={currency} />
         <Row label="Gross AUM ($)" working="= Investment AUM" value={grossAum} currency={currency} />
       </section>
@@ -115,7 +128,7 @@ export function NetAumStep({ customerId, onDone, onBack }: StepProps) {
           <h2 className="font-semibold text-ink">Cash and borrowing</h2>
         </header>
         <Row label="Cash" working="the Cash & cash equivalents class" value={cash} lead currency={currency} />
-        <Row label="Loan" working="what is owed, added up" value={loans} lead currency={currency} />
+        <Row label="Loan" working="what is owed against the portfolio" value={loans} lead currency={currency} />
         <Row label="Net cash / (loan)" working="cash + loan" value={netCash} currency={currency} />
         <Row label="Leverage (% of Investment AUM)" working="net cash ÷ Investment AUM" value={leverage} percent currency={currency} />
       </section>
@@ -125,7 +138,7 @@ export function NetAumStep({ customerId, onDone, onBack }: StepProps) {
           <h2 className="font-semibold text-ink">Net AUM</h2>
         </header>
         <Row label="Gross AUM ($)" value={grossAum} currency={currency} />
-        <Row label="add: Loan" working="it is kept negative, so adding it takes it off" value={loans} currency={currency} />
+        <Row label="add: Loan" working="the part secured on the portfolio, kept negative" value={loans} currency={currency} />
         <Row label="Net AUM ($)" value={netAum} total currency={currency} />
         <p className="px-4 py-2 text-xs text-ink-muted">
           Every percentage this portfolio is read against is a share of this figure.

@@ -790,6 +790,14 @@ export interface PortfolioStanding {
   unwritten: number;
 }
 
+export type LoanRequestSecuredOn = typeof LoanRequestSecuredOn[keyof typeof LoanRequestSecuredOn];
+
+
+export const LoanRequestSecuredOn = {
+  PORTFOLIO: 'PORTFOLIO',
+  NON_FINANCIAL: 'NON_FINANCIAL',
+} as const;
+
 export interface LoanRequest {
   /**
      * @minLength 0
@@ -797,12 +805,22 @@ export interface LoanRequest {
      */
   description: string;
   valueAmount: number;
+  securedOn: LoanRequestSecuredOn;
 }
+
+export type LoanRowSecuredOn = typeof LoanRowSecuredOn[keyof typeof LoanRowSecuredOn];
+
+
+export const LoanRowSecuredOn = {
+  PORTFOLIO: 'PORTFOLIO',
+  NON_FINANCIAL: 'NON_FINANCIAL',
+} as const;
 
 export interface LoanRow {
   id: string;
   description: string;
   valueAmount: number;
+  securedOn: LoanRowSecuredOn;
 }
 
 export type HoldingsRequestHoldings = {[key: string]: number};
@@ -4554,6 +4572,8 @@ export interface ClientLoans {
   customerId: string;
   currency: string;
   total: number;
+  againstThePortfolio: number;
+  againstNonFinancial: number;
   loans: LoanRow[];
 }
 
