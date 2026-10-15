@@ -14,6 +14,13 @@ export type StepProps = {
   onBack?: () => void;
 };
 
+/**
+ * A box somebody can see the edge of. The kit draws every control at #e3e9f1, which against white is
+ * barely a box at all — on a screen that is almost entirely boxes, there is nothing to tell one from
+ * the gap beside it.
+ */
+export const BOX = "border-ink/20";
+
 const STEPS = [
   { at: 1, name: "What they hold" },
   { at: 2, name: "Non financial assets and loans" },
