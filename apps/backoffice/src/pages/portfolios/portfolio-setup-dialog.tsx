@@ -10,6 +10,7 @@ import { useState } from "react";
 import { AllocationStep } from "./client-allocation-page";
 import { ModelStep } from "./client-model-page";
 import { NetAumStep } from "./client-net-aum-page";
+import { isSetUp } from "./set-up";
 import { WorthStep } from "./client-worth-page";
 
 /** What each step is handed: whose portfolio it is, and the two ways out of it. */
@@ -60,13 +61,14 @@ export function PortfolioSetupDialog({
   const clientName = client.data?.client.fullName ?? "this client";
   const standing = useGetClientPortfolio<PortfolioStanding, ApiError>(customerId);
 
-  // Where to open. A client already set up and already on a plan is opened to the table, because that is
-  // what somebody opening them has come to read — walking them back through four steps of figures they
-  // wrote last week to reach it is making them prove the work again. One who is not is opened at the
-  // beginning, which is the only place their figures can come from.
+  // Where to open. A client already set up is opened to the table, because that is what somebody opening
+  // them has come to read — walking them back through four steps of figures they wrote last week to reach
+  // it is making them prove the work again. One who is not is opened at the beginning, which is the only
+  // place their figures can come from. Set up means both halves: a plan put on a client who has written
+  // nothing down opened to a table of a model's shares of nothing.
   const [chosen, setStep] = useState<1 | 2 | 3 | 4 | null>(null);
   const settled = standing.isSuccess || standing.isError;
-  const step = chosen ?? (standing.data?.modelPortfolioId ? 4 : 1);
+  const step = chosen ?? (isSetUp(standing.data) ? 4 : 1);
 
   return (
     <Dialog
