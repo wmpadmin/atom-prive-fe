@@ -323,7 +323,7 @@ export function ClientAllocationPage() {
       <section className="rounded-2xl border border-line bg-white px-5 py-4">
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
           <div>
-            <h2 className="font-semibold text-ink">Investment AUM ($)</h2>
+            <h2 className="font-semibold text-ink">Total</h2>
             <p className="mt-0.5 max-w-prose text-xs text-ink-muted">
               What all six classes come to. A house, a painting or a stake in their own company is not one of
               them and is written down{" "}
