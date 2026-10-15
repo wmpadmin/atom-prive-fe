@@ -131,7 +131,8 @@ export function NetAumStep({ customerId, onDone, onBack }: StepProps) {
         <Row label="add: Loan" working="it is kept negative, so adding it takes it off" value={loans} currency={currency} />
         <Row label="Net AUM ($)" value={netAum} total currency={currency} />
         <p className="px-4 py-2 text-xs text-ink-muted">
-          Every percentage this portfolio is read against is a share of this figure.
+          Every percentage this portfolio is read against is a share of this figure — which is what the
+          plan on the next step asks of it.
         </p>
       </section>
 
@@ -140,7 +141,7 @@ export function NetAumStep({ customerId, onDone, onBack }: StepProps) {
           Back
         </Button>
         <Button type="button" size="lg" onClick={onDone}>
-          Done
+          Next
         </Button>
       </div>
     </div>

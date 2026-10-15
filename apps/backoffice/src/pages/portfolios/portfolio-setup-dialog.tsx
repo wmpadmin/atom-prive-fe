@@ -3,6 +3,7 @@ import { useGetCustomer, type CustomerDetail } from "@atomprive/api-client/backo
 import { Dialog, cn } from "@atomprive/ui";
 import { useState } from "react";
 import { AllocationStep } from "./client-allocation-page";
+import { ModelStep } from "./client-model-page";
 import { NetAumStep } from "./client-net-aum-page";
 import { WorthStep } from "./client-worth-page";
 
@@ -26,6 +27,7 @@ const STEPS = [
   { at: 1, name: "What they hold" },
   { at: 2, name: "Non financial assets and loans" },
   { at: 3, name: "Net AUM" },
+  { at: 4, name: "The plan" },
 ] as const;
 
 /**
@@ -47,7 +49,7 @@ export function PortfolioSetupDialog({
   // queue and the manager's dashboard hold an id and nothing else.
   const client = useGetCustomer<CustomerDetail, ApiError>(customerId);
   const clientName = client.data?.client.fullName ?? "this client";
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
   return (
     <Dialog
@@ -65,7 +67,7 @@ export function PortfolioSetupDialog({
             <button
               type="button"
               disabled={one.at >= step}
-              onClick={() => setStep(one.at as 1 | 2 | 3)}
+              onClick={() => setStep(one.at as 1 | 2 | 3 | 4)}
               aria-label={`Back to step ${one.at}, ${one.name.toLowerCase()}`}
               className="block w-full"
             >
@@ -96,7 +98,8 @@ export function PortfolioSetupDialog({
       <div className="mt-4 flex flex-1 flex-col">
         {step === 1 && <AllocationStep customerId={customerId} onDone={() => setStep(2)} />}
         {step === 2 && <WorthStep customerId={customerId} onDone={() => setStep(3)} onBack={() => setStep(1)} />}
-        {step === 3 && <NetAumStep customerId={customerId} onDone={onClose} onBack={() => setStep(2)} />}
+        {step === 3 && <NetAumStep customerId={customerId} onDone={() => setStep(4)} onBack={() => setStep(2)} />}
+        {step === 4 && <ModelStep customerId={customerId} onDone={onClose} onBack={() => setStep(3)} />}
       </div>
     </Dialog>
   );
