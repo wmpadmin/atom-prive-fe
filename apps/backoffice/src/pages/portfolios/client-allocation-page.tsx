@@ -273,9 +273,9 @@ export function ClientAllocationPage() {
       <div className="fixed inset-x-0 bottom-0 border-t border-line bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-end gap-x-4 gap-y-2 px-6 py-3">
           <p className="mr-auto text-sm text-ink-soft">
-            Written down so far{" "}
+            Investment AUM ($){" "}
             <span className="font-bold tabular-nums text-ink">
-              {whole > 0 ? `${whole.toLocaleString()} ${currency}` : "nothing yet"}
+              {whole > 0 ? `${whole.toLocaleString()} ${currency}` : "—"}
             </span>
           </p>
           <Button variant="secondary" type="button" onClick={() => void navigate("/portfolio-clients")}>
