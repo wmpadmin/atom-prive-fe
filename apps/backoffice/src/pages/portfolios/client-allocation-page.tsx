@@ -132,7 +132,7 @@ export function ClientAllocationPage() {
   }
 
   return (
-    <div className="space-y-6 pb-28">
+    <div className="space-y-6">
       <div>
         <Link to="/portfolio-clients" className="text-xs font-semibold text-primary-700 hover:underline">
           ← Back to the clients
@@ -286,17 +286,15 @@ export function ClientAllocationPage() {
         <Alert tone="danger">A figure box has something in it that is not a figure.</Alert>
       )}
 
-      {/* Kept in sight at the foot, because the total is the figure every percentage on the next screen is
-          worked out against and this page is longer than the window. */}
-      <div className="fixed inset-x-0 bottom-0 border-t border-line bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-end gap-x-4 gap-y-2 px-6 py-3">
-          <Button variant="secondary" type="button" onClick={() => void navigate("/portfolio-clients")}>
-            Cancel
-          </Button>
-          <Button type="button" disabled={write.isPending || !readable || !anything} onClick={() => void save()}>
-            {write.isPending ? "Writing it down…" : "Write it down"}
-          </Button>
-        </div>
+      {/* In the page rather than lying over it: the figure that had to be kept in sight is said at the
+          end now, so the buttons can line up with the cards above them like every other screen's do. */}
+      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
+        <Button variant="secondary" type="button" onClick={() => void navigate("/portfolio-clients")}>
+          Cancel
+        </Button>
+        <Button type="button" disabled={write.isPending || !readable || !anything} onClick={() => void save()}>
+          {write.isPending ? "Writing it down…" : "Write it down"}
+        </Button>
       </div>
     </div>
   );
