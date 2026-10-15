@@ -279,7 +279,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
                   )}
                 >
                   <span className="min-w-0 flex-1">Sub-asset</span>
-                  <span className="w-28 shrink-0 text-right">Current allocation</span>
+                  <span className="w-40 shrink-0 text-right">Current allocation</span>
                   <span className="w-9 shrink-0" />
                 </li>
               ))}
@@ -299,11 +299,11 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
                       }
                     />
                   )}
-                  <div className="relative w-28 shrink-0">
+                  <div className="relative w-40 shrink-0">
                     <TextInput
                       aria-label={`What is in ${line.name || "this line"}`}
                       inputMode="decimal"
-                      className={cn(BOX, "text-right", currency && "pr-12")}
+                      className={cn(BOX, "text-right tabular-nums", currency && "pr-11")}
                       value={line.amount}
                       onChange={(event) =>
                         put(one.code, rows.map((was, which) =>
@@ -313,7 +313,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
                     {currency && (
                       <span
                         aria-hidden="true"
-                        className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-ink-muted"
+                        className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-2xs text-ink-muted"
                       >
                         {currency}
                       </span>
