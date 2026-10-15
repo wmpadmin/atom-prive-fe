@@ -471,7 +471,6 @@ export type BandRequestBasis = typeof BandRequestBasis[keyof typeof BandRequestB
 
 export const BandRequestBasis = {
   ABSOLUTE: 'ABSOLUTE',
-  RELATIVE: 'RELATIVE',
 } as const;
 
 export interface BandRequest {
