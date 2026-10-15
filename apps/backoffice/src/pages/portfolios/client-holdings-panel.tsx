@@ -364,8 +364,8 @@ function sameBut(row: PositionRow, valueAmount: number) {
  * <p>Move writes it down: the figure comes off this sub-asset and goes on to that one, in one go. Discard
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
-function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, currency, span, readOnly,
-  claim, release, elsewhere, asksForNone, waiting, onMoved }: {
+function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, currency, readOnly,
+  claim, release, asksForNone, onMoved }: {
   customerId: string;
   assetClass: string;
   spare: number;
@@ -381,18 +381,13 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   places: Destination[];
   className: string;
   currency: string;
-  span: number;
   /** Read somewhere other than the portfolio screen's own Edit, where nothing may be written down. */
   readOnly: boolean;
   /** Takes the one turn there is to write, for the whole screen. False where somebody else already has it. */
   claim: () => boolean;
   release: () => void;
-  /** Whether a move is going on anywhere on this screen, including in another class's table. */
-  elsewhere: boolean;
   /** Whether the model asks for none of this sub-asset at all, rather than less of it than is held. */
   asksForNone: boolean;
-  /** How many other sub-assets in this class have breached and are waiting their turn behind this one. */
-  waiting: number;
   onMoved: (touched: { id: string; before: PositionRow | null }[]) => void | Promise<void>;
 }) {
   const from = rows[0]?.subClass ?? UNGROUPED;
@@ -524,26 +519,18 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   }
 
   return (
-    <tr>
-      <td colSpan={span} className="px-4 pt-1 pb-5">
-        <div className="rounded-2xl border border-line bg-slate-50/70 p-5">
+    <div>
+      <div>
+        <div>
           <div className="flex flex-wrap items-start justify-between gap-4">
+            {/* What is above the window says where the money can go. What is said here is the thing that
+                heading cannot: that a sub-asset the model asks nothing of is not one holding too much of
+                something, but one holding something the model does not want at all — which no amount of
+                shuffling inside the class can answer. */}
             <div className="max-w-xl">
-              {/* A sub-asset the model asks nothing of is not one holding too much of something — it is
-                  one holding something the model does not want at all, and no amount of it belongs here.
-                  Shuffling cannot answer that, so the heading does not offer to. */}
-              <p className="text-sm font-semibold text-ink">
-                {asksForNone
-                  ? `The model asks for none of ${from}`
-                  : `Where ${exactly(spare, currency)} out of ${from} can go`}
-              </p>
-              {/* Why the others are quiet. Each one planning at once offered the same sibling the same
-                  room over and over, so the plans only ever added up one at a time. */}
-              {(asksForNone || waiting > 0) && (
-                <p className="mt-1 text-xs text-ink-muted">
-                  {asksForNone && `All ${exactly(spare, currency)} has to go. `}
-                  {waiting === 1 && "One more here has breached; it comes next."}
-                  {waiting > 1 && `${waiting} more here have breached; they come next.`}
+              {asksForNone && (
+                <p className="text-sm text-ink-soft">
+                  The model asks for none of {from}, so all {exactly(spare, currency)} has to go.
                 </p>
               )}
             </div>
@@ -565,11 +552,11 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                   + `${exactly(spare - canTake, currency)} has to leave the class.`}
             </p>
           ) : (
-            <div className="mt-4 overflow-hidden rounded-xl border border-line bg-white">
+            <div className="mt-4 overflow-hidden rounded-xl border border-ink/20 bg-white">
               <table className="min-w-full text-sm">
                 <caption className="sr-only">Where the money coming out of {from} can go.</caption>
                 <thead>
-                  <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  <tr className="border-b border-ink/15 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                     <th scope="col" className="px-5 py-3">
                       Sub-asset
                     </th>
@@ -587,7 +574,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                     const past = typed(moves[place.name]) - place.room;
                     const amount = typed(moves[place.name]);
                     return (
-                      <tr key={place.name} className="border-b border-line last:border-0 align-top">
+                      <tr key={place.name} className="border-b border-ink/15 last:border-0 align-top">
                         <th scope="row" className="px-5 py-4 text-left font-medium text-ink">
                           {place.name}
                           {/* Said plainly: this one does not exist yet, and moving into it writes it down
@@ -650,7 +637,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                               size="sm"
                               className="w-20 justify-center"
                               aria-label={`Move ${exactly(amount, currency)} into ${place.name}`}
-                              disabled={!rows.length || moving !== null || elsewhere}
+                              disabled={!rows.length || moving !== null}
                               onClick={() => move(place)}
                             >
                               {moving === place.name ? "Moving…" : "Move"}
@@ -700,8 +687,8 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
             </div>
           )}
         </div>
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }
 
@@ -787,20 +774,26 @@ export function ClientHoldingsPanel({
   // Settles once the portfolio has actually been read back, so a caller that must not act on yesterday's
   // figures can wait for it. Fired and forgotten, this let a second Move go out against the rows the first
   // one had already written over.
-  // One move at a time across the whole screen. The ref is what a click reads, because state arrives a
-  // render later and two clicks in the same tick would both find the door open; the flag beside it is what
-  // the buttons read, so every table greys out while any one of them is writing.
+  // One move at a time across the whole screen. A ref rather than state, because a click reads it in the
+  // same tick and state arrives a render later: two clicks together would both find the door open. There
+  // used to be a flag beside it for the buttons to grey out on, back when several plans could be on screen
+  // at once; one plan opens at a time now, and its own buttons already know while it is writing.
   const moveUnderway = useRef(false);
-  const [moveSomewhere, setMoveSomewhere] = useState(false);
+  /**
+   * Whose plan is open, by name rather than by the row itself.
+   *
+   * <p>Held as the object, a move would leave the dialog reading figures from before it: the panel builds
+   * fresh rows out of what the API answers, and the one this was pointing at is gone by then. Named, it
+   * finds the new row each render and the dialog keeps up with what it has just done.
+   */
+  const [planning, setPlanning] = useState<{ assetClass: string; subClass: string | null } | null>(null);
   const claimTheMove = () => {
     if (moveUnderway.current) return false;
     moveUnderway.current = true;
-    setMoveSomewhere(true);
     return true;
   };
   const releaseTheMove = () => {
     moveUnderway.current = false;
-    setMoveSomewhere(false);
   };
 
   const kept = async () => {
@@ -919,26 +912,17 @@ export function ClientHoldingsPanel({
           {classes.map((one) => {
             const classKey = one.assetClass;
             const isOpen = one.heldAsPositions && (!shut.has(classKey) || reveal === classKey);
-            // One plan at a time, for the sub-asset with most to shed. Every breached line used to open
-            // its own, and each worked out where its money could go as though it were the only one asking
-            // — eight tables under one class, all offering the same sibling the same room it had once.
-            // Taken at their word they promised it seven times over.
             // What every line in this class may wander from its target, which is the class's own figure:
             // the model allows a sub-asset the distance it allows the class around it, and the band is in
             // percentage points, so the one number answers for both.
             const band = one.breachAt ?? 0;
-            const breached = one.subClasses
-              .filter((group) => overIts(group, band, one.valueAmount) !== null)
-              .sort((first, second) => (overIts(second, band, one.valueAmount) as number)
-                - (overIts(first, band, one.valueAmount) as number));
-            const first = breached[0] ?? null;
             return (
               // Named so the table above can send somebody straight here, and given room above it so the
               // card does not land flush against the top of the window when they arrive.
               <li
                 key={classKey}
                 id={anchorFor(classKey)}
-                className="scroll-mt-20 overflow-hidden rounded-xl border border-line bg-white"
+                className="scroll-mt-20 overflow-hidden rounded-xl border border-ink/20 bg-white"
               >
                 {/* One row, in columns: the class, what to do about it, what it is worth, and the way to
                     write something under it. The figures used to be pushed left and right by whatever
@@ -1029,7 +1013,7 @@ export function ClientHoldingsPanel({
                 </div>
 
                 {isOpen && (
-                  <div className="overflow-x-auto border-t border-line bg-slate-50/40">
+                  <div className="overflow-x-auto border-t border-ink/15 bg-slate-50/40">
                     {/* A table with its columns named. These were six figures and two phrases run together
                         on one line — "USD 56 · 50.0% of the class · 0.0% asked for" — which told somebody
                         who already knew what each number meant what it was, and told everybody else
@@ -1040,8 +1024,8 @@ export function ClientHoldingsPanel({
                         {currency}.
                       </caption>
                       <thead>
-                        <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                          <th scope="col" className="py-2 pr-3 pl-4">
+                        <tr className="border-b border-ink/15 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                          <th scope="col" className="py-3 pr-3 pl-4">
                             Sub-asset
                           </th>
                           {/* The firm's own sheet, column for column, in the firm's own words. Close to
@@ -1092,10 +1076,26 @@ export function ClientHoldingsPanel({
                         const targetValue = ofPortfolio == null ? null : (ofPortfolio * whole) / 100;
                         const actualShare = whole === 0 ? null : (group.valueAmount / whole) * 100;
                         const move = targetValue == null ? null : toDo(targetValue - group.valueAmount);
+                        // Whether there is a plan to open behind this row's suggestion: a line holding more
+                        // than its band allows has money that has to go somewhere, and where it can go is
+                        // the question this opens.
+                        const toShed = overIts(group, band, one.valueAmount);
+                        const openThePlan = () => setPlanning({
+                          assetClass: one.assetClass,
+                          subClass: group.subClass,
+                        });
                         return (
-                        <tbody key={group.subClass ?? UNGROUPED} className="border-b border-line last:border-0">
-                          <tr className="align-middle">
-                            <th scope="rowgroup" className="py-2 pr-3 pl-4 text-left font-semibold text-ink">
+                        <tbody key={group.subClass ?? UNGROUPED} className="border-b border-ink/15 last:border-0">
+                          {/* Anywhere on the row, not only the figure at the end of it: a reader who has
+                              just read across a breached line and decided to deal with it should not have
+                              to travel back to one cell to say so. The suggestion stays a button of its
+                              own all the same, because a row is not reachable from a keyboard. */}
+                          <tr
+                            className={cn("align-middle",
+                              toShed !== null && "cursor-pointer hover:bg-primary-50/40")}
+                            onClick={toShed === null ? undefined : openThePlan}
+                          >
+                            <th scope="rowgroup" className="py-3.5 pr-3 pl-4 text-left font-semibold text-ink">
                               <span className="flex flex-wrap items-center gap-2">
                                 {group.subClass ?? UNGROUPED}
                                 {/* A class can sit on its target while the money inside it sits in the
@@ -1109,39 +1109,62 @@ export function ClientHoldingsPanel({
                             </th>
                             {/* A dash, not a nought: the model naming no target for this group is a
                                 different thing from it asking for none of it. */}
-                            <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
+                            <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
                               {ofPortfolio == null ? "—" : percent(ofPortfolio)}
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
+                            <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
                               {targetValue == null ? "—" : figure(targetValue)}
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums">
+                            <td className="px-3 py-3.5 text-right tabular-nums">
                               {actualShare == null ? "—" : percent(actualShare)}
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums">
+                            <td className="px-3 py-3.5 text-right tabular-nums">
                               {figure(group.valueAmount)}
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
+                            <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
                               {targetValue == null ? "—" : filled(targetValue, group.valueAmount)}
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                              {move == null ? "—" : (
+                            {/* The way into the plan, on the figure it is about. A table under the row
+                                used to carry it, which meant one line at a time — the worst of them — and
+                                a reader who wanted to deal with another first had to clear that one before
+                                the screen would talk about theirs. Clicking a suggestion opens its own. */}
+                            <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
+                              {move == null ? "—" : toShed === null ? (
                                 <>
                                   <span className="text-2xs font-semibold tracking-wider uppercase">
                                     {move.word}
                                   </span>{" "}
                                   {move.figure}
                                 </>
+                              ) : (
+                                /* Lit, because it is the one figure on the row somebody can act on and it
+                                   says so. The row is clickable too — this is also what makes the row
+                                   reachable from a keyboard at all, which a tr with an onClick is not. */
+                                <button
+                                  type="button"
+                                  onClick={openThePlan}
+                                  className="rounded-lg px-1 font-medium text-primary-700 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                                  title={`Where ${exactly(toShed, currency)} out of ${group.subClass ?? UNGROUPED} can go`}
+                                >
+                                  <span className="text-2xs font-semibold tracking-wider uppercase">
+                                    {move.word}
+                                  </span>{" "}
+                                  {move.figure}
+                                </button>
                               )}
                             </td>
                             {/* The sub-asset is the thing written down, so what can be done to it sits on
                                 its own row. The buttons used to belong to the instruments underneath. */}
                             {!readOnly && (
-                              <td className="py-2 pr-4 pl-3">
+                              <td className="py-3.5 pr-4 pl-3">
                                 <span className="flex items-center justify-end gap-2">
+                                  {/* Their own errands, so they stop the row's. */}
                                   <button
                                     type="button"
-                                    onClick={() => setEditing(group.positions[0] ?? null)}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setEditing(group.positions[0] ?? null);
+                                    }}
                                     disabled={group.positions.length === 0}
                                     aria-label={`Edit ${group.subClass ?? UNGROUPED}`}
                                     title={`Edit ${group.subClass ?? UNGROUPED}`}
@@ -1152,7 +1175,10 @@ export function ClientHoldingsPanel({
                                   {/* A bare grey glyph reads as decoration. Bordered, it reads as a button. */}
                                   <button
                                     type="button"
-                                    onClick={() => setRemoving(group.positions[0] ?? null)}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setRemoving(group.positions[0] ?? null);
+                                    }}
                                     disabled={group.positions.length === 0}
                                     aria-label={`Remove ${group.subClass ?? UNGROUPED}`}
                                     title={`Remove ${group.subClass ?? UNGROUPED}`}
@@ -1164,45 +1190,6 @@ export function ClientHoldingsPanel({
                               </td>
                             )}
                           </tr>
-                          {/* Under the row it belongs to and across the whole width, because it is a
-                              working-out rather than another measurement of this sub-asset. */}
-                          {group === first && (
-                            <MoveOutPlan
-                              /* The sub-asset and the sitting, and nothing about what it is worth. Keyed
-                                 on the figures, this was built again after every write, which wiped what
-                                 the last click had said it did and filled every box back up with a fresh
-                                 split — so a move that had just happened looked like one still waiting to
-                                 be made.
-
-                                 Keyed on the sub-asset alone, it outlived the sitting instead: Discard put
-                                 the money back and this panel went on saying "Moved USD 4,123 into Indian
-                                 Equities" over figures that no longer showed it, which reads as a Discard
-                                 that did nothing. Leaving edit is the end of the sitting, so it is the end
-                                 of what this panel remembers about it. */
-                              key={`${group.subClass ?? UNGROUPED}-${readOnly ? "reading" : "editing"}`}
-                              customerId={customerId}
-                              spare={Math.min(overIts(group, band, one.valueAmount) as number,
-                                group.valueAmount)}
-                              rows={group.positions}
-                              assetClass={one.assetClass}
-                              places={capacityIn(one.subClasses, group, band, one.valueAmount)}
-                              className={one.assetClassName || one.assetClass}
-                              currency={currency}
-                              /* Every column of the table above, so the plan sits square under it rather
-                                 than stopping short of its right edge. */
-                              span={readOnly ? 7 : 8}
-                              readOnly={readOnly}
-                              claim={claimTheMove}
-                              release={releaseTheMove}
-                              elsewhere={moveSomewhere}
-                              asksForNone={group.targetShare === 0}
-                              waiting={breached.length - 1}
-                              onMoved={async (touched) => {
-                                for (const each of touched) onTouched?.(each.id, each.before);
-                                await kept();
-                              }}
-                            />
-                          )}
                         </tbody>
                         );
                       })}
@@ -1214,6 +1201,46 @@ export function ClientHoldingsPanel({
           })}
         </ul>
       )}
+
+      {/* The plan for one breached sub-asset, over the screen rather than inside the table that named it.
+          Nested, only one could be shown — the worst of them — and a reader who meant to deal with another
+          first had to clear that one before the screen would talk about theirs. Any of them opens now, in
+          whatever order somebody wants to work. */}
+      {planning && (() => {
+        const its = classes.find((one) => one.assetClass === planning.assetClass);
+        const group = its?.subClasses.find((each) => each.subClass === planning.subClass);
+        const band = its?.breachAt ?? 0;
+        const toShed = (its && group) ? overIts(group, band, its.valueAmount) : null;
+        // Gone, or put right by the move that was just made. Either way there is nothing left to plan.
+        if (!its || !group || toShed === null) return null;
+        return (
+          <Dialog
+            open
+            size="2xl"
+            title={`Where ${exactly(Math.min(toShed, group.valueAmount), currency)} out of `
+              + `${group.subClass ?? UNGROUPED} can go`}
+            onClose={() => setPlanning(null)}
+          >
+            <MoveOutPlan
+              customerId={customerId}
+              spare={Math.min(toShed, group.valueAmount)}
+              rows={group.positions}
+              assetClass={its.assetClass}
+              places={capacityIn(its.subClasses, group, band, its.valueAmount)}
+              className={its.assetClassName || its.assetClass}
+              currency={currency}
+              readOnly={readOnly}
+              claim={claimTheMove}
+              release={releaseTheMove}
+              asksForNone={group.targetShare === 0}
+              onMoved={async (touched) => {
+                for (const each of touched) onTouched?.(each.id, each.before);
+                await kept();
+              }}
+            />
+          </Dialog>
+        );
+      })()}
 
       {tolerating && (
         <ToleranceDialog
