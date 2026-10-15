@@ -157,15 +157,10 @@ export function ClientAllocationPage() {
                 <span aria-hidden="true" className={cn("size-2.5 rounded-full", barFor(one.code, assetClasses.all))} />
                 {one.name}
               </h2>
-              <p className="text-sm text-ink-soft">
-                <span className="font-bold tabular-nums text-ink">
-                  {inClass > 0 ? `${inClass.toLocaleString()} ${currency}` : "—"}
-                </span>
-                {inClass > 0 && whole > 0 && (
-                  <span className="ml-2 text-xs text-ink-muted">
-                    {((inClass / whole) * 100).toFixed(2)}% of the portfolio
-                  </span>
-                )}
+              {/* The figure only. This screen is where somebody writes down what is held; what any of it
+                  comes to as a share of the whole is a reading of it, and belongs where it is read. */}
+              <p className="text-sm font-bold tabular-nums text-ink">
+                {inClass > 0 ? `${inClass.toLocaleString()} ${currency}` : "—"}
               </p>
             </header>
 
@@ -262,8 +257,7 @@ export function ClientAllocationPage() {
           <div>
             <h2 className="font-semibold text-ink">Investment AUM ($)</h2>
             <p className="mt-0.5 max-w-prose text-xs text-ink-muted">
-              What all six classes come to. Every percentage this portfolio is read against is a share
-              of this figure.
+              What all six classes come to.
             </p>
           </div>
           <p className="text-2xl font-bold tabular-nums text-ink">
