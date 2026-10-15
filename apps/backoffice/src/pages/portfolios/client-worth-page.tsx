@@ -14,7 +14,7 @@ import {
   type LoanRequestSecuredOn,
   type ClientNonFinancialAssets,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, IconButton, SelectInput, TextArea, TextInput, cn } from "@atomprive/ui";
+import { Alert, Button, IconButton, TextArea, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -33,8 +33,9 @@ type Line = {
   /** The short name. Empty on a loan, which says what it is in one line and has no second box. */
   item: string;
   /**
-   * What a loan is secured on. Only one against the portfolio comes off the Net AUM: a mortgage on a
-   * flat is money the portfolio never received and cannot be sold to repay. Nothing on what they own.
+   * What a loan is secured on. Not asked for yet — nobody has been told to sort their loans into the two
+   * — so every one is written down as against the portfolio and every one comes off the Net AUM, which
+   * is what was happening before the question existed. The field and the split behind it stay.
    */
   securedOn: LoanRequestSecuredOn;
   description: string;
@@ -308,9 +309,8 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
             {owedTotal > 0 ? `${money(owedTotal, true)} ${currency}` : "—"}
           </p>
         </header>
-        <div className="grid grid-cols-[1fr_11rem_8rem_2.25rem] items-center gap-3 px-4 pt-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+        <div className="grid grid-cols-[1fr_8rem_2.25rem] items-center gap-3 px-4 pt-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           <span>Description</span>
-          <span>Secured on</span>
           <span className="text-right">Owed</span>
           <span className="sr-only">Take it off</span>
         </div>
@@ -318,7 +318,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
           {owedRows.map((one, at) => (
             <li
               key={one.id ?? `new-${at}`}
-              className="grid grid-cols-[1fr_11rem_8rem_2.25rem] items-start gap-3 px-4 py-1.5"
+              className="grid grid-cols-[1fr_8rem_2.25rem] items-start gap-3 px-4 py-1.5"
             >
               <TextArea
                 aria-label={`What the client owes, line ${at + 1}`}
@@ -328,18 +328,6 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
                 value={one.description}
                 onChange={(event) => putOwed(at, { description: event.target.value })}
               />
-              {/* Only a loan against the portfolio comes off the Net AUM. One against a flat belongs
-                  against the flat: the portfolio never had the money and cannot be sold to repay it. */}
-              <SelectInput
-                aria-label={`What ${one.description || `line ${at + 1}`} is secured on`}
-                className={BOX}
-                value={one.securedOn}
-                onChange={(event) =>
-                  putOwed(at, { securedOn: event.target.value as LoanRequestSecuredOn })}
-              >
-                <option value="PORTFOLIO">The portfolio</option>
-                <option value="NON_FINANCIAL">Something they own</option>
-              </SelectInput>
               <div className="relative">
                 <TextInput
                   aria-label={`What is owed on ${one.description || `line ${at + 1}`}`}
