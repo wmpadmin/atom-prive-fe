@@ -3,8 +3,7 @@ import { useGetCustomer, type CustomerDetail } from "@atomprive/api-client/backo
 import { Dialog, cn } from "@atomprive/ui";
 import { useState } from "react";
 import { AllocationStep } from "./client-allocation-page";
-import { OweStep } from "./client-loans-page";
-import { OwnStep } from "./client-non-financial-page";
+import { WorthStep } from "./client-worth-page";
 
 /** What each step is handed: whose portfolio it is, and the two ways out of it. */
 export type StepProps = {
@@ -17,16 +16,16 @@ export type StepProps = {
 
 const STEPS = [
   { at: 1, name: "What they hold" },
-  { at: 2, name: "What they own" },
-  { at: 3, name: "What they owe" },
+  { at: 2, name: "What they own, and what they owe" },
 ] as const;
 
 /**
- * The three things a portfolio has to be told before it can be read against anything: what the client
- * holds, what they own that nobody manages, and what they owe.
+ * What a portfolio has to be told before it can be read against anything: what the client holds, and
+ * then what they are worth beside it — what they own that nobody manages, and what they owe.
  *
- * <p>One sitting rather than three screens. Each step saves as it is left, so somebody who closes the
- * dialog half way keeps what they wrote and opens again where the writing stopped.
+ * <p>Two steps, because the first is the firm's twenty-two lines and the other two are a handful each.
+ * Each saves as it is left, so somebody who closes the dialog half way keeps what they wrote and opens
+ * again where the writing stopped.
  */
 export function PortfolioSetupDialog({
   customerId,
@@ -39,8 +38,7 @@ export function PortfolioSetupDialog({
   // queue and the manager's dashboard hold an id and nothing else.
   const client = useGetCustomer<CustomerDetail, ApiError>(customerId);
   const clientName = client.data?.client.fullName ?? "this client";
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const back = (at: 1 | 2) => () => setStep(at);
+  const [step, setStep] = useState<1 | 2>(1);
 
   return (
     <Dialog
@@ -58,7 +56,7 @@ export function PortfolioSetupDialog({
             <button
               type="button"
               disabled={one.at >= step}
-              onClick={() => setStep(one.at as 1 | 2 | 3)}
+              onClick={() => setStep(one.at as 1 | 2)}
               aria-label={`Back to step ${one.at}, ${one.name.toLowerCase()}`}
               className="block w-full"
             >
@@ -86,8 +84,7 @@ export function PortfolioSetupDialog({
 
       <div className="mt-4">
         {step === 1 && <AllocationStep customerId={customerId} onDone={() => setStep(2)} />}
-        {step === 2 && <OwnStep customerId={customerId} onDone={() => setStep(3)} onBack={back(1)} />}
-        {step === 3 && <OweStep customerId={customerId} onDone={onClose} onBack={back(2)} />}
+        {step === 2 && <WorthStep customerId={customerId} onDone={onClose} onBack={() => setStep(1)} />}
       </div>
     </Dialog>
   );
