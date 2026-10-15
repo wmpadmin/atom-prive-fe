@@ -15,9 +15,10 @@ import { Alert, Button, IconButton, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router";
+import { Navigate, useNavigate, useParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { barFor, useAssetClasses } from "./asset-classes";
+import { SetUpSteps } from "./portfolio-setup-steps";
 import { useSubAssetClasses } from "./sub-asset-classes";
 
 /** One line somebody is writing down: where it sits, what it is called, and what it is worth. */
@@ -208,17 +209,16 @@ export function ClientAllocationPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link to="/portfolio-clients" className="text-xs font-semibold text-primary-700 hover:underline">
-          ← Back to the clients
-        </Link>
-        <h1 className="mt-2 text-xl font-bold text-ink">Write down the allocation</h1>
-        <p className="mt-1 max-w-prose text-sm text-ink-muted">
-          What {client.data?.client.fullName ?? "this client"}&apos;s money is spread across today. A model says what a
-          portfolio should be and can say nothing until this is written down. Leave a line empty where there is
-          nothing in it.
-        </p>
-      </div>
+      <SetUpSteps
+        step={1}
+        customerId={customerId}
+        heading="What they hold"
+        lead={<>
+          What {client.data?.client.fullName ?? "this client"}&apos;s money is spread across today. A model
+          says what a portfolio should be and can say nothing until this is written down. Leave a line empty
+          where there is nothing in it.
+        </>}
+      />
 
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
@@ -325,16 +325,8 @@ export function ClientAllocationPage() {
           <div>
             <h2 className="font-semibold text-ink">Total</h2>
             <p className="mt-0.5 max-w-prose text-xs text-ink-muted">
-              What all six classes come to. A house, a painting or a stake in their own company is not one of
-              them and is written down{" "}
-              {/* Its own screen, because none of it can be sold to put a portfolio back where its plan
-                  wants it, so it belongs nowhere near a target. */}
-              <Link
-                to={`/portfolio-clients/${customerId}/non-financial`}
-                className="font-semibold text-primary-700 hover:underline"
-              >
-                on their own list
-              </Link>.
+              What all six classes come to. A house, a painting or a stake in their own company is not one
+              of them, and is asked for next.
             </p>
           </div>
           <p className="text-2xl font-bold tabular-nums text-ink">
@@ -368,7 +360,7 @@ export function ClientAllocationPage() {
           disabled={busy || !readable || !anything}
           onClick={() => void save()}
         >
-          {busy ? "Writing it down…" : "Write it down"}
+          {busy ? "Writing it down…" : "Next"}
         </Button>
       </div>
     </div>
