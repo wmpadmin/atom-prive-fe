@@ -330,7 +330,16 @@ export function ClientAllocationPage() {
           <div>
             <h2 className="font-semibold text-ink">Investment AUM ($)</h2>
             <p className="mt-0.5 max-w-prose text-xs text-ink-muted">
-              What all six classes come to.
+              What all six classes come to. A house, a painting or a stake in their own company is not one of
+              them and is written down{" "}
+              {/* Its own screen, because none of it can be sold to put a portfolio back where its plan
+                  wants it, so it belongs nowhere near a target. */}
+              <Link
+                to={`/portfolio-clients/${customerId}/non-financial`}
+                className="font-semibold text-primary-700 hover:underline"
+              >
+                on their own list
+              </Link>.
             </p>
           </div>
           <p className="text-2xl font-bold tabular-nums text-ink">
