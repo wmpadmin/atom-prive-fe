@@ -3,13 +3,15 @@ import {
   getGetClientPortfolioQueryKey,
   getListClientHoldingsQueryKey,
   useListClientHoldings,
+  useListCurrencies,
   useChangeClientHolding,
   useRecordClientHolding,
   useRemoveClientHolding,
   useSetClientHoldings,
   type ClientHoldings,
+  type Currency,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, IconButton, TextInput, cn } from "@atomprive/ui";
+import { Alert, Button, IconButton, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -113,7 +115,12 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
     setTyped({ ...lines, [assetClass]: rows });
   }
 
-  const currency = holdings.data?.currency ?? "";
+  const currencies = useListCurrencies<Currency[], ApiError>();
+  const [chosenCurrency, setCurrency] = useState<string | null>(null);
+  const currency = chosenCurrency ?? holdings.data?.currency ?? "";
+  // Restating a portfolio and retyping its figures cannot be asked for in one go: the typed figures
+  // would be in the currency being left behind, and nothing could say which of the two was meant.
+  const figuresTyped = Object.keys(typed).length > 0;
   const busy = write.isPending || change.isPending || forget.isPending || setHoldings.isPending;
   const whole = codes.reduce((total, code) => total + adds(lines[code] ?? []), 0);
   // Nothing is written down until every figure is a figure, and a line nobody has named cannot be stored.
@@ -203,6 +210,35 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
     <div className="space-y-4">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <label htmlFor="holdings-currency" className="text-xs font-semibold text-ink-soft">
+          Currency
+        </label>
+        <SelectInput
+          id="holdings-currency"
+          className="w-auto"
+          value={currency}
+          disabled={figuresTyped}
+          onChange={(event) => setCurrency(event.target.value)}
+        >
+          {/* Whatever the portfolio is already written in stays offered, even if the firm has since
+              stopped dealing in it. */}
+          {currency !== "" && !(currencies.data ?? []).some((one) => one.code === currency) && (
+            <option value={currency}>{currency}</option>
+          )}
+          {(currencies.data ?? []).map((one) => (
+            <option key={one.code} value={one.code}>
+              {one.code} — {one.name}
+            </option>
+          ))}
+        </SelectInput>
+        {figuresTyped && (
+          <p className="w-full text-right text-xs text-ink-muted">
+            Write the figures down first. Restating them in another currency is a separate thing to ask for.
+          </p>
+        )}
+      </div>
+
       {assetClasses.inUse.map((one) => {
         const rows = lines[one.code] ?? [];
         const inClass = adds(rows);
@@ -223,6 +259,21 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
             {/* Two to a row. A class of nine lines ran the height of the dialog on its own, so half of
                 it was read by scrolling past the half above. */}
             <ul className="grid grid-cols-1 gap-x-6 px-4 sm:grid-cols-2">
+              {/* Over each column, because the two halves of a class read as two lists side by side and
+                  one heading over the left of them would be a heading over half the boxes. */}
+              {[0, 1].map((half) => (
+                <li
+                  key={`head-${half}`}
+                  className={cn(
+                    "flex items-center gap-3 border-b border-line py-1 text-2xs font-semibold tracking-wider text-ink-muted uppercase",
+                    half === 1 && "hidden sm:flex",
+                  )}
+                >
+                  <span className="min-w-0 flex-1">Sub-asset</span>
+                  <span className="w-28 shrink-0 text-right">Current allocation</span>
+                  <span className="w-9 shrink-0" />
+                </li>
+              ))}
               {rows.map((line, at) => (
                 <li key={at} className="flex items-center gap-3 border-b border-line py-1">
                   {line.theFirms ? (
