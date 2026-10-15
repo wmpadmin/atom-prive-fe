@@ -216,53 +216,46 @@ function exactly(amount: number, currency: string) {
 type Destination = { name: string; room: number; into: PositionRow | null };
 
 /**
- * What a sub-asset can take, in money: the distance to what the model asks of it, and no further.
+ * What a sub-asset can take before it would breach, in money: the distance to the far end of its band.
  *
- * <p>Measured to the target rather than to the band. A band is the room a sub-asset is allowed to wander
- * in, not a place to be put: filled to a hair inside its breach figure a line reads clean today and goes
- * over on the first week the market moves, having been moved there on purpose. At its target it is as far
- * from breaching either way as it can be, and less money has to change hands to get it there — which
- * matters, because every one of these is a real trade with a cost behind it.
+ * <p>The firm's rule, and a deliberate one. A line asked for 30% of its class and allowed five points may
+ * be filled to 35%, and that is the figure offered — not the 30% that would leave it furthest from
+ * breaching either way. Filling a line to the end of its band has a cost: it reads clean today and goes
+ * over on the first week the market moves, having been put there on purpose. The firm has said it wants
+ * the whole of the room counted, so the whole of the room is what is offered.
  *
  * <p>This rule finds nothing where a whole class already holds more than the model asks of it, since then
- * every line in it is over its own target too. That is the honest answer, and the table above the classes
+ * every line in it is over its own band too. That is the honest answer, and the table above the classes
  * is where it is explained: the money has to leave the class, and no shuffle inside can do it.
  *
  * <p>Measured inside the class, which is the frame a sub-asset is judged in: the model asks a sub-asset for
- * a share of its own class, so the distance to that is a share of what the class is worth. Worked against
- * the whole portfolio instead, a line in a class holding a tenth of the book came out with ten times the
- * room it had, and the split below would have offered money to a sub-asset that could not take it.
+ * a share of its own class and allows it a band around that, so the distance to the end of it is a share of
+ * what the class is worth. Worked against the whole portfolio instead, a line in a class holding a tenth of
+ * the book came out with ten times the room it had.
  */
-function roomFor(targetShare: number, share: number, classTotal: number) {
-  const room = (classTotal * (targetShare - share)) / 100;
-  // A whole unit or it is nothing. A share worked out by division lands a hair either side of its target,
-  // so a sub-asset sitting exactly where the model asks came out with room for a ten-thousandth of a penny
-  // and took a row in the table to say USD 0.
+function capacityFor(targetShare: number, share: number, band: number, classTotal: number) {
+  const room = (classTotal * (targetShare + band - share)) / 100;
+  // A whole unit or it is nothing. A share worked out by division lands a hair either side of its figure,
+  // so a sub-asset sitting exactly at the end of its band came out with room for a ten-thousandth of a
+  // penny and took a row in the table to say USD 0.
   return room < 1 ? 0 : room;
 }
 
 /**
  * How much each of the other sub-assets in this class can take, biggest room first.
  *
- * <p>Every sub-asset the model names, not only the ones already written down. A client who holds six of a
- * class's nine lines has three standing empty, and reading only what is on the page said "no sub-asset has
- * room" while the model was asking for money in three of them.
+ * <p>Every sub-asset the model names, not only the ones already written down — a client who holds six of a
+ * class's nine lines has three standing empty, and reading only what was on the page said "no sub-asset has
+ * room" while the model was asking for money in three of them. The lines nobody has written arrive as
+ * groups holding nothing now, so there is one list to read rather than two to stitch together.
  */
-function roomIn(groups: SubClassGroup[], except: SubClassGroup, model: ModelLine[],
+function capacityIn(groups: SubClassGroup[], except: SubClassGroup, band: number,
   classTotal: number): Destination[] {
   const places: Destination[] = [];
   for (const one of groups) {
     if (one === except || one.subClass === null) continue;
-    const room = roomFor(one.targetShare ?? 0, one.shareOfClass, classTotal);
+    const room = capacityFor(one.targetShare ?? 0, one.shareOfClass, band, classTotal);
     if (room > 0) places.push({ name: one.subClass, room, into: one.positions[0] ?? null });
-  }
-  const written = new Set(groups.map((one) => one.subClass));
-  for (const line of model) {
-    if (written.has(line.name) || line.name === except.subClass) continue;
-    // Nothing is held here, so the whole of what the model asks of it is still to be put there — asked of
-    // the class, the same as every line above, rather than of the book.
-    const room = roomFor(line.shareOfClass, 0, classTotal);
-    if (room > 0) places.push({ name: line.name, room, into: null });
   }
   return places.sort((first, second) => second.room - first.room);
 }
@@ -297,14 +290,20 @@ function shortBy(group: SubClassGroup, currency: string): string | null {
   return `You can add ${exactly(amount, currency)} to this sub-asset.`;
 }
 
-/** How much has to come out of a sub-asset holding more than it is allowed, or nothing. */
-function spareIn(group: SubClassGroup): number | null {
-  const amount = group.suggestion;
-  if (group.standing !== "BREACHED" || amount === null || amount === undefined
-    || amount >= 0 || amount.toFixed(2) === "0.00") {
+/**
+ * How much has to come out of a sub-asset holding more than it is allowed, or nothing.
+ *
+ * <p>Down to the end of its band, which is the least that clears the breach: a line allowed 25% of its
+ * class and holding 80% has to shed 55 points of it, not the 60 that would put it back on its target. A
+ * line breached the other way, short of its range, has nothing to shed and is left to the sentence beside
+ * it saying what it can take.
+ */
+function overIts(group: SubClassGroup, band: number, classTotal: number): number | null {
+  if (group.standing !== "BREACHED" || group.targetShare === null || group.targetShare === undefined) {
     return null;
   }
-  return -amount;
+  const over = (classTotal * (group.shareOfClass - (group.targetShare + band))) / 100;
+  return over < 1 ? null : over;
 }
 
 /** What somebody typed into one of the boxes, as a figure. A half-typed box is worth nothing, not NaN. */
@@ -583,12 +582,12 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                               nothing held here yet
                             </span>
                           )}
-                          {/* Half a unit, not nought: room worked out in points of a portfolio lands a
-                              hair above the figure in the box beside it, and "USD 0 more than it may
-                              hold" is a warning about nothing. */}
+                          {/* Half a unit, not nought: room worked out in points of a class lands a hair
+                              above the figure in the box beside it, and "USD 0 more than it may hold" is a
+                              warning about nothing. */}
                           {past > 0.5 && (
                             <span className="mt-1 block text-xs font-normal text-amber-700">
-                              {exactly(past, currency)} past what the model asks of it
+                              {exactly(past, currency)} past the most it may hold
                             </span>
                           )}
                         </th>
@@ -905,9 +904,14 @@ export function ClientHoldingsPanel({
             // its own, and each worked out where its money could go as though it were the only one asking
             // — eight tables under one class, all offering the same sibling the same room it had once.
             // Taken at their word they promised it seven times over.
+            // What every line in this class may wander from its target, which is the class's own figure:
+            // the model allows a sub-asset the distance it allows the class around it, and the band is in
+            // percentage points, so the one number answers for both.
+            const band = one.breachAt ?? 0;
             const breached = one.subClasses
-              .filter((group) => spareIn(group) !== null)
-              .sort((first, second) => (spareIn(second) as number) - (spareIn(first) as number));
+              .filter((group) => overIts(group, band, one.valueAmount) !== null)
+              .sort((first, second) => (overIts(second, band, one.valueAmount) as number)
+                - (overIts(first, band, one.valueAmount) as number));
             const first = breached[0] ?? null;
             return (
               // Named so the table above can send somebody straight here, and given room above it so the
@@ -1134,12 +1138,11 @@ export function ClientHoldingsPanel({
                                  of what this panel remembers about it. */
                               key={`${group.subClass ?? UNGROUPED}-${readOnly ? "reading" : "editing"}`}
                               customerId={customerId}
-                              spare={Math.min(spareIn(group) as number, group.valueAmount)}
+                              spare={Math.min(overIts(group, band, one.valueAmount) as number,
+                                group.valueAmount)}
                               rows={group.positions}
                               assetClass={one.assetClass}
-                              places={roomIn(one.subClasses, group,
-                                held.data?.modelSubClasses?.[one.assetClass] ?? [],
-                                one.valueAmount)}
+                              places={capacityIn(one.subClasses, group, band, one.valueAmount)}
                               className={one.assetClassName || one.assetClass}
                               currency={currency}
                               span={readOnly ? 6 : 7}
