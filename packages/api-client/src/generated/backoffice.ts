@@ -4607,7 +4607,7 @@ export interface SubClassGroup {
   /** @nullable */
   subClass: string | null;
   valueAmount: number;
-  shareOfPortfolio: number;
+  shareOfClass: number;
   /** @nullable */
   targetShare: number | null;
   /** @nullable */

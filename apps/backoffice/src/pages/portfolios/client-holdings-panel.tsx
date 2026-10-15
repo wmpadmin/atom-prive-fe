@@ -245,7 +245,11 @@ function roomIn(groups: SubClassGroup[], except: SubClassGroup, model: ModelLine
   const places: Destination[] = [];
   for (const one of groups) {
     if (one === except || one.subClass === null) continue;
-    const room = roomFor(one.targetShare ?? 0, one.shareOfPortfolio, whole);
+    // A group's share is of its class now, and roomFor works it against the whole portfolio: this
+    // figure is wrong until the screen is reworked for that. It is left standing rather than quietly
+    // corrected because the screen itself is off — nothing reaches it, and guessing at what the room
+    // should be would bury the question rather than answer it.
+    const room = roomFor(one.targetShare ?? 0, one.shareOfClass, whole);
     if (room > 0) places.push({ name: one.subClass, room, into: one.positions[0] ?? null });
   }
   const written = new Set(groups.map((one) => one.subClass));
@@ -1068,7 +1072,9 @@ export function ClientHoldingsPanel({
                                 : underManagementLabel(group.targetValue, currency)}
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums">
-                              {group.shareOfPortfolio.toFixed(1)}%
+                              {/* Of its class, not of the portfolio — the column heading above it still
+                                  says otherwise, and will until this screen is reworked or taken away. */}
+                              {group.shareOfClass.toFixed(1)}%
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums">
                               {underManagementLabel(group.valueAmount, currency)}
