@@ -45,9 +45,9 @@ const NOTHING_YET = "—";
 export function PortfolioClientsPage() {
   const navigate = useNavigate();
   const { params, update } = useListAddress();
-  // Whose portfolio is being set up, taken from the address. It is a dialog over this list rather than
-  // a screen of its own, but it keeps an address because ten links across the platform name a client and
-  // expect to arrive at their portfolio.
+  // Whose Net AUM is being worked out, taken from the address. It is a dialog over this list rather than
+  // a screen of its own, but it keeps an address so a sitting half way through can be left and come back
+  // to, and so a row can send somebody straight into it.
   const { customerId: settingUp } = useParams();
   const query = params.get("q") ?? "";
   const advisorId = params.get("advisor") ?? "";
@@ -157,6 +157,12 @@ export function PortfolioClientsPage() {
           // a model says what a portfolio should be and can say nothing until what it is has been set
           // out, so the allocation is what is asked for first.
           const written = (standing?.underManagement ?? 0) > 0;
+          // A client whose allocation has been written down opens at their portfolio, which is what there
+          // is to read. One whose has not goes to the calculator instead: a portfolio cannot be read
+          // against anything until what is in it is known, so that is the first thing asked of them.
+          const opens = written
+            ? `/portfolio-clients/${client.id}`
+            : `/portfolio-clients/${client.id}/net-aum`;
           // What a client holds is drawn as a share of what is written down. There is more to come that
           // belongs in that figure — borrowing, and what is held but not managed — so what it would say
           // today is not what it will say, and a spread nobody can act on is better not drawn at all.
@@ -166,7 +172,7 @@ export function PortfolioClientsPage() {
             // somebody else's screen, and a name that opened it sent the reader out of their own job.
             <tr
               key={client.id}
-              onClick={() => void navigate(`/portfolio-clients/${client.id}`)}
+              onClick={() => void navigate(opens)}
               className="cursor-pointer border-t border-line hover:bg-slate-50/60"
             >
               <td className="px-5 py-3">
@@ -174,7 +180,7 @@ export function PortfolioClientsPage() {
                   <Avatar name={client.fullName} />
                   <div>
                     <Link
-                      to={`/portfolio-clients/${client.id}`}
+                      to={opens}
                       className="font-semibold text-ink hover:text-primary-600"
                     >
                       {client.fullName}
@@ -223,11 +229,8 @@ export function PortfolioClientsPage() {
                 )}
               </td>
               <td className="px-4 py-3 text-right">
-                {/* A client nobody has written an allocation down for goes to the screen that asks for
-                    one: a portfolio cannot be read against anything until what is in it is known, so
-                    that is the first thing asked of whoever opens them. */}
                 <Link
-                  to={`/portfolio-clients/${client.id}`}
+                  to={opens}
                   className="text-sm font-medium text-primary-700 hover:underline"
                 >
                   {written ? "Open" : "Assign"}
@@ -246,6 +249,10 @@ export function PortfolioClientsPage() {
             // What was written reaches the row it was written for without a reload.
             void standings.refetch();
           }}
+          /* Finished is not the same as closed. Somebody who has worked the Net AUM out and put the client
+             on a plan is taken to the portfolio itself, which is what all that typing was for; the X and
+             Escape put them back on the list they came from. */
+          onFinish={() => void navigate(`/portfolio-clients/${settingUp}`)}
         />
       )}
     </div>

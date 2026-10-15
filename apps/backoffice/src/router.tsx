@@ -67,6 +67,7 @@ import { BulkRebalancingPage } from "./pages/portfolios/bulk-rebalancing-page";
 import { ModelChangesPage } from "./pages/portfolios/model-changes-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
+import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
 import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
 import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
@@ -268,12 +269,14 @@ export const router = createBrowserRouter([
             element: <RequireAuthority authority="VIEW_ALL_CLIENTS:VIEW" />,
             children: [
               { path: "portfolio-clients", element: <PortfolioClientsPage /> },
-              // One client, which is the clients list with their portfolio open over it. Its own
-              // address because the drift queue, the dashboard, the client file and the trading
-              // panel all link to a client and expect to arrive at their portfolio.
-              { path: "portfolio-clients/:customerId", element: <PortfolioClientsPage /> },
-              // One client's portfolio, written down and read against its model. Its own address, so a
-              // sitting over it can be left and come back to, and linked to from the queues.
+              // One client's portfolio, written down and read against its model. This is where a client
+              // names arrives: the drift queue, the dashboard, the client file and the trading panel all
+              // link to a client and expect to arrive at what they hold, not at a form.
+              { path: "portfolio-clients/:customerId", element: <ClientPortfolioPage /> },
+              // Working their Net AUM out, which is a dialog over the list rather than a screen of its
+              // own. Its own address all the same, so a sitting can be left and come back to, and so the
+              // list can send somebody nobody has written an allocation down for straight into it.
+              { path: "portfolio-clients/:customerId/net-aum", element: <PortfolioClientsPage /> },
             ],
           },
           {
