@@ -69,6 +69,7 @@ import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
 import { ClientAllocationPage, ToTheAllocation } from "./pages/portfolios/client-allocation-page";
 import { ClientNonFinancialPage } from "./pages/portfolios/client-non-financial-page";
+import { ClientLoansPage } from "./pages/portfolios/client-loans-page";
 import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
 import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
@@ -283,6 +284,8 @@ export const router = createBrowserRouter([
               // What they own that nobody manages. Its own address, apart from the allocation, because it
               // is a different question and belongs nowhere near a target.
               { path: "portfolio-clients/:customerId/non-financial", element: <ClientNonFinancialPage /> },
+              // What they owe. Last of the three, because it is the figure the other two are read against.
+              { path: "portfolio-clients/:customerId/loans", element: <ClientLoansPage /> },
             ],
           },
           {
