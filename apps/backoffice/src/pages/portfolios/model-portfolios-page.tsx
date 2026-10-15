@@ -155,11 +155,14 @@ export function ModelPortfoliosPage() {
             <td
               className={cn(
                 "px-4 py-3 text-right font-semibold whitespace-nowrap",
+                // Past what is allowed, not level with it — the rule everywhere else. At exactly the
+                // breach figure a model was drawn in red while every screen that asked the API called the
+                // same drift sound.
                 model.averageDrift == null
                   ? "text-ink-muted"
-                  : model.averageDrift >= model.breachAt
+                  : model.averageDrift > model.breachAt
                     ? "text-red-600"
-                    : model.averageDrift >= model.watchAt
+                    : model.averageDrift > model.watchAt
                       ? "text-amber-700"
                       : "text-emerald-700",
               )}

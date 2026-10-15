@@ -7,7 +7,6 @@ import {
   type ModelRequest,
   type ModelRequestRiskProfile,
   type BandRequest,
-  type BandRequestBasis,
   type ModelRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
@@ -26,20 +25,15 @@ import {
 type Targets = Record<string, string>;
 
 /**
- * One class's own tolerance, as the form holds it. The three above-target levels empty means the class is
- * judged by the model's own bands; the below ones empty means the same distance either way.
+ * How far each class may wander from its target before it has breached, as the form holds it: one figure
+ * per class, in percentage points, the same distance either way.
+ *
+ * <p>One, not three. The platform can hold a class to three widening levels — worth watching, at the edge,
+ * then broken — and the firm asked for the last of them alone: a client is inside their plan or they are
+ * not. The three are still written underneath, all set to this figure, which collapses the ladder on its
+ * own: nothing can be past an edge equal to the breach without being past the breach first.
  */
-type TypedBand = {
-  basis: BandRequestBasis;
-  watchAt: string;
-  edgeAt: string;
-  breachAt: string;
-  watchBelow: string;
-  edgeBelow: string;
-  breachBelow: string;
-};
-
-type Bands = Record<string, TypedBand>;
+type Breaches = Record<string, string>;
 
 /** One line of a spread by country or by sector, as it is typed. */
 type TypedShare = { key: string; share: string };
@@ -59,61 +53,26 @@ function asTargets(lines: TypedShare[]) {
   return targets;
 }
 
-const NO_BAND: TypedBand = {
-  basis: "ABSOLUTE",
-  watchAt: "",
-  edgeAt: "",
-  breachAt: "",
-  watchBelow: "",
-  edgeBelow: "",
-  breachBelow: "",
-};
-
 /** A blank of each shape, built from whatever classes the firm keeps rather than a list written in here. */
-function noBands(codes: string[]): Bands {
-  return Object.fromEntries(codes.map((code) => [code, NO_BAND]));
-}
-
-/** What is already on the model, so editing one shows the tolerances it was saved with. */
-function bandsOf(model: ModelRow, codes: string[]): Bands {
-  const typed = noBands(codes);
-  for (const assetClass of codes) {
-    const band = model.bands?.[assetClass];
-    if (band) {
-      typed[assetClass] = {
-        basis: band.basis ?? "ABSOLUTE",
-        watchAt: String(band.watchAt),
-        edgeAt: String(band.edgeAt),
-        breachAt: String(band.breachAt),
-        // The API fills a missing side in from the one above, so what comes back is always both. Shown as
-        // the same distance either way unless it really differs.
-        watchBelow: String(band.watchBelow ?? band.watchAt),
-        edgeBelow: String(band.edgeBelow ?? band.edgeAt),
-        breachBelow: String(band.breachBelow ?? band.breachAt),
-      };
-    }
-  }
-  return typed;
+function noBreaches(codes: string[]): Breaches {
+  return Object.fromEntries(codes.map((code) => [code, ""]));
 }
 
 /**
- * How much of a class's own tolerance has been filled in: none, all three, or something in between. Only the
- * above-target levels count — the ones below are an answer to a further question, not part of this one.
+ * What is already on the model, so editing one shows the figures it was saved with.
+ *
+ * <p>Read off the breach level, which is the one the firm sets. A model saved before the firm asked for a
+ * single figure may hold three that widen, and what it is read as here is the one that decides anything.
  */
-function howFilled(band: TypedBand) {
-  const filled = [band.watchAt, band.edgeAt, band.breachAt].filter((one) => one.trim() !== "").length;
-  return filled === 0 ? "none" : filled === 3 ? "all" : "part";
-}
-
-/** Whether any class is allowed a different distance below its target than above it. */
-function anyTwoSided(bands: Bands) {
-  return Object.values(bands).some(
-    (band) =>
-      howFilled(band) === "all" &&
-      (band.watchBelow !== band.watchAt ||
-        band.edgeBelow !== band.edgeAt ||
-        band.breachBelow !== band.breachAt),
-  );
+function breachesOf(model: ModelRow, codes: string[]): Breaches {
+  const typed = noBreaches(codes);
+  for (const assetClass of codes) {
+    const band = model.bands?.[assetClass];
+    if (band) {
+      typed[assetClass] = String(band.breachAt);
+    }
+  }
+  return typed;
 }
 
 function noTargets(codes: string[]): Targets {
@@ -261,12 +220,18 @@ export function ModelDialog({
   // turns up afterwards is folded in here, because reading one the state has never heard of is a crash.
   const [typedTargets, setTargets] = useState<Targets>(model ? targetsOf(model, codes) : noTargets(codes));
   const targets: Targets = { ...(model ? targetsOf(model, codes) : noTargets(codes)), ...typedTargets };
-  // Not asked for here any more. A model keeps the tolerances it was saved with and a new one takes the
-  // firm's usual figures, because the API will not take a model without all three.
-  const watchAt = model?.watchAt ?? 2;
-  const edgeAt = model?.edgeAt ?? 4;
-  const breachAt = model?.breachAt ?? 6;
-  const bands: Bands = model ? bandsOf(model, codes) : noBands(codes);
+  // The model's own figure, which answers only for a class the firm has not given one — today none of
+  // them, tomorrow whichever one somebody adds. Flat across the three levels, like every class's, so a
+  // class nobody has reached yet is judged the same way as the ones beside it.
+  const watchAt = model?.watchAt ?? 5;
+  const edgeAt = model?.edgeAt ?? 5;
+  const breachAt = model?.breachAt ?? 5;
+  // Seeded like the targets beside them, and for the same reason: the firm's classes may arrive a render
+  // after this one.
+  const [typedBreaches, setBreaches] = useState<Breaches>(
+    model ? breachesOf(model, codes) : noBreaches(codes),
+  );
+  const breaches: Breaches = { ...(model ? breachesOf(model, codes) : noBreaches(codes)), ...typedBreaches };
   const [benchmarkId, setBenchmarkId] = useState(model?.benchmarkId ?? "");
   // Which indices the firm holds. Without one named here, Model performance has nothing to compare against.
   const benchmarks = useListBenchmarks<BenchmarkRow[], ApiError>();
@@ -289,7 +254,6 @@ export function ModelDialog({
   // or by sector, and a model that already has one keeps it.
   const countries = sharesOf(model?.geographyTargets);
   const sectors = sharesOf(model?.sectorTargets);
-  const twoSided = anyTwoSided(bands);
   const [typedLines, setLines] = useState<Lines>(model ? linesOf(model, codes) : noLines(codes));
   const lines: Lines = { ...(model ? linesOf(model, codes) : noLines(codes)), ...typedLines };
   // A class broken into lines has to be wholly accounted for: 8% belonging to nothing is not a plan.
@@ -309,10 +273,18 @@ export function ModelDialog({
     if (inClass.length === 0) return false;
     return inClass.some((line) => !isNumber(line.shareOfClass)) || addsInClass(inClass) !== 100;
   });
+  // A class the model asks for money in has to say how far it may wander. The figure is what every breach
+  // on every client measured against this model is read from, so leaving it out is not leaving a box empty
+  // — it is handing the answer to the model's own figure, which this screen does not show.
+  const unsaidBreach = codes.filter(
+    (assetClass) =>
+      isNumber(targets[assetClass]) && Number(targets[assetClass]) > 0
+      && !(isNumber(breaches[assetClass]) && Number(breaches[assetClass]) > 0),
+  );
   // Letters in a figure box are not a small mistake to round away: nothing is saved until they are numbers.
   const readable =
     unreadable.length === 0 && overWhole.length === 0
-    && shortLines.length === 0 && twiceNamed.length === 0
+    && shortLines.length === 0 && twiceNamed.length === 0 && unsaidBreach.length === 0
     && codes.every((a) => lines[a].every((line) => line.name.trim() !== ""));
 
   function submit(event: FormEvent) {
@@ -322,20 +294,23 @@ export function ModelDialog({
     for (const assetClass of codes) {
       if (targets[assetClass].trim()) wanted[assetClass] = Number(targets[assetClass]);
     }
-    // Only the classes given all three of their own bands; the rest are judged by the model's.
+    // One figure a class, written into all three levels. Percentage points, not a share of the target, so
+    // five means five points wherever it is read: a class asked for 20 is allowed 15 to 25, and a line
+    // inside it asked for 10 of its class is allowed 5 to 15 of its class.
+    //
+    // The below figures are left out, which the API reads as the same distance either way.
     const perClass: Record<string, BandRequest> = {};
     for (const assetClass of codes) {
-      const band = bands[assetClass];
-      if (howFilled(band) === "all") {
+      const said = breaches[assetClass];
+      if (isNumber(said) && Number(said) > 0) {
         perClass[assetClass] = {
-          basis: band.basis,
-          watchAt: Number(band.watchAt),
-          edgeAt: Number(band.edgeAt),
-          breachAt: Number(band.breachAt),
-          // Left out where both sides are the same, which the API reads as the same distance either way.
-          watchBelow: twoSided ? Number(band.watchBelow) : null,
-          edgeBelow: twoSided ? Number(band.edgeBelow) : null,
-          breachBelow: twoSided ? Number(band.breachBelow) : null,
+          basis: "ABSOLUTE",
+          watchAt: Number(said),
+          edgeAt: Number(said),
+          breachAt: Number(said),
+          watchBelow: null,
+          edgeBelow: null,
+          breachBelow: null,
         };
       }
     }
@@ -464,7 +439,16 @@ export function ModelDialog({
             The split
           </legend>
 
-          <div className="grid gap-x-5 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Two figures a class, and what each of them is. Said once above the boxes rather than labelled
+              on every row, which at six classes was the same two words twelve times. */}
+          <p className="mb-3 text-xs text-ink-muted">
+            What each class is asked to be, and how far it may wander either way before it has breached.
+            The second figure is the class&apos;s own, and every sub-asset inside it is held to that same
+            distance from its own target: a class allowed five points, broken into a line asked for 10% of
+            the class, allows that line 5% to 15% of the class.
+          </p>
+
+          <div className="grid gap-x-5 gap-y-2.5 sm:grid-cols-2">
             {codes.map((assetClass) => (
               <div key={assetClass} className="flex items-center gap-2.5">
                 <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", barFor(assetClass, all))} />
@@ -479,6 +463,35 @@ export function ModelDialog({
                     value={targets[assetClass]}
                     onChange={(event) =>
                       setTargets({ ...targets, [assetClass]: asFigure(event.target.value, targets[assetClass]) })
+                    }
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-muted"
+                  >
+                    %
+                  </span>
+                </div>
+                {/* Plus or minus, because it is the same distance either way: a class may be that far over
+                    its target or that far under it before anybody is told. */}
+                <div className="relative w-24 shrink-0">
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-ink-muted"
+                  >
+                    ±
+                  </span>
+                  <TextInput
+                    id={`breach-${assetClass}`}
+                    aria-label={`How far ${(names[assetClass] ?? assetClass)} may wander before it has breached`}
+                    inputMode="decimal"
+                    className="pr-7 pl-7 text-right"
+                    value={breaches[assetClass]}
+                    onChange={(event) =>
+                      setBreaches({
+                        ...breaches,
+                        [assetClass]: asFigure(event.target.value, breaches[assetClass]),
+                      })
                     }
                   />
                   <span
@@ -730,6 +743,15 @@ export function ModelDialog({
               {andList(overWhole.map((assetClass) => (names[assetClass] ?? assetClass)))}{" "}
               {overWhole.length === 1 ? "is" : "are"} over 100%. No one class can be more than the whole
               portfolio.
+            </p>
+          )}
+          {unsaidBreach.length > 0 && (
+            <p className="mt-1.5 text-xs text-red-600">
+              {andList(unsaidBreach.map((assetClass) => (names[assetClass] ?? assetClass)))}{" "}
+              {unsaidBreach.length === 1 ? "has" : "have"} money asked of{" "}
+              {unsaidBreach.length === 1 ? "it" : "them"} but no figure beside it for how far{" "}
+              {unsaidBreach.length === 1 ? "it" : "they"} may wander. Every breach on every client measured
+              against this model is read from that figure.
             </p>
           )}
           {errors.fields.targets && <p className="mt-1 text-xs text-red-600">{errors.fields.targets}</p>}
