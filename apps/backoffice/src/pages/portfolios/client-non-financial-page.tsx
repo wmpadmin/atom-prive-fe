@@ -121,7 +121,8 @@ export function ClientNonFinancialPage() {
       }
       await queryClient.invalidateQueries({ queryKey: getListNonFinancialAssetsQueryKey(customerId) });
       setTyped(null);
-      void navigate("/portfolio-clients");
+      // On to what they owe, which is the last of the three and the one the other two are read against.
+      void navigate(`/portfolio-clients/${customerId}/loans`);
     }
     catch (caught) {
       setErrors(toFormErrors(caught as ApiError));
