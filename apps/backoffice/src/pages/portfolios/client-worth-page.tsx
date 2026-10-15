@@ -366,10 +366,10 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
-        <Button variant="secondary" type="button" onClick={onBack}>
+        <Button variant="secondary" size="lg" type="button" onClick={onBack}>
           Back
         </Button>
-        <Button type="button" disabled={busy || !readable} onClick={() => void save()}>
+        <Button type="button" size="lg" disabled={busy || !readable} onClick={() => void save()}>
           {busy ? "Saving…" : "Save as draft"}
         </Button>
       </div>

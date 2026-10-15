@@ -16,6 +16,8 @@ const sizeClasses = {
   md: "h-10 gap-2 rounded-xl px-4 text-sm",
   /** For actions inside tables and card headers. */
   sm: "h-8 gap-1.5 rounded-lg px-3 text-xs",
+  /** For the one action a screen exists to take, where md reads as an afterthought beside the form. */
+  lg: "h-12 gap-2.5 rounded-xl px-7 text-base",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
