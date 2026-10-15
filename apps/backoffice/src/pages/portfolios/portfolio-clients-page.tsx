@@ -16,7 +16,6 @@ import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { formatDate } from "../../lib/labels";
 import { AdvisorChips } from "../clients/advisor-chips";
-import { barFor, useAssetClasses } from "./asset-classes";
 import { ClientSearch } from "../clients/client-search";
 import {
   driftLabel,
@@ -45,7 +44,6 @@ const NOTHING_YET = "—";
 export function PortfolioClientsPage() {
   const navigate = useNavigate();
   const { params, update } = useListAddress();
-  const assetClasses = useAssetClasses();
   const query = params.get("q") ?? "";
   const advisorId = params.get("advisor") ?? "";
   const page = Number(params.get("page")) || 0;
@@ -120,7 +118,6 @@ export function PortfolioClientsPage() {
             <th scope="col" className="px-5 py-3 text-left font-semibold">Client</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Advisor</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Risk profile</th>
-            <th scope="col" className="px-4 py-3 text-left font-semibold">Asset allocations</th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">Return</th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">AUM</th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">Drift</th>
@@ -155,9 +152,9 @@ export function PortfolioClientsPage() {
           // a model says what a portfolio should be and can say nothing until what it is has been set
           // out, so the allocation is what is asked for first.
           const written = (standing?.underManagement ?? 0) > 0;
-          const shares = standing?.shares ?? {};
-          // In the firm's own order, so one client's spread reads the same way as the next one's.
-          const spread = assetClasses.all.map((one) => one.code).filter((assetClass) => shares[assetClass]);
+          // What a client holds is drawn as a share of what is written down. There is more to come that
+          // belongs in that figure — borrowing, and what is held but not managed — so what it would say
+          // today is not what it will say, and a spread nobody can act on is better not drawn at all.
           return (
             // The row opens the portfolio, the same as the client's name and Open do. This is the book read
             // for portfolio work: the servicing file — their papers, their family, their onboarding — is
@@ -186,28 +183,6 @@ export function PortfolioClientsPage() {
               </td>
               <td className="px-4 py-3">
                 {standing?.modelName ?? <span className="text-ink-muted">{NOTHING_YET}</span>}
-              </td>
-              <td className="px-4 py-3">
-                {spread.length === 0 ? (
-                  <span className="text-ink-muted">{NOTHING_YET}</span>
-                ) : (
-                  <div className="min-w-36">
-                    <div className="flex h-1.5 overflow-hidden rounded-full bg-slate-100">
-                      {spread.map((assetClass) => (
-                        <span
-                          key={assetClass}
-                          className={cn("h-full", barFor(assetClass, assetClasses.all))}
-                          style={{ width: `${shares[assetClass]}%` }}
-                        />
-                      ))}
-                    </div>
-                    <p className="mt-1 text-2xs whitespace-nowrap text-ink-muted">
-                      {spread
-                        .map((assetClass) => `${assetClasses.shortNames[assetClass] ?? assetClass} ${Math.round(shares[assetClass]!)}%`)
-                        .join(" · ")}
-                    </p>
-                  </div>
-                )}
               </td>
               <td className="px-4 py-3 text-right text-ink-muted">{NOTHING_YET}</td>
               <td className="px-4 py-3 text-right whitespace-nowrap">
