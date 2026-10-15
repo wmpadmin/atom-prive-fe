@@ -254,6 +254,24 @@ export function ClientAllocationPage() {
         );
       })}
 
+      {/* What the six classes come to, said once and at the end — after the last of them has been
+          written down, not following the page down beside the buttons. This is the figure every
+          percentage the portfolio is read against is a share of. */}
+      <section className="rounded-2xl border border-line bg-white px-5 py-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+          <div>
+            <h2 className="font-semibold text-ink">Investment AUM ($)</h2>
+            <p className="mt-0.5 max-w-prose text-xs text-ink-muted">
+              What all six classes come to. Every percentage this portfolio is read against is a share
+              of this figure.
+            </p>
+          </div>
+          <p className="text-2xl font-bold tabular-nums text-ink">
+            {whole > 0 ? `${whole.toLocaleString()} ${currency}` : "—"}
+          </p>
+        </div>
+      </section>
+
       {twiceNamed.length > 0 && (
         <Alert tone="danger">
           {twiceNamed.map((code) => assetClasses.names[code] ?? code).join(", ")}{" "}
@@ -272,12 +290,6 @@ export function ClientAllocationPage() {
           worked out against and this page is longer than the window. */}
       <div className="fixed inset-x-0 bottom-0 border-t border-line bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-end gap-x-4 gap-y-2 px-6 py-3">
-          <p className="mr-auto text-sm text-ink-soft">
-            Investment AUM ($){" "}
-            <span className="font-bold tabular-nums text-ink">
-              {whole > 0 ? `${whole.toLocaleString()} ${currency}` : "—"}
-            </span>
-          </p>
           <Button variant="secondary" type="button" onClick={() => void navigate("/portfolio-clients")}>
             Cancel
           </Button>
