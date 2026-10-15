@@ -34,6 +34,7 @@ import { Check, ChevronLeft, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
+import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { AttributionPanel } from "./attribution-panel";
 import { ExposurePanel } from "./exposure-panel";
@@ -51,6 +52,7 @@ import {
   standingTones,
   underManagementLabel,
 } from "./portfolio-labels";
+import { isSetUp, mayFinishSettingUp } from "./set-up";
 import { ConfirmDialog } from "../config/confirm-dialog";
 import { LeaveWithoutSaving } from "../../components/leave-without-saving";
 import { useJustSaved } from "../../lib/just-saved";
@@ -126,6 +128,9 @@ export function ClientPortfolioPage() {
   // same list when it comes back at page one with the filter cleared.
   const asLeft = address.get("back") ?? "";
   const back = { ...came, to: came.to + asLeft };
+  // Who is reading. Not everybody who may read this screen may fill the calculator in, and only somebody
+  // who may is sent to it.
+  const user = useStaffUser();
   const client = useGetCustomer<CustomerDetail, ApiError>(customerId);
   const standing = useGetClientPortfolio<PortfolioStanding, ApiError>(customerId);
   // Which classes are written down line by line. Theirs is the one figure nobody types: the total is worked
@@ -470,19 +475,32 @@ export function ClientPortfolioPage() {
 
   const named = client.data?.client.fullName ?? "";
 
-  // Every figure below this line is a share of a target, so a client with no plan has no screen here:
-  // what would be drawn is a column of dashes beside a column of money, which reads as a portfolio
-  // nobody has looked at rather than one nobody has finished setting up. They go back into the
-  // calculator, which is the only place the missing answer can come from.
+  // A client the calculator has not been finished for has no screen here: every figure below is a share
+  // of a target, so what would be drawn is a column of dashes beside a column of money, which reads as a
+  // portfolio nobody has looked at rather than one nobody has finished setting up. They go back into the
+  // calculator, which is the only place the missing answers can come from.
   //
   // Said here rather than only on the link that got here. Eight other screens — the drift queue, the
   // manager's dashboard, the client file, the trading panel, and the role's own idea of where a client
   // lives — name a client and come straight to this address, and a rule each of them has to remember is
   // a rule one of them will forget.
   //
-  // Only once the standing has actually arrived: undefined is not "no model", it is "not asked yet", and
-  // redirecting on it would throw everybody out of the page for the length of a request.
-  if (standing.isSuccess && standing.data.modelPortfolioId === null) {
+  // Three things hold it back, and each of them was a way of making somebody worse off than before:
+  //
+  // Until the standing has arrived. Undefined is not "not set up", it is "not asked yet", and turning on
+  // it would throw every reader out of the page for the length of a request — and a refused request would
+  // turn them out for good.
+  //
+  // Only somebody who could finish it. The calculator's every write is a portfolio manager's; an advisor,
+  // compliance and operations may all read this screen and none of them may save a step of it, so sending
+  // them there is sending them to a form that refuses them, having shut the one they could read.
+  //
+  // Never out of a save. Taking a client off their model is done on this very screen, and the model is
+  // written before the holdings are: the refetch that follows it would turn this on and unmount the page
+  // with the holdings still in flight — quietly, because the warning about unsaved work is mounted below
+  // this line and would go with it.
+  if (standing.isSuccess && !isSetUp(standing.data) && mayFinishSettingUp(user)
+    && !saving && !unsaved) {
     return <Navigate to={`/portfolio-clients/${customerId}/net-aum`} replace />;
   }
 
