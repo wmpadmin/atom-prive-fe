@@ -11,8 +11,8 @@ import {
   type ModelRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
-import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { Trash2 } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
 import { type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
 import { asFigure } from "../../lib/figures";
@@ -49,12 +49,6 @@ function sharesOf(held: Record<string, number> | undefined): TypedShare[] {
   const lines = Object.entries(held ?? {}).map(([key, share]) => ({ key, share: String(share) }));
   return [...lines, { key: "", share: "" }];
 }
-
-/** What those lines come to, for the running total. */
-function addsUpTo(lines: TypedShare[]) {
-  return lines.reduce((total, one) => total + (Number(one.share) || 0), 0);
-}
-
 /** Only the lines somebody has actually filled in, keyed as the API keeps them. */
 function asTargets(lines: TypedShare[]) {
   const targets: Record<string, number> = {};
@@ -64,9 +58,6 @@ function asTargets(lines: TypedShare[]) {
   }
   return targets;
 }
-
-/** The boxes of a band that hold a figure. The basis is a choice, not something to type into. */
-type BandFigure = Exclude<keyof TypedBand, "basis">;
 
 const NO_BAND: TypedBand = {
   basis: "ABSOLUTE",
@@ -241,70 +232,6 @@ function namesAlreadyUsed(models: ModelRow[]): Record<string, string[]> {
  * The models the firm invests against: what each one targets in every asset class, and how far a
  * portfolio may wander from those targets before somebody should look at it.
  */
-/**
- * A spread by country or by sector: a key and a share, as many as somebody types. A blank line is kept at
- * the end so the next one can be written without reaching for a button first.
- */
-function Spread({
-  label,
-  hint,
-  placeholder,
-  lines,
-  onChange,
-}: {
-  label: string;
-  hint: string;
-  placeholder: string;
-  lines: TypedShare[];
-  onChange: (lines: TypedShare[]) => void;
-}) {
-  const total = addsUpTo(lines);
-  const anything = lines.some((one) => one.key.trim() !== "");
-
-  function change(at: number, part: Partial<TypedShare>) {
-    const next = lines.map((one, which) => (which === at ? { ...one, ...part } : one));
-    // Always one blank at the end, and no more than one.
-    const filled = next.filter((one) => one.key.trim() !== "" || one.share.trim() !== "");
-    onChange([...filled, { key: "", share: "" }]);
-  }
-
-  return (
-    <div>
-      <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
-      <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>
-      <div className="mt-2 space-y-2">
-        {lines.map((one, at) => (
-          <div key={at} className="flex items-center gap-2">
-            <TextInput
-              aria-label={`${label} name`}
-              placeholder={placeholder}
-              value={one.key}
-              onChange={(event) => change(at, { key: event.target.value })}
-            />
-            <TextInput
-              aria-label={`${label} share`}
-              inputMode="decimal"
-              className="w-24 text-right"
-              placeholder="0"
-              value={one.share}
-              onChange={(event) => change(at, { share: asFigure(event.target.value, one.share) })}
-            />
-            <span className="text-sm text-ink-muted">%</span>
-          </div>
-        ))}
-      </div>
-      {anything && (
-        <p className={cn("mt-1.5 text-xs", total === 100 ? "text-ink-muted" : "text-amber-700")}>
-          Adds up to {total}%.
-          {total < 100 && ` ${(100 - total).toFixed(2).replace(/\.?0+$/, "")}% of the portfolio is left unasked for.`}
-          {total > 100 && ` That is ${(total - 100).toFixed(2).replace(/\.?0+$/, "")}% more than there is to`
-            + " give. Take it off somewhere before this can be saved."}
-        </p>
-      )}
-    </div>
-  );
-}
-
 export function ModelDialog({
   model,
   errors,
@@ -334,11 +261,12 @@ export function ModelDialog({
   // turns up afterwards is folded in here, because reading one the state has never heard of is a crash.
   const [typedTargets, setTargets] = useState<Targets>(model ? targetsOf(model, codes) : noTargets(codes));
   const targets: Targets = { ...(model ? targetsOf(model, codes) : noTargets(codes)), ...typedTargets };
-  const [watchAt, setWatchAt] = useState(String(model?.watchAt ?? 2));
-  const [edgeAt, setEdgeAt] = useState(String(model?.edgeAt ?? 4));
-  const [breachAt, setBreachAt] = useState(String(model?.breachAt ?? 6));
-  const [typedBands, setBands] = useState<Bands>(model ? bandsOf(model, codes) : noBands(codes));
-  const bands: Bands = { ...(model ? bandsOf(model, codes) : noBands(codes)), ...typedBands };
+  // Not asked for here any more. A model keeps the tolerances it was saved with and a new one takes the
+  // firm's usual figures, because the API will not take a model without all three.
+  const watchAt = model?.watchAt ?? 2;
+  const edgeAt = model?.edgeAt ?? 4;
+  const breachAt = model?.breachAt ?? 6;
+  const bands: Bands = model ? bandsOf(model, codes) : noBands(codes);
   const [benchmarkId, setBenchmarkId] = useState(model?.benchmarkId ?? "");
   // Which indices the firm holds. Without one named here, Model performance has nothing to compare against.
   const benchmarks = useListBenchmarks<BenchmarkRow[], ApiError>();
@@ -357,29 +285,13 @@ export function ModelDialog({
   );
   // The one hard rule a model has to satisfy. Saying so on the button saves a trip to the server to be told.
   const addsUp = total === 100;
-  // A class is judged by its own tolerance only once all three of its bands are filled in. One or two on
-  // their own would leave the other levels silently falling back to the model's, which reads as a mistake.
-  const halfBanded = codes.filter((assetClass) => howFilled(bands[assetClass]) === "part");
-  // How many classes are judged by something other than the model's own figures.
-  const ownBandCount = codes.filter((assetClass) => howFilled(bands[assetClass]) !== "none").length;
-  // Folded away by default, because most plans judge every class the same way — but opened at once on a model
-  // that already has exceptions, so nothing it is carrying is hidden from whoever opened it.
-  // Read from the model rather than seeded, because the firm's list of classes may not have arrived on the
-  // first render — a model's exceptions would then stay folded away on the very screen that carries them.
-  // Null until somebody says otherwise, and their choice stands from then on.
-  const [openedOwnBands, setShowingOwnBands] = useState<boolean | null>(null);
-  const showingOwnBands = openedOwnBands ?? ownBandCount > 0;
-  // Most plans allow the same distance either way, so the second half is asked for only where it is wanted —
-  // but opened at once on a model that already allows different distances, so nothing it carries is hidden.
-  // A plan may want the money spread by country or by line of business as well as by asset class. Separate
-  // questions, not a breakdown of the split above: a plan can want a third in Asia whatever classes it is in.
-  const [countries, setCountries] = useState<TypedShare[]>(sharesOf(model?.geographyTargets));
-  const [sectors, setSectors] = useState<TypedShare[]>(sharesOf(model?.sectorTargets));
-  const [chosenTwoSided, setTwoSided] = useState<boolean | null>(null);
-  const twoSided = chosenTwoSided ?? anyTwoSided(bands);
+  // Carried from the model and sent back as they came: the dialog no longer asks for a spread by country
+  // or by sector, and a model that already has one keeps it.
+  const countries = sharesOf(model?.geographyTargets);
+  const sectors = sharesOf(model?.sectorTargets);
+  const twoSided = anyTwoSided(bands);
   const [typedLines, setLines] = useState<Lines>(model ? linesOf(model, codes) : noLines(codes));
   const lines: Lines = { ...(model ? linesOf(model, codes) : noLines(codes)), ...typedLines };
-  const [changeNote, setChangeNote] = useState("");
   // A class broken into lines has to be wholly accounted for: 8% belonging to nothing is not a plan.
   // A class with a target and no lines yet is one somebody could break down.
   const breakable = codes.filter(
@@ -397,13 +309,9 @@ export function ModelDialog({
     if (inClass.length === 0) return false;
     return inClass.some((line) => !isNumber(line.shareOfClass)) || addsInClass(inClass) !== 100;
   });
-  const ownBands = { "Worth watching from": watchAt, "At the edge from": edgeAt, "Breached from": breachAt };
-  const unreadableBands = Object.entries(ownBands)
-    .filter(([, typed]) => !isNumber(typed))
-    .map(([label]) => label);
   // Letters in a figure box are not a small mistake to round away: nothing is saved until they are numbers.
   const readable =
-    unreadable.length === 0 && unreadableBands.length === 0 && halfBanded.length === 0 && overWhole.length === 0
+    unreadable.length === 0 && overWhole.length === 0
     && shortLines.length === 0 && twiceNamed.length === 0
     && codes.every((a) => lines[a].every((line) => line.name.trim() !== ""));
 
@@ -437,9 +345,9 @@ export function ModelDialog({
       riskProfile,
       status,
       targets: wanted,
-      watchAt: Number(watchAt),
-      edgeAt: Number(edgeAt),
-      breachAt: Number(breachAt),
+      watchAt,
+      edgeAt,
+      breachAt,
       bands: perClass,
       benchmarkId: benchmarkId || null,
       geographyTargets: asTargets(countries),
@@ -458,7 +366,8 @@ export function ModelDialog({
           })),
         ]),
       ),
-      changeNote: changeNote.trim() || null,
+      // Left for the platform to write down what moved, now that nobody is asked for a reason.
+      changeNote: null,
     });
   }
 
@@ -825,247 +734,6 @@ export function ModelDialog({
           )}
           {errors.fields.targets && <p className="mt-1 text-xs text-red-600">{errors.fields.targets}</p>}
         </fieldset>
-
-        {/* Tolerance: what every class is judged by, and then — only if asked for — the exceptions. */}
-        <fieldset className="rounded-xl border border-line p-4">
-          <legend className="px-1.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            How far is too far
-          </legend>
-          <p className="text-xs text-ink-muted">
-            How many percentage points a class may wander from its target before it is worth looking at.
-          </p>
-
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <Field id="watch-at" label="Worth watching from" error={errors.fields.watchAt}>
-              <TextInput id="watch-at" inputMode="decimal" value={watchAt} onChange={(event) => setWatchAt(asFigure(event.target.value, watchAt))} />
-            </Field>
-            <Field id="edge-at" label="At the edge from" error={errors.fields.edgeAt}>
-              <TextInput id="edge-at" inputMode="decimal" value={edgeAt} onChange={(event) => setEdgeAt(asFigure(event.target.value, edgeAt))} />
-            </Field>
-            <Field id="breach-at" label="Breached from" error={errors.fields.breachAt}>
-              <TextInput id="breach-at" inputMode="decimal" value={breachAt} onChange={(event) => setBreachAt(asFigure(event.target.value, breachAt))} />
-            </Field>
-          </div>
-          {unreadableBands.length > 0 && (
-            <p className="mt-1.5 text-xs text-red-600">
-              {andList(unreadableBands)} {unreadableBands.length === 1 ? "is not a number" : "are not numbers"}.
-              A band is a distance from the target in percentage points, such as 2 or 4.
-            </p>
-          )}
-
-          {/* Most plans judge every class the same way, so the exceptions stay folded away until wanted. */}
-          <button
-            type="button"
-            onClick={() => setShowingOwnBands((was) => !was)}
-            className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
-          >
-            {showingOwnBands ? (
-              <ChevronDown aria-hidden="true" className="size-3.5" />
-            ) : (
-              <ChevronRight aria-hidden="true" className="size-3.5" />
-            )}
-            Let a class wander differently
-            {ownBandCount > 0 && (
-              <span className="rounded-full bg-primary-50 px-1.5 py-0.5 font-semibold text-primary-700 tabular-nums">
-                {ownBandCount}
-              </span>
-            )}
-          </button>
-
-          {showingOwnBands && (
-            <div className="mt-3 space-y-2 border-t border-line pt-3">
-              <p className="text-xs text-ink-muted">
-                Cash moves with every payment in and out, so it is usually allowed to wander further than an
-                equity target meant to be held. A class left empty is judged by the figures above, shown greyed.
-                Measured in <span className="font-medium text-ink">points</span> is a fixed distance from the
-                target; <span className="font-medium text-ink">% of target</span> is a share of it, so the same
-                rule holds a large class loosely and a small one tightly.
-              </p>
-              <label className="flex items-center gap-2 text-xs text-ink-soft">
-                <input
-                  type="checkbox"
-                  checked={twoSided}
-                  onChange={(event) => setTwoSided(event.target.checked)}
-                  className="size-4 rounded border-line text-primary-600 focus:ring-primary-600/30"
-                />
-                Allow a different distance under the target than over it
-              </label>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                      <th scope="col" className="py-1.5 pr-3">Asset class</th>
-                      <th scope="col" className="px-2 py-1.5">Measured in</th>
-                      <th scope="col" className="px-2 py-1.5">{twoSided ? "Watching over" : "Watching"}</th>
-                      <th scope="col" className="px-2 py-1.5">{twoSided ? "Edge over" : "Edge"}</th>
-                      <th scope="col" className={twoSided ? "px-2 py-1.5" : "py-1.5 pl-2"}>
-                        {twoSided ? "Breached over" : "Breached"}
-                      </th>
-                      {twoSided && (
-                        <>
-                          <th scope="col" className="px-2 py-1.5">Watching under</th>
-                          <th scope="col" className="px-2 py-1.5">Edge under</th>
-                          <th scope="col" className="py-1.5 pl-2">Breached under</th>
-                        </>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {codes.map((assetClass) => {
-                      const band = bands[assetClass];
-                      const change = (part: BandFigure) => (event: ChangeEvent<HTMLInputElement>) =>
-                        setBands({
-                          ...bands,
-                          [assetClass]: { ...band, [part]: asFigure(event.target.value, band[part]) },
-                        });
-                      // A relative band is a share of the target, so the model's own points mean nothing as
-                      // a hint for it.
-                      const hint = (points: string, share: string) =>
-                        band.basis === "RELATIVE" ? share : points;
-                      return (
-                        <tr key={assetClass}>
-                          <th scope="row" className="py-1.5 pr-3 text-left font-medium text-ink">
-                            {(names[assetClass] ?? assetClass)}
-                          </th>
-                          <td className="px-2 py-1.5">
-                            <SelectInput
-                              aria-label={`${(names[assetClass] ?? assetClass)} measured in`}
-                              value={band.basis ?? "ABSOLUTE"}
-                              className="w-auto"
-                              onChange={(event) =>
-                                setBands({
-                                  ...bands,
-                                  [assetClass]: { ...band, basis: event.target.value as BandRequestBasis },
-                                })
-                              }
-                            >
-                              <option value="ABSOLUTE">points</option>
-                              <option value="RELATIVE">% of target</option>
-                            </SelectInput>
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <TextInput
-                              aria-label={`${(names[assetClass] ?? assetClass)} worth watching from`}
-                              inputMode="decimal"
-                              placeholder={hint(watchAt, "10")}
-                              value={band.watchAt}
-                              onChange={change("watchAt")}
-                            />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <TextInput
-                              aria-label={`${(names[assetClass] ?? assetClass)} at the edge from`}
-                              inputMode="decimal"
-                              placeholder={hint(edgeAt, "15")}
-                              value={band.edgeAt}
-                              onChange={change("edgeAt")}
-                            />
-                          </td>
-                          <td className={twoSided ? "px-2 py-1.5" : "py-1.5 pl-2"}>
-                            <TextInput
-                              aria-label={`${(names[assetClass] ?? assetClass)} breached from`}
-                              inputMode="decimal"
-                              placeholder={hint(breachAt, "20")}
-                              value={band.breachAt}
-                              onChange={change("breachAt")}
-                            />
-                          </td>
-                          {twoSided && (
-                            <>
-                              <td className="px-2 py-1.5">
-                                <TextInput
-                                  aria-label={`${(names[assetClass] ?? assetClass)} worth watching under`}
-                                  inputMode="decimal"
-                                  placeholder={band.watchAt || hint(watchAt, "10")}
-                                  value={band.watchBelow}
-                                  onChange={change("watchBelow")}
-                                />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <TextInput
-                                  aria-label={`${(names[assetClass] ?? assetClass)} at the edge under`}
-                                  inputMode="decimal"
-                                  placeholder={band.edgeAt || hint(edgeAt, "15")}
-                                  value={band.edgeBelow}
-                                  onChange={change("edgeBelow")}
-                                />
-                              </td>
-                              <td className="py-1.5 pl-2">
-                                <TextInput
-                                  aria-label={`${(names[assetClass] ?? assetClass)} breached under`}
-                                  inputMode="decimal"
-                                  placeholder={band.breachAt || hint(breachAt, "20")}
-                                  value={band.breachBelow}
-                                  onChange={change("breachBelow")}
-                                />
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              {halfBanded.length > 0 && (
-                <p className="text-xs text-red-600">
-                  {andList(halfBanded.map((assetClass) => (names[assetClass] ?? assetClass)))}{" "}
-                  {halfBanded.length === 1 ? "has" : "have"} only part of a tolerance. Give all three levels, or
-                  leave all three empty to use the figures above.
-                </p>
-              )}
-              {errors.fields.bands && <p className="text-xs text-red-600">{errors.fields.bands}</p>}
-            </div>
-          )}
-        </fieldset>
-
-        <fieldset className="rounded-xl border border-line px-4 pt-2 pb-4">
-          <legend className="px-1.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            Where in the world, and in what
-          </legend>
-          <p className="max-w-prose text-xs text-ink-muted">
-            A separate question from the split above, not a breakdown of it: a plan can want a third of the
-            money in one country whichever classes it arrives in. Read against the holdings written down line
-            by line, because only a line says where it is — a class recorded as one figure says nothing.
-            Leave either empty and the plan asks nothing of it.
-          </p>
-          <div className="mt-3 grid gap-4 lg:grid-cols-2">
-            <Spread
-              label="By country"
-              hint="Two-letter codes, such as US or IN."
-              placeholder="US"
-              lines={countries}
-              onChange={setCountries}
-            />
-            <Spread
-              label="By sector"
-              hint="As the firm writes them, such as Technology."
-              placeholder="Technology"
-              lines={sectors}
-              onChange={setSectors}
-            />
-          </div>
-          {errors.fields.geographyTargets && (
-            <p className="mt-2 text-xs text-red-600">{errors.fields.geographyTargets}</p>
-          )}
-          {errors.fields.sectorTargets && (
-            <p className="mt-2 text-xs text-red-600">{errors.fields.sectorTargets}</p>
-          )}
-        </fieldset>
-
-        <Field
-          id="model-note"
-          label="What changed"
-          hint="Kept on the plan's version history. Left empty, the platform writes down what moved."
-          error={errors.fields.changeNote}
-        >
-          <TextInput
-            id="model-note"
-            placeholder="Annual strategic review; alternatives added"
-            value={changeNote}
-            onChange={(event) => setChangeNote(event.target.value)}
-          />
-        </Field>
 
         <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
           {/* Said beside the button as well as against the field. Somebody who presses Save at the foot of a
