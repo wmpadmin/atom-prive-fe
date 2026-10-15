@@ -3,15 +3,19 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 
 interface DialogProps {
   open: boolean;
-  /** lg suits long forms, such as editing a full profile; xl a form laid out in columns. */
-  size?: "md" | "lg" | "xl";
+  /**
+   * lg suits long forms, such as editing a full profile; xl a form laid out in columns; 2xl one laid out
+   * in columns that are themselves tables, where the narrower one leaves a name and its figure fighting
+   * over the same few inches.
+   */
+  size?: "md" | "lg" | "xl" | "2xl";
   title: string;
   description?: ReactNode;
   onClose: () => void;
   children: ReactNode;
 }
 
-const WIDTHS = { md: "max-w-lg", lg: "max-w-3xl", xl: "max-w-5xl" } as const;
+const WIDTHS = { md: "max-w-lg", lg: "max-w-3xl", xl: "max-w-5xl", "2xl": "max-w-7xl" } as const;
 
 /** Modal built on the native dialog element: focus trapping, Escape and the backdrop come for free. */
 export function Dialog({ open, size = "md", title, description, onClose, children }: DialogProps) {

@@ -50,7 +50,7 @@ export function PortfolioSetupDialog({
   return (
     <Dialog
       open
-      size="xl"
+      size="2xl"
       title={`Net AUM calculator for ${clientName}`}
       onClose={onClose}
     >
