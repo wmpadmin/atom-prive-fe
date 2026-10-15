@@ -790,6 +790,29 @@ export interface PortfolioStanding {
   unwritten: number;
 }
 
+export interface LoanRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  item: string;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  description: string | null;
+  valueAmount: number;
+}
+
+export interface LoanRow {
+  id: string;
+  item: string;
+  /** @nullable */
+  description: string | null;
+  valueAmount: number;
+}
+
 export type HoldingsRequestHoldings = {[key: string]: number};
 
 export interface HoldingsRequest {
@@ -4535,6 +4558,13 @@ export interface ClientNonFinancialAssets {
   items: NonFinancialAssetRow[];
 }
 
+export interface ClientLoans {
+  customerId: string;
+  currency: string;
+  total: number;
+  loans: LoanRow[];
+}
+
 /**
  * @nullable
  */
@@ -7400,6 +7430,161 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSetClientModelPortfolioMutationOptions(options), queryClient);
+    }
+
+export const getChangeClientLoanUrl = (customerId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/loans/${id}`
+}
+
+export const changeClientLoan = async (customerId: string,
+    id: string,
+    loanRequest: LoanRequest, options?: Parameters<typeof http>[1]): Promise<LoanRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<LoanRow>(getChangeClientLoanUrl(customerId,id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(loanRequest)
+  }
+);}
+
+
+
+
+
+export const getChangeClientLoanMutationKey = () => ['changeClientLoan'] as const;
+
+export const getChangeClientLoanMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeClientLoan>>, TError,ChangeClientLoanMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeClientLoan>>, TError,ChangeClientLoanMutationVariables, TContext> => {
+
+const mutationKey = getChangeClientLoanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeClientLoan>>, ChangeClientLoanMutationVariables> = (props) => {
+          const {customerId,id,data} = props ?? {};
+
+          return  changeClientLoan(customerId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeClientLoanMutationResult = NonNullable<Awaited<ReturnType<typeof changeClientLoan>>>
+    export type ChangeClientLoanMutationBody = LoanRequest
+    export type ChangeClientLoanMutationError = unknown
+    export type ChangeClientLoanMutationVariables = {customerId: string;id: string;data: LoanRequest}
+
+    export const useChangeClientLoan = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeClientLoan>>, TError,ChangeClientLoanMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeClientLoan>>,
+        TError,
+        ChangeClientLoanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeClientLoanMutationOptions(options), queryClient);
+    }
+
+export const getRemoveClientLoanUrl = (customerId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/loans/${id}`
+}
+
+export const removeClientLoan = async (customerId: string,
+    id: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getRemoveClientLoanUrl(customerId,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveClientLoanMutationKey = () => ['removeClientLoan'] as const;
+
+export const getRemoveClientLoanMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeClientLoan>>, TError,RemoveClientLoanMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeClientLoan>>, TError,RemoveClientLoanMutationVariables, TContext> => {
+
+const mutationKey = getRemoveClientLoanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeClientLoan>>, RemoveClientLoanMutationVariables> = (props) => {
+          const {customerId,id} = props ?? {};
+
+          return  removeClientLoan(customerId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveClientLoanMutationResult = NonNullable<Awaited<ReturnType<typeof removeClientLoan>>>
+
+    export type RemoveClientLoanMutationError = unknown
+    export type RemoveClientLoanMutationVariables = {customerId: string;id: string}
+
+    export const useRemoveClientLoan = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeClientLoan>>, TError,RemoveClientLoanMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeClientLoan>>,
+        TError,
+        RemoveClientLoanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveClientLoanMutationOptions(options), queryClient);
     }
 
 export const getListClientHoldingsUrl = (customerId: string,
@@ -14933,6 +15118,184 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordNonFinancialAssetMutationOptions(options), queryClient);
+    }
+
+export const getListClientLoansUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/loans`
+}
+
+export const listClientLoans = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientLoans> => {
+
+  return http<ClientLoans>(getListClientLoansUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientLoansQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/loans`
+    ] as const;
+    }
+
+
+export const getListClientLoansQueryOptions = <TData = Awaited<ReturnType<typeof listClientLoans>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientLoans>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientLoansQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientLoans>>> = ({ signal }) => listClientLoans(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientLoans>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListClientLoansQueryResult = NonNullable<Awaited<ReturnType<typeof listClientLoans>>>
+export type ListClientLoansQueryError = unknown
+
+
+export function useListClientLoans<TData = Awaited<ReturnType<typeof listClientLoans>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientLoans>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientLoans>>,
+          TError,
+          Awaited<ReturnType<typeof listClientLoans>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientLoans<TData = Awaited<ReturnType<typeof listClientLoans>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientLoans>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientLoans>>,
+          TError,
+          Awaited<ReturnType<typeof listClientLoans>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientLoans<TData = Awaited<ReturnType<typeof listClientLoans>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientLoans>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListClientLoans<TData = Awaited<ReturnType<typeof listClientLoans>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientLoans>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListClientLoansQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordClientLoanUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/loans`
+}
+
+export const recordClientLoan = async (customerId: string,
+    loanRequest: LoanRequest, options?: Parameters<typeof http>[1]): Promise<LoanRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<LoanRow>(getRecordClientLoanUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(loanRequest)
+  }
+);}
+
+
+
+
+
+export const getRecordClientLoanMutationKey = () => ['recordClientLoan'] as const;
+
+export const getRecordClientLoanMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordClientLoan>>, TError,RecordClientLoanMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordClientLoan>>, TError,RecordClientLoanMutationVariables, TContext> => {
+
+const mutationKey = getRecordClientLoanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordClientLoan>>, RecordClientLoanMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  recordClientLoan(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordClientLoanMutationResult = NonNullable<Awaited<ReturnType<typeof recordClientLoan>>>
+    export type RecordClientLoanMutationBody = LoanRequest
+    export type RecordClientLoanMutationError = unknown
+    export type RecordClientLoanMutationVariables = {customerId: string;data: LoanRequest}
+
+    export const useRecordClientLoan = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordClientLoan>>, TError,RecordClientLoanMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordClientLoan>>,
+        TError,
+        RecordClientLoanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordClientLoanMutationOptions(options), queryClient);
     }
 
 export const getListClientCashflowsUrl = (customerId: string,) => {
