@@ -218,11 +218,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
             {ownedTotal > 0 ? `${money(ownedTotal, false)} ${currency}` : "—"}
           </p>
         </header>
-        <p className="px-4 pt-2 text-xs text-ink-muted">
-          A house, a painting, a stake in their own company. None of it can be sold to put a portfolio back
-          where its plan wants it, so none of it is on the allocation.
-        </p>
-        <div className="grid grid-cols-[1fr_1.5fr_8rem_2.25rem] items-center gap-3 px-4 pt-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+        <div className="grid grid-cols-[1fr_1.5fr_8rem_2.25rem] items-center gap-3 px-4 pt-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           <span>Item</span>
           <span>Description</span>
           <span className="text-right">Value</span>
@@ -300,11 +296,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
             {owedTotal > 0 ? `${money(owedTotal, true)} ${currency}` : "—"}
           </p>
         </header>
-        <p className="px-4 pt-2 text-xs text-ink-muted">
-          Borrowed against the portfolio, against a property, against anything. Write what is owed as a
-          plain figure: it is kept as a figure that is owed, so everything that has to allow for it adds it.
-        </p>
-        <div className="grid grid-cols-[1fr_8rem_2.25rem] items-center gap-3 px-4 pt-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+        <div className="grid grid-cols-[1fr_8rem_2.25rem] items-center gap-3 px-4 pt-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           <span>Description</span>
           <span className="text-right">Owed</span>
           <span className="sr-only">Take it off</span>
