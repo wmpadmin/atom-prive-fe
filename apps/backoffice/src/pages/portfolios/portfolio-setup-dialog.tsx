@@ -53,6 +53,7 @@ export function PortfolioSetupDialog({
     <Dialog
       open
       size="2xl"
+      tall
       title={`Net AUM calculator for ${clientName}`}
       onClose={onClose}
     >
@@ -90,7 +91,9 @@ export function PortfolioSetupDialog({
         </li>
       </ol>
 
-      <div className="mt-4">
+      {/* The step fills the height the dialog is held at, so its buttons sit at the foot of the dialog
+          rather than halfway up it on a short step. */}
+      <div className="mt-4 flex flex-1 flex-col">
         {step === 1 && <AllocationStep customerId={customerId} onDone={() => setStep(2)} />}
         {step === 2 && <WorthStep customerId={customerId} onDone={() => setStep(3)} onBack={() => setStep(1)} />}
         {step === 3 && <NetAumStep customerId={customerId} onDone={onClose} onBack={() => setStep(2)} />}
