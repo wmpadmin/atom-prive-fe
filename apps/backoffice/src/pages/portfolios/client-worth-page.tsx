@@ -370,7 +370,7 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
           Back
         </Button>
         <Button type="button" size="lg" disabled={busy || !readable} onClick={() => void save()}>
-          {busy ? "Saving…" : "Save as draft"}
+          {busy ? "Saving…" : "Next"}
         </Button>
       </div>
     </div>
