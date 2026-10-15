@@ -793,23 +793,15 @@ export interface PortfolioStanding {
 export interface LoanRequest {
   /**
      * @minLength 0
-     * @maxLength 200
-     */
-  item: string;
-  /**
-     * @minLength 0
      * @maxLength 2000
-     * @nullable
      */
-  description: string | null;
+  description: string;
   valueAmount: number;
 }
 
 export interface LoanRow {
   id: string;
-  item: string;
-  /** @nullable */
-  description: string | null;
+  description: string;
   valueAmount: number;
 }
 

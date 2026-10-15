@@ -17,16 +17,16 @@ import { Link, useNavigate, useParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 
 /** One thing somebody is writing down: what it is, whatever else has to be said, and what it is worth. */
-type Owned = {
+type Owed = {
   /** What it is already written down as, where it is. Null for one nobody has written yet. */
   id: string | null;
-  item: string;
+  /** What the loan is. All that tells one from another, so a figure cannot be written without it. */
   description: string;
   /** Kept as a string so a half-typed figure is not rounded away under the cursor. */
   amount: string;
 };
 
-const NOTHING_YET: Owned = { id: null, item: "", description: "", amount: "" };
+const NOTHING_YET: Owed = { id: null, description: "", amount: "" };
 
 /** Figures only, and one point. Letters in a money box are not a small mistake to round away. */
 function asFigure(typed: string, before: string) {
@@ -59,12 +59,11 @@ export function ClientLoansPage() {
 
   // Seeded from what is already written down, with one blank line at the end so the next thing can be
   // written without reaching for a button first.
-  const [typed, setTyped] = useState<Owned[] | null>(null);
-  const asRead = useMemo<Owned[]>(() => [
+  const [typed, setTyped] = useState<Owed[] | null>(null);
+  const asRead = useMemo<Owed[]>(() => [
     ...(owed.data?.loans ?? []).map((one) => ({
       id: one.id,
-      item: one.item,
-      description: one.description ?? "",
+      description: one.description,
       // Shown as a plain figure, because nobody writes a minus sign to say what they owe. It is kept
       // negative, so what comes back is turned round to be read.
       amount: String(Math.abs(one.valueAmount)),
@@ -78,15 +77,16 @@ export function ClientLoansPage() {
   const whole = Math.round(rows.reduce(
     (total, one) => total + (isNumber(one.amount) ? Number(one.amount) : 0), 0) * 100) / 100;
   // A line with a figure on it has to say what it is; one with neither is the blank line at the end.
-  const unnamed = rows.filter((one) => one.amount.trim() !== "" && one.item.trim() === "");
+  const unnamed = rows.filter((one) => one.amount.trim() !== "" && one.description.trim() === "");
   const unreadable = rows.filter((one) => one.amount.trim() !== "" && !isNumber(one.amount));
   const readable = unnamed.length === 0 && unreadable.length === 0;
 
-  function put(at: number, part: Partial<Owned>) {
+  function put(at: number, part: Partial<Owed>) {
     const put = rows.map((was, which) => (which === at ? { ...was, ...part } : was));
     // The blank line at the end is kept blank: once somebody writes in it, another one follows it.
     const last = put[put.length - 1];
-    setTyped((last && (last.item.trim() !== "" || last.amount.trim() !== "")) ? [...put, NOTHING_YET] : put);
+    setTyped((last && (last.description.trim() !== "" || last.amount.trim() !== ""))
+      ? [...put, NOTHING_YET] : put);
   }
 
   /**
@@ -98,7 +98,7 @@ export function ClientLoansPage() {
     setErrors(noErrors);
     try {
       for (const one of rows) {
-        const named = one.item.trim() !== "";
+        const named = one.description.trim() !== "";
         if (!named) {
           if (one.id !== null) {
             await forget.mutateAsync({ customerId, id: one.id });
@@ -106,8 +106,7 @@ export function ClientLoansPage() {
           continue;
         }
         const data = {
-          item: one.item.trim(),
-          description: one.description.trim() || null,
+          description: one.description.trim(),
           valueAmount: isNumber(one.amount) ? Number(one.amount) : 0,
         };
         if (one.id === null) {
@@ -115,7 +114,7 @@ export function ClientLoansPage() {
           continue;
         }
         const was = wasRead.get(one.id);
-        if (was?.item === one.item && was.description === one.description && was.amount === one.amount) {
+        if (was?.description === one.description && was.amount === one.amount) {
           continue;
         }
         await change.mutateAsync({ customerId, id: one.id, data });
@@ -154,8 +153,7 @@ export function ClientLoansPage() {
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       <section className="rounded-2xl border border-line bg-white">
-        <div className="grid grid-cols-[1fr_1.5fr_10rem_2.25rem] items-center gap-3 border-b border-line px-5 py-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          <span>Loan</span>
+        <div className="grid grid-cols-[1fr_10rem_2.25rem] items-center gap-3 border-b border-line px-5 py-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           <span>Description</span>
           <span className="text-right">Owed</span>
           <span className="sr-only">Take it off</span>
@@ -165,24 +163,18 @@ export function ClientLoansPage() {
           {rows.map((one, at) => (
             <li
               key={one.id ?? `new-${at}`}
-              className="grid grid-cols-[1fr_1.5fr_10rem_2.25rem] items-start gap-3 px-5 py-2.5"
+              className="grid grid-cols-[1fr_10rem_2.25rem] items-start gap-3 px-5 py-2.5"
             >
-              <TextInput
-                aria-label={`What the client owes, line ${at + 1}`}
-                placeholder="Mortgage, Juhu flat"
-                value={one.item}
-                onChange={(event) => put(at, { item: event.target.value })}
-              />
               <TextArea
-                aria-label={`About ${one.item || `line ${at + 1}`}`}
-                placeholder="Who it is from, what it is secured on"
+                aria-label={`What the client owes, line ${at + 1}`}
+                placeholder="Mortgage on the Juhu flat — HDFC, secured on the flat"
                 rows={1}
                 value={one.description}
                 onChange={(event) => put(at, { description: event.target.value })}
               />
               <div className="relative">
                 <TextInput
-                  aria-label={`What is owed on ${one.item || `line ${at + 1}`}`}
+                  aria-label={`What is owed on ${one.description || `line ${at + 1}`}`}
                   inputMode="decimal"
                   className={cn("text-right", currency && "pr-12")}
                   value={one.amount}
@@ -199,10 +191,10 @@ export function ClientLoansPage() {
               </div>
               {/* The blank line at the end has nothing to take off yet. */}
               <span className="pt-1">
-                {(one.item.trim() !== "" || one.amount.trim() !== "") && (
+                {(one.description.trim() !== "" || one.amount.trim() !== "") && (
                   <IconButton
-                    label={`Take ${one.item || `line ${at + 1}`} off`}
-                    onClick={() => put(at, { item: "", description: "", amount: "" })}
+                    label={`Take ${one.description || `line ${at + 1}`} off`}
+                    onClick={() => put(at, { description: "", amount: "" })}
                   >
                     <Trash2 aria-hidden="true" className="size-4" />
                   </IconButton>
@@ -225,7 +217,7 @@ export function ClientLoansPage() {
       </section>
 
       {unnamed.length > 0 && (
-        <Alert tone="danger">Something with a figure on it has to say what it is.</Alert>
+        <Alert tone="danger">A loan with a figure on it has to say what it is.</Alert>
       )}
       {unreadable.length > 0 && (
         <Alert tone="danger">A figure box has something in it that is not a figure.</Alert>
