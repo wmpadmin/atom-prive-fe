@@ -13,8 +13,9 @@ import { Alert, Button, IconButton, TextArea, TextInput, cn } from "@atomprive/u
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { SetUpSteps } from "./portfolio-setup-steps";
 
 /** One thing somebody is writing down: what it is, whatever else has to be said, and what it is worth. */
 type Owned = {
@@ -135,22 +136,16 @@ export function ClientNonFinancialPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        {/* Back to the screen before it: this is asked for straight after the allocation, and jumped to
-            from the link on it, so either way that is where somebody came from. */}
-        <Link
-          to={`/portfolio-clients/${customerId}/allocation`}
-          className="text-xs font-semibold text-primary-700 hover:underline"
-        >
-          ← Back to the allocation
-        </Link>
-        <h1 className="mt-2 text-xl font-bold text-ink">What they own but nobody manages</h1>
-        <p className="mt-1 max-w-prose text-sm text-ink-muted">
+      <SetUpSteps
+        step={2}
+        customerId={customerId}
+        heading="What they own but nobody manages"
+        lead={<>
           A house, a painting, a stake in {client.data?.client.fullName ?? "the client"}&apos;s own company.
           It counts towards what they are worth. It is not on the allocation, because none of it can be sold
           to put a portfolio back where its plan wants it.
-        </p>
-      </div>
+        </>}
+      />
 
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
@@ -247,11 +242,15 @@ export function ClientNonFinancialPage() {
       </section>
 
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
-        <Button variant="secondary" type="button" onClick={() => void navigate("/portfolio-clients")}>
-          Cancel
+        <Button
+          variant="secondary"
+          type="button"
+          onClick={() => void navigate(`/portfolio-clients/${customerId}/allocation`)}
+        >
+          Back
         </Button>
         <Button type="button" disabled={busy || !readable} onClick={() => void save()}>
-          {busy ? "Writing it down…" : "Write it down"}
+          {busy ? "Writing it down…" : "Next"}
         </Button>
       </div>
     </div>

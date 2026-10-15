@@ -13,8 +13,9 @@ import { Alert, Button, IconButton, TextArea, TextInput, cn } from "@atomprive/u
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { SetUpSteps } from "./portfolio-setup-steps";
 
 /** One thing somebody is writing down: what it is, whatever else has to be said, and what it is worth. */
 type Owed = {
@@ -134,21 +135,16 @@ export function ClientLoansPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        {/* Back to the screen before it, which is the last one asked for. */}
-        <Link
-          to={`/portfolio-clients/${customerId}/non-financial`}
-          className="text-xs font-semibold text-primary-700 hover:underline"
-        >
-          ← Back to what they own
-        </Link>
-        <h1 className="mt-2 text-xl font-bold text-ink">What they owe</h1>
-        <p className="mt-1 max-w-prose text-sm text-ink-muted">
+      <SetUpSteps
+        step={3}
+        customerId={customerId}
+        heading="What they owe"
+        lead={<>
           What {client.data?.client.fullName ?? "the client"} has borrowed — against the portfolio, against
           a property, against anything. Write what is owed as a plain figure: it is kept as a figure that is
           owed, so everything that has to allow for it adds it rather than remembering to take it off.
-        </p>
-      </div>
+        </>}
+      />
 
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
@@ -240,11 +236,15 @@ export function ClientLoansPage() {
       </section>
 
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
-        <Button variant="secondary" type="button" onClick={() => void navigate("/portfolio-clients")}>
-          Cancel
+        <Button
+          variant="secondary"
+          type="button"
+          onClick={() => void navigate(`/portfolio-clients/${customerId}/non-financial`)}
+        >
+          Back
         </Button>
         <Button type="button" disabled={busy || !readable} onClick={() => void save()}>
-          {busy ? "Writing it down…" : "Write it down"}
+          {busy ? "Writing it down…" : "Finish"}
         </Button>
       </div>
     </div>
