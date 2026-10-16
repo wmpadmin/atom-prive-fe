@@ -40,7 +40,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
-import { demoInForce, everySession } from "./demo-menu";
+import { demoInForce, sessionShown } from "./demo-menu";
 import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
@@ -474,63 +474,57 @@ export function AppLayout() {
     .map((item) => ({ ...item, below: navigation.filter((under) => under.under === item.to) }));
 
   /*
-   * While a session is being shown, the menu is drawn as the three sessions rather than one list: each
-   * named, its screens under it, in the order they are walked through — which is the session's order and
-   * not the menu's, because the point of it is to be a route somebody can follow.
+   * While a session is being shown, the menu is that session: named, its screens under it, in the order
+   * they are walked through — the session's order and not the menu's, because the point of it is to be
+   * a route somebody can follow.
    *
-   * The sessions nobody is talking about are listed and not clickable. Hiding them said the platform was
-   * four screens wide; leaving them live invited a click into a story that has not been told yet. Greyed,
-   * they say where what is being shown sits in the whole and go no further than saying it.
+   * Its screens are not all a way in. The ones being walked through are links; the rest of the story is
+   * drawn and goes nowhere, so the room can see that what they are being shown has a beginning and an
+   * end beyond it. Shown only the four, a sidebar of four says the platform is four screens wide.
    *
-   * The session being shown is the menu this reader would have had anyway, cut to it: a screen their
-   * role may not open is not in it, because it would be a way in that refused them. The sessions they
-   * are only being shown the shape of are drawn from the whole list instead — a name and an icon that
-   * go nowhere and fetch nothing. Told only what their own role can reach, a presenter whose account is
-   * a portfolio manager's would show two screens under "Running the platform" and the map would be a
-   * map of their permissions rather than of the platform.
+   * A screen being walked through is one this reader would have had anyway: their role may open it, or
+   * it is not a link, because a way in that refuses them is worse than no way in. The ones only being
+   * shown come from the whole list instead — a name and an icon that go nowhere and fetch nothing.
+   * Drawn from one account's access, the map would be a map of that account's permissions.
    */
-  const sessions = demo === null ? null : everySession(demo)
-    .map((session) => ({
-      ...session,
-      items: session.routes
-        .map((route) => (session.open
-          ? sections.find((item) => item.to === route)
-          : allNavigation.find((item) => item.to === route)))
-        .filter((item) => item !== undefined)
-        .map((item) => ({ ...item, below: [] as typeof sections[number]["below"] })),
-    }))
-    .filter((session) => session.items.length > 0);
+  const session = demo === null ? null : (() => {
+    const shown = sessionShown(demo);
+    const items = shown.routes
+      .map((route) => {
+        const live = shown.isLive(route) ? sections.find((item) => item.to === route) : undefined;
+        const item = live ?? allNavigation.find((each) => each.to === route);
+        return item === undefined ? undefined : { ...item, below: [], locked: live === undefined };
+      })
+      .filter((item) => item !== undefined);
+    return items.length > 0 ? { ...shown, items } : null;
+  })();
 
   return (
     <div className="flex min-h-screen bg-canvas font-sans text-ink">
       <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-line bg-sidebar px-4 py-6">
         <nav aria-label="Back-office" className="mt-14">
-          {sessions === null ? (
+          {session === null ? (
             <ul className="space-y-1">
               {sections.map((item) => (
                 <NavEntry key={item.to} item={item} pathname={pathname} search={search} />
               ))}
             </ul>
           ) : (
-            <div className="space-y-5">
-              {sessions.map((session) => (
-                <div key={session.key}>
-                  <p className="px-3 pb-1.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                    Meeting {session.key} — {session.title}
-                  </p>
-                  <ul className="space-y-1">
-                    {session.items.map((item) => (
-                      <NavEntry
-                        key={item.to}
-                        item={item}
-                        pathname={pathname}
-                        search={search}
-                        locked={!session.open}
-                      />
-                    ))}
-                  </ul>
-                </div>
-              ))}
+            <div>
+              <p className="px-3 pb-1.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                Meeting {session.key} — {session.title}
+              </p>
+              <ul className="space-y-1">
+                {session.items.map((item) => (
+                  <NavEntry
+                    key={item.to}
+                    item={item}
+                    pathname={pathname}
+                    search={search}
+                    locked={item.locked}
+                  />
+                ))}
+              </ul>
             </div>
           )}
         </nav>
