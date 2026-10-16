@@ -33,6 +33,7 @@ const FIRMS_OWN: SubAssetClass[] = [
   { assetClass: "FIXED_INCOME", name: "High Yield" },
   { assetClass: "FIXED_INCOME", name: "Subordinated / Perpetual" },
   { assetClass: "FIXED_INCOME", name: "Fixed Income Structured Product" },
+  { assetClass: "FIXED_INCOME", name: "Fixed Income Mutual Fund" },
 
   { assetClass: "FOREX", name: "Forex" },
   { assetClass: "FOREX", name: "FX Derivatives" },
