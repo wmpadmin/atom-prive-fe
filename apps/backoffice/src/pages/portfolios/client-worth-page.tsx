@@ -237,31 +237,16 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
               key={one.id ?? `new-${at}`}
               className="grid grid-cols-[1fr_1.5fr_9rem_2.25rem] items-start gap-3 px-4 py-1.5"
             >
-              {/* Picked from the firm's own kinds, or written where none of them is it. Something
-                  already written down under a name the list does not carry keeps that name and opens
-                  as typed, so reading a client back never quietly reworded what somebody put there. */}
-              {one.written || (one.item !== "" && !KINDS.includes(one.item)) ? (
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <TextInput
-                    aria-label={`What the client owns, line ${at + 1}`}
-                    placeholder="A vineyard, a stake in a business"
-                    className={cn(BOX, "min-w-0 flex-1")}
-                    value={one.item}
-                    onChange={(event) => putOwned(at, { item: event.target.value })}
-                  />
-                  <button
-                    type="button"
-                    className="shrink-0 text-2xs font-semibold text-primary-700 hover:underline"
-                    onClick={() => putOwned(at, { item: "", written: false })}
-                  >
-                    List
-                  </button>
-                </span>
-              ) : (
+              {/* One control, whatever is in it. The list carries the firm's own kinds, plus whatever
+                  this line is already written down as where that is not one of them — a client's
+                  vineyard stays a vineyard, and reading them back is not the moment to quietly reword
+                  it. Other opens a box under the list rather than replacing it, so a row somebody is
+                  typing into still looks like the row above it. */}
+              <span className="flex min-w-0 flex-col gap-1.5">
                 <SelectInput
                   aria-label={`What the client owns, line ${at + 1}`}
                   className={BOX}
-                  value={one.item}
+                  value={one.written ? WRITE_ONE : one.item}
                   onChange={(event) =>
                     putOwned(at, event.target.value === WRITE_ONE
                       ? { item: "", written: true }
@@ -269,10 +254,22 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
                   }
                 >
                   <option value="">Pick what it is…</option>
-                  {KINDS.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
+                  {(one.item !== "" && !one.written && !KINDS.includes(one.item)
+                    ? [one.item, ...KINDS] : KINDS).map((kind) => (
+                    <option key={kind} value={kind}>{kind}</option>
+                  ))}
                   <option value={WRITE_ONE}>Other…</option>
                 </SelectInput>
-              )}
+                {one.written && (
+                  <TextInput
+                    aria-label={`What the client owns, line ${at + 1}, written out`}
+                    placeholder="A vineyard, a racehorse"
+                    className={BOX}
+                    value={one.item}
+                    onChange={(event) => putOwned(at, { item: event.target.value })}
+                  />
+                )}
+              </span>
               <TextArea
                 aria-label={`About ${one.item || `line ${at + 1}`}`}
                 placeholder="Whatever else has to be said about it"
