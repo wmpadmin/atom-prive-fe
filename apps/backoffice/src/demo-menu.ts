@@ -31,16 +31,45 @@ export type Meeting = { title: string; routes: string[] };
 
 export const MEETINGS: Record<Demo, Meeting> = {
   /**
-   * Managing money against a plan. The one the firm asked to see first: a client's book, the plans it is
-   * measured against, what has drifted out of them, and putting several back at once.
+   * Managing money against a plan: the firm writes one down, puts clients on it, watches them wander off
+   * it, and puts them back.
+   *
+   * <p>Four screens, which is what the firm asked for. The data-flow story is eleven — the bands and
+   * trading rules that decide what counts as a breach come first, and the blotter, model changes,
+   * performance, risk, reports and dashboard after it are all reads of what these four wrote. Shown as
+   * four, two things are taken on trust: where the breach threshold came from, and where the orders went.
    */
   "1": {
     title: "Portfolio management",
     routes: ["/portfolio-clients", "/model-portfolios", "/drift", "/bulk-rebalancing"],
   },
-  /** Filled in once the screens have been grouped. Until then it shows the whole menu rather than a guess. */
-  "2": { title: "", routes: [] },
-  "3": { title: "", routes: [] },
+  /**
+   * Running the platform. Two roots that need no data at all — the firm's reference data and the
+   * permission matrix — and everything that grows straight out of them: bank feeds and their failures,
+   * staff accounts, the declarations those accounts owe, the mail that chases them, and the log that
+   * records the lot.
+   *
+   * <p>The only session that can be shown on an empty system, which is why it comes before the client
+   * journey: that one borrows this one's staff accounts and mail templates, so the dependencies point
+   * backwards rather than forwards.
+   */
+  "2": {
+    title: "Running the platform",
+    routes: ["/config", "/ingestion", "/sync-errors", "/roles", "/users", "/settings",
+      "/my-declarations", "/staff-declarations", "/staff-tracker", "/notifications", "/audit-log"],
+  },
+  /**
+   * One client from an empty form pack to a piece of advice signed off and sent, in the order the firm
+   * actually does it: the checklist, the case, the advisor, the signatures, the papers, the KYC decision,
+   * the welcome pack, then the proposal and its sign-off. It ends on the two trails, which read back the
+   * activity the session has just made.
+   */
+  "3": {
+    title: "Onboarding to signed advice",
+    routes: ["/forms", "/onboarding", "/clients", "/my-clients", "/to-sign", "/client-documents",
+      "/kyc-documents", "/kyc", "/post-onboarding", "/proposals", "/manager-review",
+      "/proposal-trail", "/family-access"],
+  },
 };
 
 function isDemo(said: string | null): said is Demo {
