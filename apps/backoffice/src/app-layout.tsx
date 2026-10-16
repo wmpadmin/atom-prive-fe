@@ -40,6 +40,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
+import { demoInForce } from "./demo-menu";
 import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
@@ -426,6 +427,9 @@ function NavEntry({
 export function AppLayout() {
   const user = useStaffUser();
   const { pathname, search } = useLocation();
+  // One session's screens, where somebody has asked for one. Nobody asking is the ordinary case and
+  // leaves every line below exactly as it was.
+  const demo = demoInForce(search);
   const permitted = (item: (typeof allNavigation)[number]) =>
     item.authority === null ||
     (Array.isArray(item.authority) ? hasAnyAuthority(user, ...item.authority) : hasAuthority(user, item.authority));
@@ -443,10 +447,17 @@ export function AppLayout() {
             permitted(item),
         );
 
+  // Cut to the session being shown, keeping the order the menu already has rather than the order the
+  // session names them in: what somebody is walked through is a route the presenter takes, and the menu
+  // beside them reading in a different order from every other day is its own small confusion.
+  //
+  // What somebody may not see is still not shown. A session is a smaller menu, never a larger one.
+  const shown = demo === null ? navigation : navigation.filter((item) => demo.routes.includes(item.to));
+
   // An entry and whatever sits under it, so the menu is drawn as the sections it actually has.
-  const sections = navigation
+  const sections = shown
     .filter((item) => !item.under)
-    .map((item) => ({ ...item, below: navigation.filter((under) => under.under === item.to) }));
+    .map((item) => ({ ...item, below: shown.filter((under) => under.under === item.to) }));
 
   return (
     <div className="flex min-h-screen bg-canvas font-sans text-ink">
