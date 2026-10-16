@@ -1010,35 +1010,22 @@ export function ClientHoldingsPanel({
                   /* Above the table rather than on a row inside it: it is true of every line below at
                      once, and said against one of them it would read as that line's problem.
 
-                     Two things, said apart. Run together they read as one contradiction: a class that
-                     needs money from somewhere else, over a table whose first row says to sell. They are
-                     answers to different questions — how much the class is worth, and where inside it
-                     what it is worth happens to sit — and only the second is anything this screen can
-                     do. Said as one sentence, the suggestions below looked like they had been offered
-                     against the advice directly above them. */
-                  <div className="space-y-2 border-t border-ink/15 bg-amber-50/70 px-4 py-3 text-xs text-ink">
-                    <p>
-                      <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                        The class
-                      </span>{" "}
-                      <span className="font-semibold">
-                        {one.assetClassName || one.assetClass} holds {percent(classShare)} of the portfolio
-                        against an allowed {classLow.toFixed(2)}–{classHigh.toFixed(2)}
-                      </span>
-                      {" — "}
-                      {starved ? "short" : "over"} by {exactly(Math.abs(adrift), currency)}. Only{" "}
-                      {starved ? "money from another class" : "money moved out to another class"} puts
-                      that right, and nothing on this screen moves money between classes.
-                    </p>
-                    <p>
-                      <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                        The lines
-                      </span>{" "}
-                      They share what the class holds, each measured against what the class should be
-                      worth rather than what it does. Moving money between them can put some of them
-                      right — it cannot put all of them right while the class itself is outside its band.
-                    </p>
-                  </div>
+                     About the class and nothing else. A second paragraph stood here saying what the
+                     lines below could still do among themselves, to keep a suggestion to sell from
+                     reading as advice given against the line directly above it. Two blocks of prose over
+                     a table is more than a reader of it wants, and what the rows do is the rows' own
+                     business. The one thing this has to say is that the class is out by an amount no
+                     press on this screen will fix. */
+                  <p className="border-t border-ink/15 bg-amber-50/70 px-4 py-2.5 text-xs text-ink">
+                    <span className="font-semibold">
+                      {one.assetClassName || one.assetClass} holds {percent(classShare)} of the portfolio
+                      against an allowed {classLow.toFixed(2)}–{classHigh.toFixed(2)}
+                    </span>
+                    {" — "}
+                    {starved ? "short" : "over"} by {exactly(Math.abs(adrift), currency)}. Only{" "}
+                    {starved ? "money from another class" : "money moved out to another class"} puts that
+                    right, and nothing on this screen moves money between classes.
+                  </p>
                 )}
 
                 {isOpen && (
