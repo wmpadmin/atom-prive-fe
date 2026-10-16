@@ -241,17 +241,29 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
     ...opened.map((place) => now.get(place.name) ?? { ...place, room: 0 }),
     ...places.filter((place) => !opened.some((was) => was.name === place.name)),
   ];
-  const suggested = suggest(spare, inOrder);
-  const asSuggested = () => Object.fromEntries(
-    inOrder.map((place) => [place.name, String(suggested[place.name])]),
-  );
-  const [moves, setMoves] = useState<Record<string, string>>(asSuggested);
+  // What the window opens on, before anything has been moved out of it.
+  const plainly = suggest(spare, inOrder);
+  const [moves, setMoves] = useState<Record<string, string>>(() => Object.fromEntries(
+    inOrder.map((place) => [place.name, String(plainly[place.name])]),
+  ));
   const [failed, setFailed] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
   // What the last click did, and the fact that it was a click rather than typing. A move used to leave
   // every remaining box filled with a fresh split and the buttons back where they were, so it never looked
   // as though anything had happened — and the whole table sat one click away from going out the door.
+  // What is read off it now is which row to leave out of the next split, so that one button does not come
+  // back under the hand that just pressed it.
   const [done, setDone] = useState<{ amount: number; into: string } | null>(null);
+
+  // After a move, the row the money went into is offered none of what is left. The boxes were emptied
+  // outright once, because a move that refilled them all and put every button back never looked as though
+  // anything had happened — and leaving out the row just pressed keeps that, while the rest of the table
+  // still says where the remainder could go.
+  const suggested = done === null ? plainly
+    : suggest(spare, inOrder.map((place) => (place.name === done.into ? { ...place, room: 0 } : place)));
+  const asSuggested = () => Object.fromEntries(
+    inOrder.map((place) => [place.name, String(suggested[place.name])]),
+  );
 
   const change = useChangeClientHolding<ApiError>();
   const write = useRecordClientHolding<ApiError>();
@@ -279,9 +291,29 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // twice, which is the half somebody notices.
   // Only the row that has just gone. Emptying the rest made one click look like eight, and took away
   // figures somebody had lined up on purpose — the plan for the other rows is still the plan.
+  //
+  // Where there was no plan for the other rows, there is one now. A suggestion that put the whole of a
+  // breach into one sibling, moved in part, left every box at nought, no Move button on any of them and no
+  // way back to a suggestion — over a line still saying how much was left to place. Which is the window
+  // telling somebody there is money to move and offering nothing to move it with.
+  //
+  // Worked out here rather than read off the next render: the figures these boxes are filled from come
+  // back with the portfolio, and the portfolio is still being read when this runs. Only the room of the
+  // row just moved into changed, and that row is the one being left out, so the rest are as they were.
   function settled(place: Destination, amount: number) {
-    setMoves((was) => ({ ...was, [place.name]: "0" }));
     setDone({ amount, into: place.name });
+    setMoves((was) => {
+      const blank = Object.fromEntries(inOrder.map((each) => [each.name, "0"]));
+      // Figures in other rows are somebody's plan for them, and a fresh split would write over it.
+      const lined = inOrder.some((each) => each.name !== place.name && typed(was[each.name]) > 0);
+      if (lined) return { ...was, [place.name]: "0" };
+      const left = spare - amount;
+      if (left < 1) return blank;
+      const split = suggest(left, inOrder.filter((each) => each.name !== place.name));
+      return { ...blank, ...Object.fromEntries(
+        Object.entries(split).map(([name, figure]) => [name, String(figure)]),
+      ) };
+    });
   }
 
   async function move(place: Destination) {
