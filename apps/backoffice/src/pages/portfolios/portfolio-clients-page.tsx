@@ -31,6 +31,29 @@ import {
 const NOTHING_YET = "—";
 
 /**
+ * A return, signed, with what it is made of said on hover.
+ *
+ * <p>The sign is carried by the figure rather than by a colour alone: a reader who cannot tell red from
+ * green still has to be able to tell a gain from a loss, and a minus sign is not something a screenshot or
+ * a printout loses.
+ *
+ * <p>How many days it is made of is worth having to hand, because the same two per cent is a fine month
+ * and a poor decade. It goes in the title rather than on the row, where it would be a column of noise
+ * beside the one figure anybody came to read.
+ */
+function Earned({ percent, days }: { percent: number; days: number }) {
+  return (
+    <span
+      className={cn("font-semibold", percent < 0 ? "text-red-600" : "text-ink")}
+      title={`Over ${days} ${days === 1 ? "day" : "days"} on file, with money paid in and taken out kept `
+        + "out of the answer."}
+    >
+      {percent > 0 ? "+" : ""}{percent.toFixed(2)}%
+    </span>
+  );
+}
+
+/**
  * The book, read for portfolio work: every client the firm has, whoever advises them.
  *
  * <p>The columns to the right of the advisor are what managing a portfolio is done from — what the client
@@ -132,7 +155,17 @@ export function PortfolioClientsPage() {
             <th scope="col" className="px-5 py-3 text-left font-semibold">Client</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Advisor</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Risk profile</th>
-            <th scope="col" className="px-4 py-3 text-right font-semibold">Return</th>
+            {/* Two, because a client asks both in the same breath and they read very differently over a
+                year and a half. Since inception is the whole of it; per year is the rate that arrives at
+                the same place. Quoting one as the other flatters or buries the answer. */}
+            <th scope="col" className="px-4 py-3 text-right font-semibold whitespace-nowrap">
+              Return
+              <span className="block text-2xs font-normal text-ink-muted">since inception</span>
+            </th>
+            <th scope="col" className="px-4 py-3 text-right font-semibold whitespace-nowrap">
+              Return
+              <span className="block text-2xs font-normal text-ink-muted">per year</span>
+            </th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">AUM</th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">Drift</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Status</th>
@@ -201,7 +234,25 @@ export function PortfolioClientsPage() {
               <td className="px-4 py-3">
                 {standing?.modelName ?? <span className="text-ink-muted">{NOTHING_YET}</span>}
               </td>
-              <td className="px-4 py-3 text-right text-ink-muted">{NOTHING_YET}</td>
+              {/* Nothing is not nought. A client whose holdings were written down once has one
+                  photograph and no period at all, and a nought beside their name would read as a year of
+                  going nowhere rather than as a question nobody can answer yet. */}
+              <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                {standing?.earned
+                  ? <Earned percent={standing.earned.sinceInception} days={standing.earned.days} />
+                  : <span className="text-ink-muted">{NOTHING_YET}</span>}
+              </td>
+              {/* Nothing under a year. Eleven days of three per cent annualises to something near a
+                  hundred and seventy, which is not wrong so much as it is not an answer — a fortnight's
+                  weather quoted as a climate. */}
+              <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                {standing?.earned?.perYear != null
+                  ? <Earned percent={standing.earned.perYear} days={standing.earned.days} />
+                  : <span className="text-ink-muted" title={standing?.earned
+                      ? `Only ${standing.earned.days} days on file. A yearly rate is not offered under a `
+                        + "year."
+                      : undefined}>{NOTHING_YET}</span>}
+              </td>
               <td className="px-4 py-3 text-right whitespace-nowrap">
                 {standing && standing.underManagement > 0 ? (
                   <span className="font-semibold text-ink">
