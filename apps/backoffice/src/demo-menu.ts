@@ -23,6 +23,19 @@
 /** Which session. */
 export type Demo = "1" | "2" | "3";
 
+/**
+ * The session being shown while the firm is demoing, with nothing in the address asking for one.
+ *
+ * <p>THIS IS THE ONE LINE TO CHANGE. Set it to null when the demos are over and the menu goes back to
+ * being the whole menu for everybody. Set it to "2" or "3" to walk through one of the other sessions.
+ *
+ * <p>It is a default rather than something asked for because a demo is given from whatever browser is in
+ * front of the room — a borrowed laptop, a screen share, a window reopened after it went to sleep — and
+ * a sidebar that depends on somebody having typed a query string once is a sidebar that comes back wrong
+ * at the worst moment.
+ */
+const WHILE_DEMOING: Demo | null = "1";
+
 /** Remembered between pages, because a demo walks through several and the address is not retyped. */
 const KEPT = "atomprive.demo";
 
@@ -114,12 +127,12 @@ export function demoInForce(search: string): Demo | null {
     if (isDemo(asked)) {
       window.localStorage.setItem(KEPT, asked);
     }
-    said = isDemo(asked) ? asked : window.localStorage.getItem(KEPT);
+    said = isDemo(asked) ? asked : window.localStorage.getItem(KEPT) ?? WHILE_DEMOING;
   }
   catch {
     // A browser that will not keep anything — a private window, blocked site data — still has to draw a
     // menu. Whatever the address said holds for this page and no further.
-    said = new URLSearchParams(search).get("demo");
+    said = new URLSearchParams(search).get("demo") ?? WHILE_DEMOING;
   }
   if (!isDemo(said)) return null;
   return MEETINGS[said].routes.length > 0 ? said : null;
