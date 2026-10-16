@@ -288,6 +288,11 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // A table of noughts offering to place a twentieth of what has to move is not a plan, it is eight rows
   // of nothing over the one sentence that matters. Said instead.
   const nowhere = canTake < 1 || canTake < spare / 20;
+  // Nothing left to move out of this sub-asset — which, after a move, is what success looks like. The
+  // window used to close on exactly this, taking the notice saying what had just gone and the button to
+  // put it back off the screen together. That is the commonest press there is: the suggestion is accepted
+  // whole, the breach clears, and the screen said nothing at all about what it had just done.
+  const nothingLeft = spare < 1;
   // Only where there is something to go back to. Money moved is money written down: the sub-asset is worth
   // what it is worth now, these boxes hold the suggestion made against that, and a button offering to put
   // back a suggestion nobody has changed is a button offering to undo the move — which it cannot do.
@@ -485,7 +490,11 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
           </div>
 
           {failed && <div className="mt-4"><Alert tone="danger">{failed}</Alert></div>}
-          {nowhere ? (
+          {nothingLeft ? (
+            <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-ink">
+              Nothing more has to leave {from}. It is inside its range.
+            </p>
+          ) : nowhere ? (
             <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-ink">
               {canTake < 1
                 ? `No other sub-asset in ${className} has room for it, so all `
@@ -627,7 +636,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
 
           {/* A minus sign in a money column is a figure somebody has to stop and decode. This says which way
               it has gone instead, and the figure stays a plain amount. */}
-          {!nowhere && (
+          {!nowhere && !nothingLeft && (
             <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1">
               <span className="text-sm font-semibold text-ink">
                 {left < -0.5 ? "Placed more than there is" : "Still to place"}
@@ -1140,20 +1149,28 @@ export function ClientHoldingsPanel({
         const its = classes.find((one) => one.assetClass === planning.assetClass);
         const group = its?.subClasses.find((each) => each.subClass === planning.subClass);
         const band = its?.breachAt ?? 0;
-        const toShed = (its && group) ? overIts(group, its.targetShare ?? 0, band, whole) : null;
-        // Gone, or put right by the move that was just made. Either way there is nothing left to plan.
-        if (!its || !group || toShed === null) return null;
+        // Gone from the screen altogether: a sub-asset the model does not name and nobody holds has no
+        // row left to plan against. A line the model names stays listed at nought, so this is only ever
+        // the window closing on something that is no longer there to talk about.
+        if (!its || !group) return null;
+        const over = overIts(group, its.targetShare ?? 0, band, whole);
+        // Nought rather than nothing, and the window stays open on it. Closing on the move that puts a
+        // line right took the notice saying what had just moved and the button to put it back off the
+        // screen in the same instant — and that is the commonest move there is, the whole suggestion
+        // accepted at once. It closes when somebody closes it.
+        const toShed = over === null ? 0 : Math.min(over, group.valueAmount);
         return (
           <Dialog
             open
             size="2xl"
-            title={`Where ${exactly(Math.min(toShed, group.valueAmount), currency)} out of `
-              + `${group.subClass ?? UNGROUPED} can go`}
+            title={toShed < 1
+              ? `${group.subClass ?? UNGROUPED} is inside its range`
+              : `Where ${exactly(toShed, currency)} out of ${group.subClass ?? UNGROUPED} can go`}
             onClose={() => setPlanning(null)}
           >
             <MoveOutPlan
               customerId={customerId}
-              spare={Math.min(toShed, group.valueAmount)}
+              spare={toShed}
               rows={group.positions}
               assetClass={its.assetClass}
               places={capacityIn(its.subClasses, group, its.targetShare ?? 0, band, whole)}
