@@ -155,29 +155,17 @@ export function PortfolioClientsPage() {
             <th scope="col" className="px-5 py-3 text-left font-semibold">Client</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Advisor</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Risk profile</th>
-            {/* Two, because a client asks both in the same breath and they read very differently over a
-                year and a half. Since inception is the whole of it; per year is the rate that arrives at
-                the same place. Quoting one as the other flatters or buries the answer. */}
-            <th scope="col" className="px-4 py-3 text-right font-semibold whitespace-nowrap">
-              Return
-              <span className="block text-2xs font-normal text-ink-muted">since inception</span>
-            </th>
-            <th scope="col" className="px-4 py-3 text-right font-semibold whitespace-nowrap">
-              Return
-              <span className="block text-2xs font-normal text-ink-muted">per year</span>
-            </th>
+            {/* One column, two figures stacked. Side by side they were two columns of a table already
+                eleven wide, under a heading that had to break over two lines to fit — and a reader
+                looking for the one figure they came for had to find which of two "Return" columns it
+                was in. The whole of it reads first; the rate per year sits under it in small, which is
+                the order somebody asks them in. */}
+            <th scope="col" className="px-4 py-3 text-right font-semibold">Return</th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">AUM</th>
-            {/* Two readings of one gap. Points are what the band is written in, so the verdict beside it
-                is read off them; money is what has to change hands, and a class four points out of a
-                portfolio nobody has in front of them is not an amount anybody can go and look for. */}
-            <th scope="col" className="px-4 py-3 text-right font-semibold whitespace-nowrap">
-              Drift
-              <span className="block text-2xs font-normal text-ink-muted">value</span>
-            </th>
-            <th scope="col" className="px-4 py-3 text-right font-semibold whitespace-nowrap">
-              Drift
-              <span className="block text-2xs font-normal text-ink-muted">points</span>
-            </th>
+            {/* The same gap twice, stacked rather than side by side. Money is what has to change hands
+                and reads first; points are what the band is written in and what the verdict beside it is
+                read off, so they sit under in small. */}
+            <th scope="col" className="px-4 py-3 text-right font-semibold">Drift</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Status</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Last rebalanced</th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">
@@ -246,22 +234,25 @@ export function PortfolioClientsPage() {
               </td>
               {/* Nothing is not nought. A client whose holdings were written down once has one
                   photograph and no period at all, and a nought beside their name would read as a year of
-                  going nowhere rather than as a question nobody can answer yet. */}
+                  going nowhere rather than as a question nobody can answer yet.
+
+                  Under a year there is no yearly rate to put underneath: eleven days of three per cent
+                  annualises to something near a hundred and seventy, which is not wrong so much as it is
+                  not an answer. The line simply is not drawn, and the hover says why. */}
               <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
-                {standing?.earned
-                  ? <Earned percent={standing.earned.sinceInception} days={standing.earned.days} />
-                  : <span className="text-ink-muted">{NOTHING_YET}</span>}
-              </td>
-              {/* Nothing under a year. Eleven days of three per cent annualises to something near a
-                  hundred and seventy, which is not wrong so much as it is not an answer — a fortnight's
-                  weather quoted as a climate. */}
-              <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
-                {standing?.earned?.perYear != null
-                  ? <Earned percent={standing.earned.perYear} days={standing.earned.days} />
-                  : <span className="text-ink-muted" title={standing?.earned
-                      ? `Only ${standing.earned.days} days on file. A yearly rate is not offered under a `
-                        + "year."
-                      : undefined}>{NOTHING_YET}</span>}
+                {standing?.earned ? (
+                  <>
+                    <Earned percent={standing.earned.sinceInception} days={standing.earned.days} />
+                    {standing.earned.perYear != null && (
+                      <span className="mt-0.5 block text-2xs text-ink-muted">
+                        {standing.earned.perYear > 0 ? "+" : ""}
+                        {standing.earned.perYear.toFixed(2)}% a year
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-ink-muted">{NOTHING_YET}</span>
+                )}
               </td>
               <td className="px-4 py-3 text-right whitespace-nowrap">
                 {standing && standing.underManagement > 0 ? (
@@ -272,33 +263,37 @@ export function PortfolioClientsPage() {
                   <span className="text-ink-muted">{NOTHING_YET}</span>
                 )}
               </td>
-              {/* The money first, because that is the figure somebody acts on. The sign reads the same way
-                  round as the points beside it: a plus is money the class holds over what the model asks,
-                  a minus is money it is short of — which is drift measured as actual less target, the way
-                  the band is read. */}
+              {/* The money first, because that is the figure somebody acts on, and the points under it
+                  because that is what the band is written in and what the verdict beside it is read off.
+                  The sign is the same on both: drift is what is held less what is asked for, so a plus is
+                  money the class holds over its target and a minus is money it is short of.
+
+                  Nothing is signed where there is nothing to sign. A class exactly on its target is not
+                  nought over and not nought short, and "−USD 0" is a minus sign doing no work. */}
               <td
                 className={cn(
                   "px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums",
                   standing?.standing == null ? "text-ink-muted" : driftTones[standing.standing],
                 )}
               >
-                {standing?.driftValue == null || standing.underManagement === 0
-                  ? <span className="text-ink-muted">{NOTHING_YET}</span>
-                  : <span title={"The class furthest from its target is "
+                {standing?.drift == null ? (
+                  <span className="text-ink-muted">{NOTHING_YET}</span>
+                ) : (
+                  <span title={standing.driftValue == null ? undefined
+                    : "The class furthest from its target is "
                       + `${underManagementLabel(Math.abs(standing.driftValue), standing.currency)} `
                       + (standing.driftValue > 0 ? "over" : "short of") + " what the model asks of it."}>
-                      {standing.driftValue > 0 ? "+" : "−"}
-                      {underManagementLabel(Math.abs(standing.driftValue), standing.currency)}
-                    </span>}
-              </td>
-              <td
-                className={cn(
-                  "px-4 py-3 text-right font-semibold whitespace-nowrap",
-                  // The ink follows the standing; the sign already says which side of the target it went.
-                  standing?.standing == null ? "text-ink-muted" : driftTones[standing.standing],
+                    {standing.driftValue == null ? NOTHING_YET : (
+                      <>
+                        {standing.driftValue > 0 ? "+" : standing.driftValue < 0 ? "−" : ""}
+                        {underManagementLabel(Math.abs(standing.driftValue), standing.currency)}
+                      </>
+                    )}
+                    <span className="mt-0.5 block text-2xs font-normal opacity-75">
+                      {driftLabel(standing.drift)}
+                    </span>
+                  </span>
                 )}
-              >
-                {standing?.drift == null ? NOTHING_YET : driftLabel(standing.drift)}
               </td>
               <td className="px-4 py-3">
                 {standing?.standing ? (
