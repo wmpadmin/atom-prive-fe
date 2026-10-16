@@ -83,11 +83,10 @@ function isDemo(said: string | null): said is Demo {
  * by clicking, and every click after the first loses the query it arrived with — asked once, it has to
  * hold for the rest of the sitting.
  *
- * <p>A session with no screens against it is not in force. The second and third are empty until somebody
- * has decided what is in them, and the honest answer in the meantime is the menu as it stands rather than
- * a session that turns out to be two items long.
+ * <p>A session with no screens against it is not in force: the honest answer is the menu as it stands
+ * rather than a session that turns out to be two items long.
  */
-export function demoInForce(search: string): Meeting | null {
+export function demoInForce(search: string): Demo | null {
   let said: string | null = null;
   try {
     const asked = new URLSearchParams(search).get("demo");
@@ -106,6 +105,12 @@ export function demoInForce(search: string): Meeting | null {
     said = new URLSearchParams(search).get("demo");
   }
   if (!isDemo(said)) return null;
-  const meeting = MEETINGS[said];
-  return meeting.routes.length > 0 ? meeting : null;
+  return MEETINGS[said].routes.length > 0 ? said : null;
+}
+
+/** The three sessions in order, saying which one is being shown. */
+export function everySession(inForce: Demo) {
+  return (Object.keys(MEETINGS) as Demo[])
+    .filter((key) => MEETINGS[key].routes.length > 0)
+    .map((key) => ({ key, ...MEETINGS[key], open: key === inForce }));
 }
