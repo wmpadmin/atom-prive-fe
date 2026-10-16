@@ -5,17 +5,15 @@ import {
   useChangeClientHolding,
   useListClientHoldings,
   useRecordClientHolding,
-  useSetClassTolerance,
   type ClassPositions,
   type SubClassGroup,
   type ClientHoldings,
   type PositionRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, Dialog, Field, TextInput, cn, describedBy } from "@atomprive/ui";
+import { Alert, Badge, Button, Dialog, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useRef, useState } from "react";
-import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { asFigure } from "../../lib/figures";
 import { useAssetClasses } from "./asset-classes";
 import {
@@ -25,175 +23,6 @@ import {
   underManagementLabel,
 } from "./portfolio-labels";
 
-/**
- * How far one client's asset class may wander, where the firm wants it held to something other than the
- * model's own figures.
- *
- * <p>Its own small dialog rather than three more boxes on a row already carrying a figure and two buttons:
- * it is a decision somebody takes once and rarely, not a thing to be typed past on the way to something
- * else.
- */
-function ToleranceDialog({
-  customerId,
-  one,
-  onClose,
-  onSaved,
-  onTouched,
-  onClassTouched,
-}: {
-  customerId: string;
-  one: ClassPositions;
-  onClose: () => void;
-  onSaved: () => void;
-  /** Each sub-asset whose own figures this is about to clear, as it stood, so Discard can put them back. */
-  onTouched?: (id: string, before: PositionRow | null) => void;
-  /** What the class was held to beforehand — its own figures, or nothing where it followed the model. */
-  onClassTouched?: (assetClass: string, before: { watchPp: number; edgePp: number; breachPp: number } | null)
-    => void;
-}) {
-  // Filled in with what this class is held to today, whether that is this client's own figures or the
-  // model's. Shown rather than left empty behind placeholders: typing over one of three empty boxes saved
-  // none of them, because a tolerance is three figures or none.
-  const stands = (figure: number | null | undefined) => (figure == null ? "" : String(figure));
-  const [watchPp, setWatchPp] = useState(stands(one.watchAt));
-  const [edgePp, setEdgePp] = useState(stands(one.edgeAt));
-  const [breachPp, setBreachPp] = useState(stands(one.breachAt));
-  const [errors, setErrors] = useState<FormErrors>(noErrors);
-  const given = [watchPp, edgePp, breachPp].filter((each) => each.trim() !== "").length;
-  // Watched, then the edge, then breached: none of them nearer than the one before. Equal is allowed, and
-  // is how the firm writes a band now — one figure in all three, which leaves the single verdict it asked
-  // for and nothing in between.
-  const outOfOrder = given === 3
-    && !(Number(watchPp) <= Number(edgePp) && Number(edgePp) <= Number(breachPp));
-  const set = useSetClassTolerance<ApiError>({
-    mutation: { onError: (failed) => setErrors(toFormErrors(failed)) },
-  });
-  const change = useChangeClientHolding<ApiError>({
-    mutation: { onError: (failed) => setErrors(toFormErrors(failed)) },
-  });
-  // Sub-assets inside this class that somebody has given figures of their own. They beat whatever is set
-  // here, so setting this and watching nothing change was the obvious thing to do and the wrong one.
-  const exceptions = one.subClasses
-    .flatMap((group) => group.positions)
-    .filter((row) => row.watchPp != null || row.edgePp != null || row.breachPp != null);
-  const name = one.assetClassName || one.assetClass;
-  const busy = set.isPending || change.isPending;
-  return (
-    <Dialog open title={`How far ${name} may wander`} onClose={onClose}>
-      <form
-        className="space-y-4"
-        onSubmit={async (event) => {
-          event.preventDefault();
-          setErrors(noErrors);
-          try {
-            // What the class stood on before this, so Discard can put the class itself back and not only
-            // the sub-assets underneath it.
-            onClassTouched?.(one.assetClass, one.ownTolerance && one.watchAt != null && one.edgeAt != null
-              && one.breachAt != null
-              ? { watchPp: one.watchAt, edgePp: one.edgeAt, breachPp: one.breachAt }
-              : null);
-            await set.mutateAsync({
-              customerId,
-              assetClass: one.assetClass,
-              // All three or none. Sent empty, the class goes back on the model's own figures.
-              data: given === 3
-                ? { watchPp: Number(watchPp), edgePp: Number(edgePp), breachPp: Number(breachPp) }
-                : { watchPp: null, edgePp: null, breachPp: null },
-            });
-            // A figure set here is what the whole class is held to, so the sub-assets holding figures of
-            // their own are put back on it. Left standing, they went on being measured by something nobody
-            // could see from this screen.
-            //
-            // Each one is handed to the page as it stood before its figures went, row by row: these are
-            // numbers somebody typed on purpose, and Discard said it would put them back while knowing
-            // nothing about them at all.
-            for (const row of exceptions) {
-              await change.mutateAsync({
-                customerId,
-                id: row.id,
-                data: { ...sameBut(row, row.valueAmount), watchPp: null, edgePp: null, breachPp: null },
-              });
-              onTouched?.(row.id, row);
-            }
-            onSaved();
-          } catch {
-            // The error is already on the screen, put there by whichever call failed.
-          }
-        }}
-      >
-        {errors.form && <Alert tone="danger">{errors.form}</Alert>}
-        <p className="text-xs text-ink-muted">
-          {one.ownTolerance
-            ? "Held to its own figures, not the model's. Clear all three to go back to the model."
-            : one.watchAt != null
-              ? `Held to the model's ${one.watchAt} / ${one.edgeAt} / ${one.breachAt}.`
-                + " Change them to hold this client to something of its own."
-              : "Held to the model's own figures."}
-        </p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field id="class-watch" label="Watched from" error={errors.fields.watchPp}>
-            <TextInput
-              {...describedBy("class-watch", errors.fields.watchPp)}
-              id="class-watch"
-              inputMode="decimal"
-              className="text-right"
-              value={watchPp}
-              onChange={(event) => setWatchPp(asFigure(event.target.value, watchPp))}
-            />
-          </Field>
-          <Field id="class-edge" label="At the edge from" error={errors.fields.edgePp}>
-            <TextInput
-              {...describedBy("class-edge", errors.fields.edgePp)}
-              id="class-edge"
-              inputMode="decimal"
-              className="text-right"
-              value={edgePp}
-              onChange={(event) => setEdgePp(asFigure(event.target.value, edgePp))}
-            />
-          </Field>
-          <Field id="class-breach" label="Breached from" error={errors.fields.breachPp}>
-            <TextInput
-              {...describedBy("class-breach", errors.fields.breachPp)}
-              id="class-breach"
-              inputMode="decimal"
-              className="text-right"
-              value={breachPp}
-              onChange={(event) => setBreachPp(asFigure(event.target.value, breachPp))}
-            />
-          </Field>
-        </div>
-        {given > 0 && given < 3 && (
-          <p className="text-xs text-amber-700">
-            All three or none. With any of them blank this client is held to the model's figures.
-          </p>
-        )}
-        {outOfOrder && (
-          <p className="text-xs text-rose-700">
-            None of them can be nearer than the one before: watched, then the edge, then breached. The same
-            figure in all three is allowed, and leaves one verdict rather than three.
-          </p>
-        )}
-        {/* Said before it happens, not found out afterwards: these are figures somebody wrote on purpose. */}
-        {exceptions.length > 0 && (
-          <p className="text-xs text-amber-700">
-            {exceptions.length === 1
-              ? `${exceptions[0].subClass ?? UNGROUPED} has figures of its own.`
-              : `${exceptions.length} sub-assets in ${name} have figures of their own.`}{" "}
-            Saving here clears them, so the whole class is measured by these.
-          </p>
-        )}
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={outOfOrder || busy}>
-            {busy ? "Saving…" : given === 3 ? "Hold it to these" : "Hold it to the model"}
-          </Button>
-        </div>
-      </form>
-    </Dialog>
-  );
-}
 
 /** Where the sub-class is left blank, the holdings still need a heading to sit under. */
 const UNGROUPED = "Not grouped";
@@ -706,7 +535,6 @@ export function ClientHoldingsPanel({
   customerId,
   onChanged,
   onTouched,
-  onClassTouched,
   offer,
   reveal = null,
   against = null,
@@ -728,8 +556,6 @@ export function ClientHoldingsPanel({
    *
    * <p>A tolerance is not a holding, so it has no row for Discard to put back. The page keeps it instead.
    */
-  onClassTouched?: (assetClass: string, before: { watchPp: number; edgePp: number; breachPp: number } | null)
-    => void;
   /**
    * Every class to list, in the firm's own order, so a class holding nothing still has a row to start it
    * in. Without it the list can only show what is already there, and a client holding nothing shows nothing.
@@ -757,8 +583,6 @@ export function ClientHoldingsPanel({
   // this way round because the classes arrive after the first render, and a set of what is open would have
   // to be filled in from them by an effect that renders twice to say what the list already said.
   const [shut, setShut] = useState<Set<string>>(new Set());
-  /** The class whose tolerance is being set, where somebody asked to change what it may wander. */
-  const [tolerating, setTolerating] = useState<ClassPositions | null>(null);
 
   // Settles once the portfolio has actually been read back, so a caller that must not act on yesterday's
   // figures can wait for it. Fired and forgotten, this let a second Move go out against the rows the first
@@ -957,22 +781,6 @@ export function ClientHoldingsPanel({
                   <span className="w-32 shrink-0 text-right">
                     <span className="tabular-nums">{underManagementLabel(one.valueAmount, currency)}</span>
                   </span>
-                  {/* What this class may wander, for a client the firm wants held to something other than
-                      the model. Changing it on the model moves it for every client on that model. */}
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() => setTolerating(one)}
-                      aria-label={`How far ${one.assetClassName || one.assetClass} may wander`}
-                      title={`How far ${one.assetClassName || one.assetClass} may wander`}
-                      className={cn(
-                        "shrink-0 rounded-lg border border-line p-1.5 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
-                        one.ownTolerance ? "text-primary-700" : "text-ink-soft",
-                      )}
-                    >
-                      <SlidersHorizontal aria-hidden="true" className="size-4" />
-                    </button>
-                  )}
                 </div>
 
                 {isOpen && (
@@ -1171,20 +979,6 @@ export function ClientHoldingsPanel({
           </Dialog>
         );
       })()}
-
-      {tolerating && (
-        <ToleranceDialog
-          customerId={customerId}
-          one={tolerating}
-          onTouched={onTouched}
-          onClassTouched={onClassTouched}
-          onClose={() => setTolerating(null)}
-          onSaved={() => {
-            setTolerating(null);
-            void kept();
-          }}
-        />
-      )}
 
     </section>
   );

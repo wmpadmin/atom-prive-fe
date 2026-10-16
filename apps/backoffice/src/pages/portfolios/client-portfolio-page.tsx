@@ -14,7 +14,6 @@ import {
   useRemoveClientHolding,
   useWriteTheirOwnAllocation,
   type PositionRow,
-  useSetClassTolerance,
   useSetClientModelPortfolio,
   usePreviewPortfolioCurrency,
   useSetPortfolioCurrency,
@@ -204,12 +203,6 @@ export function ClientPortfolioPage() {
   };
   const setModel = useSetClientModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
   // Taking back a holding added since Edit was pressed, when Discard is confirmed.
-  // What each class was held to before this sitting wrote over it. A tolerance is not a holding and has no
-  // row for the replay below to put back, so it is kept here beside the holdings. The first entry per class
-  // wins, the way it does for holdings: changed twice, what Discard restores is how it stood at Edit.
-  const [touchedTolerances, setTouchedTolerances] =
-    useState<Map<string, { watchPp: number; edgePp: number; breachPp: number } | null>>(new Map());
-  const putClassBack = useSetClassTolerance<ApiError>();
   // Each reports what it was refused for: a Discard that cannot put something back is the last moment to
   // be quiet about it.
   const forget = useRemoveClientHolding<ApiError>({ mutation: { onError } });
@@ -284,7 +277,6 @@ export function ClientPortfolioPage() {
     // typed-over box is. Counting only the boxes, a move made and walked away from asked nothing and took
     // its own undo with it.
     touchedHoldings.size > 0 ||
-    touchedTolerances.size > 0 ||
     figuresChanged ||
     (standing.data !== undefined && currency !== standing.data.currency) ||
     (chosenModel !== null && chosenModel !== (standing.data?.modelPortfolioId ?? "")) ||
@@ -302,7 +294,7 @@ export function ClientPortfolioPage() {
    * asked to do, and a Discard that quietly restored a line somebody deleted would be its own surprise.
    */
   function discard() {
-    if (touchedHoldings.size > 0 || touchedTolerances.size > 0) {
+    if (touchedHoldings.size > 0) {
       setConfirmingDiscard(true);
       return;
     }
@@ -319,7 +311,6 @@ export function ClientPortfolioPage() {
    */
   async function discardIncludingHoldings() {
     const stuck = new Map<string, PositionRow | null>();
-    const stuckClasses = new Map<string, { watchPp: number; edgePp: number; breachPp: number } | null>();
     let refused: ApiError | null = null;
     for (const [id, before] of touchedHoldings) {
       try {
@@ -362,29 +353,12 @@ export function ClientPortfolioPage() {
         refused ??= caught as ApiError;
       }
     }
-    // The tolerances last, because putting a sub-asset's own figures back is what decides whether the class
-    // figure above it is the one being measured by.
-    for (const [assetClass, before] of touchedTolerances) {
-      try {
-        await putClassBack.mutateAsync({
-          customerId,
-          assetClass,
-          // Nothing kept means it was following the model, and following the model is what it goes back to.
-          data: before ?? { watchPp: null, edgePp: null, breachPp: null },
-        });
-      }
-      catch (caught) {
-        stuckClasses.set(assetClass, before);
-        refused ??= caught as ApiError;
-      }
-    }
     setConfirmingDiscard(false);
-    if (stuck.size > 0 || stuckClasses.size > 0) {
+    if (stuck.size > 0) {
       // What is left to put back, and nothing else. The page stays in edit so Discard can be pressed
       // again, and says what happened — after the refetch, because reading the portfolio back clears the
       // message along with everything else.
       setTouchedHoldings(stuck);
-      setTouchedTolerances(stuckClasses);
       kept();
       setErrors(toFormErrors(refused as ApiError));
       return;
@@ -395,7 +369,6 @@ export function ClientPortfolioPage() {
 
   function putTheBoxesBack() {
     setTouchedHoldings(new Map());
-    setTouchedTolerances(new Map());
     setHeld(null);
     setChosenModel(null);
     setChosenCurrency(null);
@@ -464,7 +437,6 @@ export function ClientPortfolioPage() {
     setReviewedOn(null);
     // Saved is kept: what was written down in this sitting is the client's now, not this sitting's.
     setTouchedHoldings(new Map());
-    setTouchedTolerances(new Map());
     setEditing(false);
   }
 
@@ -559,7 +531,6 @@ export function ClientPortfolioPage() {
                   looks like a button rather than part of the furniture. */}
               <Button onClick={() => {
                 setTouchedHoldings(new Map());
-                setTouchedTolerances(new Map());
                 setEditing(true);
               }}>
                 <Pencil aria-hidden="true" />
@@ -730,10 +701,6 @@ export function ClientPortfolioPage() {
                   onTouched={(id, before) =>
                     setTouchedHoldings((were) => (were.has(id) ? were : new Map(were).set(id, before)))
                   }
-                  onClassTouched={(assetClass, before) =>
-                    setTouchedTolerances((were) =>
-                      were.has(assetClass) ? were : new Map(were).set(assetClass, before))
-                  }
                   readOnly={!editing}
                 />
               </div>
@@ -873,21 +840,13 @@ export function ClientPortfolioPage() {
               : touchedHoldings.size > 1
                 ? `${touchedHoldings.size} holdings were written down since you pressed Edit.`
                 : "",
-            // Said in its own breath: a tolerance is not a holding, and somebody who changed only a
-            // tolerance was being asked about holdings that did not exist.
-            touchedTolerances.size === 1
-              ? "One class had what it may wander written over."
-              : touchedTolerances.size > 1
-                ? `${touchedTolerances.size} classes had what they may wander written over.`
-                : "",
             "Each was kept the moment it was confirmed, so discarding puts it back as it stood when you"
-            + " pressed Edit — anything added is taken off, anything changed goes back to what it said,"
-            + " anything removed is written down again, and any figures a class or sub-asset was held to"
-            + " go back to what they were.",
+            + " pressed Edit — anything moved out of a sub-asset goes back into it, and anything moved in"
+            + " is taken off again.",
           ].filter(Boolean).join(" ")
         }
         confirmLabel="Discard and put it back"
-        busy={forget.isPending || putBack.isPending || writeAgain.isPending || putClassBack.isPending}
+        busy={forget.isPending || putBack.isPending || writeAgain.isPending}
         onConfirm={() => void discardIncludingHoldings()}
         onClose={() => setConfirmingDiscard(false)}
       />
