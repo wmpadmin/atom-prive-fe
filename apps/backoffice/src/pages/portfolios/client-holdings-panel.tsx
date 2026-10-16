@@ -5,6 +5,7 @@ import {
   useChangeClientHolding,
   useListClientHoldings,
   useRecordClientHolding,
+  useRemoveClientHolding,
   type ClassPositions,
   type SubClassGroup,
   type ClientHoldings,
@@ -197,7 +198,7 @@ function sameBut(row: PositionRow, valueAmount: number) {
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
 function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, currency, readOnly,
-  claim, release, asksForNone, onMoved }: {
+  claim, release, forgotten, asksForNone, onMoved }: {
   customerId: string;
   assetClass: string;
   spare: number;
@@ -218,6 +219,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   /** Takes the one turn there is to write, for the whole screen. False where somebody else already has it. */
   claim: () => boolean;
   release: () => void;
+  forgotten: (id: string) => void;
   /** Whether the model asks for none of this sub-asset at all, rather than less of it than is held. */
   asksForNone: boolean;
   onMoved: (touched: { id: string; before: PositionRow | null }[]) => void | Promise<void>;
@@ -253,7 +255,15 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // as though anything had happened — and the whole table sat one click away from going out the door.
   // What is read off it now is which row to leave out of the next split, so that one button does not come
   // back under the hand that just pressed it.
-  const [done, setDone] = useState<{ amount: number; into: string } | null>(null);
+  const [done, setDone] = useState<{
+    amount: number;
+    into: string;
+    // Every row the move wrote, as it stood before it wrote them, last written last. Putting a move back
+    // is writing these over again — and for a sub-asset the move wrote down for the first time, a null
+    // says it was not there, so putting it back means taking it off.
+    putBack: { id: string; before: PositionRow | null }[];
+  } | null>(null);
+  const [undoing, setUndoing] = useState(false);
 
   // After a move, the row the money went into is offered none of what is left. The boxes were emptied
   // outright once, because a move that refilled them all and put every button back never looked as though
@@ -267,6 +277,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
 
   const change = useChangeClientHolding<ApiError>();
   const write = useRecordClientHolding<ApiError>();
+  const forget = useRemoveClientHolding<ApiError>();
   const placed = inOrder.reduce((sum, place) => sum + typed(moves[place.name]), 0);
   const left = spare - placed;
   // What this class could take in all, however it is split up, and so what genuinely cannot stay in it.
@@ -300,8 +311,9 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // Worked out here rather than read off the next render: the figures these boxes are filled from come
   // back with the portfolio, and the portfolio is still being read when this runs. Only the room of the
   // row just moved into changed, and that row is the one being left out, so the rest are as they were.
-  function settled(place: Destination, amount: number) {
-    setDone({ amount, into: place.name });
+  function settled(place: Destination, amount: number,
+    putBack: { id: string; before: PositionRow | null }[]) {
+    setDone({ amount, into: place.name, putBack });
     setMoves((was) => {
       const blank = Object.fromEntries(inOrder.map((each) => [each.name, "0"]));
       // Figures in other rows are somebody's plan for them, and a fresh split would write over it.
@@ -347,8 +359,9 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
         // worked out from rows that came with the last read: released the moment the writes returned, a
         // second Move went out against the source as it stood before the first, which wrote off the first
         // move's deduction while its deposit stood — money out of nowhere.
-        await onMoved([...taken, { id: place.into.id, before: place.into }]);
-        settled(place, amount);
+        const wrote = [...taken, { id: place.into.id, before: place.into }];
+        await onMoved(wrote);
+        settled(place, amount, wrote);
       } else {
         // A sub-asset the model names and nobody has written down yet. Discard puts it back by removing it,
         // which is what a null before means to the page above.
@@ -360,8 +373,9 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
             valueAmount: amount, watchPp: null, edgePp: null, breachPp: null,
           },
         });
-        await onMoved([...taken, { id: made.id, before: null }]);
-        settled(place, amount);
+        const wrote = [...taken, { id: made.id, before: null }];
+        await onMoved(wrote);
+        settled(place, amount, wrote);
       }
     } catch (caught) {
       const said = (caught as ApiError)?.message;
@@ -379,6 +393,70 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
     } finally {
       release();
       setMoving(null);
+    }
+  }
+
+  /**
+   * Put the last move back.
+   *
+   * <p>Until this, a move could not be taken back by the thing that made it. The plan fills a sibling to
+   * the end of its band and no further, which leaves that sibling inside its band — and a sub-asset inside
+   * its band has no plan behind it, so money put into the wrong one could not be got out again. The row
+   * read "Sell 480" with nothing on the screen that would sell it. Discard was the only way back, and
+   * Discard puts back everything done since Edit was pressed, so one move in the wrong place cost every
+   * right one made beside it.
+   *
+   * <p>Written in the reverse of the order it was made: out of the sub-asset it went into first, then back
+   * into the ones it came out of. Should the second half fail, the money is missing rather than counted
+   * twice — the same way round as the move itself, and the half somebody notices.
+   *
+   * <p>The page is not told anything new. It already knows every row this move touched and what each was
+   * worth before Edit was pressed, which is what Discard puts back; writing those rows back to the figures
+   * they held a moment ago does not change either. It leaves the page saying there is something to save
+   * when there may be nothing left — which is the safe way round, since Discard still puts back what is
+   * actually there.
+   */
+  async function undo() {
+    if (!done || moving !== null || undoing || !claim()) return;
+    const putting = done;
+    setFailed(null);
+    setUndoing(true);
+    const stuck: string[] = [];
+    try {
+      for (const each of [...putting.putBack].reverse()) {
+        try {
+          if (each.before === null) {
+            await forget.mutateAsync({ customerId, id: each.id });
+            forgotten(each.id);
+          }
+          else {
+            await change.mutateAsync({
+              customerId, id: each.id, data: sameBut(each.before, each.before.valueAmount),
+            });
+          }
+        }
+        catch { stuck.push(each.before?.subClass ?? each.before?.name ?? putting.into); }
+      }
+      await onMoved([]);
+      if (stuck.length > 0) {
+        setFailed(`${exactly(putting.amount, currency)} could not be put back in full — `
+          + `${stuck.join(", ")} would not take it. What is on the screen is what is written down.`);
+        setDone(null);
+      } else {
+        // Back where it opened, for this move at least: what was placed is unplaced and the sub-asset it
+        // went into has that much room again. Worked out here rather than read off the render after it,
+        // for the same reason the split after a move is.
+        setDone(null);
+        const whole = spare + putting.amount;
+        const back = inOrder.map((place) => (place.name === putting.into
+          ? { ...place, room: place.room + putting.amount } : place));
+        const split = suggest(whole, back);
+        setMoves(Object.fromEntries(inOrder.map((place) => [place.name, String(split[place.name] ?? 0)])));
+      }
+    }
+    finally {
+      release();
+      setUndoing(false);
     }
   }
 
@@ -521,10 +599,28 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
           {done && (
             <div className="mt-4">
               <Alert tone="success">
-                <p className="font-semibold">
-                  Moved {exactly(done.amount, currency)} into {done.into}.
-                </p>
-                <p className="mt-1 text-sm">Nothing else moved.</p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold">
+                      Moved {exactly(done.amount, currency)} into {done.into}.
+                    </p>
+                    <p className="mt-1 text-sm">Nothing else moved.</p>
+                  </div>
+                  {/* Beside what it undoes, where somebody reading that they have just moved money into
+                      the wrong sub-asset is already looking. Off the portfolio screen there is no Edit,
+                      and nothing on this window writes anything, so there is nothing to put back. */}
+                  {!readOnly && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={undoing || moving !== null}
+                      onClick={() => void undo()}
+                    >
+                      <RotateCcw aria-hidden="true" className="size-3.5" />
+                      {undoing ? "Putting it back…" : "Undo"}
+                    </Button>
+                  )}
+                </div>
               </Alert>
             </div>
           )}
@@ -567,6 +663,7 @@ export function ClientHoldingsPanel({
   customerId,
   onChanged,
   onTouched,
+  onPutBack,
   offer,
   reveal = null,
   against = null,
@@ -582,6 +679,10 @@ export function ClientHoldingsPanel({
    * when Edit was pressed, however the change was made.
    */
   onTouched?: (id: string, before: PositionRow | null) => void;
+  // A sub-asset this panel wrote down and has since taken off again. The page was told about it when it
+  // was written, and has to be told about this too: it is not there to be put back, and a Discard that
+  // goes looking for it finds nothing and reports a refusal over work that is already undone.
+  onPutBack?: (id: string) => void;
   /**
    * A class whose own tolerance is about to be written over, with what it was held to beforehand — its own
    * three figures, or null where it was following the model.
@@ -1061,6 +1162,7 @@ export function ClientHoldingsPanel({
               readOnly={readOnly}
               claim={claimTheMove}
               release={releaseTheMove}
+              forgotten={(id) => onPutBack?.(id)}
               asksForNone={group.targetShare === 0}
               onMoved={async (touched) => {
                 for (const each of touched) onTouched?.(each.id, each.before);
