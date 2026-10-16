@@ -23,10 +23,10 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, DateInput, Field, SelectInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronLeft, Pencil } from "lucide-react";
+import { Calculator, Check, ChevronLeft, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Link, Navigate, useParams, useSearchParams } from "react-router";
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useAssetClasses } from "./asset-classes";
@@ -105,6 +105,7 @@ function yearsAgo(years: number) {
 export function ClientPortfolioPage() {
   const { customerId = "" } = useParams();
   const address = useSearchParams()[0];
+  const navigate = useNavigate();
   const came = CAME_FROM[address.get("from") ?? ""] ?? FROM_THE_LIST;
   // With the queue as it was left: a list worked down with a filter on it, and three pages in, is not the
   // same list when it comes back at page one with the filter cleared.
@@ -475,6 +476,26 @@ export function ClientPortfolioPage() {
           ) : (
             <>
               {holdingsSaved && <Saved />}
+              {/* Back to where the figures came from. Putting more into one sub-asset than the client has
+                  is not a move between lines — the portfolio is worth more than it was, and what it is
+                  worth is the calculator's to say. Until now the only way back in was a client who had
+                  never finished it: once the last step was done the calculator had no door at all, and
+                  the one screen that could change a figure was the one that may not.
+
+                  It opens at the first step with every figure already in its box, because that is the
+                  step money is written in, and a reader sent to the last one would have to walk back
+                  through three to reach it. */}
+              {mayFinishSettingUp(user) && (
+                <Button
+                  variant="secondary"
+                  onClick={() => void navigate(
+                    `/portfolio-clients/${customerId}/net-aum?at=1&from=portfolio`,
+                  )}
+                >
+                  <Calculator aria-hidden="true" />
+                  Recalculate Net AUM
+                </Button>
+              )}
               {/* The one thing to do on a screen that is otherwise read, so it is the one thing that
                   looks like a button rather than part of the furniture. */}
               <Button onClick={() => {
