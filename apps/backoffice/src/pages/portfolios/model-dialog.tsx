@@ -35,6 +35,22 @@ type Targets = Record<string, string>;
  */
 type Breaches = Record<string, string>;
 
+/**
+ * What this model already holds its sub-assets to, read off the first line that carries a figure.
+ *
+ * <p>They are all written together and all the same, so the first one that has anything to say speaks for
+ * the rest. A model written before the firm settled on a figure has none at all, and the firm's own is
+ * offered instead of a blank box.
+ */
+function firstLineBand(model: ModelRow | null): string | null {
+  for (const lines of Object.values(model?.subAllocations ?? {})) {
+    for (const line of lines ?? []) {
+      if (line.band?.breachAt != null) return String(line.band.breachAt);
+    }
+  }
+  return null;
+}
+
 /** One line of a spread by country or by sector, as it is typed. */
 type TypedShare = { key: string; share: string };
 
@@ -228,6 +244,12 @@ export function ModelDialog({
   const breachAt = model?.breachAt ?? 5;
   // Seeded like the targets beside them, and for the same reason: the firm's classes may arrive a render
   // after this one.
+  // One figure for every sub-asset in the model, written against each line rather than left to inherit
+  // the class's. The two are deliberately different — a class may wander further than the lines inside
+  // it — and only saying both keeps them that way: a line left to inherit carries the class's figure, so
+  // editing a model would quietly widen every line in it.
+  const [typedLineBand, setLineBand] = useState<string | null>(null);
+  const lineBand = typedLineBand ?? firstLineBand(model) ?? "5";
   const [typedBreaches, setBreaches] = useState<Breaches>(
     model ? breachesOf(model, codes) : noBreaches(codes),
   );
@@ -337,7 +359,20 @@ export function ModelDialog({
           lines[assetClass].map((line) => ({
             name: line.name.trim(),
             shareOfClass: Number(line.shareOfClass),
-            band: null,
+            // Written down rather than left to inherit. A line with nothing of its own is held to its
+            // class's figure, and the class is allowed to wander further than the lines inside it — so
+            // inheriting would widen every line in the model the moment somebody saved it.
+            band: isNumber(lineBand) && Number(lineBand) > 0
+              ? {
+                  basis: "ABSOLUTE" as const,
+                  watchAt: Number(lineBand),
+                  edgeAt: Number(lineBand),
+                  breachAt: Number(lineBand),
+                  watchBelow: null,
+                  edgeBelow: null,
+                  breachBelow: null,
+                }
+              : null,
           })),
         ]),
       ),
@@ -443,10 +478,41 @@ export function ModelDialog({
               on every row, which at six classes was the same two words twelve times. */}
           <p className="mb-3 text-xs text-ink-muted">
             What each class is asked to be, and how far it may wander either way before it has breached.
-            The second figure is the class&apos;s own, and every sub-asset inside it is held to that same
-            distance from its own target: a class allowed five points, broken into a line asked for 10% of
-            the class, allows that line 5% to 15% of the class.
+            A class may be allowed further than the lines inside it, so the sub-assets carry their own
+            figure, said once below for the whole model: a line asked for 10% of its class, held to five,
+            is sound between 5% and 15% of that class.
           </p>
+
+          {/* One figure for every sub-asset in the model, under the classes it qualifies rather than
+              repeated on each of the twenty-odd lines below. */}
+          <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-2.5">
+            <label htmlFor="line-band" className="text-xs font-medium text-ink">
+              Every sub-asset may wander
+            </label>
+            <span className="relative">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-ink-muted"
+              >
+                ±
+              </span>
+              <TextInput
+                id="line-band"
+                aria-label="How far every sub-asset may wander from its share of its class before it has breached"
+                inputMode="decimal"
+                className="h-8 w-24 pr-6 pl-6 text-right text-sm"
+                value={lineBand}
+                onChange={(event) => setLineBand(asFigure(event.target.value, lineBand))}
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-ink-muted"
+              >
+                %
+              </span>
+            </span>
+            <span className="text-xs text-ink-muted">of its class, either side of its own share.</span>
+          </div>
 
           <div className="grid gap-x-5 gap-y-2.5 sm:grid-cols-2">
             {codes.map((assetClass) => (
