@@ -27,6 +27,7 @@ const FIRMS_OWN: SubAssetClass[] = [
   { assetClass: "EQUITIES", name: "Japanese Equities" },
   { assetClass: "EQUITIES", name: "Chinese Equities" },
   { assetClass: "EQUITIES", name: "Indian Equities" },
+  { assetClass: "EQUITIES", name: "Equity ETF" },
 
   { assetClass: "FIXED_INCOME", name: "Investment Grade" },
   { assetClass: "FIXED_INCOME", name: "High Yield" },
