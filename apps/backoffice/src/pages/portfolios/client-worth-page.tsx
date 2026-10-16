@@ -2,13 +2,10 @@ import { ApiError } from "@atomprive/api-client";
 import {
   getListClientLoansQueryKey,
   getListNonFinancialAssetsQueryKey,
-  useChangeClientLoan,
   useChangeNonFinancialAsset,
   useListClientLoans,
   useListNonFinancialAssets,
-  useRecordClientLoan,
   useRecordNonFinancialAsset,
-  useRemoveClientLoan,
   useRemoveNonFinancialAsset,
   type ClientLoans,
   type LoanRequestSecuredOn,
@@ -81,9 +78,6 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
   const writeOwned = useRecordNonFinancialAsset<ApiError>();
   const changeOwned = useChangeNonFinancialAsset<ApiError>();
   const forgetOwned = useRemoveNonFinancialAsset<ApiError>();
-  const writeOwed = useRecordClientLoan<ApiError>();
-  const changeOwed = useChangeClientLoan<ApiError>();
-  const forgetOwed = useRemoveClientLoan<ApiError>();
   // One flag for the whole save, not the six mutations' own. They run one after another, so between
   // any two of them every one of them is idle for a tick, and the button flicked back and in again on
   // each one.
@@ -120,7 +114,6 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
   const ownedRows = typedOwned ?? ownedAsRead;
   const owedRows = typedOwed ?? owedAsRead;
   const wasOwned = new Map(ownedAsRead.filter((one) => one.id !== null).map((one) => [one.id, one]));
-  const wasOwed = new Map(owedAsRead.filter((one) => one.id !== null).map((one) => [one.id, one]));
 
   const currency = owned.data?.currency ?? owed.data?.currency ?? "";
   const ownedTotal = adds(ownedRows);
@@ -143,7 +136,6 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
     };
   }
   const putOwned = put(ownedRows, setOwned, true);
-  const putOwed = put(owedRows, setOwed, false);
 
   /**
    * Written one at a time, because that is what the API takes. Something already written down is changed,
@@ -174,27 +166,9 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
         await changeOwned.mutateAsync({ customerId, id: one.id, data });
       }
 
-      for (const one of owedRows) {
-        if (!named(one, false)) {
-          if (one.id !== null) await forgetOwed.mutateAsync({ customerId, id: one.id });
-          continue;
-        }
-        const data = {
-          description: one.description.trim(),
-          valueAmount: isNumber(one.amount) ? Number(one.amount) : 0,
-          securedOn: one.securedOn,
-        };
-        if (one.id === null) {
-          await writeOwed.mutateAsync({ customerId, data });
-          continue;
-        }
-        const was = wasOwed.get(one.id);
-        if (was?.description === one.description && was.amount === one.amount
-            && was.securedOn === one.securedOn) {
-          continue;
-        }
-        await changeOwed.mutateAsync({ customerId, id: one.id, data });
-      }
+      // Loans are not written here. They are asked for a step earlier, beside the cash they offset,
+      // and writing them again from a screen that only reads them would have whichever step was saved
+      // last decide what the client owes.
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getListNonFinancialAssetsQueryKey(customerId) }),
@@ -301,7 +275,13 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
         </div>
       </section>
 
-      {/* Loans. One line of text, because who it is from and what it is secured on is one answer. */}
+      {/* Loans, read and not written. What the client owes is asked for a step earlier now, beside the
+          cash it offsets, because that is where somebody has their bank statement open. Asked for in
+          both places it would be two boxes holding one figure, and whichever was saved last would win
+          — so this one reads.
+
+          Still shown, because this is the step that says what the client is worth beside what they owe,
+          and a page about their worth that left out the borrowing would be answering half the question. */}
       <section className="rounded-2xl border border-line bg-white">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink/15 px-4 py-2">
           <h2 className="font-semibold text-ink">Loan</h2>
@@ -309,66 +289,28 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
             {owedTotal > 0 ? `${money(owedTotal, true)} ${currency}` : "—"}
           </p>
         </header>
-        <div className="grid grid-cols-[1fr_9rem_2.25rem] items-center gap-3 px-4 pt-2.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          <span>Description</span>
-          <span className="text-right">Owed</span>
-          <span className="sr-only">Take it off</span>
-        </div>
-        <ul className="divide-y divide-ink/15">
-          {owedRows.map((one, at) => (
-            <li
-              key={one.id ?? `new-${at}`}
-              className="grid grid-cols-[1fr_9rem_2.25rem] items-start gap-3 px-4 py-1.5"
-            >
-              <TextArea
-                aria-label={`What the client owes, line ${at + 1}`}
-                placeholder="Mortgage on the Juhu flat — HDFC, secured on the flat"
-                rows={1}
-                className={BOX}
-                value={one.description}
-                onChange={(event) => putOwed(at, { description: event.target.value })}
-              />
-              <div className="relative">
-                <TextInput
-                  aria-label={`What is owed on ${one.description || `line ${at + 1}`}`}
-                  inputMode="decimal"
-                  className={cn(BOX, "text-right tabular-nums", currency && "pr-10")}
-                  value={one.amount}
-                  onChange={(event) => putOwed(at, { amount: asFigure(event.target.value, one.amount) })}
-                />
-                {currency && (
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-2xs text-ink-muted"
-                  >
-                    {currency}
-                  </span>
-                )}
-              </div>
-              <span className="pt-1">
-                {(one.description.trim() !== "" || one.amount.trim() !== "") && (
-                  <IconButton
-                    label={`Take ${one.description || `line ${at + 1}`} off`}
-                    onClick={() => putOwed(at, { description: "", amount: "" })}
-                  >
-                    <Trash2 aria-hidden="true" className="size-4" />
-                  </IconButton>
-                )}
-              </span>
-            </li>
-          ))}
-        </ul>
-
-        <div className="border-t border-ink/15 px-4 py-1.5">
-          <button
-            type="button"
-            onClick={() => setOwed([...owedRows, NOTHING_YET])}
-            className="flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
-          >
-            <Plus aria-hidden="true" className="size-3.5" />
-            Add another
-          </button>
-        </div>
+        <p className="px-4 pt-2 text-xs text-ink-muted">
+          Written in the step before, under Cash &amp; cash equivalents. Go back to change it.
+        </p>
+        {owedRows.filter((one) => one.amount.trim() !== "").length === 0 ? (
+          <p className="px-4 py-3 text-sm text-ink-muted">Nothing owed.</p>
+        ) : (
+          <ul className="divide-y divide-ink/15">
+            {owedRows.filter((one) => one.amount.trim() !== "").map((one, at) => (
+              <li
+                key={one.id ?? `owed-${at}`}
+                className="flex items-baseline justify-between gap-3 px-4 py-2.5"
+              >
+                <span className="min-w-0 flex-1 text-sm text-ink">
+                  {one.description.trim() === "" ? "Loan" : one.description}
+                </span>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">
+                  {money(Number(one.amount), true)} {currency}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {unnamed.length > 0 && (

@@ -10,6 +10,11 @@ import {
   useSetClientHoldings,
   type ClientHoldings,
   type Currency,
+  useListClientLoans,
+  useRecordClientLoan,
+  useChangeClientLoan,
+  useRemoveClientLoan,
+  type ClientLoans,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -57,10 +62,25 @@ function adds(lines: Line[]) {
  * ready to be filled in; a portfolio holds what it holds, though, so anything the firm has not named can be
  * added here and belongs to this client.
  */
+/** The class the firm keeps cash under, and so the one a loan is asked for beside. */
+const CASH = "CASH";
+
 export function AllocationStep({ customerId, onDone }: StepProps) {
   const queryClient = useQueryClient();
   const assetClasses = useAssetClasses();
   const subAssets = useSubAssetClasses();
+  // What the client owes, which is asked for here beside the cash it offsets rather than a step later.
+  // It is not a holding: a holding is money the client has, cannot be negative, and has to add up to the
+  // class total the API is told. A loan is the opposite of all three, so it is kept where it has always
+  // been kept and only asked for here.
+  const owed = useListClientLoans<ClientLoans, ApiError>(customerId);
+  const writeOwed = useRecordClientLoan<ApiError>();
+  const changeOwed = useChangeClientLoan<ApiError>();
+  const forgetOwed = useRemoveClientLoan<ApiError>();
+  const [typedLoan, setLoan] = useState<string | null>(null);
+  // Held as a negative and typed as a plain figure: nobody writes a minus sign in front of what they owe.
+  const onFile = owed.data?.loans ?? [];
+  const loan = typedLoan ?? (onFile.length === 0 ? "" : String(Math.abs(owed.data?.total ?? 0)));
   const holdings = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const write = useRecordClientHolding<ApiError>();
@@ -147,10 +167,41 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
    * at its old figure would be ignoring them. A line nobody has written yet is only written where it has
    * a figure, so a class left untouched writes nothing at all.
    */
+  /**
+   * What the client owes, written as one figure.
+   *
+   * <p>Kept negative, because every line that allows for a loan adds it rather than subtracting — there is
+   * no subtraction anywhere in the Net AUM, which is what keeps a loan from being taken off twice.
+   *
+   * <p>One loan, not a list. It is asked for in one box, so a client who already has several would have
+   * that box edit something it does not name; those are left exactly as they are and the box is read off
+   * their total, which is what the figure means either way.
+   */
+  async function saveTheLoan() {
+    if (onFile.length > 1) return;
+    const said = isNumber(loan) && Number(loan) > 0 ? -Math.abs(Number(loan)) : 0;
+    const already = onFile[0];
+    if (said === 0) {
+      if (already) await forgetOwed.mutateAsync({ customerId, id: already.id });
+      return;
+    }
+    // Secured on the portfolio, which is what the firm's loans are and the only answer step two
+    // has ever sent. Nobody is asked to sort them into the two kinds yet.
+    const data = { description: "Loan", valueAmount: said, securedOn: "PORTFOLIO" as const };
+    if (already) {
+      if (Number(already.valueAmount) === said) return;
+      await changeOwed.mutateAsync({ customerId, id: already.id, data });
+    }
+    else {
+      await writeOwed.mutateAsync({ customerId, data });
+    }
+  }
+
   async function save() {
     setErrors(noErrors);
     setBusy(true);
     try {
+      await saveTheLoan();
       for (const assetClass of codes) {
         for (const line of lines[assetClass] ?? []) {
           const holds = isNumber(line.amount) && Number(line.amount) > 0;
@@ -338,6 +389,44 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
                 </li>
               )}
             </ul>
+
+            {/* What the client owes, under the cash it offsets. It is asked for here because this is
+                where somebody has the client's bank statement in front of them, and cash and borrowing
+                are read off the same page of it.
+
+                Outside the sum on purpose. A class total has to equal the lines written under it — the
+                API refuses any other figure — and a loan is not a holding: it is not money the client
+                has, and it cannot be written as one, because a holding may not be negative. So it sits
+                in this card and is counted where everything else allows for it, which is the Net AUM. */}
+            {one.code === CASH && (
+              <div className="flex items-center gap-3 border-t border-dashed border-ink/20 px-4 py-2">
+                <span className="min-w-0 flex-1 text-sm text-ink">
+                  Loan
+                  <span className="block text-2xs text-ink-muted">
+                    What the client owes. Not part of the total below — it comes off the Net AUM.
+                  </span>
+                </span>
+                <div className="relative w-40 shrink-0">
+                  <TextInput
+                    aria-label="What the client owes"
+                    inputMode="decimal"
+                    disabled={onFile.length > 1}
+                    className={cn(BOX, "text-right tabular-nums", currency && "pr-11")}
+                    value={loan}
+                    onChange={(event) => setLoan(asFigure(event.target.value, loan))}
+                  />
+                  {currency && (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-2xs text-ink-muted"
+                    >
+                      {currency}
+                    </span>
+                  )}
+                </div>
+                <span className="w-9 shrink-0" />
+              </div>
+            )}
 
             {/* A class is not typed in: it is what the lines inside it come to. Set out under them, in
                 the column they were typed in, so it reads as the sum rather than a figure of its own. */}
