@@ -40,7 +40,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
-import { demoInForce } from "./demo-menu";
+import { demoInForce, everySession } from "./demo-menu";
 import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
@@ -363,6 +363,7 @@ function NavEntry({
   item,
   pathname,
   search,
+  locked,
 }: {
   item: {
     to: string;
@@ -373,9 +374,29 @@ function NavEntry({
   };
   pathname: string;
   search: string;
+  /**
+   * Shown, named, and not a way in. A session's screens are listed beside the one being shown so the
+   * room can see where what they are being shown sits in the whole — which is a different thing from
+   * letting somebody wander into a session nobody is talking about.
+   */
+  locked?: boolean;
 }) {
   const Icon = item.icon;
   const here = isHere(item, pathname, search);
+
+  if (locked) {
+    return (
+      <li>
+        <span
+          aria-disabled="true"
+          className={cn(ENTRY_CLASS, "cursor-default text-ink-muted/55 select-none")}
+        >
+          <Icon className="size-4.5 shrink-0" aria-hidden="true" />
+          {item.label}
+        </span>
+      </li>
+    );
+  }
 
   return (
     <li>
@@ -447,27 +468,71 @@ export function AppLayout() {
             permitted(item),
         );
 
-  // Cut to the session being shown, keeping the order the menu already has rather than the order the
-  // session names them in: what somebody is walked through is a route the presenter takes, and the menu
-  // beside them reading in a different order from every other day is its own small confusion.
-  //
-  // What somebody may not see is still not shown. A session is a smaller menu, never a larger one.
-  const shown = demo === null ? navigation : navigation.filter((item) => demo.routes.includes(item.to));
-
   // An entry and whatever sits under it, so the menu is drawn as the sections it actually has.
-  const sections = shown
+  const sections = navigation
     .filter((item) => !item.under)
-    .map((item) => ({ ...item, below: shown.filter((under) => under.under === item.to) }));
+    .map((item) => ({ ...item, below: navigation.filter((under) => under.under === item.to) }));
+
+  /*
+   * While a session is being shown, the menu is drawn as the three sessions rather than one list: each
+   * named, its screens under it, in the order they are walked through — which is the session's order and
+   * not the menu's, because the point of it is to be a route somebody can follow.
+   *
+   * The sessions nobody is talking about are listed and not clickable. Hiding them said the platform was
+   * four screens wide; leaving them live invited a click into a story that has not been told yet. Greyed,
+   * they say where what is being shown sits in the whole and go no further than saying it.
+   *
+   * The session being shown is the menu this reader would have had anyway, cut to it: a screen their
+   * role may not open is not in it, because it would be a way in that refused them. The sessions they
+   * are only being shown the shape of are drawn from the whole list instead — a name and an icon that
+   * go nowhere and fetch nothing. Told only what their own role can reach, a presenter whose account is
+   * a portfolio manager's would show two screens under "Running the platform" and the map would be a
+   * map of their permissions rather than of the platform.
+   */
+  const sessions = demo === null ? null : everySession(demo)
+    .map((session) => ({
+      ...session,
+      items: session.routes
+        .map((route) => (session.open
+          ? sections.find((item) => item.to === route)
+          : allNavigation.find((item) => item.to === route)))
+        .filter((item) => item !== undefined)
+        .map((item) => ({ ...item, below: [] as typeof sections[number]["below"] })),
+    }))
+    .filter((session) => session.items.length > 0);
 
   return (
     <div className="flex min-h-screen bg-canvas font-sans text-ink">
       <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-line bg-sidebar px-4 py-6">
         <nav aria-label="Back-office" className="mt-14">
-          <ul className="space-y-1">
-            {sections.map((item) => (
-              <NavEntry key={item.to} item={item} pathname={pathname} search={search} />
-            ))}
-          </ul>
+          {sessions === null ? (
+            <ul className="space-y-1">
+              {sections.map((item) => (
+                <NavEntry key={item.to} item={item} pathname={pathname} search={search} />
+              ))}
+            </ul>
+          ) : (
+            <div className="space-y-5">
+              {sessions.map((session) => (
+                <div key={session.key}>
+                  <p className="px-3 pb-1.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                    Meeting {session.key} — {session.title}
+                  </p>
+                  <ul className="space-y-1">
+                    {session.items.map((item) => (
+                      <NavEntry
+                        key={item.to}
+                        item={item}
+                        pathname={pathname}
+                        search={search}
+                        locked={!session.open}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
         </nav>
 
         {/* Pushed to the foot of the sidebar: it is there to be glanced at, not read. */}
