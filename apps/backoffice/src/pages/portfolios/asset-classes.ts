@@ -42,6 +42,32 @@ const PALETTE = [
   "bg-orange-400",
 ];
 
+/**
+ * The same colours again, as ink a chart can be drawn in.
+ *
+ * <p>Tailwind's classes cannot be handed to an SVG fill, and a chart drawn from a different palette than
+ * the bars beside it would say two different things about the same class on one screen. Same order, same
+ * hues, read by position exactly as the classes are.
+ */
+const INK = [
+  "#2563eb",
+  "#38bdf8",
+  "#fbbf24",
+  "#8b5cf6",
+  "#cbd5e1",
+  "#10b981",
+  "#fb7185",
+  "#14b8a6",
+  "#818cf8",
+  "#fb923c",
+];
+
+/** What to draw a class in, where a class is drawn rather than written. */
+export function inkFor(code: string, all: { code: string }[]) {
+  const at = all.findIndex((one) => one.code === code);
+  return INK[(at < 0 ? all.length : at) % INK.length];
+}
+
 export function barFor(code: string, all: { code: string }[]) {
   const at = all.findIndex((one) => one.code === code);
   return PALETTE[(at < 0 ? all.length : at) % PALETTE.length];
