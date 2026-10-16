@@ -782,6 +782,8 @@ export interface PortfolioStanding {
   /** @nullable */
   drift: number | null;
   /** @nullable */
+  driftValue: number | null;
+  /** @nullable */
   standing: PortfolioStandingStanding;
   /** @nullable */
   lastRebalancedOn: string | null;
