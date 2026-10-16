@@ -1,14 +1,15 @@
 /**
- * The sidebar, read as the three stories the platform tells rather than one list of thirty-five screens.
+ * The sidebar, read as the three things the firm does rather than one list of thirty-five screens.
  *
  * <p>A flat menu says every screen is the same distance from every other, which is the one thing that is
- * not true of these: a plan is written before a client is measured against it, a staff account exists
- * before it signs anything, and a client is onboarded before advice is sent to them. Grouped, somebody
- * looking for a screen can find it by what they are trying to do; one group at a time, the list is short
- * enough to read.
+ * not true of them. Grouped, somebody can find a screen by what they are trying to do, and one group at a
+ * time the list is short enough to read.
  *
- * <p>The grouping is by data flow — which screen produces what another consumes — so a group can be read
- * top to bottom without reaching into a later one for where a figure came from.
+ * <p>The line between the second and the third is whether a screen has anything to do with a client. The
+ * platform and the people who run it exist before any client does — reference data, access, staff, feeds,
+ * and the logs of all of it. Everything else begins with a client and reads forward from one, including
+ * the figures that look firm-wide: a model's performance is its clients' valuations added up, and the
+ * dashboard's tiles are counts of them.
  */
 
 /** One of the three. */
@@ -20,42 +21,53 @@ export type MenuGroup = { key: GroupKey; title: string; routes: string[] };
 export const MENU_GROUPS: MenuGroup[] = [
   {
     key: "1",
-    title: "Portfolio management",
+    title: "Meeting 1 — Managing money against a plan",
     /*
-     * The firm writes a plan down, puts clients on it, watches them wander off it, and puts them back.
-     * Settings first because it writes the bands that decide what counts as a breach; the blotter, model
-     * changes, performance, risk, reports and the dashboard after, because each is a read of what the
-     * screens before them wrote.
+     * Four screens, and the firm has said four. The whole of what it does with money that is already
+     * under management: the plans, the clients measured against them, what has wandered out of its band,
+     * and putting several back in one sitting.
+     *
+     * <p>Two things it leans on sit in the second group rather than here, because they are the firm's own
+     * setup rather than this work: the bands that decide what counts as a breach, and the rules a
+     * rebalance drafts by. Worth having set before this is shown.
      */
-    routes: [
-      "/portfolio-clients", "/model-portfolios", "/drift", "/bulk-rebalancing", "/portfolio-settings",
-      "/trade-orders", "/model-changes", "/model-performance", "/model-risk", "/reports", "/dashboard",
-    ],
+    routes: ["/portfolio-clients", "/model-portfolios", "/drift", "/bulk-rebalancing"],
   },
   {
     key: "2",
-    title: "Running the platform",
+    title: "Meeting 2 — Running the platform",
     /*
-     * Two roots that need no data at all — the firm's reference data and the permission matrix — and
-     * everything that grows out of them: bank feeds and their failures, staff accounts, the declarations
-     * those accounts owe, the mail that chases them, and the log that records the lot.
+     * What exists before any client does, and would still exist with none: the firm's reference data and
+     * the rules read off it, who may do what, the people who do it, the feeds that carry figures in, and
+     * the record of every change to the lot.
+     *
+     * <p>It can be shown on an empty system, which is why it comes before the client journey — that one
+     * borrows this one's staff accounts, its access levels and its mail templates.
      */
     routes: [
-      "/config", "/ingestion", "/sync-errors", "/roles", "/users", "/settings", "/my-declarations",
-      "/staff-declarations", "/staff-tracker", "/notifications", "/audit-log",
+      "/config", "/portfolio-settings", "/roles", "/users", "/settings",
+      "/ingestion", "/sync-errors", "/notifications",
+      "/my-declarations", "/staff-declarations", "/staff-tracker", "/audit-log",
     ],
   },
   {
     key: "3",
-    title: "Onboarding to signed advice",
+    title: "Meeting 3 — Clients, advice and what comes of it",
     /*
-     * One client from an empty form pack to a piece of advice signed off and sent, in the order the firm
-     * does it, ending on the two trails that read back the activity it has just made.
+     * Everything that begins with a client. One from an empty form pack to a piece of advice signed off
+     * and sent, in the order the firm does it — then the orders that advice raises, and the reads that
+     * come back off all of it.
+     *
+     * <p>The model-level figures belong here rather than beside the models themselves: a plan's
+     * performance and its risk are its clients' valuations added up, and the dashboard is counts of them.
+     * Nothing on a plan has a return until somebody is on it.
      */
     routes: [
-      "/forms", "/onboarding", "/clients", "/my-clients", "/to-sign", "/client-documents",
-      "/kyc-documents", "/kyc", "/post-onboarding", "/proposals", "/manager-review", "/proposal-trail",
-      "/family-access",
+      "/forms", "/onboarding", "/clients", "/my-clients",
+      "/to-sign", "/client-documents", "/kyc-documents", "/kyc", "/post-onboarding",
+      "/proposals", "/manager-review", "/model-changes", "/trade-orders",
+      "/model-performance", "/model-risk", "/reports", "/dashboard",
+      "/proposal-trail", "/family-access",
     ],
   },
 ];
