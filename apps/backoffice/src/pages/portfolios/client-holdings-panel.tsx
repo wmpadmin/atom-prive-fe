@@ -935,6 +935,12 @@ export function ClientHoldingsPanel({
             const classShare = one.shareOfPortfolio;
             const starved = classLow != null && classShare != null && classShare < classLow;
             const stuffed = classHigh != null && classShare != null && classShare > classHigh;
+            // In money, because points are what the class is judged in and money is what somebody has to
+            // find. A class short by ten points of a portfolio nobody has in front of them is not an
+            // amount anybody can go and look for.
+            const adrift = classLow == null || classHigh == null ? 0
+              : starved ? (whole * classLow) / 100 - one.valueAmount
+                : one.valueAmount - (whole * classHigh) / 100;
             return (
               // Named so the table above can send somebody straight here, and given room above it so the
               // card does not land flush against the top of the window when they arrive.
@@ -1001,18 +1007,38 @@ export function ClientHoldingsPanel({
 
                 {isOpen && (starved || stuffed) && classLow != null && classHigh != null
                   && classShare != null && (
-                  /* Above the table rather than on a row inside it: it is true of every line below at once,
-                     and said against one of them it would read as that line's problem. */
-                  <p className="border-t border-ink/15 bg-amber-50/70 px-4 py-2.5 text-xs text-ink">
-                    <span className="font-semibold">
-                      {one.assetClassName || one.assetClass} itself is {starved ? "short" : "over"}.
-                    </span>{" "}
-                    It holds {percent(classShare)} of the portfolio against an allowed{" "}
-                    {classLow.toFixed(2)}–{classHigh.toFixed(2)}. Every line below is measured against what
-                    the class should be worth, not what it holds, so moving money between them can put some
-                    of them right but never all of them at once. The class itself needs{" "}
-                    {starved ? "money from another class" : "money taken out to another class"}.
-                  </p>
+                  /* Above the table rather than on a row inside it: it is true of every line below at
+                     once, and said against one of them it would read as that line's problem.
+
+                     Two things, said apart. Run together they read as one contradiction: a class that
+                     needs money from somewhere else, over a table whose first row says to sell. They are
+                     answers to different questions — how much the class is worth, and where inside it
+                     what it is worth happens to sit — and only the second is anything this screen can
+                     do. Said as one sentence, the suggestions below looked like they had been offered
+                     against the advice directly above them. */
+                  <div className="space-y-2 border-t border-ink/15 bg-amber-50/70 px-4 py-3 text-xs text-ink">
+                    <p>
+                      <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                        The class
+                      </span>{" "}
+                      <span className="font-semibold">
+                        {one.assetClassName || one.assetClass} holds {percent(classShare)} of the portfolio
+                        against an allowed {classLow.toFixed(2)}–{classHigh.toFixed(2)}
+                      </span>
+                      {" — "}
+                      {starved ? "short" : "over"} by {exactly(Math.abs(adrift), currency)}. Only{" "}
+                      {starved ? "money from another class" : "money moved out to another class"} puts
+                      that right, and nothing on this screen moves money between classes.
+                    </p>
+                    <p>
+                      <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                        The lines
+                      </span>{" "}
+                      They share what the class holds, each measured against what the class should be
+                      worth rather than what it does. Moving money between them can put some of them
+                      right — it cannot put all of them right while the class itself is outside its band.
+                    </p>
+                  </div>
                 )}
 
                 {isOpen && (
