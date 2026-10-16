@@ -679,6 +679,9 @@ export function ClientHoldingsPanel({
               same thing between the two read as a different section starting. */}
           <p className="text-xs text-ink-muted">
             Asset class, then the sub-assets inside it. A class written down here takes its total from them.
+            Every share is of the whole portfolio, and the range under each target is what that line is
+            judged against — its share of the class taken through the class&apos;s own limits, so a small
+            line has a narrow one.
           </p>
           {/* Figures are not written here. The calculator works a client's Net AUM out of what they hold,
               what they own that nobody manages and what they owe, and every share on this screen is a share
@@ -719,6 +722,19 @@ export function ClientHoldingsPanel({
             // share of the class it is asked for — the firm's rule is its share times the class's own
             // limits, which comes to the same thing.
             const band = one.breachAt ?? 0;
+            // Where the class itself stands against its own range. This decides whether the lines below can
+            // be put right at all: a line's floor is its share of the class's floor and its ceiling its
+            // share of the class's ceiling, and the shares add to 100%, so the lines' floors add to exactly
+            // the class's floor and their ceilings to its ceiling. Moving money between them can satisfy
+            // every line only when the class is already inside its own band. Outside it, every line reads
+            // breached and no shuffle inside the class will clear them — which the screen said nothing
+            // about, leaving a reader with nine breached rows, an action on two of them and no reason given
+            // for the other seven.
+            const classLow = one.targetShare == null ? null : Math.max(one.targetShare - band, 0);
+            const classHigh = one.targetShare == null ? null : one.targetShare + band;
+            const classShare = one.shareOfPortfolio;
+            const starved = classLow != null && classShare != null && classShare < classLow;
+            const stuffed = classHigh != null && classShare != null && classShare > classHigh;
             return (
               // Named so the table above can send somebody straight here, and given room above it so the
               // card does not land flush against the top of the window when they arrive.
@@ -783,6 +799,22 @@ export function ClientHoldingsPanel({
                   </span>
                 </div>
 
+                {isOpen && (starved || stuffed) && classLow != null && classHigh != null
+                  && classShare != null && (
+                  /* Above the table rather than on a row inside it: it is true of every line below at once,
+                     and said against one of them it would read as that line's problem. */
+                  <p className="border-t border-ink/15 bg-amber-50/70 px-4 py-2.5 text-xs text-ink">
+                    <span className="font-semibold">
+                      {one.assetClassName || one.assetClass} itself is {starved ? "short" : "over"}.
+                    </span>{" "}
+                    It holds {percent(classShare)} of the portfolio against an allowed{" "}
+                    {classLow.toFixed(2)}–{classHigh.toFixed(2)}. Every line below is measured against what
+                    the class should be worth, so while the class is {starved ? "short" : "over"} they read{" "}
+                    {starved ? "short" : "over"} too. Moving money between them cannot clear that — the
+                    class needs {starved ? "money from another class" : "money taken out to another class"}.
+                  </p>
+                )}
+
                 {isOpen && (
                   <div className="overflow-x-auto border-t border-ink/15 bg-slate-50/40">
                     {/* A table with its columns named. These were six figures and two phrases run together
@@ -838,6 +870,17 @@ export function ClientHoldingsPanel({
                         const ofPortfolio = (group.targetShare == null || one.targetShare == null)
                           ? null
                           : (group.targetShare * one.targetShare) / 100;
+                        // The range the line is actually judged against, which is the one figure this table
+                        // never showed. The firm's rule: its share of the class taken through the class's
+                        // own limits. A line asked for 2% of a class allowed 25% to 35% sits between 0.50%
+                        // and 0.70% of the book — a band a tenth of a point wide, not the five the class
+                        // carries. Without it on the page, a line on a target of 0.60% holding 0.48% looks
+                        // comfortably inside a band of five and still says breached, and there is nothing
+                        // on the row a reader can check that against.
+                        const allowed = (group.targetShare == null || one.targetShare == null) ? null : {
+                          low: (group.targetShare * Math.max(one.targetShare - band, 0)) / 100,
+                          high: (group.targetShare * (one.targetShare + band)) / 100,
+                        };
                         // Against what the class should be worth, not what it is. A line asked for a tenth
                         // of a class that is itself a sixth of the size the model wants is short by the
                         // whole of that shortfall too, and reading it against the money actually in the
@@ -881,6 +924,13 @@ export function ClientHoldingsPanel({
                                 different thing from it asking for none of it. */}
                             <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
                               {ofPortfolio == null ? "—" : percent(ofPortfolio)}
+                              {/* Under the target rather than beside it: the firm's sheet has six columns
+                                  and a seventh for this would have been one more than it reads. */}
+                              {allowed && (
+                                <span className="mt-0.5 block text-2xs whitespace-nowrap text-ink-muted/70">
+                                  {allowed.low.toFixed(2)}–{allowed.high.toFixed(2)} allowed
+                                </span>
+                              )}
                             </td>
                             <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
                               {targetValue == null ? "—" : figure(targetValue)}
@@ -898,7 +948,16 @@ export function ClientHoldingsPanel({
                                 used to carry it, which meant one line at a time — the worst of them — and
                                 a reader who wanted to deal with another first had to clear that one before
                                 the screen would talk about theirs. Clicking a suggestion opens its own. */}
-                            <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
+                            <td
+                              className="px-3 py-3.5 text-right tabular-nums text-ink-muted"
+                              /* A breached line with no plan behind it is the commonest thing on this
+                                 table and the screen never said why: the plan moves money out of a line
+                                 holding too much, and a line that is short has none to move. */
+                              title={group.standing === "BREACHED" && toShed === null
+                                ? `${group.subClass ?? UNGROUPED} is short of its range, so there is `
+                                  + "nothing to move out of it. This line needs money put in."
+                                : undefined}
+                            >
                               {move == null ? "—" : toShed === null ? (
                                 <>
                                   <span className="text-2xs font-semibold tracking-wider uppercase">
