@@ -18,7 +18,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { barFor, useAssetClasses } from "./asset-classes";
@@ -421,6 +421,25 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
                 </li>
               )}
             </ul>
+
+            {/* A portfolio holds what it holds. The firm's own lines are what it names, not the whole of
+                what exists, and a client with money in something nobody has written down has to be able
+                to say so rather than have it rounded into a line that is not it.
+                
+                What goes in here is this client's, named and taken off on this screen. The plan says
+                nothing about it, which is read as the plan asking for none of it — so money sitting in
+                one is a breach, said plainly, rather than a line with no answer beside it. */}
+            <div className="border-t border-ink/15 px-4 py-1.5">
+              <button
+                type="button"
+                onClick={() => put(one.code, [...rows,
+                  { id: null, name: "", amount: "", theFirms: false }])}
+                className="flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
+              >
+                <Plus aria-hidden="true" className="size-3.5" />
+                Add a sub-asset to {one.name}
+              </button>
+            </div>
 
             {/* A class is not typed in: it is what the lines inside it come to. Set out under them, in
                 the column they were typed in, so it reads as the sum rather than a figure of its own. */}
