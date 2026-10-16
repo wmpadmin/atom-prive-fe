@@ -489,19 +489,16 @@ export function AppLayout() {
    */
   const session = demo === null ? null : (() => {
     const shown = sessionShown(demo);
-    // The whole menu, in the order it always reads. Cut to the session's own screens it said the
-    // platform was eleven wide, which is a smaller untruth than four but the same one.
-    const items = allNavigation
-      .filter((item) => !(user.activeRole && item.notFor?.includes(user.activeRole))
-        && (!item.onlyFor || (user.activeRole != null && item.onlyFor.includes(user.activeRole))))
-      .map((item) => ({
-        ...item,
-        below: [],
-        // A way in only where it is being walked through AND this reader may open it. A link that
-        // refuses them is worse than no link, so a screen their role cannot reach is drawn like the
-        // rest of the map: named, and going nowhere.
-        locked: !(shown.isLive(item.to) && sections.some((each) => each.to === item.to)),
-      }));
+    // The session's own screens and nothing else. The rest of the menu was drawn beside them and greyed
+    // for a while, so the room could see where what they were being shown sat in the whole — twenty-nine
+    // dead entries, which reads as a wall rather than a map. What is not being talked about is not on
+    // the screen.
+    //
+    // Still the menu this reader would have had anyway, cut to it: a screen their role may not open is
+    // not here either, because a way in that refuses them is worse than no way in.
+    const items = sections
+      .filter((item) => shown.isLive(item.to))
+      .map((item) => ({ ...item, below: [], locked: false }));
     return items.length > 0 ? { ...shown, items } : null;
   })();
 
