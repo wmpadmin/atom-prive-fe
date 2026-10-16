@@ -46,10 +46,17 @@ const STEPS = [
  */
 export function PortfolioSetupDialog({
   customerId,
+  openAt,
   onClose,
   onFinish,
 }: {
   customerId: string;
+  /**
+   * The step to open on, where the way in has said. Somebody who came to change a figure came for the
+   * step figures are written in, and landing them on the last of four to walk back through three is
+   * making them find it.
+   */
+  openAt?: 1 | 2 | 3 | 4;
   /** Left without finishing: the X, Escape, the ground beside the dialog. */
   onClose: () => void;
   /** Done on the last step. Worked through to the end, which is a different thing from walking away. */
@@ -68,7 +75,7 @@ export function PortfolioSetupDialog({
   // nothing down opened to a table of a model's shares of nothing.
   const [chosen, setStep] = useState<1 | 2 | 3 | 4 | null>(null);
   const settled = standing.isSuccess || standing.isError;
-  const step = chosen ?? (isSetUp(standing.data) ? 4 : 1);
+  const step = chosen ?? openAt ?? (isSetUp(standing.data) ? 4 : 1);
 
   return (
     <Dialog
