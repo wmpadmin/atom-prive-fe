@@ -719,6 +719,16 @@ export interface ClassStanding {
   band: BandRequest;
 }
 
+export interface ClientReturn {
+  sinceInception: number;
+  /** @nullable */
+  perYear: number | null;
+  from: string;
+  to: string;
+  days: number;
+  split: number;
+}
+
 export type PortfolioStandingShares = {[key: string]: number};
 
 export type PortfolioStandingHoldings = {[key: string]: number};
@@ -787,6 +797,7 @@ export interface PortfolioStanding {
   /** @nullable */
   netAum: number | null;
   unwritten: number;
+  earned: ClientReturn | null;
 }
 
 export type LoanRequestSecuredOn = typeof LoanRequestSecuredOn[keyof typeof LoanRequestSecuredOn];
