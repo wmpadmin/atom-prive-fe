@@ -36,11 +36,12 @@ import {
   type LucideIcon,
   Layers,
   LayoutGrid,
+  ChevronRight,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
-import { demoInForce, sessionShown } from "./demo-menu";
+import { MENU_GROUPS } from "./menu-groups";
 import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
@@ -448,9 +449,9 @@ function NavEntry({
 export function AppLayout() {
   const user = useStaffUser();
   const { pathname, search } = useLocation();
-  // One session's screens, where somebody has asked for one. Nobody asking is the ordinary case and
-  // leaves every line below exactly as it was.
-  const demo = demoInForce(search);
+  // Which groups somebody has opened or shut by hand. Untouched, a group is open when the page being
+  // read is inside it — so arriving anywhere shows where it sits, and the other two stay folded away.
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const permitted = (item: (typeof allNavigation)[number]) =>
     item.authority === null ||
     (Array.isArray(item.authority) ? hasAnyAuthority(user, ...item.authority) : hasAuthority(user, item.authority));
@@ -487,49 +488,62 @@ export function AppLayout() {
    * shown come from the whole list instead — a name and an icon that go nowhere and fetch nothing.
    * Drawn from one account's access, the map would be a map of that account's permissions.
    */
-  const session = demo === null ? null : (() => {
-    const shown = sessionShown(demo);
-    // The session's own screens and nothing else. The rest of the menu was drawn beside them and greyed
-    // for a while, so the room could see where what they were being shown sat in the whole — twenty-nine
-    // dead entries, which reads as a wall rather than a map. What is not being talked about is not on
-    // the screen.
-    //
-    // Still the menu this reader would have had anyway, cut to it: a screen their role may not open is
-    // not here either, because a way in that refuses them is worse than no way in.
-    const items = sections
-      .filter((item) => shown.isLive(item.to))
-      .map((item) => ({ ...item, below: [], locked: false }));
-    return items.length > 0 ? { ...shown, items } : null;
-  })();
+  /*
+   * The menu as the three stories it tells, each in the order the work is actually done rather than the
+   * order the entries happen to be declared in.
+   *
+   * <p>Only what this reader may open: the groups are a way of arranging the menu they already had, not
+   * a way of showing them screens they cannot reach. A group with nothing left in it is not drawn.
+   */
+  const groups = MENU_GROUPS
+    .map((group) => ({
+      ...group,
+      items: group.routes
+        .map((route) => sections.find((item) => item.to === route))
+        .filter((item) => item !== undefined),
+    }))
+    .filter((group) => group.items.length > 0);
+  // The group holding the page being read, which is the one that opens itself.
+  const holding = groups.find((group) => group.items.some((item) => isHere(item, pathname, search)))?.key;
 
   return (
     <div className="flex min-h-screen bg-canvas font-sans text-ink">
       <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-line bg-sidebar px-4 py-6">
         <nav aria-label="Back-office" className="mt-14">
-          {session === null ? (
-            <ul className="space-y-1">
-              {sections.map((item) => (
-                <NavEntry key={item.to} item={item} pathname={pathname} search={search} />
-              ))}
-            </ul>
-          ) : (
-            <div>
-              <p className="px-3 pb-1.5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                Meeting {session.key} — {session.title}
-              </p>
-              <ul className="space-y-1">
-                {session.items.map((item) => (
-                  <NavEntry
-                    key={item.to}
-                    item={item}
-                    pathname={pathname}
-                    search={search}
-                    locked={item.locked}
-                  />
-                ))}
-              </ul>
-            </div>
-          )}
+          <div className="space-y-1">
+            {groups.map((group) => {
+              const open = toggled[group.key] ?? group.key === holding;
+              return (
+                <div key={group.key}>
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    onClick={() => setToggled((was) => ({ ...was, [group.key]: !open }))}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left",
+                      "text-2xs font-semibold tracking-wider uppercase",
+                      open ? "text-ink" : "text-ink-muted hover:text-ink",
+                    )}
+                  >
+                    <ChevronRight
+                      aria-hidden="true"
+                      className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")}
+                    />
+                    <span className="min-w-0 flex-1">{group.title}</span>
+                    {/* What is folded away, so a shut group says how much it is hiding. */}
+                    {!open && <span className="shrink-0 tabular-nums">{group.items.length}</span>}
+                  </button>
+                  {open && (
+                    <ul className="space-y-1 pb-1">
+                      {group.items.map((item) => (
+                        <NavEntry key={item.to} item={item} pathname={pathname} search={search} />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </nav>
 
         {/* Pushed to the foot of the sidebar: it is there to be glanced at, not read. */}
