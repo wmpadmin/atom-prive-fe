@@ -122,7 +122,6 @@ export function ClientPortfolioPage() {
   const assetClasses = useAssetClasses();
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [held, setHeld] = useState<Held | null>(null);
-  /** What the last conversion did, so the screen can say it rather than leaving it to be noticed. */
   const [rebalancedOn, setRebalancedOn] = useState<string | null>(null);
   const [reviewedOn, setReviewedOn] = useState<string | null>(null);
   /**
@@ -239,7 +238,6 @@ export function ClientPortfolioPage() {
     // its own undo with it.
     touchedHoldings.size > 0 ||
     figuresChanged ||
-    (standing.data !== undefined && currency !== standing.data.currency) ||
     (chosenModel !== null && chosenModel !== (standing.data?.modelPortfolioId ?? "")) ||
     (rebalancedOn !== null && rebalancedOn !== (standing.data?.lastRebalancedOn ?? "")) ||
     (reviewedOn !== null && reviewedOn !== (standing.data?.lastReviewedOn ?? ""));

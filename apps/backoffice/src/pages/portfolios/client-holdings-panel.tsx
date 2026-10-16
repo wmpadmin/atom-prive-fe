@@ -111,13 +111,23 @@ function capacityIn(groups: SubClassGroup[], except: SubClassGroup, classTarget:
   for (const one of groups) {
     if (one === except || one.subClass === null) continue;
     const room = capacityFor(one.targetShare ?? 0, one.valueAmount, classTarget, band, whole);
-    if (room > 0) places.push({ name: one.subClass, room, into: one.positions[0] ?? null });
+    // Listed whether or not it can take anything. Dropped once it was full, a sibling fell out of this
+    // list and the window went on showing the copy it had frozen when it opened — whose row still said
+    // what the sub-asset held before the money went in. A second move into it wrote that stale figure
+    // plus the new one, and the first deposit was gone: 92 into a line, then 50 more, and the line read
+    // 250 instead of 342. It stays, saying it has room for nothing, carrying the row as it now stands.
+    places.push({ name: one.subClass, room, into: one.positions[0] ?? null });
   }
   return places.sort((first, second) => second.room - first.room);
 }
 
 /**
  * The split this screen suggests: fill the one with most room first, never past it, until the money is gone.
+ *
+ * <p>Takes the figure to place already worked out, rather than the breach it came from. Rounding it here
+ * put a figure in the boxes that the move beside them would not write: a line the model asks none of has
+ * its whole holding to shed, so half-up on a holding of 960.50 suggested 961, and every press of Move
+ * bounced off the check that nothing may go below nothing. The button was live and did nothing at all.
  *
  * <p>Counted in whole units throughout. Rounding each share on its own while the remainder went on being
  * counted to the penny put the parts a unit above the whole — five rows adding to 18,784 against 18,783 to
@@ -126,8 +136,8 @@ function capacityIn(groups: SubClassGroup[], except: SubClassGroup, classTarget:
  * <p>Each share is rounded down rather than to the nearest, so a figure in a box is never a shade past what
  * the sub-asset beside it is said to have room for.
  */
-function suggest(spare: number, places: Destination[]): Record<string, number> {
-  let left = Math.round(spare);
+function suggest(toPlace: number, places: Destination[]): Record<string, number> {
+  let left = toPlace;
   const split: Record<string, number> = {};
   for (const place of places) {
     const takes = Math.max(0, Math.min(left, Math.floor(place.room)));
@@ -198,7 +208,7 @@ function sameBut(row: PositionRow, valueAmount: number) {
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
 function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, currency, readOnly,
-  claim, release, forgotten, asksForNone, onMoved }: {
+  claim, release, forgotten, asksForNone, settledRight, onMoved }: {
   customerId: string;
   assetClass: string;
   spare: number;
@@ -222,6 +232,8 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   forgotten: (id: string) => void;
   /** Whether the model asks for none of this sub-asset at all, rather than less of it than is held. */
   asksForNone: boolean;
+  /** With nothing left to shed, whether the sub-asset is where it should be or short of where it should be. */
+  settledRight: boolean;
   onMoved: (touched: { id: string; before: PositionRow | null }[]) => void | Promise<void>;
 }) {
   const from = rows[0]?.subClass ?? UNGROUPED;
@@ -243,8 +255,13 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
     ...opened.map((place) => now.get(place.name) ?? { ...place, room: 0 }),
     ...places.filter((place) => !opened.some((was) => was.name === place.name)),
   ];
+  // The most that may leave this sub-asset: what the breach comes to in whole units, never more than is
+  // actually there. Rounding to the nearest is what lands a line cleanly inside its band rather than a
+  // hair outside it — but a line the model asks none of has its whole holding to shed, and rounding that
+  // up asked for money the line does not have.
+  const mostToMove = Math.min(Math.round(spare), inHand);
   // What the window opens on, before anything has been moved out of it.
-  const plainly = suggest(spare, inOrder);
+  const plainly = suggest(mostToMove, inOrder);
   const [moves, setMoves] = useState<Record<string, string>>(() => Object.fromEntries(
     inOrder.map((place) => [place.name, String(plainly[place.name])]),
   ));
@@ -296,8 +313,10 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // Only where there is something to go back to. Money moved is money written down: the sub-asset is worth
   // what it is worth now, these boxes hold the suggestion made against that, and a button offering to put
   // back a suggestion nobody has changed is a button offering to undo the move — which it cannot do.
-  const edited = done === null
-    && inOrder.some((place) => (moves[place.name] ?? "") !== String(suggested[place.name]));
+  // Only where there is something to go back to. After a move these boxes hold the suggestion made
+  // against what is left, so they compare equal to it and no button is offered — which is what gating
+  // this on the move was for, before the boxes were refilled at all.
+  const edited = inOrder.some((place) => (moves[place.name] ?? "") !== String(suggested[place.name]));
 
   // Both sides first, the page afterwards. Telling the page between the two legs had it read the portfolio
   // back half way through the move — money gone from one sub-asset and not yet on the other — and every box
@@ -335,16 +354,29 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
 
   async function move(place: Destination) {
     const amount = typed(moves[place.name]);
+    if (!rows.length || amount <= 0) return;
+    // More than has to leave is a breach of its own, the other way round. Typing 5,000 into a window
+    // about 4,708 emptied the sub-asset altogether and left it below its floor — and the window, having
+    // nothing left to shed, then said the line was inside its range. Said instead, where it is typed.
+    if (amount > mostToMove) {
+      setFailed(`Only ${exactly(mostToMove, currency)} has to leave ${from}. Moving more would put it `
+        + "below its own range.");
+      return;
+    }
     // One turn for the whole screen, taken in the same breath as the click rather than on the render
     // after it. Kept per table, two breached sub-assets could be emptied into the same sibling at once,
     // each working its new figure out from the same row — and one of the two deposits was written off.
-    if (!rows.length || amount <= 0 || amount > inHand || !claim()) return;
+    if (!claim()) return;
     setFailed(null);
     setMoving(place.name);
     // What has already come out, and which rows it came out of. What those rows are worth now is a
     // different figure from the one this move started with, and the difference is what somebody has to be
     // told about.
     const taken: { id: string; before: PositionRow }[] = [];
+    // Counted as it goes, so a failure can say how much is actually out rather than how much was asked
+    // for. A move stopped half way through its own sources had taken part of the figure and the notice
+    // named the whole of it.
+    let out = 0;
     try {
       let left = amount;
       for (const row of deepest) {
@@ -354,6 +386,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
           customerId, id: row.id, data: sameBut(row, row.valueAmount - takes),
         });
         taken.push({ id: row.id, before: row });
+        out += takes;
         left -= takes;
       }
       if (place.into) {
@@ -390,7 +423,12 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
         // money out a second time.
         await onMoved(taken);
         setMoves((was) => ({ ...was, [place.name]: "0" }));
-        setFailed(`${exactly(amount, currency)} came out of ${from} but could not be put into `
+        // The notice about the last move, and the button offering to put it back, go with it. What that
+        // button holds is what each row was worth before THAT move — figures this one has just written
+        // over. Left on the screen it offered to put back 2,000 and would have written 4,000, quietly
+        // absorbing the withdrawal that had just failed, under a heading naming the smaller figure.
+        setDone(null);
+        setFailed(`${exactly(out, currency)} came out of ${from} but could not be put into `
           + `${place.name}${said ? `: ${said}` : "."} Discard puts it back.`);
       } else {
         setFailed(said ?? "That could not be written down. Nothing has moved.");
@@ -440,23 +478,37 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
             });
           }
         }
-        catch { stuck.push(each.before?.subClass ?? each.before?.name ?? putting.into); }
+        catch {
+          // Stop here. Gone on to the next, a refused first leg left the money where the move had put
+          // it AND put it back where it came from: 4,708 taken out of one sub-asset, refused on the way
+          // out of the other, and the portfolio 4,708 larger than it had been a second before, with
+          // nothing on the screen saying so. Stopping leaves it missing from one place rather than
+          // standing in two — the same way round as the move itself.
+          stuck.push(each.before?.subClass ?? each.before?.name ?? putting.into);
+          break;
+        }
       }
       await onMoved([]);
       if (stuck.length > 0) {
-        setFailed(`${exactly(putting.amount, currency)} could not be put back in full — `
-          + `${stuck.join(", ")} would not take it. What is on the screen is what is written down.`);
+        setFailed(`${exactly(putting.amount, currency)} could not be put back: ${stuck.join(", ")} would `
+          + "not take it, so the rest was left where it is rather than written twice. What is on the "
+          + "screen is what is written down, and Discard puts the whole sitting back.");
         setDone(null);
       } else {
         // Back where it opened, for this move at least: what was placed is unplaced and the sub-asset it
         // went into has that much room again. Worked out here rather than read off the render after it,
         // for the same reason the split after a move is.
         setDone(null);
-        const whole = spare + putting.amount;
-        const back = inOrder.map((place) => (place.name === putting.into
-          ? { ...place, room: place.room + putting.amount } : place));
-        const split = suggest(whole, back);
-        setMoves(Object.fromEntries(inOrder.map((place) => [place.name, String(split[place.name] ?? 0)])));
+        setMoves((was) => {
+          // Figures somebody typed into the other rows are their plan for them, and a fresh split would
+          // write over it — the same rule a move follows when it leaves them alone.
+          const lined = inOrder.some((place) => place.name !== putting.into && typed(was[place.name]) > 0);
+          if (lined) return was;
+          const back = inOrder.map((place) => (place.name === putting.into
+            ? { ...place, room: place.room + putting.amount } : place));
+          const split = suggest(Math.min(Math.round(spare + putting.amount), inHand + putting.amount), back);
+          return Object.fromEntries(inOrder.map((place) => [place.name, String(split[place.name] ?? 0)]));
+        });
       }
     }
     finally {
@@ -475,7 +527,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                 something, but one holding something the model does not want at all — which no amount of
                 shuffling inside the class can answer. */}
             <div className="max-w-xl">
-              {asksForNone && (
+              {asksForNone && !nothingLeft && (
                 <p className="text-sm text-ink-soft">
                   The model asks for none of {from}, so all {exactly(spare, currency)} has to go.
                 </p>
@@ -492,7 +544,10 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
           {failed && <div className="mt-4"><Alert tone="danger">{failed}</Alert></div>}
           {nothingLeft ? (
             <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-ink">
-              Nothing more has to leave {from}. It is inside its range.
+              {settledRight
+                ? `Nothing more has to leave ${from}. It is inside its range.`
+                : `Nothing more can leave ${from}. It is short of its range now — it needs money put in, `
+                  + "which is not something this window does."}
             </p>
           ) : nowhere ? (
             <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-ink">
@@ -564,7 +619,10 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                                 aria-label={`Move into ${place.name}`}
                                 value={moves[place.name] ?? "0"}
                                 onChange={(event) => {
-                                  setDone(null);
+                                  // The notice and the button to put the last move back stay. Cleared on
+                                  // the first keypress, a reader who moved money and then reached for a
+                                  // different split lost the only thing that would undo it — and the
+                                  // boxes this window refills after a move invite exactly that keypress.
                                   setMoves((was) => ({
                                     ...was,
                                     [place.name]: asFigure(event.target.value, was[place.name] ?? "0"),
@@ -588,7 +646,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                               size="sm"
                               className="w-20 justify-center"
                               aria-label={`Move ${exactly(amount, currency)} into ${place.name}`}
-                              disabled={!rows.length || moving !== null}
+                              disabled={!rows.length || moving !== null || undoing}
                               onClick={() => move(place)}
                             >
                               {moving === place.name ? "Moving…" : "Move"}
@@ -951,9 +1009,9 @@ export function ClientHoldingsPanel({
                     </span>{" "}
                     It holds {percent(classShare)} of the portfolio against an allowed{" "}
                     {classLow.toFixed(2)}–{classHigh.toFixed(2)}. Every line below is measured against what
-                    the class should be worth, so while the class is {starved ? "short" : "over"} they read{" "}
-                    {starved ? "short" : "over"} too. Moving money between them cannot clear that — the
-                    class needs {starved ? "money from another class" : "money taken out to another class"}.
+                    the class should be worth, not what it holds, so moving money between them can put some
+                    of them right but never all of them at once. The class itself needs{" "}
+                    {starved ? "money from another class" : "money taken out to another class"}.
                   </p>
                 )}
 
@@ -1095,7 +1153,11 @@ export function ClientHoldingsPanel({
                               /* A breached line with no plan behind it is the commonest thing on this
                                  table and the screen never said why: the plan moves money out of a line
                                  holding too much, and a line that is short has none to move. */
-                              title={group.standing === "BREACHED" && toShed === null
+                              /* Only where it is actually short. A line over its range by less than a
+                                 whole unit has nothing worth moving either, and telling its reader it
+                                 needed money putting in sat over a figure saying to sell. */
+                              title={group.standing === "BREACHED" && toShed === null && move != null
+                                && move.word === "Buy"
                                 ? `${group.subClass ?? UNGROUPED} is short of its range, so there is `
                                   + "nothing to move out of it. This line needs money put in."
                                 : undefined}
@@ -1159,13 +1221,19 @@ export function ClientHoldingsPanel({
         // screen in the same instant — and that is the commonest move there is, the whole suggestion
         // accepted at once. It closes when somebody closes it.
         const toShed = over === null ? 0 : Math.min(over, group.valueAmount);
+        // Nothing left to shed is not the same as being where it should be. A line taken all the way
+        // down is breached the other way, and the window said it was inside its range while the row
+        // behind it carried a breach badge and a figure to buy.
+        const right = group.standing !== "BREACHED";
         return (
           <Dialog
             open
             size="2xl"
-            title={toShed < 1
-              ? `${group.subClass ?? UNGROUPED} is inside its range`
-              : `Where ${exactly(toShed, currency)} out of ${group.subClass ?? UNGROUPED} can go`}
+            title={toShed >= 1
+              ? `Where ${exactly(toShed, currency)} out of ${group.subClass ?? UNGROUPED} can go`
+              : right
+                ? `${group.subClass ?? UNGROUPED} is inside its range`
+                : `${group.subClass ?? UNGROUPED} is short of its range`}
             onClose={() => setPlanning(null)}
           >
             <MoveOutPlan
@@ -1177,6 +1245,7 @@ export function ClientHoldingsPanel({
               className={its.assetClassName || its.assetClass}
               currency={currency}
               readOnly={readOnly}
+              settledRight={right}
               claim={claimTheMove}
               release={releaseTheMove}
               forgotten={(id) => onPutBack?.(id)}
