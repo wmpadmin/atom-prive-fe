@@ -383,50 +383,44 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
                   </span>
                 </li>
               ))}
+              {/* What the client owes, read as one more line under the cash it offsets, because that is
+                  where somebody has the bank statement open and cash and borrowing sit on the same page
+                  of it.
+
+                  Out of the class's total all the same, which is why it is last. A class total has to
+                  equal the lines written under it — the API refuses any other figure — and a loan cannot
+                  be one of them: a holding is money the client has and may not be negative. It is counted
+                  where everything else allows for it, which is the Net AUM. */}
+              {one.code === CASH && (
+                <li className="flex items-center gap-3 border-b border-ink/15 py-1">
+                  <span className="min-w-0 flex-1 truncate text-sm text-ink">Loan</span>
+                  <div className="relative w-40 shrink-0">
+                    <TextInput
+                      aria-label="What the client owes"
+                      inputMode="decimal"
+                      disabled={onFile.length > 1}
+                      className={cn(BOX, "text-right tabular-nums", currency && "pr-11")}
+                      value={loan}
+                      onChange={(event) => setLoan(asFigure(event.target.value, loan))}
+                    />
+                    {currency && (
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-2xs text-ink-muted"
+                      >
+                        {currency}
+                      </span>
+                    )}
+                  </div>
+                  <span className="w-9 shrink-0" />
+                </li>
+              )}
               {rows.length === 0 && (
                 <li className="py-2 text-sm text-ink-muted sm:col-span-2">
                   The firm names nothing under {one.name}. Add what this client holds.
                 </li>
               )}
             </ul>
-
-            {/* What the client owes, under the cash it offsets. It is asked for here because this is
-                where somebody has the client's bank statement in front of them, and cash and borrowing
-                are read off the same page of it.
-
-                Outside the sum on purpose. A class total has to equal the lines written under it — the
-                API refuses any other figure — and a loan is not a holding: it is not money the client
-                has, and it cannot be written as one, because a holding may not be negative. So it sits
-                in this card and is counted where everything else allows for it, which is the Net AUM. */}
-            {one.code === CASH && (
-              <div className="flex items-center gap-3 border-t border-dashed border-ink/20 px-4 py-2">
-                <span className="min-w-0 flex-1 text-sm text-ink">
-                  Loan
-                  <span className="block text-2xs text-ink-muted">
-                    What the client owes. Not part of the total below — it comes off the Net AUM.
-                  </span>
-                </span>
-                <div className="relative w-40 shrink-0">
-                  <TextInput
-                    aria-label="What the client owes"
-                    inputMode="decimal"
-                    disabled={onFile.length > 1}
-                    className={cn(BOX, "text-right tabular-nums", currency && "pr-11")}
-                    value={loan}
-                    onChange={(event) => setLoan(asFigure(event.target.value, loan))}
-                  />
-                  {currency && (
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-2xs text-ink-muted"
-                    >
-                      {currency}
-                    </span>
-                  )}
-                </div>
-                <span className="w-9 shrink-0" />
-              </div>
-            )}
 
             {/* A class is not typed in: it is what the lines inside it come to. Set out under them, in
                 the column they were typed in, so it reads as the sum rather than a figure of its own. */}
