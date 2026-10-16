@@ -21,7 +21,7 @@ import {
   type RiskMatch,
   useClientOnThatModel,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, DateInput, Field, SelectInput } from "@atomprive/ui";
+import { Alert, Badge, Button, DateInput, Field, SelectInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Calculator, Check, ChevronLeft, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
@@ -32,7 +32,9 @@ import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useAssetClasses } from "./asset-classes";
 import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
+import { AnalyticsPanel } from "./analytics-panel";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
+import { DailyTrackerPanel } from "./daily-tracker-panel";
 import { ModelDialog } from "./model-dialog";
 import {
   anchorFor,
@@ -62,6 +64,16 @@ const CAME_FROM: Record<string, { to: string; label: string }> = {
 };
 
 const FROM_THE_LIST = { to: "/portfolio-clients", label: "Back to the clients" };
+
+/** The four questions this screen answers, in the order somebody asks them. */
+type Tab = "performance" | "daily" | "holdings" | "analytics";
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: "performance", label: "Portfolio performance" },
+  { id: "daily", label: "Daily tracker" },
+  { id: "holdings", label: "Holdings" },
+  { id: "analytics", label: "Analytics" },
+];
 
 /** A box per class, keyed by code, since which classes there are is the firm's to decide. */
 type Held = Record<string, string>;
@@ -106,6 +118,11 @@ export function ClientPortfolioPage() {
   const { customerId = "" } = useParams();
   const address = useSearchParams()[0];
   const navigate = useNavigate();
+  // Which part of the client's portfolio is being read. Four questions about one book, each with its own
+  // shape: what it is worth against its plan today, what it did day by day, what it is actually made of,
+  // and what all of that looks like drawn. One screen holding all four was a page nobody reached the
+  // bottom of, and the figures that change daily sat under the ones that barely change at all.
+  const [tab, setTab] = useState<Tab>("performance");
   const came = CAME_FROM[address.get("from") ?? ""] ?? FROM_THE_LIST;
   // With the queue as it was left: a list worked down with a filter on it, and three pages in, is not the
   // same list when it comes back at page one with the filter cleared.
@@ -510,9 +527,33 @@ export function ClientPortfolioPage() {
         </div>
       </header>
 
+      {/* Scrolls rather than wraps: a second row would break the line the tabs sit on. */}
+      <div role="tablist" aria-label="This client's portfolio"
+        className="flex gap-1 overflow-x-auto border-b border-line">
+        {TABS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === option.id}
+            onClick={() => setTab(option.id)}
+            className={cn(
+              "-mb-px border-b-2 px-3 py-2 text-sm font-semibold whitespace-nowrap transition-colors",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
+              tab === option.id
+                ? "border-primary-600 text-primary-700"
+                : "border-transparent text-ink-muted hover:text-ink",
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
       {client.isError && <Alert tone="danger">{client.error.message}</Alert>}
 
+      {tab === "performance" && (<>
       {/* One column, read top to bottom. Side by side, two panels are never the same height, so whichever
           is shorter leaves a hole beside the other — and the hole moves about as the figures change. */}
       <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -801,6 +842,23 @@ export function ClientPortfolioPage() {
       {standing.data && (
         <WhatIfPanel customerId={customerId} standing={standing.data} editing={editing} />
       )}
+      </>)}
+
+      {tab === "daily" && <DailyTrackerPanel customerId={customerId} />}
+
+      {/* Nothing yet, and said so rather than drawn empty. The firm's line-by-line holdings list is still
+          to come; until it does, what the client holds is read under Portfolio performance. */}
+      {tab === "holdings" && (
+        <section className="rounded-2xl border border-dashed border-line bg-white px-6 py-10 text-center">
+          <p className="font-semibold text-ink">Holdings is not built yet.</p>
+          <p className="mx-auto mt-1 max-w-prose text-sm text-ink-muted">
+            The firm&apos;s own list of what a client holds, instrument by instrument, goes here. Until it
+            arrives, what they hold by asset class and sub-asset is under Portfolio performance.
+          </p>
+        </section>
+      )}
+
+      {tab === "analytics" && <AnalyticsPanel customerId={customerId} />}
     </div>
   );
 }
