@@ -11,7 +11,7 @@ import {
   type LoanRequestSecuredOn,
   type ClientNonFinancialAssets,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, IconButton, TextArea, TextInput, cn } from "@atomprive/ui";
+import { Alert, Button, IconButton, SelectInput, TextArea, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -27,6 +27,8 @@ import { BOX, type StepProps } from "./portfolio-setup-dialog";
 type Line = {
   /** What it is already written down as, where it is. Null for one nobody has written yet. */
   id: string | null;
+  /** Whether somebody chose to write a kind of their own rather than pick one off the firm's list. */
+  written?: boolean;
   /** The short name. Empty on a loan, which says what it is in one line and has no second box. */
   item: string;
   /**
@@ -41,6 +43,24 @@ type Line = {
 };
 
 const NOTHING_YET: Line = { id: null, item: "", description: "", amount: "", securedOn: "PORTFOLIO" };
+
+/**
+ * The kinds of thing the firm sees often enough to name.
+ *
+ * <p>Not a closed list. What somebody owns that nobody manages is whatever they own — a vineyard, a
+ * stake in a cousin's business, a racehorse — so the list is the common answers and anything else is
+ * still typed, rather than an argument with the box.
+ */
+const KINDS = [
+  "Real Estate",
+  "Infrastructure",
+  "Commodities",
+  "Precious Metals",
+  "Collectibles & Art",
+];
+
+/** The value the list carries for writing a kind nobody has used before. Never a kind itself. */
+const WRITE_ONE = "\u0000write";
 
 /** Figures only, and one point. Letters in a money box are not a small mistake to round away. */
 function asFigure(typed: string, before: string) {
@@ -217,13 +237,42 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
               key={one.id ?? `new-${at}`}
               className="grid grid-cols-[1fr_1.5fr_9rem_2.25rem] items-start gap-3 px-4 py-1.5"
             >
-              <TextInput
-                aria-label={`What the client owns, line ${at + 1}`}
-                placeholder="Flat, Juhu"
-                className={BOX}
-                value={one.item}
-                onChange={(event) => putOwned(at, { item: event.target.value })}
-              />
+              {/* Picked from the firm's own kinds, or written where none of them is it. Something
+                  already written down under a name the list does not carry keeps that name and opens
+                  as typed, so reading a client back never quietly reworded what somebody put there. */}
+              {one.written || (one.item !== "" && !KINDS.includes(one.item)) ? (
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <TextInput
+                    aria-label={`What the client owns, line ${at + 1}`}
+                    placeholder="A vineyard, a stake in a business"
+                    className={cn(BOX, "min-w-0 flex-1")}
+                    value={one.item}
+                    onChange={(event) => putOwned(at, { item: event.target.value })}
+                  />
+                  <button
+                    type="button"
+                    className="shrink-0 text-2xs font-semibold text-primary-700 hover:underline"
+                    onClick={() => putOwned(at, { item: "", written: false })}
+                  >
+                    List
+                  </button>
+                </span>
+              ) : (
+                <SelectInput
+                  aria-label={`What the client owns, line ${at + 1}`}
+                  className={BOX}
+                  value={one.item}
+                  onChange={(event) =>
+                    putOwned(at, event.target.value === WRITE_ONE
+                      ? { item: "", written: true }
+                      : { item: event.target.value, written: false })
+                  }
+                >
+                  <option value="">Pick what it is…</option>
+                  {KINDS.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
+                  <option value={WRITE_ONE}>Other…</option>
+                </SelectInput>
+              )}
               <TextArea
                 aria-label={`About ${one.item || `line ${at + 1}`}`}
                 placeholder="Whatever else has to be said about it"
