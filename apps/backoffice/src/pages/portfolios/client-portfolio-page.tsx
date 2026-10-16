@@ -701,6 +701,17 @@ export function ClientPortfolioPage() {
                   onTouched={(id, before) =>
                     setTouchedHoldings((were) => (were.has(id) ? were : new Map(were).set(id, before)))
                   }
+                  /* Written down and taken off again inside one sitting. It was never there when Edit was
+                     pressed and it is not there now, so there is nothing for Discard to put back — and
+                     going looking for it would find nothing and call that a refusal. */
+                  onPutBack={(id) =>
+                    setTouchedHoldings((were) => {
+                      if (!were.has(id)) return were;
+                      const left = new Map(were);
+                      left.delete(id);
+                      return left;
+                    })
+                  }
                   readOnly={!editing}
                 />
               </div>
