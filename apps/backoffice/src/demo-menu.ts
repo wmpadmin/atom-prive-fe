@@ -26,8 +26,19 @@ export type Demo = "1" | "2" | "3";
 /** Remembered between pages, because a demo walks through several and the address is not retyped. */
 const KEPT = "atomprive.demo";
 
-/** A session: what it is called, and the screens it is about, in the order they are walked through. */
-export type Meeting = { title: string; routes: string[] };
+/**
+ * A session: what it is called, and the screens it is about, in the order they are walked through.
+ *
+ * <p>Where only some of them are being shown, the rest are still listed. A session cut to the screens
+ * somebody has time for leaves the room looking at four items and no way to tell that the story has a
+ * beginning and an end they are not seeing — which is the question that arrives mid-sentence.
+ */
+export type Meeting = {
+  title: string;
+  routes: string[];
+  /** The ones being walked through. Everything else in routes is drawn and goes nowhere. Absent: all of them. */
+  live?: string[];
+};
 
 export const MEETINGS: Record<Demo, Meeting> = {
   /**
@@ -41,7 +52,13 @@ export const MEETINGS: Record<Demo, Meeting> = {
    */
   "1": {
     title: "Portfolio management",
-    routes: ["/portfolio-clients", "/model-portfolios", "/drift", "/bulk-rebalancing"],
+    // The four being shown first, then the rest of the story: the bands and trading rules that decide
+    // what counts as a breach, where the orders raised by a rebalance go, the other answer to drift, what
+    // the plans themselves did, and the reads of all of it.
+    routes: ["/portfolio-clients", "/model-portfolios", "/drift", "/bulk-rebalancing",
+      "/portfolio-settings", "/trade-orders", "/model-changes", "/model-performance", "/model-risk",
+      "/reports", "/dashboard"],
+    live: ["/portfolio-clients", "/model-portfolios", "/drift", "/bulk-rebalancing"],
   },
   /**
    * Running the platform. Two roots that need no data at all — the firm's reference data and the
@@ -108,9 +125,21 @@ export function demoInForce(search: string): Demo | null {
   return MEETINGS[said].routes.length > 0 ? said : null;
 }
 
-/** The three sessions in order, saying which one is being shown. */
-export function everySession(inForce: Demo) {
-  return (Object.keys(MEETINGS) as Demo[])
-    .filter((key) => MEETINGS[key].routes.length > 0)
-    .map((key) => ({ key, ...MEETINGS[key], open: key === inForce }));
+/**
+ * The session being shown, and which of its screens are a way in.
+ *
+ * <p>One session, not three. All three were drawn once, the other two greyed, so the room could see the
+ * whole platform — and a sidebar of twenty-eight items, twenty-four of them dead, is a wall to read
+ * rather than a map. The story being told has its own beginning and end, and that is the shape worth
+ * showing.
+ */
+export function sessionShown(inForce: Demo) {
+  const meeting = MEETINGS[inForce];
+  const live = meeting.live ?? meeting.routes;
+  return {
+    key: inForce,
+    title: meeting.title,
+    routes: meeting.routes,
+    isLive: (route: string) => live.includes(route),
+  };
 }
