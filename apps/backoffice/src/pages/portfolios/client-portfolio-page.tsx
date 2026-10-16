@@ -4,7 +4,6 @@ import {
   useGetClientPortfolio,
   useGetCustomer,
   useListClientHoldings,
-  useListCurrencies,
   useListModelPortfolios,
   useRecordRebalance,
   useRecordReview,
@@ -15,14 +14,10 @@ import {
   useWriteTheirOwnAllocation,
   type PositionRow,
   useSetClientModelPortfolio,
-  usePreviewPortfolioCurrency,
-  useSetPortfolioCurrency,
   type ClientHoldings,
-  type Currency,
   type CustomerDetail,
   type ModelsPage,
   type PortfolioStanding,
-  type Redenomination,
   type RiskMatch,
   useClientOnThatModel,
 } from "@atomprive/api-client/backoffice";
@@ -85,14 +80,6 @@ function heldFrom(standing: PortfolioStanding | undefined, codes: string[]): Hel
   return typed;
 }
 
-/** The same boxes, filled from what the API says the figures would read in another currency. */
-function asBoxes(wouldRead: Record<string, number>, codes: string[]): Held {
-  const typed: Held = {};
-  for (const assetClass of codes) typed[assetClass] = "";
-  for (const [assetClass, value] of Object.entries(wouldRead)) typed[assetClass] = String(value);
-  return typed;
-}
-
 /** Today, as the calendar writes it, so a rebalance can be dated today but no later. */
 function today() {
   const day = new Date();
@@ -135,10 +122,7 @@ export function ClientPortfolioPage() {
   const assetClasses = useAssetClasses();
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [held, setHeld] = useState<Held | null>(null);
-  const [chosenCurrency, setChosenCurrency] = useState<string | null>(null);
   /** What the last conversion did, so the screen can say it rather than leaving it to be noticed. */
-  const [converted, setConverted] = useState<Redenomination | null>(null);
-  const currencies = useListCurrencies<Currency[], ApiError>();
   const [rebalancedOn, setRebalancedOn] = useState<string | null>(null);
   const [reviewedOn, setReviewedOn] = useState<string | null>(null);
   /**
@@ -198,7 +182,7 @@ export function ClientPortfolioPage() {
     // Adding or removing a line changes which classes are worked out rather than typed, so the boxes have
     // to be told as well as the totals.
     void lines.refetch();
-    // Saving the holdings is what writes a day of history, and converting rewrites every day of it.
+    // Saving the holdings is what writes a day of history.
     void queryClient.invalidateQueries({ queryKey: getGetClientValuationsQueryKey(customerId) });
   };
   const setModel = useSetClientModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
@@ -211,40 +195,17 @@ export function ClientPortfolioPage() {
   const setHoldings = useSetClientHoldings<ApiError>({
     mutation: { onSuccess: () => { kept(); sayHoldingsSaved(); }, onError },
   });
-  const setCurrency = useSetPortfolioCurrency<ApiError>({ mutation: { onError } });
   const rebalanced = useRecordRebalance<ApiError>({ mutation: { onSuccess: kept, onError } });
   const reviewed = useRecordReview<ApiError>({ mutation: { onSuccess: kept, onError } });
   // Each control waits on its own work and nothing else's. One flag over the whole screen dimmed every
   // button the moment any of them was pressed, which reads as the page pressing all of them at once.
 
   const boxes = classesShown(assetClasses, standing.data);
-  const currency = chosenCurrency ?? standing.data?.currency ?? "USD";
+  // What the portfolio is written in, read off the portfolio. It is not a choice on this screen.
+  const currency = standing.data?.currency ?? "USD";
 
   /**
-   * Whether keeping the currency means restating what is already on file.
-   *
-   * <p>Writing the portfolio in another currency converts every class total and every holding line at
-   * today's rate, which only the API can do — a line listed under a class carries no currency of its own. A
-   * portfolio with nothing written down has nothing to restate, so the choice simply rides along with the
-   * figures when they are saved.
-   */
-  const converting =
-    standing.data !== undefined && currency !== standing.data.currency
-    && standing.data.underManagement > 0;
-
-  /**
-   * What the figures would read in the currency just picked, worked out by the API so that what is shown
-   * is what would be written — the same rates, the same rounding, and the same refusal where a rate is
-   * missing. Nothing is written by asking.
-   */
-  const wouldRead = usePreviewPortfolioCurrency<Record<string, number>, ApiError>(customerId, currency, {
-    query: { enabled: converting },
-  });
-
-  /**
-   * The figures the boxes show: what somebody typed, or what the currency they picked would make of what is
-   * on file, or what is on file. Shown the moment the currency changes so that the figures and the money
-   * they are counted in never read as two different things — and still written only by Save.
+   * The figures the boxes show: what somebody typed, or what is on file.
    *
    * <p>Only the classes somebody actually typed into are kept, and they are laid over the live figures
    * rather than replacing them. Snapshotting every class at the first keystroke froze the ones that are
@@ -252,7 +213,7 @@ export function ClientPortfolioPage() {
    * class's total as it stood before, which is the one figure the API refuses for disagreeing with its own
    * lines.
    */
-  const live = converting && wouldRead.data ? asBoxes(wouldRead.data, boxes) : heldFrom(standing.data, boxes);
+  const live = heldFrom(standing.data, boxes);
   const holdings = held === null ? live : { ...live, ...held };
   const on = rebalancedOn ?? standing.data?.lastRebalancedOn ?? "";
   const looked = reviewedOn ?? standing.data?.lastReviewedOn ?? "";
@@ -283,7 +244,7 @@ export function ClientPortfolioPage() {
     (rebalancedOn !== null && rebalancedOn !== (standing.data?.lastRebalancedOn ?? "")) ||
     (reviewedOn !== null && reviewedOn !== (standing.data?.lastReviewedOn ?? ""));
   const saving =
-    setHoldings.isPending || setModel.isPending || setCurrency.isPending || rebalanced.isPending
+    setHoldings.isPending || setModel.isPending || rebalanced.isPending
     || reviewed.isPending;
 
   /** Puts the screen back to what is on file, throwing away whatever was typed. */
@@ -371,11 +332,9 @@ export function ClientPortfolioPage() {
     setTouchedHoldings(new Map());
     setHeld(null);
     setChosenModel(null);
-    setChosenCurrency(null);
     setRebalancedOn(null);
     setReviewedOn(null);
     setErrors(noErrors);
-    setConverted(null);
     setEditing(false);
   }
 
@@ -391,8 +350,6 @@ export function ClientPortfolioPage() {
    * and the screen stays in edit with everything still typed in it.
    */
   async function save() {
-    // The note about a conversion belongs to that conversion, not to everything done afterwards.
-    setConverted(null);
     setErrors(noErrors);
     try {
       // The model first: it is what every figure below is measured against, so there is no sense keeping
@@ -406,24 +363,18 @@ export function ClientPortfolioPage() {
       if (reviewedOn !== null && reviewedOn !== (standing.data?.lastReviewedOn ?? "") && reviewedOn) {
         await reviewed.mutateAsync({ customerId, data: { on: reviewedOn } });
       }
-      // Restating what is on file and retyping it are two different things, and the picker does not let
-      // them be asked for together, so only one of these can be what was meant.
-      if (converting) {
-        setConverted(await setCurrency.mutateAsync({ customerId, data: { currency } }));
-        kept();
+      const wanted: Record<string, number> = {};
+      for (const [assetClass, typed] of Object.entries(holdings)) {
+        if (typed.trim()) wanted[assetClass] = Number(typed);
       }
-      else {
-        const wanted: Record<string, number> = {};
-        for (const [assetClass, typed] of Object.entries(holdings)) {
-          if (typed.trim()) wanted[assetClass] = Number(typed);
-        }
-        await setHoldings.mutateAsync({
-          customerId,
-          // Left out rather than sent as nought: nobody saying what the client has is a different thing
-          // from somebody saying they have nothing.
-          data: { holdings: wanted, currency, netAum: netAum.trim() === "" ? null : Number(netAum) },
-        });
-      }
+      // The currency goes back exactly as it came: what the portfolio is written in is not something this
+      // screen can change, and sending it unchanged is what keeps it.
+      await setHoldings.mutateAsync({
+        customerId,
+        // Left out rather than sent as nought: nobody saying what the client has is a different thing
+        // from somebody saying they have nothing.
+        data: { holdings: wanted, currency, netAum: netAum.trim() === "" ? null : Number(netAum) },
+      });
     }
     catch {
       // Each mutation reports what it was refused for through onError, which has already put the message
@@ -432,7 +383,6 @@ export function ClientPortfolioPage() {
     }
     setHeld(null);
     setChosenModel(null);
-    setChosenCurrency(null);
     setRebalancedOn(null);
     setReviewedOn(null);
     // Saved is kept: what was written down in this sitting is the client's now, not this sitting's.
@@ -664,29 +614,15 @@ export function ClientPortfolioPage() {
                     Written down by hand: no custodian feed delivers these yet.
                   </p>
                 </div>
-                <Field id="holdings-currency" label="Currency">
-                  {/* Restating a portfolio and retyping its figures cannot be asked for in one go: the
-                      typed figures would be in the currency being left behind, and nothing could say
-                      which of the two was meant. */}
-                  <SelectInput
-                    id="holdings-currency"
-                    value={currency}
-                    className="w-auto"
-                    disabled={!editing || saving || figuresChanged}
-                    onChange={(event) => setChosenCurrency(event.target.value)}
-                  >
-                    {/* Whatever the portfolio is already written in stays offered, even if the firm has
-                        since stopped dealing in it. */}
-                    {!(currencies.data ?? []).some((one) => one.code === currency) && (
-                      <option value={currency}>{currency}</option>
-                    )}
-                    {(currencies.data ?? []).map((one) => (
-                      <option key={one.code} value={one.code}>
-                        {one.code} — {one.name}
-                      </option>
-                    ))}
-                  </SelectInput>
-                </Field>
+                {/* A currency picker stood here. Restating a portfolio converts every class total,
+                    every holding under it and every day of history behind it, and what it did not
+                    convert was the Net AUM, the assets nobody manages and the loans — so a portfolio
+                    restated came back measured against a figure still counted in the currency it had
+                    left. The firm works in one currency while that is so. What the portfolio is
+                    written in is said beside the figures, not offered as a choice. */}
+                <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  {currency}
+                </span>
               </div>
               {/* What each class is worth, and what it is made of, in one list. The figures used to be a
                   grid of boxes with the breakdown of them at the foot of the page, so a class was typed in
@@ -715,33 +651,6 @@ export function ClientPortfolioPage() {
                   readOnly={!editing}
                 />
               </div>
-              {/* Said under the boxes rather than beside the picker: a line of explanation hung off a
-                  control stretches the row it is in, and the heading next to it moves with it. */}
-              {editing && figuresChanged && (
-                <p className="mt-3 text-xs text-ink-muted">
-                  Save the figures before changing the currency: typed in one currency and restated into
-                  another, nothing could say which was meant.
-                </p>
-              )}
-              {converting && (
-                <p className="mt-3 text-xs text-amber-700">
-                  {wouldRead.isError
-                    ? wouldRead.error.message
-                    : wouldRead.isPending
-                      ? `Working out what these read in ${currency}…`
-                      : `These are what the figures read in ${currency}. Nothing is written until you save, and saving restates every day of history at the rate that applied on each day.`}
-                </p>
-              )}
-              {converted && (
-                <p className="mt-3 text-xs text-ink-muted">
-                  <span className="font-semibold text-ink">Converted from {converted.from}.</span> The client
-                  holds the same things; only the money they are counted in has changed.
-                  {converted.lines > 0 &&
-                    ` ${converted.lines === 1 ? "1 holding" : `${converted.lines} holdings`} listed under a class moved with it.`}
-                  {converted.days > 0 &&
-                    ` ${converted.days === 1 ? "1 day" : `${converted.days} days`} of history ${converted.days === 1 ? "was" : "were"} rewritten, each at the rate that applied on that day, so a return read in ${standing.data?.currency ?? ""} is the one it actually earned.`}
-                </p>
-              )}
               {errors.fields.currency && <p className="mt-3 text-xs text-red-600">{errors.fields.currency}</p>}
               {errors.fields.holdings && (
                 <p className="mt-3 text-xs text-red-600">{errors.fields.holdings}</p>
