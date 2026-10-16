@@ -10,7 +10,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
@@ -50,6 +50,14 @@ export function PortfolioClientsPage() {
   // a screen of its own, but it keeps an address so a sitting half way through can be left and come back
   // to, and so a row can send somebody straight into it.
   const { customerId: settingUp } = useParams();
+  // What the way in asked for: which step to open on, and where closing it should put somebody back.
+  // Opened from a client's own portfolio there is a screen to go back to, and sending them to the list
+  // instead takes away the one they were working on.
+  const address = useSearchParams()[0];
+  const openAt = (["1", "2", "3", "4"].includes(address.get("at") ?? "")
+    ? Number(address.get("at")) : undefined) as 1 | 2 | 3 | 4 | undefined;
+  const backTo = address.get("from") === "portfolio" && settingUp
+    ? `/portfolio-clients/${settingUp}` : "/portfolio-clients";
   const query = params.get("q") ?? "";
   const advisorId = params.get("advisor") ?? "";
   const page = Number(params.get("page")) || 0;
@@ -242,8 +250,9 @@ export function PortfolioClientsPage() {
       {settingUp && (
         <PortfolioSetupDialog
           customerId={settingUp}
+          openAt={openAt}
           onClose={() => {
-            void navigate("/portfolio-clients");
+            void navigate(backTo);
             // What was written reaches the row it was written for without a reload.
             void standings.refetch();
           }}
