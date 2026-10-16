@@ -167,7 +167,17 @@ export function PortfolioClientsPage() {
               <span className="block text-2xs font-normal text-ink-muted">per year</span>
             </th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">AUM</th>
-            <th scope="col" className="px-4 py-3 text-right font-semibold">Drift</th>
+            {/* Two readings of one gap. Points are what the band is written in, so the verdict beside it
+                is read off them; money is what has to change hands, and a class four points out of a
+                portfolio nobody has in front of them is not an amount anybody can go and look for. */}
+            <th scope="col" className="px-4 py-3 text-right font-semibold whitespace-nowrap">
+              Drift
+              <span className="block text-2xs font-normal text-ink-muted">value</span>
+            </th>
+            <th scope="col" className="px-4 py-3 text-right font-semibold whitespace-nowrap">
+              Drift
+              <span className="block text-2xs font-normal text-ink-muted">points</span>
+            </th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Status</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Last rebalanced</th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">
@@ -261,6 +271,25 @@ export function PortfolioClientsPage() {
                 ) : (
                   <span className="text-ink-muted">{NOTHING_YET}</span>
                 )}
+              </td>
+              {/* The money first, because that is the figure somebody acts on. The sign reads the same way
+                  round as the points beside it: a plus is money the class holds over what the model asks,
+                  a minus is money it is short of — which is drift measured as actual less target, the way
+                  the band is read. */}
+              <td
+                className={cn(
+                  "px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums",
+                  standing?.standing == null ? "text-ink-muted" : driftTones[standing.standing],
+                )}
+              >
+                {standing?.driftValue == null || standing.underManagement === 0
+                  ? <span className="text-ink-muted">{NOTHING_YET}</span>
+                  : <span title={"The class furthest from its target is "
+                      + `${underManagementLabel(Math.abs(standing.driftValue), standing.currency)} `
+                      + (standing.driftValue > 0 ? "over" : "short of") + " what the model asks of it."}>
+                      {standing.driftValue > 0 ? "+" : "−"}
+                      {underManagementLabel(Math.abs(standing.driftValue), standing.currency)}
+                    </span>}
               </td>
               <td
                 className={cn(
