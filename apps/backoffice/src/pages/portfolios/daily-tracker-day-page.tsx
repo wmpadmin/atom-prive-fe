@@ -39,7 +39,7 @@ export function DailyTrackerDayPage() {
     <div className="space-y-5">
       <div>
         <Link
-          to={`/portfolio-clients/${customerId}`}
+          to={`/portfolio-clients/${customerId}?tab=daily`}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 underline-offset-2 hover:underline"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -238,10 +238,21 @@ function Inside({ day, codes, names, currency }: {
               </span>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              {/* Laid out to fixed widths, the same in every card. Sized to their contents instead, each
+                  class worked its columns out from its own longest name — so "FX Derivatives" and "Yield
+                  Enhancement Strategies" pushed the three figure columns to different places, and the
+                  headings over them stepped left and right down the page. The figures are the same kind of
+                  figure in every card and belong under one line. */}
+              <table className="w-full table-fixed text-sm">
                 <caption className="sr-only">
                   What {nameOf(code, names)} held on {day.on}, in {currency}, beside the day before.
                 </caption>
+                <colgroup>
+                  <col className="w-[40%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[20%]" />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-ink/15 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                     <th scope="col" className="py-3 pr-3 pl-5">Sub-asset</th>
@@ -257,7 +268,7 @@ function Inside({ day, codes, names, currency }: {
                     const moved = (held ?? 0) - (before ?? 0);
                     return (
                       <tr key={line}>
-                        <th scope="row" className={cn("py-3 pr-3 pl-5 text-left font-medium",
+                        <th scope="row" className={cn("py-3 pr-3 pl-5 text-left font-medium break-words",
                           held === undefined ? "text-ink-muted line-through" : "text-ink")}
                         >
                           {line}
