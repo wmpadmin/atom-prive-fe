@@ -1396,16 +1396,15 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
-  short?: boolean;
-  pojo?: boolean;
   container?: boolean;
-  nodeType?: JsonNodeNodeType;
   valueNode?: boolean;
   missingNode?: boolean;
-  integralNumber?: boolean;
+  nodeType?: JsonNodeNodeType;
   string?: boolean;
+  integralNumber?: boolean;
+  pojo?: boolean;
+  short?: boolean;
   int?: boolean;
   long?: boolean;
   double?: boolean;
@@ -1415,6 +1414,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -3370,6 +3370,148 @@ export interface RebalancedRequest {
   on: string;
 }
 
+export interface MoveLegRequest {
+  fromAssetClass: string;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  fromSubClass: string | null;
+  toAssetClass: string;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  toSubClass: string | null;
+  /** @minimum 0 */
+  amount: number;
+  /** @nullable */
+  heldWhenRaised: number | null;
+}
+
+export interface MovePlanRequest {
+  /**
+     * @minItems 1
+     * @maxItems 2147483647
+     */
+  legs: MoveLegRequest[];
+}
+
+/**
+ * @nullable
+ */
+export type ClassPositionsStanding = typeof ClassPositionsStanding[keyof typeof ClassPositionsStanding] | null;
+
+
+export const ClassPositionsStanding = {
+  WITHIN_BAND: 'WITHIN_BAND',
+  WATCH: 'WATCH',
+  AT_EDGE: 'AT_EDGE',
+  BREACHED: 'BREACHED',
+} as const;
+
+/**
+ * @nullable
+ */
+export type SubClassGroupStanding = typeof SubClassGroupStanding[keyof typeof SubClassGroupStanding] | null;
+
+
+export const SubClassGroupStanding = {
+  WITHIN_BAND: 'WITHIN_BAND',
+  WATCH: 'WATCH',
+  AT_EDGE: 'AT_EDGE',
+  BREACHED: 'BREACHED',
+} as const;
+
+export interface SubClassGroup {
+  /** @nullable */
+  subClass: string | null;
+  valueAmount: number;
+  shareOfClass: number;
+  /** @nullable */
+  targetShare: number | null;
+  /** @nullable */
+  targetValue: number | null;
+  /** @nullable */
+  drift: number | null;
+  /** @nullable */
+  standing: SubClassGroupStanding;
+  /** @nullable */
+  suggestion: number | null;
+  positions: PositionRow[];
+}
+
+export interface ClassPositions {
+  assetClass: string;
+  assetClassName: string;
+  valueAmount: number;
+  heldAsPositions: boolean;
+  /** @nullable */
+  targetShare: number | null;
+  /** @nullable */
+  shareOfPortfolio: number | null;
+  /** @nullable */
+  drift: number | null;
+  /** @nullable */
+  standing: ClassPositionsStanding;
+  /** @nullable */
+  suggestion: number | null;
+  /** @nullable */
+  watchAt: number | null;
+  /** @nullable */
+  edgeAt: number | null;
+  /** @nullable */
+  breachAt: number | null;
+  ownTolerance: boolean;
+  subClasses: SubClassGroup[];
+}
+
+export interface ModelLine {
+  name: string;
+  shareOfClass: number;
+  shareOfPortfolio: number;
+  watchAt: number;
+  edgeAt: number;
+  breachAt: number;
+}
+
+export type ClientHoldingsModelSubClasses = {[key: string]: ModelLine[]};
+
+export interface ClientHoldings {
+  customerId: string;
+  currency: string;
+  underManagement: number;
+  unplaced: number;
+  /** @nullable */
+  measuredAgainst: string | null;
+  unwritten: number;
+  modelSubClasses: ClientHoldingsModelSubClasses;
+  classes: ClassPositions[];
+}
+
+export interface MovedLeg {
+  fromAssetClass: string;
+  /** @nullable */
+  fromSubClass: string | null;
+  toAssetClass: string;
+  /** @nullable */
+  toSubClass: string | null;
+  amount: number;
+}
+
+export interface TouchedPosition {
+  id: string;
+  before: PositionRow | null;
+}
+
+export interface MovePlanApplied {
+  applied: MovedLeg[];
+  touched: TouchedPosition[];
+  holdings: ClientHoldings;
+}
+
 export interface CashflowRequest {
   happenedOn: string;
   amount: number;
@@ -4590,98 +4732,6 @@ export interface ClientLoans {
   againstThePortfolio: number;
   againstNonFinancial: number;
   loans: LoanRow[];
-}
-
-/**
- * @nullable
- */
-export type ClassPositionsStanding = typeof ClassPositionsStanding[keyof typeof ClassPositionsStanding] | null;
-
-
-export const ClassPositionsStanding = {
-  WITHIN_BAND: 'WITHIN_BAND',
-  WATCH: 'WATCH',
-  AT_EDGE: 'AT_EDGE',
-  BREACHED: 'BREACHED',
-} as const;
-
-/**
- * @nullable
- */
-export type SubClassGroupStanding = typeof SubClassGroupStanding[keyof typeof SubClassGroupStanding] | null;
-
-
-export const SubClassGroupStanding = {
-  WITHIN_BAND: 'WITHIN_BAND',
-  WATCH: 'WATCH',
-  AT_EDGE: 'AT_EDGE',
-  BREACHED: 'BREACHED',
-} as const;
-
-export interface SubClassGroup {
-  /** @nullable */
-  subClass: string | null;
-  valueAmount: number;
-  shareOfClass: number;
-  /** @nullable */
-  targetShare: number | null;
-  /** @nullable */
-  targetValue: number | null;
-  /** @nullable */
-  drift: number | null;
-  /** @nullable */
-  standing: SubClassGroupStanding;
-  /** @nullable */
-  suggestion: number | null;
-  positions: PositionRow[];
-}
-
-export interface ClassPositions {
-  assetClass: string;
-  assetClassName: string;
-  valueAmount: number;
-  heldAsPositions: boolean;
-  /** @nullable */
-  targetShare: number | null;
-  /** @nullable */
-  shareOfPortfolio: number | null;
-  /** @nullable */
-  drift: number | null;
-  /** @nullable */
-  standing: ClassPositionsStanding;
-  /** @nullable */
-  suggestion: number | null;
-  /** @nullable */
-  watchAt: number | null;
-  /** @nullable */
-  edgeAt: number | null;
-  /** @nullable */
-  breachAt: number | null;
-  ownTolerance: boolean;
-  subClasses: SubClassGroup[];
-}
-
-export interface ModelLine {
-  name: string;
-  shareOfClass: number;
-  shareOfPortfolio: number;
-  watchAt: number;
-  edgeAt: number;
-  breachAt: number;
-}
-
-export type ClientHoldingsModelSubClasses = {[key: string]: ModelLine[]};
-
-export interface ClientHoldings {
-  customerId: string;
-  currency: string;
-  underManagement: number;
-  unplaced: number;
-  /** @nullable */
-  measuredAgainst: string | null;
-  unwritten: number;
-  modelSubClasses: ClientHoldingsModelSubClasses;
-  classes: ClassPositions[];
 }
 
 export interface CreditBand {
@@ -15323,6 +15373,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordClientLoanMutationOptions(options), queryClient);
+    }
+
+export const getMoveClientHoldingsUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/holding-moves`
+}
+
+export const moveClientHoldings = async (customerId: string,
+    movePlanRequest: MovePlanRequest, options?: Parameters<typeof http>[1]): Promise<MovePlanApplied> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MovePlanApplied>(getMoveClientHoldingsUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(movePlanRequest)
+  }
+);}
+
+
+
+
+
+export const getMoveClientHoldingsMutationKey = () => ['moveClientHoldings'] as const;
+
+export const getMoveClientHoldingsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveClientHoldings>>, TError,MoveClientHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof moveClientHoldings>>, TError,MoveClientHoldingsMutationVariables, TContext> => {
+
+const mutationKey = getMoveClientHoldingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof moveClientHoldings>>, MoveClientHoldingsMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  moveClientHoldings(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MoveClientHoldingsMutationResult = NonNullable<Awaited<ReturnType<typeof moveClientHoldings>>>
+    export type MoveClientHoldingsMutationBody = MovePlanRequest
+    export type MoveClientHoldingsMutationError = unknown
+    export type MoveClientHoldingsMutationVariables = {customerId: string;data: MovePlanRequest}
+
+    export const useMoveClientHoldings = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveClientHoldings>>, TError,MoveClientHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof moveClientHoldings>>,
+        TError,
+        MoveClientHoldingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMoveClientHoldingsMutationOptions(options), queryClient);
     }
 
 export const getListClientCashflowsUrl = (customerId: string,) => {

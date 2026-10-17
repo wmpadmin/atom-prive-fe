@@ -4,7 +4,7 @@ import {
   getListClientHoldingsQueryKey,
   useChangeClientHolding,
   useListClientHoldings,
-  useRecordClientHolding,
+  useMoveClientHoldings,
   useRemoveClientHolding,
   type ClassPositions,
   type SubClassGroup,
@@ -293,8 +293,8 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   );
 
   const change = useChangeClientHolding<ApiError>();
-  const write = useRecordClientHolding<ApiError>();
   const forget = useRemoveClientHolding<ApiError>();
+  const moveMoney = useMoveClientHoldings<ApiError>();
   const placed = inOrder.reduce((sum, place) => sum + typed(moves[place.name]), 0);
   const left = spare - placed;
   // What this class could take in all, however it is split up, and so what genuinely cannot stay in it.
@@ -369,70 +369,42 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
     if (!claim()) return;
     setFailed(null);
     setMoving(place.name);
-    // What has already come out, and which rows it came out of. What those rows are worth now is a
-    // different figure from the one this move started with, and the difference is what somebody has to be
-    // told about.
-    const taken: { id: string; before: PositionRow }[] = [];
-    // Counted as it goes, so a failure can say how much is actually out rather than how much was asked
-    // for. A move stopped half way through its own sources had taken part of the figure and the notice
-    // named the whole of it.
-    let out = 0;
     try {
-      let left = amount;
-      for (const row of deepest) {
-        if (left <= 0) break;
-        const takes = Math.min(left, row.valueAmount);
-        await change.mutateAsync({
-          customerId, id: row.id, data: sameBut(row, row.valueAmount - takes),
-        });
-        taken.push({ id: row.id, before: row });
-        out += takes;
-        left -= takes;
-      }
-      if (place.into) {
-        await change.mutateAsync({
-          customerId, id: place.into.id, data: sameBut(place.into, place.into.valueAmount + amount),
-        });
-        // Awaited, so this move is not over until the portfolio has been read back. Every figure below is
-        // worked out from rows that came with the last read: released the moment the writes returned, a
-        // second Move went out against the source as it stood before the first, which wrote off the first
-        // move's deduction while its deposit stood — money out of nowhere.
-        const wrote = [...taken, { id: place.into.id, before: place.into }];
-        await onMoved(wrote);
-        settled(place, amount, wrote);
-      } else {
-        // A sub-asset the model names and nobody has written down yet. Discard puts it back by removing it,
-        // which is what a null before means to the page above.
-        const made = await write.mutateAsync({
-          customerId,
-          data: {
-            assetClass, subClass: place.name, name: place.name, identifier: null, issuer: null,
-            countryCode: null, sector: null, yieldPercent: null, durationYears: null, creditRating: null,
-            valueAmount: amount, watchPp: null, edgePp: null, breachPp: null,
-          },
-        });
-        const wrote = [...taken, { id: made.id, before: null }];
-        await onMoved(wrote);
-        settled(place, amount, wrote);
-      }
+      // One call for the whole move. It used to be a write per source row and then one more for the
+      // destination, ordered so that a failure half way through left the money missing rather than
+      // counted twice — the better of two bad answers. The API takes it out and puts it on in a single
+      // transaction now, so there is no half way left to land in, and nothing to tell somebody about.
+      //
+      // What the sub-asset held when this window worked its figures out goes with it. Moved by somebody
+      // else since, the plan is refused naming both figures rather than applied against the new one.
+      const done = await moveMoney.mutateAsync({
+        customerId,
+        data: {
+          legs: [{
+            fromAssetClass: assetClass,
+            fromSubClass: rows[0]?.subClass ?? null,
+            toAssetClass: assetClass,
+            toSubClass: place.name,
+            amount,
+            heldWhenRaised: inHand,
+          }],
+        },
+      });
+      // Awaited, so this move is not over until the portfolio has been read back. Every figure below is
+      // worked out from rows that came with the last read: released the moment the write returned, a
+      // second Move went out against the source as it stood before the first, which wrote off the first
+      // move's deduction while its deposit stood — money out of nowhere.
+      //
+      // What each line was worth beforehand comes back from the API, so Discard above still knows every
+      // holding this panel has touched — and a line the move brought into being comes back with nothing
+      // before it, which is what putting that one back means: taking it off again.
+      await onMoved(done.touched);
+      settled(place, amount, done.touched);
     } catch (caught) {
-      const said = (caught as ApiError)?.message;
-      if (taken.length > 0) {
-        // Half way: out of one and not into the other. The page is told, because that is a change somebody
-        // has to be able to discard — and the row is disarmed, because pressing it again would take the
-        // money out a second time.
-        await onMoved(taken);
-        setMoves((was) => ({ ...was, [place.name]: "0" }));
-        // The notice about the last move, and the button offering to put it back, go with it. What that
-        // button holds is what each row was worth before THAT move — figures this one has just written
-        // over. Left on the screen it offered to put back 2,000 and would have written 4,000, quietly
-        // absorbing the withdrawal that had just failed, under a heading naming the smaller figure.
-        setDone(null);
-        setFailed(`${exactly(out, currency)} came out of ${from} but could not be put into `
-          + `${place.name}${said ? `: ${said}` : "."} Discard puts it back.`);
-      } else {
-        setFailed(said ?? "That could not be written down. Nothing has moved.");
-      }
+      // Nothing moved, so there is nothing to put back and nothing half done to describe. Whatever was
+      // already moved earlier in this sitting stands, and the notice offering to put THAT back stays
+      // where it is.
+      setFailed((caught as ApiError)?.message ?? "That could not be written down. Nothing has moved.");
     } finally {
       release();
       setMoving(null);
