@@ -1396,15 +1396,16 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
+  short?: boolean;
+  pojo?: boolean;
   container?: boolean;
   nodeType?: JsonNodeNodeType;
-  string?: boolean;
-  integralNumber?: boolean;
-  missingNode?: boolean;
   valueNode?: boolean;
-  pojo?: boolean;
-  short?: boolean;
+  missingNode?: boolean;
+  integralNumber?: boolean;
+  string?: boolean;
   int?: boolean;
   long?: boolean;
   double?: boolean;
@@ -1414,7 +1415,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -4556,10 +4556,13 @@ export interface AsRecorded {
 
 export type ValuationPointHoldings = {[key: string]: number};
 
+export type ValuationPointLines = {[key: string]: {[key: string]: number}};
+
 export interface ValuationPoint {
   valuedOn: string;
   underManagement: number;
   holdings: ValuationPointHoldings;
+  lines: ValuationPointLines;
   asRecorded: AsRecorded | null;
 }
 

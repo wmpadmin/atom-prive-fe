@@ -5,7 +5,8 @@ import {
   type ValuationPoint,
 } from "@atomprive/api-client/backoffice";
 import { Alert, DateInput, cn } from "@atomprive/ui";
-import { useState } from "react";
+import { ChevronRight } from "lucide-react";
+import { Fragment, useState } from "react";
 import { nameOf, useAssetClasses } from "./asset-classes";
 
 /** The window a date may be picked in: nothing is written before the firm existed, or after today. */
@@ -34,6 +35,10 @@ type Day = {
   /** That movement as a share of what it opened at; nothing where it opened at nothing. */
   movedShare: number | null;
   holdings: Record<string, number>;
+  /** What each sub-asset was worth, by class. Empty for a day written before the platform kept it. */
+  lines: Record<string, Record<string, number>>;
+  /** The day before's lines, so a movement can be read without hunting back up the list. */
+  linesBefore: Record<string, Record<string, number>>;
 };
 
 function money(amount: number) {
@@ -56,6 +61,9 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
   const classes = useAssetClasses();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  // Which days have been opened up. Shut by default: the table is read a row at a time, and every row
+  // opened at once is the wall this tab was split off the portfolio screen to avoid.
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
 
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
@@ -75,6 +83,8 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
       movedShare: (moved === null || before === null || before.underManagement === 0)
         ? null : (moved / before.underManagement) * 100,
       holdings: point.holdings ?? {},
+      lines: point.lines ?? {},
+      linesBefore: before?.lines ?? {},
     };
   });
   const shown = everyDay
@@ -151,10 +161,38 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {shown.map((day) => (
-                <tr key={day.on}>
+              {shown.map((day) => {
+                const inside = Object.keys(day.lines).length > 0;
+                const open = inside && (opened[day.on] ?? false);
+                return (
+                <Fragment key={day.on}>
+                <tr
+                  className={cn(inside && "cursor-pointer hover:bg-slate-50/60")}
+                  onClick={inside ? () => setOpened((was) => ({ ...was, [day.on]: !open })) : undefined}
+                >
                   <th scope="row" className="py-3 pr-4 text-left font-medium whitespace-nowrap text-ink">
-                    {day.on}
+                    {/* Only where there is something behind it. A day written before the platform kept
+                        its lines opens onto nothing, and a chevron that opens onto nothing is a promise
+                        the row cannot keep. */}
+                    {inside ? (
+                      <button
+                        type="button"
+                        aria-expanded={open}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setOpened((was) => ({ ...was, [day.on]: !open }));
+                        }}
+                        className="flex items-center gap-1.5 text-left font-medium text-ink hover:text-primary-700"
+                      >
+                        <ChevronRight
+                          aria-hidden="true"
+                          className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")}
+                        />
+                        {day.on}
+                      </button>
+                    ) : (
+                      <span className="pl-5">{day.on}</span>
+                    )}
                   </th>
                   <td className="px-4 py-3 text-right font-semibold tabular-nums text-ink">
                     {money(day.worth)}
@@ -181,7 +219,16 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
                     </td>
                   ))}
                 </tr>
-              ))}
+                {open && (
+                  <tr>
+                    <td colSpan={3 + codes.length} className="bg-slate-50/60 px-4 py-3">
+                      <Inside day={day} codes={codes} names={classes.names} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -195,5 +242,75 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
         </p>
       )}
     </section>
+  );
+}
+
+/**
+ * What a day was made of, line by line, and what each line did since the day before.
+ *
+ * <p>The class totals on the row above say equities went from one figure to another; this says which
+ * line inside it moved, which is the question that follows and the one the firm asked for — money goes
+ * into one thing and out of another, and a class total hides exactly that.
+ *
+ * <p>A line the day before did not have is new rather than up from nought, and one that has gone is
+ * said as gone. Both are movements; neither is a figure growing.
+ */
+function Inside({ day, codes, names }: {
+  day: Day;
+  codes: string[];
+  names: Record<string, string>;
+}) {
+  const shown = codes.filter((code) => Object.keys(day.lines[code] ?? {}).length > 0);
+  if (shown.length === 0) {
+    return (
+      <p className="text-xs text-ink-muted">
+        This day was written before the platform kept what each line was worth, so there is nothing to
+        open. Days written from now on have it.
+      </p>
+    );
+  }
+  return (
+    <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+      {shown.map((code) => {
+        const now = day.lines[code] ?? {};
+        const was = day.linesBefore[code] ?? {};
+        // Every line either side of the day, so one that has gone is still named rather than simply
+        // absent — a line that disappears without a word reads as a line nobody wrote down.
+        const every = [...new Set([...Object.keys(now), ...Object.keys(was)])].sort();
+        return (
+          <div key={code}>
+            <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              {nameOf(code, names)}
+            </p>
+            <ul className="mt-1.5 space-y-1">
+              {every.map((line) => {
+                const held = now[line];
+                const before = was[line];
+                const moved = (held ?? 0) - (before ?? 0);
+                return (
+                  <li key={line} className="flex items-baseline justify-between gap-3 text-xs">
+                    <span className={cn("min-w-0 flex-1 truncate",
+                      held === undefined ? "text-ink-muted line-through" : "text-ink")}>
+                      {line}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-ink">
+                      {held === undefined ? "gone" : money(held)}
+                    </span>
+                    <span className={cn("w-24 shrink-0 text-right tabular-nums",
+                      moved > 0 ? "text-emerald-700" : moved < 0 ? "text-red-600" : "text-ink-muted")}>
+                      {Object.keys(was).length === 0
+                        ? "—"
+                        : moved === 0
+                          ? "no change"
+                          : `${moved > 0 ? "+" : "−"}${money(Math.abs(moved))}`}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
+    </div>
   );
 }
