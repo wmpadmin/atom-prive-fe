@@ -76,7 +76,7 @@ export function RestoresToApprovePage() {
                     <Avatar name={row.clientName} />
                     <div className="min-w-0">
                       <Link
-                        to={`/portfolio-clients/${row.customerId}?tab=daily`}
+                        to={`/portfolio-clients/${row.customerId}?tab=daily&from=restores`}
                         className="font-semibold underline-offset-2 hover:underline"
                       >
                         {row.clientName}
