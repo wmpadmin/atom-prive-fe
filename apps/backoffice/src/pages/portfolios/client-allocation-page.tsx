@@ -452,6 +452,15 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
             {whole > 0 ? `${whole.toLocaleString()} ${currency}` : "—"}
           </p>
         </div>
+        {/* Said here rather than discovered. This screen writes down what a client holds and asks nobody;
+            deciding to put money somewhere else is a different act with a different door, and the two are
+            easy to mistake for each other because typing two figures here has the same effect as moving
+            money between them. */}
+        <p className="mt-3 max-w-prose border-t border-line pt-3 text-xs text-ink-muted">
+          This writes down what the client holds, as their statement has it, and asks nobody. Deciding to
+          move money from one thing into another is asked for on their portfolio and answered by whoever
+          looks after them — and while something is waiting on that answer, nothing here can be saved.
+        </p>
       </section>
 
       {twiceNamed.length > 0 && (
