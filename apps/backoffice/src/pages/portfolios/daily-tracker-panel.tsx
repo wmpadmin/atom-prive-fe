@@ -13,6 +13,18 @@ const TODAY = new Date();
 
 const LONG_AGO = new Date(TODAY.getFullYear() - 20, 0, 1);
 
+/**
+ * A heading this table has no room for, written shorter.
+ *
+ * <p>One entry, and it earns it: "Cash & cash equivalents" is four times the width of the figures under
+ * it, so its column takes the width of its heading and the right-aligned numbers in it end up stranded
+ * across a gap that reads as a missing column. Nothing else the firm names is long enough to do that.
+ *
+ * <p>Here rather than in the firm's own list, because the firm's name for it is right everywhere it fits
+ * — this is one table's problem with one word. The whole name is on hover.
+ */
+const SHORTER: Record<string, string> = { CASH: "Cash and Equiv" };
+
 /** A day on the line, with what changed between it and the day before. */
 type Day = {
   on: string;
@@ -127,8 +139,13 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
                 <th scope="col" className="px-4 py-3 text-right">Net AUM</th>
                 <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Moved</th>
                 {codes.map((code) => (
-                  <th key={code} scope="col" className="px-4 py-3 text-right whitespace-nowrap">
-                    {nameOf(code, classes.names)}
+                  <th
+                    key={code}
+                    scope="col"
+                    className="px-4 py-3 text-right whitespace-nowrap"
+                    title={nameOf(code, classes.names)}
+                  >
+                    {SHORTER[code] ?? nameOf(code, classes.names)}
                   </th>
                 ))}
               </tr>
