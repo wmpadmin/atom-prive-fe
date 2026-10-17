@@ -3546,6 +3546,8 @@ export interface ClassPositions {
   /** @nullable */
   breachAt: number | null;
   ownTolerance: boolean;
+  /** @nullable */
+  mostItMayHold: number | null;
   subClasses: SubClassGroup[];
 }
 
