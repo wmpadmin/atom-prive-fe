@@ -1478,14 +1478,13 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1497,6 +1496,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -5958,6 +5958,11 @@ export const ListSyncRunsOutcome = {
 
 export type ListPacksToSignParams = {
 waiting?: boolean;
+page?: number;
+size?: number;
+};
+
+export type ListProposalsAwaitingMySignOffParams = {
 page?: number;
 size?: number;
 };
@@ -22649,6 +22654,108 @@ export function useListClientPacks<TData = Awaited<ReturnType<typeof listClientP
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListClientPacksQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListProposalsAwaitingMySignOffUrl = (params?: ListProposalsAwaitingMySignOffParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/proposals/awaiting-my-sign-off?${stringifiedParams}` : `/api/backoffice/proposals/awaiting-my-sign-off`
+}
+
+export const listProposalsAwaitingMySignOff = async (params?: ListProposalsAwaitingMySignOffParams, options?: Parameters<typeof http>[1]): Promise<ProposalPage> => {
+
+  return http<ProposalPage>(getListProposalsAwaitingMySignOffUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProposalsAwaitingMySignOffQueryKey = (params?: ListProposalsAwaitingMySignOffParams,) => {
+    return [
+    `/api/backoffice/proposals/awaiting-my-sign-off`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProposalsAwaitingMySignOffQueryOptions = <TData = Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError = unknown>(params?: ListProposalsAwaitingMySignOffParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProposalsAwaitingMySignOffQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>> = ({ signal }) => listProposalsAwaitingMySignOff(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListProposalsAwaitingMySignOffQueryResult = NonNullable<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>>
+export type ListProposalsAwaitingMySignOffQueryError = unknown
+
+
+export function useListProposalsAwaitingMySignOff<TData = Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError = unknown>(
+ params: undefined |  ListProposalsAwaitingMySignOffParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>,
+          TError,
+          Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListProposalsAwaitingMySignOff<TData = Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError = unknown>(
+ params?: ListProposalsAwaitingMySignOffParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>,
+          TError,
+          Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListProposalsAwaitingMySignOff<TData = Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError = unknown>(
+ params?: ListProposalsAwaitingMySignOffParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListProposalsAwaitingMySignOff<TData = Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError = unknown>(
+ params?: ListProposalsAwaitingMySignOffParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListProposalsAwaitingMySignOffQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

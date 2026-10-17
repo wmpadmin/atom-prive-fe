@@ -42,7 +42,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
 import { MENU_GROUPS } from "./menu-groups";
-import { hasAnyAuthority, hasAuthority, ANSWERS_MOVE_PLANS, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
+import { hasAnyAuthority, hasAuthority, ANSWERS_MOVE_PLANS, APPROVES_PROPOSALS, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
@@ -241,7 +241,7 @@ const allNavigation: {
     to: "/manager-review",
     label: "Waiting on my sign-off",
     icon: Stamp,
-    authority: "APPROVE_PROPOSALS:CHANGE",
+    authority: APPROVES_PROPOSALS,
     at: (path, search) => path === "/manager-review" || ownsSharedScreen(path, search, A_PROPOSAL, "review"),
   },
   // Three teams read the blotter and each does one thing to an order, so it sits on all three menus.
