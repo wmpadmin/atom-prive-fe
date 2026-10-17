@@ -23,7 +23,7 @@ const LONG_AGO = new Date(TODAY.getFullYear() - 20, 0, 1);
  * <p>Here rather than in the firm's own list, because the firm's name for it is right everywhere it fits
  * — this is one table's problem with one word. The whole name is on hover.
  */
-const SHORTER: Record<string, string> = { CASH: "Cash and Equiv" };
+const SHORTER: Record<string, string> = { CASH: "Cash and Equivalents" };
 
 /** A day on the line, with what changed between it and the day before. */
 type Day = {
