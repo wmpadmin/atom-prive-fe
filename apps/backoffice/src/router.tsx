@@ -37,6 +37,7 @@ import { SettingsPage } from "./pages/settings-page";
 import {
   ONBOARDS_CLIENTS,
   ONBOARDS_CLIENTS_CHANGE,
+  ANSWERS_MOVE_PLANS,
   APPROVES_PROPOSALS,
   ONBOARDS_EVERY_CLIENT,
   OPENS_CLIENT_DOCUMENTS,
@@ -65,6 +66,7 @@ import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-pag
 import { ModelPerformancePage } from "./pages/portfolios/model-performance-page";
 import { BulkRebalancingPage } from "./pages/portfolios/bulk-rebalancing-page";
 import { ModelChangesPage } from "./pages/portfolios/model-changes-page";
+import { MoneyMovesPage } from "./pages/portfolios/money-moves-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
 import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
@@ -220,6 +222,12 @@ export const router = createBrowserRouter([
             // has to be able to see what they are scoring on. The screen itself offers no edit to a reader.
             element: <RequireAuthority authority={READS_AML_MATRIX} />,
             children: [{ path: "aml-risk/matrix", element: <AmlMatrixPage /> }],
+          },
+          {
+            // Answering a plan to move money is its own permission, narrower than reading a portfolio:
+            // whoever may read every client's figures is not thereby somebody who may move their money.
+            element: <RequireAuthority authority={ANSWERS_MOVE_PLANS} />,
+            children: [{ path: "money-moves", element: <MoneyMovesPage /> }],
           },
           {
             // Giving a sign-off is its own permission: whoever passes a proposal need not write any.

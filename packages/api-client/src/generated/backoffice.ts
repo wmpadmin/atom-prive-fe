@@ -507,7 +507,7 @@ export const MovePlanRowStatus = {
   WITHDRAWN: 'WITHDRAWN',
 } as const;
 
-export interface MovedLeg {
+export interface PlannedLeg {
   fromAssetClass: string;
   /** @nullable */
   fromSubClass: string | null;
@@ -515,6 +515,10 @@ export interface MovedLeg {
   /** @nullable */
   toSubClass: string | null;
   amount: number;
+  /** @nullable */
+  heldWhenRaised: number | null;
+  heldNow: number;
+  figuresMoved: boolean;
 }
 
 export interface MovePlanRow {
@@ -524,8 +528,10 @@ export interface MovePlanRow {
   status: MovePlanRowStatus;
   statusSaid: string;
   why: string;
-  legs: MovedLeg[];
+  legs: PlannedLeg[];
   amount: number;
+  currency: string;
+  underManagement: number;
   raisedByName: string;
   raisedAt: string;
   /** @nullable */
@@ -1472,6 +1478,7 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
   valueNode?: boolean;
@@ -1490,7 +1497,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -3555,6 +3561,16 @@ export interface ClientHoldings {
   unwritten: number;
   modelSubClasses: ClientHoldingsModelSubClasses;
   classes: ClassPositions[];
+}
+
+export interface MovedLeg {
+  fromAssetClass: string;
+  /** @nullable */
+  fromSubClass: string | null;
+  toAssetClass: string;
+  /** @nullable */
+  toSubClass: string | null;
+  amount: number;
 }
 
 export interface TouchedPosition {

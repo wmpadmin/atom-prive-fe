@@ -127,6 +127,18 @@ export const READS_AML_RISK: Authority[] = ["RATE_AML_RISK:VIEW", ...RATES_AML_R
 /** Whoever may pass a proposal to the client, or send it back to the advisor who wrote it. */
 export const APPROVES_PROPOSALS: Authority[] = ["APPROVE_PROPOSALS:CHANGE", "APPROVE_PROPOSALS:OWN_CLIENTS"];
 
+/**
+ * Whoever answers a plan to move a client's money.
+ *
+ * <p>Both authorities, always, and the same constant in the route, the menu and the page. An advisor holds
+ * only the own-clients one — which is exactly who the queue narrows itself for — so gating any of the three
+ * on the firm-wide string alone hides the screen from the one person it is built for.
+ */
+export const ANSWERS_MOVE_PLANS: Authority[] = [
+  "APPROVE_PORTFOLIO_CHANGES:CHANGE",
+  "APPROVE_PORTFOLIO_CHANGES:OWN_CLIENTS",
+];
+
 /** Reading how the firm invests, which follows reading a client's portfolio rather than writing proposals. */
 export const READS_CLIENT_PORTFOLIOS: Authority[] = [
   "VIEW_CUSTOMER_PROFILE:VIEW",

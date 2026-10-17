@@ -1,5 +1,5 @@
 /**
- * The sidebar, read as the three things the firm does rather than one list of thirty-five screens.
+ * The sidebar, read as the three things the firm does rather than one list of thirty-six screens.
  *
  * <p>A flat menu says every screen is the same distance from every other, which is the one thing that is
  * not true of them. Grouped, somebody can find a screen by what they are trying to do, and one group at a
@@ -65,7 +65,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     routes: [
       "/forms", "/onboarding", "/clients", "/my-clients",
       "/to-sign", "/client-documents", "/kyc-documents", "/kyc", "/post-onboarding",
-      "/proposals", "/manager-review", "/model-changes", "/trade-orders",
+      "/proposals", "/manager-review", "/model-changes", "/money-moves", "/trade-orders",
       "/model-performance", "/model-risk", "/reports", "/dashboard",
       "/proposal-trail", "/family-access",
     ],
