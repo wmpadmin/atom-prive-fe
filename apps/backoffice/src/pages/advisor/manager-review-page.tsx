@@ -1,5 +1,5 @@
 import { ApiError } from "@atomprive/api-client";
-import { useListProposals, type ProposalPage } from "@atomprive/api-client/backoffice";
+import { useListProposalsAwaitingMySignOff, type ProposalPage } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Pagination } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
@@ -22,8 +22,8 @@ export function ManagerReviewPage() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
-  const waiting = useListProposals<ProposalPage, ApiError>(
-    { status: "PENDING_MANAGER_REVIEW", page, size: pageSize },
+  const waiting = useListProposalsAwaitingMySignOff<ProposalPage, ApiError>(
+    { page, size: pageSize },
     { query: { placeholderData: keepPreviousData } },
   );
 
