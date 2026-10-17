@@ -65,56 +65,38 @@ function toDo(amount: number) {
 type Destination = { name: string; room: number; into: PositionRow | null };
 
 /**
- * What a sub-asset can take before it would breach, in money: the distance to the far end of its band.
- *
- * <p>The firm's rule, and a deliberate one. A line asked for 30% of its class and allowed five points may
- * be filled to 35%, and that is the figure offered — not the 30% that would leave it furthest from
- * breaching either way. Filling a line to the end of its band has a cost: it reads clean today and goes
- * over on the first week the market moves, having been put there on purpose. The firm has said it wants
- * the whole of the room counted, so the whole of the room is what is offered.
- *
- * <p>This rule finds nothing where a whole class already holds more than the model asks of it, since then
- * every line in it is over its own band too. That is the honest answer, and the table above the classes
- * is where it is explained: the money has to leave the class, and no shuffle inside can do it.
- *
- * <p>Measured inside the class, which is the frame a sub-asset is judged in: the model asks a sub-asset for
- * a share of its own class and allows it a band around that, so the distance to the end of it is a share of
- * what the class is worth. Worked against the whole portfolio instead, a line in a class holding a tenth of
- * the book came out with ten times the room it had.
- */
-function capacityFor(shareOfClass: number, held: number, classTarget: number, band: number,
-  whole: number) {
-  // The firm's rule: the line's share of its class times the class's own upper limit. Everything here is
-  // a share of the whole portfolio, because that is the frame the line's verdict is read in — and a plan
-  // worked out in any other would offer room the breach beside it does not recognise.
-  const ceiling = (whole * shareOfClass * (classTarget + band)) / 10_000;
-  const room = ceiling - held;
-  // A whole unit or it is nothing. A share worked out by division lands a hair either side of its figure,
-  // so a sub-asset sitting exactly at the end of its band came out with room for a ten-thousandth of a
-  // penny and took a row in the table to say USD 0.
-  return room < 1 ? 0 : room;
-}
-
-/**
  * How much each of the other sub-assets in this class can take, biggest room first.
  *
  * <p>Every sub-asset the model names, not only the ones already written down — a client who holds six of a
  * class's nine lines has three standing empty, and reading only what was on the page said "no sub-asset has
  * room" while the model was asking for money in three of them. The lines nobody has written arrive as
  * groups holding nothing now, so there is one list to read rather than two to stitch together.
+ *
+ * <p>The ceiling itself is the server's figure, not arithmetic repeated here. This screen used to work it
+ * out from the class target and its band, and the two frames drifted apart: a class the model asks none of
+ * has a band around nothing, so the window offered "Forex, room for USD 9,020" and then said underneath
+ * that nothing in Forex had room for it. The platform decides what a line may hold when it decides whether
+ * that line has breached, and now says so in the same breath — so the room offered here and the verdict
+ * read beside it cannot disagree, because there is only one of them.
  */
-function capacityIn(groups: SubClassGroup[], except: SubClassGroup | null, classTarget: number, band: number,
-  whole: number): Destination[] {
+function capacityIn(groups: SubClassGroup[], except: SubClassGroup | null): Destination[] {
   const places: Destination[] = [];
   for (const one of groups) {
     if (one === except || one.subClass === null) continue;
-    const room = capacityFor(one.targetShare ?? 0, one.valueAmount, classTarget, band, whole);
+    // Nothing is asked of a client on no model, so nothing is allowed either: with no ceiling to land under
+    // there is no breach to avoid and no room to offer. The class beside it answers the same way, which is
+    // what keeps a crossing from opening a door the sub-asset list cannot then fill.
+    const room = one.mostItMayHold === null ? 0 : one.mostItMayHold - one.valueAmount;
     // Listed whether or not it can take anything. Dropped once it was full, a sibling fell out of this
     // list and the window went on showing the copy it had frozen when it opened — whose row still said
     // what the sub-asset held before the money went in. A second move into it wrote that stale figure
     // plus the new one, and the first deposit was gone: 92 into a line, then 50 more, and the line read
     // 250 instead of 342. It stays, saying it has room for nothing, carrying the row as it now stands.
-    places.push({ name: one.subClass, room, into: one.positions[0] ?? null });
+    //
+    // A whole unit or it is nothing. A share worked out by division lands a hair either side of its
+    // figure, so a sub-asset sitting exactly at the end of its band came out with room for a
+    // ten-thousandth of a penny and took a row in the table to say USD 0.
+    places.push({ name: one.subClass, room: room < 1 ? 0 : room, into: one.positions[0] ?? null });
   }
   return places.sort((first, second) => second.room - first.room);
 }
@@ -1241,12 +1223,11 @@ export function ClientHoldingsPanel({
               spare={toShed}
               rows={group.positions}
               assetClass={its.assetClass}
-              places={capacityIn(its.subClasses, group, its.targetShare ?? 0, band, whole)}
+              places={capacityIn(its.subClasses, group)}
               elsewhere={classes
                 .filter((other) => other.assetClass !== its.assetClass && other.targetShare !== null)
                 .map((other) => {
-                  const into = capacityIn(other.subClasses, null, other.targetShare ?? 0,
-                    other.breachAt ?? 0, whole);
+                  const into = capacityIn(other.subClasses, null);
                   return {
                     assetClass: other.assetClass,
                     name: other.assetClassName || other.assetClass,
