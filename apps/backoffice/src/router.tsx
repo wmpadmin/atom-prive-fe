@@ -120,7 +120,7 @@ export const router = createBrowserRouter([
                   <AuditLogPage
                     actionPrefix="proposal."
                     title="Proposal trail"
-                    description="Every proposal from draft to sign-off, sent, opened and answered, with who did it and when."
+                    description="Every proposal from draft to approval, sent, opened and answered, with who did it and when."
                   />
                 ),
               },

@@ -199,7 +199,7 @@ function ProposalSignOff({ role, roles, onSaved }: {
         onSaved({
           tone: "success",
           message: updated.proposalsNeedSignOff
-            ? `Saved: proposals from ${updated.name} now wait for a sign-off.`
+            ? `Saved: proposals from ${updated.name} now wait for approval.`
             : `Saved: proposals from ${updated.name} go straight to the client.`,
         });
       },
@@ -228,11 +228,11 @@ function ProposalSignOff({ role, roles, onSaved }: {
             update.mutate({ role: role.role, data: { required: event.target.checked } })
           }
         />
-        Hold them for a sign-off before they reach the client
+        Hold them for approval before they reach the client
       </label>
       <p className="mt-1.5 text-xs text-ink-muted">
-        Somebody other than whoever wrote it signs it off; nobody signs off their own. Somebody who holds another role
-        that needs a sign-off has theirs held too.
+        Somebody other than whoever wrote it approves it; nobody approves their own. Somebody who holds another
+        role whose proposals need approving has theirs held too.
       </p>
       {!writes && (
         <p className="mt-1.5 text-xs text-ink-muted">
@@ -245,7 +245,7 @@ function ProposalSignOff({ role, roles, onSaved }: {
         </p>
       )}
       {role.proposalsNeedSignOff && signers.length > 0 && (
-        <p className="mt-1.5 text-xs text-ink-muted">Signed off by: {signers.join(", ")}.</p>
+        <p className="mt-1.5 text-xs text-ink-muted">Approved by: {signers.join(", ")}.</p>
       )}
     </section>
   );

@@ -7,6 +7,7 @@ import {
   type PlannedLeg,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Dialog, Field, TextArea, cn } from "@atomprive/ui";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -40,6 +41,17 @@ function pastItsBand(leg: PlannedLeg) {
   // and a leg filling a line exactly to the end of its band is not an overshoot worth a line of warning.
   return over < 1 ? 0 : over;
 }
+
+/** What a reader can narrow the list to, in the order a plan passes through them. */
+const STATUS_TABS = [
+  { id: "PENDING", label: "Waiting for approval" },
+  { id: "APPROVED", label: "Approved" },
+  { id: "REJECTED", label: "Rejected" },
+  { id: "WITHDRAWN", label: "Cancelled" },
+  { id: "all", label: "Everything" },
+] as const;
+
+type StatusTab = (typeof STATUS_TABS)[number]["id"];
 
 /**
  * One plan waiting on an answer, with the buttons that answer it.
@@ -216,6 +228,9 @@ export function MovesToApprovePage() {
     query: { refetchOnWindowFocus: true },
   });
   const [view, setView] = useState<"queue" | "client">("queue");
+  const [status, setStatus] = useState<StatusTab>("PENDING");
+  /** Which clients the reader has clicked. What that does depends on how the card opened in the first place. */
+  const [toggled, setToggled] = useState<Set<string>>(new Set());
   const [turningDown, setTurningDown] = useState<MovePlanRow | null>(null);
   const [note, setNote] = useState("");
   const [refused, setRefused] = useState<Record<string, string>>({});
@@ -244,6 +259,11 @@ export function MovesToApprovePage() {
   const dealtWith = queue.data?.answered ?? [];
   const mine = waiting.filter((row) => !row.mayAnswer);
   const grouped = byClient(waiting, dealtWith);
+  // One list to filter, because a plan is in exactly one state and the two the server sends are only
+  // where it put them. Ordered waiting-first so "Everything" opens on what is still being asked.
+  const shown = status === "all"
+    ? [...waiting, ...dealtWith]
+    : [...waiting, ...dealtWith].filter((row) => row.status === status);
 
   return (
     <div className="space-y-5">
@@ -290,56 +310,62 @@ export function MovesToApprovePage() {
 
       {view === "queue" ? (
         <>
+          {/* Grouping by status without being able to pick one is only a heading. The tabs are the filter:
+              the same bar the model-change queue already has, so the two read the same way. */}
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter by status">
+            {STATUS_TABS.map((one) => (
+              <button
+                key={one.id}
+                type="button"
+                role="tab"
+                aria-selected={status === one.id}
+                onClick={() => setStatus(one.id)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
+                  status === one.id
+                    ? "border-primary-600 bg-primary-600 text-white"
+                    : "border-line bg-white text-ink-soft hover:text-ink",
+                )}
+              >
+                {one.label}
+              </button>
+            ))}
+          </div>
+
           <section className="overflow-hidden rounded-2xl border border-line bg-white">
             <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              Waiting for approval
+              {STATUS_TABS.find((one) => one.id === status)?.label}
             </h2>
             {queue.isPending ? (
               <p className="px-5 py-8 text-sm text-ink-muted">Reading the plans…</p>
-            ) : waiting.length === 0 ? (
+            ) : shown.length === 0 ? (
               <p className="px-5 py-8 text-sm text-ink-muted">
-                {firmWide ? "Nothing is waiting for approval." : "Nothing is waiting on you."}
+                {status === "PENDING" ? "Nothing is waiting on you." : "Nothing here."}
               </p>
             ) : (
               <ul className="divide-y divide-line">
-                {waiting.map((row) => (
+                {shown.map((row) => (
                   <li key={row.id} className="px-5 py-4">
-                    <WaitingPlan
-                      row={row}
-                      showClient
-                      answering={answer.isPending}
-                      refusal={refused[row.id]}
-                      onApprove={() => answer.mutate({ id: row.id, data: { approved: true, note: null } })}
-                      onTurnDown={() => {
-                        setTurningDown(row);
-                        setNote("");
-                      }}
-                    />
+                    {row.status === "PENDING" ? (
+                      <WaitingPlan
+                        row={row}
+                        showClient
+                        answering={answer.isPending}
+                        refusal={refused[row.id]}
+                        onApprove={() => answer.mutate({ id: row.id, data: { approved: true, note: null } })}
+                        onTurnDown={() => {
+                          setTurningDown(row);
+                          setNote("");
+                        }}
+                      />
+                    ) : (
+                      <DealtWithPlan row={row} showClient />
+                    )}
                   </li>
                 ))}
               </ul>
             )}
           </section>
-
-          {/* A queue that empties itself the moment somebody answers gives them nothing back: the row they
-              have just decided on simply disappears, and the only thing left is its absence. */}
-          {dealtWith.length > 0 && (
-            <section className="overflow-hidden rounded-2xl border border-line bg-white">
-              {/* Not "answered": a plan the person who raised it cancelled was never answered by anybody,
-                  and it sits in this list too. Decided covers both — somebody decided it, even if that
-                  somebody was the person who asked. */}
-              <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                Recently decided
-              </h2>
-              <ul className="divide-y divide-line">
-                {dealtWith.map((row) => (
-                  <li key={row.id} className="px-5 py-3">
-                    <DealtWithPlan row={row} showClient />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </>
       ) : queue.isPending ? (
         <section className="overflow-hidden rounded-2xl border border-line bg-white">
@@ -347,9 +373,7 @@ export function MovesToApprovePage() {
         </section>
       ) : grouped.length === 0 ? (
         <section className="overflow-hidden rounded-2xl border border-line bg-white">
-          <p className="px-5 py-8 text-sm text-ink-muted">
-            {firmWide ? "No client has a money move to read." : "None of your clients has a money move to read."}
-          </p>
+          <p className="px-5 py-8 text-sm text-ink-muted">None of your clients has a money move to read.</p>
         </section>
       ) : (
         <ul className="space-y-3">
@@ -357,32 +381,59 @@ export function MovesToApprovePage() {
             // Bound out of the group so the closures below keep it: narrowing does not survive into a
             // callback, and the one that approves reads it after the render that checked it.
             const asked = client.waiting;
+            // One with something waiting opens itself, because that is the one being asked about; the rest
+            // are shut until somebody wants them. A click means "the other way" either way.
+            const opensItself = asked !== null;
+            const shut = toggled.has(client.customerId) ? opensItself : !opensItself;
             return (
             <li
               key={client.customerId}
               className="overflow-hidden rounded-2xl border border-line bg-white"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
+              {/* The client, and their plans inside them. Flat, the rows sat at the same level as the name
+                  and read as the firm's whole queue with a name dropped in every few lines — which is the
+                  view this one exists to be the opposite of. One with something waiting opens itself,
+                  because that is the one being asked about. */}
+              <button
+                type="button"
+                aria-expanded={!shut}
+                onClick={() => setToggled((was) => {
+                  const next = new Set(was);
+                  if (next.has(client.customerId)) next.delete(client.customerId);
+                  else next.add(client.customerId);
+                  return next;
+                })}
+                className="flex w-full flex-wrap items-center justify-between gap-3 px-5 py-3 text-left hover:bg-slate-50"
+              >
                 <div className="flex min-w-0 items-center gap-3">
+                  {shut ? <ChevronRight className="size-4 text-ink-muted" /> : <ChevronDown className="size-4 text-ink-muted" />}
                   <Avatar name={client.clientName} />
                   <div className="min-w-0">
-                    {/* The client's own page, because somebody reading a plan against a client's history is
-                        one question away from wanting the figures it is all about. */}
-                    <Link
-                      to={`/portfolio-clients/${client.customerId}`}
-                      className="font-semibold underline-offset-2 hover:underline"
-                    >
-                      {client.clientName}
-                    </Link>
+                    <p className="font-semibold">{client.clientName}</p>
                     <p className="font-mono text-xs text-ink-muted">{client.clientCode}</p>
                   </div>
                 </div>
-                {asked
-                  ? <Badge tone="warning">Waiting for approval</Badge>
-                  : <Badge tone="neutral">Nothing waiting</Badge>}
-              </div>
-              {asked && (
-                <div className="border-b border-line px-5 py-4">
+                <div className="flex shrink-0 items-center gap-2">
+                  {asked && <Badge tone="warning">Waiting for approval</Badge>}
+                  <span className="text-xs text-ink-muted">
+                    {client.dealtWith.length + (asked ? 1 : 0) === 1
+                      ? "1 move"
+                      : `${client.dealtWith.length + (asked ? 1 : 0)} moves`}
+                  </span>
+                </div>
+              </button>
+              {!shut && (
+                <div className="border-t border-line px-5 pt-3">
+                  <Link
+                    to={`/portfolio-clients/${client.customerId}`}
+                    className="text-xs font-medium text-primary-700 underline-offset-2 hover:underline"
+                  >
+                    Open {client.clientName}'s portfolio
+                  </Link>
+                </div>
+              )}
+              {!shut && asked && (
+                <div className="px-5 py-4">
                   <WaitingPlan
                     row={asked}
                     showClient={false}
@@ -396,8 +447,8 @@ export function MovesToApprovePage() {
                   />
                 </div>
               )}
-              {client.dealtWith.length > 0 && (
-                <ul className="divide-y divide-line">
+              {!shut && client.dealtWith.length > 0 && (
+                <ul className="divide-y divide-line border-t border-line">
                   {client.dealtWith.map((row) => (
                     <li key={row.id} className="px-5 py-3">
                       <DealtWithPlan row={row} showClient={false} />
