@@ -6,7 +6,7 @@ import {
   type MovePlanRow,
   type PlannedLeg,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, Dialog, Field, TextArea, cn } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, Dialog, Field, SelectInput, TextArea, cn } from "@atomprive/ui";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -131,6 +131,9 @@ function WaitingPlan({ row, showClient, answering, refusal, onApprove, onTurnDow
           {moved && <Badge tone="warning">Figures have moved</Badge>}
           {row.legs.some((leg) => pastItsBand(leg) > 0) && <Badge tone="warning">Past a band</Badge>}
           {row.changedAt && <Badge tone="warning">Changed</Badge>}
+          {/* Said, because it is the one reason a plan appears to somebody who does not advise the client.
+              Unexplained it reads as somebody else's work turning up in your list. */}
+          {row.nobodyCloserCanAnswer && <Badge tone="warning">Nobody else can answer this</Badge>}
           {row.mayAnswer ? (
             <>
               <Button variant="secondary" size="sm" onClick={onTurnDown}>
@@ -310,27 +313,25 @@ export function MovesToApprovePage() {
 
       {view === "queue" ? (
         <>
-          {/* Grouping by status without being able to pick one is only a heading. The tabs are the filter:
-              the same bar the model-change queue already has, so the two read the same way. */}
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter by status">
-            {STATUS_TABS.map((one) => (
-              <button
-                key={one.id}
-                type="button"
-                role="tab"
-                aria-selected={status === one.id}
-                onClick={() => setStatus(one.id)}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
-                  status === one.id
-                    ? "border-primary-600 bg-primary-600 text-white"
-                    : "border-line bg-white text-ink-soft hover:text-ink",
-                )}
-              >
-                {one.label}
-              </button>
-            ))}
-          </div>
+          {/* Grouping by status without being able to pick one is only a heading. A row of pills spread the
+              choice across the page beside a second row of pills that does something else entirely; the
+              dropdown is one control saying one thing, and it is what every other list on this app filters
+              with. */}
+          <label className="flex w-fit items-center gap-2">
+            <span className="text-sm text-ink-muted">Status</span>
+            <SelectInput
+              id="moves-status"
+              value={status}
+              onChange={(event) => setStatus(event.target.value as StatusTab)}
+              className="w-auto"
+            >
+              {STATUS_TABS.map((one) => (
+                <option key={one.id} value={one.id}>
+                  {one.label}
+                </option>
+              ))}
+            </SelectInput>
+          </label>
 
           <section className="overflow-hidden rounded-2xl border border-line bg-white">
             <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
