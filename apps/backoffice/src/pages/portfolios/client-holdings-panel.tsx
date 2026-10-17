@@ -110,16 +110,18 @@ function capacityIn(groups: SubClassGroup[], except: SubClassGroup | null): Dest
  * moved inside a class: a sub-asset with room is no use if the class around it is already at the end of
  * its own band, because the money would land inside one line's range and outside the class's.
  */
-function roomInClass(klass: ClassPositions, into: Destination[], whole: number) {
-  if (klass.targetShare === null) return 0;
-  const ceiling = (whole * (klass.targetShare + (klass.breachAt ?? 0))) / 100;
-  // Never more than its own lines can actually take. The two were worked out separately and disagreed:
-  // a class the model asks none of has a band around nothing, so the class arithmetic offered a tenth of
-  // the portfolio while every line inside it — each asked for none of the class — had room for nothing at
-  // all. The window said "Forex, room for USD 9,020" and then, under it, "nothing in Forex has room for
-  // it". Taking the lesser of the two makes that contradiction impossible rather than merely unlikely.
+function roomInClass(klass: ClassPositions, into: Destination[]) {
+  // Nothing is asked of this class, so nothing is allowed either: with no ceiling to land under there is
+  // no breach to avoid and no room to offer.
+  if (klass.mostItMayHold === null) return 0;
+  // Never more than its own lines can actually take, which is a real asymmetry and not a rounding guard.
+  // A band around a target of nothing is nothing for a LINE, because it is scaled by the share of its
+  // class that line is asked for; for a class there is nothing to scale it by, so a class the model asks
+  // none of may still hold a band's worth before it has breached. Both figures are the platform's own and
+  // both are true — the window said "Forex, room for USD 9,020" and then, under it, "nothing in Forex has
+  // room for it", and it was right twice. Offering the lesser is what makes that readable.
   const lines = into.reduce((sum, place) => sum + Math.max(0, place.room), 0);
-  return Math.max(0, Math.min(ceiling - klass.valueAmount, lines));
+  return Math.max(0, Math.min(klass.mostItMayHold - klass.valueAmount, lines));
 }
 
 /** One other class money could cross into, and where inside it the money could land. */
@@ -829,6 +831,8 @@ export function ClientHoldingsPanel({
               edgeAt: null,
               breachAt: null,
               ownTolerance: false,
+              // Nothing is written down and nothing has been read, so there is no ceiling to state either.
+              mostItMayHold: null,
               subClasses: [],
             },
         ),
@@ -1351,7 +1355,7 @@ export function ClientHoldingsPanel({
                   return {
                     assetClass: other.assetClass,
                     name: other.assetClassName || other.assetClass,
-                    room: roomInClass(other, into, whole),
+                    room: roomInClass(other, into),
                     places: into,
                   };
                 })
