@@ -4,6 +4,7 @@ import {
   useListMovePlans,
   type MovePlanQueue,
   type MovePlanRow,
+  type PlannedLeg,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Dialog, Field, TextArea } from "@atomprive/ui";
 import { useState } from "react";
@@ -20,6 +21,23 @@ function exactly(amount: number, currency: string) {
 /** A sub-asset nobody has grouped is a real place for money to be, and it needs a name to be named by. */
 function named(subClass: string | null) {
   return subClass ?? "what is not grouped";
+}
+
+/**
+ * By how much a leg would leave its destination past the most that line may hold, or nothing if it would not.
+ *
+ * <p>Filling a line to the end of its band is offered on purpose and going past it is a decision rather than
+ * a mistake, so it is said and not refused. It was being said only on the screen where the plan was raised —
+ * to the one person who had already made that decision — while whoever was being asked to agree to it saw
+ * only the amount. The ceiling is the platform's own figure, the same one it reads the line's breach
+ * against, so this cannot call a line fine where the table beside it calls that line breached.
+ */
+function pastItsBand(leg: PlannedLeg) {
+  if (leg.landsOnMayHold === null) return 0;
+  const over = leg.landsOnHeldNow + leg.amount - leg.landsOnMayHold;
+  // A whole unit or it is nothing: a ceiling worked out as a share lands a hair either side of its figure,
+  // and a leg filling a line exactly to the end of its band is not an overshoot worth a line of warning.
+  return over < 1 ? 0 : over;
 }
 
 /**
@@ -129,6 +147,14 @@ export function MoneyMovesPage() {
                                   holds {exactly(leg.heldNow, row.currency)} now
                                 </span>
                               )}
+                              {pastItsBand(leg) > 0 && (
+                                <span className="block text-amber-700">
+                                  This would leave {named(leg.toSubClass)} holding{" "}
+                                  {exactly(leg.landsOnHeldNow + leg.amount, row.currency)}, which is{" "}
+                                  {exactly(pastItsBand(leg), row.currency)} past the{" "}
+                                  {exactly(leg.landsOnMayHold ?? 0, row.currency)} the model allows it
+                                </span>
+                              )}
                             </li>
                           ))}
                         </ul>
@@ -143,6 +169,9 @@ export function MoneyMovesPage() {
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
                       {moved && <Badge tone="warning">Figures have moved</Badge>}
+                      {row.legs.some((leg) => pastItsBand(leg) > 0) && (
+                        <Badge tone="warning">Past a band</Badge>
+                      )}
                       {row.mayAnswer ? (
                         <>
                           <Button
