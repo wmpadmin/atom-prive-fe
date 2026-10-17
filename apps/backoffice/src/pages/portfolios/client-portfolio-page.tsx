@@ -586,11 +586,13 @@ export function ClientPortfolioPage() {
             out by the calculator now, out of what the client holds, what they own that nobody manages and
             what they owe, and a box here that could be typed over was a second answer to a question that
             already has one. */}
-        {/* Picked once. Moving a client from one model to another decides what counts as a breach and
-            what the firm will be told to buy and sell, and the platform has a queue for it that somebody
-            else answers — this dropdown wrote it outright, so the queue could be walked straight past by
-            anyone who could reach the portfolio. The first assignment is not that: they are measured
-            against nothing until it is done. */}
+        {/* Picked once. Moving a client from one model to another — or off every model — decides what
+            counts as a breach and what the firm will be told to buy and sell, and the platform has a queue
+            for it that somebody else answers. This dropdown wrote it outright, so the queue could be walked
+            straight past by anyone who could reach the portfolio. Taking a client off is the same kind of
+            act and is asked for too: measured against nothing, they have no drift and no band, so the
+            monitoring simply stops. The first assignment is the one thing left here, because until it is
+            done they are measured against nothing anyway. */}
         <Field id="client-model" label="Measured against" className="min-w-0">
               {/* Kept by Save like everything else. Written the moment it was picked, a reader who brushed
                   the list changed what the client is measured against and was never asked. */}
