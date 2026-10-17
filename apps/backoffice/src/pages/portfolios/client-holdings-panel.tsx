@@ -126,11 +126,16 @@ function capacityIn(groups: SubClassGroup[], except: SubClassGroup | null, class
  * moved inside a class: a sub-asset with room is no use if the class around it is already at the end of
  * its own band, because the money would land inside one line's range and outside the class's.
  */
-function roomInClass(klass: ClassPositions, whole: number) {
-  const target = klass.targetShare ?? 0;
-  const band = klass.breachAt ?? 0;
+function roomInClass(klass: ClassPositions, into: Destination[], whole: number) {
   if (klass.targetShare === null) return 0;
-  return Math.max(0, (whole * (target + band)) / 100 - klass.valueAmount);
+  const ceiling = (whole * (klass.targetShare + (klass.breachAt ?? 0))) / 100;
+  // Never more than its own lines can actually take. The two were worked out separately and disagreed:
+  // a class the model asks none of has a band around nothing, so the class arithmetic offered a tenth of
+  // the portfolio while every line inside it — each asked for none of the class — had room for nothing at
+  // all. The window said "Forex, room for USD 9,020" and then, under it, "nothing in Forex has room for
+  // it". Taking the lesser of the two makes that contradiction impossible rather than merely unlikely.
+  const lines = into.reduce((sum, place) => sum + Math.max(0, place.room), 0);
+  return Math.max(0, Math.min(ceiling - klass.valueAmount, lines));
 }
 
 /** One other class money could cross into, and where inside it the money could land. */
@@ -319,6 +324,9 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   const beyond = spare - canTake;
   // A table of noughts offering to place a twentieth of what has to move is not a plan, it is eight rows
   // of nothing over the one sentence that matters. Said instead.
+  // Whether any other class could take it, which decides whether telling somebody to choose one is help
+  // or a dead end dressed up as advice.
+  const anywhereElse = elsewhere.some((other) => other.assetClass !== goingTo && other.room >= 1);
   const nowhere = canTake < 1 || canTake < spare / 20;
   // Nothing left to move out of this sub-asset — which, after a move, is what success looks like. The
   // window used to close on exactly this, taking the notice saying what had just gone and the button to
@@ -479,8 +487,10 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                     key={other.assetClass}
                     type="button"
                     aria-pressed={goingTo === other.assetClass}
+                    disabled={other.room < 1}
                     onClick={() => land(other.assetClass)}
                     className={cn("rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                      other.room < 1 && "cursor-not-allowed opacity-50",
                       goingTo === other.assetClass
                         ? "border-primary-600 bg-primary-600 text-white"
                         : "border-ink/20 text-ink hover:border-ink/40")}
@@ -513,12 +523,14 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
           ) : nowhere ? (
             <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-ink">
               {canTake < 1
-                ? `Nothing in ${crossing?.name ?? className} has room for it`
-                  + `${crossing === null ? ", so all of it has to leave the class" : ""}.`
-                  + " Choose another class above."
+                ? `No sub-asset in ${crossing?.name ?? className} has room for it.`
+                  + (anywhereElse
+                    ? " Another class above can take it."
+                    : " Nothing else the model asks for has room either, so this needs money taken out of"
+                      + " the portfolio rather than moved around inside it.")
                 : `${crossing?.name ?? className} has room for only ${exactly(canTake, currency)} of it.`
-                  + ` The other ${exactly(spare - canTake, currency)} has to go somewhere else — choose`
-                  + " another class above."}
+                  + ` The other ${exactly(spare - canTake, currency)} has to go somewhere else`
+                  + (anywhereElse ? " — another class above can take it." : ".")}
             </p>
           ) : (
             <div className="mt-4 overflow-hidden rounded-xl border border-ink/20 bg-white">
@@ -1221,13 +1233,16 @@ export function ClientHoldingsPanel({
               places={capacityIn(its.subClasses, group, its.targetShare ?? 0, band, whole)}
               elsewhere={classes
                 .filter((other) => other.assetClass !== its.assetClass && other.targetShare !== null)
-                .map((other) => ({
-                  assetClass: other.assetClass,
-                  name: other.assetClassName || other.assetClass,
-                  room: roomInClass(other, whole),
-                  places: capacityIn(other.subClasses, null, other.targetShare ?? 0,
-                    other.breachAt ?? 0, whole),
-                }))
+                .map((other) => {
+                  const into = capacityIn(other.subClasses, null, other.targetShare ?? 0,
+                    other.breachAt ?? 0, whole);
+                  return {
+                    assetClass: other.assetClass,
+                    name: other.assetClassName || other.assetClass,
+                    room: roomInClass(other, into, whole),
+                    places: into,
+                  };
+                })
                 .sort((first, second) => second.room - first.room)}
               className={its.assetClassName || its.assetClass}
               currency={currency}
