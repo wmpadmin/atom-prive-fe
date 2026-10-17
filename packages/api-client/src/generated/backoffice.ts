@@ -519,6 +519,9 @@ export interface PlannedLeg {
   heldWhenRaised: number | null;
   heldNow: number;
   figuresMoved: boolean;
+  landsOnHeldNow: number;
+  /** @nullable */
+  landsOnMayHold: number | null;
 }
 
 export interface MovePlanRow {
@@ -3512,6 +3515,8 @@ export interface SubClassGroup {
   standing: SubClassGroupStanding;
   /** @nullable */
   suggestion: number | null;
+  /** @nullable */
+  mostItMayHold: number | null;
   positions: PositionRow[];
 }
 
