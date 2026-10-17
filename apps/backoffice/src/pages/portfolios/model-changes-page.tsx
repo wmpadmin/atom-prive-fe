@@ -14,10 +14,10 @@ import { hasAuthority } from "../../lib/permissions";
 import { formatDateTime } from "../../lib/labels";
 
 const TABS: { id: ModelChangeRowStatus | "all"; label: string }[] = [
-  { id: "PENDING", label: "Waiting on an answer" },
+  { id: "PENDING", label: "Waiting for approval" },
   { id: "APPROVED", label: "Approved" },
-  { id: "REJECTED", label: "Turned down" },
-  { id: "WITHDRAWN", label: "Taken back" },
+  { id: "REJECTED", label: "Rejected" },
+  { id: "WITHDRAWN", label: "Cancelled" },
   { id: "all", label: "Everything" },
 ];
 
@@ -97,7 +97,7 @@ export function ModelChangesPage() {
           <p className="px-5 py-10 text-center text-sm text-ink-muted">Reading the requests…</p>
         ) : rows.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-ink-muted">
-            {tab === "PENDING" ? "Nothing is waiting on an answer." : "Nothing here."}
+            {tab === "PENDING" ? "Nothing is waiting for approval." : "Nothing here."}
           </p>
         ) : (
           <ul className="divide-y divide-line">
@@ -141,7 +141,7 @@ export function ModelChangesPage() {
                             setNote("");
                           }}
                         >
-                          Turn it down
+                          Reject
                         </Button>
                         <Button
                           size="sm"
@@ -177,10 +177,10 @@ export function ModelChangesPage() {
         )}
       </section>
 
-      {/* Turning one down asks why, and what is said goes back to whoever asked. */}
+      {/* Rejecting one asks why, and what is said goes back to whoever asked. */}
       <Dialog
         open={turningDown !== null}
-        title={turningDown ? `Turn down the move for ${turningDown.clientName}?` : "Turn it down"}
+        title={turningDown ? `Reject the move for ${turningDown.clientName}?` : "Reject it"}
         onClose={() => setTurningDown(null)}
       >
         <div className="space-y-4">
@@ -203,7 +203,7 @@ export function ModelChangesPage() {
                 && answer.mutate({ id: turningDown.id, data: { approved: false, note: note.trim() } })
               }
             >
-              {answer.isPending ? "Turning it down…" : "Turn it down"}
+              {answer.isPending ? "Rejecting…" : "Reject"}
             </Button>
           </div>
         </div>

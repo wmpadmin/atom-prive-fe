@@ -625,7 +625,7 @@ export function ProposalPage() {
       <Dialog open={answering === "send-back"} title="Send this proposal back?" onClose={() => asking(null)}>
         <div className="space-y-4">
           <p className="text-sm text-ink-muted">
-            It becomes a draft again and the advisor sees what you write here. Nothing reaches the client.
+            It goes back to whoever wrote it, who sees what you write here. Nothing reaches the client.
           </p>
           {errors.form && <Alert tone="danger">{errors.form}</Alert>}
           <Field id="send-back-comment" label="What needs putting right?" required error={errors.fields.comment}>
@@ -662,7 +662,7 @@ export function ProposalPage() {
             <div className="mt-1.5 flex gap-4">
               {[
                 { said: true, text: "They approved it" },
-                { said: false, text: "They turned it down" },
+                { said: false, text: "They rejected it" },
               ].map((one) => (
                 <label key={one.text} className="flex items-center gap-2 text-sm text-ink">
                   <input

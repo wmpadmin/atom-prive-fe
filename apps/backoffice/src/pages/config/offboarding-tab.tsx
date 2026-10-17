@@ -19,7 +19,7 @@ import { hasAuthority } from "../../lib/permissions";
 const statusLabels: Record<DeactivationRow["status"], string> = {
   ASKED: "Asked",
   APPROVED: "Closed",
-  WITHDRAWN: "Taken back",
+  WITHDRAWN: "Cancelled",
 };
 
 const statusTones: Record<DeactivationRow["status"], "warning" | "danger" | "neutral"> = {
