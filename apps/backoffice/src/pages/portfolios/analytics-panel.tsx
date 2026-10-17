@@ -460,11 +460,11 @@ function AgainstTheBand({ byClass, names }: {
         </ul>
       )}
 
-      {/* The one thing this cannot draw, said rather than left to be discovered. */}
+      {/* The one thing this chooses not to draw, said rather than left to be discovered. */}
       <p className="mt-4 text-xs text-ink-muted">
-        Sub-assets are not drawn. A day on file keeps what each asset class was worth, not what each line
-        inside it was, so there is no history to draw one from — only today&apos;s figure, which is under
-        Portfolio performance.
+        Sub-assets are not drawn here. A day does keep what each line inside a class was worth, but a
+        portfolio holds many more lines than classes and a chart of all of them reads as noise. Which
+        line inside a class moved is read a day at a time under Daily tracker, where a day opens onto it.
       </p>
     </section>
   );

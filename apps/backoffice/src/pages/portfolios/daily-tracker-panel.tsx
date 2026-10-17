@@ -39,7 +39,19 @@ type Day = {
   lines: Record<string, Record<string, number>>;
   /** The day before's lines, so a movement can be read without hunting back up the list. */
   linesBefore: Record<string, Record<string, number>>;
+  /**
+   * Every change written down on this day, in the order they were made.
+   *
+   * <p>A day is read by the one it closed on; these are what it took to get there. One of them is the
+   * close, so a day nobody touched twice has a list of one.
+   */
+  versions: ValuationPoint[];
 };
+
+/** The change a day ended on, which is the figure every other screen reads that day by. */
+function closeOf(versions: ValuationPoint[]) {
+  return versions.find((one) => one.closedTheDay) ?? versions[versions.length - 1];
+}
 
 function money(amount: number) {
   return amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +69,10 @@ function money(amount: number) {
  * are honest: a week with nothing on it is a week nobody wrote anything down, not a week nothing moved.
  */
 export function DailyTrackerPanel({ customerId }: { customerId: string }) {
-  const history = useGetClientValuations<ValuationHistory, ApiError>(customerId);
+  // Every change, not a figure a day — this is the one screen that is about what happened rather than
+  // about what it came to. Everything else that draws history takes the day's close, because a movement
+  // worked out between two figures of the same day is not a movement.
+  const history = useGetClientValuations<ValuationHistory, ApiError>(customerId, { every: true });
   const classes = useAssetClasses();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -73,18 +88,33 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
   const points: ValuationPoint[] = history.data?.points ?? [];
   // Worked out before the dates are applied, so a day's movement is measured against the day that
   // actually came before it rather than against the first day somebody happened to filter to.
-  const everyDay: Day[] = points.map((point, at) => {
-    const before = at === 0 ? null : points[at - 1];
-    const moved = before === null ? null : point.underManagement - before.underManagement;
+  //
+  // Gathered back into days first. The row is still a day, and what it says it moved is still what it
+  // moved since the day before — measured close against close, never against a figure from the middle
+  // of a day, which is not where either day stood.
+  const byDay = new Map<string, ValuationPoint[]>();
+  for (const point of points) {
+    const had = byDay.get(point.valuedOn);
+    if (had) had.push(point);
+    else byDay.set(point.valuedOn, [point]);
+  }
+  const dates = [...byDay.keys()];
+  const everyDay: Day[] = dates.map((on, at) => {
+    const versions = byDay.get(on) ?? [];
+    const close = closeOf(versions);
+    const earlier = at === 0 ? null : byDay.get(dates[at - 1]);
+    const before = earlier == null ? null : closeOf(earlier);
+    const moved = before === null ? null : close.underManagement - before.underManagement;
     return {
-      on: point.valuedOn,
-      worth: point.underManagement,
+      on,
+      worth: close.underManagement,
       moved,
       movedShare: (moved === null || before === null || before.underManagement === 0)
         ? null : (moved / before.underManagement) * 100,
-      holdings: point.holdings ?? {},
-      lines: point.lines ?? {},
+      holdings: close.holdings ?? {},
+      lines: close.lines ?? {},
       linesBefore: before?.lines ?? {},
+      versions,
     };
   });
   const shown = everyDay
@@ -103,9 +133,10 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
         <div>
           <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Daily tracker</h2>
           <p className="mt-1 max-w-prose text-xs text-ink-muted">
-            What the portfolio was worth each day, and what moved since the day before. A day is written
-            when somebody writes the holdings down, so a gap is a day nobody wrote anything — not a day
-            nothing happened.
+            What the portfolio was worth each day, and what moved since the day before. Every change
+            writes its own version; a day shows the one it ended on and opens onto the rest. A day is
+            written when somebody writes the holdings down, so a gap is a day nobody wrote anything —
+            not a day nothing happened.
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
@@ -162,7 +193,10 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
             </thead>
             <tbody className="divide-y divide-line">
               {shown.map((day) => {
-                const inside = Object.keys(day.lines).length > 0;
+                // A day made of several changes opens onto them even where its lines were never kept,
+                // and a day of one change still opens onto its lines. What it must never do is offer a
+                // chevron with nothing behind it.
+                const inside = day.versions.length > 1 || Object.keys(day.lines).length > 0;
                 const open = inside && (opened[day.on] ?? false);
                 return (
                 <Fragment key={day.on}>
@@ -222,7 +256,10 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
                 {open && (
                   <tr>
                     <td colSpan={3 + codes.length} className="bg-slate-50/60 px-4 py-3">
-                      <Inside day={day} codes={codes} names={classes.names} />
+                      {day.versions.length > 1 && <Changes day={day} currency={currency} />}
+                      {Object.keys(day.lines).length > 0 && (
+                        <Inside day={day} codes={codes} names={classes.names} />
+                      )}
                     </td>
                   </tr>
                 )}
@@ -242,6 +279,63 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
         </p>
       )}
     </section>
+  );
+}
+
+/**
+ * The changes a day was made of, oldest first, and what each one moved by.
+ *
+ * <p>A day used to keep one figure, so five decisions taken in it were kept as the last of them. Each
+ * writes its own now, and this is where they are read: what the portfolio stood at after each, and what
+ * that change moved it by — measured against the change before it, not against the day before.
+ *
+ * <p>The one the day ended on is marked, because that is the figure every other screen reads this day by.
+ */
+function Changes({ day, currency }: { day: Day; currency: string }) {
+  return (
+    <div className="mb-4">
+      <p className="mb-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+        Written {day.versions.length} times on this day
+      </p>
+      <table className="w-full text-xs">
+        <tbody className="divide-y divide-line/60">
+          {day.versions.map((one, at) => {
+            const before = at === 0 ? null : day.versions[at - 1];
+            const moved = before === null ? null : one.underManagement - before.underManagement;
+            return (
+              <tr key={one.id}>
+                <td className="py-1.5 pr-4 whitespace-nowrap text-ink-muted">
+                  Change {one.revision}
+                  {one.closedTheDay && (
+                    <span className="ml-2 rounded-full bg-slate-200/70 px-2 py-0.5 text-2xs text-ink">
+                      the day closed here
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-1.5 text-right font-medium tabular-nums text-ink">
+                  {money(one.underManagement)}
+                </td>
+                <td className="py-1.5 pl-4 text-right whitespace-nowrap tabular-nums">
+                  {/* The first change of a day is measured against the day before, which the row above
+                      already says. Said again here it would read as a second movement. */}
+                  {moved === null ? (
+                    <span className="text-ink-muted">—</span>
+                  ) : (
+                    <span className={cn("font-medium",
+                      moved > 0 ? "text-emerald-700" : moved < 0 ? "text-red-600" : "text-ink-muted")}>
+                      {moved > 0 ? "+" : moved < 0 ? "−" : ""}{money(Math.abs(moved))}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="mt-2 text-2xs text-ink-muted">
+        Figures in {currency}. Each is measured against the change before it on this day.
+      </p>
+    </div>
   );
 }
 

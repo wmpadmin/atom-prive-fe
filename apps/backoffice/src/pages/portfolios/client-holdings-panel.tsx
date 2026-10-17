@@ -1,6 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   getGetClientPortfolioQueryKey,
+  getGetClientValuationsQueryKey,
   getListClientHoldingsQueryKey,
   useChangeClientHolding,
   useListClientHoldings,
@@ -785,6 +786,9 @@ export function ClientHoldingsPanel({
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),
       queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) }),
+      // The day's history too. A move writes its own version now, so it is one the tracker is meant to
+      // show — and without this the very act the tracker exists for is the one that does not refresh it.
+      queryClient.invalidateQueries({ queryKey: getGetClientValuationsQueryKey(customerId) }),
     ]);
     onChanged();
   };
