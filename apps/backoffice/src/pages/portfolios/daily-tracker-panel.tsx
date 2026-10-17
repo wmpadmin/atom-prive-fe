@@ -126,13 +126,8 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
                 <th scope="col" className="py-3 pr-4">Day</th>
                 <th scope="col" className="px-4 py-3 text-right">Net AUM</th>
                 <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Moved</th>
-                {/* The whole name, wrapped rather than held on one line. "Cash & cash equivalents" kept
-                    on one line is four times the width of the figure under it, and a column as wide as
-                    its heading leaves its right-aligned numbers stranded halfway across the table. Over
-                    two lines the column is as wide as the figures in it, which is what sets the width of
-                    every other column here. */}
                 {codes.map((code) => (
-                  <th key={code} scope="col" className="w-24 px-3 py-3 text-right align-bottom">
+                  <th key={code} scope="col" className="px-4 py-3 text-right whitespace-nowrap">
                     {nameOf(code, classes.names)}
                   </th>
                 ))}
@@ -164,7 +159,7 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
                     )}
                   </td>
                   {codes.map((code) => (
-                    <td key={code} className="px-3 py-3 text-right tabular-nums text-ink-muted">
+                    <td key={code} className="px-4 py-3 text-right tabular-nums text-ink-muted">
                       {(day.holdings[code] ?? 0) === 0 ? "—" : money(day.holdings[code] ?? 0)}
                     </td>
                   ))}
