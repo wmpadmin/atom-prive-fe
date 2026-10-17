@@ -550,6 +550,7 @@ export interface MovePlanRow {
   /** @nullable */
   appliedRevision: number | null;
   mayAnswer: boolean;
+  nobodyCloserCanAnswer: boolean;
 }
 
 /**
