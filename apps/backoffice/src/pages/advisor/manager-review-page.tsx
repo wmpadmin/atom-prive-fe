@@ -40,24 +40,24 @@ export function ManagerReviewPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-[1.625rem] font-bold">Waiting on your sign-off</h1>
+        <h1 className="text-[1.625rem] font-bold">Proposals to approve</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Proposals an advisor has sent for approval. Open one to read it in full, then pass it to the client or
-          send it back with what has to be put right. Nothing reaches a client until it is passed.
+          Proposals an advisor has sent for approval. Open one to read it in full, then approve it so it goes to
+          the client, or send it back with what has to be put right. Nothing reaches a client until it is approved.
         </p>
       </header>
 
       {overdue > 0 && (
         <Alert tone="warning">
           {overdue === 1 ? "One proposal on this page has" : `${overdue} proposals on this page have`} been waiting
-          more than two days. Whoever can pass {overdue === 1 ? "it" : "them"} has been told once.
+          more than two days. Whoever can approve {overdue === 1 ? "it" : "them"} has been told once.
         </Alert>
       )}
 
       {mine > 0 && (
         <Alert tone="info">
-          {mine === 1 ? "One of these is yours" : `${mine} of these are yours`}, so somebody else signs{" "}
-          {mine === 1 ? "it" : "them"} off. You can read {mine === 1 ? "it" : "them"}, but not pass your own work.
+          {mine === 1 ? "One of these is yours" : `${mine} of these are yours`}, so somebody else approves{" "}
+          {mine === 1 ? "it" : "them"}. You can read {mine === 1 ? "it" : "them"}, but not approve your own work.
         </Alert>
       )}
 
@@ -136,7 +136,7 @@ export function ManagerReviewPage() {
                       {yours && <Badge tone="neutral">Yours</Badge>}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                      {/* When it was sent for a sign-off. The draft may have been started long before. */}
+                      {/* When it was sent for approval. The draft may have been started long before. */}
                       {proposal.submittedAt ? formatDate(proposal.submittedAt) : "—"}
                       {proposal.signOffOverdue && (
                         <Badge tone="warning">Waiting too long</Badge>

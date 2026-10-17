@@ -133,7 +133,7 @@ export function ProposalPage() {
       onSuccess: (saved) =>
         moved(
           saved.summary.status === "PENDING_MANAGER_REVIEW"
-            ? "Sent to your manager for sign-off."
+            ? "Sent to your manager for approval."
             : "Sent to the client.",
         ),
       onError,
@@ -166,7 +166,7 @@ export function ProposalPage() {
         answered(
           saved.summary.status === "RETURNED"
             ? "Sent back to the advisor."
-            : "Signed off, and sent to the client.",
+            : "Approved, and sent to the client.",
         ),
       onError,
     },
@@ -260,7 +260,7 @@ export function ProposalPage() {
 
   const back =
     cameFrom === "review"
-      ? { to: "/manager-review", label: "Back to what is waiting on you" }
+      ? { to: "/manager-review", label: "Back to proposals to approve" }
       : cameFrom === "client" && proposal
         ? {
             to: clientFileHref(user, proposal.summary.customerId),
@@ -584,7 +584,7 @@ export function ProposalPage() {
                   disabled={deciding}
                   onClick={() => signOff.mutate({ id: proposalId!, data: { approved: true, comment: null } })}
                 >
-                  {signOff.isPending ? "Signing off…" : "Sign off and send"}
+                  {signOff.isPending ? "Approving…" : "Approve and send"}
                 </Button>
               </>
             )}
