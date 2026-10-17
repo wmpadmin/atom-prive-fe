@@ -7,7 +7,7 @@ import {
 import { Alert, DateInput, cn } from "@atomprive/ui";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { nameOf, useAssetClasses } from "./asset-classes";
 import { daysFrom, money } from "./daily-tracker-days";
 
@@ -47,6 +47,7 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
   // worked out between two figures of the same day is not a movement.
   const history = useGetClientValuations<ValuationHistory, ApiError>(customerId, { every: true });
   const classes = useAssetClasses();
+  const navigate = useNavigate();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
@@ -139,29 +140,35 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
             </thead>
             <tbody className="divide-y divide-line">
               {shown.map((day) => {
-                // A day made of several changes has them to show even where its lines were never kept,
-                // and a day of one change still has its lines. What it must never do is offer a way in
-                // with nothing behind it.
-                const inside = day.versions.length > 1 || Object.keys(day.lines).length > 0;
+                const its = `/portfolio-clients/${customerId}/days/${day.on}`;
                 return (
-                <tr key={day.on} className={cn(inside && "hover:bg-slate-50/60")}>
+                // The whole row, not the date in it. The date alone is where a reader's eye is, but it is
+                // not where their hand goes: a row of figures invites a press anywhere along it, and a
+                // press that lands on a number selected the number and did nothing else.
+                //
+                // Every day, including one written before the platform kept what each line was worth. A
+                // drawer opening onto nothing is a promise the row cannot keep; a page is a place that
+                // can say so, and it still has what the day was worth and what it moved by.
+                <tr
+                  key={day.on}
+                  className="cursor-pointer hover:bg-slate-50/60"
+                  onClick={() => {
+                    // Not while somebody is reading a figure out of it. Dragging across a number ends in
+                    // a click, and a table that navigates away mid-selection cannot be copied from.
+                    if ((window.getSelection()?.toString() ?? "") !== "") return;
+                    void navigate(its);
+                  }}
+                >
                   <th scope="row" className="py-3 pr-4 text-left font-medium whitespace-nowrap text-ink">
-                    {/* A day of its own rather than a drawer under the row. Opened in place, one day took
-                        the height of six and buried the rest of the table under itself — and the thing
-                        being read was a table of its own, squeezed into one cell of another. Only where
-                        there is something behind it: a day written before the platform kept its lines
-                        opens onto nothing, and a link to nothing is a promise the row cannot keep. */}
-                    {inside ? (
-                      <Link
-                        to={`/portfolio-clients/${customerId}/days/${day.on}`}
-                        className="flex items-center gap-1.5 font-medium text-ink hover:text-primary-700"
-                      >
-                        <ChevronRight aria-hidden="true" className="size-3.5 shrink-0" />
-                        {day.on}
-                      </Link>
-                    ) : (
-                      <span className="pl-5">{day.on}</span>
-                    )}
+                    {/* A real link inside it as well, so the day can be opened in its own tab and reached
+                        by keyboard — which a row that only listens for a click cannot be. */}
+                    <Link
+                      to={its}
+                      className="flex items-center gap-1.5 font-medium text-ink hover:text-primary-700"
+                    >
+                      <ChevronRight aria-hidden="true" className="size-3.5 shrink-0" />
+                      {day.on}
+                    </Link>
                   </th>
                   <td className="px-4 py-3 text-right tabular-nums font-semibold text-ink">
                     {money(day.worth)}

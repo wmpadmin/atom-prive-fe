@@ -109,11 +109,17 @@ export function DailyTrackerDayPage() {
             </section>
           )}
 
-          <section className="overflow-hidden rounded-2xl border border-line bg-white">
-            <h2 className="border-b border-line px-6 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+          <section>
+            <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               What each sub-asset held
             </h2>
-            <Inside day={day} codes={codes} names={classes.names} currency={currency} />
+            <p className="mt-1 max-w-prose text-xs text-ink-muted">
+              Asset class, then the sub-assets inside it, with what each held the day before beside what it
+              held on this one. Figures in {currency}.
+            </p>
+            <div className="mt-3">
+              <Inside day={day} codes={codes} names={classes.names} currency={currency} />
+            </div>
           </section>
         </>
       )}
@@ -189,9 +195,10 @@ function Changes({ day, currency }: { day: Day; currency: string }) {
 /**
  * What every sub-asset held on this day, beside what it held the day before.
  *
- * <p>A table, because that is what it is. Squeezed into one cell of the tracker it was drawn as a grid of
- * lists, three columns of them, each with its own invented alignment — the same figures a table lines up
- * for nothing. One row a line, one column a figure, and the class it belongs to carried down the side.
+ * <p>A card for each class with a table inside it, which is how the holdings screen draws the same shape —
+ * one screen's way of showing a client's classes and the lines under them, so a reader moving between them
+ * is not learning a second layout for the same thing. Squeezed into one cell of the tracker it had been
+ * drawn as a grid of lists with its own invented alignment; these are figures, and figures line up.
  */
 function Inside({ day, codes, names, currency }: {
   day: Day;
@@ -202,80 +209,83 @@ function Inside({ day, codes, names, currency }: {
   const shown = codes.filter((code) => Object.keys(day.lines[code] ?? {}).length > 0);
   if (shown.length === 0) {
     return (
-      <p className="px-6 py-8 text-sm text-ink-muted">
+      <p className="rounded-xl border border-dashed border-line px-5 py-6 text-center text-sm text-ink-muted">
         This day was written before the platform kept what each line was worth, so there is nothing to
         show. Days written from now on have it.
       </p>
     );
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
-        <caption className="sr-only">
-          What each sub-asset held on {day.on}, in {currency}, beside the day before.
-        </caption>
-        <thead>
-          <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            <th scope="col" className="px-6 py-3">Asset class</th>
-            <th scope="col" className="px-6 py-3">Sub-asset</th>
-            <th scope="col" className="px-6 py-3 text-right whitespace-nowrap">The day before</th>
-            <th scope="col" className="px-6 py-3 text-right">Held</th>
-            <th scope="col" className="px-6 py-3 text-right">Moved</th>
-          </tr>
-        </thead>
-        {shown.map((code) => {
-          const now = day.lines[code] ?? {};
-          const was = day.linesBefore[code] ?? {};
-          // Every line either side of the day, so one that has gone is still named rather than simply
-          // absent — a line that disappears without a word reads as a line nobody wrote down.
-          const every = [...new Set([...Object.keys(now), ...Object.keys(was)])].sort();
-          const first = Object.keys(day.linesBefore).length === 0;
-          return (
-            <tbody key={code} className="divide-y divide-line border-b border-line last:border-0">
-              {every.map((line, at) => {
-                const held = now[line];
-                const before = was[line];
-                const moved = (held ?? 0) - (before ?? 0);
-                return (
-                  <tr key={line}>
-                    {/* Written once down the side rather than on every row: the class is what the rows
-                        under it have in common, and repeating it turns that into noise. */}
-                    {at === 0 ? (
-                      <th
-                        scope="rowgroup"
-                        rowSpan={every.length}
-                        className="px-6 py-3 text-left align-top text-2xs font-semibold tracking-wider text-ink-muted uppercase"
-                      >
-                        {nameOf(code, names)}
-                      </th>
-                    ) : null}
-                    <td className={cn("px-6 py-3",
-                      held === undefined ? "text-ink-muted line-through" : "text-ink")}
-                    >
-                      {line}
-                    </td>
-                    <td className="px-6 py-3 text-right tabular-nums text-ink-muted">
-                      {first ? "—" : before === undefined ? "not held" : money(before)}
-                    </td>
-                    <td className="px-6 py-3 text-right tabular-nums font-medium text-ink">
-                      {held === undefined ? "gone" : money(held)}
-                    </td>
-                    <td className={cn("px-6 py-3 text-right tabular-nums",
-                      moved > 0 ? "text-emerald-700" : moved < 0 ? "text-danger-700" : "text-ink-muted")}
-                    >
-                      {first
-                        ? "—"
-                        : moved === 0
-                          ? "no change"
-                          : `${moved > 0 ? "+" : "−"}${money(Math.abs(moved))}`}
-                    </td>
+    <ul className="space-y-3">
+      {shown.map((code) => {
+        const now = day.lines[code] ?? {};
+        const was = day.linesBefore[code] ?? {};
+        // Every line either side of the day, so one that has gone is still named rather than simply
+        // absent — a line that disappears without a word reads as a line nobody wrote down.
+        const every = [...new Set([...Object.keys(now), ...Object.keys(was)])].sort();
+        const first = Object.keys(day.linesBefore).length === 0;
+        return (
+          <li key={code} className="overflow-hidden rounded-xl border border-ink/20 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/15 px-5 py-3">
+              <span className="font-semibold">{nameOf(code, names)}</span>
+              <span className="flex items-center gap-3">
+                <span className="text-2xs tracking-wider whitespace-nowrap text-ink-muted uppercase">
+                  From its lines
+                </span>
+                <span className="tabular-nums font-semibold">
+                  {currency} {money(day.holdings[code] ?? 0)}
+                </span>
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <caption className="sr-only">
+                  What {nameOf(code, names)} held on {day.on}, in {currency}, beside the day before.
+                </caption>
+                <thead>
+                  <tr className="border-b border-ink/15 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                    <th scope="col" className="py-3 pr-3 pl-5">Sub-asset</th>
+                    <th scope="col" className="px-5 py-3 text-right whitespace-nowrap">The day before</th>
+                    <th scope="col" className="px-5 py-3 text-right">Held</th>
+                    <th scope="col" className="px-5 py-3 text-right">Moved</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          );
-        })}
-      </table>
-    </div>
+                </thead>
+                <tbody className="divide-y divide-ink/10">
+                  {every.map((line) => {
+                    const held = now[line];
+                    const before = was[line];
+                    const moved = (held ?? 0) - (before ?? 0);
+                    return (
+                      <tr key={line}>
+                        <th scope="row" className={cn("py-3 pr-3 pl-5 text-left font-medium",
+                          held === undefined ? "text-ink-muted line-through" : "text-ink")}
+                        >
+                          {line}
+                        </th>
+                        <td className="px-5 py-3 text-right tabular-nums text-ink-muted">
+                          {first ? "—" : before === undefined ? "not held" : money(before)}
+                        </td>
+                        <td className="px-5 py-3 text-right tabular-nums font-medium text-ink">
+                          {held === undefined ? "gone" : money(held)}
+                        </td>
+                        <td className={cn("px-5 py-3 text-right tabular-nums",
+                          moved > 0 ? "text-emerald-700" : moved < 0 ? "text-danger-700" : "text-ink-muted")}
+                        >
+                          {first
+                            ? "—"
+                            : moved === 0
+                              ? "no change"
+                              : `${moved > 0 ? "+" : "−"}${money(Math.abs(moved))}`}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
