@@ -206,7 +206,7 @@ function byClient(waiting: MovePlanRow[], dealtWith: MovePlanRow[]) {
  *
  * <p>Nothing has moved. Saying yes is what moves it, through exactly the code the holdings screen calls.
  */
-export function MoneyMovesPage() {
+export function MovesToApprovePage() {
   const user = useStaffUser();
   // For the wording only, never for whether the screen or its buttons appear. Who may answer which plan is
   // the server's question, and it comes back on every row as mayAnswer — asked there with the same rule the
@@ -248,7 +248,7 @@ export function MoneyMovesPage() {
   return (
     <div className="space-y-5">
       <ListPageHeader
-        title="Money moves"
+        title="Moves to approve"
         lead={
           firmWide
             ? "Plans to move money between what a client holds. Nothing has moved: saying yes is what moves it."
@@ -269,22 +269,23 @@ export function MoneyMovesPage() {
       {/* Two ways of reading the same plans, because the question changes. Deciding what to answer next is
           a question about the queue; deciding whether to answer THIS is a question about the client, and
           the answer to it was two sections away with everybody else's plans in between. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Read it</span>
-        <div className="flex rounded-lg border border-line p-0.5">
-          {([["queue", "By what is waiting"], ["client", "By client"]] as const).map(([which, said]) => (
-            <button
-              key={which}
-              type="button"
-              aria-pressed={view === which}
-              onClick={() => setView(which)}
-              className={cn("rounded-md px-3 py-1 text-sm font-medium",
-                view === which ? "bg-primary-600 text-white" : "text-ink-muted hover:text-ink")}
-            >
-              {said}
-            </button>
-          ))}
-        </div>
+      {/* Each button says the whole thing rather than finishing a label beside it. Sat next to the pair,
+          a "Group by" in the uppercase this app gives its section headings read as a third button and
+          made the control look like three — and the question it raised was what the control even did.
+          Said on the buttons, there is nothing left beside them to mistake for one of them. */}
+      <div className="flex w-fit rounded-lg border border-line p-0.5" role="group" aria-label="Group by">
+        {([["queue", "Group by status"], ["client", "Group by client"]] as const).map(([which, said]) => (
+          <button
+            key={which}
+            type="button"
+            aria-pressed={view === which}
+            onClick={() => setView(which)}
+            className={cn("rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              view === which ? "bg-primary-600 text-white" : "text-ink-muted hover:text-ink")}
+          >
+            {said}
+          </button>
+        ))}
       </div>
 
       {view === "queue" ? (
