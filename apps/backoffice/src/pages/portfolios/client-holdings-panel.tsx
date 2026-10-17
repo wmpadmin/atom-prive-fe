@@ -376,15 +376,20 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
 
   /** A different class to land in: the figures start again, because the room they were split against has. */
   function land(assetClass: string | null) {
-    const places = assetClass === null
-      ? where
+    // This class's own sub-assets, read from the prop rather than from `where`. `where` is worked out from
+    // the class chosen on the render this is running in, which is the one being left — so coming back to
+    // this class from another one froze the other one's list, and its sub-assets then sat above this
+    // class's own, all of them saying they had room for nothing. The list grew every time somebody came
+    // back to where they started.
+    const landing = assetClass === null
+      ? places
       : (elsewhere.find((one) => one.assetClass === assetClass)?.places ?? []);
     setGoingTo(assetClass);
-    setOpened({ forClass: assetClass, places });
+    setOpened({ forClass: assetClass, places: landing });
     setTypedIn(new Set());
     setFailed(null);
-    const split = suggest(mostToMove, places);
-    setMoves(Object.fromEntries(places.map((place) => [place.name, String(split[place.name] ?? 0)])));
+    const split = suggest(mostToMove, landing);
+    setMoves(Object.fromEntries(landing.map((place) => [place.name, String(split[place.name] ?? 0)])));
   }
 
   /**
