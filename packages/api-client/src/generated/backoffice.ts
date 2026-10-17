@@ -1396,6 +1396,7 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
   valueNode?: boolean;
@@ -1414,7 +1415,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -4701,7 +4701,10 @@ export type ValuationPointHoldings = {[key: string]: number};
 export type ValuationPointLines = {[key: string]: {[key: string]: number}};
 
 export interface ValuationPoint {
+  id: string;
   valuedOn: string;
+  revision: number;
+  closedTheDay: boolean;
   underManagement: number;
   holdings: ValuationPointHoldings;
   lines: ValuationPointLines;
@@ -5873,6 +5876,7 @@ customerIds: string[];
 
 export type GetClientValuationsParams = {
 from?: string;
+every?: boolean;
 };
 
 export type PreviewPortfolioCurrency200 = {[key: string]: number};
