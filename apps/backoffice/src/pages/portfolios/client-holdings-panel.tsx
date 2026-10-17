@@ -793,7 +793,7 @@ export function ClientHoldingsPanel({
   const user = useStaffUser();
   // Whether the person reading this is the person who asked. The row carries the raiser's id for exactly
   // this: a name cannot answer it, because two members of staff can share one. Without it the screen put
-  // Take it back on everybody's plan and the server refused the press — silently, since nothing read the
+  // both buttons on everybody's plan and the server refused the press — silently, since nothing read the
   // error.
   const theirs = open !== null && open.raisedBy === user.id;
   const [planFailed, setPlanFailed] = useState<string | null>(null);
@@ -907,7 +907,7 @@ export function ClientHoldingsPanel({
                 >
                   Change it
                 </Button>
-                {/* Taken back, not undone: nothing was written, so there is nothing to put back. */}
+                {/* Cancelled, not undone: nothing was written, so there is nothing to put back. */}
                 <Button
                   variant="secondary"
                   size="sm"
@@ -918,11 +918,11 @@ export function ClientHoldingsPanel({
                       .mutateAsync({ id: open.id })
                       .then(() => waiting.refetch())
                       .catch((caught: ApiError) => {
-                        setPlanFailed(caught?.message ?? "That could not be taken back.");
+                        setPlanFailed(caught?.message ?? "That could not be cancelled.");
                       });
                   }}
                 >
-                  {takeBack.isPending ? "Taking it back…" : "Take it back"}
+                  {takeBack.isPending ? "Cancelling…" : "Cancel this plan"}
                 </Button>
               </div>
             )}
@@ -939,7 +939,7 @@ export function ClientHoldingsPanel({
           <p className="font-semibold">
             {exactly(answered.amount, currency)} out of {answered.legs[0]?.fromSubClass ?? UNGROUPED}
             {" was "}
-            {answered.status === "APPROVED" ? "approved" : "turned down"}
+            {answered.status === "APPROVED" ? "approved" : "rejected"}
             {answered.decidedByName && ` by ${answered.decidedByName}`}.
           </p>
           <p className="mt-1 text-sm">

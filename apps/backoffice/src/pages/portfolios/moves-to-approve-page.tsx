@@ -122,7 +122,7 @@ function WaitingPlan({ row, showClient, answering, refusal, onApprove, onTurnDow
           {row.mayAnswer ? (
             <>
               <Button variant="secondary" size="sm" onClick={onTurnDown}>
-                Turn it down
+                Reject
               </Button>
               <Button size="sm" disabled={answering} onClick={onApprove}>
                 {answering ? "Moving it…" : "Approve and move it"}
@@ -292,13 +292,13 @@ export function MovesToApprovePage() {
         <>
           <section className="overflow-hidden rounded-2xl border border-line bg-white">
             <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              Waiting on an answer
+              Waiting for approval
             </h2>
             {queue.isPending ? (
               <p className="px-5 py-8 text-sm text-ink-muted">Reading the plans…</p>
             ) : waiting.length === 0 ? (
               <p className="px-5 py-8 text-sm text-ink-muted">
-                {firmWide ? "Nothing is waiting on an answer." : "Nothing is waiting on you."}
+                {firmWide ? "Nothing is waiting for approval." : "Nothing is waiting on you."}
               </p>
             ) : (
               <ul className="divide-y divide-line">
@@ -325,10 +325,11 @@ export function MovesToApprovePage() {
               have just decided on simply disappears, and the only thing left is its absence. */}
           {dealtWith.length > 0 && (
             <section className="overflow-hidden rounded-2xl border border-line bg-white">
-              {/* Not "answered": a plan the person who raised it took back was never answered by anybody,
-                  and it sits in this list too. */}
+              {/* Not "answered": a plan the person who raised it cancelled was never answered by anybody,
+                  and it sits in this list too. Decided covers both — somebody decided it, even if that
+                  somebody was the person who asked. */}
               <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                Lately dealt with
+                Recently decided
               </h2>
               <ul className="divide-y divide-line">
                 {dealtWith.map((row) => (
@@ -377,7 +378,7 @@ export function MovesToApprovePage() {
                   </div>
                 </div>
                 {asked
-                  ? <Badge tone="warning">Waiting on an answer</Badge>
+                  ? <Badge tone="warning">Waiting for approval</Badge>
                   : <Badge tone="neutral">Nothing waiting</Badge>}
               </div>
               {asked && (
@@ -411,10 +412,10 @@ export function MovesToApprovePage() {
       )}
 
       {/* The note is collected against what it refuses, so somebody writing it can see what they are
-          turning down rather than remembering it. */}
+          rejecting rather than remembering it. */}
       <Dialog
         open={turningDown !== null}
-        title={turningDown ? `Turn down the move for ${turningDown.clientName}?` : "Turn it down"}
+        title={turningDown ? `Reject the move for ${turningDown.clientName}?` : "Reject it"}
         onClose={() => setTurningDown(null)}
       >
         <div className="space-y-4">
@@ -453,7 +454,7 @@ export function MovesToApprovePage() {
                 answer.mutate({ id: turningDown.id, data: { approved: false, note: note.trim() } })
               }
             >
-              {answer.isPending ? "Turning it down…" : "Turn it down"}
+              {answer.isPending ? "Rejecting…" : "Reject"}
             </Button>
           </div>
         </div>
