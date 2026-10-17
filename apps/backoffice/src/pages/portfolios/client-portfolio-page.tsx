@@ -116,13 +116,24 @@ function yearsAgo(years: number) {
  */
 export function ClientPortfolioPage() {
   const { customerId = "" } = useParams();
-  const address = useSearchParams()[0];
+  const [address, setAddress] = useSearchParams();
   const navigate = useNavigate();
   // Which part of the client's portfolio is being read. Four questions about one book, each with its own
   // shape: what it is worth against its plan today, what it did day by day, what it is actually made of,
   // and what all of that looks like drawn. One screen holding all four was a page nobody reached the
   // bottom of, and the figures that change daily sat under the ones that barely change at all.
-  const [tab, setTab] = useState<Tab>("performance");
+  // Which tab is open lives in the address, not in this component. Held here alone it was lost on every
+  // refresh, could not be linked to, and sent anybody coming back from a day of the tracker to the first
+  // tab rather than the one they left.
+  const asked = address.get("tab");
+  const tab: Tab = TABS.some((one) => one.id === asked) ? (asked as Tab) : "performance";
+  const setTab = (which: Tab) => {
+    const next = new URLSearchParams(address);
+    // The first tab is the one you get without asking, so asking for it adds nothing to the address.
+    if (which === "performance") next.delete("tab");
+    else next.set("tab", which);
+    setAddress(next, { replace: true });
+  };
   const came = CAME_FROM[address.get("from") ?? ""] ?? FROM_THE_LIST;
   // With the queue as it was left: a list worked down with a filter on it, and three pages in, is not the
   // same list when it comes back at page one with the filter cleared.
