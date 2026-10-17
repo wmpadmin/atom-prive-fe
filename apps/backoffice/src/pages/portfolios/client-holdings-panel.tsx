@@ -103,7 +103,7 @@ function capacityFor(shareOfClass: number, held: number, classTarget: number, ba
  * room" while the model was asking for money in three of them. The lines nobody has written arrive as
  * groups holding nothing now, so there is one list to read rather than two to stitch together.
  */
-function capacityIn(groups: SubClassGroup[], except: SubClassGroup, classTarget: number, band: number,
+function capacityIn(groups: SubClassGroup[], except: SubClassGroup | null, classTarget: number, band: number,
   whole: number): Destination[] {
   const places: Destination[] = [];
   for (const one of groups) {
@@ -118,6 +118,23 @@ function capacityIn(groups: SubClassGroup[], except: SubClassGroup, classTarget:
   }
   return places.sort((first, second) => second.room - first.room);
 }
+
+/**
+ * What a whole asset class can take before IT would breach, in money.
+ *
+ * <p>The first question a crossing has to answer, and one this screen never had to ask while money only
+ * moved inside a class: a sub-asset with room is no use if the class around it is already at the end of
+ * its own band, because the money would land inside one line's range and outside the class's.
+ */
+function roomInClass(klass: ClassPositions, whole: number) {
+  const target = klass.targetShare ?? 0;
+  const band = klass.breachAt ?? 0;
+  if (klass.targetShare === null) return 0;
+  return Math.max(0, (whole * (target + band)) / 100 - klass.valueAmount);
+}
+
+/** One other class money could cross into, and where inside it the money could land. */
+type Elsewhere = { assetClass: string; name: string; room: number; places: Destination[] };
 
 /**
  * The split this screen suggests: fill the one with most room first, never past it, until the money is gone.
@@ -182,7 +199,7 @@ function typed(value: string | undefined) {
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
 function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, currency, readOnly,
-  claim, release, asksForNone, settledRight, onAsked }: {
+  claim, release, asksForNone, settledRight, onAsked, elsewhere }: {
   customerId: string;
   assetClass: string;
   spare: number;
@@ -209,6 +226,13 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   settledRight: boolean;
   /** Told once a plan has been asked for, so the screen above can go and read it. */
   onAsked: () => void | Promise<void>;
+  /**
+   * Every other class the money could cross into, with what each can take and where inside it.
+   *
+   * <p>Worked out above rather than here, because the whole portfolio is what a class's own room is read
+   * against and this window only knows one class of it.
+   */
+  elsewhere: Elsewhere[];
 }) {
   const from = rows[0]?.subClass ?? UNGROUPED;
   // Emptied from the fullest first, so the smaller lines are left whole where the whole sum does not need
@@ -223,11 +247,29 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // altogether, so every row beneath it slid up by one. A second press in the same spot then landed on a
   // different sub-asset and moved money into it — three of them a second apart, from somebody pressing
   // one button. A row that can take nothing more stays where it is, saying so, with no button on it.
-  const [opened] = useState(() => places);
-  const now = new Map(places.map((place) => [place.name, place]));
+  /**
+   * Which class the money is going into: nothing for this one, or the code of another.
+   *
+   * <p>Money crossing out of a class is a different question from money moving inside it — the class it
+   * lands in has a band of its own, and a sub-asset with room is no use inside a class that has none. So
+   * it is asked first, before any figure is typed, rather than left to be discovered.
+   */
+  const [goingTo, setGoingTo] = useState<string | null>(null);
+  const crossing = goingTo === null ? null : (elsewhere.find((one) => one.assetClass === goingTo) ?? null);
+  const where = crossing === null ? places : crossing.places;
+  // The rows as they stood when this list was chosen, kept for as long as it is — the same rows, in the
+  // same order, in the same places on the screen.
+  //
+  // Sorted afresh on every render, a sub-asset filled to the end of its band has no room left, drops out
+  // of the list altogether, and every row beneath it slides up by one under the hand that is typing.
+  const [opened, setOpened] = useState<{ forClass: string | null; places: Destination[] }>(
+    () => ({ forClass: null, places }),
+  );
+  const held = opened.forClass === goingTo ? opened.places : where;
+  const now = new Map(where.map((place) => [place.name, place]));
   const inOrder = [
-    ...opened.map((place) => now.get(place.name) ?? { ...place, room: 0 }),
-    ...places.filter((place) => !opened.some((was) => was.name === place.name)),
+    ...held.map((place) => now.get(place.name) ?? { ...place, room: 0 }),
+    ...where.filter((place) => !held.some((was) => was.name === place.name)),
   ];
   // The most that may leave this sub-asset: what the breach comes to in whole units, never more than is
   // actually there. Rounding to the nearest is what lands a line cleanly inside its band rather than a
@@ -239,6 +281,16 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   const [moves, setMoves] = useState<Record<string, string>>(() => Object.fromEntries(
     inOrder.map((place) => [place.name, String(plainly[place.name])]),
   ));
+  /**
+   * The rows somebody has typed into, which are theirs and are left alone.
+   *
+   * <p>What is left over after them is split across the rest, there and then. Asked to put 100 into one
+   * sub-asset and told 20 instead, the other 80 has to go somewhere, and a screen that leaves it sitting
+   * in a "still to place" line makes somebody work out the rest by hand across five boxes. Rows already
+   * typed into are not touched: a figure somebody put there is their plan for it, and a fresh split would
+   * write over the very thing they just said.
+   */
+  const [typedIn, setTypedIn] = useState<Set<string>>(() => new Set());
   const [failed, setFailed] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
   // What the last click did, and the fact that it was a click rather than typing. A move used to leave
@@ -287,6 +339,47 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   //
   // The source goes first of the two: if the second leg fails, the money is missing rather than counted
   /**
+   * A figure typed into one row, and the remainder re-split across the rest, there and then.
+   *
+   * <p>The loop the firm asked for. Told 20 where the window suggested 100, the other 80 is offered to the
+   * sub-assets that have not been spoken for, and again on the next figure, until what is left to place is
+   * nothing. Left out, somebody dividing a breach across five lines does the arithmetic themselves and the
+   * window only tells them when they are wrong.
+   *
+   * <p>Rows already typed into are never written over. The figure in them is somebody's plan for that
+   * line, and re-splitting across it would undo the very thing they just said.
+   */
+  function typedInto(name: string, said: string) {
+    const mine = new Set(typedIn).add(name);
+    setTypedIn(mine);
+    setMoves((was) => {
+      const next = { ...was, [name]: asFigure(said, was[name] ?? "0") };
+      const claimed = inOrder
+        .filter((place) => mine.has(place.name))
+        .reduce((sum, place) => sum + typed(next[place.name]), 0);
+      const rest = inOrder.filter((place) => !mine.has(place.name));
+      const split = suggest(Math.max(0, mostToMove - claimed), rest);
+      for (const place of rest) {
+        next[place.name] = String(split[place.name] ?? 0);
+      }
+      return next;
+    });
+  }
+
+  /** A different class to land in: the figures start again, because the room they were split against has. */
+  function land(assetClass: string | null) {
+    const places = assetClass === null
+      ? where
+      : (elsewhere.find((one) => one.assetClass === assetClass)?.places ?? []);
+    setGoingTo(assetClass);
+    setOpened({ forClass: assetClass, places });
+    setTypedIn(new Set());
+    setFailed(null);
+    const split = suggest(mostToMove, places);
+    setMoves(Object.fromEntries(places.map((place) => [place.name, String(split[place.name] ?? 0)])));
+  }
+
+  /**
    * Asks for the whole split to be moved, as one plan.
    *
    * <p>Not a button on each row. A client may have one plan waiting at a time — two open on one portfolio
@@ -303,7 +396,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
       .map((place) => ({
         fromAssetClass: assetClass,
         fromSubClass: rows[0]?.subClass ?? null,
-        toAssetClass: assetClass,
+        toAssetClass: goingTo ?? assetClass,
         toSubClass: place.name,
         amount: typed(moves[place.name]),
         heldWhenRaised: inHand,
@@ -361,6 +454,55 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
           </div>
 
           {failed && <div className="mt-4"><Alert tone="danger">{failed}</Alert></div>}
+
+          {/* Where it lands, asked before any figure is typed. Money crossing out of a class is a
+              different question from money moving inside it: the class it lands in has a band of its own,
+              and a sub-asset with room is no use inside a class that has none. Each choice carries what it
+              can take, so the one that cannot take it says so before it is chosen. */}
+          {!readOnly && !nothingLeft && (
+            <div className="mt-4">
+              <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Where it goes</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  aria-pressed={goingTo === null}
+                  onClick={() => land(null)}
+                  className={cn("rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                    goingTo === null
+                      ? "border-primary-600 bg-primary-600 text-white"
+                      : "border-ink/20 text-ink hover:border-ink/40")}
+                >
+                  Inside {className}
+                </button>
+                {elsewhere.map((other) => (
+                  <button
+                    key={other.assetClass}
+                    type="button"
+                    aria-pressed={goingTo === other.assetClass}
+                    onClick={() => land(other.assetClass)}
+                    className={cn("rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                      goingTo === other.assetClass
+                        ? "border-primary-600 bg-primary-600 text-white"
+                        : "border-ink/20 text-ink hover:border-ink/40")}
+                  >
+                    {other.name}
+                    <span className={cn("ml-1.5 font-normal",
+                      goingTo === other.assetClass ? "text-white/80" : "text-ink-muted")}>
+                      {other.room < 1 ? "no room" : `room for ${exactly(other.room, currency)}`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {crossing !== null && (
+                <p className="mt-2 text-xs text-ink-muted">
+                  Money leaving {className} altogether. {crossing.name} can take{" "}
+                  {exactly(crossing.room, currency)} before it is past its own range — which is a separate
+                  question from whether the sub-asset it lands in has room.
+                </p>
+              )}
+            </div>
+          )}
+
           {nothingLeft ? (
             <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-ink">
               {settledRight
@@ -371,10 +513,12 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
           ) : nowhere ? (
             <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-ink">
               {canTake < 1
-                ? `No other sub-asset in ${className} has room for it, so all `
-                  + `${exactly(spare, currency)} has to leave the class.`
-                : `${className} has room for only ${exactly(canTake, currency)} of it, so the other `
-                  + `${exactly(spare - canTake, currency)} has to leave the class.`}
+                ? `Nothing in ${crossing?.name ?? className} has room for it`
+                  + `${crossing === null ? ", so all of it has to leave the class" : ""}.`
+                  + " Choose another class above."
+                : `${crossing?.name ?? className} has room for only ${exactly(canTake, currency)} of it.`
+                  + ` The other ${exactly(spare - canTake, currency)} has to go somewhere else — choose`
+                  + " another class above."}
             </p>
           ) : (
             <div className="mt-4 overflow-hidden rounded-xl border border-ink/20 bg-white">
@@ -436,16 +580,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                                 inputMode="decimal"
                                 aria-label={`Move into ${place.name}`}
                                 value={moves[place.name] ?? "0"}
-                                onChange={(event) => {
-                                  // The notice and the button to put the last move back stay. Cleared on
-                                  // the first keypress, a reader who moved money and then reached for a
-                                  // different split lost the only thing that would undo it — and the
-                                  // boxes this window refills after a move invite exactly that keypress.
-                                  setMoves((was) => ({
-                                    ...was,
-                                    [place.name]: asFigure(event.target.value, was[place.name] ?? "0"),
-                                  }));
-                                }}
+                                onChange={(event) => typedInto(place.name, event.target.value)}
                                 className="h-9 w-32 text-right tabular-nums"
                               />
                             </span>
@@ -1084,6 +1219,16 @@ export function ClientHoldingsPanel({
               rows={group.positions}
               assetClass={its.assetClass}
               places={capacityIn(its.subClasses, group, its.targetShare ?? 0, band, whole)}
+              elsewhere={classes
+                .filter((other) => other.assetClass !== its.assetClass && other.targetShare !== null)
+                .map((other) => ({
+                  assetClass: other.assetClass,
+                  name: other.assetClassName || other.assetClass,
+                  room: roomInClass(other, whole),
+                  places: capacityIn(other.subClasses, null, other.targetShare ?? 0,
+                    other.breachAt ?? 0, whole),
+                }))
+                .sort((first, second) => second.room - first.room)}
               className={its.assetClassName || its.assetClass}
               currency={currency}
               readOnly={readOnly}
