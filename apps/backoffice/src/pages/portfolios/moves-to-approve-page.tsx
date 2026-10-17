@@ -426,7 +426,7 @@ export function MovesToApprovePage() {
               {!shut && (
                 <div className="border-t border-line px-5 pt-3">
                   <Link
-                    to={`/portfolio-clients/${client.customerId}`}
+                    to={`/portfolio-clients/${client.customerId}?from=moves`}
                     className="text-xs font-medium text-primary-700 underline-offset-2 hover:underline"
                   >
                     Open {client.clientName}'s portfolio

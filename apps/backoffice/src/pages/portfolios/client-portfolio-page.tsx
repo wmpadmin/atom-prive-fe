@@ -3,8 +3,6 @@ import {
   getGetClientValuationsQueryKey,
   useGetClientPortfolio,
   useGetCustomer,
-  useListClientMovePlans,
-  useListClientRestores,
   useListClientHoldings,
   useListModelPortfolios,
   useRecordRebalance,
@@ -22,8 +20,6 @@ import {
   type PortfolioStanding,
   type RiskMatch,
   useClientOnThatModel,
-  type MovePlanRow,
-  type RestoreRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, DateInput, Field, SelectInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -65,6 +61,10 @@ import { WhatIfPanel } from "./what-if-panel";
 const CAME_FROM: Record<string, { to: string; label: string }> = {
   drift: { to: "/drift", label: "Back to drift & breaches" },
   dashboard: { to: "/dashboard", label: "Back to the dashboard" },
+  // The two approval queues. Somebody who opened a client to read their figures before answering is in
+  // the middle of answering, and sending them to the client list made them find the queue again.
+  moves: { to: "/moves-to-approve", label: "Back to moves to approve" },
+  restores: { to: "/restores-to-approve", label: "Back to restores to approve" },
 };
 
 const FROM_THE_LIST = { to: "/portfolio-clients", label: "Back to the clients" };
@@ -164,15 +164,8 @@ export function ClientPortfolioPage() {
    * brushing a box, and somebody changing one thing is not asked to save it separately from the next.
    */
   const [editing, setEditing] = useState(false);
-  // What is waiting on this client's figures. While anything is, the server refuses every write — the
-  // plan or the restore was weighed against these ones. Offered anyway, Edit led to a screen whose Save
-  // could only ever come back refused, which is a button that does nothing and says nothing until it is
-  // pressed.
-  const waitingMoves = useListClientMovePlans<MovePlanRow[], ApiError>(customerId);
-  const waitingRestores = useListClientRestores<RestoreRow[], ApiError>(customerId);
-  const heldStill = (waitingMoves.data ?? []).find((one) => one.status === "PENDING")
-    ?? (waitingRestores.data ?? []).find((one) => one.status === "PENDING")
-    ?? null;
+  /** Whether the client is already measured against something, which makes a change somebody else's to answer. */
+  const onAmodel = (standing.data?.modelPortfolioId ?? null) !== null;
   // Every holding touched since Edit was pressed, with what it looked like beforehand — null where it did
   // not exist. A holding is written to the server the moment it is confirmed, so these are already on file:
   // Discard puts them back as they were, and Save leaves them.
@@ -539,19 +532,20 @@ export function ClientPortfolioPage() {
               )}
               {/* The one thing to do on a screen that is otherwise read, so it is the one thing that
                   looks like a button rather than part of the furniture. */}
-              <Button
-                disabled={heldStill !== null}
-                title={heldStill === null
-                  ? undefined
-                  : `${heldStill.raisedByName} is waiting on an answer for this client, so the figures `
-                    + "cannot be changed until it is answered."}
-                onClick={() => {
-                  setTouchedHoldings(new Map());
-                  setEditing(true);
-                }}
-              >
+              {/* Not shut while something waits, which is what this said last week and was wrong: this is
+                  the door to ASKING for a move, so shutting it left nothing to press at all — not even to
+                  take the ask back. What is refused while something waits is writing a figure, and the
+                  server refuses that; what is offered here is asking, which is the point.
+
+                  Named for what is behind it rather than "Edit". Nothing here writes a decision any more:
+                  moving money, changing the model and putting the figures back are each asked for and
+                  answered by whoever looks after the client. */}
+              <Button onClick={() => {
+                setTouchedHoldings(new Map());
+                setEditing(true);
+              }}>
                 <Pencil aria-hidden="true" />
-                Edit
+                Make changes
               </Button>
             </>
           )}
@@ -592,13 +586,18 @@ export function ClientPortfolioPage() {
             out by the calculator now, out of what the client holds, what they own that nobody manages and
             what they owe, and a box here that could be typed over was a second answer to a question that
             already has one. */}
+        {/* Picked once. Moving a client from one model to another decides what counts as a breach and
+            what the firm will be told to buy and sell, and the platform has a queue for it that somebody
+            else answers — this dropdown wrote it outright, so the queue could be walked straight past by
+            anyone who could reach the portfolio. The first assignment is not that: they are measured
+            against nothing until it is done. */}
         <Field id="client-model" label="Measured against" className="min-w-0">
               {/* Kept by Save like everything else. Written the moment it was picked, a reader who brushed
                   the list changed what the client is measured against and was never asked. */}
               <SelectInput
                 id="client-model"
                 value={model}
-                disabled={!editing || saving}
+                disabled={!editing || saving || onAmodel}
                 onChange={(event) => setChosenModel(event.target.value)}
               >
                 <option value="">No model — nothing to drift from</option>
