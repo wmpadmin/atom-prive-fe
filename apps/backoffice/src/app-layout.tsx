@@ -42,7 +42,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
 import { MENU_GROUPS } from "./menu-groups";
-import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
+import { hasAnyAuthority, hasAuthority, ANSWERS_MOVE_PLANS, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
@@ -190,6 +190,17 @@ const allNavigation: {
     icon: Scale,
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  {
+    // Asking for a client's money to be moved. Whoever may write holdings asks; the client's own
+    // relationship manager answers, and the answer is what moves it.
+    //
+    // No onlyFor. The authority already names exactly the people who may answer, and a list of role names
+    // beside it would quietly leave out whoever the firm grants it to next.
+    to: "/money-moves",
+    label: "Money moves",
+    icon: ArrowLeftRight,
+    authority: ANSWERS_MOVE_PLANS,
   },
   {
     // Asking for a client to be put on another plan. An advisor asks; a manager answers, and the answer
