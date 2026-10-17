@@ -1,19 +1,16 @@
 import { ApiError } from "@atomprive/api-client";
 import {
-  getGetClientPortfolioQueryKey,
-  getGetClientValuationsQueryKey,
-  getListClientHoldingsQueryKey,
-  useChangeClientHolding,
   useListClientHoldings,
-  useMoveClientHoldings,
-  useRemoveClientHolding,
+  useAskToMoveMoney,
+  useListClientMovePlans,
+  useTakeBackTheMovePlan,
   type ClassPositions,
   type SubClassGroup,
   type ClientHoldings,
+  type MovePlanRow,
   type PositionRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, TextInput, cn } from "@atomprive/ui";
-import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useRef, useState } from "react";
 import { asFigure } from "../../lib/figures";
@@ -172,30 +169,6 @@ function typed(value: string | undefined) {
   return value === undefined || value.trim() === "" || Number.isNaN(figure) ? 0 : figure;
 }
 
-/**
- * A holding as it stands, with a different figure against it.
- *
- * <p>Everything else is carried across untouched — the client's own tolerance above all, which is written
- * on the holding and would be quietly dropped by a request built from nothing.
- */
-function sameBut(row: PositionRow, valueAmount: number) {
-  return {
-    assetClass: row.assetClass,
-    subClass: row.subClass,
-    name: row.name,
-    identifier: row.identifier,
-    issuer: row.issuer,
-    countryCode: row.countryCode,
-    sector: row.sector,
-    yieldPercent: row.yieldPercent,
-    durationYears: row.durationYears,
-    creditRating: row.creditRating,
-    valueAmount,
-    watchPp: row.watchPp,
-    edgePp: row.edgePp,
-    breachPp: row.breachPp,
-  };
-}
 
 /**
  * Where the money coming out of one sub-asset can go, as a table somebody can argue with and act on.
@@ -209,7 +182,7 @@ function sameBut(row: PositionRow, valueAmount: number) {
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
 function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, currency, readOnly,
-  claim, release, forgotten, asksForNone, settledRight, onMoved }: {
+  claim, release, asksForNone, settledRight, onAsked }: {
   customerId: string;
   assetClass: string;
   spare: number;
@@ -230,12 +203,12 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   /** Takes the one turn there is to write, for the whole screen. False where somebody else already has it. */
   claim: () => boolean;
   release: () => void;
-  forgotten: (id: string) => void;
   /** Whether the model asks for none of this sub-asset at all, rather than less of it than is held. */
   asksForNone: boolean;
   /** With nothing left to shed, whether the sub-asset is where it should be or short of where it should be. */
   settledRight: boolean;
-  onMoved: (touched: { id: string; before: PositionRow | null }[]) => void | Promise<void>;
+  /** Told once a plan has been asked for, so the screen above can go and read it. */
+  onAsked: () => void | Promise<void>;
 }) {
   const from = rows[0]?.subClass ?? UNGROUPED;
   // Emptied from the fullest first, so the smaller lines are left whole where the whole sum does not need
@@ -273,29 +246,18 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // as though anything had happened — and the whole table sat one click away from going out the door.
   // What is read off it now is which row to leave out of the next split, so that one button does not come
   // back under the hand that just pressed it.
-  const [done, setDone] = useState<{
-    amount: number;
-    into: string;
-    // Every row the move wrote, as it stood before it wrote them, last written last. Putting a move back
-    // is writing these over again — and for a sub-asset the move wrote down for the first time, a null
-    // says it was not there, so putting it back means taking it off.
-    putBack: { id: string; before: PositionRow | null }[];
-  } | null>(null);
-  const [undoing, setUndoing] = useState(false);
+  /** Why it should move, which is what whoever answers is really being asked about. */
+  const [why, setWhy] = useState("");
 
-  // After a move, the row the money went into is offered none of what is left. The boxes were emptied
-  // outright once, because a move that refilled them all and put every button back never looked as though
-  // anything had happened — and leaving out the row just pressed keeps that, while the rest of the table
-  // still says where the remainder could go.
-  const suggested = done === null ? plainly
-    : suggest(spare, inOrder.map((place) => (place.name === done.into ? { ...place, room: 0 } : place)));
+  // The split as it opens. Nothing is written from this window now, so there is no "after a move" for it
+  // to be re-worked against: the figures behind it stand until somebody answers, and the only thing that
+  // changes these boxes is somebody typing in them.
+  const suggested = plainly;
   const asSuggested = () => Object.fromEntries(
     inOrder.map((place) => [place.name, String(suggested[place.name])]),
   );
 
-  const change = useChangeClientHolding<ApiError>();
-  const forget = useRemoveClientHolding<ApiError>();
-  const moveMoney = useMoveClientHoldings<ApiError>();
+  const askToMove = useAskToMoveMoney<ApiError>();
   const placed = inOrder.reduce((sum, place) => sum + typed(moves[place.name]), 0);
   const left = spare - placed;
   // What this class could take in all, however it is split up, and so what genuinely cannot stay in it.
@@ -324,169 +286,53 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // on the screen re-filled itself against figures that were true for no more than a moment.
   //
   // The source goes first of the two: if the second leg fails, the money is missing rather than counted
-  // twice, which is the half somebody notices.
-  // Only the row that has just gone. Emptying the rest made one click look like eight, and took away
-  // figures somebody had lined up on purpose — the plan for the other rows is still the plan.
-  //
-  // Where there was no plan for the other rows, there is one now. A suggestion that put the whole of a
-  // breach into one sibling, moved in part, left every box at nought, no Move button on any of them and no
-  // way back to a suggestion — over a line still saying how much was left to place. Which is the window
-  // telling somebody there is money to move and offering nothing to move it with.
-  //
-  // Worked out here rather than read off the next render: the figures these boxes are filled from come
-  // back with the portfolio, and the portfolio is still being read when this runs. Only the room of the
-  // row just moved into changed, and that row is the one being left out, so the rest are as they were.
-  function settled(place: Destination, amount: number,
-    putBack: { id: string; before: PositionRow | null }[]) {
-    setDone({ amount, into: place.name, putBack });
-    setMoves((was) => {
-      const blank = Object.fromEntries(inOrder.map((each) => [each.name, "0"]));
-      // Figures in other rows are somebody's plan for them, and a fresh split would write over it.
-      const lined = inOrder.some((each) => each.name !== place.name && typed(was[each.name]) > 0);
-      if (lined) return { ...was, [place.name]: "0" };
-      const left = spare - amount;
-      if (left < 1) return blank;
-      const split = suggest(left, inOrder.filter((each) => each.name !== place.name));
-      return { ...blank, ...Object.fromEntries(
-        Object.entries(split).map(([name, figure]) => [name, String(figure)]),
-      ) };
-    });
-  }
-
-  async function move(place: Destination) {
-    const amount = typed(moves[place.name]);
-    if (!rows.length || amount <= 0) return;
+  /**
+   * Asks for the whole split to be moved, as one plan.
+   *
+   * <p>Not a button on each row. A client may have one plan waiting at a time — two open on one portfolio
+   * are each weighed against figures the other is spending — so a press per row would raise one plan and
+   * then be refused five times. What is on this screen is one decision anyway: where the money that has to
+   * leave this sub-asset should go.
+   *
+   * <p>Nothing is written. The figures behind this window stand exactly as they are until whoever looks
+   * after the client says yes.
+   */
+  async function ask() {
+    const legs = inOrder
+      .filter((place) => typed(moves[place.name]) > 0)
+      .map((place) => ({
+        fromAssetClass: assetClass,
+        fromSubClass: rows[0]?.subClass ?? null,
+        toAssetClass: assetClass,
+        toSubClass: place.name,
+        amount: typed(moves[place.name]),
+        heldWhenRaised: inHand,
+      }));
+    if (!rows.length || legs.length === 0) return;
+    const asking = legs.reduce((sum, leg) => sum + leg.amount, 0);
     // More than has to leave is a breach of its own, the other way round. Typing 5,000 into a window
-    // about 4,708 emptied the sub-asset altogether and left it below its floor — and the window, having
-    // nothing left to shed, then said the line was inside its range. Said instead, where it is typed.
-    if (amount > mostToMove) {
-      setFailed(`Only ${exactly(mostToMove, currency)} has to leave ${from}. Moving more would put it `
+    // about 4,708 empties the sub-asset altogether and leaves it below its floor — and the window, having
+    // nothing left to shed, then says the line is inside its range. Said instead, where it is typed.
+    if (asking > mostToMove) {
+      setFailed(`Only ${exactly(mostToMove, currency)} has to leave ${from}. Asking for more would put it `
         + "below its own range.");
       return;
     }
-    // One turn for the whole screen, taken in the same breath as the click rather than on the render
-    // after it. Kept per table, two breached sub-assets could be emptied into the same sibling at once,
-    // each working its new figure out from the same row — and one of the two deposits was written off.
+    if (why.trim() === "") {
+      setFailed("Say why this should move. Whoever answers is being asked about the reason, not the figures.");
+      return;
+    }
     if (!claim()) return;
     setFailed(null);
-    setMoving(place.name);
+    setMoving("asking");
     try {
-      // One call for the whole move. It used to be a write per source row and then one more for the
-      // destination, ordered so that a failure half way through left the money missing rather than
-      // counted twice — the better of two bad answers. The API takes it out and puts it on in a single
-      // transaction now, so there is no half way left to land in, and nothing to tell somebody about.
-      //
-      // What the sub-asset held when this window worked its figures out goes with it. Moved by somebody
-      // else since, the plan is refused naming both figures rather than applied against the new one.
-      const done = await moveMoney.mutateAsync({
-        customerId,
-        data: {
-          legs: [{
-            fromAssetClass: assetClass,
-            fromSubClass: rows[0]?.subClass ?? null,
-            toAssetClass: assetClass,
-            toSubClass: place.name,
-            amount,
-            heldWhenRaised: inHand,
-          }],
-        },
-      });
-      // Awaited, so this move is not over until the portfolio has been read back. Every figure below is
-      // worked out from rows that came with the last read: released the moment the write returned, a
-      // second Move went out against the source as it stood before the first, which wrote off the first
-      // move's deduction while its deposit stood — money out of nowhere.
-      //
-      // What each line was worth beforehand comes back from the API, so Discard above still knows every
-      // holding this panel has touched — and a line the move brought into being comes back with nothing
-      // before it, which is what putting that one back means: taking it off again.
-      await onMoved(done.touched);
-      settled(place, amount, done.touched);
+      await askToMove.mutateAsync({ customerId, data: { legs, why: why.trim() } });
+      await onAsked();
     } catch (caught) {
-      // Nothing moved, so there is nothing to put back and nothing half done to describe. Whatever was
-      // already moved earlier in this sitting stands, and the notice offering to put THAT back stays
-      // where it is.
-      setFailed((caught as ApiError)?.message ?? "That could not be written down. Nothing has moved.");
+      setFailed((caught as ApiError)?.message ?? "That could not be asked for. Nothing has moved.");
     } finally {
       release();
       setMoving(null);
-    }
-  }
-
-  /**
-   * Put the last move back.
-   *
-   * <p>Until this, a move could not be taken back by the thing that made it. The plan fills a sibling to
-   * the end of its band and no further, which leaves that sibling inside its band — and a sub-asset inside
-   * its band has no plan behind it, so money put into the wrong one could not be got out again. The row
-   * read "Sell 480" with nothing on the screen that would sell it. Discard was the only way back, and
-   * Discard puts back everything done since Edit was pressed, so one move in the wrong place cost every
-   * right one made beside it.
-   *
-   * <p>Written in the reverse of the order it was made: out of the sub-asset it went into first, then back
-   * into the ones it came out of. Should the second half fail, the money is missing rather than counted
-   * twice — the same way round as the move itself, and the half somebody notices.
-   *
-   * <p>The page is not told anything new. It already knows every row this move touched and what each was
-   * worth before Edit was pressed, which is what Discard puts back; writing those rows back to the figures
-   * they held a moment ago does not change either. It leaves the page saying there is something to save
-   * when there may be nothing left — which is the safe way round, since Discard still puts back what is
-   * actually there.
-   */
-  async function undo() {
-    if (!done || moving !== null || undoing || !claim()) return;
-    const putting = done;
-    setFailed(null);
-    setUndoing(true);
-    const stuck: string[] = [];
-    try {
-      for (const each of [...putting.putBack].reverse()) {
-        try {
-          if (each.before === null) {
-            await forget.mutateAsync({ customerId, id: each.id });
-            forgotten(each.id);
-          }
-          else {
-            await change.mutateAsync({
-              customerId, id: each.id, data: sameBut(each.before, each.before.valueAmount),
-            });
-          }
-        }
-        catch {
-          // Stop here. Gone on to the next, a refused first leg left the money where the move had put
-          // it AND put it back where it came from: 4,708 taken out of one sub-asset, refused on the way
-          // out of the other, and the portfolio 4,708 larger than it had been a second before, with
-          // nothing on the screen saying so. Stopping leaves it missing from one place rather than
-          // standing in two — the same way round as the move itself.
-          stuck.push(each.before?.subClass ?? each.before?.name ?? putting.into);
-          break;
-        }
-      }
-      await onMoved([]);
-      if (stuck.length > 0) {
-        setFailed(`${exactly(putting.amount, currency)} could not be put back: ${stuck.join(", ")} would `
-          + "not take it, so the rest was left where it is rather than written twice. What is on the "
-          + "screen is what is written down, and Discard puts the whole sitting back.");
-        setDone(null);
-      } else {
-        // Back where it opened, for this move at least: what was placed is unplaced and the sub-asset it
-        // went into has that much room again. Worked out here rather than read off the render after it,
-        // for the same reason the split after a move is.
-        setDone(null);
-        setMoves((was) => {
-          // Figures somebody typed into the other rows are their plan for them, and a fresh split would
-          // write over it — the same rule a move follows when it leaves them alone.
-          const lined = inOrder.some((place) => place.name !== putting.into && typed(was[place.name]) > 0);
-          if (lined) return was;
-          const back = inOrder.map((place) => (place.name === putting.into
-            ? { ...place, room: place.room + putting.amount } : place));
-          const split = suggest(Math.min(Math.round(spare + putting.amount), inHand + putting.amount), back);
-          return Object.fromEntries(inOrder.map((place) => [place.name, String(split[place.name] ?? 0)]));
-        });
-      }
-    }
-    finally {
-      release();
-      setUndoing(false);
     }
   }
 
@@ -551,7 +397,6 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                 <tbody>
                   {inOrder.map((place) => {
                     const past = typed(moves[place.name]) - place.room;
-                    const amount = typed(moves[place.name]);
                     return (
                       <tr key={place.name} className="border-b border-ink/15 last:border-0 align-top">
                         <th scope="row" className="px-5 py-4 text-left font-medium text-ink">
@@ -606,62 +451,11 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                             </span>
                           )}
                         </td>
-                        {/* No button on a row nothing is going to. A line of greyed-out "Move USD 0"
-                            down the table reads as six things that cannot be done, when it is really
-                            six boxes waiting for a figure. */}
-                        <td className="px-5 py-4 text-right">
-                          {amount > 0 && !readOnly && (
-                            /* The figure is in the box beside it, so the button does not carry it too:
-                               a column of buttons each a different width, because each named a different
-                               amount, read as a column of different buttons. The amount still goes to
-                               anybody reading the page aloud. */
-                            <Button
-                              size="sm"
-                              className="w-20 justify-center"
-                              aria-label={`Move ${exactly(amount, currency)} into ${place.name}`}
-                              disabled={!rows.length || moving !== null || undoing}
-                              onClick={() => move(place)}
-                            >
-                              {moving === place.name ? "Moving…" : "Move"}
-                            </Button>
-                          )}
-                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-            </div>
-          )}
-
-          {/* Under the table, never above it: put over the rows, the notice pushed every one of them down
-              the instant a move landed, which moves the next button under a finger that has not moved. */}
-          {done && (
-            <div className="mt-4">
-              <Alert tone="success">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold">
-                      Moved {exactly(done.amount, currency)} into {done.into}.
-                    </p>
-                    <p className="mt-1 text-sm">Nothing else moved.</p>
-                  </div>
-                  {/* Beside what it undoes, where somebody reading that they have just moved money into
-                      the wrong sub-asset is already looking. Off the portfolio screen there is no Edit,
-                      and nothing on this window writes anything, so there is nothing to put back. */}
-                  {!readOnly && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={undoing || moving !== null}
-                      onClick={() => void undo()}
-                    >
-                      <RotateCcw aria-hidden="true" className="size-3.5" />
-                      {undoing ? "Putting it back…" : "Undo"}
-                    </Button>
-                  )}
-                </div>
-              </Alert>
             </div>
           )}
 
@@ -686,6 +480,41 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
               </span>
             </div>
           )}
+
+          {/* One plan for the whole split, under the table where the figures are settled — not a button
+              on each row. A client may have one plan waiting at a time, so a press per row would raise
+              one and be refused for the rest; and what is on this screen is one decision anyway, which
+              is where the money leaving this sub-asset should go. */}
+          {!readOnly && !nowhere && !nothingLeft && (
+            <div className="mt-5 border-t border-line pt-4">
+              <label htmlFor="why-it-moves" className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                Why it should move
+              </label>
+              <p className="mt-1 text-xs text-ink-muted">
+                Whoever answers is being asked about the reason, not the figures. They can see those.
+              </p>
+              <TextInput
+                id="why-it-moves"
+                name="why-it-moves"
+                value={why}
+                onChange={(event) => setWhy(event.target.value)}
+                placeholder={`${from} is past its band and this puts it back inside`}
+                className="mt-2"
+              />
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-ink-muted">
+                  Nothing moves yet. This goes to whoever looks after the client.
+                </p>
+                <Button
+                  size="sm"
+                  disabled={placed <= 0 || moving !== null}
+                  onClick={() => void ask()}
+                >
+                  {moving === "asking" ? "Asking…" : `Ask to move ${exactly(placed, currency)}`}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -701,28 +530,15 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
  */
 export function ClientHoldingsPanel({
   customerId,
-  onChanged,
-  onTouched,
-  onPutBack,
   offer,
   reveal = null,
   against = null,
   readOnly = false,
 }: {
   customerId: string;
-  onChanged: () => void;
-  /**
-   * A holding this panel has just touched, with what it looked like beforehand — null where it did not
-   * exist, because it was being added.
-   *
-   * <p>The page keeps the first of these per holding, so Discard can put the portfolio back as it stood
-   * when Edit was pressed, however the change was made.
-   */
-  onTouched?: (id: string, before: PositionRow | null) => void;
   // A sub-asset this panel wrote down and has since taken off again. The page was told about it when it
   // was written, and has to be told about this too: it is not there to be put back, and a Discard that
   // goes looking for it finds nothing and reports a refusal over work that is already undone.
-  onPutBack?: (id: string) => void;
   /**
    * A class whose own tolerance is about to be written over, with what it was held to beforehand — its own
    * three figures, or null where it was following the model.
@@ -744,7 +560,6 @@ export function ClientHoldingsPanel({
   /** Read somewhere other than the portfolio screen, where writing them down is not the job. */
   readOnly?: boolean;
 }) {
-  const queryClient = useQueryClient();
   // Read against the model picked on screen where one is, rather than the one on file: somebody setting a
   // client up picks the model and then writes the holdings into its groups, and the groups have to be the
   // ones they are looking at.
@@ -782,20 +597,16 @@ export function ClientHoldingsPanel({
     moveUnderway.current = false;
   };
 
-  const kept = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),
-      queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) }),
-      // The day's history too. A move writes its own version now, so it is one the tracker is meant to
-      // show — and without this the very act the tracker exists for is the one that does not refresh it.
-      queryClient.invalidateQueries({ queryKey: getGetClientValuationsQueryKey(customerId) }),
-    ]);
-    onChanged();
-  };
 
   // The firm's own names for the classes, read before anything returns: a hook skipped on the way out of
   // an early return is a hook React counts as missing on the render after it.
   const catalogue = useAssetClasses();
+  // What has already been asked for this client and not yet answered. A client may have one plan at a
+  // time, so this is at most one — and while it stands, the figures on this screen are what is written
+  // down rather than what has been asked for.
+  const waiting = useListClientMovePlans<MovePlanRow[], ApiError>(customerId);
+  const open = (waiting.data ?? []).find((plan) => plan.status === "PENDING") ?? null;
+  const takeBack = useTakeBackTheMovePlan<ApiError>();
 
   // A client with nothing written down yet is an ordinary state, not a failure. Shown as one, it put a
   // red banner across the portfolio page of every client whose holdings nobody had typed in.
@@ -846,6 +657,48 @@ export function ClientHoldingsPanel({
 
   return (
     <section className="space-y-3">
+      {/* What has been asked for and not yet answered, over the figures rather than in them. The figures
+          below are what the client holds; a plan is not a holding, and writing one in would say the breach
+          was fixed when nobody has agreed to fix it yet. */}
+      {open && (
+        <Alert tone="info">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-semibold">
+                {exactly(open.amount, currency)} is waiting on an answer.
+              </p>
+              <p className="mt-1 text-sm">
+                {open.raisedByName} asked for it: {open.why}
+              </p>
+              <ul className="mt-2 space-y-0.5 text-sm">
+                {open.legs.map((leg, at) => (
+                  <li key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`}>
+                    {exactly(leg.amount, currency)} out of {leg.fromSubClass ?? "what is not grouped"} and
+                    {" "}into {leg.toSubClass ?? "what is not grouped"}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-sm">
+                Nothing has moved. The figures below are what is written down.
+              </p>
+            </div>
+            {/* Taken back, not undone: nothing was written, so there is nothing to put back. */}
+            {!readOnly && (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={takeBack.isPending}
+                onClick={() => {
+                  void takeBack.mutateAsync({ id: open.id }).then(() => waiting.refetch());
+                }}
+              >
+                {takeBack.isPending ? "Taking it back…" : "Take it back"}
+              </Button>
+            )}
+          </div>
+        </Alert>
+      )}
+
       {/* The words take the width they need and no more, so the button keeps its place at the right of the
           row. Left to fill the line, they pushed it onto one of its own, where it began at the left margin
           under the text rather than beside it. */}
@@ -1237,11 +1090,10 @@ export function ClientHoldingsPanel({
               settledRight={right}
               claim={claimTheMove}
               release={releaseTheMove}
-              forgotten={(id) => onPutBack?.(id)}
               asksForNone={group.targetShare === 0}
-              onMoved={async (touched) => {
-                for (const each of touched) onTouched?.(each.id, each.before);
-                await kept();
+              onAsked={async () => {
+                setPlanning(null);
+                await waiting.refetch();
               }}
             />
           </Dialog>
