@@ -65,3 +65,18 @@ export function daysFrom(points: ValuationPoint[]): Day[] {
     };
   });
 }
+
+/**
+ * One version of the figures, and the one written immediately before it.
+ *
+ * <p>A day written several times has figures for each of them, and the tracker only ever showed the one it
+ * closed on — so a change made at eleven and corrected at noon left nothing on screen but the correction.
+ * Reading a version against the one before it is also what the day's own list of changes measures by, so
+ * the two agree.
+ */
+export function versionAndTheOneBefore(points: ValuationPoint[], revision: number) {
+  const inOrder = [...points].sort((first, second) => first.revision - second.revision);
+  const at = inOrder.findIndex((one) => one.revision === revision);
+  if (at < 0) return null;
+  return { version: inOrder[at], before: at === 0 ? null : inOrder[at - 1] };
+}
