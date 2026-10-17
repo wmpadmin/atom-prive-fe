@@ -1,6 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   getGetClientPortfolioQueryKey,
+  getGetClientValuationsQueryKey,
   getListClientHoldingsQueryKey,
   useListClientHoldings,
   useListCurrencies,
@@ -249,6 +250,10 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),
         queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) }),
+        // The day's history too. Every change writes its own version now, so the act somebody has just
+        // taken is one the tracker is meant to show — and without this it would not show it until
+        // something unrelated happened to refetch.
+        queryClient.invalidateQueries({ queryKey: getGetClientValuationsQueryKey(customerId) }),
       ]);
       onDone();
     }
