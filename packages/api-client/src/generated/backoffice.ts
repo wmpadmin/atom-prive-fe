@@ -463,6 +463,82 @@ export interface PreTradeLimitRow {
   updatedBy: string | null;
 }
 
+export interface MoveLegRequest {
+  fromAssetClass: string;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  fromSubClass: string | null;
+  toAssetClass: string;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  toSubClass: string | null;
+  /** @minimum 0 */
+  amount: number;
+  /** @nullable */
+  heldWhenRaised: number | null;
+}
+
+export interface MovePlanAsked {
+  /**
+     * @minItems 1
+     * @maxItems 2147483647
+     */
+  legs: MoveLegRequest[];
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  why: string;
+}
+
+export type MovePlanRowStatus = typeof MovePlanRowStatus[keyof typeof MovePlanRowStatus];
+
+
+export const MovePlanRowStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  WITHDRAWN: 'WITHDRAWN',
+} as const;
+
+export interface MovedLeg {
+  fromAssetClass: string;
+  /** @nullable */
+  fromSubClass: string | null;
+  toAssetClass: string;
+  /** @nullable */
+  toSubClass: string | null;
+  amount: number;
+}
+
+export interface MovePlanRow {
+  id: string;
+  customerId: string;
+  clientName: string;
+  status: MovePlanRowStatus;
+  statusSaid: string;
+  why: string;
+  legs: MovedLeg[];
+  amount: number;
+  raisedByName: string;
+  raisedAt: string;
+  /** @nullable */
+  decidedByName: string | null;
+  /** @nullable */
+  decidedAt: string | null;
+  /** @nullable */
+  decisionNote: string | null;
+  /** @nullable */
+  appliedRevision: number | null;
+  mayAnswer: boolean;
+}
+
 /**
  * @nullable
  */
@@ -1396,7 +1472,6 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
   valueNode?: boolean;
@@ -1415,6 +1490,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -2660,6 +2736,7 @@ export const PermissionGrantPermission = {
   FILL_CLIENT_FORMS: 'FILL_CLIENT_FORMS',
   UPLOAD_CLIENT_DOCUMENTS: 'UPLOAD_CLIENT_DOCUMENTS',
   APPROVE_PROPOSALS: 'APPROVE_PROPOSALS',
+  APPROVE_PORTFOLIO_CHANGES: 'APPROVE_PORTFOLIO_CHANGES',
   PLACE_TRADE_ORDERS: 'PLACE_TRADE_ORDERS',
   REVIEW_TRADE_ORDERS: 'REVIEW_TRADE_ORDERS',
   EXECUTE_TRADE_ORDERS: 'EXECUTE_TRADE_ORDERS',
@@ -3242,6 +3319,16 @@ export interface ScheduleRequest {
   format: ScheduleRequestFormat;
 }
 
+export interface MovePlanDecision {
+  approved: boolean;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  note: string | null;
+}
+
 export interface BulkRebalancedRequest {
   /**
      * @minItems 1
@@ -3370,27 +3457,6 @@ export interface RebalancedRequest {
   on: string;
 }
 
-export interface MoveLegRequest {
-  fromAssetClass: string;
-  /**
-     * @minLength 0
-     * @maxLength 120
-     * @nullable
-     */
-  fromSubClass: string | null;
-  toAssetClass: string;
-  /**
-     * @minLength 0
-     * @maxLength 120
-     * @nullable
-     */
-  toSubClass: string | null;
-  /** @minimum 0 */
-  amount: number;
-  /** @nullable */
-  heldWhenRaised: number | null;
-}
-
 export interface MovePlanRequest {
   /**
      * @minItems 1
@@ -3491,16 +3557,6 @@ export interface ClientHoldings {
   classes: ClassPositions[];
 }
 
-export interface MovedLeg {
-  fromAssetClass: string;
-  /** @nullable */
-  fromSubClass: string | null;
-  toAssetClass: string;
-  /** @nullable */
-  toSubClass: string | null;
-  amount: number;
-}
-
 export interface TouchedPosition {
   id: string;
   before: PositionRow | null;
@@ -3510,6 +3566,8 @@ export interface MovePlanApplied {
   applied: MovedLeg[];
   touched: TouchedPosition[];
   holdings: ClientHoldings;
+  /** @nullable */
+  revision: number | null;
 }
 
 export interface CashflowRequest {
@@ -4599,6 +4657,11 @@ export interface ModelPerformanceTable {
   asOf: string;
 }
 
+export interface MovePlanQueue {
+  waiting: MovePlanRow[];
+  answered: MovePlanRow[];
+}
+
 export interface ModelsPage {
   items: ModelRow[];
 }
@@ -5588,6 +5651,7 @@ export const PermissionOptionPermission = {
   FILL_CLIENT_FORMS: 'FILL_CLIENT_FORMS',
   UPLOAD_CLIENT_DOCUMENTS: 'UPLOAD_CLIENT_DOCUMENTS',
   APPROVE_PROPOSALS: 'APPROVE_PROPOSALS',
+  APPROVE_PORTFOLIO_CHANGES: 'APPROVE_PORTFOLIO_CHANGES',
   PLACE_TRADE_ORDERS: 'PLACE_TRADE_ORDERS',
   REVIEW_TRADE_ORDERS: 'REVIEW_TRADE_ORDERS',
   EXECUTE_TRADE_ORDERS: 'EXECUTE_TRADE_ORDERS',
@@ -7158,6 +7222,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSetPreTradeLimitsMutationOptions(options), queryClient);
+    }
+
+export const getChangeTheMovePlanUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/move-plans/${id}`
+}
+
+export const changeTheMovePlan = async (id: string,
+    movePlanAsked: MovePlanAsked, options?: Parameters<typeof http>[1]): Promise<MovePlanRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MovePlanRow>(getChangeTheMovePlanUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(movePlanAsked)
+  }
+);}
+
+
+
+
+
+export const getChangeTheMovePlanMutationKey = () => ['changeTheMovePlan'] as const;
+
+export const getChangeTheMovePlanMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeTheMovePlan>>, TError,ChangeTheMovePlanMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeTheMovePlan>>, TError,ChangeTheMovePlanMutationVariables, TContext> => {
+
+const mutationKey = getChangeTheMovePlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeTheMovePlan>>, ChangeTheMovePlanMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  changeTheMovePlan(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeTheMovePlanMutationResult = NonNullable<Awaited<ReturnType<typeof changeTheMovePlan>>>
+    export type ChangeTheMovePlanMutationBody = MovePlanAsked
+    export type ChangeTheMovePlanMutationError = unknown
+    export type ChangeTheMovePlanMutationVariables = {id: string;data: MovePlanAsked}
+
+    export const useChangeTheMovePlan = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeTheMovePlan>>, TError,ChangeTheMovePlanMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeTheMovePlan>>,
+        TError,
+        ChangeTheMovePlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeTheMovePlanMutationOptions(options), queryClient);
     }
 
 export const getUpdateModelPortfolioUrl = (id: string,) => {
@@ -10645,7 +10792,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     }
 
 export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'PLACE_TRADE_ORDERS' | 'REVIEW_TRADE_ORDERS' | 'EXECUTE_TRADE_ORDERS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',) => {
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'PLACE_TRADE_ORDERS' | 'REVIEW_TRADE_ORDERS' | 'EXECUTE_TRADE_ORDERS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',) => {
 
 
 
@@ -10654,7 +10801,7 @@ export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIAN
 }
 
 export const updateRolePermission = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'PLACE_TRADE_ORDERS' | 'REVIEW_TRADE_ORDERS' | 'EXECUTE_TRADE_ORDERS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'PLACE_TRADE_ORDERS' | 'REVIEW_TRADE_ORDERS' | 'EXECUTE_TRADE_ORDERS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',
     updateRolePermissionRequest: UpdateRolePermissionRequest, options?: Parameters<typeof http>[1]): Promise<RoleAccessView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -10716,7 +10863,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateRolePermissionMutationResult = NonNullable<Awaited<ReturnType<typeof updateRolePermission>>>
     export type UpdateRolePermissionMutationBody = UpdateRolePermissionRequest
     export type UpdateRolePermissionMutationError = unknown
-    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'PLACE_TRADE_ORDERS' | 'REVIEW_TRADE_ORDERS' | 'EXECUTE_TRADE_ORDERS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
+    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'PLACE_TRADE_ORDERS' | 'REVIEW_TRADE_ORDERS' | 'EXECUTE_TRADE_ORDERS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
 
     export const useUpdateRolePermission = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRolePermission>>, TError,UpdateRolePermissionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -14132,6 +14279,157 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getScheduleReportMutationOptions(options), queryClient);
     }
 
+export const getTakeBackTheMovePlanUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/move-plans/${id}/withdrawal`
+}
+
+export const takeBackTheMovePlan = async (id: string, options?: Parameters<typeof http>[1]): Promise<MovePlanRow> => {
+
+  return http<MovePlanRow>(getTakeBackTheMovePlanUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTakeBackTheMovePlanMutationKey = () => ['takeBackTheMovePlan'] as const;
+
+export const getTakeBackTheMovePlanMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeBackTheMovePlan>>, TError,TakeBackTheMovePlanMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof takeBackTheMovePlan>>, TError,TakeBackTheMovePlanMutationVariables, TContext> => {
+
+const mutationKey = getTakeBackTheMovePlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof takeBackTheMovePlan>>, TakeBackTheMovePlanMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  takeBackTheMovePlan(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TakeBackTheMovePlanMutationResult = NonNullable<Awaited<ReturnType<typeof takeBackTheMovePlan>>>
+
+    export type TakeBackTheMovePlanMutationError = unknown
+    export type TakeBackTheMovePlanMutationVariables = {id: string}
+
+    export const useTakeBackTheMovePlan = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeBackTheMovePlan>>, TError,TakeBackTheMovePlanMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof takeBackTheMovePlan>>,
+        TError,
+        TakeBackTheMovePlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTakeBackTheMovePlanMutationOptions(options), queryClient);
+    }
+
+export const getAnswerTheMovePlanUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/move-plans/${id}/answer`
+}
+
+export const answerTheMovePlan = async (id: string,
+    movePlanDecision: MovePlanDecision, options?: Parameters<typeof http>[1]): Promise<MovePlanRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MovePlanRow>(getAnswerTheMovePlanUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(movePlanDecision)
+  }
+);}
+
+
+
+
+
+export const getAnswerTheMovePlanMutationKey = () => ['answerTheMovePlan'] as const;
+
+export const getAnswerTheMovePlanMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerTheMovePlan>>, TError,AnswerTheMovePlanMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerTheMovePlan>>, TError,AnswerTheMovePlanMutationVariables, TContext> => {
+
+const mutationKey = getAnswerTheMovePlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerTheMovePlan>>, AnswerTheMovePlanMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  answerTheMovePlan(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerTheMovePlanMutationResult = NonNullable<Awaited<ReturnType<typeof answerTheMovePlan>>>
+    export type AnswerTheMovePlanMutationBody = MovePlanDecision
+    export type AnswerTheMovePlanMutationError = unknown
+    export type AnswerTheMovePlanMutationVariables = {id: string;data: MovePlanDecision}
+
+    export const useAnswerTheMovePlan = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerTheMovePlan>>, TError,AnswerTheMovePlanMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answerTheMovePlan>>,
+        TError,
+        AnswerTheMovePlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerTheMovePlanMutationOptions(options), queryClient);
+    }
+
 export const getListModelPortfoliosUrl = () => {
 
 
@@ -15235,6 +15533,184 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordNonFinancialAssetMutationOptions(options), queryClient);
+    }
+
+export const getListClientMovePlansUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/move-plans`
+}
+
+export const listClientMovePlans = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<MovePlanRow[]> => {
+
+  return http<MovePlanRow[]>(getListClientMovePlansUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientMovePlansQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/move-plans`
+    ] as const;
+    }
+
+
+export const getListClientMovePlansQueryOptions = <TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientMovePlansQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientMovePlans>>> = ({ signal }) => listClientMovePlans(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListClientMovePlansQueryResult = NonNullable<Awaited<ReturnType<typeof listClientMovePlans>>>
+export type ListClientMovePlansQueryError = unknown
+
+
+export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientMovePlans>>,
+          TError,
+          Awaited<ReturnType<typeof listClientMovePlans>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientMovePlans>>,
+          TError,
+          Awaited<ReturnType<typeof listClientMovePlans>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListClientMovePlansQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAskToMoveMoneyUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/move-plans`
+}
+
+export const askToMoveMoney = async (customerId: string,
+    movePlanAsked: MovePlanAsked, options?: Parameters<typeof http>[1]): Promise<MovePlanRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MovePlanRow>(getAskToMoveMoneyUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(movePlanAsked)
+  }
+);}
+
+
+
+
+
+export const getAskToMoveMoneyMutationKey = () => ['askToMoveMoney'] as const;
+
+export const getAskToMoveMoneyMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToMoveMoney>>, TError,AskToMoveMoneyMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askToMoveMoney>>, TError,AskToMoveMoneyMutationVariables, TContext> => {
+
+const mutationKey = getAskToMoveMoneyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askToMoveMoney>>, AskToMoveMoneyMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  askToMoveMoney(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskToMoveMoneyMutationResult = NonNullable<Awaited<ReturnType<typeof askToMoveMoney>>>
+    export type AskToMoveMoneyMutationBody = MovePlanAsked
+    export type AskToMoveMoneyMutationError = unknown
+    export type AskToMoveMoneyMutationVariables = {customerId: string;data: MovePlanAsked}
+
+    export const useAskToMoveMoney = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToMoveMoney>>, TError,AskToMoveMoneyMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askToMoveMoney>>,
+        TError,
+        AskToMoveMoneyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskToMoveMoneyMutationOptions(options), queryClient);
     }
 
 export const getListClientLoansUrl = (customerId: string,) => {
@@ -22646,6 +23122,101 @@ export function useGetModelPerformance<TData = Awaited<ReturnType<typeof getMode
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetModelPerformanceQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMovePlansUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/move-plans`
+}
+
+export const listMovePlans = async ( options?: Parameters<typeof http>[1]): Promise<MovePlanQueue> => {
+
+  return http<MovePlanQueue>(getListMovePlansUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMovePlansQueryKey = () => {
+    return [
+    `/api/backoffice/portfolios/move-plans`
+    ] as const;
+    }
+
+
+export const getListMovePlansQueryOptions = <TData = Awaited<ReturnType<typeof listMovePlans>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMovePlansQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMovePlans>>> = ({ signal }) => listMovePlans({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMovePlans>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMovePlansQueryResult = NonNullable<Awaited<ReturnType<typeof listMovePlans>>>
+export type ListMovePlansQueryError = unknown
+
+
+export function useListMovePlans<TData = Awaited<ReturnType<typeof listMovePlans>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlans>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMovePlans>>,
+          TError,
+          Awaited<ReturnType<typeof listMovePlans>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMovePlans<TData = Awaited<ReturnType<typeof listMovePlans>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlans>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMovePlans>>,
+          TError,
+          Awaited<ReturnType<typeof listMovePlans>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMovePlans<TData = Awaited<ReturnType<typeof listMovePlans>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMovePlans<TData = Awaited<ReturnType<typeof listMovePlans>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMovePlansQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
