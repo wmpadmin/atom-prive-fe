@@ -421,6 +421,8 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
     }
     if (why.trim() === "") {
       setFailed("Say why this should move. Whoever answers is being asked about the reason, not the figures.");
+      // The cursor goes where the thing that stopped the press is, rather than near it.
+      document.getElementById("why-it-moves")?.focus();
       return;
     }
     if (!claim()) return;
@@ -461,7 +463,6 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
             )}
           </div>
 
-          {failed && <div className="mt-4"><Alert tone="danger">{failed}</Alert></div>}
 
           {/* Where it lands, asked before any figure is typed. Money crossing out of a class is a
               different question from money moving inside it: the class it lands in has a band of its own,
@@ -648,6 +649,11 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                 placeholder={`${from} is past its band and this puts it back inside`}
                 className="mt-2"
               />
+              {/* Beside the button that produced it. Put at the top of the window, with a table of
+                  sub-assets between the two, pressing the button scrolled the answer out of sight — so
+                  the press did nothing anybody could see, which reads as a broken button rather than as a
+                  question. */}
+              {failed && <div className="mt-3"><Alert tone="danger">{failed}</Alert></div>}
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-ink-muted">
                   Nothing moves yet. This goes to whoever looks after the client.
