@@ -1,11 +1,18 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  useAskToRestore,
   useGetClientValuations,
+  useListClientRestores,
+  type RestoreRow,
   type ValuationHistory,
 } from "@atomprive/api-client/backoffice";
-import { Alert, cn } from "@atomprive/ui";
-import { ArrowLeft } from "lucide-react";
+import { Alert, Button, Dialog, Field, TextArea, cn } from "@atomprive/ui";
+import { ArrowLeft, RotateCcw } from "lucide-react";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
+import { useStaffUser } from "../../auth/session";
+import { formatDateTime } from "../../lib/labels";
+import { hasAuthority } from "../../lib/permissions";
 import { nameOf, useAssetClasses } from "./asset-classes";
 import { daysFrom, money, type Day } from "./daily-tracker-days";
 
@@ -24,6 +31,16 @@ export function DailyTrackerDayPage() {
   const { customerId = "", on = "" } = useParams();
   const history = useGetClientValuations<ValuationHistory, ApiError>(customerId, { every: true });
   const classes = useAssetClasses();
+  const user = useStaffUser();
+  // Whoever may write a client's figures is who may ask for them to be put back. Answering is somebody
+  // else's, which is the whole point, so the button here is only ever an asking.
+  const mayAsk = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
+  const restores = useListClientRestores<RestoreRow[], ApiError>(customerId);
+  const waiting = (restores.data ?? []).find((one) => one.status === "PENDING") ?? null;
+  const askToRestore = useAskToRestore<ApiError>();
+  const [asking, setAsking] = useState(false);
+  const [why, setWhy] = useState("");
+  const [failed, setFailed] = useState<string | null>(null);
 
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
@@ -45,11 +62,47 @@ export function DailyTrackerDayPage() {
           <ArrowLeft aria-hidden="true" className="size-4" />
           Back to the daily tracker
         </Link>
-        <h1 className="mt-2 text-[1.625rem] font-bold">{on}</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          What this client's portfolio was worth on this day, what it took to get there, and what each
-          sub-asset held either side of it.
-        </p>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-[1.625rem] font-bold">{on}</h1>
+            <p className="mt-1 text-sm text-ink-muted">
+              What this client's portfolio was worth on this day, what it took to get there, and what each
+              sub-asset held either side of it.
+            </p>
+          </div>
+          {/* Asking for the figures to be put back, from the screen where they are being read. Nothing is
+              written by pressing it: whoever looks after the client answers, exactly as they answer a
+              money move, because this replaces every figure rather than two of them. */}
+          {mayAsk && day !== null && (
+            <Button
+              variant="secondary"
+              disabled={waiting !== null}
+              onClick={() => {
+                setFailed(null);
+                setWhy("");
+                setAsking(true);
+              }}
+            >
+              <RotateCcw aria-hidden="true" />
+              Ask to put the figures back
+            </Button>
+          )}
+        </div>
+        {waiting && (
+          <div className="mt-3">
+            <Alert tone="info">
+              <p className="font-semibold">
+                {waiting.raisedByName} has already asked to put this client back to {waiting.restoreTo}.
+              </p>
+              <p className="mt-1 text-sm">
+                {waiting.why} · asked {formatDateTime(waiting.raisedAt)}
+              </p>
+              <p className="mt-1 text-sm">
+                Nothing has changed. One ask waits at a time, so this one is answered or taken back first.
+              </p>
+            </Alert>
+          </div>
+        )}
       </div>
 
       {history.isPending ? (
@@ -123,8 +176,74 @@ export function DailyTrackerDayPage() {
           </section>
         </>
       )}
+
+      {/* The reason is what whoever answers is being asked about. They can see the figures — both sets. */}
+      <Dialog
+        open={asking}
+        title={`Put this client back to how they stood on ${on}?`}
+        onClose={() => setAsking(false)}
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
+            <p>
+              Every figure the client has would be written again as they stood at version{" "}
+              {day?.versions.length ? closeRevisionOf(day) : "—"} on {on}
+              {day && <> — {currency} {money(day.worth)} across {Object.values(day.lines)
+                .reduce((sum, inClass) => sum + Object.keys(inClass).length, 0)} sub-assets</>}.
+            </p>
+            <p className="mt-2 text-xs text-ink-muted">
+              This day is left exactly as it is. What it holds is written forward as a new version, so the
+              trail keeps both what happened and that somebody put it back.
+            </p>
+          </div>
+          {failed && <Alert tone="danger">{failed}</Alert>}
+          <Field id="why-it-goes-back" label="Why it should go back" required>
+            <TextArea
+              id="why-it-goes-back"
+              rows={3}
+              value={why}
+              onChange={(event) => setWhy(event.target.value)}
+            />
+          </Field>
+          <p className="text-sm text-ink-muted">
+            Nothing changes yet. This goes to whoever looks after the client.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setAsking(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={why.trim() === "" || askToRestore.isPending || day === null}
+              onClick={() => {
+                if (day === null) return;
+                setFailed(null);
+                void askToRestore
+                  .mutateAsync({
+                    customerId,
+                    data: { revision: closeRevisionOf(day), why: why.trim() },
+                  })
+                  .then(() => {
+                    setAsking(false);
+                    return restores.refetch();
+                  })
+                  .catch((caught: ApiError) => {
+                    setFailed(caught?.message ?? "That could not be asked for.");
+                  });
+              }}
+            >
+              {askToRestore.isPending ? "Asking…" : "Ask for it"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
+}
+
+/** The version the day ended on, which is the figure every other screen reads that day by. */
+function closeRevisionOf(day: Day) {
+  const close = day.versions.find((one) => one.closedTheDay) ?? day.versions[day.versions.length - 1];
+  return close.revision;
 }
 
 /**
