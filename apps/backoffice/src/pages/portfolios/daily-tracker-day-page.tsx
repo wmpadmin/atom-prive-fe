@@ -1,0 +1,281 @@
+import { ApiError } from "@atomprive/api-client";
+import {
+  useGetClientValuations,
+  type ValuationHistory,
+} from "@atomprive/api-client/backoffice";
+import { Alert, cn } from "@atomprive/ui";
+import { ArrowLeft } from "lucide-react";
+import { Link, useParams } from "react-router";
+import { nameOf, useAssetClasses } from "./asset-classes";
+import { daysFrom, money, type Day } from "./daily-tracker-days";
+
+/**
+ * One day of a client's portfolio, in full.
+ *
+ * <p>A day of its own rather than a drawer under the row that names it. Opened in place, a single day took
+ * the height of six and buried the rest of the tracker under itself — and what it was showing was a table
+ * of its own squeezed into one cell of another, which is why its sub-assets were read as a grid of lists
+ * rather than the table they are.
+ *
+ * <p>It reads the same history the tracker reads and works the day out the same way, so the figure here
+ * and the figure on the row that led here cannot part.
+ */
+export function DailyTrackerDayPage() {
+  const { customerId = "", on = "" } = useParams();
+  const history = useGetClientValuations<ValuationHistory, ApiError>(customerId, { every: true });
+  const classes = useAssetClasses();
+
+  if (history.isError) {
+    return <Alert tone="danger">{history.error.message}</Alert>;
+  }
+
+  const currency = history.data?.currency ?? "";
+  const day = daysFrom(history.data?.points ?? []).find((one) => one.on === on) ?? null;
+  const codes = classes.inUse
+    .map((one) => one.code)
+    .filter((code) => day !== null && Object.keys(day.lines[code] ?? {}).length > 0);
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <Link
+          to={`/portfolio-clients/${customerId}`}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 underline-offset-2 hover:underline"
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          Back to the daily tracker
+        </Link>
+        <h1 className="mt-2 text-[1.625rem] font-bold">{on}</h1>
+        <p className="mt-1 text-sm text-ink-muted">
+          What this client's portfolio was worth on this day, what it took to get there, and what each
+          sub-asset held either side of it.
+        </p>
+      </div>
+
+      {history.isPending ? (
+        <section className="rounded-2xl border border-line bg-white px-6 py-10">
+          <p className="text-sm text-ink-muted">Reading the day…</p>
+        </section>
+      ) : day === null ? (
+        <section className="rounded-2xl border border-line bg-white px-6 py-10">
+          <p className="text-sm text-ink-muted">
+            Nothing was written down on {on}. A day exists here only where somebody wrote the holdings
+            down, so a day that is missing is a day nobody wrote anything — not a day nothing happened.
+          </p>
+        </section>
+      ) : (
+        <>
+          <section className="rounded-2xl border border-line bg-white px-6 py-5">
+            <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+              <div>
+                <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Net AUM</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{money(day.worth)}</p>
+              </div>
+              <div>
+                <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  Moved since the day before
+                </p>
+                <p className={cn("mt-1 text-2xl font-bold tabular-nums",
+                  day.moved === null ? "text-ink-muted"
+                    : day.moved > 0 ? "text-emerald-700"
+                      : day.moved < 0 ? "text-danger-700" : "text-ink-muted")}
+                >
+                  {day.moved === null
+                    ? "—"
+                    : `${day.moved > 0 ? "+" : day.moved < 0 ? "−" : ""}${money(Math.abs(day.moved))}`}
+                  {day.movedShare !== null && (
+                    <span className="ml-2 text-sm font-normal">
+                      {day.movedShare > 0 ? "+" : day.movedShare < 0 ? "−" : ""}
+                      {Math.abs(day.movedShare).toFixed(2)}%
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs text-ink-muted">
+              Figures in {currency}. What moved is the whole of the change, which includes anything paid in
+              or taken out that day — it is not what the money earned.
+            </p>
+          </section>
+
+          {day.versions.length > 1 && (
+            <section className="overflow-hidden rounded-2xl border border-line bg-white">
+              <h2 className="border-b border-line px-6 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                Written {day.versions.length} times on this day
+              </h2>
+              <div className="px-6 py-4">
+                <Changes day={day} currency={currency} />
+              </div>
+            </section>
+          )}
+
+          <section className="overflow-hidden rounded-2xl border border-line bg-white">
+            <h2 className="border-b border-line px-6 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              What each sub-asset held
+            </h2>
+            <Inside day={day} codes={codes} names={classes.names} currency={currency} />
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The changes a day was made of, oldest first, and what each one moved by.
+ *
+ * <p>A day used to keep one figure, so five decisions taken in it were kept as the last of them. Each
+ * writes its own now, and this is where they are read: what the portfolio stood at after each, and what
+ * that change moved it by — measured against the change before it, not against the day before.
+ *
+ * <p>The one the day ended on is marked, because that is the figure every other screen reads this day by.
+ */
+function Changes({ day, currency }: { day: Day; currency: string }) {
+  return (
+    <div>
+      {/* The heading is the section's, above. Said here too it was printed twice over. */}
+      <table className="w-full text-xs">
+        <tbody className="divide-y divide-line/60">
+          {day.versions.map((one, at) => {
+            const before = at === 0 ? null : day.versions[at - 1];
+            const moved = before === null ? null : one.underManagement - before.underManagement;
+            return (
+              <tr key={one.id}>
+                <td className="py-1.5 pr-4 whitespace-nowrap text-ink-muted">
+                  Change {one.revision}
+                  {one.closedTheDay && (
+                    <span className="ml-2 rounded-full bg-slate-200/70 px-2 py-0.5 text-2xs text-ink">
+                      the day closed here
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-1.5 text-right font-medium tabular-nums text-ink">
+                  {money(one.underManagement)}
+                </td>
+                <td className="py-1.5 pl-4 text-right whitespace-nowrap tabular-nums">
+                  {/* The first change of a day is measured against the day before, which the row above
+                      already says. Said again here it would read as a second movement. */}
+                  {moved === null ? (
+                    <span className="text-ink-muted">—</span>
+                  ) : (
+                    <span className={cn("font-medium",
+                      moved > 0 ? "text-emerald-700" : moved < 0 ? "text-red-600" : "text-ink-muted")}>
+                      {moved > 0 ? "+" : moved < 0 ? "−" : ""}{money(Math.abs(moved))}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="mt-2 text-2xs text-ink-muted">
+        Figures in {currency}. Each is measured against the change before it on this day.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * What a day was made of, line by line, and what each line did since the day before.
+ *
+ * <p>The class totals on the row above say equities went from one figure to another; this says which
+ * line inside it moved, which is the question that follows and the one the firm asked for — money goes
+ * into one thing and out of another, and a class total hides exactly that.
+ *
+ * <p>A line the day before did not have is new rather than up from nought, and one that has gone is
+ * said as gone. Both are movements; neither is a figure growing.
+ */
+/**
+ * What every sub-asset held on this day, beside what it held the day before.
+ *
+ * <p>A table, because that is what it is. Squeezed into one cell of the tracker it was drawn as a grid of
+ * lists, three columns of them, each with its own invented alignment — the same figures a table lines up
+ * for nothing. One row a line, one column a figure, and the class it belongs to carried down the side.
+ */
+function Inside({ day, codes, names, currency }: {
+  day: Day;
+  codes: string[];
+  names: Record<string, string>;
+  currency: string;
+}) {
+  const shown = codes.filter((code) => Object.keys(day.lines[code] ?? {}).length > 0);
+  if (shown.length === 0) {
+    return (
+      <p className="px-6 py-8 text-sm text-ink-muted">
+        This day was written before the platform kept what each line was worth, so there is nothing to
+        show. Days written from now on have it.
+      </p>
+    );
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <caption className="sr-only">
+          What each sub-asset held on {day.on}, in {currency}, beside the day before.
+        </caption>
+        <thead>
+          <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            <th scope="col" className="px-6 py-3">Asset class</th>
+            <th scope="col" className="px-6 py-3">Sub-asset</th>
+            <th scope="col" className="px-6 py-3 text-right whitespace-nowrap">The day before</th>
+            <th scope="col" className="px-6 py-3 text-right">Held</th>
+            <th scope="col" className="px-6 py-3 text-right">Moved</th>
+          </tr>
+        </thead>
+        {shown.map((code) => {
+          const now = day.lines[code] ?? {};
+          const was = day.linesBefore[code] ?? {};
+          // Every line either side of the day, so one that has gone is still named rather than simply
+          // absent — a line that disappears without a word reads as a line nobody wrote down.
+          const every = [...new Set([...Object.keys(now), ...Object.keys(was)])].sort();
+          const first = Object.keys(day.linesBefore).length === 0;
+          return (
+            <tbody key={code} className="divide-y divide-line border-b border-line last:border-0">
+              {every.map((line, at) => {
+                const held = now[line];
+                const before = was[line];
+                const moved = (held ?? 0) - (before ?? 0);
+                return (
+                  <tr key={line}>
+                    {/* Written once down the side rather than on every row: the class is what the rows
+                        under it have in common, and repeating it turns that into noise. */}
+                    {at === 0 ? (
+                      <th
+                        scope="rowgroup"
+                        rowSpan={every.length}
+                        className="px-6 py-3 text-left align-top text-2xs font-semibold tracking-wider text-ink-muted uppercase"
+                      >
+                        {nameOf(code, names)}
+                      </th>
+                    ) : null}
+                    <td className={cn("px-6 py-3",
+                      held === undefined ? "text-ink-muted line-through" : "text-ink")}
+                    >
+                      {line}
+                    </td>
+                    <td className="px-6 py-3 text-right tabular-nums text-ink-muted">
+                      {first ? "—" : before === undefined ? "not held" : money(before)}
+                    </td>
+                    <td className="px-6 py-3 text-right tabular-nums font-medium text-ink">
+                      {held === undefined ? "gone" : money(held)}
+                    </td>
+                    <td className={cn("px-6 py-3 text-right tabular-nums",
+                      moved > 0 ? "text-emerald-700" : moved < 0 ? "text-danger-700" : "text-ink-muted")}
+                    >
+                      {first
+                        ? "—"
+                        : moved === 0
+                          ? "no change"
+                          : `${moved > 0 ? "+" : "−"}${money(Math.abs(moved))}`}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          );
+        })}
+      </table>
+    </div>
+  );
+}
