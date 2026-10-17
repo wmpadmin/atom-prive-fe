@@ -528,6 +528,7 @@ export interface MovePlanRow {
   id: string;
   customerId: string;
   clientName: string;
+  clientCode: string;
   status: MovePlanRowStatus;
   statusSaid: string;
   why: string;
@@ -535,8 +536,11 @@ export interface MovePlanRow {
   amount: number;
   currency: string;
   underManagement: number;
+  raisedBy: string;
   raisedByName: string;
   raisedAt: string;
+  /** @nullable */
+  changedAt: string | null;
   /** @nullable */
   decidedByName: string | null;
   /** @nullable */
