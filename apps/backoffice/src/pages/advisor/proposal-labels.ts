@@ -3,9 +3,9 @@ import { formatDate } from "../../lib/labels";
 
 export const proposalStatusLabels: Record<ProposalRowStatus, string> = {
   DRAFT: "Draft",
-  PENDING_MANAGER_REVIEW: "Pending manager review",
+  PENDING_MANAGER_REVIEW: "Waiting for manager approval",
   RETURNED: "Sent back",
-  PENDING_REVIEW: "Pending client review",
+  PENDING_REVIEW: "Waiting for client approval",
   APPROVED: "Approved",
   REJECTED: "Rejected",
   EXPIRED: "Expired",
@@ -33,7 +33,9 @@ export function sentLabel(status: ProposalRowStatus, sentAt: string | null, subm
   if (sentAt) return formatDate(sentAt);
   if (status === "RETURNED") return "Came back from sign-off";
   if (status === "PENDING_MANAGER_REVIEW") {
-    return submittedAt ? `With the manager since ${formatDate(submittedAt)}` : "With the manager";
+    return submittedAt
+      ? `Waiting for manager approval since ${formatDate(submittedAt)}`
+      : "Waiting for manager approval";
   }
   return "Not sent yet";
 }

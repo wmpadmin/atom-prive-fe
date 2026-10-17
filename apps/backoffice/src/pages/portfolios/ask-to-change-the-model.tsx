@@ -96,7 +96,7 @@ export function AskToChangeTheModel({
             </div>
             <div className="flex items-center gap-2">
               <Badge tone="warning">{open.statusLabel}</Badge>
-              {/* Taken back by whoever asked, and by nobody else. */}
+              {/* Cancelled by whoever asked, and by nobody else. */}
               {open.raisedBy === user.id && (
                 <Button
                   variant="secondary"
@@ -104,7 +104,7 @@ export function AskToChangeTheModel({
                   disabled={takeBack.isPending}
                   onClick={() => takeBack.mutate({ id: open.id })}
                 >
-                  {takeBack.isPending ? "Taking it back…" : "Take it back"}
+                  {takeBack.isPending ? "Cancelling…" : "Cancel this request"}
                 </Button>
               )}
             </div>
