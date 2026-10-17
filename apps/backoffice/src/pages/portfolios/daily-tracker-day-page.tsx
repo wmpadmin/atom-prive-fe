@@ -73,7 +73,10 @@ export function DailyTrackerDayPage() {
           {/* Asking for the figures to be put back, from the screen where they are being read. Nothing is
               written by pressing it: whoever looks after the client answers, exactly as they answer a
               money move, because this replaces every figure rather than two of them. */}
-          {mayAsk && day !== null && (
+          {/* Only where there is something to put back. A version written before the platform kept what
+              each sub-asset held has a total and nothing under it, and the server refuses it — offered
+              anyway, the button was a way to be told no. */}
+          {mayAsk && day !== null && Object.keys(day.lines).length > 0 && (
             <Button
               variant="secondary"
               disabled={waiting !== null}
@@ -227,7 +230,10 @@ export function DailyTrackerDayPage() {
                     return restores.refetch();
                   })
                   .catch((caught: ApiError) => {
-                    setFailed(caught?.message ?? "That could not be asked for.");
+                    // The sentence the server wrote, not the envelope it came in. "Some fields need
+                    // attention" is true of every refusal and tells nobody which field or why.
+                    const said = caught?.problem?.errors ?? {};
+                    setFailed(said.revision ?? caught?.message ?? "That could not be asked for.");
                   });
               }}
             >
