@@ -2,6 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useListClientHoldings,
   useAskToMoveMoney,
+  useChangeTheMovePlan,
   useListClientMovePlans,
   useTakeBackTheMovePlan,
   type ClassPositions,
@@ -13,6 +14,7 @@ import {
 import { Alert, Badge, Button, Dialog, TextInput, cn } from "@atomprive/ui";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useRef, useState } from "react";
+import { useStaffUser } from "../../auth/session";
 import { asFigure } from "../../lib/figures";
 import { useAssetClasses } from "./asset-classes";
 import {
@@ -186,7 +188,7 @@ function typed(value: string | undefined) {
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
 function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, currency, readOnly,
-  claim, release, asksForNone, settledRight, onAsked, elsewhere }: {
+  claim, release, asksForNone, settledRight, onAsked, elsewhere, changing }: {
   customerId: string;
   assetClass: string;
   spare: number;
@@ -220,6 +222,15 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
    * against and this window only knows one class of it.
    */
   elsewhere: Elsewhere[];
+  /**
+   * The plan being changed, where somebody is editing one they already asked for rather than raising one.
+   *
+   * <p>Without this the only way to change one figure of four was to take the whole plan back and type the
+   * split again from nothing — the server has always accepted a change, and this window is where it is
+   * made. The boxes open on what was asked for, and every one of them counts as typed into, because a
+   * figure somebody already decided on is not a suggestion to be re-split under them.
+   */
+  changing: MovePlanRow | null;
 }) {
   const from = rows[0]?.subClass ?? UNGROUPED;
   // Emptied from the fullest first, so the smaller lines are left whole where the whole sum does not need
@@ -241,7 +252,10 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
    * lands in has a band of its own, and a sub-asset with room is no use inside a class that has none. So
    * it is asked first, before any figure is typed, rather than left to be discovered.
    */
-  const [goingTo, setGoingTo] = useState<string | null>(null);
+  const [goingTo, setGoingTo] = useState<string | null>(() => {
+    const landed = changing?.legs[0]?.toAssetClass;
+    return landed === undefined || landed === assetClass ? null : landed;
+  });
   const crossing = goingTo === null ? null : (elsewhere.find((one) => one.assetClass === goingTo) ?? null);
   const where = crossing === null ? places : crossing.places;
   // The rows as they stood when this list was chosen, kept for as long as it is — the same rows, in the
@@ -266,7 +280,14 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // What the window opens on, before anything has been moved out of it.
   const plainly = suggest(mostToMove, inOrder);
   const [moves, setMoves] = useState<Record<string, string>>(() => Object.fromEntries(
-    inOrder.map((place) => [place.name, String(plainly[place.name])]),
+    inOrder.map((place) => {
+      if (changing === null) return [place.name, String(plainly[place.name])];
+      // Added up rather than found: two legs may land in one sub-asset, and the box that shows them is one.
+      const asked = changing.legs
+        .filter((leg) => (leg.toSubClass ?? UNGROUPED) === place.name)
+        .reduce((sum, leg) => sum + leg.amount, 0);
+      return [place.name, String(asked)];
+    }),
   ));
   /**
    * The rows somebody has typed into, which are theirs and are left alone.
@@ -277,7 +298,9 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
    * typed into are not touched: a figure somebody put there is their plan for it, and a fresh split would
    * write over the very thing they just said.
    */
-  const [typedIn, setTypedIn] = useState<Set<string>>(() => new Set());
+  const [typedIn, setTypedIn] = useState<Set<string>>(
+    () => new Set(changing?.legs.map((leg) => leg.toSubClass ?? UNGROUPED) ?? []),
+  );
   const [failed, setFailed] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
   // What the last click did, and the fact that it was a click rather than typing. A move used to leave
@@ -286,7 +309,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // What is read off it now is which row to leave out of the next split, so that one button does not come
   // back under the hand that just pressed it.
   /** Why it should move, which is what whoever answers is really being asked about. */
-  const [why, setWhy] = useState("");
+  const [why, setWhy] = useState(changing?.why ?? "");
 
   // The split as it opens. Nothing is written from this window now, so there is no "after a move" for it
   // to be re-worked against: the figures behind it stand until somebody answers, and the only thing that
@@ -297,6 +320,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   );
 
   const askToMove = useAskToMoveMoney<ApiError>();
+  const changeIt = useChangeTheMovePlan<ApiError>();
   const placed = inOrder.reduce((sum, place) => sum + typed(moves[place.name]), 0);
   const left = spare - placed;
   // What this class could take in all, however it is split up, and so what genuinely cannot stay in it.
@@ -416,7 +440,14 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
     setFailed(null);
     setMoving("asking");
     try {
-      await askToMove.mutateAsync({ customerId, data: { legs, why: why.trim() } });
+      if (changing === null) {
+        await askToMove.mutateAsync({ customerId, data: { legs, why: why.trim() } });
+      }
+      else {
+        // The legs are replaced whole, which is what the window has anyway: every box on it, including the
+        // ones left at nought, is the plan as it now stands rather than a correction to be merged.
+        await changeIt.mutateAsync({ id: changing.id, data: { legs, why: why.trim() } });
+      }
       await onAsked();
     } catch (caught) {
       setFailed((caught as ApiError)?.message ?? "That could not be asked for. Nothing has moved.");
@@ -650,7 +681,9 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                   disabled={placed <= 0 || moving !== null}
                   onClick={() => void ask()}
                 >
-                  {moving === "asking" ? "Asking…" : `Ask to move ${exactly(placed, currency)}`}
+                  {moving === "asking"
+                    ? (changing === null ? "Asking…" : "Saving the change…")
+                    : `${changing === null ? "Ask to move" : "Change it to"} ${exactly(placed, currency)}`}
                 </Button>
               </div>
             </div>
@@ -727,7 +760,9 @@ export function ClientHoldingsPanel({
    * fresh rows out of what the API answers, and the one this was pointing at is gone by then. Named, it
    * finds the new row each render and the dialog keeps up with what it has just done.
    */
-  const [planning, setPlanning] = useState<{ assetClass: string; subClass: string | null } | null>(null);
+  const [planning, setPlanning] = useState<
+    { assetClass: string; subClass: string | null; changing: MovePlanRow | null } | null
+  >(null);
   const claimTheMove = () => {
     if (moveUnderway.current) return false;
     moveUnderway.current = true;
@@ -746,7 +781,20 @@ export function ClientHoldingsPanel({
   // down rather than what has been asked for.
   const waiting = useListClientMovePlans<MovePlanRow[], ApiError>(customerId);
   const open = (waiting.data ?? []).find((plan) => plan.status === "PENDING") ?? null;
+  // The last one somebody actually answered. The bell that tells whoever asked that their move was turned
+  // down links to this page — and this page used to say nothing at all about it, because the banner above
+  // reads only the plan that is still waiting. They arrived at a screen identical to the one before they
+  // ever asked, with the reason sitting in a notification they had already clicked away from.
+  const answered = (waiting.data ?? [])
+    .find((plan) => plan.status === "APPROVED" || plan.status === "REJECTED") ?? null;
   const takeBack = useTakeBackTheMovePlan<ApiError>();
+  const user = useStaffUser();
+  // Whether the person reading this is the person who asked. The row carries the raiser's id for exactly
+  // this: a name cannot answer it, because two members of staff can share one. Without it the screen put
+  // Take it back on everybody's plan and the server refused the press — silently, since nothing read the
+  // error.
+  const theirs = open !== null && open.raisedBy === user.id;
+  const [planFailed, setPlanFailed] = useState<string | null>(null);
 
   // A client with nothing written down yet is an ordinary state, not a failure. Shown as one, it put a
   // red banner across the portfolio page of every client whose holdings nobody had typed in.
@@ -794,6 +842,14 @@ export function ClientHoldingsPanel({
       else next.add(key);
       return next;
     });
+  // Whether the window that changes a plan has anything left to open on. It is built around the sub-asset
+  // the money leaves, and a plan outlives the figures it was raised against — if that line has since gone
+  // from the screen there is nothing to show, and a button that does nothing when pressed is worse than
+  // one that says it cannot.
+  const leaves = open?.legs[0];
+  const canChange = leaves !== undefined
+    && classes.some((one) => one.assetClass === leaves.fromAssetClass
+      && one.subClasses.some((each) => each.subClass === leaves.fromSubClass));
 
   return (
     <section className="space-y-3">
@@ -822,20 +878,81 @@ export function ClientHoldingsPanel({
                 Nothing has moved. The figures below are what is written down.
               </p>
             </div>
-            {/* Taken back, not undone: nothing was written, so there is nothing to put back. */}
-            {!readOnly && (
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={takeBack.isPending}
-                onClick={() => {
-                  void takeBack.mutateAsync({ id: open.id }).then(() => waiting.refetch());
-                }}
-              >
-                {takeBack.isPending ? "Taking it back…" : "Take it back"}
-              </Button>
+            {/* Only to whoever asked. The server has always held both of these to the raiser, and the
+                screen used to offer them to everybody and let the refusal come back — invisibly, because
+                nothing read it. */}
+            {!readOnly && theirs && (
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {/* Changed rather than taken back and asked again. Somebody who split money across four
+                    sub-assets and wants one of them different was retyping the other three from memory;
+                    the window opens on what they asked for, and they change the one. */}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={takeBack.isPending || !canChange}
+                  onClick={() => {
+                    setPlanFailed(null);
+                    const from = open.legs[0];
+                    if (from === undefined) return;
+                    setPlanning({
+                      assetClass: from.fromAssetClass,
+                      subClass: from.fromSubClass,
+                      changing: open,
+                    });
+                  }}
+                >
+                  Change it
+                </Button>
+                {/* Taken back, not undone: nothing was written, so there is nothing to put back. */}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={takeBack.isPending}
+                  onClick={() => {
+                    setPlanFailed(null);
+                    void takeBack
+                      .mutateAsync({ id: open.id })
+                      .then(() => waiting.refetch())
+                      .catch((caught: ApiError) => {
+                        setPlanFailed(caught?.message ?? "That could not be taken back.");
+                      });
+                  }}
+                >
+                  {takeBack.isPending ? "Taking it back…" : "Take it back"}
+                </Button>
+              </div>
             )}
           </div>
+          {planFailed && <p className="mt-2 text-sm font-medium text-danger-700">{planFailed}</p>}
+        </Alert>
+      )}
+
+      {/* What was last decided, where nothing is waiting. Only one of the two is ever on the screen: while
+          a plan waits, what it is asking for is the thing worth reading, and the answer before it is
+          history. */}
+      {open === null && answered && (
+        <Alert tone={answered.status === "APPROVED" ? "success" : "warning"}>
+          <p className="font-semibold">
+            {exactly(answered.amount, currency)} out of {answered.legs[0]?.fromSubClass ?? UNGROUPED}
+            {" was "}
+            {answered.status === "APPROVED" ? "approved" : "turned down"}
+            {answered.decidedByName && ` by ${answered.decidedByName}`}.
+          </p>
+          <p className="mt-1 text-sm">
+            {answered.raisedByName} asked for it: {answered.why}
+          </p>
+          {/* The reason it was refused, which is the whole of what the answerer was asked to give and the
+              only part of this a person can act on. */}
+          {answered.decisionNote && (
+            <p className="mt-1 text-sm font-medium">
+              {answered.status === "APPROVED" ? "They added" : "They said"}: {answered.decisionNote}
+            </p>
+          )}
+          <p className="mt-1 text-sm">
+            {answered.status === "APPROVED"
+              ? "The figures below are what it left behind."
+              : "Nothing moved. The figures below stand as they were, and this client can be asked about again."}
+          </p>
         </Alert>
       )}
 
@@ -1076,6 +1193,7 @@ export function ClientHoldingsPanel({
                         // the question this opens.
                         const toShed = overIts(group, one.targetShare ?? 0, band, whole);
                         const openThePlan = () => setPlanning({
+                          changing: null,
                           assetClass: one.assetClass,
                           subClass: group.subClass,
                         });
@@ -1211,11 +1329,13 @@ export function ClientHoldingsPanel({
           <Dialog
             open
             size="2xl"
-            title={toShed >= 1
-              ? `Where ${exactly(toShed, currency)} out of ${group.subClass ?? UNGROUPED} can go`
-              : right
-                ? `${group.subClass ?? UNGROUPED} is inside its range`
-                : `${group.subClass ?? UNGROUPED} is short of its range`}
+            title={planning.changing !== null
+              ? `Change what is asked for out of ${group.subClass ?? UNGROUPED}`
+              : toShed >= 1
+                ? `Where ${exactly(toShed, currency)} out of ${group.subClass ?? UNGROUPED} can go`
+                : right
+                  ? `${group.subClass ?? UNGROUPED} is inside its range`
+                  : `${group.subClass ?? UNGROUPED} is short of its range`}
             onClose={() => setPlanning(null)}
           >
             <MoveOutPlan
@@ -1243,6 +1363,7 @@ export function ClientHoldingsPanel({
               claim={claimTheMove}
               release={releaseTheMove}
               asksForNone={group.targetShare === 0}
+              changing={planning.changing}
               onAsked={async () => {
                 setPlanning(null);
                 await waiting.refetch();
