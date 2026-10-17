@@ -26,10 +26,10 @@ type Tab = "all" | "draft" | "manager" | "returned" | "client" | "expiringSoon" 
 const TABS: { id: Tab; label: string; status?: ListProposalsStatus; expiringSoon?: boolean }[] = [
   { id: "all", label: "All" },
   { id: "draft", label: "Drafts", status: "DRAFT" },
-  { id: "manager", label: "With the manager", status: "PENDING_MANAGER_REVIEW" },
+  { id: "manager", label: "Waiting for manager approval", status: "PENDING_MANAGER_REVIEW" },
   // Its own tab, not a draft: somebody has to act on what the manager wrote on it.
   { id: "returned", label: "Sent back", status: "RETURNED" },
-  { id: "client", label: "With the client", status: "PENDING_REVIEW" },
+  { id: "client", label: "Waiting for client approval", status: "PENDING_REVIEW" },
   { id: "expiringSoon", label: "Expiring soon", expiringSoon: true },
   { id: "approved", label: "Approved", status: "APPROVED" },
   { id: "rejected", label: "Rejected", status: "REJECTED" },

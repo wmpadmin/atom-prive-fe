@@ -281,7 +281,7 @@ export function PortfolioManagerDashboard() {
               failed={proposals.isError}
             />
             <Sent
-              label="Accepted in the last week"
+              label="Approved in the last week"
               value={counts?.approvedLately}
               to="/proposals?tab=approved"
               failed={proposals.isError}

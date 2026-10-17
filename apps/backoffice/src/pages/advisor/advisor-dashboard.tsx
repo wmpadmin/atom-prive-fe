@@ -42,7 +42,7 @@ export function AdvisorDashboard() {
           failed={clients.isError}
           to="/my-clients"
         />
-        <Tile label="With the client" value={counts?.awaitingClient} failed={proposals.isError} to="/proposals" />
+        <Tile label="Waiting for client approval" value={counts?.awaitingClient} failed={proposals.isError} to="/proposals" />
         {/* The two that are somebody waiting on you, so they stand out when there are any. */}
         <Tile
           label="Running out"
@@ -62,7 +62,7 @@ export function AdvisorDashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Tile label="Drafts" value={counts?.draft} failed={proposals.isError} to="/proposals" />
-        <Tile label="With the manager" value={counts?.awaitingManager} failed={proposals.isError} to="/proposals" />
+        <Tile label="Waiting for manager approval" value={counts?.awaitingManager} failed={proposals.isError} to="/proposals" />
         <Tile label="Approved" value={counts?.approved} failed={proposals.isError} to="/proposals" />
         <Tile label="Rejected" value={counts?.rejected} failed={proposals.isError} to="/proposals" />
       </div>
