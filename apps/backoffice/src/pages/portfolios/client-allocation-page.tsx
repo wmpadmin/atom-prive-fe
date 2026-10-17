@@ -5,10 +5,7 @@ import {
   getListClientHoldingsQueryKey,
   useListClientHoldings,
   useListCurrencies,
-  useChangeClientHolding,
-  useRecordClientHolding,
-  useRemoveClientHolding,
-  useSetClientHoldings,
+  useWriteClientAllocation,
   type ClientHoldings,
   type Currency,
   useListClientLoans,
@@ -84,10 +81,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
   const loan = typedLoan ?? (onFile.length === 0 ? "" : String(Math.abs(owed.data?.total ?? 0)));
   const holdings = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
-  const write = useRecordClientHolding<ApiError>();
-  const change = useChangeClientHolding<ApiError>();
-  const forget = useRemoveClientHolding<ApiError>();
-  const setHoldings = useSetClientHoldings<ApiError>();
+  const writeAllocation = useWriteClientAllocation<ApiError>();
 
   // Seeded once from the firm's list, which may not have arrived on the first render — so it is rebuilt
   // when it does, and anything typed by then is kept over the top of it.
@@ -124,12 +118,6 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
     return made;
   }, [assetClasses.inUse, subAssets.byClass, holdings.data]);
   const lines: Record<string, Line[]> = { ...blank, ...typed };
-  // What each written line was when it was read, so a save can leave alone the ones nobody touched.
-  // Pressing Write it down on a portfolio of two dozen lines was two dozen calls, every one of them
-  // sending a figure back exactly as it came.
-  const asRead = new Map(Object.values(blank).flat()
-    .filter((line) => line.id !== null)
-    .map((line) => [line.id, line]));
   const codes = assetClasses.inUse.map((one) => one.code);
 
   function put(assetClass: string, rows: Line[]) {
@@ -203,49 +191,30 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
     setBusy(true);
     try {
       await saveTheLoan();
-      for (const assetClass of codes) {
-        for (const line of lines[assetClass] ?? []) {
-          const holds = isNumber(line.amount) && Number(line.amount) > 0;
-          if (!holds) {
-            if (line.id !== null) {
-              await forget.mutateAsync({ customerId, id: line.id });
-            }
-            continue;
-          }
-          const data = {
-            assetClass,
-            subClass: line.name.trim(),
-            name: line.name.trim(),
-            identifier: null, issuer: null, countryCode: null, creditRating: null, sector: null,
-            yieldPercent: null, durationYears: null,
-            valueAmount: Number(line.amount),
-            watchPp: null, edgePp: null, breachPp: null,
-          };
-          if (line.id !== null) {
-            const was = asRead.get(line.id);
-            if (was?.amount === line.amount && was.name === line.name) {
-              continue;
-            }
-            await change.mutateAsync({ customerId, id: line.id, data });
-          }
-          else {
-            await write.mutateAsync({ customerId, data });
-          }
-        }
-      }
-      // And then the figure they all come to, kept as the portfolio's own. Every class's total is sent
-      // back exactly as its lines come to, because the API refuses to be told a different total for a
-      // class written down line by line — which is the whole of what was just written.
-      const perClass: Record<string, number> = {};
-      for (const assetClass of codes) {
-        const inClass = adds(lines[assetClass] ?? []);
-        if (inClass > 0) {
-          perClass[assetClass] = inClass;
-        }
-      }
-      await setHoldings.mutateAsync({
+      // One call for the whole screen. This was a write per line and then one more for the totals, so
+      // writing a portfolio of two dozen lines down was two dozen calls — and, now that each change to a
+      // portfolio is kept, two dozen changes to it where somebody had made one.
+      //
+      // Every line is sent, not only the ones that moved: a line this screen no longer names is one the
+      // client no longer holds, and that is how it comes off. The API leaves alone any line whose name
+      // and figure have not moved, so what is not on this screen — a line's own tolerance above all —
+      // survives a save that was not about it.
+      await writeAllocation.mutateAsync({
         customerId,
-        data: { holdings: perClass, currency: currency || null, netAum: whole },
+        data: {
+          classes: codes.map((assetClass) => ({
+            assetClass,
+            lines: (lines[assetClass] ?? [])
+              .filter((line) => isNumber(line.amount) && Number(line.amount) > 0)
+              .map((line) => ({
+                id: line.id,
+                name: line.name.trim(),
+                valueAmount: Number(line.amount),
+              })),
+          })),
+          currency: currency || null,
+          netAum: whole,
+        },
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),

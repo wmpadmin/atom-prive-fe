@@ -3541,6 +3541,42 @@ export interface CashflowRow {
   recordedAt: string;
 }
 
+export interface AllocationLine {
+  /** @nullable */
+  id: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  name: string;
+  /** @minimum 0 */
+  valueAmount: number;
+}
+
+export interface AllocationClass {
+  assetClass: string;
+  lines: AllocationLine[];
+}
+
+export interface AllocationRequest {
+  /**
+     * @minItems 1
+     * @maxItems 2147483647
+     */
+  classes: AllocationClass[];
+  /**
+     * @minLength 3
+     * @maxLength 3
+     * @nullable
+     */
+  currency: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  netAum: number | null;
+}
+
 export interface BenchmarkRequest {
   /**
      * @minLength 0
@@ -15638,6 +15674,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordClientCashflowMutationOptions(options), queryClient);
+    }
+
+export const getWriteClientAllocationUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/allocation`
+}
+
+export const writeClientAllocation = async (customerId: string,
+    allocationRequest: AllocationRequest, options?: Parameters<typeof http>[1]): Promise<ClientHoldings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ClientHoldings>(getWriteClientAllocationUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(allocationRequest)
+  }
+);}
+
+
+
+
+
+export const getWriteClientAllocationMutationKey = () => ['writeClientAllocation'] as const;
+
+export const getWriteClientAllocationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeClientAllocation>>, TError,WriteClientAllocationMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof writeClientAllocation>>, TError,WriteClientAllocationMutationVariables, TContext> => {
+
+const mutationKey = getWriteClientAllocationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof writeClientAllocation>>, WriteClientAllocationMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  writeClientAllocation(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WriteClientAllocationMutationResult = NonNullable<Awaited<ReturnType<typeof writeClientAllocation>>>
+    export type WriteClientAllocationMutationBody = AllocationRequest
+    export type WriteClientAllocationMutationError = unknown
+    export type WriteClientAllocationMutationVariables = {customerId: string;data: AllocationRequest}
+
+    export const useWriteClientAllocation = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeClientAllocation>>, TError,WriteClientAllocationMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof writeClientAllocation>>,
+        TError,
+        WriteClientAllocationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWriteClientAllocationMutationOptions(options), queryClient);
     }
 
 export const getListBenchmarksUrl = () => {
