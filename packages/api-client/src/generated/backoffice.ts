@@ -380,6 +380,56 @@ export interface SettingsView {
   updatedBy: string | null;
 }
 
+export interface RestoreAsked {
+  revision: number;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  why: string;
+}
+
+export type RestoreRowStatus = typeof RestoreRowStatus[keyof typeof RestoreRowStatus];
+
+
+export const RestoreRowStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  WITHDRAWN: 'WITHDRAWN',
+} as const;
+
+export interface RestoreRow {
+  id: string;
+  customerId: string;
+  clientName: string;
+  clientCode: string;
+  status: RestoreRowStatus;
+  statusSaid: string;
+  restoreTo: string;
+  fromRevision: number;
+  why: string;
+  worthThen: number;
+  worthNow: number;
+  linesThen: number;
+  currency: string;
+  raisedBy: string;
+  raisedByName: string;
+  raisedAt: string;
+  /** @nullable */
+  changedAt: string | null;
+  /** @nullable */
+  decidedByName: string | null;
+  /** @nullable */
+  decidedAt: string | null;
+  /** @nullable */
+  decisionNote: string | null;
+  /** @nullable */
+  appliedRevision: number | null;
+  mayAnswer: boolean;
+  nobodyCloserCanAnswer: boolean;
+}
+
 export type ScheduleRowKind = typeof ScheduleRowKind[keyof typeof ScheduleRowKind];
 
 
@@ -3185,6 +3235,16 @@ export interface NoticeSent {
   notice: NoticeRow;
 }
 
+export interface MovePlanDecision {
+  approved: boolean;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  note: string | null;
+}
+
 export type ReportRequestKind = typeof ReportRequestKind[keyof typeof ReportRequestKind];
 
 
@@ -3331,16 +3391,6 @@ export interface ScheduleRequest {
   sendTo: ScheduleRequestSendTo;
   /** @nullable */
   format: ScheduleRequestFormat;
-}
-
-export interface MovePlanDecision {
-  approved: boolean;
-  /**
-     * @minLength 0
-     * @maxLength 2000
-     * @nullable
-     */
-  note: string | null;
 }
 
 export interface BulkRebalancedRequest {
@@ -4846,6 +4896,14 @@ export interface ValuationHistory {
   change: number | null;
   /** @nullable */
   changeShare: number | null;
+}
+
+export interface RestorableDay {
+  on: string;
+  revision: number;
+  closedTheDay: boolean;
+  worth: number;
+  lines: number;
 }
 
 export interface ClientNonFinancialAssets {
@@ -7001,6 +7059,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getChangePortfolioSettingsMutationOptions(options), queryClient);
+    }
+
+export const getChangeTheRestoreUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/restores/${id}`
+}
+
+export const changeTheRestore = async (id: string,
+    restoreAsked: RestoreAsked, options?: Parameters<typeof http>[1]): Promise<RestoreRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<RestoreRow>(getChangeTheRestoreUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(restoreAsked)
+  }
+);}
+
+
+
+
+
+export const getChangeTheRestoreMutationKey = () => ['changeTheRestore'] as const;
+
+export const getChangeTheRestoreMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeTheRestore>>, TError,ChangeTheRestoreMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeTheRestore>>, TError,ChangeTheRestoreMutationVariables, TContext> => {
+
+const mutationKey = getChangeTheRestoreMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeTheRestore>>, ChangeTheRestoreMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  changeTheRestore(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeTheRestoreMutationResult = NonNullable<Awaited<ReturnType<typeof changeTheRestore>>>
+    export type ChangeTheRestoreMutationBody = RestoreAsked
+    export type ChangeTheRestoreMutationError = unknown
+    export type ChangeTheRestoreMutationVariables = {id: string;data: RestoreAsked}
+
+    export const useChangeTheRestore = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeTheRestore>>, TError,ChangeTheRestoreMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeTheRestore>>,
+        TError,
+        ChangeTheRestoreMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeTheRestoreMutationOptions(options), queryClient);
     }
 
 export const getSwitchReportScheduleUrl = (id: string,
@@ -13958,6 +14099,157 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getMarkPostOnboardingNoticeSentMutationOptions(options), queryClient);
     }
 
+export const getCancelTheRestoreUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/restores/${id}/withdrawal`
+}
+
+export const cancelTheRestore = async (id: string, options?: Parameters<typeof http>[1]): Promise<RestoreRow> => {
+
+  return http<RestoreRow>(getCancelTheRestoreUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelTheRestoreMutationKey = () => ['cancelTheRestore'] as const;
+
+export const getCancelTheRestoreMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelTheRestore>>, TError,CancelTheRestoreMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelTheRestore>>, TError,CancelTheRestoreMutationVariables, TContext> => {
+
+const mutationKey = getCancelTheRestoreMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelTheRestore>>, CancelTheRestoreMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  cancelTheRestore(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelTheRestoreMutationResult = NonNullable<Awaited<ReturnType<typeof cancelTheRestore>>>
+
+    export type CancelTheRestoreMutationError = unknown
+    export type CancelTheRestoreMutationVariables = {id: string}
+
+    export const useCancelTheRestore = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelTheRestore>>, TError,CancelTheRestoreMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancelTheRestore>>,
+        TError,
+        CancelTheRestoreMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelTheRestoreMutationOptions(options), queryClient);
+    }
+
+export const getAnswerTheRestoreUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/restores/${id}/answer`
+}
+
+export const answerTheRestore = async (id: string,
+    movePlanDecision: MovePlanDecision, options?: Parameters<typeof http>[1]): Promise<RestoreRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<RestoreRow>(getAnswerTheRestoreUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(movePlanDecision)
+  }
+);}
+
+
+
+
+
+export const getAnswerTheRestoreMutationKey = () => ['answerTheRestore'] as const;
+
+export const getAnswerTheRestoreMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerTheRestore>>, TError,AnswerTheRestoreMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerTheRestore>>, TError,AnswerTheRestoreMutationVariables, TContext> => {
+
+const mutationKey = getAnswerTheRestoreMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerTheRestore>>, AnswerTheRestoreMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  answerTheRestore(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerTheRestoreMutationResult = NonNullable<Awaited<ReturnType<typeof answerTheRestore>>>
+    export type AnswerTheRestoreMutationBody = MovePlanDecision
+    export type AnswerTheRestoreMutationError = unknown
+    export type AnswerTheRestoreMutationVariables = {id: string;data: MovePlanDecision}
+
+    export const useAnswerTheRestore = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerTheRestore>>, TError,AnswerTheRestoreMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answerTheRestore>>,
+        TError,
+        AnswerTheRestoreMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerTheRestoreMutationOptions(options), queryClient);
+    }
+
 export const getListReportsUrl = () => {
 
 
@@ -15222,6 +15514,184 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordReviewMutationOptions(options), queryClient);
+    }
+
+export const getListClientRestoresUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/restores`
+}
+
+export const listClientRestores = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<RestoreRow[]> => {
+
+  return http<RestoreRow[]>(getListClientRestoresUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientRestoresQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/restores`
+    ] as const;
+    }
+
+
+export const getListClientRestoresQueryOptions = <TData = Awaited<ReturnType<typeof listClientRestores>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientRestores>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientRestoresQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientRestores>>> = ({ signal }) => listClientRestores(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientRestores>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListClientRestoresQueryResult = NonNullable<Awaited<ReturnType<typeof listClientRestores>>>
+export type ListClientRestoresQueryError = unknown
+
+
+export function useListClientRestores<TData = Awaited<ReturnType<typeof listClientRestores>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientRestores>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientRestores>>,
+          TError,
+          Awaited<ReturnType<typeof listClientRestores>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientRestores<TData = Awaited<ReturnType<typeof listClientRestores>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientRestores>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientRestores>>,
+          TError,
+          Awaited<ReturnType<typeof listClientRestores>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientRestores<TData = Awaited<ReturnType<typeof listClientRestores>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientRestores>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListClientRestores<TData = Awaited<ReturnType<typeof listClientRestores>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientRestores>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListClientRestoresQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAskToRestoreUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/restores`
+}
+
+export const askToRestore = async (customerId: string,
+    restoreAsked: RestoreAsked, options?: Parameters<typeof http>[1]): Promise<RestoreRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<RestoreRow>(getAskToRestoreUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(restoreAsked)
+  }
+);}
+
+
+
+
+
+export const getAskToRestoreMutationKey = () => ['askToRestore'] as const;
+
+export const getAskToRestoreMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToRestore>>, TError,AskToRestoreMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askToRestore>>, TError,AskToRestoreMutationVariables, TContext> => {
+
+const mutationKey = getAskToRestoreMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askToRestore>>, AskToRestoreMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  askToRestore(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskToRestoreMutationResult = NonNullable<Awaited<ReturnType<typeof askToRestore>>>
+    export type AskToRestoreMutationBody = RestoreAsked
+    export type AskToRestoreMutationError = unknown
+    export type AskToRestoreMutationVariables = {customerId: string;data: RestoreAsked}
+
+    export const useAskToRestore = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToRestore>>, TError,AskToRestoreMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askToRestore>>,
+        TError,
+        AskToRestoreMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskToRestoreMutationOptions(options), queryClient);
     }
 
 export const getRecordRebalanceUrl = (customerId: string,) => {
@@ -23079,6 +23549,101 @@ export function useListReviewsDue<TData = Awaited<ReturnType<typeof listReviewsD
 
 
 
+export const getListRestoresUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/restores`
+}
+
+export const listRestores = async ( options?: Parameters<typeof http>[1]): Promise<RestoreRow[]> => {
+
+  return http<RestoreRow[]>(getListRestoresUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRestoresQueryKey = () => {
+    return [
+    `/api/backoffice/portfolios/restores`
+    ] as const;
+    }
+
+
+export const getListRestoresQueryOptions = <TData = Awaited<ReturnType<typeof listRestores>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRestores>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRestoresQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRestores>>> = ({ signal }) => listRestores({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRestores>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListRestoresQueryResult = NonNullable<Awaited<ReturnType<typeof listRestores>>>
+export type ListRestoresQueryError = unknown
+
+
+export function useListRestores<TData = Awaited<ReturnType<typeof listRestores>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRestores>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRestores>>,
+          TError,
+          Awaited<ReturnType<typeof listRestores>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRestores<TData = Awaited<ReturnType<typeof listRestores>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRestores>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRestores>>,
+          TError,
+          Awaited<ReturnType<typeof listRestores>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRestores<TData = Awaited<ReturnType<typeof listRestores>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRestores>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListRestores<TData = Awaited<ReturnType<typeof listRestores>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRestores>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListRestoresQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getDownloadReportUrl = (id: string,) => {
 
 
@@ -24060,6 +24625,101 @@ export function useGetClientValuations<TData = Awaited<ReturnType<typeof getClie
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientValuationsQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListRestorableDaysUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/restorable-days`
+}
+
+export const listRestorableDays = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<RestorableDay[]> => {
+
+  return http<RestorableDay[]>(getListRestorableDaysUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRestorableDaysQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/restorable-days`
+    ] as const;
+    }
+
+
+export const getListRestorableDaysQueryOptions = <TData = Awaited<ReturnType<typeof listRestorableDays>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRestorableDays>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRestorableDaysQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRestorableDays>>> = ({ signal }) => listRestorableDays(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRestorableDays>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListRestorableDaysQueryResult = NonNullable<Awaited<ReturnType<typeof listRestorableDays>>>
+export type ListRestorableDaysQueryError = unknown
+
+
+export function useListRestorableDays<TData = Awaited<ReturnType<typeof listRestorableDays>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRestorableDays>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRestorableDays>>,
+          TError,
+          Awaited<ReturnType<typeof listRestorableDays>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRestorableDays<TData = Awaited<ReturnType<typeof listRestorableDays>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRestorableDays>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRestorableDays>>,
+          TError,
+          Awaited<ReturnType<typeof listRestorableDays>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRestorableDays<TData = Awaited<ReturnType<typeof listRestorableDays>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRestorableDays>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListRestorableDays<TData = Awaited<ReturnType<typeof listRestorableDays>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRestorableDays>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListRestorableDaysQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

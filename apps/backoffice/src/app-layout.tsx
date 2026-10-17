@@ -6,6 +6,7 @@ import { NotificationBell } from "./components/notification-bell";
 import {
   FileCheck2,
   ArrowLeftRight,
+  RotateCcw,
   ChevronDown,
   ClipboardCheck,
   Clock,
@@ -200,6 +201,14 @@ const allNavigation: {
     to: "/moves-to-approve",
     label: "Moves to approve",
     icon: ArrowLeftRight,
+    authority: ANSWERS_MOVE_PLANS,
+  },
+  {
+    // Asking for a client's figures to be put back to a version they stood at. The same people answer it
+    // as answer a money move, because it is the same act carried further.
+    to: "/restores-to-approve",
+    label: "Restores to approve",
+    icon: RotateCcw,
     authority: ANSWERS_MOVE_PLANS,
   },
   {
