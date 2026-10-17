@@ -197,8 +197,8 @@ const allNavigation: {
     //
     // No onlyFor. The authority already names exactly the people who may answer, and a list of role names
     // beside it would quietly leave out whoever the firm grants it to next.
-    to: "/money-moves",
-    label: "Money moves",
+    to: "/moves-to-approve",
+    label: "Moves to approve",
     icon: ArrowLeftRight,
     authority: ANSWERS_MOVE_PLANS,
   },

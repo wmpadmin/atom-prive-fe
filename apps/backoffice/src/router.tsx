@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { Navigate, createBrowserRouter } from "react-router";
 import { AppLayout } from "./app-layout";
 import { RequireAuthority, RequireSignIn } from "./auth/guards";
 import { MyClientsPage } from "./pages/advisor/my-clients-page";
@@ -66,7 +66,7 @@ import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-pag
 import { ModelPerformancePage } from "./pages/portfolios/model-performance-page";
 import { BulkRebalancingPage } from "./pages/portfolios/bulk-rebalancing-page";
 import { ModelChangesPage } from "./pages/portfolios/model-changes-page";
-import { MoneyMovesPage } from "./pages/portfolios/money-moves-page";
+import { MovesToApprovePage } from "./pages/portfolios/moves-to-approve-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
 import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
@@ -227,7 +227,13 @@ export const router = createBrowserRouter([
             // Answering a plan to move money is its own permission, narrower than reading a portfolio:
             // whoever may read every client's figures is not thereby somebody who may move their money.
             element: <RequireAuthority authority={ANSWERS_MOVE_PLANS} />,
-            children: [{ path: "money-moves", element: <MoneyMovesPage /> }],
+            children: [
+              { path: "moves-to-approve", element: <MovesToApprovePage /> },
+              // Where the screen used to live. Every bell sent before it was renamed carries this path,
+              // and those notices are rows in a database rather than links that can be rewritten — so the
+              // old address has to keep arriving somewhere rather than at a page that is not there.
+              { path: "money-moves", element: <Navigate to="/moves-to-approve" replace /> },
+            ],
           },
           {
             // Giving a sign-off is its own permission: whoever passes a proposal need not write any.
