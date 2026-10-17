@@ -2,6 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useAnswerTheRestore,
   useListRestores,
+  type RestoreQueue,
   type RestoreRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Dialog, Field, TextArea } from "@atomprive/ui";
@@ -23,7 +24,7 @@ function exactly(amount: number, currency: string) {
  * this is read by the difference between what the client comes to now and what they came to then.
  */
 export function RestoresToApprovePage() {
-  const queue = useListRestores<RestoreRow[], ApiError>({ query: { refetchOnWindowFocus: true } });
+  const queue = useListRestores<RestoreQueue, ApiError>({ query: { refetchOnWindowFocus: true } });
   const [rejecting, setRejecting] = useState<RestoreRow | null>(null);
   const [note, setNote] = useState("");
   const [refused, setRefused] = useState<Record<string, string>>({});
@@ -47,7 +48,8 @@ export function RestoresToApprovePage() {
     return <Alert tone="danger">{queue.error.message}</Alert>;
   }
 
-  const waiting = queue.data ?? [];
+  const waiting = queue.data?.waiting ?? [];
+  const decided = queue.data?.decided ?? [];
 
   return (
     <div className="space-y-5">
@@ -144,6 +146,34 @@ export function RestoresToApprovePage() {
           </ul>
         )}
       </section>
+
+      {/* A queue that empties itself the moment somebody answers gives them nothing back: the row they
+          have just decided on simply disappears, and the only thing left is its absence. */}
+      {decided.length > 0 && (
+        <section className="overflow-hidden rounded-2xl border border-line bg-white">
+          {/* Not "answered": an ask the person who raised it cancelled was never answered by anybody, and
+              it sits in this list too. */}
+          <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Recently decided
+          </h2>
+          <ul className="divide-y divide-line">
+            {decided.map((row) => (
+              <li key={row.id} className="flex flex-wrap items-start justify-between gap-4 px-5 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{row.clientName}</p>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    Back to {row.restoreTo} · version {row.fromRevision} · {row.statusSaid}
+                    {row.decidedByName && ` by ${row.decidedByName}`}
+                    {row.decidedAt && ` · ${formatDateTime(row.decidedAt)}`}
+                  </p>
+                  {row.decisionNote && <p className="mt-1 text-xs text-ink-muted">{row.decisionNote}</p>}
+                </div>
+                <Badge tone={row.status === "APPROVED" ? "success" : "neutral"}>{row.statusSaid}</Badge>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* The note is collected against what it refuses, so somebody writing it can see what they are
           rejecting rather than remembering it. */}
