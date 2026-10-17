@@ -4692,6 +4692,11 @@ export interface ReviewsDue {
   everyMonths: number;
 }
 
+export interface RestoreQueue {
+  waiting: RestoreRow[];
+  decided: RestoreRow[];
+}
+
 export interface ReportsPage {
   items: ReportRow[];
 }
@@ -23557,9 +23562,9 @@ export const getListRestoresUrl = () => {
   return `/api/backoffice/portfolios/restores`
 }
 
-export const listRestores = async ( options?: Parameters<typeof http>[1]): Promise<RestoreRow[]> => {
+export const listRestores = async ( options?: Parameters<typeof http>[1]): Promise<RestoreQueue> => {
 
-  return http<RestoreRow[]>(getListRestoresUrl(),
+  return http<RestoreQueue>(getListRestoresUrl(),
   {
     ...options,
     method: 'GET'
