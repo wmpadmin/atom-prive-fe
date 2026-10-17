@@ -239,7 +239,7 @@ const allNavigation: {
   // other people's work waiting on you, which is a different job from following your own.
   {
     to: "/manager-review",
-    label: "Waiting on my sign-off",
+    label: "Proposals to approve",
     icon: Stamp,
     authority: APPROVES_PROPOSALS,
     at: (path, search) => path === "/manager-review" || ownsSharedScreen(path, search, A_PROPOSAL, "review"),
