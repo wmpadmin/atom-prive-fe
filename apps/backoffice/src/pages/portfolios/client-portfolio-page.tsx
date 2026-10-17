@@ -3,6 +3,8 @@ import {
   getGetClientValuationsQueryKey,
   useGetClientPortfolio,
   useGetCustomer,
+  useListClientMovePlans,
+  useListClientRestores,
   useListClientHoldings,
   useListModelPortfolios,
   useRecordRebalance,
@@ -20,6 +22,8 @@ import {
   type PortfolioStanding,
   type RiskMatch,
   useClientOnThatModel,
+  type MovePlanRow,
+  type RestoreRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, DateInput, Field, SelectInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -160,6 +164,15 @@ export function ClientPortfolioPage() {
    * brushing a box, and somebody changing one thing is not asked to save it separately from the next.
    */
   const [editing, setEditing] = useState(false);
+  // What is waiting on this client's figures. While anything is, the server refuses every write — the
+  // plan or the restore was weighed against these ones. Offered anyway, Edit led to a screen whose Save
+  // could only ever come back refused, which is a button that does nothing and says nothing until it is
+  // pressed.
+  const waitingMoves = useListClientMovePlans<MovePlanRow[], ApiError>(customerId);
+  const waitingRestores = useListClientRestores<RestoreRow[], ApiError>(customerId);
+  const heldStill = (waitingMoves.data ?? []).find((one) => one.status === "PENDING")
+    ?? (waitingRestores.data ?? []).find((one) => one.status === "PENDING")
+    ?? null;
   // Every holding touched since Edit was pressed, with what it looked like beforehand — null where it did
   // not exist. A holding is written to the server the moment it is confirmed, so these are already on file:
   // Discard puts them back as they were, and Save leaves them.
@@ -526,10 +539,17 @@ export function ClientPortfolioPage() {
               )}
               {/* The one thing to do on a screen that is otherwise read, so it is the one thing that
                   looks like a button rather than part of the furniture. */}
-              <Button onClick={() => {
-                setTouchedHoldings(new Map());
-                setEditing(true);
-              }}>
+              <Button
+                disabled={heldStill !== null}
+                title={heldStill === null
+                  ? undefined
+                  : `${heldStill.raisedByName} is waiting on an answer for this client, so the figures `
+                    + "cannot be changed until it is answered."}
+                onClick={() => {
+                  setTouchedHoldings(new Map());
+                  setEditing(true);
+                }}
+              >
                 <Pencil aria-hidden="true" />
                 Edit
               </Button>

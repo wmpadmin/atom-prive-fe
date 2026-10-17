@@ -14,7 +14,7 @@ import { useStaffUser } from "../../auth/session";
 import { formatDateTime } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
 import { nameOf, useAssetClasses } from "./asset-classes";
-import { daysFrom, money, type Day } from "./daily-tracker-days";
+import { daysFrom, money, versionAndTheOneBefore, type Day } from "./daily-tracker-days";
 
 /**
  * One day of a client's portfolio, in full.
@@ -41,6 +41,8 @@ export function DailyTrackerDayPage() {
   const [asking, setAsking] = useState(false);
   const [why, setWhy] = useState("");
   const [failed, setFailed] = useState<string | null>(null);
+  /** Which of the day's versions is being read. Null means the one the day closed on. */
+  const [picked, setPicked] = useState<number | null>(null);
 
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
@@ -48,9 +50,20 @@ export function DailyTrackerDayPage() {
 
   const currency = history.data?.currency ?? "";
   const day = daysFrom(history.data?.points ?? []).find((one) => one.on === on) ?? null;
+  // Which version is being read, and what it is read against. A day written several times has figures for
+  // each of them and this page only ever showed the one it closed on, so a change made at eleven and
+  // corrected at noon left nothing on screen but the correction.
+  const reading = day === null ? null : (picked ?? closeRevisionOf(day));
+  const pair = (day === null || reading === null)
+    ? null : versionAndTheOneBefore(history.data?.points ?? [], reading);
+  const shownLines = pair?.version.lines ?? {};
+  const beforeLines = pair?.before?.lines ?? {};
+  const worth = pair?.version.underManagement ?? 0;
+  const movedBy = (pair === null || pair.before === null)
+    ? null : pair.version.underManagement - pair.before.underManagement;
   const codes = classes.inUse
     .map((one) => one.code)
-    .filter((code) => day !== null && Object.keys(day.lines[code] ?? {}).length > 0);
+    .filter((code) => Object.keys(shownLines[code] ?? {}).length > 0);
 
   return (
     <div className="space-y-5">
@@ -76,7 +89,7 @@ export function DailyTrackerDayPage() {
           {/* Only where there is something to put back. A version written before the platform kept what
               each sub-asset held has a total and nothing under it, and the server refuses it — offered
               anyway, the button was a way to be told no. */}
-          {mayAsk && day !== null && Object.keys(day.lines).length > 0 && (
+          {mayAsk && Object.keys(shownLines).length > 0 && (
             <Button
               variant="secondary"
               disabled={waiting !== null}
@@ -125,27 +138,28 @@ export function DailyTrackerDayPage() {
             <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
               <div>
                 <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Net AUM</p>
-                <p className="mt-1 text-2xl font-bold tabular-nums">{money(day.worth)}</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{money(worth)}</p>
               </div>
               <div>
                 <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                  Moved since the day before
+                  Moved since the change before
                 </p>
                 <p className={cn("mt-1 text-2xl font-bold tabular-nums",
-                  day.moved === null ? "text-ink-muted"
-                    : day.moved > 0 ? "text-emerald-700"
-                      : day.moved < 0 ? "text-danger-700" : "text-ink-muted")}
+                  movedBy === null ? "text-ink-muted"
+                    : movedBy > 0 ? "text-emerald-700"
+                      : movedBy < 0 ? "text-danger-700" : "text-ink-muted")}
                 >
-                  {day.moved === null
+                  {movedBy === null
                     ? "—"
-                    : `${day.moved > 0 ? "+" : day.moved < 0 ? "−" : ""}${money(Math.abs(day.moved))}`}
-                  {day.movedShare !== null && (
-                    <span className="ml-2 text-sm font-normal">
-                      {day.movedShare > 0 ? "+" : day.movedShare < 0 ? "−" : ""}
-                      {Math.abs(day.movedShare).toFixed(2)}%
-                    </span>
-                  )}
+                    : `${movedBy > 0 ? "+" : movedBy < 0 ? "−" : ""}${money(Math.abs(movedBy))}`}
                 </p>
+              </div>
+              <div>
+                <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Reading</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">Change {reading}</p>
+                {pair?.version.closedTheDay && (
+                  <p className="text-2xs text-ink-muted">the day closed here</p>
+                )}
               </div>
             </div>
             <p className="mt-4 text-xs text-ink-muted">
@@ -160,7 +174,7 @@ export function DailyTrackerDayPage() {
                 Written {day.versions.length} times on this day
               </h2>
               <div className="px-6 py-4">
-                <Changes day={day} currency={currency} />
+                <Changes day={day} currency={currency} reading={reading} onPick={setPicked} />
               </div>
             </section>
           )}
@@ -170,11 +184,12 @@ export function DailyTrackerDayPage() {
               What each sub-asset held
             </h2>
             <p className="mt-1 max-w-prose text-xs text-ink-muted">
-              Asset class, then the sub-assets inside it, with what each held the day before beside what it
-              held on this one. Figures in {currency}.
+              Asset class, then the sub-assets inside it, with what each held before this change beside what
+              it held after it. Figures in {currency}.
             </p>
             <div className="mt-3">
-              <Inside day={day} codes={codes} names={classes.names} currency={currency} />
+              <Inside on={on} lines={shownLines} before={beforeLines} first={pair?.before == null}
+                codes={codes} names={classes.names} currency={currency} />
             </div>
           </section>
         </>
@@ -183,16 +198,15 @@ export function DailyTrackerDayPage() {
       {/* The reason is what whoever answers is being asked about. They can see the figures — both sets. */}
       <Dialog
         open={asking}
-        title={`Put this client back to how they stood on ${on}?`}
+        title={`Put this client back to change ${reading} on ${on}?`}
         onClose={() => setAsking(false)}
       >
         <div className="space-y-4">
           <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
             <p>
-              Every figure the client has would be written again as they stood at version{" "}
-              {day?.versions.length ? closeRevisionOf(day) : "—"} on {on}
-              {day && <> — {currency} {money(day.worth)} across {Object.values(day.lines)
-                .reduce((sum, inClass) => sum + Object.keys(inClass).length, 0)} sub-assets</>}.
+              Every figure the client has would be written again as they stood at change {reading} on {on}{" "}
+              — {currency} {money(worth)} across {Object.values(shownLines)
+                .reduce((sum, inClass) => sum + Object.keys(inClass).length, 0)} sub-assets.
             </p>
             <p className="mt-2 text-xs text-ink-muted">
               This day is left exactly as it is. What it holds is written forward as a new version, so the
@@ -223,7 +237,7 @@ export function DailyTrackerDayPage() {
                 void askToRestore
                   .mutateAsync({
                     customerId,
-                    data: { revision: closeRevisionOf(day), why: why.trim() },
+                    data: { revision: reading ?? 0, why: why.trim() },
                   })
                   .then(() => {
                     setAsking(false);
@@ -261,7 +275,12 @@ function closeRevisionOf(day: Day) {
  *
  * <p>The one the day ended on is marked, because that is the figure every other screen reads this day by.
  */
-function Changes({ day, currency }: { day: Day; currency: string }) {
+function Changes({ day, currency, reading, onPick }: {
+  day: Day;
+  currency: string;
+  reading: number | null;
+  onPick: (revision: number) => void;
+}) {
   return (
     <div>
       {/* The heading is the section's, above. Said here too it was printed twice over. */}
@@ -270,10 +289,19 @@ function Changes({ day, currency }: { day: Day; currency: string }) {
           {day.versions.map((one, at) => {
             const before = at === 0 ? null : day.versions[at - 1];
             const moved = before === null ? null : one.underManagement - before.underManagement;
+            // Each change is a row to press. The table below showed the one the day closed on and no
+            // other, so a figure written at eleven and corrected at noon left nothing on screen but the
+            // correction — the list said it had happened and there was nowhere to go and see it.
+            const open = reading === one.revision;
             return (
-              <tr key={one.id}>
+              <tr
+                key={one.id}
+                aria-selected={open}
+                onClick={() => onPick(one.revision)}
+                className={cn("cursor-pointer", open ? "bg-primary-50" : "hover:bg-slate-50")}
+              >
                 <td className="py-1.5 pr-4 whitespace-nowrap text-ink-muted">
-                  Change {one.revision}
+                  <span className={cn(open && "font-semibold text-ink")}>Change {one.revision}</span>
                   {one.closedTheDay && (
                     <span className="ml-2 rounded-full bg-slate-200/70 px-2 py-0.5 text-2xs text-ink">
                       the day closed here
@@ -301,37 +329,24 @@ function Changes({ day, currency }: { day: Day; currency: string }) {
         </tbody>
       </table>
       <p className="mt-2 text-2xs text-ink-muted">
-        Figures in {currency}. Each is measured against the change before it on this day.
+        Figures in {currency}. Each is measured against the change before it on this day. Press one to read
+        what it held.
       </p>
     </div>
   );
 }
 
-/**
- * What a day was made of, line by line, and what each line did since the day before.
- *
- * <p>The class totals on the row above say equities went from one figure to another; this says which
- * line inside it moved, which is the question that follows and the one the firm asked for — money goes
- * into one thing and out of another, and a class total hides exactly that.
- *
- * <p>A line the day before did not have is new rather than up from nought, and one that has gone is
- * said as gone. Both are movements; neither is a figure growing.
- */
-/**
- * What every sub-asset held on this day, beside what it held the day before.
- *
- * <p>A card for each class with a table inside it, which is how the holdings screen draws the same shape —
- * one screen's way of showing a client's classes and the lines under them, so a reader moving between them
- * is not learning a second layout for the same thing. Squeezed into one cell of the tracker it had been
- * drawn as a grid of lists with its own invented alignment; these are figures, and figures line up.
- */
-function Inside({ day, codes, names, currency }: {
-  day: Day;
+function Inside({ on, lines, before, first, codes, names, currency }: {
+  on: string;
+  lines: Record<string, Record<string, number>>;
+  before: Record<string, Record<string, number>>;
+  /** Whether nothing was written before this change, so there is nothing to measure it against. */
+  first: boolean;
   codes: string[];
   names: Record<string, string>;
   currency: string;
 }) {
-  const shown = codes.filter((code) => Object.keys(day.lines[code] ?? {}).length > 0);
+  const shown = codes.filter((code) => Object.keys(lines[code] ?? {}).length > 0);
   if (shown.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-line px-5 py-6 text-center text-sm text-ink-muted">
@@ -343,12 +358,11 @@ function Inside({ day, codes, names, currency }: {
   return (
     <ul className="space-y-3">
       {shown.map((code) => {
-        const now = day.lines[code] ?? {};
-        const was = day.linesBefore[code] ?? {};
-        // Every line either side of the day, so one that has gone is still named rather than simply
+        const now: Record<string, number> = lines[code] ?? {};
+        const was: Record<string, number> = before[code] ?? {};
+        // Every line either side of the change, so one that has gone is still named rather than simply
         // absent — a line that disappears without a word reads as a line nobody wrote down.
         const every = [...new Set([...Object.keys(now), ...Object.keys(was)])].sort();
-        const first = Object.keys(day.linesBefore).length === 0;
         return (
           <li key={code} className="overflow-hidden rounded-xl border border-ink/20 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/15 px-5 py-3">
@@ -358,7 +372,7 @@ function Inside({ day, codes, names, currency }: {
                   From its lines
                 </span>
                 <span className="tabular-nums font-semibold">
-                  {currency} {money(day.holdings[code] ?? 0)}
+                  {currency} {money(Object.values(now).reduce((sum: number, each) => sum + each, 0))}
                 </span>
               </span>
             </div>
@@ -370,7 +384,7 @@ function Inside({ day, codes, names, currency }: {
                   figure in every card and belong under one line. */}
               <table className="w-full table-fixed text-sm">
                 <caption className="sr-only">
-                  What {nameOf(code, names)} held on {day.on}, in {currency}, beside the day before.
+                  What {nameOf(code, names)} held on {on}, in {currency}, beside the change before it.
                 </caption>
                 <colgroup>
                   <col className="w-[40%]" />
@@ -381,7 +395,7 @@ function Inside({ day, codes, names, currency }: {
                 <thead>
                   <tr className="border-b border-ink/15 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                     <th scope="col" className="py-3 pr-3 pl-5">Sub-asset</th>
-                    <th scope="col" className="px-5 py-3 text-right whitespace-nowrap">The day before</th>
+                    <th scope="col" className="px-5 py-3 text-right whitespace-nowrap">Before</th>
                     <th scope="col" className="px-5 py-3 text-right">Held</th>
                     <th scope="col" className="px-5 py-3 text-right">Moved</th>
                   </tr>
