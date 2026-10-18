@@ -172,7 +172,6 @@ function WorthOverTime({ points, everyCount, currency, pending, days, setDays, f
   bounds: { first: string; last: string } | null;
 }) {
   const [box, width] = useWidth();
-  const [picking, setPicking] = useState(false);
   const [over, setOver] = useState<number | null>(null);
   const chosen = from !== "" || to !== "";
 
@@ -236,7 +235,6 @@ function WorthOverTime({ points, everyCount, currency, pending, days, setDays, f
               type="button"
               onClick={() => {
                 setRange("", "");
-                setPicking(false);
                 setDays(range.days);
               }}
               className={cn("rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
@@ -247,20 +245,12 @@ function WorthOverTime({ points, everyCount, currency, pending, days, setDays, f
               {range.label}
             </button>
           ))}
-          {/* Lit while dates are in force, because a preset and a range are the same question answered
-              two ways and only one of them can be in force at a time. */}
-          <button
-            type="button"
-            onClick={() => setPicking((was) => !was)}
-            className={cn("rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-              chosen ? "bg-primary-600 text-on-accent" : "bg-slate-100 text-ink-soft hover:bg-slate-200")}
-          >
-            Pick dates
-          </button>
         </div>
       </div>
 
-      {(picking || chosen) && bounds && (
+      {/* Simply there, not behind a button that asks whether you would like to be asked. The presets
+          above are a shortcut through these two boxes, and filling either box is what overrules them. */}
+      {bounds && (
         <div className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-slate-50/60 px-4 py-3">
           <Field id="worth-from" label="From" className="w-44">
             <DateInput
@@ -286,7 +276,9 @@ function WorthOverTime({ points, everyCount, currency, pending, days, setDays, f
           </Field>
           <p className="pb-2 text-xs text-ink-muted">
             Days are on file from {longDay(bounds.first)} to {longDay(bounds.last)}.
-            {chosen && " Clear both to go back to the buttons."}
+            {chosen
+              ? " Clear both to go back to the buttons."
+              : " Leave them empty and the buttons decide."}
           </p>
         </div>
       )}
