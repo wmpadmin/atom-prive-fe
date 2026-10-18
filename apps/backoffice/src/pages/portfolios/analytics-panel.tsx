@@ -5,7 +5,7 @@ import {
   type PortfolioStanding,
   type ValuationHistory,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, DateInput, Field, cn } from "@atomprive/ui";
+import { Alert, Button, DateInput, Field, cn } from "@atomprive/ui";
 import { useEffect, useRef, useState } from "react";
 import { inkFor, nameOf, useAssetClasses } from "./asset-classes";
 
@@ -13,11 +13,24 @@ function money(amount: number) {
   return amount.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 
-/** A figure short enough for an axis: 1.2M rather than 1,200,000, which no axis has room for. */
-function brief(amount: number) {
+/**
+ * A figure short enough for an axis: 1.2M rather than 1,200,000, which no axis has room for.
+ *
+ * <p>Short enough to fit and long enough to differ. Rounded to a fixed place, a scale stepping twenty
+ * thousand through a fifteen-million book printed "15.2M" on all five of its lines — five gridlines
+ * carrying one number, which is a scale that says nothing. The step decides the places: enough of them
+ * that one tick and the next cannot come out the same word.
+ */
+function brief(amount: number, step?: number) {
   const size = Math.abs(amount);
-  if (size >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
-  if (size >= 1_000) return `${Math.round(amount / 1_000)}K`;
+  const places = (big: number) => {
+    if (step === undefined || step <= 0) return big >= 1_000_000 ? 1 : 0;
+    // How many places it takes for one step to survive the division: a step of 20,000 read in millions
+    // is 0.02 and needs two, a step of 10,000 read in thousands is 10 and needs none.
+    return Math.min(Math.max(Math.ceil(-Math.log10(step / big)), 0), 3);
+  };
+  if (size >= 1_000_000) return `${(amount / 1_000_000).toFixed(places(1_000_000))}M`;
+  if (size >= 1_000) return `${(amount / 1_000).toFixed(places(1_000))}K`;
   return String(Math.round(amount));
 }
 
@@ -131,11 +144,10 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
       filled: row.targetShare === 0 ? null : (actualShare / row.targetShare) * 100,
       suggestion: (row.targetShare / 100) * whole - worth,
       drift: actualShare - row.targetShare,
-      // No verdict. Whether a class has breached is the platform's reading, taken from a band that may
-      // be written wider one side than the other and deliberately withheld where there is nothing yet
-      // to judge — none of which is recoverable from a day's holdings and a target. Worked out here it
-      // was a second reading of one rule, which is how a screen comes to contradict the server about
-      // the same client. The day's figures are drawn; the verdict waits for the day the server read.
+      // No verdict, and nothing on this panel asks for one now. Whether a class has breached is the
+      // platform's reading, taken from a band that may be written wider one side than the other and
+      // deliberately withheld where there is nothing yet to judge — none of it recoverable from a
+      // day's holdings and a target. It is read on the portfolio screen, from the server, once.
       standing: null,
     };
   });
@@ -166,8 +178,15 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
       <HowTheMixMoved points={points} order={order} names={classes.names} narrowed={narrowed}
         only={only} setOnly={setOnly} currency={currency} />
 
-      <HeldAgainstAsked byClass={byClass} names={classes.names} order={order}
-        asAt={asAt?.valuedOn ?? null} narrowed={narrowed} only={only} setOnly={setOnly} />
+      {/* What a class holds against what the plan asks is read on the portfolio screen, where the
+          bands, the suggestion and the button that acts on it already live. Drawn here as well it was
+          the same comparison in a second place, and the one that could not give a verdict for a day in
+          the past. */}
+      <p className="px-1 text-xs text-ink-muted">
+        Sub-assets are not drawn here. A day does keep what each line inside a class was worth, but a
+        portfolio holds many more lines than classes and a chart of all of them reads as noise. Which
+        line inside a class moved is read a day at a time under Daily tracker, where a day opens onto it.
+      </p>
     </div>
   );
 }
@@ -193,7 +212,7 @@ function niceScale(low: number, high: number) {
   const top = Math.ceil((high + span * 0.12) / step) * step;
   const ticks: number[] = [];
   for (let at = foot; at <= top + step / 2; at += step) ticks.push(Math.round(at * 100) / 100);
-  return { foot, top: ticks[ticks.length - 1] ?? top, ticks };
+  return { foot, top: ticks[ticks.length - 1] ?? top, ticks, step };
 }
 
 /** The card's width in real pixels, so the drawing is made at the size it is shown at. */
@@ -240,7 +259,7 @@ function WorthOverTime({ points, everyCount, currency, pending, picked, setPicke
   const worths = points.map((point) => point.underManagement);
   // Against its own range, never against nought: a book that moved from 15.2m to 15.3m drawn from zero
   // is a flat line, and seeing that it moved is the whole reason for drawing it.
-  const { foot, top, ticks } = niceScale(
+  const { foot, top, ticks, step } = niceScale(
     worths.length === 0 ? 0 : Math.min(...worths),
     worths.length === 0 ? 1 : Math.max(...worths));
   // Drawn in real pixels rather than a box stretched to fit. Stretched, every circle came out an oval
@@ -414,7 +433,7 @@ function WorthOverTime({ points, everyCount, currency, pending, picked, setPicke
                   className="stroke-line" strokeWidth="1" />
                 <text x={PAD.left - 10} y={y(tick)} dominantBaseline="middle" textAnchor="end"
                   className="fill-ink-muted text-[11px] tabular-nums">
-                  {brief(tick)}
+                  {brief(tick, step)}
                 </text>
               </g>
             ))}
@@ -496,7 +515,15 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
   setOnly: (code: string | null) => void;
 }) {
   const held = byClass.filter((row) => row.actualValue > 0);
-  const whole = held.reduce((sum, row) => sum + row.actualValue, 0);
+  const written = held.reduce((sum, row) => sum + row.actualValue, 0);
+  // What the platform divides by, which is not always what is written down: a client's Net AUM counts
+  // money the calculator was given and nobody has typed into a holding. Divided by the written sum
+  // instead, this card put a class at sixty per cent while the card under it — printing the server's
+  // own share — put the same class at thirty, on one screen, at one instant.
+  const whole = Math.max(...byClass.map((row) =>
+    (row.actualShare > 0 ? (row.actualValue / row.actualShare) * 100 : 0)), written);
+  // And the difference has a name and a slice, rather than being quietly spread across the others.
+  const unwritten = Math.max(whole - written, 0);
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -533,11 +560,18 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
           <div className="flex flex-wrap items-center justify-center gap-10">
             <Ring
               title="Held"
-              slices={held.map((row) => ({
-                code: row.assetClass,
-                share: (row.actualValue / whole) * 100,
-                ink: inkFor(row.assetClass, order),
-              }))}
+              slices={[
+                ...held.map((row) => ({
+                  code: row.assetClass,
+                  share: (row.actualValue / whole) * 100,
+                  ink: inkFor(row.assetClass, order),
+                })),
+                // Drawn where there is any, so the ring still comes to a whole and the gap is a thing a
+                // reader can see rather than a rounding they cannot account for.
+                ...(unwritten / whole > 0.0005
+                  ? [{ code: "__unwritten", share: (unwritten / whole) * 100, ink: "#cbd5e1" }]
+                  : []),
+              ]}
               middle={brief(whole)}
               under={currency}
               only={only}
@@ -561,7 +595,7 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
 
           {/* Named beside the rings rather than under them, because the card is the width of the page
               now and a list of four names below two circles leaves most of it empty. */}
-          <ul className="space-y-0.5">
+          <ul>
             {byClass
               .filter((row) => row.actualValue > 0 || row.targetShare > 0)
               .map((row) => {
@@ -574,7 +608,7 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                     <button
                       type="button"
                       onClick={() => setOnly(only === row.assetClass ? null : row.assetClass)}
-                      className={cn("flex w-full items-center gap-2 rounded-lg px-2 py-0.5 text-left text-sm",
+                      className={cn("flex w-full items-center gap-2 rounded-md px-2 py-px text-left text-sm leading-6",
                         only === row.assetClass ? "bg-primary-50" : "hover:bg-slate-50",
                         dimmed && "opacity-45")}
                     >
@@ -596,6 +630,19 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                   </li>
                 );
               })}
+            {/* Said rather than left as the gap the ring draws. Money the calculator counts that
+                nobody has written into a holding is not held in nothing — it is held in something
+                nobody has typed yet, which is a different sentence and an actionable one. */}
+            {unwritten / whole > 0.0005 && (
+              <li className="flex w-full items-center gap-2 rounded-md px-2 py-px text-left text-sm leading-6">
+                <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full bg-slate-300" />
+                <span className="min-w-0 flex-1 truncate text-ink-muted">Not written down yet</span>
+                <span className="w-16 shrink-0 text-right font-semibold tabular-nums text-ink-muted">
+                  {((unwritten / whole) * 100).toFixed(1)}%
+                </span>
+                <span className="w-20 shrink-0" />
+              </li>
+            )}
           </ul>
           </div>
         </>
@@ -692,7 +739,7 @@ function HowTheMixMoved({ points, order, names, narrowed, only, setOnly, currenc
   const worthOn = (point: ValuationHistory["points"][number], code: string) => point.holdings?.[code] ?? 0;
 
   const everyWorth = points.flatMap((point) => drawn.map((code) => worthOn(point, code)));
-  const { foot, top, ticks } = niceScale(
+  const { foot, top, ticks, step } = niceScale(
     everyWorth.length === 0 ? 0 : Math.min(...everyWorth),
     everyWorth.length === 0 ? 1 : Math.max(...everyWorth));
 
@@ -777,7 +824,7 @@ function HowTheMixMoved({ points, order, names, narrowed, only, setOnly, currenc
                   <line x1={PAD.left} y1={y(tick)} x2={width - PAD.right} y2={y(tick)}
                     className="stroke-line" strokeWidth="1" />
                   <text x={PAD.left - 10} y={y(tick)} dominantBaseline="middle" textAnchor="end"
-                    className="fill-ink-muted text-[11px] tabular-nums">{brief(tick)}</text>
+                    className="fill-ink-muted text-[11px] tabular-nums">{brief(tick, step)}</text>
                 </g>
               ))}
               {/* The ground filled in only under a class picked on its own, where there is one line and
@@ -865,127 +912,3 @@ function HowTheMixMoved({ points, order, names, narrowed, only, setOnly, currenc
   );
 }
 
-/**
- * What each class holds against what the plan asks of it, a pair of bars a class.
- *
- * <p>It was a bar from the middle, signed, which is the right shape for a drift and the wrong one for
- * this panel: one class fifty-five points out set the scale for every other row, so the three beside it
- * were slivers against a track that was nine-tenths empty, and the figure a reader wanted — what it
- * holds, against what it should — was nowhere on the drawing at all.
- *
- * <p>Two bars on one scale say it outright. The drift is still printed, because the sign and the size
- * are what the firm acts on; what has changed is that the two quantities it is the difference between
- * are now both on the page.
- */
-function HeldAgainstAsked({ byClass, names, order, asAt, narrowed, only, setOnly }: {
-  byClass: PortfolioStanding["classes"];
-  names: Record<string, string>;
-  order: { code: string }[];
-  asAt: string | null;
-  narrowed: boolean;
-  only: string | null;
-  setOnly: (code: string | null) => void;
-}) {
-  const rows = byClass.filter((row) => row.actualValue > 0 || row.targetShare > 0);
-  // One scale across every row, so a class twice the size of another looks twice the size — and the
-  // longest bar fills its track rather than sitting in a tenth of it.
-  const widest = Math.max(...rows.map((row) => Math.max(row.actualShare, row.targetShare)), 1) * 1.08;
-
-  return (
-    <section className="rounded-2xl border border-line bg-white px-6 py-5">
-      <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-        Held against asked for
-      </h2>
-      <p className="mt-1 max-w-prose text-xs text-ink-muted">
-        The solid bar is what the class holds; the pale one under it is what the plan asks. Drift is the
-        gap between them.
-        {asAt !== null
-          ? ` Read as at ${longDay(asAt)}, against the plan as it stands now — whether a class has`
-            + " breached is the platform's reading of the day it read, so it is not given here. Clear the"
-            + " dates for today's."
-          : " A class is breached once that gap is past its band, which the platform decides."}
-      </p>
-
-      {rows.length === 0 ? (
-        <p className="mt-4 rounded-xl border border-dashed border-line py-10 text-center text-sm text-ink-muted">
-          {asAt !== null
-            ? `Nothing was held on ${longDay(asAt)}.`
-            : narrowed
-              ? "No day on file between those dates."
-              : "Nothing to measure until this client is on a plan."}
-        </p>
-      ) : (
-        <ul className="mt-5 space-y-3">
-          {rows.map((row) => {
-            // The platform's own verdict, not one worked out again here from a drift and a band: a
-            // band may be written wider one side than the other, and a class holding nothing of
-            // something asked for is deliberately left unjudged. Read as |drift| > breachAt, this card
-            // badged both of those wrong — and painted every class of an empty portfolio red.
-            const out = row.standing === "BREACHED";
-            const band = row.band?.breachAt ?? 0;
-            const dimmed = only !== null && only !== row.assetClass;
-            return (
-              <li key={row.assetClass}>
-                <button
-                  type="button"
-                  onClick={() => setOnly(only === row.assetClass ? null : row.assetClass)}
-                  className={cn("grid w-full grid-cols-[10rem_1fr_6.5rem] items-center gap-4 rounded-lg px-2 py-2 text-left",
-                    only === row.assetClass ? "bg-primary-50" : "hover:bg-slate-50",
-                    dimmed && "opacity-45")}
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full"
-                      style={{ background: inkFor(row.assetClass, order) }} />
-                    <span className="truncate text-sm text-ink">
-                      {row.assetClassName || nameOf(row.assetClass, names)}
-                    </span>
-                  </span>
-                  <span className="flex min-w-0 flex-col gap-1">
-                    {/* Held on top, asked for beneath it, both from the same left edge: the pair is read
-                        by which one runs further, which needs them to start in the same place. */}
-                    <span className="flex items-center gap-2">
-                      <span className="h-3 rounded-sm transition-[width]"
-                        style={{
-                          width: `${Math.max((row.actualShare / widest) * 100, row.actualShare > 0 ? 1 : 0)}%`,
-                          background: inkFor(row.assetClass, order),
-                        }} />
-                      <span className="shrink-0 text-2xs font-semibold tabular-nums text-ink">
-                        {row.actualShare.toFixed(1)}%
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <span className="h-3 rounded-sm bg-slate-200"
-                        style={{ width: `${Math.max((row.targetShare / widest) * 100, row.targetShare > 0 ? 1 : 0)}%` }} />
-                      <span className="shrink-0 text-2xs tabular-nums text-ink-muted">
-                        {row.targetShare.toFixed(0)}% asked
-                      </span>
-                    </span>
-                  </span>
-                  <span className="flex flex-col items-end gap-1">
-                    <span className={cn("text-sm font-semibold tabular-nums",
-                      out ? "text-red-600" : "text-ink")}>
-                      {row.drift > 0 ? "+" : ""}{row.drift.toFixed(1)}pp
-                    </span>
-                    {/* Said in a word as well as a colour, because a colour on its own is not a reading
-                        every reader gets. */}
-                    {out
-                      ? <Badge tone="danger">Breached</Badge>
-                      : row.standing === null
-                        ? <span className="text-2xs text-ink-muted">—</span>
-                        : <span className="text-2xs text-ink-muted">band ±{band}</span>}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <p className="mt-4 text-xs text-ink-muted">
-        Sub-assets are not drawn here. A day does keep what each line inside a class was worth, but a
-        portfolio holds many more lines than classes and a chart of all of them reads as noise. Which
-        line inside a class moved is read a day at a time under Daily tracker, where a day opens onto it.
-      </p>
-    </section>
-  );
-}
