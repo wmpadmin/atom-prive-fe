@@ -1,8 +1,10 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useListMovePlans,
+  useListAllocationChanges,
   useListRestores,
   type MovePlanQueue,
+  type AllocationChangeQueue,
   type RestoreQueue,
 } from "@atomprive/api-client/backoffice";
 import { Avatar, cn } from "@atomprive/ui";
@@ -11,40 +13,41 @@ import { ThemeToggle } from "./components/theme-toggle";
 import { TopSearch } from "./components/top-search";
 import { NotificationBell } from "./components/notification-bell";
 import {
-  FileCheck2,
   ArrowLeftRight,
-  RotateCcw,
+  BellRing,
+  Calculator,
   ChevronDown,
+  ChevronRight,
   ClipboardCheck,
   Clock,
   Contact,
   FileCheck,
+  FileCheck2,
   FileSignature,
   FileSpreadsheet,
   FileText,
   FolderOpen,
   KeyRound,
   Landmark,
+  Layers,
+  LayoutGrid,
   LogOut,
   Mail,
   PenLine,
-  BellRing,
   Radio,
+  RotateCcw,
   Scale,
-  TrendingUp,
-  TriangleAlert,
   Settings,
   ShieldAlert,
   ShieldCheck,
-  Stamp,
   SlidersHorizontal,
+  Stamp,
+  TrendingUp,
+  TriangleAlert,
+  type LucideIcon,
   UserPlus,
   Users,
   UsersRound,
-  type LucideIcon,
-  Layers,
-  LayoutGrid,
-  ChevronRight,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
@@ -216,6 +219,14 @@ const allNavigation: {
     to: "/restores-to-approve",
     label: "Restores to approve",
     icon: RotateCcw,
+    authority: ANSWERS_MOVE_PLANS,
+  },
+  {
+    // Asking to rewrite what a client holds, which the Net AUM calculator used to do outright. Further
+    // again than a restore: a restore writes figures already on file and this writes new ones.
+    to: "/allocations-to-approve",
+    label: "Figures to approve",
+    icon: Calculator,
     authority: ANSWERS_MOVE_PLANS,
   },
   {
@@ -400,8 +411,12 @@ function useWaitingOn(to: string) {
   const restores = useListRestores<RestoreQueue, ApiError>({
     query: { enabled: to === "/restores-to-approve", refetchOnWindowFocus: true },
   });
+  const figures = useListAllocationChanges<AllocationChangeQueue, ApiError>({
+    query: { enabled: to === "/allocations-to-approve", refetchOnWindowFocus: true },
+  });
   if (to === "/moves-to-approve") return (moves.data?.waiting ?? []).length;
   if (to === "/restores-to-approve") return (restores.data?.waiting ?? []).length;
+  if (to === "/allocations-to-approve") return (figures.data?.waiting ?? []).length;
   return 0;
 }
 
