@@ -2,9 +2,11 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useListMovePlans,
   useListAllocationChanges,
+  useListModelEdits,
   useListRestores,
   type MovePlanQueue,
   type AllocationChangeQueue,
+  type ModelEditQueue,
   type RestoreQueue,
 } from "@atomprive/api-client/backoffice";
 import { Avatar, cn } from "@atomprive/ui";
@@ -230,6 +232,14 @@ const allNavigation: {
     authority: ANSWERS_MOVE_PLANS,
   },
   {
+    // The one approval that is not about a client: a model is shared, so an edit re-judges every client
+    // on it at once. Signed off by somebody holding the same authority as whoever asked.
+    to: "/model-edits-to-approve",
+    label: "Model changes to approve",
+    icon: SlidersHorizontal,
+    authority: "SEND_PROPOSALS:CHANGE",
+  },
+  {
     // Asking for a client to be put on another plan. An advisor asks; a manager answers, and the answer
     // is what moves them.
     to: "/model-changes",
@@ -414,9 +424,13 @@ function useWaitingOn(to: string) {
   const figures = useListAllocationChanges<AllocationChangeQueue, ApiError>({
     query: { enabled: to === "/allocations-to-approve", refetchOnWindowFocus: true },
   });
+  const modelEdits = useListModelEdits<ModelEditQueue, ApiError>({
+    query: { enabled: to === "/model-edits-to-approve", refetchOnWindowFocus: true },
+  });
   if (to === "/moves-to-approve") return (moves.data?.waiting ?? []).length;
   if (to === "/restores-to-approve") return (restores.data?.waiting ?? []).length;
   if (to === "/allocations-to-approve") return (figures.data?.waiting ?? []).length;
+  if (to === "/model-edits-to-approve") return (modelEdits.data?.waiting ?? []).length;
   return 0;
 }
 
