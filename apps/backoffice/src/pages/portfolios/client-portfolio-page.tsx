@@ -7,7 +7,6 @@ import {
   useListModelPortfolios,
   useRecordRebalance,
   useRecordReview,
-  useWriteTheirOwnAllocation,
   useSetClientModelPortfolio,
   type ClientHoldings,
   type CustomerDetail,
@@ -29,7 +28,6 @@ import { AskToChangeTheModel } from "./ask-to-change-the-model";
 import { AnalyticsPanel } from "./analytics-panel";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
 import { DailyTrackerPanel } from "./daily-tracker-panel";
-import { ModelDialog } from "./model-dialog";
 import {
   anchorFor,
   driftLabel,
@@ -149,9 +147,6 @@ export function ClientPortfolioPage() {
   const [reviewedOn, setReviewedOn] = useState<string | null>(null);
   /** Whether the client is already measured against something, which makes a change somebody else's to answer. */
   const onAmodel = (standing.data?.modelPortfolioId ?? null) !== null;
-  // Writing this client an allocation of their own: the same dialog a model is written in, because that is
-  // what it is — targets, bands and the lines inside a class, belonging to one person.
-  const [writingOwn, setWritingOwn] = useState(false);
   // The class somebody asked to see the inside of, from the table that measures it. Kept so the card opens
   // even if they had shut it: being sent to a class and finding it closed is being sent nowhere.
   const [revealed, setRevealed] = useState<string | null>(null);
@@ -165,17 +160,6 @@ export function ClientPortfolioPage() {
       document.getElementById(anchorFor(assetClass))?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   };
-  const [ownErrors, setOwnErrors] = useState<FormErrors>(noErrors);
-  const writeOwn = useWriteTheirOwnAllocation<ApiError>({
-    mutation: {
-      onSuccess: () => {
-        setWritingOwn(false);
-        setOwnErrors(noErrors);
-        kept();
-      },
-      onError: (caught) => setOwnErrors(toFormErrors(caught)),
-    },
-  });
   const queryClient = useQueryClient();
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
   // Each of these writes something somebody has already typed, so the screen looks the same afterwards
@@ -361,24 +345,11 @@ export function ClientPortfolioPage() {
                 ))}
           </SelectInput>
         </Field>
-        {/* An allocation of their own is written in the same dialog a model is, because it is the same
-            thing: targets, bands, and the lines inside a class. What differs is who it belongs to. */}
-        {!standing.data?.customModel && (
-          <p className="mt-3 text-xs text-ink-muted">
-            None of these fit?{" "}
-            <button
-              type="button"
-              onClick={() => setWritingOwn(true)}
-              className="font-medium text-primary-700 hover:underline"
-            >
-              Write this client an allocation of their own
-            </button>
-            {onAmodel
-              ? ". It is written for them, but putting them on it is asked for and answered by whoever "
-                + "looks after them — the same as moving them to any other plan."
-              : ". It is measured like any plan, and nothing acts on it by itself."}
-          </p>
-        )}
+        {/* Writing one here is gone. A plan is written in Model portfolios and then a client is put on
+            it, which is one order of events rather than two: a plan nobody else can see, written on the
+            screen that measures one client against it, was a second way of making one — and the way that
+            skipped every reader a plan is supposed to pass. What is left is the picker above, where the
+            first is chosen outright and a change is asked of whoever looks after them. */}
         {standing.data?.customModel && (
           <p className="mt-3 text-xs text-ink-muted">
             This client is on an allocation written for them alone. It is not offered to anybody else, not
@@ -520,21 +491,6 @@ export function ClientPortfolioPage() {
           customerId={customerId}
           onModelId={standing.data.modelPortfolioId ?? null}
           onModelName={standing.data.modelName ?? "no model"}
-        />
-      )}
-
-      {/* A holding is kept the moment it is added, so Discard has to take it off again rather than simply
-          forget it. What is about to go is counted, because it is a line of somebody's portfolio. */}
-      {writingOwn && (
-        <ModelDialog
-          model={null}
-          errors={ownErrors}
-          busy={writeOwn.isPending}
-          onClose={() => {
-            setWritingOwn(false);
-            setOwnErrors(noErrors);
-          }}
-          onSave={(data) => writeOwn.mutate({ customerId, data })}
         />
       )}
 
