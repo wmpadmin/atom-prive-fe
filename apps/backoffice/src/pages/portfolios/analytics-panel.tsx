@@ -96,8 +96,34 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
   const bounds = every.length === 0
     ? null
     : { first: every[0]!.valuedOn, last: every[every.length - 1]!.valuedOn };
-  const byClass = standing.data?.classes ?? [];
   const order = classes.inUse;
+  const live = standing.data?.classes ?? [];
+  // The last day inside the dates, which is what "as at" means for a stretch: the mix a range leaves
+  // the client in. Without dates it is today's standing, which is the live figure the page is headed
+  // with — a day written down is a day CLOSED, and holdings written since are not in one yet.
+  const narrowed = from !== "" || to !== "";
+  const asAt = narrowed ? (points[points.length - 1] ?? null) : null;
+  // The plan is today's plan either way. What the dates move is what is weighed against it: the model
+  // says what a class should be, and the day says what it was.
+  // Dates picked and no day inside them is not an invitation to show today. Left to fall back, the
+  // rings went on reporting today's mix under a heading saying Today while the two charts beside them
+  // said there was nothing there — one panel disagreeing with itself about what it was looking at.
+  const byClass: PortfolioStanding["classes"] = !narrowed ? live : asAt === null ? [] : live.map((row) => {
+    const worth = asAt.holdings?.[row.assetClass] ?? 0;
+    const whole = Object.values(asAt.holdings ?? {}).reduce((sum, one) => sum + one, 0);
+    const actualShare = whole === 0 ? 0 : (worth / whole) * 100;
+    return {
+      ...row,
+      actualValue: worth,
+      actualShare,
+      targetValue: (row.targetShare / 100) * whole,
+      filled: row.targetShare === 0 ? null : (actualShare / row.targetShare) * 100,
+      suggestion: (row.targetShare / 100) * whole - worth,
+      drift: actualShare - row.targetShare,
+      standing: Math.abs(actualShare - row.targetShare) > (row.band?.breachAt ?? 0)
+        ? "BREACHED" : row.standing,
+    };
+  });
 
   return (
     <div className="space-y-4">
@@ -116,11 +142,13 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <MadeOf byClass={byClass} order={order} names={classes.names} currency={currency} />
-        <HowTheMixMoved points={points} order={order} names={classes.names} />
+        <MadeOf byClass={byClass} order={order} names={classes.names} currency={currency}
+          asAt={asAt?.valuedOn ?? null} narrowed={narrowed} />
+        <HowTheMixMoved points={points} order={order} names={classes.names} narrowed={narrowed} />
       </div>
 
-      <AgainstTheBand byClass={byClass} names={classes.names} />
+      <AgainstTheBand byClass={byClass} names={classes.names} asAt={asAt?.valuedOn ?? null}
+        narrowed={narrowed} />
     </div>
   );
 }
@@ -214,8 +242,12 @@ function WorthOverTime({ points, everyCount, currency, pending, from, to, setRan
             What it has been worth
           </h2>
           <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            {/* A dash where there is no day to read, not nought. Nought is a figure, and a portfolio
+                reading "0 USD" because somebody picked a fortnight nobody wrote in says the client has
+                nothing — which is the one thing it must never say by accident. */}
             <span className="text-3xl font-bold tabular-nums text-ink">
-              {money(last)} <span className="text-base font-normal text-ink-muted">{currency}</span>
+              {points.length === 0 ? "—" : money(last)}{" "}
+              {points.length > 0 && <span className="text-base font-normal text-ink-muted">{currency}</span>}
             </span>
             {moved !== null && (
               <span className={cn("text-sm font-semibold tabular-nums",
@@ -392,11 +424,14 @@ function WorthOverTime({ points, everyCount, currency, pending, from, to, setRan
 }
 
 /** What the book is made of today, against what the plan asks it to be made of. */
-function MadeOf({ byClass, order, names, currency }: {
+function MadeOf({ byClass, order, names, currency, asAt, narrowed }: {
   byClass: PortfolioStanding["classes"];
   order: { code: string }[];
   names: Record<string, string>;
   currency: string;
+  /** The day these figures are read from, or null where they are today's. */
+  asAt: string | null;
+  narrowed: boolean;
 }) {
   const held = byClass.filter((row) => row.actualValue > 0);
   const whole = held.reduce((sum, row) => sum + row.actualValue, 0);
@@ -406,11 +441,17 @@ function MadeOf({ byClass, order, names, currency }: {
       <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
         What it is made of
       </h2>
-      <p className="mt-1 text-xs text-ink-muted">Today, against what the plan asks for.</p>
+      {/* Which day, said outright. A ring that quietly changed under a date somebody picked, still
+          headed "Today", is the screen telling them the wrong thing in its own words. */}
+      <p className="mt-1 text-xs text-ink-muted">
+        {asAt !== null
+          ? `As at ${longDay(asAt)}`
+          : narrowed ? "For the dates picked" : "Today"}, against what the plan asks for.
+      </p>
 
       {whole === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-line py-12 text-center text-sm text-ink-muted">
-          Nothing is written down yet.
+          {narrowed ? "No day on file between those dates." : "Nothing is written down yet."}
         </p>
       ) : (
         <>
@@ -513,10 +554,11 @@ function Ring({ title, slices, middle, under }: {
 }
 
 /** How the proportions moved, a stack a day. */
-function HowTheMixMoved({ points, order, names }: {
+function HowTheMixMoved({ points, order, names, narrowed }: {
   points: ValuationHistory["points"];
   order: { code: string }[];
   names: Record<string, string>;
+  narrowed: boolean;
 }) {
   const codes = order
     .map((one) => one.code)
@@ -533,7 +575,9 @@ function HowTheMixMoved({ points, order, names }: {
 
       {points.length === 0 || codes.length === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-line py-12 text-center text-sm text-ink-muted">
-          No day has been written down yet.
+          {/* Not the same sentence. A client with a year of history and a fortnight picked out of it
+              that nobody wrote in was being told nothing had ever been written down. */}
+          {narrowed ? "No day on file between those dates." : "No day has been written down yet."}
         </p>
       ) : (
         <>
@@ -578,9 +622,12 @@ function HowTheMixMoved({ points, order, names }: {
 }
 
 /** How far each class is outside its band, drawn from the middle so the sign reads as a direction. */
-function AgainstTheBand({ byClass, names }: {
+function AgainstTheBand({ byClass, names, asAt, narrowed }: {
   byClass: PortfolioStanding["classes"];
   names: Record<string, string>;
+  /** The day these figures are read from, or null where they are today's. */
+  asAt: string | null;
+  narrowed: boolean;
 }) {
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -590,11 +637,14 @@ function AgainstTheBand({ byClass, names }: {
       <p className="mt-1 max-w-prose text-xs text-ink-muted">
         Left of the middle is short of its target; right is over. The pale block is the band — a bar
         inside it is sound, a bar past it has breached.
+        {asAt !== null && ` Read as at ${longDay(asAt)}, against the plan as it stands now.`}
       </p>
 
       {byClass.length === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-line py-10 text-center text-sm text-ink-muted">
-          Nothing to measure until this client is on a plan.
+          {narrowed
+            ? "No day on file between those dates."
+            : "Nothing to measure until this client is on a plan."}
         </p>
       ) : (
         <ul className="mt-5 space-y-2.5">
