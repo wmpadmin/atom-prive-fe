@@ -4,6 +4,7 @@ import {
   getListModelPortfoliosQueryKey,
   useDeleteModelPortfolio,
   useGetModelPortfolio,
+  useAskToEditModel,
   useUpdateModelPortfolio,
   type AllocationRow,
   type ModelDetail,
@@ -51,6 +52,22 @@ export function ModelDetailPage() {
   const update = useUpdateModelPortfolio<ApiError>({
     mutation: { onSuccess: kept, onError: (caught) => setErrors(toFormErrors(caught)) },
   });
+  // A live plan is what every client on it is judged by, so changing it is signed off by a second pair
+  // of hands. A draft is a plan still being written and nobody is measured against one.
+  const askToEdit = useAskToEditModel<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        setEditing(false);
+        setErrors(noErrors);
+        setAsked(true);
+      },
+      onError: (caught) => setErrors(toFormErrors(caught)),
+    },
+  });
+  /** Whether the last press raised an ask rather than writing, so the page can say so. */
+  const [asked, setAsked] = useState(false);
+  /** Why it should change, which only a live plan needs and only a live plan shows a box for. */
+  const [why, setWhy] = useState("");
   const remove = useDeleteModelPortfolio<ApiError>({
     mutation: {
       onSuccess: () => {
@@ -60,7 +77,7 @@ export function ModelDetailPage() {
       onError: (caught) => setErrors(toFormErrors(caught)),
     },
   });
-  const busy = update.isPending || remove.isPending;
+  const busy = update.isPending || remove.isPending || askToEdit.isPending;
 
   if (detail.isError) return <Alert tone="danger">{detail.error.message}</Alert>;
   if (!detail.data) {
@@ -198,6 +215,17 @@ export function ModelDetailPage() {
           </section>
         </div>
       </div>
+      {/* Said on the page rather than in a notice that fades: nothing about the plan has changed, and a
+          reader who pressed Save and saw nothing move would reasonably think the press failed. */}
+      {asked && (
+        <Alert tone="info">
+          Your change is waiting to be signed off. Nothing on this plan has changed yet — it is on{" "}
+          <Link to="/model-edits-to-approve" className="font-semibold underline underline-offset-2">
+            Model changes to approve
+          </Link>
+          {" "}until somebody else answers it.
+        </Alert>
+      )}
       {editing && (
         <ModelDialog
           model={summary}
@@ -207,7 +235,18 @@ export function ModelDetailPage() {
             setEditing(false);
             setErrors(noErrors);
           }}
-          onSave={(data) => update.mutate({ id: modelId, data })}
+          onSave={(data) => {
+            setAsked(false);
+            if (summary.status === "LIVE") {
+              askToEdit.mutate({ id: modelId, data: { model: data, why: why.trim() } });
+            }
+            else {
+              update.mutate({ id: modelId, data });
+            }
+          }}
+          signOff={summary.status === "LIVE"
+            ? { why, onWhy: setWhy, holders: assignedPortfolios }
+            : undefined}
         />
       )}
 
