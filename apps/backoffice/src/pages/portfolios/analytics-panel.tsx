@@ -9,14 +9,6 @@ import { Alert, DateInput, Field, cn } from "@atomprive/ui";
 import { useEffect, useRef, useState } from "react";
 import { inkFor, nameOf, useAssetClasses } from "./asset-classes";
 
-/** How far back to draw. Days, because a portfolio is written down daily and read the same way. */
-const RANGES = [
-  { days: 3, label: "3 days" },
-  { days: 7, label: "7 days" },
-  { days: 30, label: "30 days" },
-  { days: 0, label: "Everything" },
-];
-
 function money(amount: number) {
   return amount.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
@@ -40,6 +32,25 @@ function longDay(day: string) {
 function asDate(day: string) {
   const [year, month, date] = day.split("-").map(Number);
   return new Date(year ?? 1970, (month ?? 1) - 1, date ?? 1);
+}
+
+/**
+ * How far back and forward the calendar opens.
+ *
+ * <p>Well past the figures either way. A filter is a question, and a question may reasonably name a
+ * date nothing was written on — the first of the month, the start of the year, today. Shutting the
+ * calendar to the days on file answered that question by refusing it.
+ */
+function openFrom(firstOnFile: string) {
+  const first = asDate(firstOnFile);
+  return new Date(first.getFullYear() - 10, 0, 1);
+}
+
+function openTo(lastOnFile: string) {
+  // Forward as freely as back. Capped at today, the end of the very month the figures sit in was
+  // greyed out — and "to the end of October" is a question somebody asks on the 18th of October.
+  // Naming a day nothing has been written on yet simply means "to the end of what there is".
+  return new Date(asDate(lastOnFile).getFullYear() + 10, 11, 31);
 }
 
 /** The day without its year, which an axis has room for and a reader does not need twice. */
@@ -66,9 +77,9 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
   const history = useGetClientValuations<ValuationHistory, ApiError>(customerId);
   const standing = useGetClientPortfolio<PortfolioStanding, ApiError>(customerId);
   const classes = useAssetClasses();
-  const [days, setDays] = useState(0);
-  // Dates picked outright, which answer the same question the buttons do and so override them. Held
-  // here rather than in the chart, because everything below reads the same stretch of days.
+  // The stretch of days everything on this panel is drawn from. Two dates and nothing else: the four
+  // buttons beside them asked the same question in rounder words, and a reader who wants the last week
+  // can say so here as easily as press a button for it.
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
@@ -78,12 +89,10 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
 
   const currency = history.data?.currency ?? "";
   const every = history.data?.points ?? [];
-  // Dates first where there are any: a reader who has typed one has said what they want more plainly
-  // than a button can. Either end on its own works — from a date to the end, or the start to a date.
-  const chosen = from !== "" || to !== "";
-  const points = chosen
-    ? every.filter((point) => (from === "" || point.valuedOn >= from) && (to === "" || point.valuedOn <= to))
-    : days === 0 ? every : every.slice(-days);
+  // Either end on its own works — from a date to the end of what there is, or the start of it to a date.
+  // Neither is everything, which is what the panel opens on.
+  const points = every.filter((point) =>
+    (from === "" || point.valuedOn >= from) && (to === "" || point.valuedOn <= to));
   const bounds = every.length === 0
     ? null
     : { first: every[0]!.valuedOn, last: every[every.length - 1]!.valuedOn };
@@ -97,8 +106,6 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
         everyCount={every.length}
         currency={currency}
         pending={history.isPending}
-        days={days}
-        setDays={setDays}
         from={from}
         to={to}
         setRange={(nextFrom, nextTo) => {
@@ -159,13 +166,11 @@ function useWidth() {
 }
 
 /** What the book has been worth, as a line with the ground under it filled in. */
-function WorthOverTime({ points, everyCount, currency, pending, days, setDays, from, to, setRange, bounds }: {
+function WorthOverTime({ points, everyCount, currency, pending, from, to, setRange, bounds }: {
   points: ValuationHistory["points"];
   everyCount: number;
   currency: string;
   pending: boolean;
-  days: number;
-  setDays: (days: number) => void;
   from: string;
   to: string;
   setRange: (from: string, to: string) => void;
@@ -174,6 +179,7 @@ function WorthOverTime({ points, everyCount, currency, pending, days, setDays, f
   const [box, width] = useWidth();
   const [over, setOver] = useState<number | null>(null);
   const chosen = from !== "" || to !== "";
+  const backwards = from !== "" && to !== "" && from > to;
 
   const worths = points.map((point) => point.underManagement);
   // Against its own range, never against nought: a book that moved from 15.2m to 15.3m drawn from zero
@@ -228,28 +234,12 @@ function WorthOverTime({ points, everyCount, currency, pending, days, setDays, f
             </p>
           )}
         </div>
-        <div className="flex flex-wrap gap-1">
-          {RANGES.map((range) => (
-            <button
-              key={range.days}
-              type="button"
-              onClick={() => {
-                setRange("", "");
-                setDays(range.days);
-              }}
-              className={cn("rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-                !chosen && days === range.days
-                  ? "bg-primary-600 text-on-accent"
-                  : "bg-slate-100 text-ink-soft hover:bg-slate-200")}
-            >
-              {range.label}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Simply there, not behind a button that asks whether you would like to be asked. The presets
-          above are a shortcut through these two boxes, and filling either box is what overrules them. */}
+      {/* Any date, not only the days that happen to hold a figure. Bounded to those, the calendar greyed
+          out all but the handful written down — so a reader could not ask for "the start of October", which
+          is the ordinary way to ask, and a filter that refuses the question reads as broken. Asking for a
+          stretch wider than the figures is a sound question with a short answer. */}
       {bounds && (
         <div className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-slate-50/60 px-4 py-3">
           <Field id="worth-from" label="From" className="w-44">
@@ -258,8 +248,8 @@ function WorthOverTime({ points, everyCount, currency, pending, days, setDays, f
               name="worth-from"
               value={from}
               clearable
-              min={asDate(bounds.first)}
-              max={asDate(bounds.last)}
+              min={openFrom(bounds.first)}
+              max={openTo(bounds.last)}
               onChange={(value) => setRange(value, to)}
             />
           </Field>
@@ -269,16 +259,16 @@ function WorthOverTime({ points, everyCount, currency, pending, days, setDays, f
               name="worth-to"
               value={to}
               clearable
-              min={asDate(bounds.first)}
-              max={asDate(bounds.last)}
+              min={openFrom(bounds.first)}
+              max={openTo(bounds.last)}
               onChange={(value) => setRange(from, value)}
             />
           </Field>
-          <p className="pb-2 text-xs text-ink-muted">
-            Days are on file from {longDay(bounds.first)} to {longDay(bounds.last)}.
-            {chosen
-              ? " Clear both to go back to the buttons."
-              : " Leave them empty and the buttons decide."}
+          <p className="max-w-80 pb-2 text-xs text-ink-muted">
+            {backwards
+              ? `From is after To. Figures are on file from ${longDay(bounds.first)} to ${longDay(bounds.last)}.`
+              : `Figures are on file from ${longDay(bounds.first)} to ${longDay(bounds.last)}.`
+                + (chosen ? " Clear both for all of them." : " Leave both empty for all of them.")}
           </p>
         </div>
       )}
@@ -294,9 +284,11 @@ function WorthOverTime({ points, everyCount, currency, pending, days, setDays, f
         <p className="mt-4 rounded-xl border border-dashed border-line py-16 text-center text-sm text-ink-muted">
           {everyCount === 0
             ? "No day has been written down yet."
-            : chosen
-              ? "No two days on file between those dates. A line needs two."
-              : "One day on file. A line needs two."}
+            : backwards
+              ? "From is after To, so there is nothing between them."
+              : chosen
+                ? "No two days on file between those dates. A line needs two."
+                : "One day on file. A line needs two."}
         </p>
       ) : (
         <figure className="relative mt-5">
