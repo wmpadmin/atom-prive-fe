@@ -1142,6 +1142,101 @@ export interface BenchmarkLevelRow {
   level: number;
 }
 
+export interface AllocationLine {
+  /** @nullable */
+  id: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  name: string;
+  /** @minimum 0 */
+  valueAmount: number;
+}
+
+export interface AllocationClass {
+  assetClass: string;
+  lines: AllocationLine[];
+}
+
+export interface AllocationRequest {
+  /**
+     * @minItems 1
+     * @maxItems 2147483647
+     */
+  classes: AllocationClass[];
+  /**
+     * @minLength 3
+     * @maxLength 3
+     * @nullable
+     */
+  currency: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  netAum: number | null;
+}
+
+export interface AllocationAsked {
+  allocation: AllocationRequest;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  why: string;
+}
+
+export interface AllocationChangeLine {
+  assetClass: string;
+  assetClassName: string;
+  name: string;
+  valueAmount: number;
+  heldNow: number;
+}
+
+export type AllocationChangeRowStatus = typeof AllocationChangeRowStatus[keyof typeof AllocationChangeRowStatus];
+
+
+export const AllocationChangeRowStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  WITHDRAWN: 'WITHDRAWN',
+} as const;
+
+export interface AllocationChangeRow {
+  id: string;
+  customerId: string;
+  clientName: string;
+  clientCode: string;
+  status: AllocationChangeRowStatus;
+  statusSaid: string;
+  why: string;
+  lines: AllocationChangeLine[];
+  /** @nullable */
+  netAum: number | null;
+  netAumNow: number;
+  currency: string;
+  worthNow: number;
+  linesGoing: number;
+  raisedBy: string;
+  raisedByName: string;
+  raisedAt: string;
+  /** @nullable */
+  changedAt: string | null;
+  /** @nullable */
+  decidedByName: string | null;
+  /** @nullable */
+  decidedAt: string | null;
+  /** @nullable */
+  decisionNote: string | null;
+  /** @nullable */
+  appliedRevision: number | null;
+  mayAnswer: boolean;
+  nobodyCloserCanAnswer: boolean;
+}
+
 /**
  * @nullable
  */
@@ -1539,11 +1634,11 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -3682,42 +3777,6 @@ export interface CashflowRow {
   recordedAt: string;
 }
 
-export interface AllocationLine {
-  /** @nullable */
-  id: string | null;
-  /**
-     * @minLength 0
-     * @maxLength 200
-     */
-  name: string;
-  /** @minimum 0 */
-  valueAmount: number;
-}
-
-export interface AllocationClass {
-  assetClass: string;
-  lines: AllocationLine[];
-}
-
-export interface AllocationRequest {
-  /**
-     * @minItems 1
-     * @maxItems 2147483647
-     */
-  classes: AllocationClass[];
-  /**
-     * @minLength 3
-     * @maxLength 3
-     * @nullable
-     */
-  currency: string | null;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  netAum: number | null;
-}
-
 export interface BenchmarkRequest {
   /**
      * @minLength 0
@@ -5018,6 +5077,11 @@ export interface Attribution {
   takenOut: number;
   rebalancedWithin: boolean;
   observations: number;
+}
+
+export interface AllocationChangeQueue {
+  waiting: AllocationChangeRow[];
+  decided: AllocationChangeRow[];
 }
 
 export interface CasePage {
@@ -8810,6 +8874,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordBenchmarkLevelMutationOptions(options), queryClient);
+    }
+
+export const getChangeTheAllocationChangeUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/allocation-changes/${id}`
+}
+
+export const changeTheAllocationChange = async (id: string,
+    allocationAsked: AllocationAsked, options?: Parameters<typeof http>[1]): Promise<AllocationChangeRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<AllocationChangeRow>(getChangeTheAllocationChangeUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(allocationAsked)
+  }
+);}
+
+
+
+
+
+export const getChangeTheAllocationChangeMutationKey = () => ['changeTheAllocationChange'] as const;
+
+export const getChangeTheAllocationChangeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeTheAllocationChange>>, TError,ChangeTheAllocationChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeTheAllocationChange>>, TError,ChangeTheAllocationChangeMutationVariables, TContext> => {
+
+const mutationKey = getChangeTheAllocationChangeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeTheAllocationChange>>, ChangeTheAllocationChangeMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  changeTheAllocationChange(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeTheAllocationChangeMutationResult = NonNullable<Awaited<ReturnType<typeof changeTheAllocationChange>>>
+    export type ChangeTheAllocationChangeMutationBody = AllocationAsked
+    export type ChangeTheAllocationChangeMutationError = unknown
+    export type ChangeTheAllocationChangeMutationVariables = {id: string;data: AllocationAsked}
+
+    export const useChangeTheAllocationChange = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeTheAllocationChange>>, TError,ChangeTheAllocationChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeTheAllocationChange>>,
+        TError,
+        ChangeTheAllocationChangeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeTheAllocationChangeMutationOptions(options), queryClient);
     }
 
 export const getGetOnboardingCaseUrl = (id: string,) => {
@@ -16665,6 +16812,184 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getWriteClientAllocationMutationOptions(options), queryClient);
     }
 
+export const getListClientAllocationChangesUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/allocation-changes`
+}
+
+export const listClientAllocationChanges = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<AllocationChangeRow[]> => {
+
+  return http<AllocationChangeRow[]>(getListClientAllocationChangesUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientAllocationChangesQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/allocation-changes`
+    ] as const;
+    }
+
+
+export const getListClientAllocationChangesQueryOptions = <TData = Awaited<ReturnType<typeof listClientAllocationChanges>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientAllocationChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientAllocationChangesQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientAllocationChanges>>> = ({ signal }) => listClientAllocationChanges(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientAllocationChanges>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListClientAllocationChangesQueryResult = NonNullable<Awaited<ReturnType<typeof listClientAllocationChanges>>>
+export type ListClientAllocationChangesQueryError = unknown
+
+
+export function useListClientAllocationChanges<TData = Awaited<ReturnType<typeof listClientAllocationChanges>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientAllocationChanges>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientAllocationChanges>>,
+          TError,
+          Awaited<ReturnType<typeof listClientAllocationChanges>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientAllocationChanges<TData = Awaited<ReturnType<typeof listClientAllocationChanges>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientAllocationChanges>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientAllocationChanges>>,
+          TError,
+          Awaited<ReturnType<typeof listClientAllocationChanges>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientAllocationChanges<TData = Awaited<ReturnType<typeof listClientAllocationChanges>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientAllocationChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListClientAllocationChanges<TData = Awaited<ReturnType<typeof listClientAllocationChanges>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientAllocationChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListClientAllocationChangesQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAskToRewriteAllocationUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/allocation-changes`
+}
+
+export const askToRewriteAllocation = async (customerId: string,
+    allocationAsked: AllocationAsked, options?: Parameters<typeof http>[1]): Promise<AllocationChangeRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<AllocationChangeRow>(getAskToRewriteAllocationUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(allocationAsked)
+  }
+);}
+
+
+
+
+
+export const getAskToRewriteAllocationMutationKey = () => ['askToRewriteAllocation'] as const;
+
+export const getAskToRewriteAllocationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToRewriteAllocation>>, TError,AskToRewriteAllocationMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askToRewriteAllocation>>, TError,AskToRewriteAllocationMutationVariables, TContext> => {
+
+const mutationKey = getAskToRewriteAllocationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askToRewriteAllocation>>, AskToRewriteAllocationMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  askToRewriteAllocation(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskToRewriteAllocationMutationResult = NonNullable<Awaited<ReturnType<typeof askToRewriteAllocation>>>
+    export type AskToRewriteAllocationMutationBody = AllocationAsked
+    export type AskToRewriteAllocationMutationError = unknown
+    export type AskToRewriteAllocationMutationVariables = {customerId: string;data: AllocationAsked}
+
+    export const useAskToRewriteAllocation = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToRewriteAllocation>>, TError,AskToRewriteAllocationMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askToRewriteAllocation>>,
+        TError,
+        AskToRewriteAllocationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskToRewriteAllocationMutationOptions(options), queryClient);
+    }
+
 export const getListBenchmarksUrl = () => {
 
 
@@ -16840,6 +17165,157 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getCreateBenchmarkMutationOptions(options), queryClient);
+    }
+
+export const getTakeBackTheAllocationChangeUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/allocation-changes/${id}/withdrawal`
+}
+
+export const takeBackTheAllocationChange = async (id: string, options?: Parameters<typeof http>[1]): Promise<AllocationChangeRow> => {
+
+  return http<AllocationChangeRow>(getTakeBackTheAllocationChangeUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTakeBackTheAllocationChangeMutationKey = () => ['takeBackTheAllocationChange'] as const;
+
+export const getTakeBackTheAllocationChangeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeBackTheAllocationChange>>, TError,TakeBackTheAllocationChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof takeBackTheAllocationChange>>, TError,TakeBackTheAllocationChangeMutationVariables, TContext> => {
+
+const mutationKey = getTakeBackTheAllocationChangeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof takeBackTheAllocationChange>>, TakeBackTheAllocationChangeMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  takeBackTheAllocationChange(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TakeBackTheAllocationChangeMutationResult = NonNullable<Awaited<ReturnType<typeof takeBackTheAllocationChange>>>
+
+    export type TakeBackTheAllocationChangeMutationError = unknown
+    export type TakeBackTheAllocationChangeMutationVariables = {id: string}
+
+    export const useTakeBackTheAllocationChange = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeBackTheAllocationChange>>, TError,TakeBackTheAllocationChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof takeBackTheAllocationChange>>,
+        TError,
+        TakeBackTheAllocationChangeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTakeBackTheAllocationChangeMutationOptions(options), queryClient);
+    }
+
+export const getAnswerTheAllocationChangeUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/allocation-changes/${id}/answer`
+}
+
+export const answerTheAllocationChange = async (id: string,
+    movePlanDecision: MovePlanDecision, options?: Parameters<typeof http>[1]): Promise<AllocationChangeRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<AllocationChangeRow>(getAnswerTheAllocationChangeUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(movePlanDecision)
+  }
+);}
+
+
+
+
+
+export const getAnswerTheAllocationChangeMutationKey = () => ['answerTheAllocationChange'] as const;
+
+export const getAnswerTheAllocationChangeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerTheAllocationChange>>, TError,AnswerTheAllocationChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerTheAllocationChange>>, TError,AnswerTheAllocationChangeMutationVariables, TContext> => {
+
+const mutationKey = getAnswerTheAllocationChangeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerTheAllocationChange>>, AnswerTheAllocationChangeMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  answerTheAllocationChange(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerTheAllocationChangeMutationResult = NonNullable<Awaited<ReturnType<typeof answerTheAllocationChange>>>
+    export type AnswerTheAllocationChangeMutationBody = MovePlanDecision
+    export type AnswerTheAllocationChangeMutationError = unknown
+    export type AnswerTheAllocationChangeMutationVariables = {id: string;data: MovePlanDecision}
+
+    export const useAnswerTheAllocationChange = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerTheAllocationChange>>, TError,AnswerTheAllocationChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answerTheAllocationChange>>,
+        TError,
+        AnswerTheAllocationChangeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerTheAllocationChangeMutationOptions(options), queryClient);
     }
 
 export const getListOnboardingCasesUrl = (params?: ListOnboardingCasesParams,) => {
@@ -25343,6 +25819,101 @@ export function useGetClientAttribution<TData = Awaited<ReturnType<typeof getCli
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientAttributionQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAllocationChangesUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/allocation-changes`
+}
+
+export const listAllocationChanges = async ( options?: Parameters<typeof http>[1]): Promise<AllocationChangeQueue> => {
+
+  return http<AllocationChangeQueue>(getListAllocationChangesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAllocationChangesQueryKey = () => {
+    return [
+    `/api/backoffice/portfolios/allocation-changes`
+    ] as const;
+    }
+
+
+export const getListAllocationChangesQueryOptions = <TData = Awaited<ReturnType<typeof listAllocationChanges>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAllocationChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAllocationChangesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAllocationChanges>>> = ({ signal }) => listAllocationChanges({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAllocationChanges>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAllocationChangesQueryResult = NonNullable<Awaited<ReturnType<typeof listAllocationChanges>>>
+export type ListAllocationChangesQueryError = unknown
+
+
+export function useListAllocationChanges<TData = Awaited<ReturnType<typeof listAllocationChanges>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAllocationChanges>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAllocationChanges>>,
+          TError,
+          Awaited<ReturnType<typeof listAllocationChanges>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAllocationChanges<TData = Awaited<ReturnType<typeof listAllocationChanges>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAllocationChanges>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAllocationChanges>>,
+          TError,
+          Awaited<ReturnType<typeof listAllocationChanges>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAllocationChanges<TData = Awaited<ReturnType<typeof listAllocationChanges>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAllocationChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListAllocationChanges<TData = Awaited<ReturnType<typeof listAllocationChanges>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAllocationChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListAllocationChangesQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

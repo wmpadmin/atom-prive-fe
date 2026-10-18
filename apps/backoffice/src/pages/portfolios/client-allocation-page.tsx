@@ -3,6 +3,7 @@ import {
   getGetClientPortfolioQueryKey,
   getGetClientValuationsQueryKey,
   getListClientHoldingsQueryKey,
+  useAskToRewriteAllocation,
   useListClientHoldings,
   useListCurrencies,
   useWriteClientAllocation,
@@ -82,6 +83,9 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
   const holdings = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const writeAllocation = useWriteClientAllocation<ApiError>();
+  const askToRewrite = useAskToRewriteAllocation<ApiError>();
+  /** Why the figures should change, which only the ask needs and only the ask shows a box for. */
+  const [why, setWhy] = useState("");
 
   // Seeded once from the firm's list, which may not have arrived on the first render — so it is rebuilt
   // when it does, and anything typed by then is kept over the top of it.
@@ -146,6 +150,9 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
     return new Set(said).size !== said.length;
   });
   const readable = unreadable.length === 0 && unnamed.length === 0 && twiceNamed.length === 0;
+  // Whether this client has figures already, which is what decides written outright against asked for.
+  const alreadyWritten = (holdings.data?.classes ?? [])
+    .some((klass) => klass.subClasses.some((group) => group.positions.length > 0));
   const anything = whole > 0;
 
   /**
@@ -199,23 +206,30 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
       // client no longer holds, and that is how it comes off. The API leaves alone any line whose name
       // and figure have not moved, so what is not on this screen — a line's own tolerance above all —
       // survives a save that was not about it.
-      await writeAllocation.mutateAsync({
-        customerId,
-        data: {
-          classes: codes.map((assetClass) => ({
-            assetClass,
-            lines: (lines[assetClass] ?? [])
-              .filter((line) => isNumber(line.amount) && Number(line.amount) > 0)
-              .map((line) => ({
-                id: line.id,
-                name: line.name.trim(),
-                valueAmount: Number(line.amount),
-              })),
-          })),
-          currency: currency || null,
-          netAum: whole,
-        },
-      });
+      const allocation = {
+        classes: codes.map((assetClass) => ({
+          assetClass,
+          lines: (lines[assetClass] ?? [])
+            .filter((line) => isNumber(line.amount) && Number(line.amount) > 0)
+            .map((line) => ({
+              id: line.id,
+              name: line.name.trim(),
+              valueAmount: Number(line.amount),
+            })),
+        })),
+        currency: currency || null,
+        netAum: whole,
+      };
+      // Written outright the first time and asked for every time after. Rewriting a portfolio takes
+      // every line off that this screen stops naming and replaces the figure every target is measured
+      // against, which is a larger change than moving money between two lines — and that already needs
+      // whoever looks after the client to agree. The first has nothing to overrule.
+      if (alreadyWritten) {
+        await askToRewrite.mutateAsync({ customerId, data: { allocation, why: why.trim() } });
+      }
+      else {
+        await writeAllocation.mutateAsync({ customerId, data: allocation });
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),
         queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) }),
@@ -477,6 +491,29 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
         <Alert tone="danger">A figure box has something in it that is not a figure.</Alert>
       )}
 
+      {/* Asked for, where there is something to overrule. The reason is what whoever answers is really
+          being asked about: a page of figures with no sentence beside it asks somebody to agree to
+          arithmetic. */}
+      {alreadyWritten && (
+        <div className="mt-6 rounded-xl border border-line bg-slate-50/60 px-4 py-3">
+          <label htmlFor="why-it-changed"
+            className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Why it should change
+          </label>
+          <TextInput
+            id="why-it-changed"
+            className="mt-1.5"
+            value={why}
+            placeholder="The custodian statement came in at a different figure."
+            onChange={(event) => setWhy(event.target.value)}
+          />
+          <p className="mt-2 text-xs text-ink-muted">
+            These figures are already written down, so changing them is answered by whoever looks after
+            this client. Nothing moves until they agree.
+          </p>
+        </div>
+      )}
+
       {/* In the page rather than lying over it: the figure that had to be kept in sight is said at the
           end now, so the buttons can line up with the cards above them like every other screen's do. */}
       <div className="mt-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
@@ -486,10 +523,12 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
         <Button
           type="button"
           size="lg"
-          disabled={busy || !readable || !anything}
+          disabled={busy || !readable || !anything || (alreadyWritten && why.trim() === "")}
           onClick={() => void save()}
         >
-          {busy ? "Writing it down…" : "Next"}
+          {busy
+            ? (alreadyWritten ? "Asking…" : "Writing it down…")
+            : alreadyWritten ? "Ask for this change" : "Next"}
         </Button>
       </div>
     </div>
