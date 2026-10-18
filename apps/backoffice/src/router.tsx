@@ -71,6 +71,7 @@ import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
 import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
 import { DailyTrackerDayPage } from "./pages/portfolios/daily-tracker-day-page";
+import { ClientMovesPage } from "./pages/portfolios/client-moves-page";
 import { RestoresToApprovePage } from "./pages/portfolios/restores-to-approve-page";
 import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
 import { RolesPage } from "./pages/roles/roles-page";
@@ -231,6 +232,8 @@ export const router = createBrowserRouter([
             element: <RequireAuthority authority={ANSWERS_MOVE_PLANS} />,
             children: [
               { path: "moves-to-approve", element: <MovesToApprovePage /> },
+              // One client's moves, on a screen of their own rather than in a drawer under their name.
+              { path: "moves-to-approve/:customerId", element: <ClientMovesPage /> },
               // Putting a client's figures back is answered by the same people under the same rule, so it
               // sits behind the same gate.
               { path: "restores-to-approve", element: <RestoresToApprovePage /> },
