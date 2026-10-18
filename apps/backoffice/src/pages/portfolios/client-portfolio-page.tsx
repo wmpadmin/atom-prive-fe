@@ -396,18 +396,24 @@ export function ClientPortfolioPage() {
       if (reviewedOn !== null && reviewedOn !== (standing.data?.lastReviewedOn ?? "") && reviewedOn) {
         await reviewed.mutateAsync({ customerId, data: { on: reviewedOn } });
       }
+      // Only where a figure actually changed. Sent on every Save, this wrote the same figures back over
+      // themselves — harmless until something is waiting on the client, and then refused, so pressing Save
+      // after asking for a move came back red for a write nobody had asked for. Asking is not saving: the
+      // ask was already sent by the button that made it.
       const wanted: Record<string, number> = {};
       for (const [assetClass, typed] of Object.entries(holdings)) {
         if (typed.trim()) wanted[assetClass] = Number(typed);
       }
       // The currency goes back exactly as it came: what the portfolio is written in is not something this
       // screen can change, and sending it unchanged is what keeps it.
-      await setHoldings.mutateAsync({
-        customerId,
-        // Left out rather than sent as nought: nobody saying what the client has is a different thing
-        // from somebody saying they have nothing.
-        data: { holdings: wanted, currency, netAum: netAum.trim() === "" ? null : Number(netAum) },
-      });
+      if (figuresChanged) {
+        await setHoldings.mutateAsync({
+          customerId,
+          // Left out rather than sent as nought: nobody saying what the client has is a different thing
+          // from somebody saying they have nothing.
+          data: { holdings: wanted, currency, netAum: netAum.trim() === "" ? null : Number(netAum) },
+        });
+      }
     }
     catch {
       // Each mutation reports what it was refused for through onError, which has already put the message
@@ -503,7 +509,14 @@ export function ClientPortfolioPage() {
               <Button variant="secondary" disabled={saving} onClick={discard}>
                 Discard
               </Button>
-              <Button disabled={saving} onClick={() => void save()}>
+              {/* Nothing to keep, nothing to press. Everything this screen asks for — a move, a restore,
+                  a change of model — is sent by the button that asks it, so after asking there is genuinely
+                  nothing left for Save to do, and offering it meant pressing it and being told no. */}
+              <Button
+                disabled={saving || !unsaved}
+                title={unsaved ? undefined : "Nothing has been changed on this screen yet."}
+                onClick={() => void save()}
+              >
                 {saving ? "Saving…" : "Save changes"}
               </Button>
             </div>
@@ -629,7 +642,10 @@ export function ClientPortfolioPage() {
             >
               Write this client an allocation of their own
             </button>
-            . It is measured like any plan, and nothing acts on it by itself.
+            {onAmodel
+              ? ". It is written for them, but putting them on it is asked for and answered by whoever "
+                + "looks after them — the same as moving them to any other plan."
+              : ". It is measured like any plan, and nothing acts on it by itself."}
           </p>
         )}
         {standing.data?.customModel && (
