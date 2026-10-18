@@ -1,15 +1,20 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  getGetClientPortfolioQueryKey,
+  getGetClientValuationsQueryKey,
+  getListClientHoldingsQueryKey,
   getListClientLoansQueryKey,
   getListNonFinancialAssetsQueryKey,
-  useChangeNonFinancialAsset,
+  useAskToRewriteAllocation,
+  useListClientHoldings,
   useListClientLoans,
   useListNonFinancialAssets,
-  useRecordNonFinancialAsset,
-  useRemoveNonFinancialAsset,
+  useWriteClientAllocation,
+  type ClientHoldings,
   type ClientLoans,
   type LoanRequestSecuredOn,
   type ClientNonFinancialAssets,
+  type NonFinancialAssetRequest,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, SelectInput, TextArea, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,6 +22,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { BOX, type StepProps } from "./portfolio-setup-dialog";
+import { linesOnFile, loanOnFile, ownedOnFile, saysSomethingNew, toThePenny, type Calculator } from "./the-calculator";
 
 /**
  * One line of either list: what it is, whatever else has to be said about it, and a figure.
@@ -89,15 +95,19 @@ function named(one: Line, hasItem: boolean) {
  * is owed — and neither is long enough to be worth a sitting of its own. Both are kept off the allocation:
  * a target is a share of money that can be moved to reach it, and neither a house nor a debt can be moved.
  */
-export function WorthStep({ customerId, onDone, onBack }: StepProps) {
+export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepProps) {
   const queryClient = useQueryClient();
   const owned = useListNonFinancialAssets<ClientNonFinancialAssets, ApiError>(customerId);
   const owed = useListClientLoans<ClientLoans, ApiError>(customerId);
+  // What the client holds, which this step does not change and does have to send: the calculator goes
+  // as one value, so the step that finishes it carries the lines whether or not anybody typed them.
+  const holdings = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
+  /** Why the figures should change, which only an ask needs and only an ask shows a box for. */
+  const [why, setWhy] = useState("");
 
-  const writeOwned = useRecordNonFinancialAsset<ApiError>();
-  const changeOwned = useChangeNonFinancialAsset<ApiError>();
-  const forgetOwned = useRemoveNonFinancialAsset<ApiError>();
+  const writeAllocation = useWriteClientAllocation<ApiError>();
+  const askToRewrite = useAskToRewriteAllocation<ApiError>();
   // One flag for the whole save, not the six mutations' own. They run one after another, so between
   // any two of them every one of them is idle for a tick, and the button flicked back and in again on
   // each one.
@@ -108,32 +118,57 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
   const [typedOwned, setOwned] = useState<Line[] | null>(null);
   const [typedOwed, setOwed] = useState<Line[] | null>(null);
 
-  const ownedAsRead = useMemo<Line[]>(() => [
-    ...(owned.data?.items ?? []).map((one) => ({
-      id: one.id,
-      item: one.item,
-      description: one.description ?? "",
-      amount: String(one.valueAmount),
-      securedOn: "PORTFOLIO" as const,
-    })),
-    NOTHING_YET,
-  ], [owned.data]);
-  const owedAsRead = useMemo<Line[]>(() => [
-    ...(owed.data?.loans ?? []).map((one) => ({
-      id: one.id,
-      item: "",
-      description: one.description,
-      securedOn: one.securedOn,
-      // Shown as a plain figure, because nobody writes a minus sign to say what they owe. It is kept
-      // negative, so what comes back is turned round to be read.
-      amount: String(Math.abs(one.valueAmount)),
-    })),
-    NOTHING_YET,
-  ], [owed.data]);
+  const ownedAsRead = useMemo<Line[]>(() => {
+    // What was typed here earlier in this walk, where somebody has been and gone back. Nothing is sent
+    // until this step's own button now, so coming back has to find what was left rather than the list on
+    // file, which is the one being changed.
+    const already: Line[] = draft?.owned
+      ? draft.owned.map((one) => ({
+        id: null,
+        item: one.item,
+        description: one.description ?? "",
+        amount: String(one.valueAmount),
+        securedOn: "PORTFOLIO" as const,
+      }))
+      : (owned.data?.items ?? []).map((one) => ({
+        id: one.id,
+        item: one.item,
+        description: one.description ?? "",
+        amount: String(one.valueAmount),
+        securedOn: "PORTFOLIO" as const,
+      }));
+    return [...already, NOTHING_YET];
+  }, [owned.data, draft]);
+
+  const owedAsRead = useMemo<Line[]>(() => {
+    // What the step before typed, where somebody has been there, rather than what is on file. This
+    // reads the loan back and says to go back and change it, so it has to show the figure that would
+    // go — otherwise it tells somebody who just typed 7,000 that they owe 2,000.
+    const typedBefore = draft?.held?.loanAmount;
+    const loans = (typedBefore != null)
+      ? (typedBefore === 0 ? [] : [{
+        id: null, description: "Loan", securedOn: "PORTFOLIO" as const, valueAmount: typedBefore,
+      }])
+      : (owed.data?.loans ?? []);
+    return [
+      ...loans.map((one) => ({
+        id: one.id,
+        item: "",
+        description: one.description,
+        securedOn: one.securedOn,
+        // Shown as a plain figure, because nobody writes a minus sign to say what they owe. It is kept
+        // negative, so what comes back is turned round to be read.
+        amount: String(Math.abs(one.valueAmount)),
+      })),
+      NOTHING_YET,
+    ];
+  }, [owed.data, draft]);
 
   const ownedRows = typedOwned ?? ownedAsRead;
   const owedRows = typedOwed ?? owedAsRead;
-  const wasOwned = new Map(ownedAsRead.filter((one) => one.id !== null).map((one) => [one.id, one]));
+  // Whether this client has figures already, which is what decides written outright against asked for.
+  const alreadyWritten = (holdings.data?.classes ?? [])
+    .some((klass) => klass.subClasses.some((group) => group.positions.length > 0));
 
   const currency = owned.data?.currency ?? owed.data?.currency ?? "";
   const ownedTotal = adds(ownedRows);
@@ -157,45 +192,78 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
   }
   const putOwned = put(ownedRows, setOwned, true);
 
+  /** What this step says the client owns outright, in the shape the calculator sends. */
+  const sending: NonFinancialAssetRequest[] = ownedRows.filter((one) => named(one, true)).map((one) => ({
+    item: one.item.trim(),
+    description: one.description.trim() || null,
+    valueAmount: isNumber(one.amount) ? toThePenny(Number(one.amount)) : 0,
+  }));
+
+  /** What is on file right now, read as one calculator, so what is being sent can be set beside it. */
+  const onFile: Calculator = {
+    classes: linesOnFile(holdings.data),
+    currency: holdings.data?.currency ?? null,
+    netAum: holdings.data?.underManagement ?? null,
+    loanAmount: loanOnFile(owed.data),
+    ownedOutright: ownedOnFile(owned.data),
+  };
+
   /**
-   * Written one at a time, because that is what the API takes. Something already written down is changed,
-   * something whose name has been cleared is taken off, and anything nobody touched is left alone.
+   * The whole calculator: the lines and the loan the first step typed, or the ones on file where nobody
+   * went there, and the list typed here. One value, sent once, by the step that finishes it.
    */
+  const held = draft?.held;
+  const whole: Calculator = {
+    classes: held?.classes ?? onFile.classes,
+    currency: held?.currency ?? onFile.currency,
+    netAum: held?.netAum ?? onFile.netAum,
+    loanAmount: (held === undefined) ? onFile.loanAmount : held.loanAmount,
+    ownedOutright: sending,
+  };
+
+  /**
+   * Whether this walk through the calculator says anything the client's figures do not already say.
+   *
+   * <p>Nothing is asked for where nothing changed, and the screen says so rather than making somebody
+   * find out by pressing: no reason is asked for, and the button is the plain one that walks on. Somebody
+   * who opened the calculator to read it, or cleared a box and typed the same figure back into it, has
+   * changed nothing and owes nobody an answer — and a request raised for that would put a real decision
+   * in front of whoever looks after the client with nothing in it to decide.
+   */
+  const changing = !holdings.isPending && !owned.isPending && !owed.isPending
+    && saysSomethingNew(whole, onFile);
+  const asking = changing && alreadyWritten;
+
   async function save() {
+    if (!changing) {
+      onDraft?.({});
+      onDone();
+      return;
+    }
     setErrors(noErrors);
     setBusy(true);
     try {
-      for (const one of ownedRows) {
-        if (!named(one, true)) {
-          if (one.id !== null) await forgetOwned.mutateAsync({ customerId, id: one.id });
-          continue;
-        }
-        const data = {
-          item: one.item.trim(),
-          description: one.description.trim() || null,
-          valueAmount: isNumber(one.amount) ? Number(one.amount) : 0,
-        };
-        if (one.id === null) {
-          await writeOwned.mutateAsync({ customerId, data });
-          continue;
-        }
-        const was = wasOwned.get(one.id);
-        if (was?.item === one.item && was.description === one.description && was.amount === one.amount) {
-          continue;
-        }
-        await changeOwned.mutateAsync({ customerId, id: one.id, data });
+      // Written outright the first time and asked for every time after. The first has nothing to
+      // overrule: no figures an advisor could be protecting, no drift to change, no day to re-close.
+      if (asking) {
+        await askToRewrite.mutateAsync({ customerId, data: { allocation: whole, why: why.trim() } });
       }
-
-      // Loans are not written here. They are asked for a step earlier, beside the cash they offset,
-      // and writing them again from a screen that only reads them would have whichever step was saved
-      // last decide what the client owes.
-
+      else {
+        await writeAllocation.mutateAsync({ customerId, data: whole });
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getListNonFinancialAssetsQueryKey(customerId) }),
         queryClient.invalidateQueries({ queryKey: getListClientLoansQueryKey(customerId) }),
+        queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),
+        queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) }),
+        // The day's history too. Every change writes its own version, so the act somebody has just taken
+        // is one the tracker is meant to show — and without this it would not until something unrelated
+        // happened to refetch.
+        queryClient.invalidateQueries({ queryKey: getGetClientValuationsQueryKey(customerId) }),
       ]);
       setOwned(null);
       setOwed(null);
+      onDraft?.({});
       onDone();
     }
     catch (caught) {
@@ -206,8 +274,14 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
     }
   }
 
-  if (owned.isError || owed.isError) {
-    return <Alert tone="danger">{(owned.error ?? owed.error)?.message}</Alert>;
+  /** Back with what was typed here kept, the same way the first step's figures are kept coming forward. */
+  function back() {
+    onDraft?.({ ...draft, owned: sending });
+    onBack?.();
+  }
+
+  if (owned.isError || owed.isError || holdings.isError) {
+    return <Alert tone="danger">{(owned.error ?? owed.error ?? holdings.error)?.message}</Alert>;
   }
 
   const money = (figure: number, brackets: boolean) =>
@@ -366,12 +440,43 @@ export function WorthStep({ customerId, onDone, onBack }: StepProps) {
         <Alert tone="danger">A figure box has something in it that is not a figure.</Alert>
       )}
 
+      {/* Asked for, where there is something to overrule. The reason is what whoever answers is really
+          being asked about: a page of figures with no sentence beside it asks somebody to agree to
+          arithmetic. Here rather than a step back, because this is the step that sends. */}
+      {asking && (
+        <div className="mt-6 rounded-xl border border-line bg-slate-50/60 px-4 py-3">
+          <label htmlFor="why-it-changed"
+            className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Why it should change
+          </label>
+          <TextInput
+            id="why-it-changed"
+            className="mt-1.5"
+            value={why}
+            placeholder="The custodian statement came in at a different figure."
+            onChange={(event) => setWhy(event.target.value)}
+          />
+          <p className="mt-2 text-xs text-ink-muted">
+            This client's figures are already written down, so the whole calculator — what they hold, what
+            they owe and what they own outright — is answered by whoever looks after them. Nothing changes
+            until they agree, and nothing is asked for if nothing changed.
+          </p>
+        </div>
+      )}
+
       <div className="mt-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
-        <Button variant="secondary" size="lg" type="button" onClick={onBack}>
+        <Button variant="secondary" size="lg" type="button" onClick={back}>
           Back
         </Button>
-        <Button type="button" size="lg" disabled={busy || !readable} onClick={() => void save()}>
-          {busy ? "Saving…" : "Next"}
+        <Button
+          type="button"
+          size="lg"
+          disabled={busy || !readable || (asking && why.trim() === "")}
+          onClick={() => void save()}
+        >
+          {busy
+            ? (asking ? "Asking…" : "Writing it down…")
+            : asking ? "Ask for this change" : "Next"}
         </Button>
       </div>
     </div>
