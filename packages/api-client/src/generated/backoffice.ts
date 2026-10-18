@@ -545,6 +545,8 @@ export interface MovePlanAsked {
      * @maxLength 2000
      */
   why: string;
+  /** @nullable */
+  fromProposalId: string | null;
 }
 
 export type MovePlanRowStatus = typeof MovePlanRowStatus[keyof typeof MovePlanRowStatus];
@@ -600,6 +602,8 @@ export interface MovePlanRow {
   decisionNote: string | null;
   /** @nullable */
   appliedRevision: number | null;
+  /** @nullable */
+  fromProposalId: string | null;
   mayAnswer: boolean;
   nobodyCloserCanAnswer: boolean;
 }
@@ -24710,6 +24714,101 @@ export function useListMovePlans<TData = Awaited<ReturnType<typeof listMovePlans
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListMovePlansQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMovesCarryingOutUrl = (proposalId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/move-plans/carrying-out/${proposalId}`
+}
+
+export const listMovesCarryingOut = async (proposalId: string, options?: Parameters<typeof http>[1]): Promise<MovePlanRow[]> => {
+
+  return http<MovePlanRow[]>(getListMovesCarryingOutUrl(proposalId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMovesCarryingOutQueryKey = (proposalId: string,) => {
+    return [
+    `/api/backoffice/portfolios/move-plans/carrying-out/${proposalId}`
+    ] as const;
+    }
+
+
+export const getListMovesCarryingOutQueryOptions = <TData = Awaited<ReturnType<typeof listMovesCarryingOut>>, TError = unknown>(proposalId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovesCarryingOut>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMovesCarryingOutQueryKey(proposalId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMovesCarryingOut>>> = ({ signal }) => listMovesCarryingOut(proposalId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: proposalId !== null && proposalId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMovesCarryingOut>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMovesCarryingOutQueryResult = NonNullable<Awaited<ReturnType<typeof listMovesCarryingOut>>>
+export type ListMovesCarryingOutQueryError = unknown
+
+
+export function useListMovesCarryingOut<TData = Awaited<ReturnType<typeof listMovesCarryingOut>>, TError = unknown>(
+ proposalId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovesCarryingOut>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMovesCarryingOut>>,
+          TError,
+          Awaited<ReturnType<typeof listMovesCarryingOut>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMovesCarryingOut<TData = Awaited<ReturnType<typeof listMovesCarryingOut>>, TError = unknown>(
+ proposalId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovesCarryingOut>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMovesCarryingOut>>,
+          TError,
+          Awaited<ReturnType<typeof listMovesCarryingOut>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMovesCarryingOut<TData = Awaited<ReturnType<typeof listMovesCarryingOut>>, TError = unknown>(
+ proposalId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovesCarryingOut>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMovesCarryingOut<TData = Awaited<ReturnType<typeof listMovesCarryingOut>>, TError = unknown>(
+ proposalId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovesCarryingOut>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMovesCarryingOutQueryOptions(proposalId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
