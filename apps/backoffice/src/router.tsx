@@ -73,6 +73,7 @@ import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
 import { DailyTrackerDayPage } from "./pages/portfolios/daily-tracker-day-page";
 import { ClientMovesPage } from "./pages/portfolios/client-moves-page";
 import { AllocationsToApprovePage } from "./pages/portfolios/allocations-to-approve-page";
+import { ModelEditsToApprovePage } from "./pages/portfolios/model-edits-to-approve-page";
 import { RestoresToApprovePage } from "./pages/portfolios/restores-to-approve-page";
 import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
 import { RolesPage } from "./pages/roles/roles-page";
@@ -239,6 +240,7 @@ export const router = createBrowserRouter([
               // sits behind the same gate.
               { path: "restores-to-approve", element: <RestoresToApprovePage /> },
               { path: "allocations-to-approve", element: <AllocationsToApprovePage /> },
+              { path: "model-edits-to-approve", element: <ModelEditsToApprovePage /> },
               // Where the screen used to live. Every bell sent before it was renamed carries this path,
               // and those notices are rows in a database rather than links that can be rewritten — so the
               // old address has to keep arriving somewhere rather than at a page that is not there.

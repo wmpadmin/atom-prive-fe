@@ -201,20 +201,37 @@ export function WhatIfPanel({
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  {/* Said as shares, because that is what they are. "Held now" and "Would hold" read as
+                      money beside a column of money the reader has just typed, and the figures under them
+                      are percentages — so two of the five columns were lying about their own units. */}
                   <th scope="col" className="py-2 pr-4">Asset class</th>
-                  <th scope="col" className="px-4 py-2 text-right">Target</th>
-                  <th scope="col" className="px-4 py-2 text-right">Held now</th>
-                  <th scope="col" className="px-4 py-2 text-right">Would hold</th>
+                  <th scope="col" className="px-4 py-2 text-right">You typed</th>
+                  <th scope="col" className="px-4 py-2 text-right">Asked for</th>
+                  <th scope="col" className="px-4 py-2 text-right">Share now</th>
+                  <th scope="col" className="px-4 py-2 text-right">Share after</th>
                   <th scope="col" className="py-2 pl-4 text-left">Would stand</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {asked.after.classes.map((one) => {
                   const before = asked.before.classes.find((was) => was.assetClass === one.assetClass);
-                  const standsAs = one.standing as DriftStanding;
+                  const standsAs = one.standing as DriftStanding | null;
+                  // What the reader actually typed against this class, brought back onto the row. It was
+                  // nowhere on the answer: somebody reading a table of percentages had no way to check it
+                  // against the figure they had just entered.
+                  // The boxes and this answer cannot disagree: any edit throws the answer away, so what
+                  // is in them now is what was sent.
+                  const placed = moves[one.assetClass] ?? 0;
                   return (
                     <tr key={one.assetClass}>
                       <th scope="row" className="py-2 pr-4 text-left font-medium text-ink">{one.assetClassName}</th>
+                      <td className={cn("px-4 py-2 text-right tabular-nums",
+                        placed === 0 ? "text-ink-muted"
+                          : placed > 0 ? "text-emerald-700" : "text-red-600")}>
+                        {placed === 0
+                          ? "—"
+                          : `${placed > 0 ? "+" : "−"}${money(Math.abs(placed), asked.after.currency)}`}
+                      </td>
                       <td className="px-4 py-2 text-right tabular-nums">{one.targetShare.toFixed(2)}%</td>
                       <td className="px-4 py-2 text-right tabular-nums text-ink-muted">
                         {(before?.actualShare ?? 0).toFixed(2)}%
@@ -223,7 +240,12 @@ export function WhatIfPanel({
                         {one.actualShare.toFixed(2)}%
                       </td>
                       <td className="py-2 pl-4">
-                        <Badge tone={standingTones[standsAs]}>{standingLabels[standsAs]}</Badge>
+                        {/* A class the platform gives no verdict on gets none here either. Read without
+                            the guard the table higher up this page already has, it drew an empty grey
+                            pill — a badge saying nothing, which reads as a word that failed to load. */}
+                        {standsAs
+                          ? <Badge tone={standingTones[standsAs]}>{standingLabels[standsAs]}</Badge>
+                          : <span className="text-xs text-ink-muted">—</span>}
                       </td>
                     </tr>
                   );

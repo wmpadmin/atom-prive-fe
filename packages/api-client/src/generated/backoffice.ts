@@ -802,6 +802,74 @@ export interface ModelRow {
   updatedAt: string;
 }
 
+export interface ModelEditAsked {
+  model: ModelRequest;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  why: string;
+}
+
+export type ModelEditRowStatus = typeof ModelEditRowStatus[keyof typeof ModelEditRowStatus];
+
+
+export const ModelEditRowStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  WITHDRAWN: 'WITHDRAWN',
+} as const;
+
+export type ModelEditRowTargetsNow = {[key: string]: number};
+
+export type ModelEditRowTargetsAfter = {[key: string]: number};
+
+export type ModelEditRowStatusNow = typeof ModelEditRowStatusNow[keyof typeof ModelEditRowStatusNow];
+
+
+export const ModelEditRowStatusNow = {
+  DRAFT: 'DRAFT',
+  LIVE: 'LIVE',
+  RETIRED: 'RETIRED',
+} as const;
+
+export type ModelEditRowStatusAfter = typeof ModelEditRowStatusAfter[keyof typeof ModelEditRowStatusAfter];
+
+
+export const ModelEditRowStatusAfter = {
+  DRAFT: 'DRAFT',
+  LIVE: 'LIVE',
+  RETIRED: 'RETIRED',
+} as const;
+
+export interface ModelEditRow {
+  id: string;
+  modelPortfolioId: string;
+  wasNamed: string;
+  wouldBeNamed: string;
+  status: ModelEditRowStatus;
+  statusSaid: string;
+  why: string;
+  holders: number;
+  targetsNow: ModelEditRowTargetsNow;
+  targetsAfter: ModelEditRowTargetsAfter;
+  statusNow: ModelEditRowStatusNow;
+  statusAfter: ModelEditRowStatusAfter;
+  raisedBy: string;
+  raisedByName: string;
+  raisedAt: string;
+  /** @nullable */
+  changedAt: string | null;
+  /** @nullable */
+  decidedByName: string | null;
+  /** @nullable */
+  decidedAt: string | null;
+  /** @nullable */
+  decisionNote: string | null;
+  mayAnswer: boolean;
+}
+
 export interface NonFinancialAssetRequest {
   /**
      * @minLength 0
@@ -4865,6 +4933,11 @@ export interface ModelDetail {
   measuredPortfolios: number;
 }
 
+export interface ModelEditQueue {
+  waiting: ModelEditRow[];
+  decided: ModelEditRow[];
+}
+
 export interface ModelChangePage {
   items: ModelChangeRow[];
   page: number;
@@ -7704,6 +7777,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeleteModelPortfolioMutationOptions(options), queryClient);
+    }
+
+export const getChangeTheModelEditUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/model-edits/${id}`
+}
+
+export const changeTheModelEdit = async (id: string,
+    modelEditAsked: ModelEditAsked, options?: Parameters<typeof http>[1]): Promise<ModelEditRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ModelEditRow>(getChangeTheModelEditUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(modelEditAsked)
+  }
+);}
+
+
+
+
+
+export const getChangeTheModelEditMutationKey = () => ['changeTheModelEdit'] as const;
+
+export const getChangeTheModelEditMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeTheModelEdit>>, TError,ChangeTheModelEditMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeTheModelEdit>>, TError,ChangeTheModelEditMutationVariables, TContext> => {
+
+const mutationKey = getChangeTheModelEditMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeTheModelEdit>>, ChangeTheModelEditMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  changeTheModelEdit(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeTheModelEditMutationResult = NonNullable<Awaited<ReturnType<typeof changeTheModelEdit>>>
+    export type ChangeTheModelEditMutationBody = ModelEditAsked
+    export type ChangeTheModelEditMutationError = unknown
+    export type ChangeTheModelEditMutationVariables = {id: string;data: ModelEditAsked}
+
+    export const useChangeTheModelEdit = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeTheModelEdit>>, TError,ChangeTheModelEditMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeTheModelEdit>>,
+        TError,
+        ChangeTheModelEditMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeTheModelEditMutationOptions(options), queryClient);
     }
 
 export const getChangeNonFinancialAssetUrl = (customerId: string,
@@ -15170,6 +15326,240 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordBulkRebalanceMutationOptions(options), queryClient);
+    }
+
+export const getAskToEditModelUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/models/${id}/edits`
+}
+
+export const askToEditModel = async (id: string,
+    modelEditAsked: ModelEditAsked, options?: Parameters<typeof http>[1]): Promise<ModelEditRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ModelEditRow>(getAskToEditModelUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(modelEditAsked)
+  }
+);}
+
+
+
+
+
+export const getAskToEditModelMutationKey = () => ['askToEditModel'] as const;
+
+export const getAskToEditModelMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToEditModel>>, TError,AskToEditModelMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askToEditModel>>, TError,AskToEditModelMutationVariables, TContext> => {
+
+const mutationKey = getAskToEditModelMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askToEditModel>>, AskToEditModelMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  askToEditModel(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskToEditModelMutationResult = NonNullable<Awaited<ReturnType<typeof askToEditModel>>>
+    export type AskToEditModelMutationBody = ModelEditAsked
+    export type AskToEditModelMutationError = unknown
+    export type AskToEditModelMutationVariables = {id: string;data: ModelEditAsked}
+
+    export const useAskToEditModel = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToEditModel>>, TError,AskToEditModelMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askToEditModel>>,
+        TError,
+        AskToEditModelMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskToEditModelMutationOptions(options), queryClient);
+    }
+
+export const getTakeBackTheModelEditUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/model-edits/${id}/withdrawal`
+}
+
+export const takeBackTheModelEdit = async (id: string, options?: Parameters<typeof http>[1]): Promise<ModelEditRow> => {
+
+  return http<ModelEditRow>(getTakeBackTheModelEditUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTakeBackTheModelEditMutationKey = () => ['takeBackTheModelEdit'] as const;
+
+export const getTakeBackTheModelEditMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeBackTheModelEdit>>, TError,TakeBackTheModelEditMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof takeBackTheModelEdit>>, TError,TakeBackTheModelEditMutationVariables, TContext> => {
+
+const mutationKey = getTakeBackTheModelEditMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof takeBackTheModelEdit>>, TakeBackTheModelEditMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  takeBackTheModelEdit(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TakeBackTheModelEditMutationResult = NonNullable<Awaited<ReturnType<typeof takeBackTheModelEdit>>>
+
+    export type TakeBackTheModelEditMutationError = unknown
+    export type TakeBackTheModelEditMutationVariables = {id: string}
+
+    export const useTakeBackTheModelEdit = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeBackTheModelEdit>>, TError,TakeBackTheModelEditMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof takeBackTheModelEdit>>,
+        TError,
+        TakeBackTheModelEditMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTakeBackTheModelEditMutationOptions(options), queryClient);
+    }
+
+export const getAnswerTheModelEditUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/model-edits/${id}/answer`
+}
+
+export const answerTheModelEdit = async (id: string,
+    movePlanDecision: MovePlanDecision, options?: Parameters<typeof http>[1]): Promise<ModelEditRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ModelEditRow>(getAnswerTheModelEditUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(movePlanDecision)
+  }
+);}
+
+
+
+
+
+export const getAnswerTheModelEditMutationKey = () => ['answerTheModelEdit'] as const;
+
+export const getAnswerTheModelEditMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerTheModelEdit>>, TError,AnswerTheModelEditMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerTheModelEdit>>, TError,AnswerTheModelEditMutationVariables, TContext> => {
+
+const mutationKey = getAnswerTheModelEditMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerTheModelEdit>>, AnswerTheModelEditMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  answerTheModelEdit(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerTheModelEditMutationResult = NonNullable<Awaited<ReturnType<typeof answerTheModelEdit>>>
+    export type AnswerTheModelEditMutationBody = MovePlanDecision
+    export type AnswerTheModelEditMutationError = unknown
+    export type AnswerTheModelEditMutationVariables = {id: string;data: MovePlanDecision}
+
+    export const useAnswerTheModelEdit = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerTheModelEdit>>, TError,AnswerTheModelEditMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answerTheModelEdit>>,
+        TError,
+        AnswerTheModelEditMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerTheModelEditMutationOptions(options), queryClient);
     }
 
 export const getListModelChangesUrl = (params?: ListModelChangesParams,) => {
@@ -24510,6 +24900,101 @@ export function useGetModelPortfolio<TData = Awaited<ReturnType<typeof getModelP
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetModelPortfolioQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListModelEditsUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/model-edits`
+}
+
+export const listModelEdits = async ( options?: Parameters<typeof http>[1]): Promise<ModelEditQueue> => {
+
+  return http<ModelEditQueue>(getListModelEditsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListModelEditsQueryKey = () => {
+    return [
+    `/api/backoffice/portfolios/model-edits`
+    ] as const;
+    }
+
+
+export const getListModelEditsQueryOptions = <TData = Awaited<ReturnType<typeof listModelEdits>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelEdits>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListModelEditsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listModelEdits>>> = ({ signal }) => listModelEdits({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listModelEdits>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListModelEditsQueryResult = NonNullable<Awaited<ReturnType<typeof listModelEdits>>>
+export type ListModelEditsQueryError = unknown
+
+
+export function useListModelEdits<TData = Awaited<ReturnType<typeof listModelEdits>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelEdits>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listModelEdits>>,
+          TError,
+          Awaited<ReturnType<typeof listModelEdits>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListModelEdits<TData = Awaited<ReturnType<typeof listModelEdits>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelEdits>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listModelEdits>>,
+          TError,
+          Awaited<ReturnType<typeof listModelEdits>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListModelEdits<TData = Awaited<ReturnType<typeof listModelEdits>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelEdits>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListModelEdits<TData = Awaited<ReturnType<typeof listModelEdits>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listModelEdits>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListModelEditsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
