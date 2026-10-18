@@ -707,19 +707,9 @@ export function ClientHoldingsPanel({
   customerId,
   offer,
   reveal = null,
-  against = null,
   readOnly = false,
 }: {
   customerId: string;
-  // A sub-asset this panel wrote down and has since taken off again. The page was told about it when it
-  // was written, and has to be told about this too: it is not there to be put back, and a Discard that
-  // goes looking for it finds nothing and reports a refusal over work that is already undone.
-  /**
-   * A class whose own tolerance is about to be written over, with what it was held to beforehand — its own
-   * three figures, or null where it was following the model.
-   *
-   * <p>A tolerance is not a holding, so it has no row for Discard to put back. The page keeps it instead.
-   */
   /**
    * Every class to list, in the firm's own order, so a class holding nothing still has a row to start it
    * in. Without it the list can only show what is already there, and a client holding nothing shows nothing.
@@ -730,18 +720,12 @@ export function ClientHoldingsPanel({
    * not it had been shut: being sent to a class and finding it closed is being sent nowhere.
    */
   reveal?: string | null;
-  /** A model picked on screen but not saved, whose groups these holdings should be offered against. */
-  against?: string | null;
   /** Read somewhere other than the portfolio screen, where writing them down is not the job. */
   readOnly?: boolean;
 }) {
-  // Read against the model picked on screen where one is, rather than the one on file: somebody setting a
-  // client up picks the model and then writes the holdings into its groups, and the groups have to be the
-  // ones they are looking at.
-  const held = useListClientHoldings<ClientHoldings, ApiError>(
-    customerId,
-    against ? { against } : undefined,
-  );
+  // Grouped by whatever the client is measured against on file. The screen no longer holds a model that
+  // has been picked but not written, so there is no second answer for this to prefer.
+  const held = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   // What has been shut, rather than what has been opened: a class is open until somebody closes it. Kept
   // this way round because the classes arrive after the first render, and a set of what is open would have
   // to be filled in from them by an effect that renders twice to say what the list already said.
