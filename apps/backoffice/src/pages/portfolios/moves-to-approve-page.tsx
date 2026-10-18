@@ -4,43 +4,16 @@ import {
   useListMovePlans,
   type MovePlanQueue,
   type MovePlanRow,
-  type PlannedLeg,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Dialog, Field, SelectInput, TextArea, cn } from "@atomprive/ui";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
 import { formatDateTime } from "../../lib/labels";
+import { exactly, named, pastItsBand } from "./money-words";
 import { hasAuthority } from "../../lib/permissions";
-
-/** Money, written the way every other portfolio screen writes it. */
-function exactly(amount: number, currency: string) {
-  return `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-/** A sub-asset nobody has grouped is a real place for money to be, and it needs a name to be named by. */
-function named(subClass: string | null) {
-  return subClass ?? "what is not grouped";
-}
-
-/**
- * By how much a leg would leave its destination past the most that line may hold, or nothing if it would not.
- *
- * <p>Filling a line to the end of its band is offered on purpose and going past it is a decision rather than
- * a mistake, so it is said and not refused. It was being said only on the screen where the plan was raised —
- * to the one person who had already made that decision — while whoever was being asked to agree to it saw
- * only the amount. The ceiling is the platform's own figure, the same one it reads the line's breach
- * against, so this cannot call a line fine where the table beside it calls that line breached.
- */
-function pastItsBand(leg: PlannedLeg) {
-  if (leg.landsOnMayHold === null) return 0;
-  const over = leg.landsOnHeldNow + leg.amount - leg.landsOnMayHold;
-  // A whole unit or it is nothing: a ceiling worked out as a share lands a hair either side of its figure,
-  // and a leg filling a line exactly to the end of its band is not an overshoot worth a line of warning.
-  return over < 1 ? 0 : over;
-}
 
 /** What a reader can narrow the list to, in the order a plan passes through them. */
 const STATUS_TABS = [
@@ -236,7 +209,16 @@ export function MovesToApprovePage() {
   const queue = useListMovePlans<MovePlanQueue, ApiError>({
     query: { refetchOnWindowFocus: true },
   });
-  const [view, setView] = useState<"queue" | "client">("queue");
+  // Which way the queue is read lives in the address. Held in the component, coming back from a client's
+  // own screen landed on the other one — the link said "back" and went somewhere else.
+  const [address, setAddress] = useSearchParams();
+  const view: "queue" | "client" = address.get("by") === "client" ? "client" : "queue";
+  const setView = (which: "queue" | "client") => {
+    const next = new URLSearchParams(address);
+    if (which === "queue") next.delete("by");
+    else next.set("by", which);
+    setAddress(next, { replace: true });
+  };
   const [status, setStatus] = useState<StatusTab>("PENDING");
   const [turningDown, setTurningDown] = useState<MovePlanRow | null>(null);
   const [note, setNote] = useState("");
@@ -393,7 +375,7 @@ export function MovesToApprovePage() {
             // asked: which of these needs me.
             <li key={client.customerId}>
               <Link
-                to={`/moves-to-approve/${client.customerId}`}
+                to={`/moves-to-approve/${client.customerId}?by=client`}
                 className={cn(
                   "flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-3 transition-colors",
                   asked

@@ -6,11 +6,13 @@ import {
   type CustomerDetail,
   type MovePlanRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Button, Dialog, Field, TextArea } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, Dialog, Field, TextArea } from "@atomprive/ui";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
-import { Link, useParams } from "react-router";
-import { DealtWithPlan, WaitingPlan } from "./moves-to-approve-page";
+import { Link, useParams, useSearchParams } from "react-router";
+import { formatDateTime } from "../../lib/labels";
+import { exactly } from "./money-words";
+import { WaitingPlan } from "./moves-to-approve-page";
 
 /**
  * One client's money moves, on a screen of their own.
@@ -22,6 +24,8 @@ import { DealtWithPlan, WaitingPlan } from "./moves-to-approve-page";
  */
 export function ClientMovesPage() {
   const { customerId = "" } = useParams();
+  // Back to the queue as it was being read, not to whichever way it opens by default.
+  const cameBy = useSearchParams()[0].get("by");
   const client = useGetCustomer<CustomerDetail, ApiError>(customerId);
   const plans = useListClientMovePlans<MovePlanRow[], ApiError>(customerId, {
     query: { refetchOnWindowFocus: true },
@@ -56,7 +60,7 @@ export function ClientMovesPage() {
     <div className="space-y-5">
       <div>
         <Link
-          to="/moves-to-approve"
+          to={cameBy === "client" ? "/moves-to-approve?by=client" : "/moves-to-approve"}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 underline-offset-2 hover:underline"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -118,13 +122,54 @@ export function ClientMovesPage() {
           <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             Everything else asked for this client
           </h2>
-          <ul className="divide-y divide-line">
-            {decided.map((row) => (
-              <li key={row.id} className="px-5 py-3">
-                <DealtWithPlan row={row} showClient={false} />
-              </li>
-            ))}
-          </ul>
+          {/* A table, because that is what it is: the same five facts about each one, and a reader looking
+              down a column for who asked, or for when something was answered, should not be reading them
+              out of a paragraph each time. */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <caption className="sr-only">
+                Every move asked for {named} that is no longer waiting, newest first.
+              </caption>
+              <thead>
+                <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  <th scope="col" className="px-5 py-3 text-right whitespace-nowrap">Amount</th>
+                  <th scope="col" className="px-5 py-3">Why</th>
+                  <th scope="col" className="px-5 py-3 whitespace-nowrap">Asked by</th>
+                  <th scope="col" className="px-5 py-3 whitespace-nowrap">Answered by</th>
+                  <th scope="col" className="px-5 py-3">What they said</th>
+                  <th scope="col" className="px-5 py-3 text-right">Outcome</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {decided.map((row) => (
+                  <tr key={row.id}>
+                    <td className="px-5 py-3 text-right tabular-nums font-medium whitespace-nowrap text-ink">
+                      {exactly(row.amount, row.currency)}
+                    </td>
+                    <td className="px-5 py-3 text-ink">{row.why}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-ink-muted">
+                      {row.raisedByName}
+                      <span className="block text-2xs">{formatDateTime(row.raisedAt)}</span>
+                    </td>
+                    <td className="px-5 py-3 whitespace-nowrap text-ink-muted">
+                      {/* Nobody answered one the raiser cancelled, and a dash says that better than a
+                          blank, which reads as a figure somebody forgot to fill in. */}
+                      {row.decidedByName ?? "—"}
+                      {row.decidedAt && (
+                        <span className="block text-2xs">{formatDateTime(row.decidedAt)}</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-ink-muted">{row.decisionNote ?? "—"}</td>
+                    <td className="px-5 py-3 text-right">
+                      <Badge tone={row.status === "APPROVED" ? "success" : "neutral"}>
+                        {row.statusSaid}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
