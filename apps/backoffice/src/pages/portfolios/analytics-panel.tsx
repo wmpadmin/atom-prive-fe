@@ -5,8 +5,8 @@ import {
   type PortfolioStanding,
   type ValuationHistory,
 } from "@atomprive/api-client/backoffice";
-import { Alert, cn } from "@atomprive/ui";
-import { useState } from "react";
+import { Alert, DateInput, Field, cn } from "@atomprive/ui";
+import { useEffect, useRef, useState } from "react";
 import { inkFor, nameOf, useAssetClasses } from "./asset-classes";
 
 /** How far back to draw. Days, because a portfolio is written down daily and read the same way. */
@@ -27,6 +27,19 @@ function brief(amount: number) {
   if (size >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
   if (size >= 1_000) return `${Math.round(amount / 1_000)}K`;
   return String(Math.round(amount));
+}
+
+/** A day as a sentence names one: 12 Oct 2026. For the heading, where there is room to say it properly. */
+function longDay(day: string) {
+  const [year, month, date] = day.split("-");
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${Number(date)} ${months[Number(month) - 1] ?? month} ${year}`;
+}
+
+/** A yyyy-mm-dd read as a local day, so the date picker's bounds do not slide with the time zone. */
+function asDate(day: string) {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(year ?? 1970, (month ?? 1) - 1, date ?? 1);
 }
 
 /** The day without its year, which an axis has room for and a reader does not need twice. */
@@ -54,6 +67,10 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
   const standing = useGetClientPortfolio<PortfolioStanding, ApiError>(customerId);
   const classes = useAssetClasses();
   const [days, setDays] = useState(0);
+  // Dates picked outright, which answer the same question the buttons do and so override them. Held
+  // here rather than in the chart, because everything below reads the same stretch of days.
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
 
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
@@ -61,7 +78,15 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
 
   const currency = history.data?.currency ?? "";
   const every = history.data?.points ?? [];
-  const points = days === 0 ? every : every.slice(-days);
+  // Dates first where there are any: a reader who has typed one has said what they want more plainly
+  // than a button can. Either end on its own works — from a date to the end, or the start to a date.
+  const chosen = from !== "" || to !== "";
+  const points = chosen
+    ? every.filter((point) => (from === "" || point.valuedOn >= from) && (to === "" || point.valuedOn <= to))
+    : days === 0 ? every : every.slice(-days);
+  const bounds = every.length === 0
+    ? null
+    : { first: every[0]!.valuedOn, last: every[every.length - 1]!.valuedOn };
   const byClass = standing.data?.classes ?? [];
   const order = classes.inUse;
 
@@ -74,6 +99,13 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
         pending={history.isPending}
         days={days}
         setDays={setDays}
+        from={from}
+        to={to}
+        setRange={(nextFrom, nextTo) => {
+          setFrom(nextFrom);
+          setTo(nextTo);
+        }}
+        bounds={bounds}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -86,32 +118,88 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
   );
 }
 
+/**
+ * A scale whose figures are round, and the ticks to write beside it.
+ *
+ * <p>The scale used to be the data's own edges with a margin bolted on, and its three figures were
+ * whatever those edges came to — 46K at the top, 5K at the foot, 25K in between. Numbers nobody chose,
+ * which a reader cannot carry in their head or compare against the next client's chart.
+ *
+ * <p>So the step is rounded to something a person counts in — 1, 2 or 5 of whatever size the range is —
+ * and the scale is stretched to land on it at both ends. The line keeps its air at the top and bottom,
+ * because the point of this drawing is movement and a line drawn from nought is a flat one.
+ */
+function niceScale(low: number, high: number) {
+  const span = high - low || Math.max(Math.abs(high) * 0.1, 1);
+  // Four or five gaps reads as a scale; two reads as an afterthought and eight is a ruler.
+  const rough = span * 1.25 / 4;
+  const size = 10 ** Math.floor(Math.log10(rough));
+  const step = [1, 2, 2.5, 5, 10].map((one) => one * size).find((one) => one >= rough) ?? size * 10;
+  const foot = Math.max(Math.floor((low - span * 0.12) / step) * step, 0);
+  const top = Math.ceil((high + span * 0.12) / step) * step;
+  const ticks: number[] = [];
+  for (let at = foot; at <= top + step / 2; at += step) ticks.push(Math.round(at * 100) / 100);
+  return { foot, top: ticks[ticks.length - 1] ?? top, ticks };
+}
+
+/** The card's width in real pixels, so the drawing is made at the size it is shown at. */
+function useWidth() {
+  const box = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const card = box.current;
+    if (!card) return;
+    const watching = new ResizeObserver(([seen]) => {
+      if (seen) setWidth(seen.contentRect.width);
+    });
+    watching.observe(card);
+    return () => watching.disconnect();
+  }, []);
+  return [box, Math.max(width, 280)] as const;
+}
+
 /** What the book has been worth, as a line with the ground under it filled in. */
-function WorthOverTime({ points, everyCount, currency, pending, days, setDays }: {
+function WorthOverTime({ points, everyCount, currency, pending, days, setDays, from, to, setRange, bounds }: {
   points: ValuationHistory["points"];
   everyCount: number;
   currency: string;
   pending: boolean;
   days: number;
   setDays: (days: number) => void;
+  from: string;
+  to: string;
+  setRange: (from: string, to: string) => void;
+  bounds: { first: string; last: string } | null;
 }) {
+  const [box, width] = useWidth();
+  const [picking, setPicking] = useState(false);
+  const [over, setOver] = useState<number | null>(null);
+  const chosen = from !== "" || to !== "";
+
   const worths = points.map((point) => point.underManagement);
-  const high = Math.max(...worths, 0);
-  const low = Math.min(...worths, high);
-  // Drawn on its own scale with a tenth of the range as air above and below, not from nought: a book
-  // that moved from 15.2m to 15.3m against a baseline of nothing is a flat line, and seeing that it
-  // moved is the whole reason for drawing it.
-  const pad = (high - low) * 0.12 || Math.max(high * 0.02, 1);
-  const top = high + pad;
-  const foot = Math.max(low - pad, 0);
+  // Against its own range, never against nought: a book that moved from 15.2m to 15.3m drawn from zero
+  // is a flat line, and seeing that it moved is the whole reason for drawing it.
+  const { foot, top, ticks } = niceScale(
+    worths.length === 0 ? 0 : Math.min(...worths),
+    worths.length === 0 ? 1 : Math.max(...worths));
+  // Drawn in real pixels rather than a box stretched to fit. Stretched, every circle came out an oval
+  // and the figures beside the scale drifted off the lines they belonged to.
+  const HEIGHT = 230;
+  const PAD = { top: 14, right: 18, bottom: 26, left: 60 };
+  const plotWidth = Math.max(width - PAD.left - PAD.right, 10);
+  const plotHeight = HEIGHT - PAD.top - PAD.bottom;
   const span = top - foot || 1;
-  const x = (at: number) => (at / Math.max(points.length - 1, 1)) * 100;
-  const y = (worth: number) => 40 - ((worth - foot) / span) * 40;
+  const x = (at: number) => PAD.left + (plotWidth * at) / Math.max(points.length - 1, 1);
+  const y = (worth: number) => PAD.top + plotHeight - (plotHeight * (worth - foot)) / span;
 
   const first = points[0]?.underManagement ?? 0;
   const last = points[points.length - 1]?.underManagement ?? 0;
   const moved = points.length < 2 ? null : last - first;
   const movedShare = (moved === null || first === 0) ? null : (moved / first) * 100;
+  // Every day where there is room for every day, and otherwise a handful evenly spaced — the first and
+  // the last always among them, because they are the two the figures above are measured between.
+  const everyNth = Math.max(1, Math.ceil(points.length / 8));
+  const shows = (at: number) => at === 0 || at === points.length - 1 || at % everyNth === 0;
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -129,91 +217,192 @@ function WorthOverTime({ points, everyCount, currency, pending, days, setDays }:
                 moved > 0 ? "text-emerald-700" : moved < 0 ? "text-red-600" : "text-ink-muted")}>
                 {moved > 0 ? "▲" : moved < 0 ? "▼" : ""} {money(Math.abs(moved))}
                 {movedShare !== null && ` (${movedShare > 0 ? "+" : ""}${movedShare.toFixed(1)}%)`}
-                <span className="ml-1 font-normal text-ink-muted">
-                  over {points.length} {points.length === 1 ? "day" : "days"}
-                </span>
               </span>
             )}
           </div>
+          {/* The days it is measured between, said outright. "over 7 days" counted the days written
+              down, which is not the stretch they cover and reads as a contradiction beside Everything. */}
+          {points.length > 0 && (
+            <p className="mt-1 text-xs text-ink-muted">
+              {longDay(points[0]!.valuedOn)} to {longDay(points[points.length - 1]!.valuedOn)} ·{" "}
+              {points.length} {points.length === 1 ? "day" : "days"} written down
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-1">
           {RANGES.map((range) => (
             <button
               key={range.days}
               type="button"
-              onClick={() => setDays(range.days)}
+              onClick={() => {
+                setRange("", "");
+                setPicking(false);
+                setDays(range.days);
+              }}
               className={cn("rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-                days === range.days
+                !chosen && days === range.days
                   ? "bg-primary-600 text-on-accent"
                   : "bg-slate-100 text-ink-soft hover:bg-slate-200")}
             >
               {range.label}
             </button>
           ))}
+          {/* Lit while dates are in force, because a preset and a range are the same question answered
+              two ways and only one of them can be in force at a time. */}
+          <button
+            type="button"
+            onClick={() => setPicking((was) => !was)}
+            className={cn("rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+              chosen ? "bg-primary-600 text-on-accent" : "bg-slate-100 text-ink-soft hover:bg-slate-200")}
+          >
+            Pick dates
+          </button>
         </div>
       </div>
 
+      {(picking || chosen) && bounds && (
+        <div className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-slate-50/60 px-4 py-3">
+          <Field id="worth-from" label="From" className="w-44">
+            <DateInput
+              id="worth-from"
+              name="worth-from"
+              value={from}
+              clearable
+              min={asDate(bounds.first)}
+              max={asDate(bounds.last)}
+              onChange={(value) => setRange(value, to)}
+            />
+          </Field>
+          <Field id="worth-to" label="To" className="w-44">
+            <DateInput
+              id="worth-to"
+              name="worth-to"
+              value={to}
+              clearable
+              min={asDate(bounds.first)}
+              max={asDate(bounds.last)}
+              onChange={(value) => setRange(from, value)}
+            />
+          </Field>
+          <p className="pb-2 text-xs text-ink-muted">
+            Days are on file from {longDay(bounds.first)} to {longDay(bounds.last)}.
+            {chosen && " Clear both to go back to the buttons."}
+          </p>
+        </div>
+      )}
+
+      {/* The width is measured off this, which is drawn whether or not there is a line to put in it.
+          Measured off the figure instead, the observer had nothing to attach to on the first render —
+          the days had not arrived — and never attached at all, so the drawing stayed at its narrowest
+          in a card four times the width. */}
+      <div ref={box}>
       {pending ? (
         <p className="py-16 text-center text-sm text-ink-muted">Reading the days…</p>
       ) : points.length < 2 ? (
         <p className="mt-4 rounded-xl border border-dashed border-line py-16 text-center text-sm text-ink-muted">
-          {everyCount === 0 ? "No day has been written down yet." : "One day on file. A line needs two."}
+          {everyCount === 0
+            ? "No day has been written down yet."
+            : chosen
+              ? "No two days on file between those dates. A line needs two."
+              : "One day on file. A line needs two."}
         </p>
       ) : (
-        <figure className="mt-5 flex gap-3">
-          {/* The scale beside the drawing rather than inside it, so the line never runs under a number. */}
-          <div className="flex w-14 shrink-0 flex-col justify-between py-0.5 text-right text-2xs tabular-nums text-ink-muted">
-            <span>{brief(top)}</span>
-            <span>{brief((top + foot) / 2)}</span>
-            <span>{brief(foot)}</span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <svg
-              viewBox="0 0 100 40"
-              preserveAspectRatio="none"
-              role="img"
-              aria-label={`What the portfolio was worth on each of ${points.length} days, in ${currency}`}
-              className="h-52 w-full overflow-visible"
+        <figure className="relative mt-5">
+          <svg
+            width={width}
+            height={HEIGHT}
+            viewBox={`0 0 ${width} ${HEIGHT}`}
+            role="img"
+            aria-label={`What the portfolio was worth on each of ${points.length} days, in ${currency}`}
+            className="w-full text-primary-600"
+            onMouseLeave={() => setOver(null)}
+            onMouseMove={(event) => {
+              const seen = event.currentTarget.getBoundingClientRect();
+              // The point nearest the pointer, not the one under it: a line is read by its height at a
+              // date, and a reader aiming at a dot two pixels wide would mostly hit nothing.
+              const at = ((event.clientX - seen.left) * (width / seen.width) - PAD.left) / plotWidth;
+              const which = Math.round(at * Math.max(points.length - 1, 1));
+              setOver(Math.min(Math.max(which, 0), points.length - 1));
+            }}
+          >
+            <defs>
+              <linearGradient id="worth-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="currentColor" stopOpacity="0.14" />
+                <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {/* One line per figure beside it, so a height on the drawing and a figure in the margin are
+                the same thing rather than two things that nearly line up. */}
+            {ticks.map((tick) => (
+              <g key={tick}>
+                <line x1={PAD.left} y1={y(tick)} x2={width - PAD.right} y2={y(tick)}
+                  className="stroke-line" strokeWidth="1" />
+                <text x={PAD.left - 10} y={y(tick)} dominantBaseline="middle" textAnchor="end"
+                  className="fill-ink-muted text-[11px] tabular-nums">
+                  {brief(tick)}
+                </text>
+              </g>
+            ))}
+            <polygon
+              fill="url(#worth-fill)"
+              points={`${x(0)},${y(foot)} ${points.map((p, i) => `${x(i)},${y(p.underManagement)}`).join(" ")} ${x(points.length - 1)},${y(foot)}`}
+            />
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              points={points.map((p, i) => `${x(i)},${y(p.underManagement)}`).join(" ")}
+            />
+            {/* A dot a day where the days are few enough to tell apart; otherwise the line carries it
+                and the two ends are marked, which are the figures the heading is measured between. */}
+            {points.map((point, i) => (
+              (points.length <= 31 || i === 0 || i === points.length - 1 || i === over) && (
+                <circle key={point.valuedOn} cx={x(i)} cy={y(point.underManagement)}
+                  r={i === over ? 5 : 4} fill="currentColor"
+                  className="stroke-white" strokeWidth="2" />
+              )
+            ))}
+            {/* Where the pointer is, read down to the day it belongs to. */}
+            {over !== null && points[over] && (
+              <line x1={x(over)} y1={PAD.top} x2={x(over)} y2={PAD.top + plotHeight}
+                className="stroke-ink/25" strokeWidth="1" />
+            )}
+            {points.map((point, i) => shows(i) && (
+              <text key={`day-${point.valuedOn}`} x={x(i)} y={HEIGHT - 8} textAnchor="middle"
+                className="fill-ink-muted text-[11px] tabular-nums">
+                {shortly(point.valuedOn)}
+              </text>
+            ))}
+          </svg>
+          {/* Read off the drawing rather than hunted for in a tooltip the browser takes a second to
+              offer. A figure a reader has to hover and wait for is a figure they do without. */}
+          {over !== null && points[over] && (
+            <div
+              className="pointer-events-none absolute top-0 rounded-lg border border-line bg-white px-3 py-2 text-xs whitespace-nowrap shadow-lg"
+              style={{
+                left: `${(x(over) / width) * 100}%`,
+                // Anchored by which edge it is near rather than always from its middle: centred on a
+                // point at the end of the line, half of it hung outside the card and the words inside
+                // it wrapped to three lines trying to fit.
+                transform: x(over) / width < 0.14
+                  ? "translateX(-8px)"
+                  : x(over) / width > 0.86 ? "translateX(calc(-100% + 8px))" : "translateX(-50%)",
+              }}
             >
-              <defs>
-                <linearGradient id="worth-fill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#2563eb" stopOpacity="0.22" />
-                  <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {/* Three lines to read against, and no more: a grid is for finding a height, not decoration. */}
-              {[0, 20, 40].map((line) => (
-                <line key={line} x1="0" y1={line} x2="100" y2={line}
-                  stroke="currentColor" strokeWidth="0.15" className="text-ink/15" />
-              ))}
-              <polygon
-                fill="url(#worth-fill)"
-                points={`0,40 ${points.map((p, i) => `${x(i)},${y(p.underManagement)}`).join(" ")} 100,40`}
-              />
-              <polyline
-                fill="none"
-                stroke="#2563eb"
-                strokeWidth="0.7"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
-                points={points.map((p, i) => `${x(i)},${y(p.underManagement)}`).join(" ")}
-              />
-              {points.map((point, i) => (
-                <circle key={point.valuedOn} cx={x(i)} cy={y(point.underManagement)} r="0.8" fill="#1d4ed8">
-                  <title>{point.valuedOn}: {money(point.underManagement)} {currency}</title>
-                </circle>
-              ))}
-            </svg>
-            <div className="mt-1 flex justify-between text-2xs text-ink-muted">
-              {points.length <= 8
-                ? points.map((point) => <span key={point.valuedOn}>{shortly(point.valuedOn)}</span>)
-                : (<><span>{shortly(points[0].valuedOn)}</span>
-                  <span>{shortly(points[points.length - 1].valuedOn)}</span></>)}
+              <p className="font-semibold tabular-nums text-ink">
+                {money(points[over]!.underManagement)} {currency}
+              </p>
+              <p className="mt-0.5 text-ink-muted">{longDay(points[over]!.valuedOn)}</p>
             </div>
-          </div>
+          )}
+          <figcaption className="sr-only">
+            What the portfolio was worth on each day written down, in {currency}.
+          </figcaption>
         </figure>
       )}
+      </div>
     </section>
   );
 }
