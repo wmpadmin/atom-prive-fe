@@ -191,14 +191,17 @@ function suggest(toPlace: number, places: Destination[]): Record<string, number>
  * class and holding 80% has to shed 55 points of it, not the 60 that would put it back on its target. A
  * line breached the other way, short of its range, has nothing to shed and is left to the sentence beside
  * it saying what it can take.
+ *
+ * <p>Against the server's own ceiling, like everything else that reads one. Worked out here from the
+ * CLASS's band it came out higher than the ceiling the breach was actually called against, so the window
+ * asked for less to be moved than clearing the breach takes — and a reader who moved exactly what it
+ * asked for was left with the badge still on the row.
  */
-function overIts(group: SubClassGroup, classTarget: number, band: number, whole: number): number | null {
-  if (group.standing !== "BREACHED" || group.targetShare === null || group.targetShare === undefined) {
+function overIts(group: SubClassGroup): number | null {
+  if (group.standing !== "BREACHED" || group.mostItMayHold === null) {
     return null;
   }
-  // Down to the line's own upper limit, which is its share of the class taken through the class's.
-  const ceiling = (whole * group.targetShare * (classTarget + band)) / 10_000;
-  const over = group.valueAmount - ceiling;
+  const over = group.valueAmount - group.mostItMayHold;
   return over < 1 ? null : over;
 }
 
@@ -1024,8 +1027,8 @@ export function ClientHoldingsPanel({
           <p className="text-xs text-ink-muted">
             Asset class, then the sub-assets inside it. A class written down here takes its total from them.
             Every share is of the whole portfolio, and the range under each target is what that line is
-            judged against — its share of the class taken through the class&apos;s own limits, so a small
-            line has a narrow one.
+            judged against — the band the model writes on that line, carried through the share of its
+            class it is asked for, so a small line has a narrow one.
           </p>
           {/* Figures are not written here. The calculator works a client's Net AUM out of what they hold,
               what they own that nobody manages and what they owe, and every share on this screen is a share
@@ -1227,16 +1230,19 @@ export function ClientHoldingsPanel({
                         const ofPortfolio = (group.targetShare == null || one.targetShare == null)
                           ? null
                           : (group.targetShare * one.targetShare) / 100;
-                        // The range the line is actually judged against, which is the one figure this table
-                        // never showed. The firm's rule: its share of the class taken through the class's
-                        // own limits. A line asked for 2% of a class allowed 25% to 35% sits between 0.50%
-                        // and 0.70% of the book — a band a tenth of a point wide, not the five the class
-                        // carries. Without it on the page, a line on a target of 0.60% holding 0.48% looks
-                        // comfortably inside a band of five and still says breached, and there is nothing
-                        // on the row a reader can check that against.
-                        const allowed = (group.targetShare == null || one.targetShare == null) ? null : {
-                          low: (group.targetShare * Math.max(one.targetShare - band, 0)) / 100,
-                          high: (group.targetShare * (one.targetShare + band)) / 100,
+                        // The range the line is actually judged against, as the server states it — not
+                        // worked out again here. Worked out here it was worked out from the CLASS's band
+                        // where the verdict beside it is read from the LINE's, which on any model whose
+                        // lines wander less than their class is a different number: a line sound between
+                        // 17.50% and 22.50% of the book printed as sound between 15% and 25%, with the
+                        // Breached badge sitting beside a range that said it was fine.
+                        //
+                        // The same lesson as the ceiling one line below, and the same cure. There is one
+                        // band, the server reads it, and the screen prints what it is told.
+                        const allowed = (group.leastItMayHold == null || group.mostItMayHold == null
+                          || whole === 0) ? null : {
+                          low: (group.leastItMayHold / whole) * 100,
+                          high: (group.mostItMayHold / whole) * 100,
                         };
                         // Against what the class should be worth, not what it is. A line asked for a tenth
                         // of a class that is itself a sixth of the size the model wants is short by the
@@ -1249,7 +1255,7 @@ export function ClientHoldingsPanel({
                         // Whether there is a plan to open behind this row's suggestion: a line holding more
                         // than its band allows has money that has to go somewhere, and where it can go is
                         // the question this opens.
-                        const toShed = overIts(group, one.targetShare ?? 0, band, whole);
+                        const toShed = overIts(group);
                         const openThePlan = () => setPlanning({
                           changing: null,
                           assetClass: one.assetClass,
@@ -1368,12 +1374,11 @@ export function ClientHoldingsPanel({
       {planning && (() => {
         const its = classes.find((one) => one.assetClass === planning.assetClass);
         const group = its?.subClasses.find((each) => each.subClass === planning.subClass);
-        const band = its?.breachAt ?? 0;
         // Gone from the screen altogether: a sub-asset the model does not name and nobody holds has no
         // row left to plan against. A line the model names stays listed at nought, so this is only ever
         // the window closing on something that is no longer there to talk about.
         if (!its || !group) return null;
-        const over = overIts(group, its.targetShare ?? 0, band, whole);
+        const over = overIts(group);
         // Nought rather than nothing, and the window stays open on it. Closing on the move that puts a
         // line right took the notice saying what had just moved and the button to put it back off the
         // screen in the same instant — and that is the commonest move there is, the whole suggestion
