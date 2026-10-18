@@ -14,7 +14,6 @@ import {
   type ModelsPage,
   type PortfolioStanding,
   type RiskMatch,
-  useClientOnThatModel,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, DateInput, Field, SelectInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -172,15 +171,11 @@ export function ClientPortfolioPage() {
       onSuccess: () => {
         setWritingOwn(false);
         setOwnErrors(noErrors);
-        setChosenModel(null);
         kept();
       },
       onError: (caught) => setOwnErrors(toFormErrors(caught)),
     },
   });
-  /** The model picked but not yet kept. Nothing on this screen writes until Save is pressed. */
-  const [chosenModel, setChosenModel] = useState<string | null>(null);
-
   const queryClient = useQueryClient();
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
   // Each of these writes something somebody has already typed, so the screen looks the same afterwards
@@ -204,29 +199,15 @@ export function ClientPortfolioPage() {
   // What the portfolio is written in, read off the portfolio. It is not a choice on this screen.
   const currency = standing.data?.currency ?? "USD";
 
-  /**
-   * The figures the boxes show: what somebody typed, or what is on file.
-   *
-   * <p>Only the classes somebody actually typed into are kept, and they are laid over the live figures
-   * rather than replacing them. Snapshotting every class at the first keystroke froze the ones that are
-   * worked out from their lines rather than typed: add or remove a sub-asset afterwards and Save sent that
-   * class's total as it stood before, which is the one figure the API refuses for disagreeing with its own
-   * lines.
-   */
   // What is on file, and only that. There is no typing over it here any more: a class total is the sum of
   // the sub-assets written under it, and those are written in the panel below or through the calculator.
   const holdings: Held = heldFrom(standing.data, boxes);
   const on = rebalancedOn ?? standing.data?.lastRebalancedOn ?? "";
   const looked = reviewedOn ?? standing.data?.lastReviewedOn ?? "";
   const total = Object.values(holdings).reduce((sum: number, typed) => sum + (Number(typed) || 0), 0);
-  // The portfolio arrives after the first render, so the box reads from it until somebody picks another.
-  const model = chosenModel ?? standing.data?.modelPortfolioId ?? "";
-  // A model picked in the box but not yet saved. Reading what it would do is how somebody chooses one,
-  // rather than how they find out what they chose: nothing is written down to ask the question.
-  const tryingOn = chosenModel !== null && chosenModel !== "" && chosenModel !== (standing.data?.modelPortfolioId ?? "");
-  const preview = useClientOnThatModel<PortfolioStanding, ApiError>(customerId, tryingOn ? model : "", {
-    query: { enabled: tryingOn },
-  });
+  // What the client is measured against, read off the portfolio. Picking in the box writes it, so there
+  // is never a picked-but-unwritten model for the screen to hold.
+  const model = standing.data?.modelPortfolioId ?? "";
   const saving = setModel.isPending || rebalanced.isPending || reviewed.isPending;
 
   const named = client.data?.client.fullName ?? "";
@@ -354,8 +335,6 @@ export function ClientPortfolioPage() {
             monitoring simply stops. The first assignment is the one thing left here, because until it is
             done they are measured against nothing anyway. */}
         <Field id="client-model" label="Measured against" className="min-w-0">
-              {/* Kept by Save like everything else. Written the moment it was picked, a reader who brushed
-                  the list changed what the client is measured against and was never asked. */}
               <SelectInput
                 id="client-model"
                 value={model}
@@ -406,33 +385,9 @@ export function ClientPortfolioPage() {
             rebalanced with the firm's plans, and nobody is told overnight when it drifts.
           </p>
         )}
-        <RiskMatchNote match={(tryingOn ? preview.data?.riskMatch : standing.data?.riskMatch) ?? null} />
+        <RiskMatchNote match={standing.data?.riskMatch ?? null} />
       </section>
 
-
-      {/* What the picked model would make of this client's own money, before anybody is put on it. Beside
-          the table of what is on file rather than up by the picker, so the two read one after the other and
-          are plainly measuring the same holdings. */}
-      {tryingOn && preview.isError && <Alert tone="danger">{preview.error.message}</Alert>}
-      {tryingOn && preview.data && (
-        <section className="rounded-2xl border border-line bg-white px-6 py-5">
-          <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            On {preview.data.modelName ?? "this model"}, before saving
-          </h2>
-          <p className="mt-1 max-w-prose text-xs text-ink-muted">
-            This client's own figures against the model picked above. Nothing is saved until you press Save,
-            and the table below still reads what is on file.
-          </p>
-          <div className="mt-3">
-            <ClassStandingTable
-              classes={preview.data.classes}
-              currency={preview.data.currency}
-              suggestions={!preview.data.customModel}
-              underManagement={preview.data.underManagement}
-            />
-          </div>
-        </section>
-      )}
 
       {standing.data && standing.data.classes.length > 0 && (
             <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -483,7 +438,6 @@ export function ClientPortfolioPage() {
               <div className="mt-3">
                 <ClientHoldingsPanel
                   customerId={customerId}
-                  against={tryingOn ? model : null}
                   offer={boxes}
                   reveal={revealed}
                   readOnly={false}
