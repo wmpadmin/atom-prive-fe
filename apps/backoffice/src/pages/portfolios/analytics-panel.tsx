@@ -117,7 +117,11 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
   // said there was nothing there — one panel disagreeing with itself about what it was looking at.
   const byClass: PortfolioStanding["classes"] = !narrowed ? live : asAt === null ? [] : live.map((row) => {
     const worth = asAt.holdings?.[row.assetClass] ?? 0;
-    const whole = Object.values(asAt.holdings ?? {}).reduce((sum, one) => sum + one, 0);
+    // What the day itself was worth, which is the figure the line above is drawn from. Summing the
+    // holdings instead quietly swapped the denominator the server divides by, so a client with money
+    // the calculator counts and nobody has written down read at a different share the moment a date
+    // was picked — and could cross a band on nothing but the filter being on.
+    const whole = asAt.underManagement;
     const actualShare = whole === 0 ? 0 : (worth / whole) * 100;
     return {
       ...row,
@@ -127,8 +131,12 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
       filled: row.targetShare === 0 ? null : (actualShare / row.targetShare) * 100,
       suggestion: (row.targetShare / 100) * whole - worth,
       drift: actualShare - row.targetShare,
-      standing: Math.abs(actualShare - row.targetShare) > (row.band?.breachAt ?? 0)
-        ? "BREACHED" : row.standing,
+      // No verdict. Whether a class has breached is the platform's reading, taken from a band that may
+      // be written wider one side than the other and deliberately withheld where there is nothing yet
+      // to judge — none of which is recoverable from a day's holdings and a target. Worked out here it
+      // was a second reading of one rule, which is how a screen comes to contradict the server about
+      // the same client. The day's figures are drawn; the verdict waits for the day the server read.
+      standing: null,
     };
   });
 
@@ -150,12 +158,13 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
         bounds={bounds}
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <MadeOf byClass={byClass} order={order} names={classes.names} currency={currency}
-          asAt={asAt?.valuedOn ?? null} narrowed={narrowed} only={only} setOnly={setOnly} />
-        <HowTheMixMoved points={points} order={order} names={classes.names} narrowed={narrowed}
-          only={only} />
-      </div>
+      {/* One chart a row. Side by side, the mix table had a column a class in half a card and the rings
+          had the other half to put two circles in — each cramped by a neighbour it has nothing to do
+          with. They answer different questions and are read one after another, not against each other. */}
+      <MadeOf byClass={byClass} order={order} names={classes.names} currency={currency}
+        asAt={asAt?.valuedOn ?? null} narrowed={narrowed} only={only} setOnly={setOnly} />
+      <HowTheMixMoved points={points} order={order} names={classes.names} narrowed={narrowed}
+        only={only} setOnly={setOnly} currency={currency} />
 
       <HeldAgainstAsked byClass={byClass} names={classes.names} order={order}
         asAt={asAt?.valuedOn ?? null} narrowed={narrowed} only={only} setOnly={setOnly} />
@@ -285,58 +294,76 @@ function WorthOverTime({ points, everyCount, currency, pending, picked, setPicke
             </p>
           )}
         </div>
+
+        {/* Beside the figures rather than under them, where the four buttons it replaced used to sit:
+            a filter belongs at the edge a reader reaches for, not across the middle of the card. The
+            three controls are one height and one width, because they are one row of one thing. */}
+        {bounds && (
+          <div className={cn("flex flex-wrap gap-2 rounded-xl border px-3 py-2.5",
+            waiting ? "border-primary-600/40 bg-primary-50/50" : "border-line bg-slate-50/60")}>
+            <Field id="worth-from" label="From" className="w-40">
+              <DateInput
+                id="worth-from"
+                name="worth-from"
+                value={picked.from}
+                clearable
+                min={openFrom(bounds.first)}
+                max={openTo(bounds.last)}
+                onChange={(value) => setPicked({ ...picked, from: value })}
+              />
+            </Field>
+            <Field id="worth-to" label="To" className="w-40">
+              <DateInput
+                id="worth-to"
+                name="worth-to"
+                value={picked.to}
+                clearable
+                min={openFrom(bounds.first)}
+                max={openTo(bounds.last)}
+                onChange={(value) => setPicked({ ...picked, to: value })}
+              />
+            </Field>
+            {/* Pressed, not watched. Nothing below moves until it is, so a reader picking the second
+                of two dates is not redrawing the panel against the first one on its own. */}
+            {/* The buttons carry a label line of their own, empty. Bottom-aligning them against the
+                boxes instead left them a few pixels low — the boxes sit under a label and the buttons
+                sat under nothing, so the row had no shared line to align on. Given the same two-part
+                shape, all three stand on one. */}
+            <div className="w-40 shrink-0 space-y-1.5">
+              <span aria-hidden="true" className="block text-2xs font-semibold uppercase">&nbsp;</span>
+              <Button className="w-full" disabled={!waiting} onClick={apply}>
+                {waiting ? "Apply" : "Applied"}
+              </Button>
+            </div>
+            {(chosen || picked.from !== "" || picked.to !== "") && (
+              <div className="w-40 shrink-0 space-y-1.5">
+                <span aria-hidden="true" className="block text-2xs font-semibold uppercase">&nbsp;</span>
+                <Button variant="secondary" className="w-full" onClick={clear}>
+                  Clear
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Under the row it is about, and only where it has something to add. Beside the boxes it pushed
+          the three of them out of line with each other, which is the whole of what was asked for. */}
+      {bounds && (waiting || backwards || !chosen) && (
+        <p className="mt-2 text-xs text-ink-muted md:text-right">
+          {waiting
+            ? "Press Apply to draw the panel against these dates."
+            : backwards
+              ? `From is after To. Figures are on file from ${longDay(bounds.first)} to ${longDay(bounds.last)}.`
+              : `Figures are on file from ${longDay(bounds.first)} to ${longDay(bounds.last)}.`
+                + " Leave both empty for all of them."}
+        </p>
+      )}
 
       {/* Any date, not only the days that happen to hold a figure. Bounded to those, the calendar greyed
           out all but the handful written down — so a reader could not ask for "the start of October", which
           is the ordinary way to ask, and a filter that refuses the question reads as broken. Asking for a
           stretch wider than the figures is a sound question with a short answer. */}
-      {bounds && (
-        <div className={cn("mt-4 flex flex-wrap items-end gap-3 rounded-xl border px-4 py-3",
-          waiting ? "border-primary-600/40 bg-primary-50/50" : "border-line bg-slate-50/60")}>
-          <Field id="worth-from" label="From" className="w-44">
-            <DateInput
-              id="worth-from"
-              name="worth-from"
-              value={picked.from}
-              clearable
-              min={openFrom(bounds.first)}
-              max={openTo(bounds.last)}
-              onChange={(value) => setPicked({ ...picked, from: value })}
-            />
-          </Field>
-          <Field id="worth-to" label="To" className="w-44">
-            <DateInput
-              id="worth-to"
-              name="worth-to"
-              value={picked.to}
-              clearable
-              min={openFrom(bounds.first)}
-              max={openTo(bounds.last)}
-              onChange={(value) => setPicked({ ...picked, to: value })}
-            />
-          </Field>
-          {/* Pressed, not watched. Nothing below moves until it is, so a reader picking the second of
-              two dates is not redrawing the panel against the first one on its own. */}
-          <Button size="sm" className="mb-0.5" disabled={!waiting} onClick={apply}>
-            {waiting ? "Apply" : "Applied"}
-          </Button>
-          {(chosen || picked.from !== "" || picked.to !== "") && (
-            <Button variant="secondary" size="sm" className="mb-0.5" onClick={clear}>
-              Clear
-            </Button>
-          )}
-          <p className="max-w-72 pb-2 text-xs text-ink-muted">
-            {waiting
-              ? "Press Apply to draw the panel against these dates."
-              : backwards
-                ? `From is after To. Figures are on file from ${longDay(bounds.first)} to ${longDay(bounds.last)}.`
-                : `Figures are on file from ${longDay(bounds.first)} to ${longDay(bounds.last)}.`
-                  + (chosen ? "" : " Leave both empty for all of them.")}
-          </p>
-        </div>
-      )}
-
       {/* The width is measured off this, which is drawn whether or not there is a line to put in it.
           Measured off the figure instead, the observer had nothing to attach to on the first render —
           the days had not arrived — and never attached at all, so the drawing stayed at its narrowest
@@ -494,11 +521,16 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
 
       {whole === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-line py-12 text-center text-sm text-ink-muted">
-          {narrowed ? "No day on file between those dates." : "Nothing is written down yet."}
+          {/* Three different states, which were all one sentence. A day with nothing in it is not a day
+              that is missing, and a client on no plan is neither. */}
+          {asAt !== null
+            ? `Nothing was held on ${longDay(asAt)}.`
+            : narrowed ? "No day on file between those dates." : "Nothing is written down yet."}
         </p>
       ) : (
         <>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-8">
+          <div className="mt-4 grid items-center gap-8 lg:grid-cols-[auto_1fr]">
+          <div className="flex flex-wrap items-center justify-center gap-10">
             <Ring
               title="Held"
               slices={held.map((row) => ({
@@ -527,8 +559,9 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
             />
           </div>
 
-          {/* Named beside the figure, because a ring read by colour alone is a ring nobody can read. */}
-          <ul className="mt-5 space-y-1.5">
+          {/* Named beside the rings rather than under them, because the card is the width of the page
+              now and a list of four names below two circles leaves most of it empty. */}
+          <ul className="space-y-0.5">
             {byClass
               .filter((row) => row.actualValue > 0 || row.targetShare > 0)
               .map((row) => {
@@ -541,7 +574,7 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                     <button
                       type="button"
                       onClick={() => setOnly(only === row.assetClass ? null : row.assetClass)}
-                      className={cn("flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-sm",
+                      className={cn("flex w-full items-center gap-2 rounded-lg px-2 py-0.5 text-left text-sm",
                         only === row.assetClass ? "bg-primary-50" : "hover:bg-slate-50",
                         dimmed && "opacity-45")}
                     >
@@ -564,6 +597,7 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                 );
               })}
           </ul>
+          </div>
         </>
       )}
     </section>
@@ -588,9 +622,9 @@ function Ring({ title, slices, middle, under, only, setOnly, names }: {
     [...walked, (walked[walked.length - 1] ?? 0) + slice.share], [0]);
   return (
     <figure className="text-center">
-      {/* Half again as big. At nine rem a slice worth four per cent was two pixels of arc, which is
-          neither readable nor a thing anybody can hit with a pointer. */}
-      <svg viewBox="0 0 42 42" className="size-52" role="img" aria-label={`${title}, by asset class`}>
+      {/* Big enough that a slice worth a few per cent is an arc and not a hairline — at nine rem it was
+          two pixels, which is neither readable nor a thing anybody can hit with a pointer. */}
+      <svg viewBox="0 0 42 42" className="size-64" role="img" aria-label={`${title}, by asset class`}>
         <circle cx="21" cy="21" r={R} fill="none" stroke="currentColor" strokeWidth="5"
           className="text-slate-100" />
         {slices.map((slice, at) => {
@@ -624,75 +658,208 @@ function Ring({ title, slices, middle, under, only, setOnly, names }: {
   );
 }
 
-/** How the proportions moved, a stack a day. */
-function HowTheMixMoved({ points, order, names, narrowed, only }: {
+/**
+ * What each class has been worth, day by day, with one of them picked out.
+ *
+ * <p>It has been a stack and then a table, and neither answered the question a reader actually arrives
+ * with: did THIS go up or down, and by how much. A stack says a share without a figure; a table says
+ * every figure at once and leaves the shape to be assembled in the head. A line says it directly.
+ *
+ * <p>Every class is drawn, so the one picked is read against the others rather than alone. Picking one
+ * scales the drawing to it — a class worth a fortieth of the book is a flat line against the book's own
+ * range, and whether that fortieth doubled is exactly what somebody picking it wants to know.
+ */
+function HowTheMixMoved({ points, order, names, narrowed, only, setOnly, currency }: {
   points: ValuationHistory["points"];
   order: { code: string }[];
   names: Record<string, string>;
   narrowed: boolean;
   only: string | null;
+  setOnly: (code: string | null) => void;
+  currency: string;
 }) {
-  const codes = order
-    .map((one) => one.code)
-    .filter((code) => points.some((point) => (point.holdings?.[code] ?? 0) > 0));
+  const [box, width] = useWidth();
+  const [over, setOver] = useState<number | null>(null);
+  // Every class any day names, not only the ones still in use: a holding under a class the firm has
+  // retired is still money, and dropping it quietly inflated every class beside it.
+  const codes = [
+    ...order.map((one) => one.code).filter((code) => points.some((p) => (p.holdings?.[code] ?? 0) > 0)),
+    ...[...new Set(points.flatMap((p) => Object.keys(p.holdings ?? {})))]
+      .filter((code) => !order.some((one) => one.code === code))
+      .filter((code) => points.some((p) => (p.holdings?.[code] ?? 0) > 0)),
+  ];
+  const drawn = only !== null && codes.includes(only) ? [only] : codes;
+  const worthOn = (point: ValuationHistory["points"][number], code: string) => point.holdings?.[code] ?? 0;
+
+  const everyWorth = points.flatMap((point) => drawn.map((code) => worthOn(point, code)));
+  const { foot, top, ticks } = niceScale(
+    everyWorth.length === 0 ? 0 : Math.min(...everyWorth),
+    everyWorth.length === 0 ? 1 : Math.max(...everyWorth));
+
+  const HEIGHT = 240;
+  const PAD = { top: 14, right: 18, bottom: 26, left: 62 };
+  const plotWidth = Math.max(width - PAD.left - PAD.right, 10);
+  const plotHeight = HEIGHT - PAD.top - PAD.bottom;
+  const span = top - foot || 1;
+  const x = (at: number) => PAD.left + (plotWidth * at) / Math.max(points.length - 1, 1);
+  const y = (worth: number) => PAD.top + plotHeight - (plotHeight * (worth - foot)) / span;
+  const everyNth = Math.max(1, Math.ceil(points.length / 8));
+
+  const firstDay = points[0];
+  const lastDay = points[points.length - 1];
+  const movedBy = (code: string) =>
+    (firstDay && lastDay) ? worthOn(lastDay, code) - worthOn(firstDay, code) : 0;
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
-      <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-        How the mix moved
-      </h2>
-      <p className="mt-1 text-xs text-ink-muted">
-        Each day as a whole, divided up. A stack that changes shape is money moving between classes.
-      </p>
-
-      {points.length === 0 || codes.length === 0 ? (
-        <p className="mt-4 rounded-xl border border-dashed border-line py-12 text-center text-sm text-ink-muted">
-          {/* Not the same sentence. A client with a year of history and a fortnight picked out of it
-              that nobody wrote in was being told nothing had ever been written down. */}
-          {narrowed ? "No day on file between those dates." : "No day has been written down yet."}
-        </p>
-      ) : (
-        <>
-          <div className="mt-5 flex h-40 items-end gap-1.5">
-            {points.map((point) => {
-              const whole = codes.reduce((sum, code) => sum + (point.holdings?.[code] ?? 0), 0) || 1;
-              return (
-                <div key={point.valuedOn} className="flex min-w-0 flex-1 flex-col justify-end">
-                  <div className="flex h-36 flex-col-reverse overflow-hidden rounded-md">
-                    {codes.map((code) => {
-                      const share = ((point.holdings?.[code] ?? 0) / whole) * 100;
-                      if (share <= 0) return null;
-                      return (
-                        <div
-                          key={code}
-                          className="transition-opacity"
-                          style={{
-                            height: `${share}%`,
-                            background: inkFor(code, order),
-                            opacity: only !== null && only !== code ? 0.2 : 1,
-                          }}
-                          title={`${point.valuedOn} · ${nameOf(code, names)}: ${share.toFixed(1)}%`}
-                        />
-                      );
-                    })}
-                  </div>
-                  <span className="mt-1 truncate text-center text-2xs text-ink-muted">
-                    {shortly(point.valuedOn)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            What each class has been worth
+          </h2>
+          <p className="mt-1 text-xs text-ink-muted">
+            {only !== null && codes.includes(only)
+              ? `${nameOf(only, names)} on its own, drawn against its own range.`
+              : "Every class, day by day. Pick one to follow it."}
+          </p>
+        </div>
+        {/* The filter asked for, and the same picking the rings do: one class, followed everywhere. */}
+        {codes.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setOnly(null)}
+              className={cn("rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                only === null ? "bg-primary-600 text-on-accent" : "bg-slate-100 text-ink-soft hover:bg-slate-200")}
+            >
+              All
+            </button>
             {codes.map((code) => (
-              <li key={code} className="flex items-center gap-1.5 text-2xs text-ink-muted">
+              <button
+                key={code}
+                type="button"
+                onClick={() => setOnly(only === code ? null : code)}
+                className={cn("inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                  only === code ? "bg-primary-600 text-on-accent" : "bg-slate-100 text-ink-soft hover:bg-slate-200")}
+              >
                 <span aria-hidden="true" className="size-2 rounded-full"
                   style={{ background: inkFor(code, order) }} />
                 {nameOf(code, names)}
-              </li>
+              </button>
             ))}
-          </ul>
-        </>
+          </div>
+        )}
+      </div>
+
+      <div ref={box}>
+        {points.length < 2 || codes.length === 0 ? (
+          <p className="mt-4 rounded-xl border border-dashed border-line py-12 text-center text-sm text-ink-muted">
+            {narrowed ? "No two days on file between those dates. A line needs two."
+              : points.length === 1 ? "One day on file. A line needs two."
+                : "No day has been written down yet."}
+          </p>
+        ) : (
+          <figure className="relative mt-4">
+            <svg
+              width={width} height={HEIGHT} viewBox={`0 0 ${width} ${HEIGHT}`} role="img"
+              aria-label={`What each asset class was worth on each of ${points.length} days, in ${currency}`}
+              className="w-full"
+              onMouseLeave={() => setOver(null)}
+              onMouseMove={(event) => {
+                const seen = event.currentTarget.getBoundingClientRect();
+                const at = ((event.clientX - seen.left) * (width / seen.width) - PAD.left) / plotWidth;
+                const which = Math.round(at * Math.max(points.length - 1, 1));
+                setOver(Math.min(Math.max(which, 0), points.length - 1));
+              }}
+            >
+              {ticks.map((tick) => (
+                <g key={tick}>
+                  <line x1={PAD.left} y1={y(tick)} x2={width - PAD.right} y2={y(tick)}
+                    className="stroke-line" strokeWidth="1" />
+                  <text x={PAD.left - 10} y={y(tick)} dominantBaseline="middle" textAnchor="end"
+                    className="fill-ink-muted text-[11px] tabular-nums">{brief(tick)}</text>
+                </g>
+              ))}
+              {/* The ground filled in only under a class picked on its own, where there is one line and
+                  the fill reads as its weight. Under six it would be six washes over each other. */}
+              {drawn.length === 1 && drawn[0] && (
+                <polygon
+                  fill={inkFor(drawn[0], order)} opacity="0.12"
+                  points={`${x(0)},${y(foot)} ${points.map((p, i) => `${x(i)},${y(worthOn(p, drawn[0]!))}`).join(" ")} ${x(points.length - 1)},${y(foot)}`}
+                />
+              )}
+              {drawn.map((code) => (
+                <polyline
+                  key={code} fill="none" stroke={inkFor(code, order)}
+                  strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
+                  points={points.map((p, i) => `${x(i)},${y(worthOn(p, code))}`).join(" ")}
+                />
+              ))}
+              {drawn.map((code) => points.map((point, i) => (
+                (points.length <= 31 || i === 0 || i === points.length - 1 || i === over) && (
+                  <circle key={`${code}-${point.valuedOn}`} cx={x(i)} cy={y(worthOn(point, code))}
+                    r={i === over ? 5 : 3.5} fill={inkFor(code, order)}
+                    className="stroke-white" strokeWidth="2" />
+                )
+              )))}
+              {over !== null && points[over] && (
+                <line x1={x(over)} y1={PAD.top} x2={x(over)} y2={PAD.top + plotHeight}
+                  className="stroke-ink/25" strokeWidth="1" />
+              )}
+              {points.map((point, i) => (i === 0 || i === points.length - 1 || i % everyNth === 0) && (
+                <text key={`day-${point.valuedOn}`} x={x(i)} y={HEIGHT - 8} textAnchor="middle"
+                  className="fill-ink-muted text-[11px] tabular-nums">{shortly(point.valuedOn)}</text>
+              ))}
+            </svg>
+            {over !== null && points[over] && (
+              <div
+                className="pointer-events-none absolute top-0 rounded-lg border border-line bg-white px-3 py-2 text-xs whitespace-nowrap shadow-lg"
+                style={{
+                  left: `${(x(over) / width) * 100}%`,
+                  transform: x(over) / width < 0.14 ? "translateX(-8px)"
+                    : x(over) / width > 0.86 ? "translateX(calc(-100% + 8px))" : "translateX(-50%)",
+                }}
+              >
+                <p className="font-semibold text-ink">{longDay(points[over]!.valuedOn)}</p>
+                <ul className="mt-1 space-y-0.5">
+                  {drawn.map((code) => (
+                    <li key={code} className="flex items-center gap-2">
+                      <span aria-hidden="true" className="size-2 rounded-full"
+                        style={{ background: inkFor(code, order) }} />
+                      <span className="flex-1 text-ink-muted">{nameOf(code, names)}</span>
+                      <span className="tabular-nums text-ink">{money(worthOn(points[over]!, code))}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <figcaption className="sr-only">
+              What each asset class was worth on each day written down, in {currency}.
+            </figcaption>
+          </figure>
+        )}
+      </div>
+
+      {/* What it came to across the stretch, which is the question in the panel's own words. */}
+      {points.length > 1 && firstDay && lastDay && codes.length > 0 && (
+        <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-1.5 border-t border-line pt-3">
+          {drawn.map((code) => {
+            const moved = movedBy(code);
+            return (
+              <li key={code} className="flex items-center gap-2 text-xs">
+                <span aria-hidden="true" className="size-2 rounded-full"
+                  style={{ background: inkFor(code, order) }} />
+                <span className="text-ink-muted">{nameOf(code, names)}</span>
+                <span className={cn("font-semibold tabular-nums",
+                  Math.abs(moved) < 0.005 ? "text-ink-muted"
+                    : moved > 0 ? "text-emerald-700" : "text-red-600")}>
+                  {Math.abs(moved) < 0.005 ? "no change"
+                    : `${moved > 0 ? "▲" : "▼"} ${money(Math.abs(moved))} ${currency}`}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </section>
   );
@@ -731,21 +898,31 @@ function HeldAgainstAsked({ byClass, names, order, asAt, narrowed, only, setOnly
       </h2>
       <p className="mt-1 max-w-prose text-xs text-ink-muted">
         The solid bar is what the class holds; the pale one under it is what the plan asks. Drift is the
-        gap between them, and a class is breached once that gap is wider than its band.
-        {asAt !== null && ` Read as at ${longDay(asAt)}, against the plan as it stands now.`}
+        gap between them.
+        {asAt !== null
+          ? ` Read as at ${longDay(asAt)}, against the plan as it stands now — whether a class has`
+            + " breached is the platform's reading of the day it read, so it is not given here. Clear the"
+            + " dates for today's."
+          : " A class is breached once that gap is past its band, which the platform decides."}
       </p>
 
       {rows.length === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-line py-10 text-center text-sm text-ink-muted">
-          {narrowed
-            ? "No day on file between those dates."
-            : "Nothing to measure until this client is on a plan."}
+          {asAt !== null
+            ? `Nothing was held on ${longDay(asAt)}.`
+            : narrowed
+              ? "No day on file between those dates."
+              : "Nothing to measure until this client is on a plan."}
         </p>
       ) : (
         <ul className="mt-5 space-y-3">
           {rows.map((row) => {
+            // The platform's own verdict, not one worked out again here from a drift and a band: a
+            // band may be written wider one side than the other, and a class holding nothing of
+            // something asked for is deliberately left unjudged. Read as |drift| > breachAt, this card
+            // badged both of those wrong — and painted every class of an empty portfolio red.
+            const out = row.standing === "BREACHED";
             const band = row.band?.breachAt ?? 0;
-            const out = Math.abs(row.drift) > band;
             const dimmed = only !== null && only !== row.assetClass;
             return (
               <li key={row.assetClass}>
@@ -793,7 +970,9 @@ function HeldAgainstAsked({ byClass, names, order, asAt, narrowed, only, setOnly
                         every reader gets. */}
                     {out
                       ? <Badge tone="danger">Breached</Badge>
-                      : <span className="text-2xs text-ink-muted">band ±{band}</span>}
+                      : row.standing === null
+                        ? <span className="text-2xs text-ink-muted">—</span>
+                        : <span className="text-2xs text-ink-muted">band ±{band}</span>}
                   </span>
                 </button>
               </li>
