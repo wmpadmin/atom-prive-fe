@@ -1,3 +1,10 @@
+import { ApiError } from "@atomprive/api-client";
+import {
+  useListMovePlans,
+  useListRestores,
+  type MovePlanQueue,
+  type RestoreQueue,
+} from "@atomprive/api-client/backoffice";
 import { Avatar, cn } from "@atomprive/ui";
 import { SystemStatusPanel } from "./components/system-status";
 import { ThemeToggle } from "./components/theme-toggle";
@@ -380,6 +387,24 @@ const ENTRY_CLASS = "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm tran
  * way to reach the things underneath — a menu that hides its own contents behind a control nobody thinks to
  * press is a menu with screens nobody finds. An entry that gathers nothing is a link and nothing else.
  */
+/**
+ * How many things are waiting on this person behind a menu entry, where the entry is a queue.
+ *
+ * <p>Asked here rather than passed down from the menu, because only the entry knows which queue it is and
+ * only the queues have a count worth showing. Everything else answers nought and draws nothing.
+ */
+function useWaitingOn(to: string) {
+  const moves = useListMovePlans<MovePlanQueue, ApiError>({
+    query: { enabled: to === "/moves-to-approve", refetchOnWindowFocus: true },
+  });
+  const restores = useListRestores<RestoreQueue, ApiError>({
+    query: { enabled: to === "/restores-to-approve", refetchOnWindowFocus: true },
+  });
+  if (to === "/moves-to-approve") return (moves.data?.waiting ?? []).length;
+  if (to === "/restores-to-approve") return (restores.data?.waiting ?? []).length;
+  return 0;
+}
+
 function NavEntry({
   item,
   pathname,
@@ -404,6 +429,7 @@ function NavEntry({
 }) {
   const Icon = item.icon;
   const here = isHere(item, pathname, search);
+  const waiting = useWaitingOn(item.to);
 
   if (locked) {
     return (
@@ -436,7 +462,15 @@ function NavEntry({
           )}
         >
           <Icon className="size-4.5" aria-hidden="true" />
-          {item.label}
+          <span className="min-w-0 flex-1">{item.label}</span>
+          {/* How many are waiting, where the entry is a queue. A queue reached by remembering to look at it
+              is a queue people stop looking at; the number is what makes somebody open it on the day there
+              is something in it, and its absence is what lets them leave it alone on the days there is not. */}
+          {waiting > 0 && (
+            <span className="shrink-0 rounded-full bg-primary-600 px-1.5 py-0.5 text-2xs font-semibold tabular-nums text-white">
+              {waiting}
+            </span>
+          )}
         </Link>
       </div>
       {item.below.length > 0 && (
