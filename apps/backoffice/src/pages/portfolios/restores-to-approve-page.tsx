@@ -5,7 +5,8 @@ import {
   type RestoreQueue,
   type RestoreRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, Dialog, Field, TextArea } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button } from "@atomprive/ui";
+import { AnswerDialog } from "./answer-dialog";
 import { useState } from "react";
 import { Link } from "react-router";
 import { ListPageHeader } from "../../components/record-list";
@@ -25,13 +26,14 @@ function exactly(amount: number, currency: string) {
  */
 export function RestoresToApprovePage() {
   const queue = useListRestores<RestoreQueue, ApiError>({ query: { refetchOnWindowFocus: true } });
-  const [rejecting, setRejecting] = useState<RestoreRow | null>(null);
+  /** The ask being answered and which way, because both answers are given in the same window now. */
+  const [deciding, setDeciding] = useState<{ row: RestoreRow; approved: boolean } | null>(null);
   const [note, setNote] = useState("");
   const [refused, setRefused] = useState<Record<string, string>>({});
   const answer = useAnswerTheRestore<ApiError>({
     mutation: {
       onSuccess: () => {
-        setRejecting(null);
+        setDeciding(null);
         setNote("");
         void queue.refetch();
       },
@@ -115,7 +117,7 @@ export function RestoresToApprovePage() {
                           variant="secondary"
                           size="sm"
                           onClick={() => {
-                            setRejecting(row);
+                            setDeciding({ row, approved: false });
                             setNote("");
                           }}
                         >
@@ -124,9 +126,12 @@ export function RestoresToApprovePage() {
                         <Button
                           size="sm"
                           disabled={answer.isPending}
-                          onClick={() => answer.mutate({ id: row.id, data: { approved: true, note: null } })}
+                          onClick={() => {
+                            setDeciding({ row, approved: true });
+                            setNote("");
+                          }}
                         >
-                          {answer.isPending ? "Putting them back…" : "Approve and put them back"}
+                          Approve and put them back
                         </Button>
                       </>
                     ) : (
@@ -175,50 +180,39 @@ export function RestoresToApprovePage() {
         </section>
       )}
 
-      {/* The note is collected against what it refuses, so somebody writing it can see what they are
-          rejecting rather than remembering it. */}
-      <Dialog
-        open={rejecting !== null}
-        title={rejecting ? `Reject the restore for ${rejecting.clientName}?` : "Reject it"}
-        onClose={() => setRejecting(null)}
+      <AnswerDialog
+        open={deciding !== null}
+        approved={deciding?.approved ?? false}
+        title={deciding
+          ? `${deciding.approved ? "Approve" : "Reject"} the restore for ${deciding.row.clientName}?`
+          : "Answer it"}
+        consequence={deciding?.approved
+          ? "Every figure this client holds is written again as it stood."
+          : "Nothing changes."}
+        shownTo={deciding?.row.raisedByName}
+        note={note}
+        onNote={setNote}
+        busy={answer.isPending}
+        error={answer.isError ? answer.error.message : null}
+        onClose={() => setDeciding(null)}
+        onConfirm={() => deciding && answer.mutate({
+          id: deciding.row.id,
+          data: { approved: deciding.approved, note: note.trim() === "" ? null : note.trim() },
+        })}
+        confirm={deciding?.approved ? "Approve and put them back" : "Reject"}
+        confirming={deciding?.approved ? "Putting them back…" : "Rejecting…"}
       >
-        <div className="space-y-4">
-          {rejecting && (
-            <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
-              <p>{rejecting.why}</p>
-              <p className="mt-2 text-xs text-ink-muted">
-                Back to {rejecting.restoreTo} · version {rejecting.fromRevision} ·{" "}
-                {exactly(rejecting.worthThen, rejecting.currency)} then against{" "}
-                {exactly(rejecting.worthNow, rejecting.currency)} now
-              </p>
-            </div>
-          )}
-          <p className="text-sm text-ink-muted">
-            Nothing changes. What you write here is shown to {rejecting?.raisedByName}.
-          </p>
-          <Field id="reject-restore-note" label="Why not?" required>
-            <TextArea
-              id="reject-restore-note"
-              rows={3}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
-          </Field>
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setRejecting(null)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={note.trim() === "" || answer.isPending}
-              onClick={() =>
-                rejecting && answer.mutate({ id: rejecting.id, data: { approved: false, note: note.trim() } })
-              }
-            >
-              {answer.isPending ? "Rejecting…" : "Reject"}
-            </Button>
+        {deciding && (
+          <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
+            <p>{deciding.row.why}</p>
+            <p className="mt-2 text-xs text-ink-muted">
+              Back to {deciding.row.restoreTo} · version {deciding.row.fromRevision} ·{" "}
+              {exactly(deciding.row.worthThen, deciding.row.currency)} then against{" "}
+              {exactly(deciding.row.worthNow, deciding.row.currency)} now
+            </p>
           </div>
-        </div>
-      </Dialog>
+        )}
+      </AnswerDialog>
     </div>
   );
 }

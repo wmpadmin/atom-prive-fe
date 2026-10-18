@@ -6,12 +6,13 @@ import {
   type CustomerDetail,
   type MovePlanRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, Dialog, Field, TextArea } from "@atomprive/ui";
+import { Alert, Avatar, Badge } from "@atomprive/ui";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { formatDateTime } from "../../lib/labels";
 import { exactly } from "./money-words";
+import { AnswerDialog } from "./answer-dialog";
 import { WaitingPlan } from "./moves-to-approve-page";
 
 /**
@@ -30,13 +31,14 @@ export function ClientMovesPage() {
   const plans = useListClientMovePlans<MovePlanRow[], ApiError>(customerId, {
     query: { refetchOnWindowFocus: true },
   });
-  const [turningDown, setTurningDown] = useState<MovePlanRow | null>(null);
+  /** The plan being answered and which way, because both answers are given in the same window now. */
+  const [deciding, setDeciding] = useState<{ row: MovePlanRow; approved: boolean } | null>(null);
   const [note, setNote] = useState("");
   const [refused, setRefused] = useState<Record<string, string>>({});
   const answer = useAnswerTheMovePlan<ApiError>({
     mutation: {
       onSuccess: () => {
-        setTurningDown(null);
+        setDeciding(null);
         setNote("");
         void plans.refetch();
       },
@@ -104,9 +106,12 @@ export function ClientMovesPage() {
                   showClient={false}
                   answering={answer.isPending}
                   refusal={refused[row.id]}
-                  onApprove={() => answer.mutate({ id: row.id, data: { approved: true, note: null } })}
+                  onApprove={() => {
+                    setDeciding({ row, approved: true });
+                    setNote("");
+                  }}
                   onTurnDown={() => {
-                    setTurningDown(row);
+                    setDeciding({ row, approved: false });
                     setNote("");
                   }}
                 />
@@ -173,40 +178,26 @@ export function ClientMovesPage() {
         </section>
       )}
 
-      {/* The note is collected against what it refuses, so somebody writing it can see what they are
-          rejecting rather than remembering it. */}
-      <Dialog
-        open={turningDown !== null}
-        title={turningDown ? `Reject the move for ${turningDown.clientName}?` : "Reject it"}
-        onClose={() => setTurningDown(null)}
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-ink-muted">
-            Nothing moves. What you write here is shown to {turningDown?.raisedByName}.
-          </p>
-          <Field id="reject-move-note" label="Why not?" required>
-            <TextArea
-              id="reject-move-note"
-              rows={3}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
-          </Field>
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setTurningDown(null)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={note.trim() === "" || answer.isPending}
-              onClick={() =>
-                turningDown && answer.mutate({ id: turningDown.id, data: { approved: false, note: note.trim() } })
-              }
-            >
-              {answer.isPending ? "Rejecting…" : "Reject"}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
+      <AnswerDialog
+        open={deciding !== null}
+        approved={deciding?.approved ?? false}
+        title={deciding
+          ? `${deciding.approved ? "Approve" : "Reject"} the move for ${deciding.row.clientName}?`
+          : "Answer it"}
+        consequence={deciding?.approved ? "Nothing is undone once this moves." : "Nothing moves."}
+        shownTo={deciding?.row.raisedByName}
+        note={note}
+        onNote={setNote}
+        busy={answer.isPending}
+        error={answer.isError ? answer.error.message : null}
+        onClose={() => setDeciding(null)}
+        onConfirm={() => deciding && answer.mutate({
+          id: deciding.row.id,
+          data: { approved: deciding.approved, note: note.trim() === "" ? null : note.trim() },
+        })}
+        confirm={deciding?.approved ? "Approve and move it" : "Reject"}
+        confirming={deciding?.approved ? "Moving it…" : "Rejecting…"}
+      />
     </div>
   );
 }
