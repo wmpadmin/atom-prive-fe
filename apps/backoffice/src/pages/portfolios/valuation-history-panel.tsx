@@ -225,32 +225,39 @@ export function ValuationHistoryPanel({ customerId }: { customerId: string }) {
               <caption className="sr-only">Every day on file, with what it was recorded as.</caption>
               <thead>
                 <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                  <th scope="col" className="py-2 pr-4">
+                  <th scope="col" className="py-1.5 pr-4">
                     Day
                   </th>
-                  <th scope="col" className="px-4 py-2 text-right">
+                  <th scope="col" className="px-4 py-1.5 text-right">
                     Worth
                   </th>
-                  <th scope="col" className="py-2 pl-4 text-right">
-                    As recorded
-                  </th>
+                  {/* Only where there is one. A day is restated when the portfolio is written in another
+                      currency afterwards, which most portfolios never are — so this column stood on
+                      every one of them printing a dash a row, a word with no meaning to go looking for. */}
+                  {restated > 0 && (
+                    <th scope="col" className="py-1.5 pl-4 text-right">
+                      As recorded
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {[...points].reverse().map((point) => (
                   <tr key={point.valuedOn}>
-                    <th scope="row" className="py-2 pr-4 text-left font-medium whitespace-nowrap text-ink">
+                    <th scope="row" className="py-1.5 pr-4 text-left font-medium whitespace-nowrap text-ink">
                       {formatDate(point.valuedOn)}
                     </th>
-                    <td className="px-4 py-2 text-right tabular-nums">
+                    <td className="px-4 py-1.5 text-right tabular-nums">
                       {money(point.underManagement, currency)}
                     </td>
                     {/* A day nobody has restated was recorded as exactly what it still says. */}
-                    <td className="py-2 pl-4 text-right tabular-nums text-ink-muted">
-                      {point.asRecorded
-                        ? money(point.asRecorded.underManagement, point.asRecorded.currency)
-                        : "—"}
-                    </td>
+                    {restated > 0 && (
+                      <td className="py-1.5 pl-4 text-right tabular-nums text-ink-muted">
+                        {point.asRecorded
+                          ? money(point.asRecorded.underManagement, point.asRecorded.currency)
+                          : "—"}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -258,8 +265,9 @@ export function ValuationHistoryPanel({ customerId }: { customerId: string }) {
           </div>
           {restated > 0 && (
             <p className="mt-2 text-xs text-ink-muted">
-              A day written in another currency was converted at the rate that applied on that day. What it
-              was first recorded as is kept beside it and never changes again.
+              <strong className="font-semibold">As recorded</strong> is what a day was first written
+              down as. A day written in another currency was converted at the rate that applied on that
+              day; what somebody originally recorded is kept beside it and never changes again.
             </p>
           )}
         </>
