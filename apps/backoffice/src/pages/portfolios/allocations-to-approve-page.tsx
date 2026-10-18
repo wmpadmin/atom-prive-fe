@@ -77,6 +77,12 @@ export function AllocationsToApprovePage() {
           <ul className="divide-y divide-line">
             {waiting.map((row) => {
               const moving = row.lines.filter((line) => line.valueAmount !== line.heldNow);
+              // The rest of the calculator, where this ask carries it. Shown only where it would change:
+              // a row saying a loan stays what it is adds nothing to a decision about the lines.
+              const loanMoving = row.coversTheRest && row.loanAmount !== null
+                && row.loanAmount !== row.loanNow;
+              const ownedAsked = row.ownedOutright.reduce((sum, one) => sum + one.valueAmount, 0);
+              const ownedMoving = row.coversTheRest && ownedAsked !== row.ownedOutrightNow;
               return (
                 <li key={row.id} className="px-5 py-4">
                   <div className="flex flex-wrap items-start justify-between gap-4">
@@ -151,7 +157,7 @@ export function AllocationsToApprovePage() {
                           </td>
                         </tr>
                       ))}
-                      {moving.length === 0 && (
+                      {moving.length === 0 && !loanMoving && !ownedMoving && (
                         <tr>
                           <td colSpan={4} className="py-2 text-sm text-ink-muted">
                             No line changes figure. What this asks for is elsewhere — a line coming off,
@@ -161,6 +167,42 @@ export function AllocationsToApprovePage() {
                       )}
                     </tbody>
                     <tfoot>
+                      {/* The rest of the calculator, under the lines rather than beside them, because
+                          neither of these is a holding: a target is a share of money that can be moved
+                          to reach it, and neither a debt nor a flat can be moved. They are asked for in
+                          the same press all the same, and an approver who cannot see them is agreeing to
+                          half of what is in front of them. */}
+                      {loanMoving && (
+                        <tr className="border-t border-line">
+                          <th scope="row" colSpan={2} className="py-2 pr-3 text-left font-medium text-ink">
+                            Loan
+                          </th>
+                          <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap text-ink-muted">
+                            {figure(row.loanNow)}
+                          </td>
+                          <td className="py-2 pl-3 text-right tabular-nums whitespace-nowrap text-ink">
+                            {figure(row.loanAmount ?? 0)}
+                          </td>
+                        </tr>
+                      )}
+                      {ownedMoving && (
+                        <tr className={loanMoving ? undefined : "border-t border-line"}>
+                          <th scope="row" colSpan={2} className="py-2 pr-3 text-left font-medium text-ink">
+                            Owned outright
+                            <span className="block text-xs font-normal text-ink-muted">
+                              {row.ownedOutright.length === 0
+                                ? "Nothing is left on the list"
+                                : row.ownedOutright.map((one) => one.item).join(", ")}
+                            </span>
+                          </th>
+                          <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap text-ink-muted">
+                            {figure(row.ownedOutrightNow)}
+                          </td>
+                          <td className="py-2 pl-3 text-right tabular-nums whitespace-nowrap text-ink">
+                            {figure(ownedAsked)}
+                          </td>
+                        </tr>
+                      )}
                       <tr className="border-t-2 border-line font-semibold">
                         <th scope="row" colSpan={2} className="py-2 pr-3 text-left">
                           Measured against

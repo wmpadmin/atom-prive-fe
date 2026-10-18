@@ -1,28 +1,19 @@
 import { ApiError } from "@atomprive/api-client";
 import {
-  getGetClientPortfolioQueryKey,
-  getGetClientValuationsQueryKey,
-  getListClientHoldingsQueryKey,
-  useAskToRewriteAllocation,
   useListClientHoldings,
   useListCurrencies,
-  useWriteClientAllocation,
   type ClientHoldings,
   type Currency,
   useListClientLoans,
-  useRecordClientLoan,
-  useChangeClientLoan,
-  useRemoveClientLoan,
   type ClientLoans,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, SelectInput, TextInput, cn } from "@atomprive/ui";
-import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { barFor, useAssetClasses } from "./asset-classes";
 import { BOX, type StepProps } from "./portfolio-setup-dialog";
 import { useSubAssetClasses } from "./sub-asset-classes";
+import { loanOnFile, toThePenny } from "./the-calculator";
 
 /** One line somebody is writing down: where it sits, what it is called, and what it is worth. */
 type Line = {
@@ -64,8 +55,7 @@ function adds(lines: Line[]) {
 /** The class the firm keeps cash under, and so the one a loan is asked for beside. */
 const CASH = "CASH";
 
-export function AllocationStep({ customerId, onDone }: StepProps) {
-  const queryClient = useQueryClient();
+export function AllocationStep({ customerId, onDone, draft, onDraft }: StepProps) {
   const assetClasses = useAssetClasses();
   const subAssets = useSubAssetClasses();
   // What the client owes, which is asked for here beside the cash it offsets rather than a step later.
@@ -73,19 +63,14 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
   // class total the API is told. A loan is the opposite of all three, so it is kept where it has always
   // been kept and only asked for here.
   const owed = useListClientLoans<ClientLoans, ApiError>(customerId);
-  const writeOwed = useRecordClientLoan<ApiError>();
-  const changeOwed = useChangeClientLoan<ApiError>();
-  const forgetOwed = useRemoveClientLoan<ApiError>();
   const [typedLoan, setLoan] = useState<string | null>(null);
   // Held as a negative and typed as a plain figure: nobody writes a minus sign in front of what they owe.
   const onFile = owed.data?.loans ?? [];
-  const loan = typedLoan ?? (onFile.length === 0 ? "" : String(Math.abs(owed.data?.total ?? 0)));
+  const alreadyTyped = draft?.held?.loanAmount;
+  const loan = typedLoan
+    ?? ((alreadyTyped != null) ? (alreadyTyped === 0 ? "" : String(Math.abs(alreadyTyped)))
+      : (onFile.length === 0 ? "" : String(Math.abs(loanOnFile(owed.data) ?? 0))));
   const holdings = useListClientHoldings<ClientHoldings, ApiError>(customerId);
-  const [errors, setErrors] = useState<FormErrors>(noErrors);
-  const writeAllocation = useWriteClientAllocation<ApiError>();
-  const askToRewrite = useAskToRewriteAllocation<ApiError>();
-  /** Why the figures should change, which only the ask needs and only the ask shows a box for. */
-  const [why, setWhy] = useState("");
 
   // Seeded once from the firm's list, which may not have arrived on the first render — so it is rebuilt
   // when it does, and anything typed by then is kept over the top of it.
@@ -93,10 +78,16 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
   const blank = useMemo(() => {
     const made: Record<string, Line[]> = {};
     for (const one of assetClasses.inUse) {
-      // What this client already has written down under this class, by the name it was written under.
-      const written = (holdings.data?.classes ?? [])
-        .find((each) => each.assetClass === one.code)?.subClasses
-        .flatMap((group) => group.positions) ?? [];
+      // What this client already has written down under this class, by the name it was written under —
+      // or what was typed here earlier in this walk, where somebody has been and walked on. Nothing is
+      // sent until the next step now, so coming back has to find what was left rather than the figures
+      // on file, which are the ones being changed.
+      const written = draft?.held
+        ? (draft.held.classes.find((each) => each.assetClass === one.code)?.lines ?? [])
+          .map((line) => ({ id: line.id, subClass: line.name, name: line.name, valueAmount: line.valueAmount }))
+        : (holdings.data?.classes ?? [])
+          .find((each) => each.assetClass === one.code)?.subClasses
+          .flatMap((group) => group.positions) ?? [];
       const byName = new Map(written.map((each) => [(each.subClass ?? each.name).trim(), each]));
       const rows: Line[] = (subAssets.byClass[one.code] ?? []).map((name) => {
         const already = byName.get(name);
@@ -120,7 +111,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
       made[one.code] = rows;
     }
     return made;
-  }, [assetClasses.inUse, subAssets.byClass, holdings.data]);
+  }, [assetClasses.inUse, subAssets.byClass, holdings.data, draft]);
   const lines: Record<string, Line[]> = { ...blank, ...typed };
   const codes = assetClasses.inUse.map((one) => one.code);
 
@@ -130,14 +121,10 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
 
   const currencies = useListCurrencies<Currency[], ApiError>();
   const [chosenCurrency, setCurrency] = useState<string | null>(null);
-  const currency = chosenCurrency ?? holdings.data?.currency ?? "";
+  const currency = chosenCurrency ?? draft?.held?.currency ?? holdings.data?.currency ?? "";
   // Restating a portfolio and retyping its figures cannot be asked for in one go: the typed figures
   // would be in the currency being left behind, and nothing could say which of the two was meant.
   const figuresTyped = Object.keys(typed).length > 0;
-  // One flag for the whole save, not the mutations' own. They run one after another, so between any
-  // two of them every one of them is idle for a tick — and the button flicked back to Next and in
-  // again on each, two dozen times over a portfolio written down line by line.
-  const [busy, setBusy] = useState(false);
   const whole = codes.reduce((total, code) => total + adds(lines[code] ?? []), 0);
   // Nothing is written down until every figure is a figure, and a line nobody has named cannot be stored.
   const unreadable = codes.flatMap((code) =>
@@ -151,6 +138,7 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
   });
   const readable = unreadable.length === 0 && unnamed.length === 0 && twiceNamed.length === 0;
   // Whether this client has figures already, which is what decides written outright against asked for.
+  // Read here only to say so; the deciding and the sending are the next step's.
   const alreadyWritten = (holdings.data?.classes ?? [])
     .some((klass) => klass.subClasses.some((group) => group.positions.length > 0));
   const anything = whole > 0;
@@ -164,49 +152,35 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
    * a figure, so a class left untouched writes nothing at all.
    */
   /**
-   * What the client owes, written as one figure.
+   * What the client owes, as one figure, kept negative.
    *
-   * <p>Kept negative, because every line that allows for a loan adds it rather than subtracting — there is
-   * no subtraction anywhere in the Net AUM, which is what keeps a loan from being taken off twice.
+   * <p>Negative because every line that allows for a loan adds it rather than subtracting — there is no
+   * subtraction anywhere in the Net AUM, which is what keeps a loan from being taken off twice.
    *
    * <p>One loan, not a list. It is asked for in one box, so a client who already has several would have
-   * that box edit something it does not name; those are left exactly as they are and the box is read off
-   * their total, which is what the figure means either way.
+   * that box edit something it does not name; null leaves those exactly as they are, and the box is read
+   * off their total, which is what the figure means either way.
    */
-  async function saveTheLoan() {
-    if (onFile.length > 1) return;
-    const said = isNumber(loan) && Number(loan) > 0 ? -Math.abs(Number(loan)) : 0;
-    const already = onFile[0];
-    if (said === 0) {
-      if (already) await forgetOwed.mutateAsync({ customerId, id: already.id });
-      return;
-    }
-    // Secured on the portfolio, which is what the firm's loans are and the only answer step two
-    // has ever sent. Nobody is asked to sort them into the two kinds yet.
-    const data = { description: "Loan", valueAmount: said, securedOn: "PORTFOLIO" as const };
-    if (already) {
-      if (Number(already.valueAmount) === said) return;
-      await changeOwed.mutateAsync({ customerId, id: already.id, data });
-    }
-    else {
-      await writeOwed.mutateAsync({ customerId, data });
-    }
-  }
+  const owing = (onFile.length > 1) ? null
+    : (isNumber(loan) && Number(loan) > 0) ? -Math.abs(toThePenny(Number(loan))) : 0;
 
-  async function save() {
-    setErrors(noErrors);
-    setBusy(true);
-    try {
-      await saveTheLoan();
-      // One call for the whole screen. This was a write per line and then one more for the totals, so
-      // writing a portfolio of two dozen lines down was two dozen calls — and, now that each change to a
-      // portfolio is kept, two dozen changes to it where somebody had made one.
-      //
-      // Every line is sent, not only the ones that moved: a line this screen no longer names is one the
-      // client no longer holds, and that is how it comes off. The API leaves alone any line whose name
-      // and figure have not moved, so what is not on this screen — a line's own tolerance above all —
-      // survives a save that was not about it.
-      const allocation = {
+  /**
+   * Handed on rather than sent.
+   *
+   * <p>This screen used to write: the lines in one call and the loan beside them in another, which on a
+   * client with figures meant the lines waited on whoever looks after them while the loan landed at once.
+   * Half an act landing is the thing being fixed, so the whole calculator is sent once — by the step that
+   * finishes it, which is the next one.
+   *
+   * <p>Every line goes, not only the ones that moved: a line this screen no longer names is one the
+   * client no longer holds, and that is how it comes off. The API leaves alone any line whose name and
+   * figure have not moved, so what is not on this screen — a line's own tolerance above all — survives a
+   * save that was not about it.
+   */
+  function next() {
+    onDraft?.({
+      ...draft,
+      held: {
         classes: codes.map((assetClass) => ({
           assetClass,
           lines: (lines[assetClass] ?? [])
@@ -214,38 +188,15 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
             .map((line) => ({
               id: line.id,
               name: line.name.trim(),
-              valueAmount: Number(line.amount),
+              valueAmount: toThePenny(Number(line.amount)),
             })),
         })),
         currency: currency || null,
         netAum: whole,
-      };
-      // Written outright the first time and asked for every time after. Rewriting a portfolio takes
-      // every line off that this screen stops naming and replaces the figure every target is measured
-      // against, which is a larger change than moving money between two lines — and that already needs
-      // whoever looks after the client to agree. The first has nothing to overrule.
-      if (alreadyWritten) {
-        await askToRewrite.mutateAsync({ customerId, data: { allocation, why: why.trim() } });
-      }
-      else {
-        await writeAllocation.mutateAsync({ customerId, data: allocation });
-      }
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: getListClientHoldingsQueryKey(customerId) }),
-        queryClient.invalidateQueries({ queryKey: getGetClientPortfolioQueryKey(customerId) }),
-        // The day's history too. Every change writes its own version now, so the act somebody has just
-        // taken is one the tracker is meant to show — and without this it would not show it until
-        // something unrelated happened to refetch.
-        queryClient.invalidateQueries({ queryKey: getGetClientValuationsQueryKey(customerId) }),
-      ]);
-      onDone();
-    }
-    catch (caught) {
-      setErrors(toFormErrors(caught as ApiError));
-    }
-    finally {
-      setBusy(false);
-    }
+        loanAmount: owing,
+      },
+    });
+    onDone();
   }
 
   if (assetClasses.isError) {
@@ -256,8 +207,6 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
     // A class and its total are one block to read; the next class is another. Room between them so the
     // eye stops at the end of one rather than running into the heading of the next.
     <div className="flex flex-1 flex-col space-y-8">
-      {errors.form && <Alert tone="danger">{errors.form}</Alert>}
-
       <div className="flex flex-wrap items-center justify-end gap-2">
         <label htmlFor="holdings-currency" className="text-xs font-semibold text-ink-soft">
           Currency
@@ -491,27 +440,14 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
         <Alert tone="danger">A figure box has something in it that is not a figure.</Alert>
       )}
 
-      {/* Asked for, where there is something to overrule. The reason is what whoever answers is really
-          being asked about: a page of figures with no sentence beside it asks somebody to agree to
-          arithmetic. */}
+      {/* Said here, where somebody is typing the figures, rather than sprung on them a step later. The
+          reason and the sending both belong to the step that finishes the calculator, because the two
+          screens are one act — so this one says where it is going and the next one asks why. */}
       {alreadyWritten && (
-        <div className="mt-6 rounded-xl border border-line bg-slate-50/60 px-4 py-3">
-          <label htmlFor="why-it-changed"
-            className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            Why it should change
-          </label>
-          <TextInput
-            id="why-it-changed"
-            className="mt-1.5"
-            value={why}
-            placeholder="The custodian statement came in at a different figure."
-            onChange={(event) => setWhy(event.target.value)}
-          />
-          <p className="mt-2 text-xs text-ink-muted">
-            These figures are already written down, so changing them is answered by whoever looks after
-            this client. Nothing moves until they agree.
-          </p>
-        </div>
+        <Alert tone="info">
+          These figures are already written down, so changing them is answered by whoever looks after
+          this client. Nothing is sent until the next step, and nothing moves until they agree.
+        </Alert>
       )}
 
       {/* In the page rather than lying over it: the figure that had to be kept in sight is said at the
@@ -520,15 +456,8 @@ export function AllocationStep({ customerId, onDone }: StepProps) {
         <Button variant="secondary" size="lg" type="button" onClick={onDone}>
           Skip
         </Button>
-        <Button
-          type="button"
-          size="lg"
-          disabled={busy || !readable || !anything || (alreadyWritten && why.trim() === "")}
-          onClick={() => void save()}
-        >
-          {busy
-            ? (alreadyWritten ? "Asking…" : "Writing it down…")
-            : alreadyWritten ? "Ask for this change" : "Next"}
+        <Button type="button" size="lg" disabled={!readable || !anything} onClick={next}>
+          Next
         </Button>
       </div>
     </div>
