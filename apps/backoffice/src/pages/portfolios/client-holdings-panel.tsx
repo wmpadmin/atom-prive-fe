@@ -64,7 +64,19 @@ function toDo(amount: number) {
 }
 
 /** A sub-asset that can take money, how much it can take before it would breach, and the row it is. */
-type Destination = { name: string; room: number; into: PositionRow | null };
+type Destination = {
+  name: string;
+  /** What it can still take, after what waiting plans have already promised it. */
+  room: number;
+  /**
+   * How much of its room is already spoken for by a plan nobody has answered.
+   *
+   * <p>Carried beside the room rather than folded silently into it, because a figure that dropped from
+   * 6,694 to 1 with nothing on screen to say why reads as a bug in the ceiling.
+   */
+  asked: number;
+  into: PositionRow | null;
+};
 
 /**
  * How much each of the other sub-assets in this class can take, biggest room first.
@@ -81,14 +93,24 @@ type Destination = { name: string; room: number; into: PositionRow | null };
  * that line has breached, and now says so in the same breath — so the room offered here and the verdict
  * read beside it cannot disagree, because there is only one of them.
  */
-function capacityIn(groups: SubClassGroup[], except: SubClassGroup | null): Destination[] {
+function capacityIn(groups: SubClassGroup[], except: SubClassGroup | null,
+    mine: Record<string, number> = {}): Destination[] {
   const places: Destination[] = [];
   for (const one of groups) {
     if (one === except || one.subClass === null) continue;
+    // What waiting plans have already promised this line, less whatever of that is the plan being changed
+    // here. A plan read against its own claim would see the room it has itself taken and offer to split
+    // the figures already in its boxes down to nothing.
+    const asked = one.askedFor - (mine[one.subClass] ?? 0);
     // Nothing is asked of a client on no model, so nothing is allowed either: with no ceiling to land under
     // there is no breach to avoid and no room to offer. The class beside it answers the same way, which is
     // what keeps a crossing from opening a door the sub-asset list cannot then fill.
-    const room = one.mostItMayHold === null ? 0 : one.mostItMayHold - one.valueAmount;
+    //
+    // Less what is already asked of it. The ceiling and the holding are still the server's own figures and
+    // are still true — nothing has moved. What has changed is that a plan waiting on an answer is money
+    // this line is spoken for, and a window offering it again offers the same money twice: 6,693 of 6,694
+    // promised, and the next window still said 6,694 and pre-filled 5,000 of it.
+    const room = one.mostItMayHold === null ? 0 : one.mostItMayHold - one.valueAmount - asked;
     // Listed whether or not it can take anything. Dropped once it was full, a sibling fell out of this
     // list and the window went on showing the copy it had frozen when it opened — whose row still said
     // what the sub-asset held before the money went in. A second move into it wrote that stale figure
@@ -98,7 +120,14 @@ function capacityIn(groups: SubClassGroup[], except: SubClassGroup | null): Dest
     // A whole unit or it is nothing. A share worked out by division lands a hair either side of its
     // figure, so a sub-asset sitting exactly at the end of its band came out with room for a
     // ten-thousandth of a penny and took a row in the table to say USD 0.
-    places.push({ name: one.subClass, room: room < 1 ? 0 : room, into: one.positions[0] ?? null });
+    places.push({
+      name: one.subClass,
+      // Clamped after the claim is taken off, not before: a line whose room was whole until a plan spoke
+      // for all but a hair of it has to come out as nothing, not as that hair.
+      room: room < 1 ? 0 : room,
+      asked: asked > 0 ? asked : 0,
+      into: one.positions[0] ?? null,
+    });
   }
   return places.sort((first, second) => second.room - first.room);
 }
@@ -114,6 +143,8 @@ function roomInClass(klass: ClassPositions, into: Destination[]) {
   // Nothing is asked of this class, so nothing is allowed either: with no ceiling to land under there is
   // no breach to avoid and no room to offer.
   if (klass.mostItMayHold === null) return 0;
+  // Money a waiting plan would bring into this class is room the class no longer has. Money asked for
+  // between two lines INSIDE it nets to nothing here, which is right — the class total does not move.
   // Never more than its own lines can actually take, which is a real asymmetry and not a rounding guard.
   // A band around a target of nothing is nothing for a LINE, because it is scaled by the share of its
   // class that line is asked for; for a class there is nothing to scale it by, so a class the model asks
@@ -121,7 +152,7 @@ function roomInClass(klass: ClassPositions, into: Destination[]) {
   // both are true — the window said "Forex, room for USD 9,020" and then, under it, "nothing in Forex has
   // room for it", and it was right twice. Offering the lesser is what makes that readable.
   const lines = into.reduce((sum, place) => sum + Math.max(0, place.room), 0);
-  return Math.max(0, Math.min(klass.mostItMayHold - klass.valueAmount, lines));
+  return Math.max(0, Math.min(klass.mostItMayHold - klass.valueAmount - klass.askedFor, lines));
 }
 
 /** One other class money could cross into, and where inside it the money could land. */
@@ -403,10 +434,10 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   /**
    * Asks for the whole split to be moved, as one plan.
    *
-   * <p>Not a button on each row. A client may have one plan waiting at a time — two open on one portfolio
-   * are each weighed against figures the other is spending — so a press per row would raise one plan and
-   * then be refused five times. What is on this screen is one decision anyway: where the money that has to
-   * leave this sub-asset should go.
+   * <p>Not a button on each row. Every row in this window takes money out of the same sub-asset, and two
+   * plans drawing on one line are refused — so a press per row would raise one plan and then be refused
+   * five times over. What is on this screen is one decision anyway: where the money that has to leave this
+   * sub-asset should go.
    *
    * <p>Nothing is written. The figures behind this window stand exactly as they are until whoever looks
    * after the client says yes.
@@ -595,8 +626,17 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                             </span>
                           )}
                         </th>
-                        <td className="px-5 py-4 text-right tabular-nums whitespace-nowrap text-ink-muted">
-                          {exactly(place.room, currency)}
+                        <td className="px-5 py-4 text-right whitespace-nowrap text-ink-muted">
+                          <span className="tabular-nums">{exactly(place.room, currency)}</span>
+                          {/* Why it is not more. The room above is what this line can still take after
+                              what a plan nobody has answered has already promised it — and a figure that
+                              fell from 6,694 to 1 with nothing to say why reads as the ceiling being
+                              wrong rather than as the money being spoken for. */}
+                          {place.asked >= 1 && (
+                            <span className="mt-1 block text-xs font-normal text-amber-700">
+                              {exactly(place.asked, currency)} already asked for into this line
+                            </span>
+                          )}
                         </td>
                         {/* Off the portfolio screen there is no Edit, and so no Discard to undo a move
                             with. What it would put there is still worth reading, so it is read rather than
@@ -650,9 +690,9 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
           )}
 
           {/* One plan for the whole split, under the table where the figures are settled — not a button
-              on each row. A client may have one plan waiting at a time, so a press per row would raise
-              one and be refused for the rest; and what is on this screen is one decision anyway, which
-              is where the money leaving this sub-asset should go. */}
+              on each row. Every row here draws on the same sub-asset and two plans may not, so a press
+              per row would raise one and be refused for the rest; and what is on this screen is one
+              decision anyway, which is where the money leaving this sub-asset should go. */}
           {!readOnly && !nowhere && !nothingLeft && (
             <div className="mt-5 border-t border-line pt-4">
               <label htmlFor="why-it-moves" className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -734,10 +774,10 @@ export function ClientHoldingsPanel({
   // Settles once the portfolio has actually been read back, so a caller that must not act on yesterday's
   // figures can wait for it. Fired and forgotten, this let a second Move go out against the rows the first
   // one had already written over.
-  // One move at a time across the whole screen. A ref rather than state, because a click reads it in the
-  // same tick and state arrives a render later: two clicks together would both find the door open. There
-  // used to be a flag beside it for the buttons to grey out on, back when several plans could be on screen
-  // at once; one plan opens at a time now, and its own buttons already know while it is writing.
+  // One WRITE at a time across the whole screen — not one plan: a client may have several waiting. A ref
+  // rather than state, because a click reads it in the same tick and state arrives a render later, so two
+  // clicks together would both find the door open. Only one move window is ever open, and its own buttons
+  // already know while it is writing, so there is no flag beside this for them to grey out on.
   const moveUnderway = useRef(false);
   /**
    * Whose plan is open, by name rather than by the row itself.
@@ -762,11 +802,15 @@ export function ClientHoldingsPanel({
   // The firm's own names for the classes, read before anything returns: a hook skipped on the way out of
   // an early return is a hook React counts as missing on the render after it.
   const catalogue = useAssetClasses();
-  // What has already been asked for this client and not yet answered. A client may have one plan at a
-  // time, so this is at most one — and while it stands, the figures on this screen are what is written
-  // down rather than what has been asked for.
+  // What has already been asked for this client and not yet answered. Several may be, so long as no two
+  // of them take money out of the same line — and while any of them stands, the figures on this screen are
+  // what is written down rather than what has been asked for.
+  //
+  // Read as a list rather than the first of them. Taken as one, the second ask a client had waiting was
+  // invisible on the screen somebody would go to to check it, and "Cancel this plan" cancelled whichever
+  // the server happened to return first.
   const waiting = useListClientMovePlans<MovePlanRow[], ApiError>(customerId);
-  const open = (waiting.data ?? []).find((plan) => plan.status === "PENDING") ?? null;
+  const open = (waiting.data ?? []).filter((plan) => plan.status === "PENDING");
   // The last one somebody actually answered. The bell that tells whoever asked that their move was turned
   // down links to this page — and this page used to say nothing at all about it, because the banner above
   // reads only the plan that is still waiting. They arrived at a screen identical to the one before they
@@ -775,12 +819,9 @@ export function ClientHoldingsPanel({
     .find((plan) => plan.status === "APPROVED" || plan.status === "REJECTED") ?? null;
   const takeBack = useTakeBackTheMovePlan<ApiError>();
   const user = useStaffUser();
-  // Whether the person reading this is the person who asked. The row carries the raiser's id for exactly
-  // this: a name cannot answer it, because two members of staff can share one. Without it the screen put
-  // both buttons on everybody's plan and the server refused the press — silently, since nothing read the
-  // error.
-  const theirs = open !== null && open.raisedBy === user.id;
   const [planFailed, setPlanFailed] = useState<string | null>(null);
+  /** Which plan is being cancelled, so one plan's button says so and the others simply wait. */
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
   // A client with nothing written down yet is an ordinary state, not a failure. Shown as one, it put a
   // red banner across the portfolio page of every client whose holdings nobody had typed in.
@@ -817,6 +858,9 @@ export function ClientHoldingsPanel({
               ownTolerance: false,
               // Nothing is written down and nothing has been read, so there is no ceiling to state either.
               mostItMayHold: null,
+              // A class nobody holds anything in has nothing asked of it either: a plan can only move
+              // money out of a line that holds some, and a class with no lines is in no plan.
+              askedFor: 0,
               subClasses: [],
             },
         ),
@@ -834,83 +878,109 @@ export function ClientHoldingsPanel({
   // the money leaves, and a plan outlives the figures it was raised against — if that line has since gone
   // from the screen there is nothing to show, and a button that does nothing when pressed is worse than
   // one that says it cannot.
-  const leaves = open?.legs[0];
-  const canChange = leaves !== undefined
-    && classes.some((one) => one.assetClass === leaves.fromAssetClass
-      && one.subClasses.some((each) => each.subClass === leaves.fromSubClass));
+  const canChange = (plan: MovePlanRow) => {
+    const leaves = plan.legs[0];
+    return leaves !== undefined
+      && classes.some((one) => one.assetClass === leaves.fromAssetClass
+        && one.subClasses.some((each) => each.subClass === leaves.fromSubClass));
+  };
 
   return (
     <section className="space-y-3">
       {/* What has been asked for and not yet answered, over the figures rather than in them. The figures
           below are what the client holds; a plan is not a holding, and writing one in would say the breach
           was fixed when nobody has agreed to fix it yet. */}
-      {open && (
+      {open.length > 0 && (
         <Alert tone="info">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="font-semibold">
-                {exactly(open.amount, currency)} is waiting on an answer.
-              </p>
-              <p className="mt-1 text-sm">
-                {open.raisedByName} asked for it: {open.why}
-              </p>
-              <ul className="mt-2 space-y-0.5 text-sm">
-                {open.legs.map((leg, at) => (
-                  <li key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`}>
-                    {exactly(leg.amount, currency)} out of {leg.fromSubClass ?? "what is not grouped"} and
-                    {" "}into {leg.toSubClass ?? "what is not grouped"}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-sm">
-                Nothing has moved. The figures below are what is written down.
-              </p>
-            </div>
-            {/* Only to whoever asked. The server has always held both of these to the raiser, and the
-                screen used to offer them to everybody and let the refusal come back — invisibly, because
-                nothing read it. */}
-            {!readOnly && theirs && (
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {/* Changed rather than taken back and asked again. Somebody who split money across four
-                    sub-assets and wants one of them different was retyping the other three from memory;
-                    the window opens on what they asked for, and they change the one. */}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={takeBack.isPending || !canChange}
-                  onClick={() => {
-                    setPlanFailed(null);
-                    const from = open.legs[0];
-                    if (from === undefined) return;
-                    setPlanning({
-                      assetClass: from.fromAssetClass,
-                      subClass: from.fromSubClass,
-                      changing: open,
-                    });
-                  }}
+          {/* How many, said once at the top. A reader counting blocks to find out whether they have one
+              plan waiting or three is doing the screen's work for it. */}
+          <p className="font-semibold">
+            {open.length === 1
+              ? `${exactly(open[0]?.amount ?? 0, currency)} is waiting on an answer.`
+              : `${open.length} plans are waiting on an answer.`}
+          </p>
+          {/* One block each, with its own buttons. Shown as a single plan, a second ask was invisible
+              here and Cancel cancelled whichever came back first — which is the one thing a button
+              beside somebody's own figures must never be vague about. */}
+          <div className="mt-2 space-y-3">
+            {open.map((plan) => {
+              // Whether the person reading this is the person who asked. The row carries the raiser's id
+              // for exactly this: a name cannot answer it, because two members of staff can share one.
+              const theirs = plan.raisedBy === user.id;
+              return (
+                <div
+                  key={plan.id}
+                  className="flex flex-wrap items-start justify-between gap-3 border-t border-current/15 pt-3 first:border-0 first:pt-0"
                 >
-                  Change it
-                </Button>
-                {/* Cancelled, not undone: nothing was written, so there is nothing to put back. */}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={takeBack.isPending}
-                  onClick={() => {
-                    setPlanFailed(null);
-                    void takeBack
-                      .mutateAsync({ id: open.id })
-                      .then(() => waiting.refetch())
-                      .catch((caught: ApiError) => {
-                        setPlanFailed(caught?.message ?? "That could not be cancelled.");
-                      });
-                  }}
-                >
-                  {takeBack.isPending ? "Cancelling…" : "Cancel this plan"}
-                </Button>
-              </div>
-            )}
+                  <div className="min-w-0">
+                    {open.length > 1 && (
+                      <p className="text-sm font-semibold">{exactly(plan.amount, currency)}</p>
+                    )}
+                    <p className={open.length > 1 ? "mt-0.5 text-sm" : "text-sm"}>
+                      {plan.raisedByName} asked for it: {plan.why}
+                    </p>
+                    <ul className="mt-2 space-y-0.5 text-sm">
+                      {plan.legs.map((leg, at) => (
+                        <li key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`}>
+                          {exactly(leg.amount, currency)} out of {leg.fromSubClass ?? UNGROUPED} and
+                          {" "}into {leg.toSubClass ?? UNGROUPED}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  {/* Only to whoever asked. The server has always held both of these to the raiser, and
+                      the screen used to offer them to everybody and let the refusal come back —
+                      invisibly, since nothing read it. */}
+                  {!readOnly && theirs && (
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      {/* Changed rather than taken back and asked again. Somebody who split money across
+                          four sub-assets and wants one of them different was retyping the other three
+                          from memory; the window opens on what they asked for, and they change the one. */}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={cancelling !== null || !canChange(plan)}
+                        onClick={() => {
+                          setPlanFailed(null);
+                          const from = plan.legs[0];
+                          if (from === undefined) return;
+                          setPlanning({
+                            assetClass: from.fromAssetClass,
+                            subClass: from.fromSubClass,
+                            changing: plan,
+                          });
+                        }}
+                      >
+                        Change it
+                      </Button>
+                      {/* Cancelled, not undone: nothing was written, so there is nothing to put back. */}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={cancelling !== null}
+                        onClick={() => {
+                          setPlanFailed(null);
+                          setCancelling(plan.id);
+                          void takeBack
+                            .mutateAsync({ id: plan.id })
+                            .then(() => waiting.refetch())
+                            .catch((caught: ApiError) => {
+                              setPlanFailed(caught?.message ?? "That could not be cancelled.");
+                            })
+                            .finally(() => setCancelling(null));
+                        }}
+                      >
+                        {cancelling === plan.id ? "Cancelling…" : "Cancel this plan"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
+          <p className="mt-2 text-sm">
+            Nothing has moved. The figures below are what is written down.
+          </p>
           {planFailed && <p className="mt-2 text-sm font-medium text-danger-700">{planFailed}</p>}
         </Alert>
       )}
@@ -918,7 +988,7 @@ export function ClientHoldingsPanel({
       {/* What was last decided, where nothing is waiting. Only one of the two is ever on the screen: while
           a plan waits, what it is asking for is the thing worth reading, and the answer before it is
           history. */}
-      {open === null && answered && (
+      {open.length === 0 && answered && (
         <Alert tone={answered.status === "APPROVED" ? "success" : "warning"}>
           <p className="font-semibold">
             {exactly(answered.amount, currency)} out of {answered.legs[0]?.fromSubClass ?? UNGROUPED}
@@ -1313,6 +1383,14 @@ export function ClientHoldingsPanel({
         // down is breached the other way, and the window said it was inside its range while the row
         // behind it carried a breach badge and a figure to buy.
         const right = group.standing !== "BREACHED";
+        // What the plan being changed has already promised each line. Read back out of its own legs and
+        // handed to the room reading so that opening "Change it" on a plan filling a line does not show
+        // that line as full — it is full of this very plan, and this is the window for changing it.
+        const ours: Record<string, number> = {};
+        for (const leg of planning.changing?.legs ?? []) {
+          const into = leg.toSubClass ?? UNGROUPED;
+          ours[into] = (ours[into] ?? 0) + leg.amount;
+        }
         return (
           <Dialog
             open
@@ -1331,11 +1409,11 @@ export function ClientHoldingsPanel({
               spare={toShed}
               rows={group.positions}
               assetClass={its.assetClass}
-              places={capacityIn(its.subClasses, group)}
+              places={capacityIn(its.subClasses, group, ours)}
               elsewhere={classes
                 .filter((other) => other.assetClass !== its.assetClass && other.targetShare !== null)
                 .map((other) => {
-                  const into = capacityIn(other.subClasses, null);
+                  const into = capacityIn(other.subClasses, null, ours);
                   return {
                     assetClass: other.assetClass,
                     name: other.assetClassName || other.assetClass,

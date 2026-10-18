@@ -12,7 +12,7 @@ import { Link, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
 import { formatDateTime } from "../../lib/labels";
-import { exactly, named, pastItsBand } from "./money-words";
+import { exactly, figure, named, netted, overItsBand } from "./money-words";
 import { hasAuthority } from "../../lib/permissions";
 
 /** What a reader can narrow the list to, in the order a plan passes through them. */
@@ -58,30 +58,92 @@ export function WaitingPlan({ row, showClient, answering, refusal, onApprove, on
             {/* The reason first, because it is the thing whoever asked was told they would be
                 judged on. The figures are below it and they can be read. */}
             <p className="mt-1 text-sm">{row.why}</p>
-            <ul className="mt-2 space-y-0.5 text-sm text-ink-muted">
-              {row.legs.map((leg, at) => (
-                <li key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`}>
-                  {exactly(leg.amount, row.currency)} out of {named(leg.fromSubClass)} and into{" "}
-                  {named(leg.toSubClass)}
-                  {leg.figuresMoved && (
-                    <span className="text-amber-700">
-                      {" — "}
-                      {named(leg.fromSubClass)} held{" "}
-                      {exactly(leg.heldWhenRaised ?? 0, row.currency)} when this was asked for and
-                      holds {exactly(leg.heldNow, row.currency)} now
-                    </span>
-                  )}
-                  {pastItsBand(leg) > 0 && (
-                    <span className="block text-amber-700">
-                      This would leave {named(leg.toSubClass)} holding{" "}
-                      {exactly(leg.landsOnHeldNow + leg.amount, row.currency)}, which is{" "}
-                      {exactly(pastItsBand(leg), row.currency)} past the{" "}
-                      {exactly(leg.landsOnMayHold ?? 0, row.currency)} the model allows it
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
+            {/* The movements as a sum rather than as sentences. Three legs out of one line said that
+                line's name three times and its figure not once, and the arithmetic that decides the
+                answer — what each line is left holding — was left to the reader's head. */}
+            <table className="mt-3 min-w-full text-sm">
+              <caption className="sr-only">What this plan would move, and what it would leave.</caption>
+              <thead>
+                <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  <th scope="col" className="py-2 pr-4">Out of</th>
+                  <th scope="col" className="px-4 py-2">Into</th>
+                  <th scope="col" className="py-2 pl-4 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {row.legs.map((leg, at) => (
+                  <tr key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`}>
+                    <th scope="row" className="py-2 pr-4 text-left font-medium text-ink">
+                      {named(leg.fromSubClass, leg.fromAssetClass)}
+                    </th>
+                    <td className="px-4 py-2 text-ink">{named(leg.toSubClass, leg.toAssetClass)}</td>
+                    <td className="py-2 pl-4 text-right tabular-nums whitespace-nowrap text-ink">
+                      {figure(leg.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              {/* Only where there is more than one. A total under a single figure is that figure again. */}
+              {row.legs.length > 1 && (
+                <tfoot>
+                  <tr className="border-t-2 border-line font-medium">
+                    <th scope="row" colSpan={2} className="py-2 pr-4 text-left">Total</th>
+                    <td className="py-2 pl-4 text-right tabular-nums whitespace-nowrap">
+                      {figure(row.amount)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+            {/* And what that sum leaves. The question an approver is actually answering is not what moves
+                but what the client is left holding, and until now that was arithmetic they did themselves
+                — across three legs, from figures the screen never put side by side. */}
+            <table className="mt-3 min-w-full text-sm">
+              <caption className="sr-only">What each line would be left holding.</caption>
+              <thead>
+                <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  <th scope="col" className="py-2 pr-4">Which would leave</th>
+                  <th scope="col" className="px-4 py-2 text-right">Holds now</th>
+                  <th scope="col" className="py-2 pl-4 text-right">Would hold</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {netted(row.legs).map((line) => (
+                  <tr key={line.name}>
+                    <th scope="row" className="py-2 pr-4 text-left font-medium text-ink">
+                      {line.name}
+                      {/* Said against the line, because it is the line whose figure has moved. */}
+                      {line.heldWhenRaised !== null && (
+                        <span className="mt-0.5 block text-xs font-normal text-amber-700">
+                          held {exactly(line.heldWhenRaised, row.currency)} when this was asked for
+                        </span>
+                      )}
+                      {/* The other half of the question, and the one nothing on this screen could ask
+                          before: another plan is waiting to put money in here too. Each was weighed
+                          against the same figures and each sits inside the band on its own. */}
+                      {line.askedByOthers >= 1 && (
+                        <span className="mt-0.5 block text-xs font-normal text-amber-700">
+                          another plan waiting would add {exactly(line.askedByOthers, row.currency)} to
+                          this line as well
+                        </span>
+                      )}
+                      {overItsBand(line) > 0 && (
+                        <span className="mt-0.5 block text-xs font-normal text-amber-700">
+                          {exactly(overItsBand(line), row.currency)} past the{" "}
+                          {exactly(line.mayHold ?? 0, row.currency)} the model allows it
+                        </span>
+                      )}
+                    </th>
+                    <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap text-ink-muted">
+                      {figure(line.holdsNow)}
+                    </td>
+                    <td className="py-2 pl-4 text-right tabular-nums whitespace-nowrap text-ink">
+                      {figure(line.wouldHold)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             {/* An amount with no denominator beside it could be a rounding error or half the
                 book. */}
             <p className="mt-2 text-xs text-ink-muted">
@@ -102,7 +164,12 @@ export function WaitingPlan({ row, showClient, answering, refusal, onApprove, on
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {moved && <Badge tone="warning">Figures have moved</Badge>}
-          {row.legs.some((leg) => pastItsBand(leg) > 0) && <Badge tone="warning">Past a band</Badge>}
+          {netted(row.legs).some((line) => overItsBand(line) > 0) && (
+            <Badge tone="warning">Past a band</Badge>
+          )}
+          {row.legs.some((leg) => leg.landsOnAskedByOthers >= 1) && (
+            <Badge tone="warning">Another plan lands here</Badge>
+          )}
           {row.changedAt && <Badge tone="warning">Changed</Badge>}
           {/* Said, because it is the one reason a plan appears to somebody who does not advise the client.
               Unexplained it reads as somebody else's work turning up in your list. */}
@@ -420,8 +487,9 @@ export function MovesToApprovePage() {
               <ul className="mt-2 space-y-0.5 text-xs text-ink-muted">
                 {turningDown.legs.map((leg, at) => (
                   <li key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`}>
-                    {exactly(leg.amount, turningDown.currency)} out of {named(leg.fromSubClass)} and into{" "}
-                    {named(leg.toSubClass)}
+                    {exactly(leg.amount, turningDown.currency)} out of{" "}
+                    {named(leg.fromSubClass, leg.fromAssetClass)} and into{" "}
+                    {named(leg.toSubClass, leg.toAssetClass)}
                   </li>
                 ))}
               </ul>
