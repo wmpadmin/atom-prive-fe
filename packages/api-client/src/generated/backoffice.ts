@@ -572,6 +572,7 @@ export interface PlannedLeg {
   landsOnHeldNow: number;
   /** @nullable */
   landsOnMayHold: number | null;
+  landsOnAskedByOthers: number;
 }
 
 export interface MovePlanRow {
@@ -3572,6 +3573,7 @@ export interface SubClassGroup {
   suggestion: number | null;
   /** @nullable */
   mostItMayHold: number | null;
+  askedFor: number;
   positions: PositionRow[];
 }
 
@@ -3599,6 +3601,7 @@ export interface ClassPositions {
   ownTolerance: boolean;
   /** @nullable */
   mostItMayHold: number | null;
+  askedFor: number;
   subClasses: SubClassGroup[];
 }
 
