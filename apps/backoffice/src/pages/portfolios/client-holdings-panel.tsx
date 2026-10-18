@@ -966,7 +966,10 @@ export function ClientHoldingsPanel({
                           setCancelling(plan.id);
                           void takeBack
                             .mutateAsync({ id: plan.id })
-                            .then(() => waiting.refetch())
+                            // Both, because the holdings now carry what waiting plans have promised each
+                            // line. Read alone, the plans list emptied while every room figure on the
+                            // screen went on counting money this plan had just stopped asking for.
+                            .then(() => Promise.all([waiting.refetch(), held.refetch()]))
                             .catch((caught: ApiError) => {
                               setPlanFailed(caught?.message ?? "That could not be cancelled.");
                             })
@@ -1437,7 +1440,11 @@ export function ClientHoldingsPanel({
               changing={planning.changing}
               onAsked={async () => {
                 setPlanning(null);
-                await waiting.refetch();
+                // The holdings too: a line's free room is now read net of what waiting plans have
+                // promised it, so raising or changing one changes a figure on this very screen. Refetched
+                // alone, the next window opened on the room as it stood before the plan just raised —
+                // which is the whole of what this was built to stop.
+                await Promise.all([waiting.refetch(), held.refetch()]);
               }}
             />
           </Dialog>
