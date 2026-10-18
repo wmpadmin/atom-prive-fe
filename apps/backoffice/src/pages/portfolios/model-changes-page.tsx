@@ -6,7 +6,8 @@ import {
   type ModelChangeRow,
   type ModelChangeRowStatus,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, Dialog, Field, Pagination, TextArea, cn } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, Pagination, cn } from "@atomprive/ui";
+import { AnswerDialog } from "./answer-dialog";
 import { ListPageHeader } from "../../components/record-list";
 import { useState } from "react";
 import { useStaffUser } from "../../auth/session";
@@ -39,7 +40,8 @@ export function ModelChangesPage() {
   const mayAnswer = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
   const [tab, setTab] = useState<ModelChangeRowStatus | "all">("PENDING");
   const [page, setPage] = useState(0);
-  const [turningDown, setTurningDown] = useState<ModelChangeRow | null>(null);
+  /** The change being answered and which way, because both answers are given in the same window now. */
+  const [deciding, setDeciding] = useState<{ row: ModelChangeRow; approved: boolean } | null>(null);
   const [note, setNote] = useState("");
 
   const requests = useListModelChanges<ModelChangePage, ApiError>({
@@ -50,7 +52,7 @@ export function ModelChangesPage() {
   const answer = useAnswerModelChange<ApiError>({
     mutation: {
       onSuccess: () => {
-        setTurningDown(null);
+        setDeciding(null);
         setNote("");
         void requests.refetch();
       },
@@ -137,7 +139,7 @@ export function ModelChangesPage() {
                           variant="secondary"
                           size="sm"
                           onClick={() => {
-                            setTurningDown(row);
+                            setDeciding({ row, approved: false });
                             setNote("");
                           }}
                         >
@@ -146,9 +148,12 @@ export function ModelChangesPage() {
                         <Button
                           size="sm"
                           disabled={answer.isPending}
-                          onClick={() => answer.mutate({ id: row.id, data: { approved: true, note: null } })}
+                          onClick={() => {
+                            setDeciding({ row, approved: true });
+                            setNote("");
+                          }}
                         >
-                          {answer.isPending ? "Moving them…" : "Approve and move them"}
+                          Approve and move them
                         </Button>
                       </>
                     )}
@@ -177,37 +182,28 @@ export function ModelChangesPage() {
         )}
       </section>
 
-      {/* Rejecting one asks why, and what is said goes back to whoever asked. */}
-      <Dialog
-        open={turningDown !== null}
-        title={turningDown ? `Reject the move for ${turningDown.clientName}?` : "Reject it"}
-        onClose={() => setTurningDown(null)}
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-ink-muted">
-            They stay on {turningDown?.fromModelName}. What you write here is shown to{" "}
-            {turningDown?.raisedByName}.
-          </p>
-          <Field id="turn-down-note" label="Why not?" required>
-            <TextArea id="turn-down-note" rows={3} value={note} onChange={(event) => setNote(event.target.value)} />
-          </Field>
-          {answer.isError && <Alert tone="danger">{answer.error.message}</Alert>}
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setTurningDown(null)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={note.trim() === "" || answer.isPending}
-              onClick={() =>
-                turningDown
-                && answer.mutate({ id: turningDown.id, data: { approved: false, note: note.trim() } })
-              }
-            >
-              {answer.isPending ? "Rejecting…" : "Reject"}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
+      <AnswerDialog
+        open={deciding !== null}
+        approved={deciding?.approved ?? false}
+        title={deciding
+          ? `${deciding.approved ? "Approve" : "Reject"} the move for ${deciding.row.clientName}?`
+          : "Answer it"}
+        consequence={deciding?.approved
+          ? `They move onto ${deciding.row.toModelName}.`
+          : `They stay on ${deciding?.row.fromModelName}.`}
+        shownTo={deciding?.row.raisedByName}
+        note={note}
+        onNote={setNote}
+        busy={answer.isPending}
+        error={answer.isError ? answer.error.message : null}
+        onClose={() => setDeciding(null)}
+        onConfirm={() => deciding && answer.mutate({
+          id: deciding.row.id,
+          data: { approved: deciding.approved, note: note.trim() === "" ? null : note.trim() },
+        })}
+        confirm={deciding?.approved ? "Approve and move them" : "Reject"}
+        confirming={deciding?.approved ? "Moving them…" : "Rejecting…"}
+      />
     </div>
   );
 }
