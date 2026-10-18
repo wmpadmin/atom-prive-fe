@@ -14,6 +14,7 @@ import {
 import { Alert, Badge, Button, Dialog, TextInput, cn } from "@atomprive/ui";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { asFigure } from "../../lib/figures";
 import { useAssetClasses } from "./asset-classes";
@@ -224,7 +225,7 @@ function typed(value: string | undefined) {
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
 function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, currency, readOnly,
-  claim, release, asksForNone, settledRight, onAsked, elsewhere, changing }: {
+  claim, release, asksForNone, settledRight, onAsked, elsewhere, changing, carrying }: {
   customerId: string;
   assetClass: string;
   spare: number;
@@ -267,6 +268,8 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
    * figure somebody already decided on is not a suggestion to be re-split under them.
    */
   changing: MovePlanRow | null;
+  /** The proposal this window was opened to carry out, where it was. */
+  carrying: string | null;
 }) {
   const from = rows[0]?.subClass ?? UNGROUPED;
   // Emptied from the fullest first, so the smaller lines are left whole where the whole sum does not need
@@ -477,12 +480,20 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
     setMoving("asking");
     try {
       if (changing === null) {
-        await askToMove.mutateAsync({ customerId, data: { legs, why: why.trim() } });
+        // Stamped with the proposal where this window was opened to carry one out, so the paper and
+        // the act know about each other afterwards.
+        await askToMove.mutateAsync({
+          customerId,
+          data: { legs, why: why.trim(), fromProposalId: carrying ?? null },
+        });
       }
       else {
         // The legs are replaced whole, which is what the window has anyway: every box on it, including the
         // ones left at nought, is the plan as it now stands rather than a correction to be merged.
-        await changeIt.mutateAsync({ id: changing.id, data: { legs, why: why.trim() } });
+        await changeIt.mutateAsync({
+          id: changing.id,
+          data: { legs, why: why.trim(), fromProposalId: changing.fromProposalId ?? null },
+        });
       }
       await onAsked();
     } catch (caught) {
@@ -769,6 +780,9 @@ export function ClientHoldingsPanel({
   // Grouped by whatever the client is measured against on file. The screen no longer holds a model that
   // has been picked but not written, so there is no second answer for this to prefer.
   const held = useListClientHoldings<ClientHoldings, ApiError>(customerId);
+  // A proposal this screen was opened to carry out, named in the address by the proposal that sent the
+  // reader here. Every move raised while it is in force says which advice it serves.
+  const carrying = useSearchParams()[0].get("carrying");
   // What has been shut, rather than what has been opened: a class is open until somebody closes it. Kept
   // this way round because the classes arrive after the first render, and a set of what is open would have
   // to be filled in from them by an effect that renders twice to say what the list already said.
@@ -890,6 +904,18 @@ export function ClientHoldingsPanel({
 
   return (
     <section className="space-y-3">
+      {/* Why this screen was opened. A reader sent here from a proposal has the advice in another tab
+          and the lines in front of them; naming it here is what joins the two in their head, and what
+          lets the move they raise say which advice it serves. */}
+      {carrying !== null && (
+        <Alert tone="info">
+          <p className="font-semibold">You are carrying out a proposal.</p>
+          <p className="mt-1 text-sm">
+            Open a line below and ask for the move. Whatever you raise while you are here says it carries
+            this advice out, so the proposal stops reading as agreed to and untouched.
+          </p>
+        </Alert>
+      )}
       {/* What has been asked for and not yet answered, over the figures rather than in them. The figures
           below are what the client holds; a plan is not a holding, and writing one in would say the breach
           was fixed when nobody has agreed to fix it yet. */}
@@ -1438,6 +1464,7 @@ export function ClientHoldingsPanel({
               release={releaseTheMove}
               asksForNone={group.targetShare === 0}
               changing={planning.changing}
+              carrying={carrying}
               onAsked={async () => {
                 setPlanning(null);
                 // The holdings too: a line's free room is now read net of what waiting plans have

@@ -2,6 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useCreateProposal,
   useGetProposal,
+  useListMovesCarryingOut,
   listProposals,
   useListCurrencies,
   useListCustomers,
@@ -13,6 +14,7 @@ import {
   useUpdateProposal,
   type Currency,
   type CustomerPage,
+  type MovePlanRow,
   type ProposalDetail,
   type ProposalRowStatus,
 } from "@atomprive/api-client/backoffice";
@@ -111,6 +113,12 @@ export function ProposalPage() {
   const writes = hasAnyAuthority(user, ...WRITES_PROPOSALS);
 
   const detail = useGetProposal<ProposalDetail, ApiError>(proposalId ?? "", { query: { enabled: !writing } });
+  // Whether anything has been raised to actually do what the client agreed to. The paper and the act
+  // never knew about each other: a proposal sat Approved for ever, looking finished, while the
+  // portfolio had not moved and no screen anywhere said so.
+  const carryingOut = useListMovesCarryingOut<MovePlanRow[], ApiError>(proposalId ?? "", {
+    query: { enabled: !writing && proposalId !== undefined, refetchOnWindowFocus: true },
+  });
   const currencies = useListCurrencies<Currency[], ApiError>();
   // Whose clients may be written for: an advisor's own assigned list, or the whole book for whoever holds
   // proposals at full. Offering an advisor every client would be offering them ones the API then refuses;
@@ -350,6 +358,18 @@ export function ProposalPage() {
           <span className="font-semibold">The client {status === "APPROVED" ? "approved" : "rejected"} this:</span>{" "}
           {proposal.clientComment}
         </Alert>
+      )}
+
+      {/* What became of it. A proposal records advice; only a money move changes a portfolio, and until
+          now nothing joined the two — so agreed-to advice nobody acted on was indistinguishable from
+          advice that had been carried out. */}
+      {status === "APPROVED" && proposal && (
+        <CarriedOutBy
+          moves={carryingOut.data ?? []}
+          pending={carryingOut.isPending}
+          customerId={proposal.summary.customerId}
+          proposalId={proposalId ?? ""}
+        />
       )}
 
       {/* What the advice was given against, and the dates it turns on — the four facts read before the detail. */}
@@ -708,5 +728,66 @@ export function ProposalPage() {
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * What became of advice the client agreed to.
+ *
+ * <p>A proposal is the paper and a move is the act, and nothing joined them: a client could agree to
+ * advice and nobody carry it out, with the proposal reading Approved for ever and the portfolio never
+ * moving. This says which it is, and where there is nothing it offers the way to start one — with the
+ * proposal's own lines in front of whoever raises it, because the advice names holdings in words and a
+ * move names the client's actual lines.
+ */
+function CarriedOutBy({ moves, pending, customerId, proposalId }: {
+  moves: MovePlanRow[];
+  pending: boolean;
+  customerId: string;
+  proposalId: string;
+}) {
+  if (pending) {
+    return null;
+  }
+  if (moves.length === 0) {
+    return (
+      <Alert tone="warning">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p>
+            <span className="font-semibold">Nothing has been moved for this yet.</span>{" "}
+            The client agreed to it, but the portfolio has not changed — a move is what changes one, and
+            none has been raised against this advice.
+          </p>
+          <Link
+            to={`/portfolio-clients/${customerId}?tab=holdings&carrying=${proposalId}`}
+            className="shrink-0 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-primary-700"
+          >
+            Carry this out
+          </Link>
+        </div>
+      </Alert>
+    );
+  }
+  return (
+    <Alert tone="success">
+      <p className="font-semibold">
+        {moves.length === 1 ? "A move was raised to carry this out." : `${moves.length} moves carry this out.`}
+      </p>
+      <ul className="mt-1 space-y-0.5 text-sm">
+        {moves.map((move) => (
+          <li key={move.id}>
+            <Link
+              to={`/moves-to-approve/${move.customerId}`}
+              className="font-medium underline underline-offset-2"
+            >
+              {move.currency} {move.amount.toLocaleString("en-US", { minimumFractionDigits: 2,
+                maximumFractionDigits: 2 })}
+            </Link>
+            {" — "}{move.statusSaid}
+            {move.decidedByName && ` by ${move.decidedByName}`}
+          </li>
+        ))}
+      </ul>
+    </Alert>
   );
 }
