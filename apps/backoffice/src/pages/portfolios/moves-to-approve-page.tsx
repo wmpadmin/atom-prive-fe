@@ -7,7 +7,7 @@ import {
   type PlannedLeg,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Dialog, Field, SelectInput, TextArea, cn } from "@atomprive/ui";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -60,7 +60,7 @@ type StatusTab = (typeof STATUS_TABS)[number]["id"];
  * plan, and a row that said one thing in one view and another in the other would be two screens pretending
  * to be one.
  */
-function WaitingPlan({ row, showClient, answering, refusal, onApprove, onTurnDown }: {
+export function WaitingPlan({ row, showClient, answering, refusal, onApprove, onTurnDown }: {
   row: MovePlanRow;
   /** False where a card header already names the client, so the name is not said twice in a row. */
   showClient: boolean;
@@ -160,7 +160,7 @@ function WaitingPlan({ row, showClient, answering, refusal, onApprove, onTurnDow
 }
 
 /** One plan nobody is waiting on any more — answered, or taken back before anybody answered it. */
-function DealtWithPlan({ row, showClient }: { row: MovePlanRow; showClient: boolean }) {
+export function DealtWithPlan({ row, showClient }: { row: MovePlanRow; showClient: boolean }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
@@ -170,6 +170,12 @@ function DealtWithPlan({ row, showClient }: { row: MovePlanRow; showClient: bool
           {row.decidedByName && ` by ${row.decidedByName}`}
           {row.decidedAt && ` · ${formatDateTime(row.decidedAt)}`}
         </p>
+        {/* Who asked for it. The row said who answered and never who asked, which is the half somebody
+            goes looking for when a decision is questioned later. */}
+        <p className="mt-0.5 text-xs text-ink-muted">
+          Asked by {row.raisedByName} · {formatDateTime(row.raisedAt)}
+        </p>
+        {row.why && <p className="mt-0.5 text-xs text-ink-muted">{row.why}</p>}
         {row.decisionNote && <p className="mt-1 text-xs text-ink-muted">{row.decisionNote}</p>}
       </div>
       <Badge tone={row.status === "APPROVED" ? "success" : "neutral"}>{row.statusSaid}</Badge>
@@ -232,8 +238,6 @@ export function MovesToApprovePage() {
   });
   const [view, setView] = useState<"queue" | "client">("queue");
   const [status, setStatus] = useState<StatusTab>("PENDING");
-  /** Which clients the reader has clicked. What that does depends on how the card opened in the first place. */
-  const [toggled, setToggled] = useState<Set<string>>(new Set());
   const [turningDown, setTurningDown] = useState<MovePlanRow | null>(null);
   const [note, setNote] = useState("");
   const [refused, setRefused] = useState<Record<string, string>>({});
@@ -377,86 +381,43 @@ export function MovesToApprovePage() {
           <p className="px-5 py-8 text-sm text-ink-muted">None of your clients has a money move to read.</p>
         </section>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-2">
           {grouped.map((client) => {
-            // Bound out of the group so the closures below keep it: narrowing does not survive into a
-            // callback, and the one that approves reads it after the render that checked it.
             const asked = client.waiting;
-            // One with something waiting opens itself, because that is the one being asked about; the rest
-            // are shut until somebody wants them. A click means "the other way" either way.
-            const opensItself = asked !== null;
-            const shut = toggled.has(client.customerId) ? opensItself : !opensItself;
             return (
-            <li
-              key={client.customerId}
-              className="overflow-hidden rounded-2xl border border-line bg-white"
-            >
-              {/* The client, and their plans inside them. Flat, the rows sat at the same level as the name
-                  and read as the firm's whole queue with a name dropped in every few lines — which is the
-                  view this one exists to be the opposite of. One with something waiting opens itself,
-                  because that is the one being asked about. */}
-              <button
-                type="button"
-                aria-expanded={!shut}
-                onClick={() => setToggled((was) => {
-                  const next = new Set(was);
-                  if (next.has(client.customerId)) next.delete(client.customerId);
-                  else next.add(client.customerId);
-                  return next;
-                })}
-                className="flex w-full flex-wrap items-center justify-between gap-3 px-5 py-3 text-left hover:bg-slate-50"
+            // A row that goes to the client's own screen rather than opening under itself. Opened in place,
+            // a client's moves pushed every other client down the page, and what was being read sat in a
+            // drawer under the name instead of on a screen of its own.
+            //
+            // The one with something waiting is tinted, because that is the whole question this list is
+            // asked: which of these needs me.
+            <li key={client.customerId}>
+              <Link
+                to={`/moves-to-approve/${client.customerId}`}
+                className={cn(
+                  "flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-3 transition-colors",
+                  asked
+                    ? "border-primary-200 bg-primary-50 hover:bg-primary-100"
+                    : "border-line bg-white hover:bg-slate-50",
+                )}
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  {shut ? <ChevronRight className="size-4 text-ink-muted" /> : <ChevronDown className="size-4 text-ink-muted" />}
                   <Avatar name={client.clientName} />
                   <div className="min-w-0">
                     <p className="font-semibold">{client.clientName}</p>
                     <p className="font-mono text-xs text-ink-muted">{client.clientCode}</p>
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-3">
                   {asked && <Badge tone="warning">Waiting for approval</Badge>}
                   <span className="text-xs text-ink-muted">
                     {client.dealtWith.length + (asked ? 1 : 0) === 1
                       ? "1 move"
                       : `${client.dealtWith.length + (asked ? 1 : 0)} moves`}
                   </span>
+                  <ChevronRight aria-hidden="true" className="size-4 text-ink-muted" />
                 </div>
-              </button>
-              {!shut && (
-                <div className="border-t border-line px-5 pt-3">
-                  <Link
-                    to={`/portfolio-clients/${client.customerId}?from=moves`}
-                    className="text-xs font-medium text-primary-700 underline-offset-2 hover:underline"
-                  >
-                    Open {client.clientName}'s portfolio
-                  </Link>
-                </div>
-              )}
-              {!shut && asked && (
-                <div className="px-5 py-4">
-                  <WaitingPlan
-                    row={asked}
-                    showClient={false}
-                    answering={answer.isPending}
-                    refusal={refused[asked.id]}
-                    onApprove={() => answer.mutate({ id: asked.id, data: { approved: true, note: null } })}
-                    onTurnDown={() => {
-                      setTurningDown(asked);
-                      setNote("");
-                    }}
-                  />
-                </div>
-              )}
-              {!shut && client.dealtWith.length > 0 && (
-                <ul className="divide-y divide-line border-t border-line">
-                  {client.dealtWith.map((row) => (
-                    <li key={row.id} className="px-5 py-3">
-                      <DealtWithPlan row={row} showClient={false} />
-                    </li>
-                  ))}
-                </ul>
-              )}
+              </Link>
             </li>
             );
           })}
