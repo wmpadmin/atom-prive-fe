@@ -1248,6 +1248,10 @@ export interface AllocationRequest {
      * @nullable
      */
   netAum: number | null;
+  /** @nullable */
+  loanAmount: number | null;
+  /** @nullable */
+  ownedOutright: NonFinancialAssetRequest[] | null;
 }
 
 export interface AllocationAsked {
@@ -1292,6 +1296,12 @@ export interface AllocationChangeRow {
   currency: string;
   worthNow: number;
   linesGoing: number;
+  /** @nullable */
+  loanAmount: number | null;
+  loanNow: number;
+  ownedOutright: NonFinancialAssetRequest[];
+  ownedOutrightNow: number;
+  coversTheRest: boolean;
   raisedBy: string;
   raisedByName: string;
   raisedAt: string;

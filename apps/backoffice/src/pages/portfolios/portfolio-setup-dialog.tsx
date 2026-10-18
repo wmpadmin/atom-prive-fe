@@ -7,11 +7,27 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Dialog, cn } from "@atomprive/ui";
 import { useState } from "react";
+import type { NonFinancialAssetRequest } from "@atomprive/api-client/backoffice";
+import type { Calculator } from "./the-calculator";
 import { AllocationStep } from "./client-allocation-page";
 import { ModelStep } from "./client-model-page";
 import { NetAumStep } from "./client-net-aum-page";
 import { isSetUp } from "./set-up";
 import { WorthStep } from "./client-worth-page";
+
+/**
+ * What the two figure steps have between them, until one of them sends it.
+ *
+ * <p>The calculator is one act typed over two screens, and the step that finishes it is the one that
+ * sends it. So the first hands its half here instead of writing it: whoever walks on to the second
+ * finds it waiting, and the whole calculator goes in a single request.
+ */
+export type Draft = {
+  /** What the first step typed, where somebody has been there. Lines, currency and the loan. */
+  held?: Pick<Calculator, "classes" | "currency" | "netAum" | "loanAmount">;
+  /** What the second step typed, where somebody went there and came back. */
+  owned?: NonFinancialAssetRequest[];
+};
 
 /** What each step is handed: whose portfolio it is, and the two ways out of it. */
 export type StepProps = {
@@ -20,6 +36,9 @@ export type StepProps = {
   onDone: () => void;
   /** Back to the step before. Not given to the first, which has none. */
   onBack?: () => void;
+  /** What the figure steps have between them. Not given to the steps that only read. */
+  draft?: Draft;
+  onDraft?: (draft: Draft) => void;
 };
 
 /**
@@ -41,8 +60,9 @@ const STEPS = [
  * then what they are worth beside it — what they own that nobody manages, and what they owe.
  *
  * <p>Two steps, because the first is the firm's twenty-two lines and the other two are a handful each.
- * Each saves as it is left, so somebody who closes the dialog half way keeps what they wrote and opens
- * again where the writing stopped.
+ * The two of them are one act, though, so neither sends on its own: the first hands its figures to the
+ * second and the second sends the whole calculator — written outright the first time and asked for every
+ * time after. Walking away before the second is walking away before the act, and asks for nothing.
  */
 export function PortfolioSetupDialog({
   customerId,
@@ -74,6 +94,10 @@ export function PortfolioSetupDialog({
   // place their figures can come from. Set up means both halves: a plan put on a client who has written
   // nothing down opened to a table of a model's shares of nothing.
   const [chosen, setStep] = useState<1 | 2 | 3 | 4 | null>(null);
+  // What the first figure step typed, kept here so the second can send the whole calculator at once.
+  // Thrown away with the dialog: a walk that was abandoned asked for nothing, which is how every other
+  // change on the platform behaves.
+  const [draft, setDraft] = useState<Draft>({});
   const settled = standing.isSuccess || standing.isError;
   const step = chosen ?? openAt ?? (isSetUp(standing.data) ? 4 : 1);
 
@@ -124,8 +148,18 @@ export function PortfolioSetupDialog({
       <div className="mt-4 flex flex-1 flex-col">
         {/* Nothing until it is known which step this client opens on, so nobody is shown the first and
             moved off it a moment later. */}
-        {settled && step === 1 && <AllocationStep customerId={customerId} onDone={() => setStep(2)} />}
-        {settled && step === 2 && <WorthStep customerId={customerId} onDone={() => setStep(3)} onBack={() => setStep(1)} />}
+        {settled && step === 1 && (
+          <AllocationStep customerId={customerId} onDone={() => setStep(2)} draft={draft} onDraft={setDraft} />
+        )}
+        {settled && step === 2 && (
+          <WorthStep
+            customerId={customerId}
+            onDone={() => setStep(3)}
+            onBack={() => setStep(1)}
+            draft={draft}
+            onDraft={setDraft}
+          />
+        )}
         {settled && step === 3 && <NetAumStep customerId={customerId} onDone={() => setStep(4)} onBack={() => setStep(2)} />}
         {settled && step === 4 && <ModelStep customerId={customerId} onDone={onFinish} onBack={() => setStep(3)} />}
       </div>

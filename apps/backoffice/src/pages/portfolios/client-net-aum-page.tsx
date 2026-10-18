@@ -1,8 +1,10 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  useListClientAllocationChanges,
   useListClientLoans,
   useListNonFinancialAssets,
   useListClientHoldings,
+  type AllocationChangeRow,
   type ClientHoldings,
   type ClientLoans,
   type ClientNonFinancialAssets,
@@ -74,6 +76,11 @@ export function NetAumStep({ customerId, onDone, onBack }: StepProps) {
   const holdings = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   const owned = useListNonFinancialAssets<ClientNonFinancialAssets, ApiError>(customerId);
   const owed = useListClientLoans<ClientLoans, ApiError>(customerId);
+  // Whether a change to these figures is waiting on somebody. Every figure below is the one on file, and
+  // on file is what it stays until the answer comes — so a reader who just typed a different one needs
+  // telling that this page is not ignoring them.
+  const asks = useListClientAllocationChanges<AllocationChangeRow[], ApiError>(customerId);
+  const waiting = (asks.data ?? []).filter((one) => one.status === "PENDING");
 
   if (holdings.isError || owned.isError || owed.isError) {
     return <Alert tone="danger">{(holdings.error ?? owned.error ?? owed.error)?.message}</Alert>;
@@ -101,6 +108,14 @@ export function NetAumStep({ customerId, onDone, onBack }: StepProps) {
 
   return (
     <div className="flex flex-1 flex-col space-y-6">
+      {waiting.map((one) => (
+        <Alert key={one.id} tone="warning">
+          {one.raisedByName} asked for these figures to change, and nobody has answered yet. What is
+          below is what the client is on file as having, and it stays that way — along with every
+          percentage the portfolio is read against — until whoever looks after them agrees.
+        </Alert>
+      ))}
+
       <section className="rounded-2xl border border-line bg-white">
         <header className="border-b border-ink/15 px-4 py-2">
           <h2 className="font-semibold text-ink">What it comes to</h2>
