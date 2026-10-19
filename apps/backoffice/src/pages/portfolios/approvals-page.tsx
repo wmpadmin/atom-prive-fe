@@ -194,12 +194,13 @@ export function ApprovalsPage() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-[1.625rem] font-bold">Approvals</h1>
-        <p className="mt-1 max-w-prose text-sm text-ink-muted">{tab.lead}</p>
-      </header>
+      <h1 className="text-[1.625rem] font-bold">Approvals</h1>
 
-      {/* Scrolls rather than wraps: a second row would break the line the tabs sit on. */}
+      {/* Scrolls rather than wraps: a second row would break the line the tabs sit on.
+          Above the lead, not below it. The lead belongs to whichever tab is open and they are not the
+          same length — one wraps to two lines, the next fits on one — so with the lead between the
+          heading and the tabs, the whole row jumped up and down as somebody read across it. The tabs now
+          sit at one height whatever is chosen, which is what a row of tabs is for. */}
       <div role="tablist" aria-label="What is waiting" className="flex gap-1 overflow-x-auto border-b border-line">
         {mine.map((one) => (
           <button
@@ -230,6 +231,10 @@ export function ApprovalsPage() {
           </button>
         ))}
       </div>
+
+      {/* What this queue is, under the tabs that choose it. Two lines of it on one tab and one on
+          another now change nothing above them. */}
+      <p className="max-w-prose text-sm text-ink-muted">{tab.lead}</p>
 
       {/* Keyed by tab, so leaving one queue and coming back opens it afresh rather than on whatever was
           typed into the one before it. */}
