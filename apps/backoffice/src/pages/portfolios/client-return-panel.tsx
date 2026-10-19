@@ -10,85 +10,44 @@ import { ClientCashflowsPanel } from "./client-cashflows-panel";
 import { exactly } from "./money-words";
 
 /**
- * The four figures, in the order a portfolio manager asks for them.
+ * The four rows, in the order a portfolio manager asks for them.
  *
  * <p>What it made in money first, because it is the only one of the four that is a fact rather than a
- * reading of one — the three rates under it are all that same gain divided by something, and a reader
- * who disagrees with a rate can only check it against this.
+ * reading of one — the three rates under it are all that same gain divided by something, and a reader who
+ * disagrees with a rate can check it against nothing else.
  *
- * <p>Then what the client's money earned, because that is the client's own question and the one they ask
- * on the phone. Then what the plan did, which is the firm's question and the figure a benchmark can be
- * set beside. CAGR last: it is the simplest to say and the easiest to mislead with, since it takes no
- * account of money moving at all.
+ * <p>Then what the client's money earned, which is the question asked on the telephone. Then what the
+ * plan did, which is the firm's question and the figure a benchmark sits beside. The growth rate last: it
+ * is the simplest to say and the easiest to mislead with, since it takes no account of money moving.
  */
-type Figure = {
-  id: "gained" | "moneyWeighted" | "timeWeighted" | "cagr";
-  label: string;
-  /** The one that is a fact rather than a reading of one, set larger because everything else leans on it. */
-  lead?: boolean;
-  /** What the rest of the industry calls it, where that is not what this screen calls it. */
-  tag?: string;
-  /**
-   * Whether this one is a rate per year rather than a figure for the window.
-   *
-   * <p>Two of the four are, and two are not. What it made and what the plan did are what happened over
-   * the window itself; the other two answer "at what yearly rate", which is a different question and
-   * only has an answer over a year. Said per figure because the row that carried it for all of them
-   * labelled the plan's own period return as a yearly rate, which it has never been.
-   */
-  perYear?: boolean;
-  said: string;
-};
+const ROWS = [
+  { id: "gained", metric: "Gained", money: true },
+  { id: "absolute", metric: "Absolute" },
+  { id: "moneyWeighted", metric: "XIRR" },
+  { id: "timeWeighted", metric: "Time-weighted" },
+  { id: "cagr", metric: "CAGR" },
+] as const;
 
-const FIGURES: Figure[] = [
-  {
-    id: "gained",
-    label: "What it made",
-    lead: true,
-    said: "What the portfolio is worth now, less what it was worth then, less everything paid in and plus "
-      + "everything taken out. The plain fact the three rates below are all readings of.",
-  },
-  {
-    id: "moneyWeighted",
-    label: "What the client's money earned",
-    tag: "XIRR",
-    perYear: true,
-    said: "The yearly rate at which every rupee, counted from the day it arrived, comes to what is there "
-      + "now. Money that arrived late earned only what happened after it arrived, and this is the only "
-      + "figure here that knows that.",
-  },
-  {
-    id: "timeWeighted",
-    label: "What the plan did",
-    tag: "Time-weighted",
-    said: "The same period with money in and out taken back out of the answer, so it says what the plan "
-      + "did with whatever it was given. This is the one to set beside a benchmark.",
-  },
-  {
-    id: "cagr",
-    label: "Smoothed yearly rate",
-    tag: "CAGR",
-    perYear: true,
-    said: "The rate the opening figure would have to grow at, every year, to reach the closing one. It "
-      + "takes no account of money moving, so where any did it describes the figures rather than the "
-      + "earning.",
-  },
-];
-
-function percent(value: number | null | undefined) {
+function said(value: number | null | undefined, money: boolean, currency: string) {
   if (value === null || value === undefined) return null;
-  return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  return money ? `${sign}${exactly(Math.abs(value), currency)}` : `${sign}${Math.abs(value).toFixed(2)}%`;
 }
 
 /**
  * What a client's portfolio has earned, over the window somebody asks for.
  *
+ * <p>A table rather than a stack of cards: five figures, each with the sum it was worked out by. The
+ * formula is a column rather than a footnote because two of them change with the length of the window —
+ * over a year a rate is raised to a year's power and under one it is not — so a screen that stated one
+ * formula for both would be describing the figure it was not showing.
+ *
  * <p>Every window comes down in one answer, so switching between them is instant and two windows cannot
  * disagree about the same day.
  *
- * <p>The money in and out sits on this screen rather than somewhere else, because it is what the figures
- * above it are made of. A return works by taking those movements back out of the answer and can only
- * take out what somebody wrote down — so the list is not a reference table here, it is the working.
+ * <p>The money in and out sits under it, because it is what the table is made of. A return works by
+ * taking those movements back out of the answer and can only take out what somebody wrote down — so the
+ * list is not a reference table here, it is the working.
  */
 export function ClientReturnPanel({ customerId }: { customerId: string }) {
   const read = useListClientReturns<ReturnsByPeriod, ApiError>(customerId);
@@ -106,9 +65,7 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
       <section className="rounded-2xl border border-line bg-white">
         <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3">
           <h2 className="text-sm font-semibold text-ink">Return</h2>
-          {/* Every window the firm reads, in the order they are asked for. The one that cannot be
-              measured is still drawn: a window missing from the row reads as a window nobody thought of
-              rather than one this client is not old enough for. */}
+          {/* Every window the firm reads, in the order they are asked for. */}
           <div role="tablist" aria-label="How far back" className="ml-auto flex flex-wrap gap-1">
             {periods.map((one, which) => (
               <button
@@ -139,72 +96,54 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
           <p className="px-5 py-8 text-sm text-ink-muted">{shown.whyNot}</p>
         ) : (
           <>
-            <div className="divide-y divide-line">
-              {FIGURES.map((figure) => {
-                const value = figure.id === "gained" ? shown.gained
-                  : figure.id === "moneyWeighted" ? shown.moneyWeighted
-                    : figure.id === "timeWeighted" ? shown.timeWeighted : shown.cagr;
-                const said = figure.id === "gained"
-                  ? (value === null || value === undefined ? null
-                    : `${value > 0 ? "+" : value < 0 ? "−" : ""}${exactly(Math.abs(value), currency)}`)
-                  : percent(value);
-                return (
-                  <div key={figure.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-5 py-4">
-                    <div className="min-w-56 flex-1">
-                      <p className="flex flex-wrap items-baseline gap-2">
-                        <span className={cn("font-semibold text-ink", figure.lead && "text-base")}>
-                          {figure.label}
-                        </span>
-                        {figure.tag !== undefined && (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-ink-soft">
-                            {figure.tag}
-                          </span>
-                        )}
-                      </p>
-                      <p className="mt-0.5 max-w-prose text-xs text-ink-muted">{figure.said}</p>
-                    </div>
-                    <p className={cn("shrink-0 text-right tabular-nums",
-                      figure.lead ? "text-2xl font-bold" : "text-lg font-semibold",
-                      said === null ? "text-ink-muted"
-                        : (value ?? 0) < 0 ? "text-red-700" : "text-ink")}
-                    >
-                      {said ?? "—"}
-                      {/* Said once per rate rather than once on the screen: a reader scanning the column
-                          takes each figure on its own. */}
-                      {figure.id === "gained" && (
-                        <span className="mt-0.5 block text-2xs font-normal text-ink-muted">
-                          on {exactly(shown.opening ?? 0, currency)} and {exactly(shown.paidIn, currency)} put in
-                        </span>
-                      )}
-                      {figure.id === "gained" && shown.absolute !== null && (
-                        <span className="mt-0.5 block text-xs font-semibold text-ink-soft">
-                          {percent(shown.absolute)} absolute
-                        </span>
-                      )}
-                      {/* Why it is not there, rather than a bare dash beside three figures that are.
-                          A yearly rate over six days raises the whole window to the power of sixty: it
-                          comes out exact and unusable, and the two figures above it already say what
-                          happened over those days. */}
-                      {figure.perYear && said === null && !shown.ayearOrMore && (
-                        <span className="mt-0.5 block max-w-48 text-2xs font-normal text-amber-700">
-                          Not over {shown.days} days — a rate per year needs a year of it. The two figures
-                          above are this window's own.
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                );
-              })}
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <caption className="sr-only">
+                  What this client's portfolio earned from {shown.from} to {shown.to}, read five ways.
+                </caption>
+                <thead>
+                  <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                    <th scope="col" className="px-5 py-3 whitespace-nowrap">Finance metric</th>
+                    <th scope="col" className="px-5 py-3">Formula used</th>
+                    <th scope="col" className="px-5 py-3 text-right whitespace-nowrap">Value</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {ROWS.map((row) => {
+                    const value = row.id === "gained" ? shown.gained
+                      : row.id === "absolute" ? shown.absolute
+                        : row.id === "moneyWeighted" ? shown.moneyWeighted
+                          : row.id === "timeWeighted" ? shown.timeWeighted : shown.cagr;
+                    const money = "money" in row && row.money === true;
+                    const printed = said(value, money, currency);
+                    return (
+                      <tr key={row.id}>
+                        <th scope="row" className="px-5 py-3 text-left font-semibold whitespace-nowrap text-ink">
+                          {row.metric}
+                        </th>
+                        {/* The sum it was worked out by, in the same words whoever checks it would use. */}
+                        <td className="px-5 py-3 font-mono text-xs text-ink-muted">
+                          {shown.formulae[row.id]}
+                        </td>
+                        <td className={cn("px-5 py-3 text-right font-semibold tabular-nums whitespace-nowrap",
+                          printed === null ? "text-ink-muted" : (value ?? 0) < 0 ? "text-red-700" : "text-ink")}
+                        >
+                          {printed ?? "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
             <div className="border-t border-line px-5 py-3 text-xs text-ink-muted">
-              {/* Said in words, not left to be worked out of two dates. A client six days old reads "a
-                  week" on a button and six days in the line under it, and the two have to agree out
-                  loud or the button is quietly lying. */}
+              {/* Said in words, not left to be worked out of two dates: a client six days old reads "a
+                  week" on a button, and the two have to agree out loud. */}
               {shown.shortened && (
                 <p className="mb-1.5 font-medium text-ink-soft">
-                  This client's figures only go back to {shown.from}, so {shown.said.toLowerCase()} is
-                  the {shown.days} days there are.
+                  This client's figures only go back to {shown.from}, so {shown.said.toLowerCase()} is the
+                  {" "}{shown.days} days there are.
                 </p>
               )}
               <p>
@@ -213,6 +152,14 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
                 {" "}Figures are the asset classes added up, which is what a day keeps — a day holds no
                 loan and nothing owned outright, so there is no past Net AUM to read.
               </p>
+              {/* Under a year the two rates are the window's own rather than per year, which is the only
+                  honest reading: annualising six days raises the whole period to the power of sixty. */}
+              {!shown.ayearOrMore && (
+                <p className="mt-1.5">
+                  XIRR and CAGR are over these {shown.days} days rather than per year. A yearly rate needs
+                  a year of it, and annualising a short window runs to figures nobody can act on.
+                </p>
+              )}
               {shown.flows === 0 ? (
                 <p className="mt-1.5 font-medium text-amber-700">
                   No money in or out is written down over this window, so the whole of the change is being
@@ -223,7 +170,7 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
                 <p className="mt-1.5">
                   {shown.flows === 1 ? "One movement" : `${shown.flows} movements`} of money in or out are
                   written down over this window: {exactly(shown.paidIn, currency)} in and{" "}
-                  {exactly(shown.takenOut, currency)} out, taken back out of every rate above except CAGR.
+                  {exactly(shown.takenOut, currency)} out, taken back out of every figure above except CAGR.
                 </p>
               )}
             </div>
