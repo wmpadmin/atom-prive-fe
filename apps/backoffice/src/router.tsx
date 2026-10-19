@@ -3,7 +3,6 @@ import { AppLayout } from "./app-layout";
 import { RequireAuthority, RequireSignIn } from "./auth/guards";
 import { MyClientsPage } from "./pages/advisor/my-clients-page";
 import { ProposalPage } from "./pages/advisor/proposal-page";
-import { ManagerReviewPage } from "./pages/advisor/manager-review-page";
 import { ProposalsPage } from "./pages/advisor/proposals-page";
 import { AmlClientPage } from "./pages/aml/aml-client-page";
 import { AmlMatrixPage } from "./pages/aml/aml-matrix-page";
@@ -250,7 +249,12 @@ export const router = createBrowserRouter([
           {
             // Giving a sign-off is its own permission: whoever passes a proposal need not write any.
             element: <RequireAuthority authority={APPROVES_PROPOSALS} />,
-            children: [{ path: "manager-review", element: <ManagerReviewPage /> }],
+            // The sign-off queue is a view of the proposals list now, not a screen of its own. The
+            // address stays, because it is in people's history and in older notification links.
+            children: [{
+              path: "manager-review",
+              element: <Navigate to="/proposals?tab=waitingOnMe" replace />,
+            }],
           },
           {
             // The portfolio manager writes proposals too, which the firm confirmed. They hold it at full, so

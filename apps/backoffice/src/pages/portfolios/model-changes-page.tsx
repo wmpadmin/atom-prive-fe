@@ -6,7 +6,7 @@ import {
   type ModelChangeRow,
   type ModelChangeRowStatus,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, Pagination, cn } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, FilterMenu, Pagination } from "@atomprive/ui";
 import { AnswerDialog } from "./answer-dialog";
 import { ListPageHeader } from "../../components/record-list";
 import { useState } from "react";
@@ -68,33 +68,29 @@ export function ModelChangesPage() {
         lead="Asking for a client to be measured against a different plan. Saying yes is what moves them."
       />
 
-      <div role="tablist" aria-label="Model change requests" className="flex flex-wrap gap-2">
-        {TABS.map((one) => (
-          <button
-            key={one.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === one.id}
-            onClick={() => {
-              setTab(one.id);
-              setPage(0);
-            }}
-            className={cn(
-              "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
-              tab === one.id
-                ? "border-primary-600 bg-primary-600 text-white"
-                : "border-line bg-white text-ink-soft hover:text-ink",
-            )}
-          >
-            {one.label}
-          </button>
-        ))}
+      {/* Five chips said the four states you are not reading alongside the one you are, and wrapped onto a
+          second line to do it. One control says the state being read, and it is what every other list on
+          this app filters with. */}
+      <div className="w-fit">
+        <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
+        <FilterMenu
+          label="Requests"
+          value={tab}
+          options={TABS}
+          onChange={(next) => {
+            setTab(next);
+            setPage(0);
+          }}
+        />
       </div>
 
       {requests.isError && <Alert tone="danger">{requests.error.message}</Alert>}
       {answer.isError && <Alert tone="danger">{answer.error.message}</Alert>}
 
       <section className="overflow-hidden rounded-2xl border border-line bg-white">
+        <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+          {TABS.find((one) => one.id === tab)?.label}
+        </h2>
         {requests.isPending ? (
           <p className="px-5 py-10 text-center text-sm text-ink-muted">Reading the requests…</p>
         ) : rows.length === 0 ? (

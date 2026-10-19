@@ -5,7 +5,7 @@ import {
   type PortfolioStanding,
   type ValuationHistory,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, DateInput, Field, cn } from "@atomprive/ui";
+import { Alert, Button, DateInput, Field, FilterMenu, cn } from "@atomprive/ui";
 import { useEffect, useRef, useState } from "react";
 import { inkFor, nameOf, useAssetClasses } from "./asset-classes";
 
@@ -770,30 +770,29 @@ function HowTheMixMoved({ points, order, names, narrowed, only, setOnly, currenc
               : "Every class, day by day. Pick one to follow it."}
           </p>
         </div>
-        {/* The filter asked for, and the same picking the rings do: one class, followed everywhere. */}
+        {/* The filter asked for, and the same picking the rings do: one class, followed everywhere. One
+            control rather than a chip a class: the row grew with the book, wrapped onto a second line
+            beside the heading, and left the reader to hunt for which of seven was lit. The colour each
+            chip carried is still against its class in the legend under the chart.
+
+            Set to a class no day inside the dates holds anything of, it says Every class — which is what
+            the drawing below does with it, and a control disagreeing with the chart beside it is worse
+            than one that cannot say what was picked elsewhere. */}
         {codes.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => setOnly(null)}
-              className={cn("rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-                only === null ? "bg-primary-600 text-on-accent" : "bg-slate-100 text-ink-soft hover:bg-slate-200")}
-            >
-              All
-            </button>
-            {codes.map((code) => (
-              <button
-                key={code}
-                type="button"
-                onClick={() => setOnly(only === code ? null : code)}
-                className={cn("inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-                  only === code ? "bg-primary-600 text-on-accent" : "bg-slate-100 text-ink-soft hover:bg-slate-200")}
-              >
-                <span aria-hidden="true" className="size-2 rounded-full"
-                  style={{ background: inkFor(code, order) }} />
-                {nameOf(code, names)}
-              </button>
-            ))}
+          <div className="w-fit">
+            <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              Follow
+            </span>
+            <FilterMenu
+              label="Classes"
+              value={only !== null && codes.includes(only) ? only : "all"}
+              options={[
+                { id: "all", label: "Every class" },
+                ...codes.map((code) => ({ id: code, label: nameOf(code, names) })),
+              ]}
+              onChange={(code) => setOnly(code === "all" ? null : code)}
+              align="right"
+            />
           </div>
         )}
       </div>

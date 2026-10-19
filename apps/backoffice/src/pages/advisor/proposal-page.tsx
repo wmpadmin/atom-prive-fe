@@ -276,7 +276,7 @@ export function ProposalPage() {
 
   const back =
     cameFrom === "review"
-      ? { to: "/manager-review", label: "Back to proposals to approve" }
+      ? { to: "/proposals?tab=waitingOnMe", label: "Back to what is waiting on you" }
       : cameFrom === "client" && proposal
         ? {
             to: clientFileHref(user, proposal.summary.customerId),
