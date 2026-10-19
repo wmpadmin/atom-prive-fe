@@ -92,6 +92,15 @@ export const FILLS_CLIENT_FORMS: Authority[] = ["FILL_CLIENT_FORMS:CHANGE", "FIL
 
 export const WRITES_PROPOSALS: Authority[] = ["SEND_PROPOSALS:OWN_CLIENTS", "SEND_PROPOSALS:ASSIGNED", "SEND_PROPOSALS:CHANGE"];
 
+/**
+ * Who may START one, which is narrower than who may write figures.
+ *
+ * <p>A proposal is a letter to the client in the voice of whoever looks after them, so the levels that
+ * are held to a set of clients may begin one and the level that is held to none may not. A manager who
+ * wants that client's money moved has the door for that, and the relationship manager answers it.
+ */
+export const STARTS_PROPOSALS: Authority[] = ["SEND_PROPOSALS:OWN_CLIENTS", "SEND_PROPOSALS:ASSIGNED"];
+
 /** Enough to read proposals: whoever writes them, and Compliance, who oversee the advice the firm gives. */
 export const READS_PROPOSALS: Authority[] = ["SEND_PROPOSALS:VIEW", ...WRITES_PROPOSALS];
 
