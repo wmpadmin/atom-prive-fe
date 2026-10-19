@@ -95,6 +95,18 @@ export const WRITES_PROPOSALS: Authority[] = ["SEND_PROPOSALS:OWN_CLIENTS", "SEN
 /** Enough to read proposals: whoever writes them, and Compliance, who oversee the advice the firm gives. */
 export const READS_PROPOSALS: Authority[] = ["SEND_PROPOSALS:VIEW", ...WRITES_PROPOSALS];
 
+/**
+ * Whether this person reads every advisor's proposals rather than only their own clients'.
+ *
+ * <p>Asked the same way the API asks it, and asked in one place. Reading it off whether somebody may
+ * WRITE a proposal is a different question with a different answer — a portfolio manager writes
+ * proposals and reads everybody's — and the screen has already been wrong once that way, saying "your
+ * clients only" over a list full of other advisors' work.
+ */
+export function readsEveryAdvisors(user: StaffProfile) {
+  return hasAuthority(user, "SEND_PROPOSALS:VIEW");
+}
+
 /** Raising a trade order, passing one, and placing one: three different jobs, held by three different people. */
 export const RAISES_ORDERS: Authority[] = ["PLACE_TRADE_ORDERS:CHANGE", "PLACE_TRADE_ORDERS:OWN_CLIENTS"];
 

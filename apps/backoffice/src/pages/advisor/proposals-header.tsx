@@ -3,15 +3,20 @@ import { Download, Plus, Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { hasAuthority } from "../../lib/permissions";
+import { readsEveryAdvisors } from "../../lib/permissions";
 
 /**
- * The top of the sent proposals screen: what it is, what can be done from it, and the box that searches it.
+ * The top of the proposals screen: what it is, what can be done from it, and the box that searches it.
+ *
+ * <p>Named for the thing and not for a direction. "Sent" was true for an advisor, who sends what is on
+ * this list, and false for whoever reads every advisor's — and flatly confusing for somebody holding
+ * both roles, who sends some of these and oversees the rest. The subtitle below says whose they are,
+ * which is the question a direction was standing in for.
  *
  * <p>It sits above an open proposal as well as above the list, so opening one never loses the way back to
  * everything else — the screen is the list, and a proposal is read within it.
  */
-export function SentProposalsHeader({
+export function ProposalsHeader({
   writes,
   search,
   onSearch,
@@ -30,16 +35,15 @@ export function SentProposalsHeader({
   /** An action belonging to whatever is open below, such as resending the proposal being read. */
   extra?: ReactNode;
 }) {
-  // Whose proposals this list actually answers with, asked the same way the API asks it: whoever oversees
-  // proposals reads every advisor's. It used to be read off whether you may write one, which is a different
-  // question — a portfolio manager writes proposals and reads everybody's, so the page said "your clients
-  // only" over a list full of other advisors' work.
-  const everyAdvisors = hasAuthority(useStaffUser(), "SEND_PROPOSALS:VIEW");
+  // Whose proposals this list actually answers with. One reading of it, shared with the list below, which
+  // asked the other question — may you write one — and so told a portfolio manager reading the whole
+  // firm's empty list that they had not written a proposal yet.
+  const everyAdvisors = readsEveryAdvisors(useStaffUser());
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[1.625rem] font-bold">Sent proposals list</h1>
+          <h1 className="text-[1.625rem] font-bold">Proposals</h1>
           <p className="mt-1 text-sm text-ink-muted">
             {everyAdvisors ? "Every advisor's. " : "Your clients only. "}
             Open one for the full proposal, the client's decision and its audit trail. Advisory only — the
