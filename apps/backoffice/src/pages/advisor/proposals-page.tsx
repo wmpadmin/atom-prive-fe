@@ -13,11 +13,11 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { hasAnyAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
+import { hasAnyAuthority, readsEveryAdvisors, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate } from "../../lib/labels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
-import { SentProposalsHeader } from "./sent-proposals-header";
+import { ProposalsHeader } from "./proposals-header";
 import { expiryLabel, formatValue, proposalStatusLabels, proposalStatusTones } from "./proposal-labels";
 
 /** The tabs across the top; "Expiring soon" is a view of those with the client, not a status of its own. */
@@ -48,6 +48,10 @@ export function ProposalsPage() {
   // Whoever oversees the firm's advice reads every proposal without writing any, so the screen is the same
   // list with nothing on it to write with.
   const writes = hasAnyAuthority(useStaffUser(), ...WRITES_PROPOSALS);
+  // Whose list this is, which is a different question from whether you may write one. A portfolio manager
+  // reads every advisor's, so the author is worth a column of its own and an empty list is not "you
+  // haven't written one yet" — it is the firm that has written none.
+  const everyAdvisors = readsEveryAdvisors(useStaffUser());
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   // Seeded from the address, so searching from an open proposal lands here already filtered.
@@ -112,7 +116,7 @@ export function ProposalsPage() {
     setExporting(true);
     try {
       const all = await listProposals({ ...asked, page: 0, size: EXPORT_LIMIT });
-      download(csvOf(all.items), `proposals-${new Date().toISOString().slice(0, 10)}.csv`);
+      download(csvOf(all.items, everyAdvisors), `proposals-${new Date().toISOString().slice(0, 10)}.csv`);
     } finally {
       setExporting(false);
     }
@@ -137,7 +141,7 @@ export function ProposalsPage() {
 
   return (
     <div className="space-y-6">
-      <SentProposalsHeader
+      <ProposalsHeader
         writes={writes}
         search={typed}
         onSearch={setTyped}
@@ -223,6 +227,9 @@ export function ProposalsPage() {
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">Proposal</th>
                 <th scope="col" className="px-4 py-3">Client</th>
+                {/* Only where the list holds more than one advisor's work. On a list that is all your
+                    own, a column repeating your name down every row says nothing. */}
+                {everyAdvisors && <th scope="col" className="px-4 py-3">Advisor</th>}
                 <th scope="col" className="px-4 py-3">Sent</th>
                 <th scope="col" className="px-4 py-3">Value</th>
                 <th scope="col" className="px-4 py-3">Expiry</th>
@@ -232,18 +239,20 @@ export function ProposalsPage() {
             <tbody className="divide-y divide-line">
               {!proposals.data && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-ink-muted">Loading proposals…</td>
+                  <td colSpan={everyAdvisors ? 7 : 6} className="px-5 py-8 text-center text-ink-muted">
+                    Loading proposals…
+                  </td>
                 </tr>
               )}
               {proposals.data?.items.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-ink-muted">
+                  <td colSpan={everyAdvisors ? 7 : 6} className="px-5 py-10 text-center text-ink-muted">
                     {filtered
                       ? "No proposal matches what you searched for."
                       : tab === "all"
-                        ? writes
-                          ? "You haven't written a proposal yet."
-                          : "No proposal has been written yet."
+                        ? everyAdvisors
+                          ? "No proposal has been written yet."
+                          : "You haven't written a proposal yet."
                         : "Nothing in this tab."}
                   </td>
                 </tr>
@@ -273,6 +282,9 @@ export function ProposalsPage() {
                       </div>
                     </div>
                   </td>
+                  {everyAdvisors && (
+                    <td className="px-4 py-3 text-ink-soft">{proposal.advisorName}</td>
+                  )}
                   <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
                     {proposal.sentAt ? formatDate(proposal.sentAt) : "—"}
                   </td>

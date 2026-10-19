@@ -10,8 +10,14 @@ export function quoted(value: string | number | null) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
 
-export function csvOf(rows: ProposalPage["items"]) {
-  const head = ["Reference", "Proposal", "Summary", "Client", "Client code", "Sent", "Value", "Currency", "Expires", "Status"];
+/**
+ * @param everyAdvisors whether this export covers more than one advisor's work, in which case it has to
+ * say whose each row is — a firm-wide file with no author column cannot be read back
+ */
+export function csvOf(rows: ProposalPage["items"], everyAdvisors: boolean) {
+  const head = ["Reference", "Proposal", "Summary", "Client", "Client code",
+    ...(everyAdvisors ? ["Advisor"] : []),
+    "Sent", "Value", "Currency", "Expires", "Status"];
   const lines = rows.map((row) =>
     [
       row.reference,
@@ -19,6 +25,7 @@ export function csvOf(rows: ProposalPage["items"]) {
       row.summary ?? "",
       row.customerName,
       row.customerCode,
+      ...(everyAdvisors ? [row.advisorName] : []),
       row.sentAt ? formatDate(row.sentAt) : "",
       row.valueAmount ?? "",
       row.valueCurrency ?? "",

@@ -367,7 +367,7 @@ const allNavigation: {
   { to: "/my-declarations", label: "My declarations", icon: FileCheck, authority: null },
   {
     to: "/proposals",
-    label: "Sent proposals",
+    label: "Proposals",
     icon: FileSignature,
     authority: READS_PROPOSALS,
     notFor: ["ADMIN"],
