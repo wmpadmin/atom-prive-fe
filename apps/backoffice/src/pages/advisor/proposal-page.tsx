@@ -98,13 +98,20 @@ export function ProposalPage() {
     void navigate(`/proposals?q=${encodeURIComponent(value)}`, { replace: true });
   }
 
+  /** What the last export left behind, where it left anything. */
+  const [cappedAt, setCapped] = useState<{ carried: number; of: number } | null>(null);
+
   /** The same export the list offers, because the button means the same thing wherever it is pressed. */
   async function exportEverything() {
     setExporting(true);
     try {
-      const all = await listProposals({ page: 0, size: EXPORT_LIMIT });
-      download(csvOf(all.items, readsEveryAdvisors(user)),
-        `proposals-${new Date().toISOString().slice(0, 10)}.csv`);
+      const all = await listProposals({  page: 0, size: EXPORT_LIMIT });
+      download(csvOf(all.items, readsEveryAdvisors(user)), `proposals-${new Date().toISOString().slice(0, 10)}.csv`);
+      // Said from what came back rather than from what the screen thinks it asked for, so the figures
+      // are the file's own.
+      setCapped(all.totalItems > all.items.length
+        ? { carried: all.items.length, of: all.totalItems }
+        : null);
     } finally {
       setExporting(false);
     }
@@ -288,6 +295,7 @@ export function ProposalPage() {
           onExport={() => void exportEverything()}
           exporting={exporting}
           canExport
+          cappedAt={cappedAt}
           extra={
             status === "EXPIRED" ? (
               <Button
