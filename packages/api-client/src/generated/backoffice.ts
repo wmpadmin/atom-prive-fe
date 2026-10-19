@@ -394,6 +394,7 @@ export type RestoreRowStatus = typeof RestoreRowStatus[keyof typeof RestoreRowSt
 
 export const RestoreRowStatus = {
   PENDING: 'PENDING',
+  RETURNED: 'RETURNED',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
   WITHDRAWN: 'WITHDRAWN',
@@ -558,6 +559,7 @@ export type MovePlanRowStatus = typeof MovePlanRowStatus[keyof typeof MovePlanRo
 
 export const MovePlanRowStatus = {
   PENDING: 'PENDING',
+  RETURNED: 'RETURNED',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
   WITHDRAWN: 'WITHDRAWN',
@@ -608,6 +610,13 @@ export interface MovePlanRow {
   appliedRevision: number | null;
   /** @nullable */
   fromProposalId: string | null;
+  onBehalfOfClient: boolean;
+  /** @nullable */
+  sentBackNote: string | null;
+  /** @nullable */
+  sentBackByName: string | null;
+  /** @nullable */
+  sentBackAt: string | null;
   mayAnswer: boolean;
   nobodyCloserCanAnswer: boolean;
 }
@@ -824,6 +833,7 @@ export type ModelEditRowStatus = typeof ModelEditRowStatus[keyof typeof ModelEdi
 
 export const ModelEditRowStatus = {
   PENDING: 'PENDING',
+  RETURNED: 'RETURNED',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
   WITHDRAWN: 'WITHDRAWN',
@@ -1280,6 +1290,7 @@ export type AllocationChangeRowStatus = typeof AllocationChangeRowStatus[keyof t
 
 export const AllocationChangeRowStatus = {
   PENDING: 'PENDING',
+  RETURNED: 'RETURNED',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
   WITHDRAWN: 'WITHDRAWN',
@@ -14972,6 +14983,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getTakeBackTheMovePlanMutationOptions(options), queryClient);
     }
 
+export const getSendTheMovePlanBackUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/move-plans/${id}/send-back`
+}
+
+export const sendTheMovePlanBack = async (id: string,
+    movePlanDecision: MovePlanDecision, options?: Parameters<typeof http>[1]): Promise<MovePlanRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MovePlanRow>(getSendTheMovePlanBackUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(movePlanDecision)
+  }
+);}
+
+
+
+
+
+export const getSendTheMovePlanBackMutationKey = () => ['sendTheMovePlanBack'] as const;
+
+export const getSendTheMovePlanBackMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTheMovePlanBack>>, TError,SendTheMovePlanBackMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendTheMovePlanBack>>, TError,SendTheMovePlanBackMutationVariables, TContext> => {
+
+const mutationKey = getSendTheMovePlanBackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendTheMovePlanBack>>, SendTheMovePlanBackMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  sendTheMovePlanBack(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendTheMovePlanBackMutationResult = NonNullable<Awaited<ReturnType<typeof sendTheMovePlanBack>>>
+    export type SendTheMovePlanBackMutationBody = MovePlanDecision
+    export type SendTheMovePlanBackMutationError = unknown
+    export type SendTheMovePlanBackMutationVariables = {id: string;data: MovePlanDecision}
+
+    export const useSendTheMovePlanBack = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTheMovePlanBack>>, TError,SendTheMovePlanBackMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendTheMovePlanBack>>,
+        TError,
+        SendTheMovePlanBackMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendTheMovePlanBackMutationOptions(options), queryClient);
+    }
+
 export const getAnswerTheMovePlanUrl = (id: string,) => {
 
 
@@ -16843,6 +16937,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordClientLoanMutationOptions(options), queryClient);
+    }
+
+export const getAskOnBehalfOfTheClientUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/client-requests`
+}
+
+export const askOnBehalfOfTheClient = async (customerId: string,
+    movePlanAsked: MovePlanAsked, options?: Parameters<typeof http>[1]): Promise<MovePlanRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MovePlanRow>(getAskOnBehalfOfTheClientUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(movePlanAsked)
+  }
+);}
+
+
+
+
+
+export const getAskOnBehalfOfTheClientMutationKey = () => ['askOnBehalfOfTheClient'] as const;
+
+export const getAskOnBehalfOfTheClientMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askOnBehalfOfTheClient>>, TError,AskOnBehalfOfTheClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askOnBehalfOfTheClient>>, TError,AskOnBehalfOfTheClientMutationVariables, TContext> => {
+
+const mutationKey = getAskOnBehalfOfTheClientMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askOnBehalfOfTheClient>>, AskOnBehalfOfTheClientMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  askOnBehalfOfTheClient(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskOnBehalfOfTheClientMutationResult = NonNullable<Awaited<ReturnType<typeof askOnBehalfOfTheClient>>>
+    export type AskOnBehalfOfTheClientMutationBody = MovePlanAsked
+    export type AskOnBehalfOfTheClientMutationError = unknown
+    export type AskOnBehalfOfTheClientMutationVariables = {customerId: string;data: MovePlanAsked}
+
+    export const useAskOnBehalfOfTheClient = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askOnBehalfOfTheClient>>, TError,AskOnBehalfOfTheClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askOnBehalfOfTheClient>>,
+        TError,
+        AskOnBehalfOfTheClientMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskOnBehalfOfTheClientMutationOptions(options), queryClient);
     }
 
 export const getListClientCashflowsUrl = (customerId: string,) => {
@@ -26303,6 +26480,101 @@ export function useGetClientAttribution<TData = Awaited<ReturnType<typeof getCli
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientAttributionQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListClientRequestsUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/client-requests`
+}
+
+export const listClientRequests = async ( options?: Parameters<typeof http>[1]): Promise<MovePlanQueue> => {
+
+  return http<MovePlanQueue>(getListClientRequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientRequestsQueryKey = () => {
+    return [
+    `/api/backoffice/portfolios/client-requests`
+    ] as const;
+    }
+
+
+export const getListClientRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listClientRequests>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientRequests>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientRequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientRequests>>> = ({ signal }) => listClientRequests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientRequests>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListClientRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listClientRequests>>>
+export type ListClientRequestsQueryError = unknown
+
+
+export function useListClientRequests<TData = Awaited<ReturnType<typeof listClientRequests>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientRequests>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientRequests>>,
+          TError,
+          Awaited<ReturnType<typeof listClientRequests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientRequests<TData = Awaited<ReturnType<typeof listClientRequests>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientRequests>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientRequests>>,
+          TError,
+          Awaited<ReturnType<typeof listClientRequests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientRequests<TData = Awaited<ReturnType<typeof listClientRequests>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientRequests>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListClientRequests<TData = Awaited<ReturnType<typeof listClientRequests>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientRequests>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListClientRequestsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

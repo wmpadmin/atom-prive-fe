@@ -21,7 +21,7 @@ import type { ReactNode } from "react";
  */
 export function AnswerDialog({
   open, approved, title, consequence, shownTo, note, onNote, busy, error, onClose, onConfirm,
-  confirm, confirming, children,
+  confirm, confirming, asks, children,
 }: {
   open: boolean;
   /** Which answer is being given. It decides the wording, and whether the reason is owed. */
@@ -41,6 +41,14 @@ export function AnswerDialog({
   confirm: string;
   /** And what it says while it is doing it. */
   confirming: string;
+  /**
+   * What the note is for, where neither of the two defaults fits.
+   *
+   * <p>The two defaults are the two answers: an approval may add something, a rejection owes a reason.
+   * Sending a request back is neither — nothing is refused and nothing is agreed — so "Why not?" over
+   * that box reads as a refusal the sender is not making.
+   */
+  asks?: string;
   /** What is being answered, where the queue has figures worth putting in front of the reader. */
   children?: ReactNode;
 }) {
@@ -57,7 +65,7 @@ export function AnswerDialog({
             against an approval reads as an accusation. */}
         <Field
           id="answer-note"
-          label={approved ? "Anything to add?" : "Why not?"}
+          label={asks ?? (approved ? "Anything to add?" : "Why not?")}
           hint={approved ? "Optional." : undefined}
           required={!approved}
         >

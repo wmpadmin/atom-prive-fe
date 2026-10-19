@@ -10,6 +10,7 @@ import {
 } from "../../lib/permissions";
 import { ProposalsPage } from "../advisor/proposals-page";
 import { AllocationsToApprovePage } from "./allocations-to-approve-page";
+import { ClientRequestsPage } from "./client-requests-page";
 import { ModelChangesPage } from "./model-changes-page";
 import { ModelEditsToApprovePage } from "./model-edits-to-approve-page";
 import { MovesToApprovePage } from "./moves-to-approve-page";
@@ -17,7 +18,8 @@ import { RestoresToApprovePage } from "./restores-to-approve-page";
 
 /** Which queue is being read. The value is in the address, so a link can point at one. */
 export type ApprovalTab =
-  | "proposals" | "model-changes" | "moves" | "restores" | "figures" | "model-sign-off";
+  | "proposals" | "client-requests" | "model-changes" | "moves" | "restores" | "figures"
+  | "model-sign-off";
 
 type TabSpec = {
   id: ApprovalTab;
@@ -29,7 +31,7 @@ type TabSpec = {
 };
 
 /**
- * The six queues, in the order the work reaches them: what the firm advises, then what it changes about
+ * The seven queues, in the order the work reaches them: what the firm advises, then what it changes about
  * a client, then what it changes about a plan.
  *
  * <p>Each is named for the act rather than for the thing it touches. "Moves" and "Model moves" sat beside
@@ -44,6 +46,16 @@ const TABS: TabSpec[] = [
       + "platform never places a trade.",
     authority: READS_PROPOSALS,
     Panel: ProposalsPage,
+  },
+  {
+    id: "client-requests",
+    label: "Client requests",
+    lead: "What clients have asked for, written down by the person they asked. Nothing has moved: saying "
+      + "yes is what moves it.",
+    // The money-move permission, because answering one of these moves the money. It is the queue beside it
+    // read the other way round: the asking comes from outside the firm, and the same people answer it.
+    authority: ANSWERS_MOVE_PLANS,
+    Panel: ClientRequestsPage,
   },
   {
     id: "moves",
@@ -92,8 +104,12 @@ const TABS: TabSpec[] = [
  *
  * <p>Six queues sat as six entries down the menu, and two of them sat nowhere at all — they were never
  * written into a menu group, so the only way to reach the figures queue and the model sign-off was a
- * notification link or a typed address. They are one job done six ways: something is waiting, somebody
- * other than whoever raised it says yes or no. So they are one screen, and which queue is a tab.
+ * notification link or a typed address. They are one job done over and over: something is waiting,
+ * somebody other than whoever raised it says yes or no. So they are one screen, and which queue is a tab.
+ *
+ * <p>Client requests is the one that runs the other way. Everywhere else the firm asks and whoever looks
+ * after the client answers; there the client asked, and the firm answers. It is the same job for all that
+ * — something is waiting on somebody — which is why it belongs on this screen rather than its own.
  *
  * <p>Tabs rather than a filter, because unlike the states inside one queue these are not readings of the
  * same list — a proposal and a restore have nothing in common to put in one table.

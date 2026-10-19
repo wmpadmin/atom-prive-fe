@@ -1,6 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useListClientHoldings,
+  useAskOnBehalfOfTheClient,
   useAskToMoveMoney,
   useChangeTheMovePlan,
   useListClientMovePlans,
@@ -17,6 +18,7 @@ import { useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { asFigure } from "../../lib/figures";
+import { hasAnyAuthority, hasAuthority } from "../../lib/permissions";
 import { useAssetClasses } from "./asset-classes";
 import {
   anchorFor,
@@ -358,7 +360,20 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
     inOrder.map((place) => [place.name, String(suggested[place.name])]),
   );
 
+  const user = useStaffUser();
+  /**
+   * Whether this is the firm asking or the client asking, which decides which door the plan goes through.
+   *
+   * <p>Two endpoints, because they are two different acts. The firm's own plan is raised by somebody who
+   * may write the firm's advice; a relationship manager holds nothing of the sort and that door refuses
+   * them — all they can do is write down what the client rang up and asked for, which is what the second
+   * one is. Asked here with the same strings the API checks, so the window never posts through a door that
+   * is then shut in its face.
+   */
+  const onTheirBehalf = !hasAuthority(user, "SEND_PROPOSALS:CHANGE")
+    && hasAnyAuthority(user, "APPROVE_PORTFOLIO_CHANGES:OWN_CLIENTS", "APPROVE_PORTFOLIO_CHANGES:CHANGE");
   const askToMove = useAskToMoveMoney<ApiError>();
+  const askForTheClient = useAskOnBehalfOfTheClient<ApiError>();
   const changeIt = useChangeTheMovePlan<ApiError>();
   const placed = inOrder.reduce((sum, place) => sum + typed(moves[place.name]), 0);
   const left = spare - placed;
@@ -482,10 +497,9 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
       if (changing === null) {
         // Stamped with the proposal where this window was opened to carry one out, so the paper and
         // the act know about each other afterwards.
-        await askToMove.mutateAsync({
-          customerId,
-          data: { legs, why: why.trim(), fromProposalId: carrying ?? null },
-        });
+        const asked = { legs, why: why.trim(), fromProposalId: carrying ?? null };
+        if (onTheirBehalf) await askForTheClient.mutateAsync({ customerId, data: asked });
+        else await askToMove.mutateAsync({ customerId, data: asked });
       }
       else {
         // The legs are replaced whole, which is what the window has anyway: every box on it, including the
@@ -729,8 +743,15 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                   question. */}
               {failed && <div className="mt-3"><Alert tone="danger">{failed}</Alert></div>}
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                {/* Said, because the two are not the same thing to the person pressing it: one is the firm
+                    asking, and the other is the client's own asking being written down for them. Somebody
+                    who thinks they are raising the firm's plan has no reason to be careful that the words
+                    in the box are the client's. */}
                 <p className="text-xs text-ink-muted">
-                  Nothing moves yet. This goes to whoever looks after the client.
+                  {onTheirBehalf
+                    ? "Nothing moves yet. This is written down as the client's own request, and goes to "
+                      + "whoever holds the book."
+                    : "Nothing moves yet. This goes to whoever looks after the client."}
                 </p>
                 <Button
                   size="sm"
@@ -739,7 +760,11 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                 >
                   {moving === "asking"
                     ? (changing === null ? "Asking…" : "Saving the change…")
-                    : `${changing === null ? "Ask to move" : "Change it to"} ${exactly(placed, currency)}`}
+                    : changing !== null
+                      ? `Change it to ${exactly(placed, currency)}`
+                      : onTheirBehalf
+                        ? `Ask for ${exactly(placed, currency)} on the client's behalf`
+                        : `Ask to move ${exactly(placed, currency)}`}
                 </Button>
               </div>
             </div>
