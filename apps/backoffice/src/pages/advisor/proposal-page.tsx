@@ -33,7 +33,7 @@ import { EMPTY_LINE, linesFrom, type TypedLine } from "./proposal-line-values";
 import { ProposalAttachment } from "./proposal-attachment";
 import { ProposalLines } from "./proposal-lines";
 import { ProposalTrail } from "./proposal-trail";
-import { clientFileHref, hasAnyAuthority, hasAuthority, readsEveryAdvisors, WRITES_PROPOSALS } from "../../lib/permissions";
+import { clientFileHref, hasAnyAuthority, hasAuthority, readsEveryAdvisors, STARTS_PROPOSALS } from "../../lib/permissions";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
 import { expiryLabel, formatValue, proposalStatusLabels, proposalStatusTones, sentLabel } from "./proposal-labels";
 
@@ -118,7 +118,7 @@ export function ProposalPage() {
   }
   const user = useStaffUser();
   const signsOff = hasAnyAuthority(user, "APPROVE_PROPOSALS:CHANGE", "APPROVE_PROPOSALS:OWN_CLIENTS");
-  const writes = hasAnyAuthority(user, ...WRITES_PROPOSALS);
+  const writes = hasAnyAuthority(user, ...STARTS_PROPOSALS);
 
   const detail = useGetProposal<ProposalDetail, ApiError>(proposalId ?? "", { query: { enabled: !writing } });
   // Whether anything has been raised to actually do what the client agreed to. The paper and the act
