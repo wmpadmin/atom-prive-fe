@@ -7,6 +7,7 @@ import {
 import { Alert, cn } from "@atomprive/ui";
 import { useState } from "react";
 import { ClientCashflowsPanel } from "./client-cashflows-panel";
+import { ClientInceptionPanel } from "./client-inception-panel";
 import { exactly } from "./money-words";
 
 /**
@@ -177,6 +178,8 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
           </>
         )}
       </section>
+
+      <ClientInceptionPanel customerId={customerId} />
 
       <ClientCashflowsPanel customerId={customerId} currency={currency} />
     </div>
