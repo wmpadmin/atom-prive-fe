@@ -122,8 +122,12 @@ function ClientRequest({ row, answering, refusal, onAnswer }: {
               </Button>
             </>
           ) : (
+            // Two different reasons for having no buttons, and they are not the same sentence. One is
+            // whose work it is; the other is whose turn it is.
             <p className="max-w-56 text-xs text-ink-muted">
-              You wrote this one down, so somebody else answers it.
+              {row.status === "RETURNED"
+                ? `Waiting on ${row.raisedByName} to put it right.`
+                : "You wrote this one down, so somebody else answers it."}
             </p>
           ))}
         </div>
