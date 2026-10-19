@@ -1,3 +1,19 @@
+import { ApiError } from "@atomprive/api-client";
+import {
+  useListAllocationChanges,
+  useListClientRequests,
+  useListModelChanges,
+  useListModelEdits,
+  useListMovePlans,
+  useListProposalsAwaitingMySignOff,
+  useListRestores,
+  type AllocationChangeQueue,
+  type ModelChangePage,
+  type ModelEditQueue,
+  type MovePlanQueue,
+  type ProposalPage,
+  type RestoreQueue,
+} from "@atomprive/api-client/backoffice";
 import { cn } from "@atomprive/ui";
 import { useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -100,6 +116,41 @@ const TABS: TabSpec[] = [
 ];
 
 /**
+ * How many are waiting in each queue this reader may open.
+ *
+ * <p>Every one of them is asked for, because the number belongs on the tab rather than inside it: a menu
+ * that says one thing is waiting and a screen that makes you open seven tabs to find it has told you
+ * nothing you could act on. A queue this reader may not open is not asked for at all, and answers
+ * nothing.
+ */
+function useHowManyAreWaiting(mine: TabSpec[]) {
+  const offered = (id: ApprovalTab) => mine.some((one) => one.id === id);
+  const proposals = useListProposalsAwaitingMySignOff<ProposalPage, ApiError>({ page: 0, size: 1 },
+    { query: { enabled: offered("proposals"), refetchOnWindowFocus: true } });
+  const clientRequests = useListClientRequests<MovePlanQueue, ApiError>(
+    { query: { enabled: offered("client-requests"), refetchOnWindowFocus: true } });
+  const moves = useListMovePlans<MovePlanQueue, ApiError>(
+    { query: { enabled: offered("moves"), refetchOnWindowFocus: true } });
+  const figures = useListAllocationChanges<AllocationChangeQueue, ApiError>(
+    { query: { enabled: offered("figures"), refetchOnWindowFocus: true } });
+  const restores = useListRestores<RestoreQueue, ApiError>(
+    { query: { enabled: offered("restores"), refetchOnWindowFocus: true } });
+  const modelChanges = useListModelChanges<ModelChangePage, ApiError>({ status: "PENDING", page: 0, size: 1 },
+    { query: { enabled: offered("model-changes"), refetchOnWindowFocus: true } });
+  const modelEdits = useListModelEdits<ModelEditQueue, ApiError>(
+    { query: { enabled: offered("model-sign-off"), refetchOnWindowFocus: true } });
+  return {
+    proposals: proposals.data?.totalItems ?? 0,
+    "client-requests": (clientRequests.data?.waiting ?? []).length,
+    moves: (moves.data?.waiting ?? []).length,
+    figures: (figures.data?.waiting ?? []).length,
+    restores: (restores.data?.waiting ?? []).length,
+    "model-changes": modelChanges.data?.totalItems ?? 0,
+    "model-sign-off": (modelEdits.data?.waiting ?? []).length,
+  } as Record<ApprovalTab, number>;
+}
+
+/**
  * Everything waiting on somebody, on one screen.
  *
  * <p>Six queues sat as six entries down the menu, and two of them sat nowhere at all — they were never
@@ -121,6 +172,7 @@ export function ApprovalsPage() {
   const user = useStaffUser();
   const [params, setParams] = useSearchParams();
   const mine = TABS.filter((one) => hasAnyAuthority(user, ...one.authority));
+  const waiting = useHowManyAreWaiting(mine);
 
   const asked = params.get("queue");
   const tab = mine.find((one) => one.id === asked) ?? mine[0];
@@ -165,6 +217,16 @@ export function ApprovalsPage() {
             )}
           >
             {one.label}
+            {/* How many are in it. The menu says one thing is waiting; without this the reader opens
+                seven tabs to find out which. */}
+            {(waiting[one.id] ?? 0) > 0 && (
+              <span className={cn(
+                "ml-2 rounded-full px-1.5 py-0.5 text-2xs tabular-nums",
+                tab.id === one.id ? "bg-primary-600 text-on-accent" : "bg-slate-200 text-ink-soft",
+              )}>
+                {waiting[one.id]}
+              </span>
+            )}
           </button>
         ))}
       </div>

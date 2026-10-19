@@ -1,10 +1,15 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  useListClientRequests,
+  useListModelChanges,
   useListMovePlans,
+  useListProposalsAwaitingMySignOff,
   useListAllocationChanges,
   useListModelEdits,
   useListRestores,
+  type ModelChangePage,
   type MovePlanQueue,
+  type ProposalPage,
   type AllocationChangeQueue,
   type ModelEditQueue,
   type RestoreQueue,
@@ -382,6 +387,16 @@ function useWaitingOn(to: string) {
   const modelEdits = useListModelEdits<ModelEditQueue, ApiError>({
     query: { enabled: queue, refetchOnWindowFocus: true },
   });
+  // The other three queues on that screen. They were left out when the entries were merged, so the
+  // number beside it counted four of seven — a reader could open it on the strength of a 2 and find a
+  // third thing they had not been counted.
+  const clientRequests = useListClientRequests<MovePlanQueue, ApiError>({
+    query: { enabled: queue, refetchOnWindowFocus: true },
+  });
+  const proposals = useListProposalsAwaitingMySignOff<ProposalPage, ApiError>({ page: 0, size: 1 },
+    { query: { enabled: queue, refetchOnWindowFocus: true } });
+  const modelChanges = useListModelChanges<ModelChangePage, ApiError>({ status: "PENDING", page: 0, size: 1 },
+    { query: { enabled: queue, refetchOnWindowFocus: true } });
   if (!queue) {
     return 0;
   }
@@ -390,7 +405,10 @@ function useWaitingOn(to: string) {
   return (moves.data?.waiting ?? []).length
     + (restores.data?.waiting ?? []).length
     + (figures.data?.waiting ?? []).length
-    + (modelEdits.data?.waiting ?? []).length;
+    + (modelEdits.data?.waiting ?? []).length
+    + (clientRequests.data?.waiting ?? []).length
+    + (proposals.data?.totalItems ?? 0)
+    + (modelChanges.data?.totalItems ?? 0);
 }
 
 function NavEntry({
