@@ -167,13 +167,16 @@ export function PortfolioClientsPage() {
                 read off, so they sit under in small. */}
             <th scope="col" className="px-4 py-3 text-right font-semibold">Drift</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Status</th>
+            {/* The two dates together, because they are read as a pair: how long the firm has had them,
+                and how long since anybody touched it. */}
+            <th scope="col" className="px-4 py-3 text-left font-semibold">Onboarded</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Last rebalanced</th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">
               <span className="sr-only">Open</span>
             </th>
           </>
         }
-        columns={10}
+        columns={11}
         loading={clients.isLoading}
         stale={clients.isPlaceholderData}
         empty={
@@ -301,6 +304,12 @@ export function PortfolioClientsPage() {
                 ) : (
                   <span className="text-ink-muted">{NOTHING_YET}</span>
                 )}
+              </td>
+              {/* When they became a client, which is the moment the firm has a record of. It comes with
+                  the row rather than with the standing: a client who has had nothing written down yet
+                  still has a day they arrived. */}
+              <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
+                {formatDate(client.registeredAt)}
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
                 {standing?.lastRebalancedOn ? (
