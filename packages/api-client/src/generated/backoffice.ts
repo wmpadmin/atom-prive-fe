@@ -413,6 +413,10 @@ export interface RestoreRow {
   worthNow: number;
   linesThen: number;
   currency: string;
+  /** @nullable */
+  planThen: string | null;
+  /** @nullable */
+  planNow: string | null;
   raisedBy: string;
   raisedByName: string;
   raisedAt: string;
@@ -3699,12 +3703,33 @@ export interface RebalancedRequest {
   on: string;
 }
 
-export interface MovePlanRequest {
+export interface CashflowRequest {
+  happenedOn: string;
+  amount: number;
   /**
-     * @minItems 1
-     * @maxItems 2147483647
+     * @minLength 0
+     * @maxLength 3
+     * @nullable
      */
-  legs: MoveLegRequest[];
+  currency: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  note: string | null;
+}
+
+export interface CashflowRow {
+  id: string;
+  happenedOn: string;
+  amount: number;
+  currency: string;
+  /** @nullable */
+  note: string | null;
+  /** @nullable */
+  recordedBy: string | null;
+  recordedAt: string;
 }
 
 /**
@@ -3805,58 +3830,6 @@ export interface ClientHoldings {
   unwritten: number;
   modelSubClasses: ClientHoldingsModelSubClasses;
   classes: ClassPositions[];
-}
-
-export interface MovedLeg {
-  fromAssetClass: string;
-  /** @nullable */
-  fromSubClass: string | null;
-  toAssetClass: string;
-  /** @nullable */
-  toSubClass: string | null;
-  amount: number;
-}
-
-export interface TouchedPosition {
-  id: string;
-  before: PositionRow | null;
-}
-
-export interface MovePlanApplied {
-  applied: MovedLeg[];
-  touched: TouchedPosition[];
-  holdings: ClientHoldings;
-  /** @nullable */
-  revision: number | null;
-}
-
-export interface CashflowRequest {
-  happenedOn: string;
-  amount: number;
-  /**
-     * @minLength 0
-     * @maxLength 3
-     * @nullable
-     */
-  currency: string | null;
-  /**
-     * @minLength 0
-     * @maxLength 500
-     * @nullable
-     */
-  note: string | null;
-}
-
-export interface CashflowRow {
-  id: string;
-  happenedOn: string;
-  amount: number;
-  currency: string;
-  /** @nullable */
-  note: string | null;
-  /** @nullable */
-  recordedBy: string | null;
-  recordedAt: string;
 }
 
 export interface BenchmarkRequest {
@@ -16870,89 +16843,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordClientLoanMutationOptions(options), queryClient);
-    }
-
-export const getMoveClientHoldingsUrl = (customerId: string,) => {
-
-
-
-
-  return `/api/backoffice/portfolios/clients/${customerId}/holding-moves`
-}
-
-export const moveClientHoldings = async (customerId: string,
-    movePlanRequest: MovePlanRequest, options?: Parameters<typeof http>[1]): Promise<MovePlanApplied> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<MovePlanApplied>(getMoveClientHoldingsUrl(customerId),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(movePlanRequest)
-  }
-);}
-
-
-
-
-
-export const getMoveClientHoldingsMutationKey = () => ['moveClientHoldings'] as const;
-
-export const getMoveClientHoldingsMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveClientHoldings>>, TError,MoveClientHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof moveClientHoldings>>, TError,MoveClientHoldingsMutationVariables, TContext> => {
-
-const mutationKey = getMoveClientHoldingsMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof moveClientHoldings>>, MoveClientHoldingsMutationVariables> = (props) => {
-          const {customerId,data} = props ?? {};
-
-          return  moveClientHoldings(customerId,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type MoveClientHoldingsMutationResult = NonNullable<Awaited<ReturnType<typeof moveClientHoldings>>>
-    export type MoveClientHoldingsMutationBody = MovePlanRequest
-    export type MoveClientHoldingsMutationError = unknown
-    export type MoveClientHoldingsMutationVariables = {customerId: string;data: MovePlanRequest}
-
-    export const useMoveClientHoldings = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveClientHoldings>>, TError,MoveClientHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof moveClientHoldings>>,
-        TError,
-        MoveClientHoldingsMutationVariables,
-        TContext
-      > => {
-      return useMutation(getMoveClientHoldingsMutationOptions(options), queryClient);
     }
 
 export const getListClientCashflowsUrl = (customerId: string,) => {

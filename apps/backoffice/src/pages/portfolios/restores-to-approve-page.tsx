@@ -139,6 +139,29 @@ export function RestoresToApprovePage() {
                             <span className="text-ink-muted"> · worth then </span>
                             <span className="font-medium tabular-nums">{exactly(row.worthThen, row.currency)}</span>
                           </p>
+                          {/* The plan that day stood against. A day is the figures AND what they were
+                              judged against, so a restore that put only the figures back would read every
+                              percentage against a plan they were never written for. */}
+                          {row.planThen === null ? (
+                            <p className="mt-1 text-sm text-amber-700">
+                              This day does not say which plan it stood against, so only the figures go
+                              back. {row.planNow === null
+                                ? "The client stays on no plan."
+                                : `The client stays on ${row.planNow}.`}
+                            </p>
+                          ) : row.planThen !== row.planNow ? (
+                            <p className="mt-1 text-sm">
+                              <span className="text-ink-muted">Plan </span>
+                              <span className="font-medium">{row.planNow ?? "none"}</span>
+                              <span aria-hidden="true" className="mx-1.5 text-ink-muted">→</span>
+                              <span className="font-semibold">{row.planThen}</span>
+                              <span className="text-ink-muted"> · they go back to it too</span>
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-sm text-ink-muted">
+                              Plan {row.planThen} · unchanged by this
+                            </p>
+                          )}
                           <p className="mt-2 text-xs text-ink-muted">
                             Asked by {row.raisedByName} · {formatDateTime(row.raisedAt)}
                           </p>
