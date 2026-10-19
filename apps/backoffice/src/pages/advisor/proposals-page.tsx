@@ -108,6 +108,13 @@ export function ProposalsPage() {
   );
 
   const [exporting, setExporting] = useState(false);
+  /** What the last export left behind, and the list it was taken from. */
+  const [lastExport, setLastExport] = useState<{ carried: number; of: number; under: string } | null>(null);
+  const showing = JSON.stringify(asked);
+  // The note belongs to the export it describes. It tells somebody to narrow the list, so the moment they
+  // do it is about a file nobody has asked for yet — read against the list on screen rather than cleared
+  // by hand, so no filter can be changed by a path that forgets to.
+  const cappedAt = (lastExport !== null && lastExport.under === showing) ? lastExport : null;
   /**
    * Everything the filters select, not only the page being looked at — a list exported a page at a time is
    * the kind of thing somebody takes to a meeting without noticing what is missing.
@@ -117,6 +124,11 @@ export function ProposalsPage() {
     try {
       const all = await listProposals({ ...asked, page: 0, size: EXPORT_LIMIT });
       download(csvOf(all.items, everyAdvisors), `proposals-${new Date().toISOString().slice(0, 10)}.csv`);
+      // Said from what came back rather than from what the screen thinks it asked for, so the figures
+      // are the file's own.
+      setLastExport(all.totalItems > all.items.length
+        ? { carried: all.items.length, of: all.totalItems, under: showing }
+        : null);
     } finally {
       setExporting(false);
     }
@@ -148,6 +160,7 @@ export function ProposalsPage() {
         onExport={() => void exportFiltered()}
         exporting={exporting}
         canExport={total > 0}
+        cappedAt={cappedAt}
       />
 
       <div role="tablist" aria-label="Proposals" className="flex flex-wrap gap-2">
