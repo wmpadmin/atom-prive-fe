@@ -1,6 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   getListModelPortfoliosQueryKey,
+  useCreateModelPortfolio,
   useDeleteModelPortfolio,
   useListModelPortfolios,
   type ModelRow,
@@ -8,11 +9,15 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ListPageHeader, RecordList } from "../../components/record-list";
+import { ModelDialog } from "./model-dialog";
 import { formatRelative } from "../../lib/labels";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { useStaffUser } from "../../auth/session";
+import { hasAuthority } from "../../lib/permissions";
 import { barFor, useAssetClasses } from "./asset-classes";
 import {
   averageDriftLabel,
@@ -31,18 +36,24 @@ export function ModelPortfoliosPage() {
   // Every class, not only those still in use: a model written before one was retired still targets it, and a
   // bar that quietly left the slice out would show a plan that no longer came to 100%.
   const codes = all.map((one) => one.code);
+  // The same thing the API asks for before it writes one, so nobody is offered a button that refuses
+  // them. Writing a model and changing one are held to one permission there, and so to one here.
+  const canWrite = hasAuthority(useStaffUser(), "SEND_PROPOSALS:CHANGE");
+  const [writing, setWriting] = useState(false);
   const [removing, setRemoving] = useState<ModelRow | null>(null);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [search, setSearch] = useState("");
 
   function kept() {
+    setWriting(false);
     setRemoving(null);
     setErrors(noErrors);
     void queryClient.invalidateQueries({ queryKey: getListModelPortfoliosQueryKey() });
   }
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
+  const create = useCreateModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
   const remove = useDeleteModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
-  const busy = remove.isPending;
+  const busy = create.isPending || remove.isPending;
 
   if (models.isError) {
     return <Alert tone="danger">{models.error.message}</Alert>;
@@ -61,9 +72,17 @@ export function ModelPortfoliosPage() {
         title="Model portfolios"
         lead="What a client's money is supposed to be spread across, and how far it may wander before somebody looks."
       >
-        {/* Writing a new model is off for now. Everything behind it is left standing — the dialog, the
-            create call, the "new" branch below — because what was asked for was the way in, not the
-            feature: putting this button back is the whole of turning it on again. */}
+        {canWrite && (
+          <Button
+            onClick={() => {
+              setErrors(noErrors);
+              setWriting(true);
+            }}
+          >
+            <Plus aria-hidden="true" />
+            New model
+          </Button>
+        )}
       </ListPageHeader>
 
       <RecordList
@@ -178,6 +197,19 @@ export function ModelPortfoliosPage() {
           </tr>
         ))}
       </RecordList>
+
+      {/* Writing one only. Changing a model is opened from the model's own page, which has to ask for a
+          sign-off before it writes: every client on a live plan is measured by it, so a change to one is
+          answered by somebody rather than typed. A model nobody is on yet has nobody to answer for. */}
+      {writing && (
+        <ModelDialog
+          model={null}
+          errors={errors}
+          busy={busy}
+          onClose={() => setWriting(false)}
+          onSave={(data) => create.mutate({ data })}
+        />
+      )}
 
       <Dialog open={removing !== null} title="Delete this model?" onClose={() => setRemoving(null)}>
         <div className="space-y-4">
