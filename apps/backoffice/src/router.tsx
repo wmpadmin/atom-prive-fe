@@ -66,7 +66,7 @@ import { BulkRebalancingPage } from "./pages/portfolios/bulk-rebalancing-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
 import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
-import { DailyTrackerDayPage } from "./pages/portfolios/daily-tracker-day-page";
+import { DailyTrackerChangePage, DailyTrackerDayPage } from "./pages/portfolios/daily-tracker-day-page";
 import { ClientMovesPage } from "./pages/portfolios/client-moves-page";
 import { ApprovalsPage } from "./pages/portfolios/approvals-page";
 import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
@@ -312,6 +312,10 @@ export const router = createBrowserRouter([
               // One day of the tracker, on its own. A drawer under the row buried the rest of the table
               // under a table of its own; this is the same figures with room to be read.
               { path: "portfolio-clients/:customerId/days/:on", element: <DailyTrackerDayPage /> },
+              {
+                path: "portfolio-clients/:customerId/days/:on/changes/:revision",
+                element: <DailyTrackerChangePage />,
+              },
               // Working their Net AUM out, which is a dialog over the list rather than a screen of its
               // own. Its own address all the same, so a sitting can be left and come back to, and so the
               // list can send somebody nobody has written an allocation down for straight into it.

@@ -27,8 +27,8 @@ import { daysFrom, money, versionAndTheOneBefore, type Day } from "./daily-track
  * <p>It reads the same history the tracker reads and works the day out the same way, so the figure here
  * and the figure on the row that led here cannot part.
  */
-export function DailyTrackerDayPage() {
-  const { customerId = "", on = "" } = useParams();
+export function DailyTrackerChangePage() {
+  const { customerId = "", on = "", revision = "" } = useParams();
   const history = useGetClientValuations<ValuationHistory, ApiError>(customerId, { every: true });
   const classes = useAssetClasses();
   const user = useStaffUser();
@@ -41,8 +41,6 @@ export function DailyTrackerDayPage() {
   const [asking, setAsking] = useState(false);
   const [why, setWhy] = useState("");
   const [failed, setFailed] = useState<string | null>(null);
-  /** Which of the day's versions is being read. Null means the one the day closed on. */
-  const [picked, setPicked] = useState<number | null>(null);
 
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
@@ -53,7 +51,10 @@ export function DailyTrackerDayPage() {
   // Which version is being read, and what it is read against. A day written several times has figures for
   // each of them and this page only ever showed the one it closed on, so a change made at eleven and
   // corrected at noon left nothing on screen but the correction.
-  const reading = day === null ? null : (picked ?? closeRevisionOf(day));
+  // Which change is on screen, out of the address rather than out of a click. Held as state, a change
+  // somebody was reading could not be linked to, bookmarked or reached again after a refresh — and the
+  // restore raised from it named a record no address could reproduce.
+  const reading = Number.isFinite(Number(revision)) ? Number(revision) : null;
   const pair = (day === null || reading === null)
     ? null : versionAndTheOneBefore(history.data?.points ?? [], reading);
   const shownLines = pair?.version.lines ?? {};
@@ -74,18 +75,22 @@ export function DailyTrackerDayPage() {
     <div className="space-y-5">
       <div>
         <Link
-          to={`/portfolio-clients/${customerId}?tab=daily`}
+          to={`/portfolio-clients/${customerId}/days/${on}`}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 underline-offset-2 hover:underline"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
-          Back to the daily tracker
+          Back to {on}
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-[1.625rem] font-bold">{on}</h1>
+            <h1 className="text-[1.625rem] font-bold">Change {reading}</h1>
+            {/* What the number counts, because it does not count what a page about one day looks like it
+                counts. It is the client's whole history, so a day touched once can read "Change 4" with
+                no changes 1 to 3 anywhere on it — which sent its first reader hunting for three records
+                that were on three other days. */}
             <p className="mt-1 text-sm text-ink-muted">
-              What this client's portfolio was worth on this day, what it took to get there, and what each
-              sub-asset held either side of it.
+              Written on {on}. The numbering runs through everything ever written down for this client,
+              not through this day — {whereItSits(day, reading)}.
             </p>
           </div>
           {/* Asking for the figures to be put back, from the screen where they are being read. Nothing is
@@ -160,10 +165,17 @@ export function DailyTrackerDayPage() {
                 </p>
               </div>
               <div>
-                <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Reading</p>
-                <p className="mt-1 text-2xl font-bold tabular-nums">Change {reading}</p>
+                {/* The hour, not the number. The heading above already says which change this is, and
+                    "Reading" is this platform's word for a screen still loading — it is used that way
+                    twice on the screen this one is opened from. */}
+                <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Written at</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">
+                  {pair ? atTime(pair.version.recordedAt) : "—"}
+                </p>
                 {pair?.version.closedTheDay && (
-                  <p className="text-2xs text-ink-muted">the day closed here</p>
+                  <p className="text-2xs text-ink-muted">
+                    this is the figure every other screen reads the day by
+                  </p>
                 )}
               </div>
             </div>
@@ -172,17 +184,6 @@ export function DailyTrackerDayPage() {
               or taken out that day — it is not what the money earned.
             </p>
           </section>
-
-          {day.versions.length > 1 && (
-            <section className="overflow-hidden rounded-2xl border border-line bg-white">
-              <h2 className="border-b border-line px-6 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                Written {day.versions.length} times on this day
-              </h2>
-              <div className="px-6 py-4">
-                <Changes day={day} currency={currency} reading={reading} onPick={setPicked} />
-              </div>
-            </section>
-          )}
 
           <section>
             <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -266,10 +267,136 @@ export function DailyTrackerDayPage() {
   );
 }
 
-/** The version the day ended on, which is the figure every other screen reads that day by. */
-function closeRevisionOf(day: Day) {
-  const close = day.versions.find((one) => one.closedTheDay) ?? day.versions[day.versions.length - 1];
-  return close.revision;
+/**
+ * Where a change sits among the ones written on its own day.
+ *
+ * <p>Said because the number beside it does not say it. "Change 4" on a day holding one change is the
+ * client's fourth ever, and a reader who takes it for the day's fourth goes looking for three more.
+ */
+function whereItSits(day: Day | null, reading: number | null) {
+  if (day === null || reading === null) return "one of the changes written for them";
+  const at = day.versions.findIndex((one) => one.revision === reading);
+  if (day.versions.length === 1) return "it is the only change written on this day";
+  return `it is the ${nth(at + 1)} of ${day.versions.length} written on this day`;
+}
+
+function nth(at: number) {
+  if (at === 1) return "first";
+  if (at === 2) return "second";
+  if (at === 3) return "third";
+  return `${at}th`;
+}
+
+/**
+ * One day of the tracker: what the portfolio closed at, and every change written that day.
+ *
+ * <p>A day and a change used to be one screen. It opened straight onto the change the day ended on and
+ * offered a list of the others only where there were others — so a day said "Change 4" with nothing
+ * around it to say what that was the fourth of, and no way to the rest.
+ *
+ * <p>Now the day is a list and a change is a page. The list always draws, even for a day written once,
+ * because "one change on this day" is an answer and a bare number is not.
+ */
+export function DailyTrackerDayPage() {
+  const { customerId = "", on = "" } = useParams();
+  const history = useGetClientValuations<ValuationHistory, ApiError>(customerId, { every: true });
+  const restores = useListClientRestores<RestoreRow[], ApiError>(customerId);
+  const waiting = (restores.data ?? []).find((one) => one.status === "PENDING") ?? null;
+
+  if (history.isError) {
+    return <Alert tone="danger">{history.error.message}</Alert>;
+  }
+  const currency = history.data?.currency ?? "";
+  const day = daysFrom(history.data?.points ?? []).find((one) => one.on === on) ?? null;
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <Link
+          to={`/portfolio-clients/${customerId}?tab=daily`}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 underline-offset-2 hover:underline"
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          Back to the daily tracker
+        </Link>
+        <h1 className="mt-2 text-[1.625rem] font-bold">{on}</h1>
+        <p className="mt-1 max-w-prose text-sm text-ink-muted">
+          Every change written down on this day. The portfolio is read elsewhere by the one it ended on;
+          the others are what it took to get there. Open one to see what each sub-asset held.
+        </p>
+        {waiting && (
+          <div className="mt-3">
+            <Alert tone="info">
+              <p className="font-semibold">
+                {waiting.raisedByName} has already asked to put this client back to {waiting.restoreTo}.
+              </p>
+              <p className="mt-1 text-sm">{waiting.why} · asked {formatDateTime(waiting.raisedAt)}</p>
+              <p className="mt-1 text-sm">
+                Nothing has changed. One ask waits at a time, so this one is answered or taken back first.
+              </p>
+            </Alert>
+          </div>
+        )}
+      </div>
+
+      {history.isPending ? (
+        <section className="rounded-2xl border border-line bg-white px-6 py-10">
+          <p className="text-sm text-ink-muted">Reading the day…</p>
+        </section>
+      ) : day === null ? (
+        <section className="rounded-2xl border border-line bg-white px-6 py-10">
+          <p className="text-sm text-ink-muted">
+            Nothing was written down on {on}. A day exists here only where somebody wrote the holdings
+            down, so this is a day nobody wrote anything — not a day nothing happened.
+          </p>
+        </section>
+      ) : (
+        <>
+          <section className="rounded-2xl border border-line bg-white px-6 py-5">
+            <div className="flex flex-wrap items-baseline gap-x-10 gap-y-3">
+              <div>
+                <p className="text-2xs tracking-wider text-ink-muted uppercase">What it closed at</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{money(day.worth)}</p>
+              </div>
+              <div>
+                <p className="text-2xs tracking-wider text-ink-muted uppercase">
+                  Moved since the day before on file
+                </p>
+                <p className={cn("mt-1 text-2xl font-bold tabular-nums",
+                  day.moved === null ? "text-ink-muted"
+                    : day.moved > 0 ? "text-emerald-700" : day.moved < 0 ? "text-red-600" : "text-ink")}>
+                  {day.moved === null
+                    ? "—"
+                    : `${day.moved > 0 ? "+" : day.moved < 0 ? "−" : ""}${money(Math.abs(day.moved))}`}
+                </p>
+              </div>
+              <div>
+                <p className="text-2xs tracking-wider text-ink-muted uppercase">Changes written</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{day.versions.length}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs text-ink-muted">
+              Figures in {currency}. What moved is the whole of the change, which includes anything paid in
+              or taken out — it is not what the money earned. The day before on file may be weeks earlier:
+              a day exists here only where somebody wrote the holdings down.
+            </p>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-line bg-white">
+            <h2 className="border-b border-line px-6 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              {day.versions.length === 1 ? "One change on this day" : `${day.versions.length} changes on this day`}
+            </h2>
+            <Changes day={day} currency={currency} customerId={customerId} />
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** The hour a change was written, which is what tells two changes on one day apart. */
+function atTime(when: string) {
+  return new Date(when).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
 /**
@@ -281,14 +408,13 @@ function closeRevisionOf(day: Day) {
  *
  * <p>The one the day ended on is marked, because that is the figure every other screen reads this day by.
  */
-function Changes({ day, currency, reading, onPick }: {
+function Changes({ day, currency, customerId }: {
   day: Day;
   currency: string;
-  reading: number | null;
-  onPick: (revision: number) => void;
+  customerId: string;
 }) {
   return (
-    <div>
+    <div className="px-6 py-4">
       {/* The heading is the section's, above. Said here too it was printed twice over. */}
       <table className="w-full text-xs">
         <tbody className="divide-y divide-line/60">
@@ -298,16 +424,20 @@ function Changes({ day, currency, reading, onPick }: {
             // Each change is a row to press. The table below showed the one the day closed on and no
             // other, so a figure written at eleven and corrected at noon left nothing on screen but the
             // correction — the list said it had happened and there was nowhere to go and see it.
-            const open = reading === one.revision;
+            const its = `/portfolio-clients/${customerId}/days/${day.on}/changes/${one.revision}`;
             return (
-              <tr
-                key={one.id}
-                aria-selected={open}
-                onClick={() => onPick(one.revision)}
-                className={cn("cursor-pointer", open ? "bg-primary-50" : "hover:bg-slate-50")}
-              >
-                <td className="py-1.5 pr-4 whitespace-nowrap text-ink-muted">
-                  <span className={cn(open && "font-semibold text-ink")}>Change {one.revision}</span>
+              <tr key={one.id} className="hover:bg-slate-50">
+                <td className="py-2 pr-4 whitespace-nowrap text-ink-muted">
+                  {/* A link rather than a press that swaps the page beneath it: a change is a thing with
+                      an address, so it can be sent to somebody, kept in a tab and come back to. */}
+                  <Link
+                    to={its}
+                    className="font-semibold text-primary-700 underline-offset-2 hover:underline"
+                  >
+                    Change {one.revision}
+                  </Link>
+                  {/* The hour, because two corrections in one afternoon are told apart by nothing else. */}
+                  <span className="ml-2 text-ink-muted">{atTime(one.recordedAt)}</span>
                   {one.closedTheDay && (
                     <span className="ml-2 rounded-full bg-slate-200/70 px-2 py-0.5 text-2xs text-ink">
                       the day closed here
@@ -335,8 +465,9 @@ function Changes({ day, currency, reading, onPick }: {
         </tbody>
       </table>
       <p className="mt-2 text-2xs text-ink-muted">
-        Figures in {currency}. Each is measured against the change before it on this day. Press one to read
-        what it held.
+        Figures in {currency}. Each is measured against the change before it on this day — the first
+        against the day before on file. The number runs through this client's whole history, so it does
+        not start at one on every day. Open one to read what each sub-asset held.
       </p>
     </div>
   );
