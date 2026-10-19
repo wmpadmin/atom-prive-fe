@@ -8,6 +8,7 @@ import {
   type ModelRequestRiskProfile,
   type BandRequest,
   type ModelRow,
+  type SubAllocationRequest,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
 import { Trash2 } from "lucide-react";
@@ -110,7 +111,16 @@ function targetsOf(model: ModelRow, codes: string[]): Targets {
  * before is chosen from the list; anything else is written on purpose, and saying so is what keeps the two
  * apart — an empty box is otherwise indistinguishable from one nobody has reached yet.
  */
-type TypedLine = { name: string; shareOfClass: string; written: boolean };
+type TypedLine = {
+  name: string;
+  shareOfClass: string;
+  written: boolean;
+  /**
+   * The lines inside this one, which are shares of it rather than of the class above it. Empty for a line
+   * nobody has broken down, which is most of them.
+   */
+  lines: TypedLine[];
+};
 
 type Lines = Record<string, TypedLine[]>;
 
@@ -121,18 +131,24 @@ function noLines(codes: string[]): Lines {
 function linesOf(model: ModelRow, codes: string[]): Lines {
   const held = noLines(codes);
   for (const assetClass of codes) {
-    held[assetClass] = (model.subAllocations?.[assetClass] ?? []).map((line) => ({
-      name: line.name,
-      // Settled once the names are in hand, below: a model's own line may be one nobody else has used.
-      written: false,
-      shareOfClass: String(line.shareOfClass),
-    }));
+    held[assetClass] = (model.subAllocations?.[assetClass] ?? []).map(typedFrom);
   }
   return held;
 }
 
+/** One saved line as the form holds it, and whatever is inside it, however deep that goes. */
+function typedFrom(line: SubAllocationRequest): TypedLine {
+  return {
+    name: line.name,
+    // Settled once the names are in hand, below: a model's own line may be one nobody else has used.
+    written: false,
+    shareOfClass: String(line.shareOfClass),
+    lines: (line.lines ?? []).map(typedFrom),
+  };
+}
+
 function blankLine(): TypedLine {
-  return { name: "", shareOfClass: "", written: false };
+  return { name: "", shareOfClass: "", written: false, lines: [] };
 }
 
 /** The value the list carries for writing a name nobody has used before. Never a name itself. */
@@ -141,6 +157,44 @@ const WRITE_ONE = "\u0000write";
 /** What the lines inside one class come to; letters count as nothing until they are numbers. */
 function addsInClass(inClass: TypedLine[]) {
   return inClass.reduce((sum, line) => sum + (isNumber(line.shareOfClass) ? Number(line.shareOfClass) : 0), 0);
+}
+
+/**
+ * Every level inside a class that does not come to the whole of what it sits in, named so the form can say
+ * which one.
+ *
+ * <p>Walked rather than checked once. The lines inside a class come to the class; the lines inside one of
+ * those come to that line — the same rule at every depth, and the deepest one is where it is easiest to
+ * leave a few percent belonging to nothing. A message that only said "Equities" would send somebody
+ * looking at a level that was already right.
+ */
+function levelsThatFallShort(inClass: TypedLine[], where: string): { where: string; comesTo: number }[] {
+  if (inClass.length === 0) return [];
+  const wrong: { where: string; comesTo: number }[] = [];
+  const comesTo = addsInClass(inClass);
+  if (inClass.some((line) => !isNumber(line.shareOfClass)) || comesTo !== 100) {
+    wrong.push({ where, comesTo });
+  }
+  for (const line of inClass) {
+    wrong.push(...levelsThatFallShort(line.lines, line.name.trim() || where));
+  }
+  return wrong;
+}
+
+/** Every level that names the same thing twice among its own siblings, named so the form can say which. */
+function levelsNamingTwice(inClass: TypedLine[], where: string): string[] {
+  if (inClass.length === 0) return [];
+  const said = inClass.map((line) => line.name.trim()).filter((name) => name !== "");
+  const wrong = new Set(said).size === said.length ? [] : [where];
+  for (const line of inClass) {
+    wrong.push(...levelsNamingTwice(line.lines, line.name.trim() || where));
+  }
+  return wrong;
+}
+
+/** Whether every line at every depth has been named. A nameless line is a share belonging to nothing. */
+function allNamed(inClass: TypedLine[]): boolean {
+  return inClass.every((line) => line.name.trim() !== "" && allNamed(line.lines));
 }
 
 function adds(targets: Targets) {
@@ -173,10 +227,27 @@ function andList(words: string[]) {
  * screen is read against — so it is worked out here rather than left to be done in somebody's head while
  * they type the next line.
  */
-function ofWholePortfolio(classTarget: string, shareOfClass: string): number | null {
-  if (!isNumber(classTarget) || !isNumber(shareOfClass)) return null;
-  if (classTarget.trim() === "" || shareOfClass.trim() === "") return null;
-  return (Number(classTarget) * Number(shareOfClass)) / 100;
+function ofWholePortfolio(ofWhatItSitsIn: number | null, shareOfParent: string): number | null {
+  if (ofWhatItSitsIn === null || !isNumber(shareOfParent)) return null;
+  return (ofWhatItSitsIn * Number(shareOfParent)) / 100;
+}
+
+/**
+ * A share as the firm wrote it, with nothing added and nothing taken away.
+ *
+ * <p>Four places kept, trailing zeros dropped. A quarter of a quarter of a quarter is 1.5625% of the
+ * portfolio, and rounding that to 1.56% on the one screen where somebody is checking the arithmetic hides
+ * the figure they came to look at — while printing 25.0000% for a class beside it would be noise dressed
+ * as precision. So the places are there when the number needs them and gone when it does not.
+ */
+function asPercent(share: number): string {
+  const places = share.toFixed(4);
+  return places.replace(/0+$/, "").replace(/\.$/, "");
+}
+
+/** Where a name sits, which is what makes it the same name or a different one: its class and its parent. */
+function nameKey(assetClass: string, under: string) {
+  return under === "" ? assetClass : `${assetClass}\u0000${under}`;
 }
 
 /**
@@ -189,17 +260,24 @@ function ofWholePortfolio(classTarget: string, shareOfClass: string): number | n
  */
 function namesAlreadyUsed(models: ModelRow[]): Record<string, string[]> {
   const seen: Record<string, Set<string>> = {};
+  function gather(assetClass: string, under: string, inClass: SubAllocationRequest[]) {
+    for (const line of inClass) {
+      const name = line.name.trim();
+      if (name === "") continue;
+      (seen[nameKey(assetClass, under)] ??= new Set()).add(name);
+      // Keyed by where it sits, so the list offered under one line is the list of what has gone under it.
+      // "Large cap" belongs under Indian equities and means nothing under Alternatives; one list for the
+      // whole class would offer each to the other and read as a firm-wide vocabulary that does not exist.
+      gather(assetClass, name, line.lines ?? []);
+    }
+  }
   for (const model of models) {
     for (const [assetClass, inClass] of Object.entries(model.subAllocations ?? {})) {
-      for (const line of inClass) {
-        const name = line.name.trim();
-        if (name === "") continue;
-        (seen[assetClass] ??= new Set()).add(name);
-      }
+      gather(assetClass, "", inClass);
     }
   }
   return Object.fromEntries(
-    Object.entries(seen).map(([assetClass, names]) => [assetClass, [...names].sort()]),
+    Object.entries(seen).map(([where, names]) => [where, [...names].sort()]),
   );
 }
 
@@ -290,17 +368,14 @@ export function ModelDialog({
     (assetClass) =>
       lines[assetClass].length === 0 && isNumber(targets[assetClass]) && Number(targets[assetClass]) > 0,
   );
-  // The same sub-asset twice in one class. Taken off the list where it is picked, but a name written by
-  // hand can still land on one already there, so it is checked rather than only made awkward.
-  const twiceNamed = codes.filter((assetClass) => {
-    const said = lines[assetClass].map((line) => line.name.trim()).filter((name) => name !== "");
-    return new Set(said).size !== said.length;
-  });
-  const shortLines = codes.filter((assetClass) => {
-    const inClass = lines[assetClass];
-    if (inClass.length === 0) return false;
-    return inClass.some((line) => !isNumber(line.shareOfClass)) || addsInClass(inClass) !== 100;
-  });
+  // The same sub-asset twice in one place. Taken off the list where it is picked, but a name written by
+  // hand can still land on one already there, so it is checked rather than only made awkward. Checked at
+  // every depth against its own siblings, which is the only set it has to be unique in: "Large cap" may
+  // sit under Indian equities and under US equities at once, and those are two different things.
+  const twiceNamed = codes.flatMap((assetClass) =>
+    levelsNamingTwice(lines[assetClass], names[assetClass] ?? assetClass));
+  const shortLines = codes.flatMap((assetClass) =>
+    levelsThatFallShort(lines[assetClass], names[assetClass] ?? assetClass));
   // A class the model asks for money in has to say how far it may wander. The figure is what every breach
   // on every client measured against this model is read from, so leaving it out is not leaving a box empty
   // — it is handing the answer to the model's own figure, which this screen does not show.
@@ -313,7 +388,35 @@ export function ModelDialog({
   const readable =
     unreadable.length === 0 && overWhole.length === 0
     && shortLines.length === 0 && twiceNamed.length === 0 && unsaidBreach.length === 0
-    && codes.every((a) => lines[a].every((line) => line.name.trim() !== ""));
+    && codes.every((assetClass) => allNamed(lines[assetClass]));
+
+  /**
+   * One line and everything inside it, as the API takes it.
+   *
+   * <p>The band is written down rather than left to inherit. A line with nothing of its own is held to its
+   * class's figure, and the class is allowed to wander further than the lines inside it — so inheriting
+   * would widen every line in the model the moment somebody saved it. The same figure goes on a line three
+   * deep as on one directly in its class: the firm asked for one figure per model, and a line that is a
+   * quarter of a quarter is not a reason to hold it to a different one.
+   */
+  function asked(line: TypedLine): SubAllocationRequest {
+    return {
+      name: line.name.trim(),
+      shareOfClass: Number(line.shareOfClass),
+      band: isNumber(lineBand) && Number(lineBand) > 0
+        ? {
+            basis: "ABSOLUTE" as const,
+            watchAt: Number(lineBand),
+            edgeAt: Number(lineBand),
+            breachAt: Number(lineBand),
+            watchBelow: null,
+            edgeBelow: null,
+            breachBelow: null,
+          }
+        : null,
+      lines: line.lines.length > 0 ? line.lines.map(asked) : null,
+    };
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -362,24 +465,7 @@ export function ModelDialog({
           // Every sub-asset in a class is held to the same figures — the class's, or the model's where
           // the class has none of its own. One line allowed to wander four times as far as the rest was a
           // rule nothing on the page explained and nobody could see from the class it sat in.
-          lines[assetClass].map((line) => ({
-            name: line.name.trim(),
-            shareOfClass: Number(line.shareOfClass),
-            // Written down rather than left to inherit. A line with nothing of its own is held to its
-            // class's figure, and the class is allowed to wander further than the lines inside it — so
-            // inheriting would widen every line in the model the moment somebody saved it.
-            band: isNumber(lineBand) && Number(lineBand) > 0
-              ? {
-                  basis: "ABSOLUTE" as const,
-                  watchAt: Number(lineBand),
-                  edgeAt: Number(lineBand),
-                  breachAt: Number(lineBand),
-                  watchBelow: null,
-                  edgeBelow: null,
-                  breachBelow: null,
-                }
-              : null,
-          })),
+          lines[assetClass].map(asked),
         ]),
       ),
       // Left for the platform to write down what moved, now that nobody is asked for a reason.
@@ -590,126 +676,16 @@ export function ModelDialog({
                   {addsInClass(lines[assetClass]).toFixed(2)}% of the class
                 </span>
               </p>
-              <ul className="mt-2 space-y-1.5">
-                {lines[assetClass].map((line, at) => (
-                  <li key={at} className="flex items-center gap-2">
-                    {/* Picked from the list, or written on purpose — never half way between. The firm
-                        keeps no master list of sub-assets; the names live only inside the models somebody
-                        has written, so those are offered and anything else has to be asked for by name.
-                        Left as a box to type in, the same line went down three ways across three models
-                        and nothing joined them up. */}
-                    {line.written || (line.name !== "" && !(usedNames[assetClass] ?? []).includes(line.name)) ? (
-                      <span className="flex min-w-0 flex-1 items-center gap-2">
-                        <TextInput
-                          aria-label={`Name of line ${at + 1} inside ${(names[assetClass] ?? assetClass)}`}
-                          placeholder="A name nobody has used yet"
-                          className="min-w-0 flex-1"
-                          value={line.name}
-                          onChange={(event) =>
-                            setLines({
-                              ...lines,
-                              [assetClass]: lines[assetClass].map((one, which) =>
-                                which === at ? { ...one, name: event.target.value, written: true } : one,
-                              ),
-                            })
-                          }
-                        />
-                        <button
-                          type="button"
-                          className="shrink-0 text-xs font-medium text-primary-700 hover:underline"
-                          onClick={() =>
-                            setLines({
-                              ...lines,
-                              [assetClass]: lines[assetClass].map((one, which) =>
-                                which === at ? { ...one, name: "", written: false } : one,
-                              ),
-                            })
-                          }
-                        >
-                          Pick from the list
-                        </button>
-                      </span>
-                    ) : (
-                      <SelectInput
-                        aria-label={`Name of line ${at + 1} inside ${(names[assetClass] ?? assetClass)}`}
-                        className="min-w-0 flex-1"
-                        value={line.name}
-                        onChange={(event) =>
-                          setLines({
-                            ...lines,
-                            [assetClass]: lines[assetClass].map((one, which) =>
-                              which === at
-                                ? event.target.value === WRITE_ONE
-                                  ? { ...one, name: "", written: true }
-                                  : { ...one, name: event.target.value, written: false }
-                                : one,
-                            ),
-                          })
-                        }
-                      >
-                        <option value="">Pick a sub-asset…</option>
-                        {/* Not the ones this class has already spoken for. A sub-asset is one line of a
-                            plan: named twice it has two targets, and nothing can say which it is held to. */}
-                        {(usedNames[assetClass] ?? [])
-                          .filter((used) => used === line.name
-                            || !lines[assetClass].some((other, which) => which !== at && other.name === used))
-                          .map((used) => (
-                            <option key={used} value={used}>{used}</option>
-                          ))}
-                        <option value={WRITE_ONE}>Something else…</option>
-                      </SelectInput>
-                    )}
-                    <div className="relative w-24 shrink-0">
-                      <TextInput
-                        aria-label={`Share of ${(names[assetClass] ?? assetClass)} for line ${at + 1}`}
-                        inputMode="decimal"
-                        className="pr-7 text-right"
-                        value={line.shareOfClass}
-                        onChange={(event) =>
-                          setLines({
-                            ...lines,
-                            [assetClass]: lines[assetClass].map((one, which) =>
-                              which === at
-                                ? { ...one, shareOfClass: asFigure(event.target.value, one.shareOfClass) }
-                                : one,
-                            ),
-                          })
-                        }
-                      />
-                      <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-muted">
-                        %
-                      </span>
-                    </div>
-                    {/* The figure the rest of the platform actually measures against, beside the one being
-                        typed: a share of a share is two sums away from it. */}
-                    <span className="w-24 shrink-0 text-right text-xs whitespace-nowrap tabular-nums text-ink-muted">
-                      {(() => {
-                        const share = ofWholePortfolio(targets[assetClass], line.shareOfClass);
-                        return share === null ? "" : `= ${share.toFixed(2)}% of all`;
-                      })()}
-                    </span>
-                    <button
-                      type="button"
-                      aria-label={`Remove line ${at + 1} inside ${(names[assetClass] ?? assetClass)}`}
-                      onClick={() =>
-                        setLines({ ...lines, [assetClass]: lines[assetClass].filter((_, which) => which !== at) })
-                      }
-                      className="rounded p-1 text-ink-muted hover:text-rose-700"
-                    >
-                      <Trash2 aria-hidden="true" className="size-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                onClick={() =>
-                  setLines({ ...lines, [assetClass]: [...lines[assetClass], blankLine()] })
-                }
-                className="mt-2 text-xs font-semibold text-primary-700 hover:underline"
-              >
-                Add another line
-              </button>
+              <LineList
+                lines={lines[assetClass]}
+                set={(next) => setLines({ ...lines, [assetClass]: next })}
+                where={names[assetClass] ?? assetClass}
+                ofWhatItSitsIn={isNumber(targets[assetClass]) ? Number(targets[assetClass]) : null}
+                assetClass={assetClass}
+                under=""
+                usedNames={usedNames}
+                depth={0}
+              />
             </div>
           ))}
 
@@ -732,29 +708,25 @@ export function ModelDialog({
             </div>
           )}
 
-          {twiceNamed.map((assetClass) => (
-            <p key={assetClass} className="mt-1.5 text-xs text-red-600">
-              {names[assetClass] ?? assetClass} names the same sub-asset twice. Each one is a line of the
-              plan, and a line named twice has two targets with nothing to say which it is held to.
+          {twiceNamed.map((where) => (
+            <p key={where} className="mt-1.5 text-xs text-red-600">
+              {where} names the same thing twice inside it. Each one is a line of the plan, and a line
+              named twice has two targets with nothing to say which it is held to.
             </p>
           ))}
 
           {/* Which way, and by how much. "Do not come to 100%" was said the same whether a class was half
               written or asked for more of itself than exists — and the second is the one somebody has to
               take something off to fix. */}
-          {shortLines.map((assetClass) => {
-            const inClass = addsInClass(lines[assetClass]);
-            const named = names[assetClass] ?? assetClass;
-            return (
-              <p key={assetClass} className="mt-1.5 text-xs text-red-600">
-                {inClass > 100
-                  ? `The lines inside ${named} come to ${inClass.toFixed(2)}% of the class. `
-                    + `Take ${(inClass - 100).toFixed(2)}% off: a class is only ever the whole of itself.`
-                  : `The lines inside ${named} come to ${inClass.toFixed(2)}% of the class. `
-                    + `${(100 - inClass).toFixed(2)}% of it belongs to nothing yet.`}
-              </p>
-            );
-          })}
+          {shortLines.map(({ where, comesTo }) => (
+            <p key={where} className="mt-1.5 text-xs text-red-600">
+              {comesTo > 100
+                ? `The lines inside ${where} come to ${comesTo.toFixed(2)}% of it. `
+                  + `Take ${(comesTo - 100).toFixed(2)}% off: nothing is ever more than the whole of itself.`
+                : `The lines inside ${where} come to ${comesTo.toFixed(2)}% of it. `
+                  + `${(100 - comesTo).toFixed(2)}% of it belongs to nothing yet.`}
+            </p>
+          ))}
           {errors.fields.subAllocations && (
             <p className="mt-1 text-xs text-red-600">{errors.fields.subAllocations}</p>
           )}
@@ -882,6 +854,191 @@ export function ModelDialog({
  * The classes a model may be built on: everything still in use, plus any the model already targets. A class
  * retired after a model was written stays on that model until somebody moves its target somewhere else.
  */
+/**
+ * How deep the firm writes a plan: a class, the lines inside it, and the lines inside those.
+ *
+ * <p>Three, because that is the plan the firm described — a main asset, its sub-assets, and theirs. The
+ * store behind this holds a line at any depth, so a fourth level is a question of whether the firm wants
+ * one rather than of whether anything could carry it. Offering one nobody asked for would invite a plan
+ * that cannot be read on a page.
+ */
+const DEEPEST = 2;
+
+/**
+ * The lines inside one thing — a class, or a line of a class — and the lines inside those.
+ *
+ * <p>One component at every depth, calling itself, because a line is the same thing wherever it sits: a
+ * name, a share of whatever it is inside, and possibly a breakdown of its own. The firm's rule is written
+ * once here and therefore holds at the bottom as surely as at the top; a second editor for the third level
+ * would be the same rule said twice, and the pair would drift the first time one of them was corrected.
+ *
+ * <p>Every share typed is a share of its immediate parent, and the figure beside it is what that comes to
+ * as a share of the whole portfolio — which is what every band, drift and breach elsewhere is read
+ * against. Three levels deep that is three percentages multiplied together, and nobody should be doing it
+ * in their head while typing the next line.
+ */
+function LineList({
+  lines, set, where, ofWhatItSitsIn, assetClass, under, usedNames, depth,
+}: {
+  lines: TypedLine[];
+  set: (next: TypedLine[]) => void;
+  /** What these lines are inside, as somebody reads it: "Equities", "Indian Equities". */
+  where: string;
+  /** What that thing is as a share of the whole portfolio, or null while it is unreadable. */
+  ofWhatItSitsIn: number | null;
+  assetClass: string;
+  /** The line these sit inside, or empty where they sit directly in their class. */
+  under: string;
+  usedNames: Record<string, string[]>;
+  depth: number;
+}) {
+  const offered = usedNames[nameKey(assetClass, under)] ?? [];
+
+  function change(at: number, how: (line: TypedLine) => TypedLine) {
+    set(lines.map((one, which) => (which === at ? how(one) : one)));
+  }
+
+  return (
+    <>
+      <ul className={cn("space-y-1.5", depth === 0 ? "mt-2" : "mt-1.5")}>
+        {lines.map((line, at) => {
+          const ofAll = ofWholePortfolio(ofWhatItSitsIn, line.shareOfClass);
+          const named = line.name.trim();
+          return (
+            <li key={at}>
+              <div className="flex items-center gap-2">
+                {/* Picked from the list, or written on purpose — never half way between. The firm keeps no
+                    master list of sub-assets; the names live only inside the models somebody has written,
+                    so those are offered and anything else has to be asked for by name. Left as a box to
+                    type in, the same line went down three ways across three models and nothing joined them
+                    up. */}
+                {line.written || (line.name !== "" && !offered.includes(line.name)) ? (
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
+                    <TextInput
+                      aria-label={`Name of line ${at + 1} inside ${where}`}
+                      placeholder="A name nobody has used yet"
+                      className="min-w-0 flex-1"
+                      value={line.name}
+                      onChange={(event) =>
+                        change(at, (one) => ({ ...one, name: event.target.value, written: true }))}
+                    />
+                    <button
+                      type="button"
+                      className="shrink-0 text-xs font-medium text-primary-700 hover:underline"
+                      onClick={() => change(at, (one) => ({ ...one, name: "", written: false }))}
+                    >
+                      Pick from the list
+                    </button>
+                  </span>
+                ) : (
+                  <SelectInput
+                    aria-label={`Name of line ${at + 1} inside ${where}`}
+                    className="min-w-0 flex-1"
+                    value={line.name}
+                    onChange={(event) =>
+                      change(at, (one) =>
+                        event.target.value === WRITE_ONE
+                          ? { ...one, name: "", written: true }
+                          : { ...one, name: event.target.value, written: false })}
+                  >
+                    <option value="">Pick a sub-asset…</option>
+                    {/* Not the ones already spoken for beside it. A sub-asset is one line of a plan: named
+                        twice it has two targets, and nothing can say which it is held to. */}
+                    {offered
+                      .filter((used) => used === line.name
+                        || !lines.some((other, which) => which !== at && other.name === used))
+                      .map((used) => (
+                        <option key={used} value={used}>{used}</option>
+                      ))}
+                    <option value={WRITE_ONE}>Something else…</option>
+                  </SelectInput>
+                )}
+                <div className="relative w-24 shrink-0">
+                  <TextInput
+                    aria-label={`Share of ${where} for line ${at + 1}`}
+                    inputMode="decimal"
+                    className="pr-7 text-right"
+                    value={line.shareOfClass}
+                    onChange={(event) =>
+                      change(at, (one) => ({
+                        ...one,
+                        shareOfClass: asFigure(event.target.value, one.shareOfClass),
+                      }))}
+                  />
+                  <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-muted">
+                    %
+                  </span>
+                </div>
+                {/* The figure the rest of the platform actually measures against, beside the one being
+                    typed: a share of a share is two sums away from it, and of a share of a share, three. */}
+                <span className="w-28 shrink-0 text-right text-xs whitespace-nowrap tabular-nums text-ink-muted">
+                  {ofAll === null ? "" : `= ${asPercent(ofAll)}% of all`}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`Remove line ${at + 1} inside ${where}`}
+                  onClick={() => set(lines.filter((_, which) => which !== at))}
+                  className="rounded p-1 text-ink-muted hover:text-rose-700"
+                >
+                  <Trash2 aria-hidden="true" className="size-4" />
+                </button>
+              </div>
+
+              {/* What is inside this line, indented under it and ruled off, so the eye can see which share
+                  belongs to which parent without reading the labels. */}
+              {line.lines.length > 0 && (
+                <div className="mt-1.5 ml-4 border-l-2 border-line pl-3">
+                  <p className="flex items-baseline justify-between gap-2 text-2xs font-semibold text-ink-soft">
+                    <span>Inside {named || `line ${at + 1}`} — name and share of it</span>
+                    <span className={cn(
+                      "tabular-nums",
+                      addsInClass(line.lines) === 100 ? "text-emerald-700"
+                        : addsInClass(line.lines) > 100 ? "text-red-600" : "text-amber-700",
+                    )}>
+                      {addsInClass(line.lines).toFixed(2)}% of {named || "it"}
+                    </span>
+                  </p>
+                  <LineList
+                    lines={line.lines}
+                    set={(next) => change(at, (one) => ({ ...one, lines: next }))}
+                    where={named || `line ${at + 1}`}
+                    ofWhatItSitsIn={ofAll}
+                    assetClass={assetClass}
+                    under={named}
+                    usedNames={usedNames}
+                    depth={depth + 1}
+                  />
+                </div>
+              )}
+
+              {/* Offered only once the line is named and has a share: what it is broken into are shares of
+                  it, and there is nothing to be a share of yet. */}
+              {line.lines.length === 0 && depth < DEEPEST - 1 && named !== ""
+                && isNumber(line.shareOfClass) && (
+                <button
+                  type="button"
+                  onClick={() => change(at, (one) => ({ ...one, lines: [blankLine()] }))}
+                  className="mt-1 ml-4 text-2xs font-semibold text-primary-700 hover:underline"
+                >
+                  Break {named} down further
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <button
+        type="button"
+        onClick={() => set([...lines, blankLine()])}
+        className={cn("mt-2 font-semibold text-primary-700 hover:underline",
+          depth === 0 ? "text-xs" : "text-2xs")}
+      >
+        Add another line{depth === 0 ? "" : ` inside ${where}`}
+      </button>
+    </>
+  );
+}
+
 function classesForModel(assetClasses: ReturnType<typeof useAssetClasses>, model: ModelRow | null): string[] {
   const targeted = new Set(Object.keys(model?.targets ?? {}));
   return assetClasses.all
