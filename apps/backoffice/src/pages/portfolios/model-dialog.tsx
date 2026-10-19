@@ -1011,10 +1011,12 @@ function LineList({
                 </div>
               )}
 
-              {/* Offered only once the line is named and has a share: what it is broken into are shares of
-                  it, and there is nothing to be a share of yet. */}
-              {line.lines.length === 0 && depth < DEEPEST - 1 && named !== ""
-                && isNumber(line.shareOfClass) && (
+              {/* Offered once the line has a name, which is all it needs: what goes inside is written as
+                  shares OF this line, and those can be written before anybody has said what this line is
+                  of its own class. Asked for a share here too, the way in was invisible until somebody
+                  filled a box they had no reason to fill first — and nothing on the row said why.
+                  The name is still wanted, because the block it opens is headed with it. */}
+              {line.lines.length === 0 && depth < DEEPEST - 1 && named !== "" && (
                 <button
                   type="button"
                   onClick={() => change(at, (one) => ({ ...one, lines: [blankLine()] }))}
