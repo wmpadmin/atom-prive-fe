@@ -13,6 +13,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { formatDateTime } from "../../lib/labels";
 import { exactly } from "./money-words";
 import { AnswerDialog } from "./answer-dialog";
+import { QueueBar } from "./queue-bar";
 import { WaitingPlan } from "./moves-to-approve-page";
 
 /**
@@ -89,10 +90,11 @@ export function ClientMovesPage() {
         </p>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-line bg-white">
-        <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Waiting for approval
-        </h2>
+      {/* The same bar the queue this screen is reached from carries. One click apart and drawn two ways,
+          the pair read as two different products — and a heading written out by hand here is one more copy
+          of a line that is now said in one place. */}
+      <section className="rounded-2xl border border-line bg-white">
+        <QueueBar name="Waiting for approval" />
         {plans.isPending ? (
           <p className="px-5 py-8 text-sm text-ink-muted">Reading the plans…</p>
         ) : waiting.length === 0 ? (
@@ -122,11 +124,9 @@ export function ClientMovesPage() {
       </section>
 
       {decided.length > 0 && (
-        <section className="overflow-hidden rounded-2xl border border-line bg-white">
+        <section className="rounded-2xl border border-line bg-white">
           {/* Not "answered": one the person who raised it cancelled was never answered by anybody. */}
-          <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            Everything else asked for this client
-          </h2>
+          <QueueBar name="Everything else asked for this client" />
           {/* A table, because that is what it is: the same five facts about each one, and a reader looking
               down a column for who asked, or for when something was answered, should not be reading them
               out of a paragraph each time. */}
