@@ -107,6 +107,17 @@ function theLine(subClass: string | null, subSubClass: string | null) {
   return `${subClass ?? ""}\t${subSubClass ?? ""}`;
 }
 
+/**
+ * Which line a destination is, which is not what it is called.
+ *
+ * <p>Every figure this window holds is kept against one of these. Kept against the name alone, a class
+ * with a "Large cap" under Indian equities and another under US equities had one box behind two rows:
+ * typing into either moved both, and the plan that went out named one of them twice.
+ */
+function placeKey(place: Destination) {
+  return theLine(place.under === "" ? place.name : place.under, place.under === "" ? null : place.name);
+}
+
 function capacityIn(groups: SubClassGroup[], except: SubClassGroup | null,
     mine: Record<string, number> = {}): Destination[] {
   const places: Destination[] = [];
@@ -201,7 +212,7 @@ function suggest(toPlace: number, places: Destination[]): Record<string, number>
   const split: Record<string, number> = {};
   for (const place of places) {
     const takes = Math.max(0, Math.min(left, Math.floor(place.room)));
-    split[place.name] = takes;
+    split[placeKey(place)] = takes;
     left -= takes;
   }
   return split;
@@ -328,10 +339,10 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
     () => ({ forClass: null, places }),
   );
   const held = opened.forClass === goingTo ? opened.places : where;
-  const now = new Map(where.map((place) => [place.name, place]));
+  const now = new Map(where.map((place) => [placeKey(place), place]));
   const inOrder = [
-    ...held.map((place) => now.get(place.name) ?? { ...place, room: 0 }),
-    ...where.filter((place) => !held.some((was) => was.name === place.name)),
+    ...held.map((place) => now.get(placeKey(place)) ?? { ...place, room: 0 }),
+    ...where.filter((place) => !held.some((was) => placeKey(was) === placeKey(place))),
   ];
   // The most that may leave this sub-asset: what the breach comes to in whole units, never more than is
   // actually there. Rounding to the nearest is what lands a line cleanly inside its band rather than a
@@ -342,12 +353,12 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   const plainly = suggest(mostToMove, inOrder);
   const [moves, setMoves] = useState<Record<string, string>>(() => Object.fromEntries(
     inOrder.map((place) => {
-      if (changing === null) return [place.name, String(plainly[place.name])];
+      if (changing === null) return [placeKey(place), String(plainly[placeKey(place)])];
       // Added up rather than found: two legs may land in one sub-asset, and the box that shows them is one.
       const asked = changing.legs
-        .filter((leg) => (leg.toSubClass ?? UNGROUPED) === place.name)
+        .filter((leg) => theLine(leg.toSubClass, leg.toSubSubClass) === placeKey(place))
         .reduce((sum, leg) => sum + leg.amount, 0);
-      return [place.name, String(asked)];
+      return [placeKey(place), String(asked)];
     }),
   ));
   /**
@@ -377,7 +388,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // changes these boxes is somebody typing in them.
   const suggested = plainly;
   const asSuggested = () => Object.fromEntries(
-    inOrder.map((place) => [place.name, String(suggested[place.name])]),
+    inOrder.map((place) => [placeKey(place), String(suggested[placeKey(place)])]),
   );
 
   const user = useStaffUser();
@@ -395,7 +406,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   const askToMove = useAskToMoveMoney<ApiError>();
   const askForTheClient = useAskOnBehalfOfTheClient<ApiError>();
   const changeIt = useChangeTheMovePlan<ApiError>();
-  const placed = inOrder.reduce((sum, place) => sum + typed(moves[place.name]), 0);
+  const placed = inOrder.reduce((sum, place) => sum + typed(moves[placeKey(place)]), 0);
   const left = spare - placed;
   // What this class could take in all, however it is split up, and so what genuinely cannot stay in it.
   // Money nobody has placed yet is not money with nowhere to go, and saying it has to leave the class
@@ -419,7 +430,8 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   // Only where there is something to go back to. After a move these boxes hold the suggestion made
   // against what is left, so they compare equal to it and no button is offered — which is what gating
   // this on the move was for, before the boxes were refilled at all.
-  const edited = inOrder.some((place) => (moves[place.name] ?? "") !== String(suggested[place.name]));
+  const edited = inOrder.some((place) =>
+    (moves[placeKey(place)] ?? "") !== String(suggested[placeKey(place)]));
 
   // Both sides first, the page afterwards. Telling the page between the two legs had it read the portfolio
   // back half way through the move — money gone from one sub-asset and not yet on the other — and every box
@@ -443,12 +455,12 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
     setMoves((was) => {
       const next = { ...was, [name]: asFigure(said, was[name] ?? "0") };
       const claimed = inOrder
-        .filter((place) => mine.has(place.name))
-        .reduce((sum, place) => sum + typed(next[place.name]), 0);
-      const rest = inOrder.filter((place) => !mine.has(place.name));
+        .filter((place) => mine.has(placeKey(place)))
+        .reduce((sum, place) => sum + typed(next[placeKey(place)]), 0);
+      const rest = inOrder.filter((place) => !mine.has(placeKey(place)));
       const split = suggest(Math.max(0, mostToMove - claimed), rest);
       for (const place of rest) {
-        next[place.name] = String(split[place.name] ?? 0);
+        next[placeKey(place)] = String(split[placeKey(place)] ?? 0);
       }
       return next;
     });
@@ -469,7 +481,8 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
     setTypedIn(new Set());
     setFailed(null);
     const split = suggest(mostToMove, landing);
-    setMoves(Object.fromEntries(landing.map((place) => [place.name, String(split[place.name] ?? 0)])));
+    setMoves(Object.fromEntries(landing.map((place) =>
+      [placeKey(place), String(split[placeKey(place)] ?? 0)])));
   }
 
   /**
@@ -485,7 +498,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
    */
   async function ask() {
     const legs = inOrder
-      .filter((place) => typed(moves[place.name]) > 0)
+      .filter((place) => typed(moves[placeKey(place)]) > 0)
       .map((place) => ({
         fromAssetClass: assetClass,
         fromSubClass: rows[0]?.subClass ?? null,
@@ -495,7 +508,7 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
         // is a sub-asset itself says only itself, the way every leg did before the plan went three deep.
         toSubClass: place.under === "" ? place.name : place.under,
         toSubSubClass: place.under === "" ? null : place.name,
-        amount: typed(moves[place.name]),
+        amount: typed(moves[placeKey(place)]),
         heldWhenRaised: inHand,
       }));
     if (!rows.length || legs.length === 0) return;
@@ -656,10 +669,16 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                 </thead>
                 <tbody>
                   {inOrder.map((place) => {
-                    const past = typed(moves[place.name]) - place.room;
+                    const past = typed(moves[placeKey(place)]) - place.room;
                     return (
-                      <tr key={place.name} className="border-b border-ink/15 last:border-0 align-top">
+                      <tr key={placeKey(place)} className="border-b border-ink/15 last:border-0 align-top">
                         <th scope="row" className="px-5 py-4 text-left font-medium text-ink">
+                          {/* Named with the sub-asset it sits in where it sits in one. These stand in
+                              one list beside sub-assets that were not broken down, and "Large cap" by
+                              itself does not say whose large cap it is. */}
+                          {place.under !== "" && (
+                            <span className="font-normal text-ink-muted">{place.under} · </span>
+                          )}
                           {place.name}
                           {/* Said plainly: this one does not exist yet, and moving into it writes it down
                               for the first time. Its whole target is free, which is why it is usually at
@@ -696,16 +715,17 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
                         <td className="px-5 py-4 text-right">
                           {readOnly ? (
                             <span className="tabular-nums text-ink-muted">
-                              {exactly(typed(moves[place.name]), currency)}
+                              {exactly(typed(moves[placeKey(place)]), currency)}
                             </span>
                           ) : (
                             <span className="flex items-center justify-end gap-2">
                               <span className="text-xs text-ink-muted">{currency}</span>
                               <TextInput
                                 inputMode="decimal"
-                                aria-label={`Move into ${place.name}`}
-                                value={moves[place.name] ?? "0"}
-                                onChange={(event) => typedInto(place.name, event.target.value)}
+                                aria-label={place.under === "" ? `Move into ${place.name}`
+                                  : `Move into ${place.name} inside ${place.under}`}
+                                value={moves[placeKey(place)] ?? "0"}
+                                onChange={(event) => typedInto(placeKey(place), event.target.value)}
                                 className="h-9 w-32 text-right tabular-nums"
                               />
                             </span>
