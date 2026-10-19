@@ -31,6 +31,10 @@ type TabSpec = {
 /**
  * The six queues, in the order the work reaches them: what the firm advises, then what it changes about
  * a client, then what it changes about a plan.
+ *
+ * <p>Each is named for the act rather than for the thing it touches. "Moves" and "Model moves" sat beside
+ * each other reading as the same word twice, and the first person to see them had to ask which was which:
+ * money moves and a plan is switched, and the two sentences share no verb.
  */
 const TABS: TabSpec[] = [
   {
@@ -43,14 +47,14 @@ const TABS: TabSpec[] = [
   },
   {
     id: "moves",
-    label: "Moves",
+    label: "Money moves",
     lead: "Plans to move money between what a client holds. Nothing has moved: saying yes is what moves it.",
     authority: ANSWERS_MOVE_PLANS,
     Panel: MovesToApprovePage,
   },
   {
     id: "figures",
-    label: "Figures",
+    label: "Net AUM",
     lead: "Asks to rewrite what a client holds, owes and owns outright. Nothing has changed: saying yes "
       + "is what writes them.",
     authority: ANSWERS_MOVE_PLANS,
@@ -66,7 +70,7 @@ const TABS: TabSpec[] = [
   },
   {
     id: "model-changes",
-    label: "Model moves",
+    label: "Model switch",
     lead: "Asking for a client to be measured against a different plan. Saying yes is what moves them.",
     authority: READS_CLIENT_PORTFOLIOS,
     Panel: ModelChangesPage,
