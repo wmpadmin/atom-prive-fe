@@ -5075,6 +5075,55 @@ export interface ValuationHistory {
   changeShare: number | null;
 }
 
+export type ReturnOverPeriodPeriod = typeof ReturnOverPeriodPeriod[keyof typeof ReturnOverPeriodPeriod];
+
+
+export const ReturnOverPeriodPeriod = {
+  WEEK: 'WEEK',
+  MONTH: 'MONTH',
+  QUARTER: 'QUARTER',
+  HALF_YEAR: 'HALF_YEAR',
+  YEAR: 'YEAR',
+  SINCE_INCEPTION: 'SINCE_INCEPTION',
+} as const;
+
+export interface ReturnOverPeriod {
+  period: ReturnOverPeriodPeriod;
+  said: string;
+  measured: boolean;
+  /** @nullable */
+  whyNot: string | null;
+  /** @nullable */
+  from: string | null;
+  /** @nullable */
+  to: string | null;
+  days: number;
+  ayearOrMore: boolean;
+  /** @nullable */
+  opening: number | null;
+  /** @nullable */
+  closing: number | null;
+  paidIn: number;
+  takenOut: number;
+  /** @nullable */
+  gained: number | null;
+  /** @nullable */
+  absolute: number | null;
+  /** @nullable */
+  cagr: number | null;
+  /** @nullable */
+  moneyWeighted: number | null;
+  /** @nullable */
+  timeWeighted: number | null;
+  flows: number;
+}
+
+export interface ReturnsByPeriod {
+  customerId: string;
+  currency: string;
+  periods: ReturnOverPeriod[];
+}
+
 export interface RestorableDay {
   on: string;
   revision: number;
@@ -25726,6 +25775,101 @@ export function useGetClientValuations<TData = Awaited<ReturnType<typeof getClie
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientValuationsQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListClientReturnsUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/returns`
+}
+
+export const listClientReturns = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ReturnsByPeriod> => {
+
+  return http<ReturnsByPeriod>(getListClientReturnsUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientReturnsQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/returns`
+    ] as const;
+    }
+
+
+export const getListClientReturnsQueryOptions = <TData = Awaited<ReturnType<typeof listClientReturns>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientReturns>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientReturnsQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientReturns>>> = ({ signal }) => listClientReturns(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientReturns>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListClientReturnsQueryResult = NonNullable<Awaited<ReturnType<typeof listClientReturns>>>
+export type ListClientReturnsQueryError = unknown
+
+
+export function useListClientReturns<TData = Awaited<ReturnType<typeof listClientReturns>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientReturns>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientReturns>>,
+          TError,
+          Awaited<ReturnType<typeof listClientReturns>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientReturns<TData = Awaited<ReturnType<typeof listClientReturns>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientReturns>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientReturns>>,
+          TError,
+          Awaited<ReturnType<typeof listClientReturns>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientReturns<TData = Awaited<ReturnType<typeof listClientReturns>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientReturns>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListClientReturns<TData = Awaited<ReturnType<typeof listClientReturns>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientReturns>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListClientReturnsQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

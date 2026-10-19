@@ -27,6 +27,7 @@ import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
 import { AnalyticsPanel } from "./analytics-panel";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
+import { ClientReturnPanel } from "./client-return-panel";
 import { DailyTrackerPanel } from "./daily-tracker-panel";
 import {
   anchorFor,
@@ -58,12 +59,15 @@ const CAME_FROM: Record<string, { to: string; label: string }> = {
 
 const FROM_THE_LIST = { to: "/portfolio-clients", label: "Back to the clients" };
 
-/** The four questions this screen answers, in the order somebody asks them. */
-type Tab = "performance" | "daily" | "holdings" | "analytics";
+/** The questions this screen answers, in the order somebody asks them. */
+type Tab = "performance" | "daily" | "return" | "holdings" | "analytics";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "performance", label: "Portfolio performance" },
   { id: "daily", label: "Daily tracker" },
+  // After the tracker, because the tracker is what it is made of: the return is read off the days
+  // somebody wrote down, and the money in and out written down beside them.
+  { id: "return", label: "Return" },
   { id: "holdings", label: "Holdings" },
   { id: "analytics", label: "Analytics" },
 ];
@@ -508,6 +512,8 @@ export function ClientPortfolioPage() {
       </>)}
 
       {tab === "daily" && <DailyTrackerPanel customerId={customerId} />}
+
+      {tab === "return" && <ClientReturnPanel customerId={customerId} />}
 
       {/* Nothing yet, and said so rather than drawn empty. The firm's line-by-line holdings list is still
           to come; until it does, what the client holds is read under Portfolio performance. */}
