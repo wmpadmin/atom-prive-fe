@@ -13,7 +13,7 @@ import { useMemo, useState } from "react";
 import { barFor, useAssetClasses } from "./asset-classes";
 import { BOX, type StepProps } from "./portfolio-setup-dialog";
 import { useSubAssetClasses } from "./sub-asset-classes";
-import { loanOnFile, toThePenny } from "./the-calculator";
+import { anythingOnFile, loanOnFile, toThePenny } from "./the-calculator";
 
 /** One line somebody is writing down: where it sits, what it is called, and what it is worth. */
 type Line = {
@@ -56,6 +56,35 @@ function adds(lines: Line[]) {
   // To the penny the figures are kept in. A sum carried at full floating-point precision is refused by
   // the API, which compares it against a class total worked out to two places from the same lines.
   return Math.round(total * 100) / 100;
+}
+
+/**
+ * Every place inside a class that names the same thing twice, named so the form can say which.
+ *
+ * <p>A name only has to be unique among its own siblings, which is the only set it is ever read against:
+ * "Large cap" may sit under Indian equities and under US equities at once, and those are two different
+ * holdings with two different targets. Checked across a whole class, a client whose plan names large cap
+ * under two of its sub-assets could not write their holdings down at all, held up by a duplicate that
+ * was not one.
+ */
+function placesNamingTwice(rows: Line[], inClass: string): string[] {
+  // Keyed by where a line sits rather than by what that place is called. Keyed by the name, a sub-asset
+  // called the same thing as its class — "Forex" inside Forex, which the firm's own list has — shared a
+  // bucket with the class itself, and a client holding one line in each was told they had named it twice
+  // and could not write their figures down at all.
+  const byPlace = new Map<string, { where: string; said: string[] }>();
+  for (const one of rows) {
+    const name = one.name.trim().toLowerCase();
+    if (name === "") continue;
+    const under = one.under.trim();
+    const key = (under === "") ? "" : `inside\u0000${under}`;
+    const place = byPlace.get(key) ?? { where: (under === "") ? inClass : under, said: [] };
+    place.said.push(name);
+    byPlace.set(key, place);
+  }
+  return [...byPlace.values()]
+    .filter((place) => new Set(place.said).size !== place.said.length)
+    .map((place) => place.where);
 }
 
 /**
@@ -177,16 +206,14 @@ export function AllocationStep({ customerId, onDone, draft, onDraft }: StepProps
     (lines[code] ?? []).filter((one) => one.amount.trim() !== "" && !isNumber(one.amount)));
   const unnamed = codes.flatMap((code) =>
     (lines[code] ?? []).filter((one) => one.amount.trim() !== "" && one.name.trim() === ""));
-  // The same line twice in one class is two rows the platform cannot tell apart afterwards.
-  const twiceNamed = codes.filter((code) => {
-    const said = (lines[code] ?? []).map((one) => one.name.trim().toLowerCase()).filter((name) => name !== "");
-    return new Set(said).size !== said.length;
-  });
+  // The same line twice in one place is two rows the platform cannot tell apart afterwards. A place at a
+  // time rather than the class at once, which is how the model asks the same question of itself.
+  const twiceNamed = codes.flatMap((code) =>
+    placesNamingTwice(lines[code] ?? [], assetClasses.names[code] ?? code));
   const readable = unreadable.length === 0 && unnamed.length === 0 && twiceNamed.length === 0;
   // Whether this client has figures already, which is what decides written outright against asked for.
   // Read here only to say so; the deciding and the sending are the next step's.
-  const alreadyWritten = (holdings.data?.classes ?? [])
-    .some((klass) => klass.subClasses.some((group) => group.positions.length > 0));
+  const alreadyWritten = anythingOnFile(holdings.data);
   const anything = whole > 0;
 
   /**
@@ -483,13 +510,13 @@ export function AllocationStep({ customerId, onDone, draft, onDraft }: StepProps
         </p>
       </section>
 
-      {twiceNamed.length > 0 && (
-        <Alert tone="danger">
-          {twiceNamed.map((code) => assetClasses.names[code] ?? code).join(", ")}{" "}
-          {twiceNamed.length === 1 ? "names a line twice" : "name a line twice"}. Two rows with one name cannot be
-          told apart afterwards.
+      {/* One for each place, naming it. A client who holds large cap under two sub-assets has to be told
+          which of the two it is in, not handed the class and left to read every line under it. */}
+      {twiceNamed.map((where) => (
+        <Alert key={where} tone="danger">
+          {where} names a line twice. Two rows with one name cannot be told apart afterwards.
         </Alert>
-      )}
+      ))}
       {unnamed.length > 0 && (
         <Alert tone="danger">A line with money in it has to be named before it can be written down.</Alert>
       )}

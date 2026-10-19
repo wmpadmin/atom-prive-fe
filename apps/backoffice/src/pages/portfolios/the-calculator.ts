@@ -52,6 +52,22 @@ export function linesOnFile(holdings: ClientHoldings | undefined): AllocationCla
 }
 
 /**
+ * Whether this client has been written down before, which is what decides written outright against asked
+ * for.
+ *
+ * <p>Read off linesOnFile so it sees every depth. A holding may sit directly in a sub-asset or in a line
+ * of one, and counting only the first made a client whose money all sits a level deeper read as brand
+ * new — so the calculator overwrote a live portfolio outright, with nobody asked and no row in any queue.
+ *
+ * <p>Answered here rather than on each screen that needs it. Two screens working it out for themselves is
+ * how they came to disagree: one wrote without asking while the other told somebody their answer would
+ * be wanted.
+ */
+export function anythingOnFile(holdings: ClientHoldings | undefined) {
+  return linesOnFile(holdings).some((klass) => klass.lines.length > 0);
+}
+
+/**
  * What the client owes today, as the one figure the calculator keeps.
  *
  * <p>Null where they have several, which is the one case this box does not speak for: it would edit
