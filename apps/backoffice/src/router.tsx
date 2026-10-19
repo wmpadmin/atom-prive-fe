@@ -47,7 +47,7 @@ import {
   READS_ORDERS,
   READS_PROPOSALS,
   RAISES_ORDERS,
-  WRITES_PROPOSALS,
+  STARTS_PROPOSALS,
 } from "./lib/permissions";
 import { ForgotPasswordPage } from "./pages/sign-in/forgot-password-page";
 import { LoginPage } from "./pages/sign-in/login-page";
@@ -262,9 +262,10 @@ export const router = createBrowserRouter([
             }],
           },
           {
-            // The portfolio manager writes proposals too, which the firm confirmed. They hold it at full, so
-            // theirs is the whole book rather than an assigned list.
-            element: <RequireAuthority authority={WRITES_PROPOSALS} />,
+            // Started by whoever looks after the client. Holding proposals at full is not holding the
+            // clients, and a manager who wants that client's money moved has a door of their own for it.
+            // Held here as well as on the button, so the address cannot be typed into a refusal on save.
+            element: <RequireAuthority authority={STARTS_PROPOSALS} />,
             children: [
               { path: "proposals/new", element: <ProposalPage /> },
             ],

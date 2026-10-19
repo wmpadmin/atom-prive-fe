@@ -14,7 +14,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { APPROVES_PROPOSALS, hasAnyAuthority, readsEveryAdvisors, WRITES_PROPOSALS } from "../../lib/permissions";
+import { APPROVES_PROPOSALS, hasAnyAuthority, readsEveryAdvisors, STARTS_PROPOSALS } from "../../lib/permissions";
 import { formatDate } from "../../lib/labels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
@@ -58,7 +58,7 @@ export function ProposalsPage() {
   // Whoever oversees the firm's advice reads every proposal without writing any, so the screen is the same
   // list with nothing on it to write with.
   const user = useStaffUser();
-  const writes = hasAnyAuthority(user, ...WRITES_PROPOSALS);
+  const writes = hasAnyAuthority(user, ...STARTS_PROPOSALS);
   // Whoever gives a sign-off gets the one view that is theirs to act on. To everybody else it is not a
   // filter that comes back empty — it is not offered at all, because an empty queue of other people's
   // work reads as a queue you are failing to clear.
