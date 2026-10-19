@@ -70,7 +70,11 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
 
   // Every class that appears on any day shown, in the firm's own order, so a column does not come and go
   // as the days are filtered.
-  const codes = classes.inUse
+  //
+  // Every class the firm has, not only those still in use. A day holding money in a class retired since
+  // counts in the total beside it and had no column of its own, so the figures on the row did not come to
+  // the figure at the head of it and nothing on screen said where the rest had gone.
+  const codes = classes.all
     .map((one) => one.code)
     .filter((code) => shown.some((day) => (day.holdings[code] ?? 0) !== 0));
 
@@ -80,10 +84,13 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
         <div>
           <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Daily tracker</h2>
           <p className="mt-1 max-w-prose text-xs text-ink-muted">
-            What the portfolio was worth each day, and what moved since the day before. Every change
-            writes its own record; a day shows the one it ended on and opens onto the list of them. A day is
-            written when somebody writes the holdings down, so a gap is a day nobody wrote anything —
-            not a day nothing happened.
+            What this client's figures stood at each time somebody wrote them down, and what moved
+            between one writing and the next. Every change writes its own record; a day shows the one it
+            ended on and opens onto the list of them.
+            {" "}
+            Nothing is valued automatically, so a date here is the day somebody typed — not a day the
+            market was read. A gap is a day nobody wrote anything, which is why "since the day before"
+            can span weeks.
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
@@ -103,7 +110,7 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
               onClick={() => { setFrom(""); setTo(""); }}
               className="pb-2 text-xs font-semibold text-primary-700 hover:underline"
             >
-              Every day
+              Clear dates
             </button>
           )}
         </div>
@@ -114,7 +121,8 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
       ) : shown.length === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-line py-8 text-center text-sm text-ink-muted">
           {everyDay.length === 0
-            ? "No day has been written down yet. One is written each time somebody saves the holdings."
+            ? "No day has been written down yet. A day appears here the first time somebody saves this "
+              + "client's holdings, and every save after that writes another change to the day it was made on."
             : "No day between those two dates."}
         </p>
       ) : (
@@ -124,8 +132,15 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
             <thead>
               <tr className="border-b border-ink/15 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4">Day</th>
-                <th scope="col" className="px-4 py-3 text-right">Net AUM</th>
-                <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Moved</th>
+                {/* The six classes added up, which is what the Net AUM calculator calls a total
+                    allocation. A Net AUM is that less what the client owes and plus what they own
+                    outright, and neither of those is kept on a day — so the old heading named a figure
+                    this screen has never held. */}
+                <th scope="col" className="px-4 py-3 text-right">Total allocation</th>
+                {/* Said against what. The same word on the day's own screen measures against the change
+                    before it, which is a different baseline — and a reader who carried one reading onto
+                    the other screen got a figure that would not reconcile. */}
+                <th scope="col" className="px-4 py-3 text-right">Moved since the day before on file</th>
                 {codes.map((code) => (
                   <th
                     key={code}
@@ -192,7 +207,7 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
                         {day.movedShare !== null && (
                           <span className="block text-2xs font-normal">
                             {day.movedShare > 0 ? "+" : day.movedShare < 0 ? "−" : ""}
-                            {Math.abs(day.movedShare).toFixed(2)}%
+                            {Math.abs(day.movedShare).toFixed(2)}% of it
                           </span>
                         )}
                       </span>
