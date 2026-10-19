@@ -232,17 +232,20 @@ export function ProposalsPage() {
         </Alert>
       )}
 
-      <div className="flex flex-wrap items-end gap-3">
+      {/* One width for every control on the row. A dropdown that shrinks to whatever is chosen makes the
+          row jump about as the filter changes, and sets four boxes of four different sizes beside each
+          other when it is still. */}
+      <div className="flex flex-wrap items-end gap-3 [&>*]:w-44">
         <div>
           <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
-          <FilterMenu label="Proposals" value={tab} options={shown} onChange={changeTab} className="mt-0" />
+          <FilterMenu label="Proposals" value={tab} options={shown} onChange={changeTab} />
         </div>
         {/* The dates narrow what is listed; they say nothing about a queue of what is waiting on you, and
             the sign-off queue is not asked for them. */}
         {!onMe && (
           <>
-            <label>
-          <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Sent from</span>
+            <label className="block">
+          <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Sent from</span>
           <DateInput
             id="sent-from"
             name="from"
@@ -256,8 +259,8 @@ export function ProposalsPage() {
             }}
           />
         </label>
-        <label>
-          <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Sent to</span>
+        <label className="block">
+          <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Sent to</span>
           <DateInput
             id="sent-to"
             name="to"

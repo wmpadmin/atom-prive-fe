@@ -8,7 +8,6 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, FilterMenu, Pagination } from "@atomprive/ui";
 import { AnswerDialog } from "./answer-dialog";
-import { ListPageHeader } from "../../components/record-list";
 import { useState } from "react";
 import { useStaffUser } from "../../auth/session";
 import { hasAuthority } from "../../lib/permissions";
@@ -63,10 +62,6 @@ export function ModelChangesPage() {
 
   return (
     <div className="space-y-6">
-      <ListPageHeader
-        title="Model changes"
-        lead="Asking for a client to be measured against a different plan. Saying yes is what moves them."
-      />
 
       {/* Five chips said the four states you are not reading alongside the one you are, and wrapped onto a
           second line to do it. One control says the state being read, and it is what every other list on
@@ -91,46 +86,73 @@ export function ModelChangesPage() {
         <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           {TABS.find((one) => one.id === tab)?.label}
         </h2>
-        {requests.isPending ? (
-          <p className="px-5 py-10 text-center text-sm text-ink-muted">Reading the requests…</p>
-        ) : rows.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-ink-muted">
-            {tab === "PENDING" ? "Nothing is waiting for approval." : "Nothing here."}
-          </p>
-        ) : (
-          <ul className="divide-y divide-line">
-            {rows.map((row) => (
-              <li key={row.id} className="px-5 py-4">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <Avatar name={row.clientName} />
-                    <div className="min-w-0">
-                      <p className="font-semibold">{row.clientName}</p>
-                      <p className="font-mono text-xs text-ink-muted">{row.clientCode}</p>
-                      {/* Both ends named, so the row reads without opening anything. */}
-                      <p className="mt-2 text-sm">
-                        <span className="text-ink-muted">{row.fromModelName}</span>
-                        <span aria-hidden="true" className="mx-2 text-ink-muted">→</span>
-                        <span className="font-semibold">{row.toModelName}</span>
-                      </p>
-                      <p className="mt-1 max-w-prose text-sm text-ink-soft">{row.why}</p>
-                      <p className="mt-1.5 text-xs text-ink-muted">
-                        Asked by {row.raisedByName} · {formatDateTime(row.raisedAt)}
-                      </p>
-                      {row.decidedByName && (
-                        <p className="mt-0.5 text-xs text-ink-muted">
-                          {row.statusLabel} by {row.decidedByName}
-                          {row.decidedAt ? ` · ${formatDateTime(row.decidedAt)}` : ""}
-                          {row.decisionNote ? ` — ${row.decisionNote}` : ""}
-                        </p>
-                      )}
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                <th scope="col" className="py-3 pr-4 pl-5">Client</th>
+                <th scope="col" className="px-4 py-3">Change</th>
+                <th scope="col" className="px-4 py-3">Why</th>
+                <th scope="col" className="px-4 py-3">Asked by</th>
+                <th scope="col" className="px-4 py-3">Answered by</th>
+                <th scope="col" className="px-4 py-3">Status</th>
+                <th scope="col" className="py-3 pr-5 pl-4 text-right"><span className="sr-only">Answer</span></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {requests.isPending && (
+                <tr>
+                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">
+                    Reading the requests…
+                  </td>
+                </tr>
+              )}
+              {!requests.isPending && rows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">
+                    {tab === "PENDING" ? "Nothing is waiting for approval." : "Nothing here."}
+                  </td>
+                </tr>
+              )}
+              {rows.map((row) => (
+                <tr key={row.id}>
+                  <td className="py-3 pr-4 pl-5">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={row.clientName} />
+                      <div>
+                        <span className="block font-semibold">{row.clientName}</span>
+                        <span className="block font-mono text-xs text-ink-muted">{row.clientCode}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  </td>
+                  {/* Both ends named, so the row reads without opening anything. */}
+                  <td className="px-4 py-3">
+                    <span className="text-ink-muted">{row.fromModelName}</span>
+                    <span aria-hidden="true" className="mx-2 text-ink-muted">→</span>
+                    <span className="font-semibold">{row.toModelName}</span>
+                  </td>
+                  <td className="min-w-0 px-4 py-3 text-ink-soft">{row.why}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-muted">
+                    {row.raisedByName}
+                    <span className="block text-2xs">{formatDateTime(row.raisedAt)}</span>
+                  </td>
+                  <td className="px-4 py-3 text-ink-muted">
+                    {/* "NA" rather than a dash. Most of this column is empty by design — nothing waiting
+                        has been answered yet — and a column of dashes reads as a column that stopped
+                        working rather than one with nothing to say. */}
+                    {row.decidedByName ?? "NA"}
+                    {row.decidedAt && (
+                      <span className="block text-2xs">{formatDateTime(row.decidedAt)}</span>
+                    )}
+                    {row.decisionNote && <span className="block text-2xs">{row.decisionNote}</span>}
+                  </td>
+                  <td className="px-4 py-3">
                     <Badge tone={TONES[row.status]}>{row.statusLabel}</Badge>
+                  </td>
+                  <td className="py-3 pr-5 pl-4 text-right">
                     {/* Whoever asked cannot answer, so the buttons are not offered to them either. */}
                     {row.status === "PENDING" && mayAnswer && row.raisedBy !== user.id && (
-                      <>
+                      <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                         <Button
                           variant="secondary"
                           size="sm"
@@ -151,19 +173,19 @@ export function ModelChangesPage() {
                         >
                           Approve and move them
                         </Button>
-                      </>
+                      </div>
                     )}
                     {row.status === "PENDING" && mayAnswer && row.raisedBy === user.id && (
-                      <p className="max-w-56 text-xs text-ink-muted">
+                      <p className="ml-auto max-w-56 text-xs text-ink-muted">
                         You asked for this one, so somebody else answers it.
                       </p>
                     )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {(requests.data?.totalItems ?? 0) > 0 && (
           <div className="border-t border-line px-5 py-3">
