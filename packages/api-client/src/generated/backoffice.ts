@@ -5099,6 +5099,7 @@ export interface ReturnOverPeriod {
   to: string | null;
   days: number;
   ayearOrMore: boolean;
+  shortened: boolean;
   /** @nullable */
   opening: number | null;
   /** @nullable */

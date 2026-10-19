@@ -28,6 +28,15 @@ type Figure = {
   lead?: boolean;
   /** What the rest of the industry calls it, where that is not what this screen calls it. */
   tag?: string;
+  /**
+   * Whether this one is a rate per year rather than a figure for the window.
+   *
+   * <p>Two of the four are, and two are not. What it made and what the plan did are what happened over
+   * the window itself; the other two answer "at what yearly rate", which is a different question and
+   * only has an answer over a year. Said per figure because the row that carried it for all of them
+   * labelled the plan's own period return as a yearly rate, which it has never been.
+   */
+  perYear?: boolean;
   said: string;
 };
 
@@ -43,6 +52,7 @@ const FIGURES: Figure[] = [
     id: "moneyWeighted",
     label: "What the client's money earned",
     tag: "XIRR",
+    perYear: true,
     said: "The yearly rate at which every rupee, counted from the day it arrived, comes to what is there "
       + "now. Money that arrived late earned only what happened after it arrived, and this is the only "
       + "figure here that knows that.",
@@ -58,6 +68,7 @@ const FIGURES: Figure[] = [
     id: "cagr",
     label: "Smoothed yearly rate",
     tag: "CAGR",
+    perYear: true,
     said: "The rate the opening figure would have to grow at, every year, to reach the closing one. It "
       + "takes no account of money moving, so where any did it describes the figures rather than the "
       + "earning.",
@@ -170,9 +181,14 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
                           {percent(shown.absolute)} absolute
                         </span>
                       )}
-                      {figure.id !== "gained" && said !== null && !shown.ayearOrMore && (
-                        <span className="mt-0.5 block text-2xs font-normal text-amber-700">
-                          a yearly rate over {shown.days} days
+                      {/* Why it is not there, rather than a bare dash beside three figures that are.
+                          A yearly rate over six days raises the whole window to the power of sixty: it
+                          comes out exact and unusable, and the two figures above it already say what
+                          happened over those days. */}
+                      {figure.perYear && said === null && !shown.ayearOrMore && (
+                        <span className="mt-0.5 block max-w-48 text-2xs font-normal text-amber-700">
+                          Not over {shown.days} days — a rate per year needs a year of it. The two figures
+                          above are this window's own.
                         </span>
                       )}
                     </p>
@@ -182,6 +198,15 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
             </div>
 
             <div className="border-t border-line px-5 py-3 text-xs text-ink-muted">
+              {/* Said in words, not left to be worked out of two dates. A client six days old reads "a
+                  week" on a button and six days in the line under it, and the two have to agree out
+                  loud or the button is quietly lying. */}
+              {shown.shortened && (
+                <p className="mb-1.5 font-medium text-ink-soft">
+                  This client's figures only go back to {shown.from}, so {shown.said.toLowerCase()} is
+                  the {shown.days} days there are.
+                </p>
+              )}
               <p>
                 {shown.from} to {shown.to}, {shown.days} days. Opened at{" "}
                 {exactly(shown.opening ?? 0, currency)}, closed at {exactly(shown.closing ?? 0, currency)}.
