@@ -169,7 +169,9 @@ export function PortfolioClientsPage() {
             <th scope="col" className="px-4 py-3 text-left font-semibold">Status</th>
             {/* The two dates together, because they are read as a pair: how long the firm has had them,
                 and how long since anybody touched it. */}
-            <th scope="col" className="px-4 py-3 text-left font-semibold">Onboarded</th>
+            {/* "Registered", the same word the servicing clients list uses for the same field. Two
+                screens naming one date two ways makes a reader wonder which one they are looking at. */}
+            <th scope="col" className="px-4 py-3 text-left font-semibold">Registered</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Last rebalanced</th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">
               <span className="sr-only">Open</span>
