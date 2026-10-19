@@ -1081,6 +1081,11 @@ export interface LoanRow {
   securedOn: LoanRowSecuredOn;
 }
 
+export interface InceptionRequest {
+  /** @nullable */
+  inceptionOn: string | null;
+}
+
 export type HoldingsRequestHoldings = {[key: string]: number};
 
 export interface HoldingsRequest {
@@ -5215,6 +5220,8 @@ export interface CashflowList {
   paidIn: number;
   takenOut: number;
   currency: string;
+  /** @nullable */
+  inceptionOn: string | null;
 }
 
 export interface ClassContribution {
@@ -8347,6 +8354,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRemoveClientLoanMutationOptions(options), queryClient);
+    }
+
+export const getSetClientInceptionUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/inception`
+}
+
+export const setClientInception = async (customerId: string,
+    inceptionRequest: InceptionRequest, options?: Parameters<typeof http>[1]): Promise<InceptionRequest> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<InceptionRequest>(getSetClientInceptionUrl(customerId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(inceptionRequest)
+  }
+);}
+
+
+
+
+
+export const getSetClientInceptionMutationKey = () => ['setClientInception'] as const;
+
+export const getSetClientInceptionMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setClientInception>>, TError,SetClientInceptionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof setClientInception>>, TError,SetClientInceptionMutationVariables, TContext> => {
+
+const mutationKey = getSetClientInceptionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setClientInception>>, SetClientInceptionMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  setClientInception(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetClientInceptionMutationResult = NonNullable<Awaited<ReturnType<typeof setClientInception>>>
+    export type SetClientInceptionMutationBody = InceptionRequest
+    export type SetClientInceptionMutationError = unknown
+    export type SetClientInceptionMutationVariables = {customerId: string;data: InceptionRequest}
+
+    export const useSetClientInception = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setClientInception>>, TError,SetClientInceptionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setClientInception>>,
+        TError,
+        SetClientInceptionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetClientInceptionMutationOptions(options), queryClient);
     }
 
 export const getListClientHoldingsUrl = (customerId: string,
