@@ -69,6 +69,13 @@ function toDo(amount: number) {
 /** A sub-asset that can take money, how much it can take before it would breach, and the row it is. */
 type Destination = {
   name: string;
+  /**
+   * The sub-asset this sits inside, or empty where it is one itself.
+   *
+   * <p>Carried because a line is identified by where it sits as well as by its name, and a leg naming
+   * only "Large cap" is money that could land under Indian equities or under US equities.
+   */
+  under: string;
   /** What it can still take, after what waiting plans have already promised it. */
   room: number;
   /**
@@ -96,15 +103,27 @@ type Destination = {
  * that line has breached, and now says so in the same breath — so the room offered here and the verdict
  * read beside it cannot disagree, because there is only one of them.
  */
+function theLine(subClass: string | null, subSubClass: string | null) {
+  return `${subClass ?? ""}\t${subSubClass ?? ""}`;
+}
+
 function capacityIn(groups: SubClassGroup[], except: SubClassGroup | null,
     mine: Record<string, number> = {}): Destination[] {
   const places: Destination[] = [];
   for (const one of groups) {
     if (one === except || one.subClass === null) continue;
+    // A sub-asset the plan breaks down is not somewhere money can go: the plan says what the parts of it
+    // should be, so the money goes into one of them. Offering the sub-asset itself as well would let
+    // somebody put money in a place the plan has an opinion about and no target for, and the same room
+    // would be offered twice — once on the parent and once on each line inside it.
+    if (one.inside.length > 0) {
+      places.push(...capacityIn(one.inside, except, mine));
+      continue;
+    }
     // What waiting plans have already promised this line, less whatever of that is the plan being changed
     // here. A plan read against its own claim would see the room it has itself taken and offer to split
     // the figures already in its boxes down to nothing.
-    const asked = one.askedFor - (mine[one.subClass] ?? 0);
+    const asked = one.askedFor - (mine[theLine(one.subClass, one.subSubClass)] ?? 0);
     // Nothing is asked of a client on no model, so nothing is allowed either: with no ceiling to land under
     // there is no breach to avoid and no room to offer. The class beside it answers the same way, which is
     // what keeps a crossing from opening a door the sub-asset list cannot then fill.
@@ -124,7 +143,8 @@ function capacityIn(groups: SubClassGroup[], except: SubClassGroup | null,
     // figure, so a sub-asset sitting exactly at the end of its band came out with room for a
     // ten-thousandth of a penny and took a row in the table to say USD 0.
     places.push({
-      name: one.subClass,
+      name: one.subSubClass ?? one.subClass,
+      under: (one.subSubClass === null) ? "" : one.subClass,
       // Clamped after the claim is taken off, not before: a line whose room was whole until a plan spoke
       // for all but a hair of it has to come out as nothing, not as that hair.
       room: room < 1 ? 0 : room,
@@ -469,8 +489,12 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
       .map((place) => ({
         fromAssetClass: assetClass,
         fromSubClass: rows[0]?.subClass ?? null,
+        fromSubSubClass: rows[0]?.subSubClass ?? null,
         toAssetClass: goingTo ?? assetClass,
-        toSubClass: place.name,
+        // Both ends of where it lands. A destination inside a sub-asset says which sub-asset; one that
+        // is a sub-asset itself says only itself, the way every leg did before the plan went three deep.
+        toSubClass: place.under === "" ? place.name : place.under,
+        toSubSubClass: place.under === "" ? null : place.name,
         amount: typed(moves[place.name]),
         heldWhenRaised: inHand,
       }));
@@ -1447,7 +1471,7 @@ export function ClientHoldingsPanel({
         // that line as full — it is full of this very plan, and this is the window for changing it.
         const ours: Record<string, number> = {};
         for (const leg of planning.changing?.legs ?? []) {
-          const into = leg.toSubClass ?? UNGROUPED;
+          const into = theLine(leg.toSubClass, leg.toSubSubClass);
           ours[into] = (ours[into] ?? 0) + leg.amount;
         }
         return (
