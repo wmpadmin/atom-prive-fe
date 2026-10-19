@@ -19,6 +19,15 @@ import { loanOnFile, toThePenny } from "./the-calculator";
 type Line = {
   /** What this line is already written down as, where it is. Null for one nobody has written yet. */
   id: string | null;
+  /**
+   * The sub-asset this line sits inside, or empty where it is one itself.
+   *
+   * <p>The plan may break a sub-asset into lines of its own, and then it is those that are held rather
+   * than the sub-asset: a plan asking for 60% of Indian equities in large cap has an opinion about large
+   * cap and none about an unsplit lump called Indian equities. Where it sits is part of what a line is —
+   * "Large cap" under Indian equities and "Large cap" under US equities are two different holdings.
+   */
+  under: string;
   /** The name as it will be stored. The firm's lines keep theirs; a line of this client's own is theirs to reword. */
   name: string;
   /** What is in it, as typed. Kept as a string so a half-typed figure is not rounded away under the cursor. */
@@ -26,6 +35,11 @@ type Line = {
   /** Whether the firm named this line, and so whether it may be reworded or taken off here. */
   theFirms: boolean;
 };
+
+/** Where a line sits, which with its name is what identifies it. */
+function whereItSits(subClass: string, subSubClass: string) {
+  return `${subClass}\t${subSubClass}`;
+}
 
 /** Figures only, and one point. Letters in a money box are not a small mistake to round away. */
 function asFigure(typed: string, before: string) {
@@ -84,26 +98,58 @@ export function AllocationStep({ customerId, onDone, draft, onDraft }: StepProps
       // on file, which are the ones being changed.
       const written = draft?.held
         ? (draft.held.classes.find((each) => each.assetClass === one.code)?.lines ?? [])
-          .map((line) => ({ id: line.id, subClass: line.name, name: line.name, valueAmount: line.valueAmount }))
+          .map((line) => ({
+            id: line.id,
+            subClass: (line.under ?? "") === "" ? line.name : line.under,
+            subSubClass: (line.under ?? "") === "" ? null : line.name,
+            name: line.name,
+            valueAmount: line.valueAmount,
+          }))
         : (holdings.data?.classes ?? [])
           .find((each) => each.assetClass === one.code)?.subClasses
-          .flatMap((group) => group.positions) ?? [];
-      const byName = new Map(written.map((each) => [(each.subClass ?? each.name).trim(), each]));
-      const rows: Line[] = (subAssets.byClass[one.code] ?? []).map((name) => {
-        const already = byName.get(name);
-        byName.delete(name);
-        return {
-          id: already?.id ?? null,
-          name,
-          amount: (already == null) ? "" : String(already.valueAmount),
-          theFirms: true,
-        };
+          // Everything inside the class, however deep: what sits in a sub-asset and what sits in a line
+          // of one. Reading only the first of those left the deeper figures out of the boxes on this
+          // screen — and what this screen stops naming is what the client stops holding, so a line the
+          // boxes never showed would have been taken off them by saving a screen nobody meant to change.
+          .flatMap((group) => [...group.positions, ...group.inside.flatMap((deeper) => deeper.positions)])
+        ?? [];
+      const byName = new Map(written.map((each) =>
+        [whereItSits((each.subClass ?? each.name).trim(), each.subSubClass ?? ""), each]));
+      // What this client's own plan breaks each sub-asset into, read off the figures already in hand.
+      // The platform lists a line the plan names even where nobody holds any of it, so this is the plan's
+      // own breakdown rather than a reading of what happens to have money in it.
+      const planned = new Map((holdings.data?.classes ?? [])
+        .find((each) => each.assetClass === one.code)?.subClasses
+        .map((group) => [group.subClass ?? "", group.inside.map((deeper) => deeper.subSubClass ?? "")]) ?? []);
+      const rows: Line[] = (subAssets.byClass[one.code] ?? []).flatMap((name) => {
+        const inside = (planned.get(name) ?? []).filter((deeper) => deeper !== "");
+        // A sub-asset the plan has broken down is not typed into itself: what is held are its parts, and
+        // a box for the parent beside boxes for its parts would count the same money twice.
+        const named = (inside.length > 0) ? inside.map((deeper) => ({ under: name, name: deeper }))
+          : [{ under: "", name }];
+        return named.map((where) => {
+          const key = whereItSits(where.under === "" ? where.name : where.under,
+            where.under === "" ? "" : where.name);
+          const already = byName.get(key);
+          byName.delete(key);
+          return {
+            id: already?.id ?? null,
+            under: where.under,
+            name: where.name,
+            amount: (already == null) ? "" : String(already.valueAmount),
+            theFirms: true,
+          };
+        });
       });
-      // Written down under a name the firm does not list: this client's own, and theirs to reword.
+      // Written down somewhere the firm's list and this client's plan do not name: their own, and theirs
+      // to reword. A line inside a sub-asset keeps where it sits — reworded into a bare name it would
+      // land somewhere else, which is money moving because somebody edited a label.
       for (const each of byName.values()) {
+        const deeper = (each.subSubClass ?? "").trim();
         rows.push({
           id: each.id,
-          name: (each.subClass ?? each.name).trim(),
+          under: (deeper === "") ? "" : (each.subClass ?? "").trim(),
+          name: (deeper === "") ? (each.subClass ?? each.name).trim() : deeper,
           amount: String(each.valueAmount),
           theFirms: false,
         });
@@ -187,6 +233,7 @@ export function AllocationStep({ customerId, onDone, draft, onDraft }: StepProps
             .filter((line) => isNumber(line.amount) && Number(line.amount) > 0)
             .map((line) => ({
               id: line.id,
+              under: line.under,
               name: line.name.trim(),
               valueAmount: toThePenny(Number(line.amount)),
             })),
@@ -274,7 +321,17 @@ export function AllocationStep({ customerId, onDone, draft, onDraft }: StepProps
               {rows.map((line, at) => (
                 <li key={at} className="flex items-center gap-3 border-b border-ink/15 py-1">
                   {line.theFirms ? (
-                    <span className="min-w-0 flex-1 truncate text-sm text-ink">{line.name}</span>
+                    // Named with where it sits where that is not the class itself. These sit in one list
+                    // beside the sub-assets that were not broken down, and "Large cap" on its own says
+                    // nothing about which sub-asset's large cap it is.
+                    <span className="min-w-0 flex-1 truncate text-sm text-ink">
+                      {line.under === "" ? line.name : (
+                        <>
+                          <span className="text-ink-muted">{line.under} · </span>
+                          {line.name}
+                        </>
+                      )}
+                    </span>
                   ) : (
                     <TextInput
                       aria-label={`Name of the line added under ${one.name}`}
@@ -370,7 +427,7 @@ export function AllocationStep({ customerId, onDone, draft, onDraft }: StepProps
               <button
                 type="button"
                 onClick={() => put(one.code, [...rows,
-                  { id: null, name: "", amount: "", theFirms: false }])}
+                  { id: null, under: "", name: "", amount: "", theFirms: false }])}
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
               >
                 <Plus aria-hidden="true" className="size-3.5" />
