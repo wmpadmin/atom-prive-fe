@@ -50,11 +50,10 @@ export function ProposalsHeader({
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[1.625rem] font-bold">Proposals</h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            {everyAdvisors ? "Every advisor's. " : "Your clients only. "}
-            Open one for the full proposal, the client's decision and its audit trail. Advisory only — the
-            platform never places a trade.
+          {/* Whose they are, which the screen above cannot say: it is this reader's own answer, not the
+              queue's. The queue's own masthead sits above the tabs. */}
+          <p className="text-sm font-semibold text-ink">
+            {everyAdvisors ? "Every advisor's proposals." : "Your clients' proposals."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

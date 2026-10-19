@@ -8,7 +8,6 @@ import {
 import { Alert, Avatar, Badge, Button, FilterMenu } from "@atomprive/ui";
 import { useState } from "react";
 import { Link } from "react-router";
-import { ListPageHeader } from "../../components/record-list";
 import { formatDateTime } from "../../lib/labels";
 import { AnswerDialog } from "./answer-dialog";
 
@@ -77,10 +76,6 @@ export function AllocationsToApprovePage() {
 
   return (
     <div className="space-y-5">
-      <ListPageHeader
-        title="Figures to approve"
-        lead={"Asks to rewrite what a client holds. Nothing has changed: saying yes is what writes them."}
-      />
 
       {/* Two sections named the state a row was in and left the reader no way to ask for one: everything
           decided arrived at once, under everything still waiting, however long ago it was answered, and a

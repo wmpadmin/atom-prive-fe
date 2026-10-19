@@ -62,7 +62,7 @@ export function ClientMovesPage() {
     <div className="space-y-5">
       <div>
         <Link
-          to={cameBy === "client" ? "/moves-to-approve?by=client" : "/moves-to-approve"}
+          to={cameBy === "client" ? "/approvals?queue=moves&by=client" : "/approvals?queue=moves"}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 underline-offset-2 hover:underline"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
