@@ -97,7 +97,7 @@ export function AmlClientPage() {
             </p>
           </div>
         ) : (
-          <span className="inline-flex items-center gap-2 text-sm font-semibold text-danger-700">
+          <span className="inline-flex items-center gap-2 text-sm font-semibold text-red-700">
             <ShieldAlert className="size-4" aria-hidden="true" />
             Never rated
           </span>
