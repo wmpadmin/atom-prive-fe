@@ -58,12 +58,17 @@ export function DailyTrackerDayPage() {
     ? null : versionAndTheOneBefore(history.data?.points ?? [], reading);
   const shownLines = pair?.version.lines ?? {};
   const beforeLines = pair?.before?.lines ?? {};
+  // What each class held, which the platform has kept since long before it kept the lines inside them.
+  // Read here because the page used to look only at the lines: a day recorded by class alone had every
+  // figure on screen in the row that led here and told the reader there was nothing to show.
+  const shownClasses = pair?.version.holdings ?? {};
+  const beforeClasses = pair?.before?.holdings ?? {};
   const worth = pair?.version.underManagement ?? 0;
   const movedBy = (pair === null || pair.before === null)
     ? null : pair.version.underManagement - pair.before.underManagement;
   const codes = classes.inUse
     .map((one) => one.code)
-    .filter((code) => Object.keys(shownLines[code] ?? {}).length > 0);
+    .filter((code) => Object.keys(shownLines[code] ?? {}).length > 0 || (shownClasses[code] ?? 0) !== 0);
 
   return (
     <div className="space-y-5">
@@ -189,6 +194,7 @@ export function DailyTrackerDayPage() {
             </p>
             <div className="mt-3">
               <Inside on={on} lines={shownLines} before={beforeLines} first={pair?.before == null}
+                classes={shownClasses} beforeClasses={beforeClasses}
                 codes={codes} names={classes.names} currency={currency} />
             </div>
           </section>
@@ -336,30 +342,35 @@ function Changes({ day, currency, reading, onPick }: {
   );
 }
 
-function Inside({ on, lines, before, first, codes, names, currency }: {
+function Inside({ on, lines, before, first, classes, beforeClasses, codes, names, currency }: {
   on: string;
   lines: Record<string, Record<string, number>>;
   before: Record<string, Record<string, number>>;
   /** Whether nothing was written before this change, so there is nothing to measure it against. */
   first: boolean;
+  /** What each class held, which is kept on every day the platform has ever written. */
+  classes: Record<string, number>;
+  beforeClasses: Record<string, number>;
   codes: string[];
   names: Record<string, string>;
   currency: string;
 }) {
-  const shown = codes.filter((code) => Object.keys(lines[code] ?? {}).length > 0);
-  if (shown.length === 0) {
+  if (codes.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-line px-5 py-6 text-center text-sm text-ink-muted">
-        This day was written before the platform kept what each line was worth, so there is nothing to
-        show. Days written from now on have it.
+        Nothing was written down under any class on this day.
       </p>
     );
   }
   return (
     <ul className="space-y-3">
-      {shown.map((code) => {
+      {codes.map((code) => {
         const now: Record<string, number> = lines[code] ?? {};
         const was: Record<string, number> = before[code] ?? {};
+        // A day recorded by class alone, which is every day written before the platform kept the lines
+        // inside a class. It has a figure for the class and nothing under it — which is a different thing
+        // from a class holding nothing, and the page used to say the second about the first.
+        const byClassOnly = Object.keys(now).length === 0;
         // Every line either side of the change, so one that has gone is still named rather than simply
         // absent — a line that disappears without a word reads as a line nobody wrote down.
         const every = [...new Set([...Object.keys(now), ...Object.keys(was)])].sort();
@@ -368,14 +379,57 @@ function Inside({ on, lines, before, first, codes, names, currency }: {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/15 px-5 py-3">
               <span className="font-semibold">{nameOf(code, names)}</span>
               <span className="flex items-center gap-3">
+                {/* Said because the two can differ: the class total and the lines under it are written
+                    from different readings of the client, so a card whose parts do not come to its
+                    heading is telling the truth about both rather than hiding one of them. */}
                 <span className="text-2xs tracking-wider whitespace-nowrap text-ink-muted uppercase">
-                  From its lines
+                  {byClassOnly ? "The class total" : "From its lines"}
                 </span>
                 <span className="tabular-nums font-semibold">
-                  {currency} {money(Object.values(now).reduce((sum: number, each) => sum + each, 0))}
+                  {currency} {money(byClassOnly
+                    ? (classes[code] ?? 0)
+                    : Object.values(now).reduce((sum: number, each) => sum + each, 0))}
                 </span>
               </span>
             </div>
+            {/* A day recorded by class alone has a figure and nothing under it. It used to show as a
+                blank page saying the platform knew nothing about the day, with the very figure it was
+                denying printed on the row that led here. Said plainly instead: what the class held, what
+                it held before, and that the breakdown was not kept that day. */}
+            {byClassOnly ? (
+              <dl className="grid grid-cols-2 gap-x-5 gap-y-1 px-5 py-4 text-sm sm:grid-cols-3">
+                <div>
+                  <dt className="text-2xs tracking-wider text-ink-muted uppercase">Before</dt>
+                  <dd className="tabular-nums text-ink-muted">
+                    {first || beforeClasses[code] === undefined ? "—" : money(beforeClasses[code])}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-2xs tracking-wider text-ink-muted uppercase">Held</dt>
+                  <dd className="font-medium tabular-nums">{money(classes[code] ?? 0)}</dd>
+                </div>
+                <div>
+                  <dt className="text-2xs tracking-wider text-ink-muted uppercase">Moved</dt>
+                  <dd className={cn("tabular-nums",
+                    first || beforeClasses[code] === undefined ? "text-ink-muted"
+                      : (classes[code] ?? 0) - beforeClasses[code] > 0 ? "text-emerald-700"
+                        : (classes[code] ?? 0) - beforeClasses[code] < 0 ? "text-danger-700"
+                          : "text-ink-muted")}
+                  >
+                    {first || beforeClasses[code] === undefined
+                      ? "—"
+                      : (classes[code] ?? 0) - beforeClasses[code] === 0
+                        ? "no change"
+                        : `${(classes[code] ?? 0) - beforeClasses[code] > 0 ? "+" : "−"}`
+                          + money(Math.abs((classes[code] ?? 0) - beforeClasses[code]))}
+                  </dd>
+                </div>
+                <p className="col-span-full mt-1 text-2xs text-ink-muted">
+                  What each sub-asset inside this class held was not kept on this day. Days written since
+                  the platform started keeping it have the breakdown.
+                </p>
+              </dl>
+            ) : (
             <div className="overflow-x-auto">
               {/* Laid out to fixed widths, the same in every card. Sized to their contents instead, each
                   class worked its columns out from its own longest name — so "FX Derivatives" and "Yield
@@ -404,6 +458,12 @@ function Inside({ on, lines, before, first, codes, names, currency }: {
                   {every.map((line) => {
                     const held = now[line];
                     const before = was[line];
+                    // Known only where the change before this one recorded its lines at all. It may not
+                    // have: the platform kept class totals for a fortnight before it kept what was inside
+                    // them, so a line's figure beforehand can be unrecorded rather than nought — and read
+                    // as nought, every line on the first day that kept them was printed as money arriving
+                    // that had in truth been sitting there all along.
+                    const knownBefore = !first && Object.keys(was).length > 0;
                     const moved = (held ?? 0) - (before ?? 0);
                     return (
                       <tr key={line}>
@@ -413,15 +473,16 @@ function Inside({ on, lines, before, first, codes, names, currency }: {
                           {line}
                         </th>
                         <td className="px-5 py-3 text-right tabular-nums text-ink-muted">
-                          {first ? "—" : before === undefined ? "not held" : money(before)}
+                          {!knownBefore ? "—" : before === undefined ? "not held" : money(before)}
                         </td>
                         <td className="px-5 py-3 text-right tabular-nums font-medium text-ink">
                           {held === undefined ? "gone" : money(held)}
                         </td>
                         <td className={cn("px-5 py-3 text-right tabular-nums",
-                          moved > 0 ? "text-emerald-700" : moved < 0 ? "text-danger-700" : "text-ink-muted")}
+                          !knownBefore ? "text-ink-muted"
+                            : moved > 0 ? "text-emerald-700" : moved < 0 ? "text-danger-700" : "text-ink-muted")}
                         >
-                          {first
+                          {!knownBefore
                             ? "—"
                             : moved === 0
                               ? "no change"
@@ -433,6 +494,7 @@ function Inside({ on, lines, before, first, codes, names, currency }: {
                 </tbody>
               </table>
             </div>
+            )}
           </li>
         );
       })}
