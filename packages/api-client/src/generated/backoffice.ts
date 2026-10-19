@@ -1763,11 +1763,11 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -5057,6 +5057,7 @@ export interface ValuationPoint {
   valuedOn: string;
   revision: number;
   closedTheDay: boolean;
+  recordedAt: string;
   underManagement: number;
   holdings: ValuationPointHoldings;
   lines: ValuationPointLines;

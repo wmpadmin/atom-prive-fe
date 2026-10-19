@@ -81,7 +81,7 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
           <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Daily tracker</h2>
           <p className="mt-1 max-w-prose text-xs text-ink-muted">
             What the portfolio was worth each day, and what moved since the day before. Every change
-            writes its own version; a day shows the one it ended on and opens onto the rest. A day is
+            writes its own record; a day shows the one it ended on and opens onto the list of them. A day is
             written when somebody writes the holdings down, so a gap is a day nobody wrote anything —
             not a day nothing happened.
           </p>
@@ -169,6 +169,14 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
                       <ChevronRight aria-hidden="true" className="size-3.5 shrink-0" />
                       {day.on}
                     </Link>
+                    {/* How many changes the day holds, said on the row rather than found by opening it.
+                        A day written five times and a day written once looked identical here, and the
+                        figures on this row are only ever the last of them. */}
+                    {day.versions.length > 1 && (
+                      <span className="mt-0.5 block pl-5 text-2xs font-normal text-ink-muted">
+                        {day.versions.length} changes
+                      </span>
+                    )}
                   </th>
                   <td className="px-4 py-3 text-right tabular-nums font-semibold text-ink">
                     {money(day.worth)}
