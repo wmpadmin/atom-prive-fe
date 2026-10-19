@@ -201,7 +201,7 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
                       <span className="text-ink-muted">—</span>
                     ) : (
                       <span className={cn("font-semibold",
-                        day.moved > 0 ? "text-emerald-700" : day.moved < 0 ? "text-danger-700" : "text-ink-muted")}
+                        day.moved > 0 ? "text-emerald-700" : day.moved < 0 ? "text-red-700" : "text-ink-muted")}
                       >
                         {day.moved > 0 ? "+" : day.moved < 0 ? "−" : ""}{money(Math.abs(day.moved))}
                         {day.movedShare !== null && (

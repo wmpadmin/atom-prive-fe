@@ -6,11 +6,17 @@ import {
   getListClientLoansQueryKey,
   getListNonFinancialAssetsQueryKey,
   useAskToRewriteAllocation,
+  useListClientAllocationChanges,
   useListClientHoldings,
   useListClientLoans,
+  useListClientMovePlans,
+  useListClientRestores,
   useListNonFinancialAssets,
   useWriteClientAllocation,
+  type AllocationChangeRow,
   type ClientHoldings,
+  type MovePlanRow,
+  type RestoreRow,
   type ClientLoans,
   type LoanRequestSecuredOn,
   type ClientNonFinancialAssets,
@@ -97,6 +103,12 @@ function named(one: Line, hasItem: boolean) {
  * is owed — and neither is long enough to be worth a sitting of its own. Both are kept off the allocation:
  * a target is a share of money that can be moved to reach it, and neither a house nor a debt can be moved.
  */
+/** "a money move", "a money move and a restore" — a list as a sentence says it. */
+function andList(words: string[]) {
+  if (words.length <= 1) return words.join("");
+  return `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
+}
+
 export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepProps) {
   const queryClient = useQueryClient();
   const owned = useListNonFinancialAssets<ClientNonFinancialAssets, ApiError>(customerId);
@@ -234,6 +246,24 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
   const changing = !holdings.isPending && !owned.isPending && !owed.isPending
     && saysSomethingNew(whole, onFile);
   const asking = changing && alreadyWritten;
+  /*
+   * What is already waiting on this client, which the server refuses to let anything be raised over.
+   * Each of the three asks is weighed against the figures as they stand and applied as though it were
+   * the only one, so a second raised over a first asks for money out of a line that may no longer hold it.
+   *
+   * Read here, where the walk can be stopped before it starts. The refusal came from the server at the
+   * last press, so somebody typed four steps and a reason to be told at the end that none of it could be
+   * asked for — and the figures they had typed went with the dialog.
+   */
+  const moves = useListClientMovePlans<MovePlanRow[], ApiError>(customerId);
+  const restoring = useListClientRestores<RestoreRow[], ApiError>(customerId);
+  const rewriting = useListClientAllocationChanges<AllocationChangeRow[], ApiError>(customerId);
+  const already = [
+    (moves.data ?? []).find((one) => one.status === "PENDING" || one.status === "RETURNED")
+      && "a money move",
+    (restoring.data ?? []).find((one) => one.status === "PENDING") && "an ask to put the figures back",
+    (rewriting.data ?? []).find((one) => one.status === "PENDING") && "an ask to rewrite these figures",
+  ].filter((one): one is string => typeof one === "string");
 
   async function save() {
     if (!changing) {
@@ -290,12 +320,35 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
 
   return (
     <div className="flex flex-1 flex-col space-y-4">
+      {/* Said before anything is typed rather than after it is all typed. The server refuses to raise a
+          second ask over a first, and it refused at the last press — so a reader filled four steps and a
+          reason, was told none of it could be asked for, and lost the figures with the dialog. */}
+      {already.length > 0 && (
+        <Alert tone="warning">
+          <p className="font-semibold">
+            {already.length === 1
+              ? `There is already ${already[0]} waiting on this client.`
+              : `There are already ${andList(already)} waiting on this client.`}
+          </p>
+          <p className="mt-1 text-sm">
+            Nothing more can be asked for until that is answered or taken back. Each ask is weighed
+            against the figures as they stand and applied as though it were the only one, so a second
+            raised over the first would ask for money out of a line that may no longer hold it.
+          </p>
+        </Alert>
+      )}
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       {/* What they own. Three boxes, because a flat and a painting need different things said about them. */}
       <section className="rounded-2xl border border-line bg-white">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink/15 px-4 py-2">
           <h2 className="font-semibold text-ink">Non Financial Asset</h2>
+          {/* Said, because an empty row with a "Pick what it is…" in it reads as a question that has to
+              be answered. Plenty of clients own nothing outside the portfolio, and the row is left
+              exactly as it is for them. */}
+          <p className="text-xs font-normal text-ink-muted">
+            A house, a painting, a stake in their own company. Leave it empty where there is none.
+          </p>
           <p className="text-sm font-bold tabular-nums text-ink">
             {ownedTotal > 0 ? `${money(ownedTotal, false)} ${currency}` : "—"}
           </p>
@@ -444,19 +497,32 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
       {/* Asked for, where there is something to overrule. The reason is what whoever answers is really
           being asked about: a page of figures with no sentence beside it asks somebody to agree to
           arithmetic. Here rather than a step back, because this is the step that sends. */}
+      {/* Marked while it is empty, not merely starred. This box appears because something on one of the
+          steps was changed — on either of them: what the walk holds is the lines from the first step and
+          the list from this one, weighed together against what is on file. It is the one thing holding
+          the only button on the step, and a reader who could not see that went hunting through the step
+          for a box they had failed to fill. */}
       {asking && (
-        <div className="mt-6 rounded-xl border border-line bg-slate-50/60 px-4 py-3">
+        <div className={cn("mt-6 rounded-xl border px-4 py-3",
+          why.trim() === "" ? "border-red-600 bg-red-50/40" : "border-line bg-slate-50/60")}>
           <label htmlFor="why-it-changed"
             className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            Why it should change
+            Why it should change <span aria-hidden="true" className="text-red-700">*</span>
+            <span className="sr-only">(required)</span>
           </label>
           <TextInput
             id="why-it-changed"
-            className="mt-1.5"
+            aria-invalid={why.trim() === "" || undefined}
+            className={cn("mt-1.5", why.trim() === "" && "border-red-600 ring-1 ring-red-600")}
             value={why}
             placeholder="The custodian statement came in at a different figure."
             onChange={(event) => setWhy(event.target.value)}
           />
+          {why.trim() === "" && (
+            <p className="mt-1.5 text-xs font-medium text-red-700">
+              A figure has changed, so this is needed before it can be asked for.
+            </p>
+          )}
           <p className="mt-2 text-xs text-ink-muted">
             This client's figures are already written down, so the whole calculator — what they hold, what
             they owe and what they own outright — is answered by whoever looks after them. Nothing changes
@@ -469,10 +535,23 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
         <Button variant="secondary" size="lg" type="button" onClick={back}>
           Back
         </Button>
+        {/* What is holding the button, beside the button. Disabled with nothing to say, it sent its
+            reader hunting through the step for a box they had failed to fill — and the likeliest guess,
+            the empty row at the top asking what the client owns outright, is the one thing on this step
+            that may be left alone. */}
+        {!busy && (!readable || already.length > 0 || (asking && why.trim() === "")) && (
+          <p className="mr-auto text-xs text-red-700">
+            {already.length > 0
+              ? "Nothing can be asked for while something is waiting on this client."
+              : !readable
+                ? "Put right what is marked above first."
+                : "Say why it should change. Whoever answers is being asked about the reason."}
+          </p>
+        )}
         <Button
           type="button"
           size="lg"
-          disabled={busy || !readable || (asking && why.trim() === "")}
+          disabled={busy || !readable || already.length > 0 || (asking && why.trim() === "")}
           onClick={() => void save()}
         >
           {busy

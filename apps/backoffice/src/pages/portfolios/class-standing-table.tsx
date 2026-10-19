@@ -214,7 +214,7 @@ export function ClassStandingTable({
           `Here the buying is ${money(moving)} more than the selling, which is what the client is said to `
           + "have that nobody has written down yet. It has to go somewhere, and nothing is sold to pay for it."
         ) : (
-          <span className="font-medium text-danger-700">
+          <span className="font-medium text-red-700">
             Here they do not cancel out, by {money(moving)}. That is more than rounding, so these figures need
             looking at before anything is traded on them.
           </span>

@@ -1341,7 +1341,7 @@ export function ClientHoldingsPanel({
           <p className="mt-2 text-sm">
             Nothing has moved. The figures below are what is written down.
           </p>
-          {planFailed && <p className="mt-2 text-sm font-medium text-danger-700">{planFailed}</p>}
+          {planFailed && <p className="mt-2 text-sm font-medium text-red-700">{planFailed}</p>}
         </Alert>
       )}
 

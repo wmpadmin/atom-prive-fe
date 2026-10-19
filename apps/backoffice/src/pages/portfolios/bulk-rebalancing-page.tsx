@@ -467,7 +467,7 @@ function Fact({ label, children, tone }: { label: string; children: React.ReactN
   return (
     <div className="rounded-xl border border-line bg-white px-4 py-3">
       <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
-      <dd className={cn("mt-0.5 text-lg font-bold tabular-nums", tone === "danger" ? "text-danger-700" : "text-ink")}>
+      <dd className={cn("mt-0.5 text-lg font-bold tabular-nums", tone === "danger" ? "text-red-700" : "text-ink")}>
         {children}
       </dd>
     </div>

@@ -178,7 +178,7 @@ export function DailyTrackerChangePage() {
                 <p className={cn("mt-1 text-2xl font-bold tabular-nums",
                   movedBy === null ? "text-ink-muted"
                     : movedBy > 0 ? "text-emerald-700"
-                      : movedBy < 0 ? "text-danger-700" : "text-ink-muted")}
+                      : movedBy < 0 ? "text-red-700" : "text-ink-muted")}
                 >
                   {movedBy === null
                     ? "—"
@@ -567,7 +567,7 @@ function Inside({ on, lines, before, first, classes, beforeClasses, codes, names
                   <dd className={cn("tabular-nums",
                     first || beforeClasses[code] === undefined ? "text-ink-muted"
                       : (classes[code] ?? 0) - beforeClasses[code] > 0 ? "text-emerald-700"
-                        : (classes[code] ?? 0) - beforeClasses[code] < 0 ? "text-danger-700"
+                        : (classes[code] ?? 0) - beforeClasses[code] < 0 ? "text-red-700"
                           : "text-ink-muted")}
                   >
                     {first || beforeClasses[code] === undefined
@@ -634,7 +634,7 @@ function Inside({ on, lines, before, first, classes, beforeClasses, codes, names
                         </td>
                         <td className={cn("px-5 py-3 text-right tabular-nums",
                           !knownBefore ? "text-ink-muted"
-                            : moved > 0 ? "text-emerald-700" : moved < 0 ? "text-danger-700" : "text-ink-muted")}
+                            : moved > 0 ? "text-emerald-700" : moved < 0 ? "text-red-700" : "text-ink-muted")}
                         >
                           {!knownBefore
                             ? "—"
