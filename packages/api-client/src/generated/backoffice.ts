@@ -709,6 +709,8 @@ export interface SubAllocationRequest {
      */
   shareOfClass: number;
   band: BandRequest | null;
+  /** @nullable */
+  lines: SubAllocationRequest[] | null;
 }
 
 /**
