@@ -23,7 +23,6 @@ import {
   ArrowLeftRight,
   BellRing,
   ChevronDown,
-  ChevronRight,
   ClipboardCheck,
   Clock,
   Contact,
@@ -57,7 +56,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
-import { MENU_GROUPS } from "./menu-groups";
+import { MENU_ORDER } from "./menu-order";
 import { hasAnyAuthority, hasAuthority, ANSWERS_MOVE_PLANS, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
@@ -509,9 +508,6 @@ function NavEntry({
 export function AppLayout() {
   const user = useStaffUser();
   const { pathname, search } = useLocation();
-  // Which groups somebody has opened or shut by hand. Untouched, a group is open when the page being
-  // read is inside it — so arriving anywhere shows where it sits, and the other two stay folded away.
-  const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const permitted = (item: (typeof allNavigation)[number]) =>
     item.authority === null ||
     (Array.isArray(item.authority) ? hasAnyAuthority(user, ...item.authority) : hasAuthority(user, item.authority));
@@ -549,61 +545,37 @@ export function AppLayout() {
    * Drawn from one account's access, the map would be a map of that account's permissions.
    */
   /*
-   * The menu as the three stories it tells, each in the order the work is actually done rather than the
-   * order the entries happen to be declared in.
+   * The menu as one list, in the order the work is actually done rather than the order the entries
+   * happen to be declared in.
    *
-   * <p>Only what this reader may open: the groups are a way of arranging the menu they already had, not
-   * a way of showing them screens they cannot reach. A group with nothing left in it is not drawn.
+   * <p>One list rather than three folded sections. Folded, a reader who knew the name of the screen they
+   * wanted still had to guess which section the firm had filed it under, and open it to find out.
+   *
+   * <p>Anything the order does not name is drawn after the ones it does, rather than dropped. A menu
+   * built only from a hand-written list loses a screen the day somebody adds one and forgets to write it
+   * down, which has happened here: two approval queues existed, worked, and could be reached by nothing
+   * but a typed address.
+   *
+   * <p>Only what this reader may open, as before — the order arranges the menu they already had rather
+   * than offering screens they cannot reach.
    */
-  const groups = MENU_GROUPS
-    .map((group) => ({
-      ...group,
-      items: group.routes
-        .map((route) => sections.find((item) => item.to === route))
-        .filter((item) => item !== undefined),
-    }))
-    .filter((group) => group.items.length > 0);
-  // The group holding the page being read, which is the one that opens itself.
-  const holding = groups.find((group) => group.items.some((item) => isHere(item, pathname, search)))?.key;
+  const named = MENU_ORDER
+    .map((route) => sections.find((item) => item.to === route))
+    .filter((item) => item !== undefined);
+  const items = [...named, ...sections.filter((item) => !MENU_ORDER.includes(item.to))];
 
   return (
     <div className="flex min-h-screen bg-canvas font-sans text-ink">
       <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-line bg-sidebar px-4 py-6">
-        <nav aria-label="Back-office" className="mt-14">
-          <div className="space-y-1">
-            {groups.map((group) => {
-              const open = toggled[group.key] ?? group.key === holding;
-              return (
-                <div key={group.key}>
-                  <button
-                    type="button"
-                    aria-expanded={open}
-                    onClick={() => setToggled((was) => ({ ...was, [group.key]: !open }))}
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left",
-                      "text-2xs font-semibold tracking-wider uppercase",
-                      open ? "text-ink" : "text-ink-muted hover:text-ink",
-                    )}
-                  >
-                    <ChevronRight
-                      aria-hidden="true"
-                      className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")}
-                    />
-                    <span className="min-w-0 flex-1">{group.title}</span>
-                    {/* What is folded away, so a shut group says how much it is hiding. */}
-                    {!open && <span className="shrink-0 tabular-nums">{group.items.length}</span>}
-                  </button>
-                  {open && (
-                    <ul className="space-y-1 pb-1">
-                      {group.items.map((item) => (
-                        <NavEntry key={item.to} item={item} pathname={pathname} search={search} />
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        {/* Scrolls on its own rather than with the page: the whole menu is on screen at once now, and on
+            a short window the foot of it has to be reachable without the sidebar's own status panel
+            sliding away under it. */}
+        <nav aria-label="Back-office" className="mt-14 min-h-0 flex-1 overflow-y-auto">
+          <ul className="space-y-1">
+            {items.map((item) => (
+              <NavEntry key={item.to} item={item} pathname={pathname} search={search} />
+            ))}
+          </ul>
         </nav>
 
         {/* Pushed to the foot of the sidebar: it is there to be glanced at, not read. */}
