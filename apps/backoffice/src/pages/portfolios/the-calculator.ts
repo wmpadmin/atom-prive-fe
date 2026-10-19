@@ -30,11 +30,24 @@ export function toThePenny(figure: number) {
 export function linesOnFile(holdings: ClientHoldings | undefined): AllocationClass[] {
   return (holdings?.classes ?? []).map((klass) => ({
     assetClass: klass.assetClass,
-    lines: klass.subClasses.flatMap((group) => group.positions).map((one) => ({
-      id: one.id,
-      name: (one.subClass ?? one.name).trim(),
-      valueAmount: one.valueAmount,
-    })),
+    lines: klass.subClasses.flatMap((group) => [
+      // What sits directly in the sub-asset, which is what every line was until the plan went three deep.
+      ...group.positions.map((one) => ({
+        id: one.id,
+        under: "",
+        name: (one.subClass ?? one.name).trim(),
+        valueAmount: one.valueAmount,
+      })),
+      // And what sits in a line of it, which says what it sits in as well as what it is called. Walked
+      // rather than flattened away: a holding left out here is a holding the calculator would take off
+      // the client, because what this screen stops naming is what it stops holding.
+      ...group.inside.flatMap((deeper) => deeper.positions.map((one) => ({
+        id: one.id,
+        under: (deeper.subClass ?? "").trim(),
+        name: (one.subSubClass ?? one.name).trim(),
+        valueAmount: one.valueAmount,
+      }))),
+    ]),
   }));
 }
 
@@ -59,8 +72,13 @@ export function ownedOnFile(owned: ClientNonFinancialAssets | undefined): NonFin
 
 /** One line of the calculator, written out so two readings of it can be set side by side. */
 function said(allocation: Calculator) {
+  // Where a line sits is part of what it is, not decoration on it. Without that here, a client holding
+  // "Large cap" under Indian equities and another under US equities would read as one line said twice —
+  // and moving money from one to the other would come out as nothing having changed, so nobody would be
+  // asked to agree to it.
   const lines = allocation.classes.flatMap((klass) =>
-    klass.lines.map((line) => `${klass.assetClass}\t${line.name.trim()}\t${toThePenny(line.valueAmount)}`));
+    klass.lines.map((line) =>
+      `${klass.assetClass}\t${(line.under ?? "").trim()}\t${line.name.trim()}\t${toThePenny(line.valueAmount)}`));
   // Sorted, because the order lines are sent in is the order the screen happens to lay them out and not
   // something anybody typed. Two screens that list one class's lines differently hold the same figures.
   return lines.sort().join("\n");

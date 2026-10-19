@@ -526,6 +526,12 @@ export interface MoveLegRequest {
      * @nullable
      */
   fromSubClass: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  fromSubSubClass: string | null;
   toAssetClass: string;
   /**
      * @minLength 0
@@ -533,6 +539,12 @@ export interface MoveLegRequest {
      * @nullable
      */
   toSubClass: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  toSubSubClass: string | null;
   /** @minimum 0 */
   amount: number;
   /** @nullable */
@@ -569,9 +581,13 @@ export interface PlannedLeg {
   fromAssetClass: string;
   /** @nullable */
   fromSubClass: string | null;
+  /** @nullable */
+  fromSubSubClass: string | null;
   toAssetClass: string;
   /** @nullable */
   toSubClass: string | null;
+  /** @nullable */
+  toSubSubClass: string | null;
   amount: number;
   /** @nullable */
   heldWhenRaised: number | null;
@@ -1091,6 +1107,12 @@ export interface PositionRequest {
   subClass: string | null;
   /**
      * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  subSubClass: string | null;
+  /**
+     * @minLength 0
      * @maxLength 200
      */
   name: string;
@@ -1160,6 +1182,8 @@ export interface PositionRow {
   assetClassName: string;
   /** @nullable */
   subClass: string | null;
+  /** @nullable */
+  subSubClass: string | null;
   name: string;
   /** @nullable */
   identifier: string | null;
@@ -1233,6 +1257,12 @@ export interface BenchmarkLevelRow {
 export interface AllocationLine {
   /** @nullable */
   id: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  under: string | null;
   /**
      * @minLength 0
      * @maxLength 200
@@ -1733,11 +1763,11 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -3774,6 +3804,8 @@ export const SubClassGroupStanding = {
 export interface SubClassGroup {
   /** @nullable */
   subClass: string | null;
+  /** @nullable */
+  subSubClass: string | null;
   valueAmount: number;
   shareOfClass: number;
   /** @nullable */
@@ -3792,6 +3824,7 @@ export interface SubClassGroup {
   mostItMayHold: number | null;
   askedFor: number;
   positions: PositionRow[];
+  inside: SubClassGroup[];
 }
 
 export interface ClassPositions {
