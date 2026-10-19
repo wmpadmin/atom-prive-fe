@@ -1,5 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  useGetClientValuations,
+  type ValuationHistory,
   useAnswerTheMovePlan,
   useGetCustomer,
   useListClientMovePlans,
@@ -11,7 +13,7 @@ import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { formatDateTime } from "../../lib/labels";
-import { exactly } from "./money-words";
+import { exactly, named as whatItIsCalled } from "./money-words";
 import { AnswerDialog } from "./answer-dialog";
 import { QueueBar } from "./queue-bar";
 import { WaitingPlan } from "./moves-to-approve-page";
@@ -50,6 +52,11 @@ export function ClientMovesPage() {
     },
   });
 
+  // Which day each change was written on, so the trail from a decision to the figures it wrote lands on
+  // the right page. Worked out from the moment it was answered, the link would be a day out whenever a
+  // move was approved either side of midnight — a trail that ends in a page saying nothing happened.
+  const history = useGetClientValuations<ValuationHistory, ApiError>(customerId, { every: true });
+
   if (plans.isError) {
     return <Alert tone="danger">{plans.error.message}</Alert>;
   }
@@ -58,6 +65,7 @@ export function ClientMovesPage() {
   const waiting = every.filter((one) => one.status === "PENDING");
   const decided = every.filter((one) => one.status !== "PENDING");
   const named = client.data?.client.fullName ?? "";
+  const dayOf = new Map((history.data?.points ?? []).map((one) => [one.revision, one.valuedOn]));
 
   return (
     <div className="space-y-5">
@@ -127,9 +135,13 @@ export function ClientMovesPage() {
         <section className="rounded-2xl border border-line bg-white">
           {/* Not "answered": one the person who raised it cancelled was never answered by anybody. */}
           <QueueBar name="Everything else asked for this client" />
-          {/* A table, because that is what it is: the same five facts about each one, and a reader looking
+          {/* A table, because that is what it is: the same facts about each one, and a reader looking
               down a column for who asked, or for when something was answered, should not be reading them
-              out of a paragraph each time. */}
+              out of a paragraph each time.
+              What actually moved is the first of those facts and was the one missing. A row said the
+              amount, the reason, the two names and the verdict — everything except which line the money
+              came out of and which it went into. Somebody coming back a week later to ask "which move was
+              that?" had the answer in the plan's own legs and nowhere on screen. */}
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <caption className="sr-only">
@@ -138,6 +150,7 @@ export function ClientMovesPage() {
               <thead>
                 <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                   <th scope="col" className="px-5 py-3 text-right whitespace-nowrap">Amount</th>
+                  <th scope="col" className="px-5 py-3">What moved</th>
                   <th scope="col" className="px-5 py-3">Why</th>
                   <th scope="col" className="px-5 py-3 whitespace-nowrap">Asked by</th>
                   <th scope="col" className="px-5 py-3 whitespace-nowrap">Answered by</th>
@@ -150,6 +163,21 @@ export function ClientMovesPage() {
                   <tr key={row.id}>
                     <td className="px-5 py-3 text-right tabular-nums font-medium whitespace-nowrap text-ink">
                       {exactly(row.amount, row.currency)}
+                    </td>
+                    <td className="px-5 py-3 text-ink-muted">
+                      {/* Every leg, not the first. A plan is applied whole or not at all, so one leg of
+                          five describes a fifth of what happened. */}
+                      <ul className="space-y-0.5">
+                        {row.legs.map((leg, at) => (
+                          <li key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`}>
+                            <span className="tabular-nums">{exactly(leg.amount, row.currency)}</span>
+                            {" out of "}
+                            <span className="text-ink">{whatItIsCalled(leg.fromSubClass, leg.fromAssetClass, leg.fromSubSubClass)}</span>
+                            {" into "}
+                            <span className="text-ink">{whatItIsCalled(leg.toSubClass, leg.toAssetClass, leg.toSubSubClass)}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </td>
                     <td className="px-5 py-3 text-ink">{row.why}</td>
                     <td className="px-5 py-3 whitespace-nowrap text-ink-muted">
@@ -172,6 +200,24 @@ export function ClientMovesPage() {
                       <Badge tone={row.status === "APPROVED" ? "success" : "neutral"}>
                         {row.statusSaid}
                       </Badge>
+                      {/* Where the money actually landed. An approved move writes a change like any
+                          other, and this is the way from the decision to the figures it wrote — without
+                          it the trail stops at "Approved" and the reader has to find the day themselves. */}
+                      {row.appliedRevision !== null && (
+                        dayOf.has(row.appliedRevision) ? (
+                          <Link
+                            to={`/portfolio-clients/${customerId}/days/${dayOf.get(row.appliedRevision)}`
+                              + `/changes/${row.appliedRevision}`}
+                            className="mt-0.5 block text-2xs font-medium text-primary-700 underline-offset-2 hover:underline"
+                          >
+                            wrote change {row.appliedRevision}
+                          </Link>
+                        ) : (
+                          <span className="mt-0.5 block text-2xs text-ink-muted">
+                            wrote change {row.appliedRevision}
+                          </span>
+                        )
+                      )}
                     </td>
                   </tr>
                 ))}
