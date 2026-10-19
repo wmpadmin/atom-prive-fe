@@ -377,8 +377,10 @@ export function MovesToApprovePage() {
   return (
     <div className="space-y-5">
       {/* Whose plans these are, which the masthead above the tabs cannot say: it is this reader's own
-          answer rather than the queue's. */}
-      <p className="text-sm font-semibold text-ink">
+          answer rather than the queue's.
+          Set like the lead it sits under rather than a weight heavier. Bold, it read as a second heading
+          and made this tab the one whose text was a different size from every other tab's. */}
+      <p className="-mt-2 text-sm text-ink-muted">
         {firmWide ? "Every client's plans." : "Your clients' plans."}
       </p>
 
