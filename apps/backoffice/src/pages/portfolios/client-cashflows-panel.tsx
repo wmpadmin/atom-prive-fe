@@ -14,6 +14,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { formatDateTime } from "../../lib/labels";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { noEarlierThan } from "./inception";
 import { exactly } from "./money-words";
 
 /** As far back as a movement may be dated. A portfolio older than this is not one anybody is correcting. */
@@ -76,6 +77,11 @@ export function ClientCashflowsPanel({ customerId, currency }: {
   const busy = record.isPending || remove.isPending;
 
   const rows: CashflowRow[] = listed.data?.items ?? [];
+  // The calendar does not open on a day the server would refuse. Refusing after the fact is honest but
+  // late: somebody has typed a date, chosen a direction and an amount, and only then is told the day
+  // was never allowed. The same date is still checked on the way in — this narrows the choice, it does
+  // not make it.
+  const earliest = noEarlierThan(listed.data?.inceptionOn, yearsAgo(20));
   const typed = Number(amount);
   const readable = on !== "" && amount.trim() !== "" && Number.isFinite(typed) && typed > 0;
 
@@ -125,7 +131,8 @@ export function ClientCashflowsPanel({ customerId, currency }: {
               </span>
               <span className="mt-1 block w-44">
                 <DateInput id="cashflow-on" name="happenedOn" value={on}
-                  min={yearsAgo(20)} max={new Date()}
+                  min={earliest} max={new Date()}
+                  aria-invalid={Boolean(errors.fields.happenedOn)}
                   onChange={(next) => setOn(next ?? "")} />
               </span>
             </label>
@@ -154,7 +161,13 @@ export function ClientCashflowsPanel({ customerId, currency }: {
                 onChange={(event) => setNote(event.target.value)} />
             </label>
           </div>
-          <p className="mt-2 text-xs text-ink-muted">{WAYS.find((one) => one.id === way)?.hint}.</p>
+          <p className="mt-2 text-xs text-ink-muted">
+            {WAYS.find((one) => one.id === way)?.hint}.
+            {listed.data?.inceptionOn && ` The portfolio started on ${listed.data.inceptionOn}, so nothing can be dated before then.`}
+          </p>
+          {errors.fields.happenedOn && (
+            <p className="mt-1 text-xs font-medium text-red-700">{errors.fields.happenedOn}</p>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <Button size="sm" disabled={!readable || busy} onClick={save}>
               {record.isPending ? "Writing it down…" : "Write it down"}
