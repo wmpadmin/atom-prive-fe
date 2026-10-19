@@ -1,4 +1,4 @@
-import { Button, TextInput } from "@atomprive/ui";
+import { Alert, Button, TextInput } from "@atomprive/ui";
 import { Download, Plus, Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
@@ -23,6 +23,7 @@ export function ProposalsHeader({
   onExport,
   exporting,
   canExport,
+  cappedAt,
   extra,
 }: {
   /** Whoever cannot write a proposal is not offered the button that starts one. */
@@ -32,6 +33,12 @@ export function ProposalsHeader({
   onExport: () => void;
   exporting: boolean;
   canExport: boolean;
+  /**
+   * What the last export actually carried, where it could not carry everything. An export that quietly
+   * stops at its limit is worse than no export: the file looks whole, and whoever takes it to a meeting
+   * finds out what was missing from it there.
+   */
+  cappedAt: { carried: number; of: number } | null;
   /** An action belonging to whatever is open below, such as resending the proposal being read. */
   extra?: ReactNode;
 }) {
@@ -66,6 +73,14 @@ export function ProposalsHeader({
           )}
         </div>
       </div>
+
+      {cappedAt && (
+        <Alert tone="warning">
+          That file holds the first {cappedAt.carried.toLocaleString()} of{" "}
+          {cappedAt.of.toLocaleString()} proposals — {(cappedAt.of - cappedAt.carried).toLocaleString()}{" "}
+          are not in it. Narrow it by tab, by date or by search and export again to carry the rest.
+        </Alert>
+      )}
 
       <label className="relative block max-w-md">
         <span className="sr-only">Search proposals</span>
