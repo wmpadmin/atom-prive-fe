@@ -5075,6 +5075,14 @@ export interface ValuationHistory {
   changeShare: number | null;
 }
 
+export interface Formulae {
+  gained: string;
+  absolute: string;
+  cagr: string;
+  moneyWeighted: string;
+  timeWeighted: string;
+}
+
 export type ReturnOverPeriodPeriod = typeof ReturnOverPeriodPeriod[keyof typeof ReturnOverPeriodPeriod];
 
 
@@ -5117,6 +5125,7 @@ export interface ReturnOverPeriod {
   /** @nullable */
   timeWeighted: number | null;
   flows: number;
+  formulae: Formulae;
 }
 
 export interface ReturnsByPeriod {
