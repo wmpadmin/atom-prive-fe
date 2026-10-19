@@ -22,7 +22,9 @@ import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { BOX, type StepProps } from "./portfolio-setup-dialog";
-import { linesOnFile, loanOnFile, ownedOnFile, saysSomethingNew, toThePenny, type Calculator } from "./the-calculator";
+import {
+  anythingOnFile, linesOnFile, loanOnFile, ownedOnFile, saysSomethingNew, toThePenny, type Calculator,
+} from "./the-calculator";
 
 /**
  * One line of either list: what it is, whatever else has to be said about it, and a figure.
@@ -167,8 +169,7 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
   const ownedRows = typedOwned ?? ownedAsRead;
   const owedRows = typedOwed ?? owedAsRead;
   // Whether this client has figures already, which is what decides written outright against asked for.
-  const alreadyWritten = (holdings.data?.classes ?? [])
-    .some((klass) => klass.subClasses.some((group) => group.positions.length > 0));
+  const alreadyWritten = anythingOnFile(holdings.data);
 
   const currency = owned.data?.currency ?? owed.data?.currency ?? "";
   const ownedTotal = adds(ownedRows);
