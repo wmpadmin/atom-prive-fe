@@ -972,6 +972,7 @@ export interface ClientReturn {
   to: string;
   days: number;
   split: number;
+  flows: number;
 }
 
 export type PortfolioStandingShares = {[key: string]: number};
