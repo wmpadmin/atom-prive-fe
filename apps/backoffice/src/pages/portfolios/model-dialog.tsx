@@ -643,7 +643,13 @@ export function ModelDialog({
                     id={`breach-${assetClass}`}
                     aria-label={`How far ${(names[assetClass] ?? assetClass)} may wander before it has breached`}
                     inputMode="decimal"
-                    className="pr-7 pl-7 text-right"
+                    // Marked where the refusal below names this class. The message said "Equities" and
+                    // nothing on the row was lit, so a reader with eight classes on screen had to work
+                    // out which of sixteen boxes it meant — and the one obvious box, the class's own
+                    // target, was already filled.
+                    aria-invalid={unsaidBreach.includes(assetClass) || undefined}
+                    className={cn("pr-7 pl-7 text-right",
+                      unsaidBreach.includes(assetClass) && "border-red-600 ring-1 ring-red-600")}
                     value={breaches[assetClass]}
                     onChange={(event) =>
                       setBreaches({
@@ -794,7 +800,8 @@ export function ModelDialog({
               {andList(unsaidBreach.map((assetClass) => (names[assetClass] ?? assetClass)))}{" "}
               {unsaidBreach.length === 1 ? "has" : "have"} money asked of{" "}
               {unsaidBreach.length === 1 ? "it" : "them"} but no figure beside it for how far{" "}
-              {unsaidBreach.length === 1 ? "it" : "they"} may wander. Every breach on every client measured
+              {unsaidBreach.length === 1 ? "it" : "they"} may wander — the box marked above. Every breach
+              on every client measured
               against this model is read from that figure.
             </p>
           )}

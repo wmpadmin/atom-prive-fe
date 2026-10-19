@@ -158,7 +158,7 @@ export function AmlRiskPage() {
                     </>
                   ) : (
                     <td colSpan={5} className="px-4 py-3">
-                      <span className="inline-flex items-center gap-2 text-sm font-medium text-danger-700">
+                      <span className="inline-flex items-center gap-2 text-sm font-medium text-red-700">
                         <ShieldAlert className="size-4" aria-hidden="true" />
                         Never rated
                       </span>
@@ -198,7 +198,7 @@ function Fact({ label, children, tone }: { label: string; children: React.ReactN
       <dd
         className={cn(
           "mt-0.5 text-lg font-bold tabular-nums",
-          tone === "danger" ? "text-danger-700" : tone === "warning" ? "text-amber-700" : "text-ink",
+          tone === "danger" ? "text-red-700" : tone === "warning" ? "text-amber-700" : "text-ink",
         )}
       >
         {children}

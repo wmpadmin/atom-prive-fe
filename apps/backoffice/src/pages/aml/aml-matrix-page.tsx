@@ -330,7 +330,7 @@ export function AmlMatrixPage() {
               <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 The answers, and what each is worth
               </p>
-              {errors.fields.options && <p className="text-xs text-danger-700">{errors.fields.options}</p>}
+              {errors.fields.options && <p className="text-xs text-red-700">{errors.fields.options}</p>}
               {/* Named once, above the rows, so a bare box of digits is not left to be guessed at. */}
               {/* What the record has to say for this answer to be the one. */}
               {reads && (
@@ -426,7 +426,7 @@ export function AmlMatrixPage() {
                   <button
                     type="button"
                     aria-label={`Remove answer ${at + 1}`}
-                    className="justify-self-center text-ink-muted hover:text-danger-700"
+                    className="justify-self-center text-ink-muted hover:text-red-700"
                     onClick={() =>
                       setEditing({
                         ...editing,
@@ -716,7 +716,7 @@ function Bands({ bands, mayWrite, onSaved }: { bands: BandRow[]; mayWrite: boole
                   <button
                     type="button"
                     aria-label={`Remove band ${at + 1}`}
-                    className="text-ink-muted hover:text-danger-700"
+                    className="text-ink-muted hover:text-red-700"
                     onClick={() => setDraft(rows.filter((_, which) => which !== at))}
                   >
                     <Trash2 className="size-4" aria-hidden="true" />
