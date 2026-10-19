@@ -108,6 +108,45 @@ function theLine(subClass: string | null, subSubClass: string | null) {
 }
 
 /**
+ * How a line is said on screen: its own name, and the sub-asset around it where there is one.
+ *
+ * <p>"Large cap" on its own does not say whose large cap it is, and two sub-assets of one class may each
+ * have one.
+ */
+function saidAs(subClass: string | null, subSubClass: string | null) {
+  if (subSubClass == null) {
+    return subClass ?? UNGROUPED;
+  }
+  return `${subClass ?? UNGROUPED} · ${subSubClass}`;
+}
+
+/**
+ * The one group a line names, wherever it sits — the sub-asset itself, or one of the lines inside it.
+ *
+ * <p>The exact object from this render, not a copy: the list of somewhere-money-can-go excludes its own
+ * source by identity, so a rebuilt group would leave the line being emptied standing in its own list of
+ * destinations.
+ */
+function theOneCalled(groups: SubClassGroup[], subClass: string | null,
+    subSubClass: string | null): SubClassGroup | undefined {
+  for (const one of groups) {
+    if (one.subClass === subClass && one.subSubClass === subSubClass) {
+      return one;
+    }
+    const deeper = theOneCalled(one.inside, subClass, subSubClass);
+    if (deeper) {
+      return deeper;
+    }
+  }
+  return undefined;
+}
+
+/** Whether any line of these, at any depth, is the one a waiting plan draws its money out of. */
+function anyIs(groups: SubClassGroup[], subClass: string | null, subSubClass: string | null): boolean {
+  return theOneCalled(groups, subClass, subSubClass) !== undefined;
+}
+
+/**
  * Which line a destination is, which is not what it is called.
  *
  * <p>Every figure this window holds is kept against one of these. Kept against the name alone, a class
@@ -239,6 +278,188 @@ function overIts(group: SubClassGroup): number | null {
   return over < 1 ? null : over;
 }
 
+/**
+ * One line of a plan on the holdings table, and whatever the plan breaks it into.
+ *
+ * <p>One component at every depth, calling itself, because a line is the same thing wherever it sits: a
+ * name, what the plan asks of it, what the client holds in it, and a verdict on the gap. Written as two
+ * blocks — one for sub-assets and one for the lines inside them — the pair would have been the same row
+ * said twice, and they would have parted company the first time one of them was corrected. This table has
+ * been bitten by that twice already, both times over a band it worked out for itself while the verdict
+ * beside it was read from the server's.
+ *
+ * <p>Which is why every figure here is the server's own. A line's target, its range and what it would take
+ * to close the gap are read off the group rather than worked out again from the class above it — and that
+ * is also what makes the deeper level correct for nothing: a nested line's target is a share of its parent
+ * rather than of its class, so a screen doing its own arithmetic would have had to learn where it sat.
+ */
+function SubAssetRow({ group, whole, currency, depth, onPlan }: {
+  group: SubClassGroup;
+  /** Everything the client has, which is the one denominator every share on this table is out of. */
+  whole: number;
+  currency: string;
+  depth: number;
+  /**
+   * Opens the plan for whichever line was pressed. Bound by the caller rather than built here from an
+   * asset class passed down, so the identity of a line — its class, its sub-asset and itself — is
+   * assembled in exactly one place.
+   */
+  onPlan: (group: SubClassGroup) => void;
+}) {
+  // What the model asks of this line as a share of the whole portfolio, read back out of the figure the
+  // server already worked out rather than multiplied out again here. The server knows how deep this line
+  // sits and what it is a share of; this screen would have had to be told.
+  const ofPortfolio = (group.targetValue == null || whole === 0) ? null
+    : (group.targetValue / whole) * 100;
+  // The range the line is actually judged against, as the server states it — not worked out again here.
+  // Worked out here it was worked out from the CLASS's band where the verdict beside it is read from the
+  // LINE's, which on any model whose lines wander less than their class is a different number: a line
+  // sound between 17.50% and 22.50% of the book printed as sound between 15% and 25%, with the Breached
+  // badge sitting beside a range that said it was fine.
+  //
+  // A line inside another may read a tighter ceiling than its parent, which is not a mistake to correct:
+  // it cannot be given room the line above it has not got, and the server has already said so.
+  const allowed = (group.leastItMayHold == null || group.mostItMayHold == null
+    || whole === 0) ? null : {
+    low: (group.leastItMayHold / whole) * 100,
+    high: (group.mostItMayHold / whole) * 100,
+  };
+  const targetValue = group.targetValue;
+  const actualShare = whole === 0 ? null : (group.valueAmount / whole) * 100;
+  const move = group.suggestion == null ? null : toDo(group.suggestion);
+  // What the plan breaks this line into. A line with any of these holds everything in them as well as
+  // whatever sits in it directly, which is why it is not somewhere money can be sent.
+  const broken = group.inside.length > 0;
+  // Whether there is a plan to open behind this row's suggestion: a line holding more than its band allows
+  // has money that has to go somewhere, and where it can go is the question this opens.
+  //
+  // Never on a line the plan has broken down. Its overage is partly its own lines' overage, so a press
+  // here and a press on one of them would be two plans over the same money — and two plans drawing on one
+  // line are refused, so the second could only fail. The list of somewhere-to-put-it says the same thing
+  // from the other side: a broken-down line is not a destination either, only its parts are.
+  const toShed = broken ? null : overIts(group);
+  const named = group.subSubClass ?? group.subClass ?? UNGROUPED;
+
+  return (
+    <>
+      <tr
+        className={cn("align-middle", toShed !== null && "cursor-pointer hover:bg-primary-50/40")}
+        onClick={toShed === null ? undefined : () => onPlan(group)}
+      >
+        {/* A row group is one sub-asset, so only the sub-asset heads one. A line inside it heads its own
+            row and nothing below it, which is what scope="row" says. */}
+        <th
+          scope={depth === 0 ? "rowgroup" : "row"}
+          className={cn("py-3.5 pr-3 text-left font-semibold text-ink", depth === 0 ? "pl-4" : "pl-10")}
+        >
+          <span className="flex flex-wrap items-center gap-2">
+            {/* A line is read by where it sits as well as by its name, and the indent alone cannot say
+                that on a row somebody has scrolled to. */}
+            {named}
+            {/* A class can sit on its target while the money inside it sits in the wrong places, because
+                the halves cancel out. This is where that shows. */}
+            {group.standing && group.standing !== "WITHIN_BAND" && (
+              <Badge tone={standingTones[group.standing]}>
+                {standingLabels[group.standing]}
+              </Badge>
+            )}
+            {/* What its own figures already include, said once so nobody reads the column down and
+                wonders why the parts and the whole both appear in it. */}
+            {broken && (
+              <span className="text-2xs font-normal text-ink-muted">
+                {group.inside.length} lines, counted below
+              </span>
+            )}
+          </span>
+        </th>
+        {/* A dash, not a nought: the model naming no target for this group is a different thing from it
+            asking for none of it. */}
+        <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
+          {ofPortfolio == null ? "—" : percent(ofPortfolio)}
+          {/* Under the target rather than beside it: the firm's sheet has six columns and a seventh for
+              this would have been one more than it reads. */}
+          {allowed && (
+            <span className="mt-0.5 block text-2xs whitespace-nowrap text-ink-muted/70">
+              {allowed.low.toFixed(2)}–{allowed.high.toFixed(2)} allowed
+            </span>
+          )}
+        </td>
+        <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
+          {targetValue == null ? "—" : figure(targetValue)}
+        </td>
+        <td className="px-3 py-3.5 text-right tabular-nums">
+          {actualShare == null ? "—" : percent(actualShare)}
+        </td>
+        <td className="px-3 py-3.5 text-right tabular-nums">
+          {figure(group.valueAmount)}
+        </td>
+        <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
+          {targetValue == null ? "—" : filled(targetValue, group.valueAmount)}
+        </td>
+        {/* The way into the plan, on the figure it is about. A table under the row used to carry it, which
+            meant one line at a time — the worst of them — and a reader who wanted to deal with another
+            first had to clear that one before the screen would talk about theirs. Clicking a suggestion
+            opens its own. */}
+        <td
+          className="px-3 py-3.5 text-right tabular-nums text-ink-muted"
+          /* A breached line with no plan behind it is the commonest thing on this table and the screen
+             never said why: the plan moves money out of a line holding too much, and a line that is short
+             has none to move. */
+          /* Only where it is actually short. A line over its range by less than a whole unit has nothing
+             worth moving either, and telling its reader it needed money putting in sat over a figure
+             saying to sell. */
+          title={broken
+            ? `${named} is what the lines inside it come to. Money moves in and out of those.`
+            : group.standing === "BREACHED" && toShed === null && move != null && move.word === "Buy"
+              ? `${named} is short of its range, so there is nothing to move out of it. `
+                + "This line needs money put in."
+              : undefined}
+        >
+          {move == null ? "—" : toShed === null ? (
+            <>
+              <span className="text-2xs font-semibold tracking-wider uppercase">
+                {move.word}
+              </span>{" "}
+              {move.figure}
+            </>
+          ) : (
+            /* Lit, because it is the one figure on the row somebody can act on and it says so. The row is
+               clickable too — this is also what makes the row reachable from a keyboard. */
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onPlan(group);
+              }}
+              className="rounded-lg px-1 font-medium text-primary-700 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+              title={`Where ${exactly(toShed, currency)} out of ${named} can go`}
+            >
+              <span className="text-2xs font-semibold tracking-wider uppercase">
+                {move.word}
+              </span>{" "}
+              {move.figure}
+            </button>
+          )}
+        </td>
+        {/* Nothing is done to a sub-asset here. Its figure came from the calculator, which worked the Net
+            AUM out of it; retyping or deleting it on this screen would move the ground under every other
+            share on the page. Money leaves a line through the plan on its suggestion, and lands in
+            another. */}
+      </tr>
+      {group.inside.map((deeper) => (
+        <SubAssetRow
+          key={theLine(deeper.subClass, deeper.subSubClass)}
+          group={deeper}
+          whole={whole}
+          currency={currency}
+          depth={depth + 1}
+          onPlan={onPlan}
+        />
+      ))}
+    </>
+  );
+}
+
 /** What somebody typed into one of the boxes, as a figure. A half-typed box is worth nothing, not NaN. */
 function typed(value: string | undefined) {
   const figure = Number(value);
@@ -257,10 +478,21 @@ function typed(value: string | undefined) {
  * <p>Move writes it down: the figure comes off this sub-asset and goes on to that one, in one go. Discard
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
-function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, currency, readOnly,
-  claim, release, asksForNone, settledRight, onAsked, elsewhere, changing, carrying }: {
+function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, places, className, currency,
+  readOnly, claim, release, asksForNone, settledRight, onAsked, elsewhere, changing, carrying }: {
   customerId: string;
   assetClass: string;
+  /**
+   * The line the money is leaving, as somebody reads it.
+   *
+   * <p>Told rather than read off the first holding inside it. A holding carries the sub-asset it counts
+   * towards, so a window opened on a line INSIDE a sub-asset named its parent in every sentence — and a
+   * window that says Indian equities while it empties large cap is describing a different plan from the
+   * one it is about to send.
+   */
+  from: string;
+  /** That same line as the plan names it: which sub-asset, and which line inside it. */
+  leaving: { subClass: string | null; subSubClass: string | null };
   spare: number;
   /**
    * Every row written down under this sub-asset, not just the first.
@@ -304,7 +536,6 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
   /** The proposal this window was opened to carry out, where it was. */
   carrying: string | null;
 }) {
-  const from = rows[0]?.subClass ?? UNGROUPED;
   // Emptied from the fullest first, so the smaller lines are left whole where the whole sum does not need
   // them. Nothing is ever asked to go below nothing.
   const deepest = [...rows].sort((first, second) => second.valueAmount - first.valueAmount);
@@ -371,7 +602,11 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
    * write over the very thing they just said.
    */
   const [typedIn, setTypedIn] = useState<Set<string>>(
-    () => new Set(changing?.legs.map((leg) => leg.toSubClass ?? UNGROUPED) ?? []),
+    // Keyed the way every lookup against this set is keyed. Seeded with bare sub-asset names while the
+    // lookups had moved on to the line, nothing in it ever matched: editing one box re-split every other,
+    // writing over figures somebody had deliberately set — which is the exact loss this set exists to
+    // prevent.
+    () => new Set(changing?.legs.map((leg) => theLine(leg.toSubClass, leg.toSubSubClass)) ?? []),
   );
   const [failed, setFailed] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
@@ -501,8 +736,11 @@ function MoveOutPlan({ customerId, assetClass, spare, rows, places, className, c
       .filter((place) => typed(moves[placeKey(place)]) > 0)
       .map((place) => ({
         fromAssetClass: assetClass,
-        fromSubClass: rows[0]?.subClass ?? null,
-        fromSubSubClass: rows[0]?.subSubClass ?? null,
+        // The line the window is about, not the line whichever holding inside it happens to be written
+        // under. A plan that named a child as the source of money drawn from the whole sub-asset would
+        // move the wrong figure.
+        fromSubClass: leaving.subClass,
+        fromSubSubClass: leaving.subSubClass,
         toAssetClass: goingTo ?? assetClass,
         // Both ends of where it lands. A destination inside a sub-asset says which sub-asset; one that
         // is a sub-asset itself says only itself, the way every leg did before the plan went three deep.
@@ -873,7 +1111,19 @@ export function ClientHoldingsPanel({
    * finds the new row each render and the dialog keeps up with what it has just done.
    */
   const [planning, setPlanning] = useState<
-    { assetClass: string; subClass: string | null; changing: MovePlanRow | null } | null
+    {
+      assetClass: string;
+      subClass: string | null;
+      /**
+       * Which line inside that sub-asset, or nothing where the plan is about the sub-asset itself.
+       *
+       * <p>Both, because a sub-asset and a line inside it share a subClass: naming only that, a plan
+       * opened on one line of a sub-asset was answered as a plan about the whole of it, and the window
+       * filled itself with the parent's figures without anything on screen saying so.
+       */
+      subSubClass: string | null;
+      changing: MovePlanRow | null;
+    } | null
   >(null);
   const claimTheMove = () => {
     if (moveUnderway.current) return false;
@@ -968,7 +1218,10 @@ export function ClientHoldingsPanel({
     const leaves = plan.legs[0];
     return leaves !== undefined
       && classes.some((one) => one.assetClass === leaves.fromAssetClass
-        && one.subClasses.some((each) => each.subClass === leaves.fromSubClass));
+        // The line itself, however deep it sits. Asked only of the top level, a plan drawing on a line
+        // inside a sub-asset was judged by whether its PARENT was still on screen — so the button stayed
+        // lit after the line it is about had gone, which is the one thing the test exists to stop.
+        && anyIs(one.subClasses, leaves.fromSubClass, leaves.fromSubSubClass));
   };
 
   return (
@@ -1019,9 +1272,14 @@ export function ClientHoldingsPanel({
                     </p>
                     <ul className="mt-2 space-y-0.5 text-sm">
                       {plan.legs.map((leg, at) => (
-                        <li key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`}>
-                          {exactly(leg.amount, currency)} out of {leg.fromSubClass ?? UNGROUPED} and
-                          {" "}into {leg.toSubClass ?? UNGROUPED}
+                        <li key={`${theLine(leg.fromSubClass, leg.fromSubSubClass)}-${at}`}>
+                          {/* Named to the line, not to the sub-asset around it. Said as the sub-asset, a
+                              plan moving money between two lines inside one of them read "out of Indian
+                              equities and into Indian equities" — which looks like a fault in the screen
+                              rather than a plan, and tells nobody which line is already spoken for. */}
+                          {exactly(leg.amount, currency)} out of{" "}
+                          {saidAs(leg.fromSubClass, leg.fromSubSubClass)} and
+                          {" "}into {saidAs(leg.toSubClass, leg.toSubSubClass)}
                         </li>
                       ))}
                     </ul>
@@ -1045,6 +1303,7 @@ export function ClientHoldingsPanel({
                           setPlanning({
                             assetClass: from.fromAssetClass,
                             subClass: from.fromSubClass,
+                            subSubClass: from.fromSubSubClass,
                             changing: plan,
                           });
                         }}
@@ -1092,7 +1351,8 @@ export function ClientHoldingsPanel({
       {open.length === 0 && answered && (
         <Alert tone={answered.status === "APPROVED" ? "success" : "warning"}>
           <p className="font-semibold">
-            {exactly(answered.amount, currency)} out of {answered.legs[0]?.fromSubClass ?? UNGROUPED}
+            {exactly(answered.amount, currency)} out of{" "}
+            {saidAs(answered.legs[0]?.fromSubClass ?? null, answered.legs[0]?.fromSubSubClass ?? null)}
             {" was "}
             {answered.status === "APPROVED" ? "approved" : "rejected"}
             {answered.decidedByName && ` by ${answered.decidedByName}`}.
@@ -1321,141 +1581,28 @@ export function ClientHoldingsPanel({
                           </th>
                         </tr>
                       </thead>
-                      {one.subClasses.map((group) => {
-                        // What the model asks of this line as a share of the whole portfolio: its share of
-                        // its class carried through the class's own share of the book. Where the model
-                        // names no target for either, there is no figure to carry and the row says so.
-                        const ofPortfolio = (group.targetShare == null || one.targetShare == null)
-                          ? null
-                          : (group.targetShare * one.targetShare) / 100;
-                        // The range the line is actually judged against, as the server states it — not
-                        // worked out again here. Worked out here it was worked out from the CLASS's band
-                        // where the verdict beside it is read from the LINE's, which on any model whose
-                        // lines wander less than their class is a different number: a line sound between
-                        // 17.50% and 22.50% of the book printed as sound between 15% and 25%, with the
-                        // Breached badge sitting beside a range that said it was fine.
-                        //
-                        // The same lesson as the ceiling one line below, and the same cure. There is one
-                        // band, the server reads it, and the screen prints what it is told.
-                        const allowed = (group.leastItMayHold == null || group.mostItMayHold == null
-                          || whole === 0) ? null : {
-                          low: (group.leastItMayHold / whole) * 100,
-                          high: (group.mostItMayHold / whole) * 100,
-                        };
-                        // Against what the class should be worth, not what it is. A line asked for a tenth
-                        // of a class that is itself a sixth of the size the model wants is short by the
-                        // whole of that shortfall too, and reading it against the money actually in the
-                        // class would hide it: it would sit on its target inside a class holding a sixth
-                        // of what it should.
-                        const targetValue = ofPortfolio == null ? null : (ofPortfolio * whole) / 100;
-                        const actualShare = whole === 0 ? null : (group.valueAmount / whole) * 100;
-                        const move = targetValue == null ? null : toDo(targetValue - group.valueAmount);
-                        // Whether there is a plan to open behind this row's suggestion: a line holding more
-                        // than its band allows has money that has to go somewhere, and where it can go is
-                        // the question this opens.
-                        const toShed = overIts(group);
-                        const openThePlan = () => setPlanning({
-                          changing: null,
-                          assetClass: one.assetClass,
-                          subClass: group.subClass,
-                        });
-                        return (
-                        <tbody key={group.subClass ?? UNGROUPED} className="border-b border-ink/15 last:border-0">
-                          {/* Anywhere on the row, not only the figure at the end of it: a reader who has
-                              just read across a breached line and decided to deal with it should not have
-                              to travel back to one cell to say so. The suggestion stays a button of its
-                              own all the same, because a row is not reachable from a keyboard. */}
-                          <tr
-                            className={cn("align-middle",
-                              toShed !== null && "cursor-pointer hover:bg-primary-50/40")}
-                            onClick={toShed === null ? undefined : openThePlan}
-                          >
-                            <th scope="rowgroup" className="py-3.5 pr-3 pl-4 text-left font-semibold text-ink">
-                              <span className="flex flex-wrap items-center gap-2">
-                                {group.subClass ?? UNGROUPED}
-                                {/* A class can sit on its target while the money inside it sits in the
-                                    wrong places, because the halves cancel out. This is where that shows. */}
-                                {group.standing && group.standing !== "WITHIN_BAND" && (
-                                  <Badge tone={standingTones[group.standing]}>
-                                    {standingLabels[group.standing]}
-                                  </Badge>
-                                )}
-                              </span>
-                            </th>
-                            {/* A dash, not a nought: the model naming no target for this group is a
-                                different thing from it asking for none of it. */}
-                            <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
-                              {ofPortfolio == null ? "—" : percent(ofPortfolio)}
-                              {/* Under the target rather than beside it: the firm's sheet has six columns
-                                  and a seventh for this would have been one more than it reads. */}
-                              {allowed && (
-                                <span className="mt-0.5 block text-2xs whitespace-nowrap text-ink-muted/70">
-                                  {allowed.low.toFixed(2)}–{allowed.high.toFixed(2)} allowed
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
-                              {targetValue == null ? "—" : figure(targetValue)}
-                            </td>
-                            <td className="px-3 py-3.5 text-right tabular-nums">
-                              {actualShare == null ? "—" : percent(actualShare)}
-                            </td>
-                            <td className="px-3 py-3.5 text-right tabular-nums">
-                              {figure(group.valueAmount)}
-                            </td>
-                            <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">
-                              {targetValue == null ? "—" : filled(targetValue, group.valueAmount)}
-                            </td>
-                            {/* The way into the plan, on the figure it is about. A table under the row
-                                used to carry it, which meant one line at a time — the worst of them — and
-                                a reader who wanted to deal with another first had to clear that one before
-                                the screen would talk about theirs. Clicking a suggestion opens its own. */}
-                            <td
-                              className="px-3 py-3.5 text-right tabular-nums text-ink-muted"
-                              /* A breached line with no plan behind it is the commonest thing on this
-                                 table and the screen never said why: the plan moves money out of a line
-                                 holding too much, and a line that is short has none to move. */
-                              /* Only where it is actually short. A line over its range by less than a
-                                 whole unit has nothing worth moving either, and telling its reader it
-                                 needed money putting in sat over a figure saying to sell. */
-                              title={group.standing === "BREACHED" && toShed === null && move != null
-                                && move.word === "Buy"
-                                ? `${group.subClass ?? UNGROUPED} is short of its range, so there is `
-                                  + "nothing to move out of it. This line needs money put in."
-                                : undefined}
-                            >
-                              {move == null ? "—" : toShed === null ? (
-                                <>
-                                  <span className="text-2xs font-semibold tracking-wider uppercase">
-                                    {move.word}
-                                  </span>{" "}
-                                  {move.figure}
-                                </>
-                              ) : (
-                                /* Lit, because it is the one figure on the row somebody can act on and it
-                                   says so. The row is clickable too — this is also what makes the row
-                                   reachable from a keyboard at all, which a tr with an onClick is not. */
-                                <button
-                                  type="button"
-                                  onClick={openThePlan}
-                                  className="rounded-lg px-1 font-medium text-primary-700 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-                                  title={`Where ${exactly(toShed, currency)} out of ${group.subClass ?? UNGROUPED} can go`}
-                                >
-                                  <span className="text-2xs font-semibold tracking-wider uppercase">
-                                    {move.word}
-                                  </span>{" "}
-                                  {move.figure}
-                                </button>
-                              )}
-                            </td>
-                            {/* Nothing is done to a sub-asset here. Its figure came from the calculator,
-                                which worked the Net AUM out of it; retyping or deleting it on this screen
-                                would move the ground under every other share on the page. Money leaves a
-                                line through the plan on its suggestion, and lands in another. */}
-                          </tr>
+                      {/* One row group per sub-asset, whatever the plan breaks it into: a line inside
+                          one is still part of it, and ending the group at each line would make the rule
+                          those borders draw — one sub-asset, one block — stop meaning anything. */}
+                      {one.subClasses.map((group) => (
+                        <tbody
+                          key={theLine(group.subClass, group.subSubClass)}
+                          className="border-b border-ink/15 last:border-0"
+                        >
+                          <SubAssetRow
+                            group={group}
+                            whole={whole}
+                            currency={currency}
+                            depth={0}
+                            onPlan={(which) => setPlanning({
+                              changing: null,
+                              assetClass: one.assetClass,
+                              subClass: which.subClass,
+                              subSubClass: which.subSubClass,
+                            })}
+                          />
                         </tbody>
-                        );
-                      })}
+                      ))}
                     </table>
                   </div>
                 )}
@@ -1471,7 +1618,10 @@ export function ClientHoldingsPanel({
           whatever order somebody wants to work. */}
       {planning && (() => {
         const its = classes.find((one) => one.assetClass === planning.assetClass);
-        const group = its?.subClasses.find((each) => each.subClass === planning.subClass);
+        // Walked rather than looked up at the top: the line a plan is about may sit inside another, and a
+        // lookup that stopped at the first level found its parent instead — same name, different money,
+        // and a window that opened on figures nobody had pointed at.
+        const group = theOneCalled(its?.subClasses ?? [], planning.subClass, planning.subSubClass);
         // Gone from the screen altogether: a sub-asset the model does not name and nobody holds has no
         // row left to plan against. A line the model names stays listed at nought, so this is only ever
         // the window closing on something that is no longer there to talk about.
@@ -1499,12 +1649,12 @@ export function ClientHoldingsPanel({
             open
             size="2xl"
             title={planning.changing !== null
-              ? `Change what is asked for out of ${group.subClass ?? UNGROUPED}`
+              ? `Change what is asked for out of ${saidAs(group.subClass, group.subSubClass)}`
               : toShed >= 1
-                ? `Where ${exactly(toShed, currency)} out of ${group.subClass ?? UNGROUPED} can go`
+                ? `Where ${exactly(toShed, currency)} out of ${saidAs(group.subClass, group.subSubClass)} can go`
                 : right
-                  ? `${group.subClass ?? UNGROUPED} is inside its range`
-                  : `${group.subClass ?? UNGROUPED} is short of its range`}
+                  ? `${saidAs(group.subClass, group.subSubClass)} is inside its range`
+                  : `${saidAs(group.subClass, group.subSubClass)} is short of its range`}
             onClose={() => setPlanning(null)}
           >
             <MoveOutPlan
@@ -1512,6 +1662,8 @@ export function ClientHoldingsPanel({
               spare={toShed}
               rows={group.positions}
               assetClass={its.assetClass}
+              from={saidAs(group.subClass, group.subSubClass)}
+              leaving={{ subClass: group.subClass, subSubClass: group.subSubClass }}
               places={capacityIn(its.subClasses, group, ours)}
               elsewhere={classes
                 .filter((other) => other.assetClass !== its.assetClass && other.targetShare !== null)
