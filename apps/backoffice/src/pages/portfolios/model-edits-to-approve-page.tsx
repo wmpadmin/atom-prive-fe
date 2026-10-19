@@ -10,6 +10,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { formatDateTime } from "../../lib/labels";
 import { AnswerDialog } from "./answer-dialog";
+import { QueueBar } from "./queue-bar";
 
 /** What a reader can narrow the list to, in the order a change passes through them. */
 const STATUS_TABS = [
@@ -70,31 +71,27 @@ export function ModelEditsToApprovePage() {
 
   return (
     <div className="space-y-5">
-
-      {/* What had been answered sat in a second section underneath, which told a reader what was signed off
-          lately and nothing else: there was no asking for the rejected ones, and the two readings could not
-          be compared without scrolling past everything still waiting. One control says which of the four
-          states is on screen, and it is the one every other list on this app filters with. */}
-      <div className="w-fit">
-        <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
-        <FilterMenu
-          label="Changes"
-          value={status}
-          options={STATUS_TABS.map((one) => ({
-            id: one.id,
-            label: one.label,
-            count: one.id === "all"
-              ? waiting.length + decided.length
-              : [...waiting, ...decided].filter((row) => row.status === one.id).length,
-          }))}
-          onChange={setStatus}
-        />
-      </div>
-
-      <section className="overflow-hidden rounded-2xl border border-line bg-white">
-        <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          {STATUS_TABS.find((one) => one.id === status)?.label}
-        </h2>
+      <section className="rounded-2xl border border-line bg-white">
+        <QueueBar name="Model edits">
+          {/* What had been answered sat in a second section underneath, which told a reader what was
+              signed off lately and nothing else: there was no asking for the rejected ones, and the two
+              readings could not be compared without scrolling past everything still waiting. One control
+              says which of the four states is on screen, and it is the one every other list on this app
+              filters with. */}
+          <FilterMenu
+            label="Changes"
+            value={status}
+            options={STATUS_TABS.map((one) => ({
+              id: one.id,
+              label: one.label,
+              count: one.id === "all"
+                ? waiting.length + decided.length
+                : [...waiting, ...decided].filter((row) => row.status === one.id).length,
+            }))}
+            onChange={setStatus}
+            align="right"
+          />
+        </QueueBar>
         {queue.isPending ? (
           <p className="px-5 py-8 text-sm text-ink-muted">Reading the asks…</p>
         ) : shown.length === 0 ? (

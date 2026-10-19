@@ -17,6 +17,7 @@ import { useStaffUser } from "../../auth/session";
 import { APPROVES_PROPOSALS, hasAnyAuthority, readsEveryAdvisors, STARTS_PROPOSALS } from "../../lib/permissions";
 import { formatDate } from "../../lib/labels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
+import { QueueBar } from "../portfolios/queue-bar";
 import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
 import { ProposalsHeader } from "./proposals-header";
 import { expiryLabel, formatValue, proposalStatusLabels, proposalStatusTones } from "./proposal-labels";
@@ -232,70 +233,74 @@ export function ProposalsPage() {
         </Alert>
       )}
 
-      {/* One width for every control on the row. A dropdown that shrinks to whatever is chosen makes the
-          row jump about as the filter changes, and sets four boxes of four different sizes beside each
-          other when it is still. */}
-      <div className="flex flex-wrap items-end gap-3 [&>*]:w-44">
-        <div>
-          <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
-          <FilterMenu label="Proposals" value={tab} options={shown} onChange={changeTab} />
-        </div>
-        {/* The dates narrow what is listed; they say nothing about a queue of what is waiting on you, and
-            the sign-off queue is not asked for them. */}
-        {!onMe && (
-          <>
-            <label className="block">
-          <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Sent from</span>
-          <DateInput
-            id="sent-from"
-            name="from"
-            value={from}
-            clearable
-            min={yearsAgo(20)}
-            max={new Date()}
-            onChange={(next) => {
-              setFrom(next ?? "");
-              setPage(0);
-            }}
-          />
-        </label>
-        <label className="block">
-          <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Sent to</span>
-          <DateInput
-            id="sent-to"
-            name="to"
-            value={to}
-            clearable
-            min={yearsAgo(20)}
-            max={new Date()}
-            onChange={(next) => {
-              setTo(next ?? "");
-              setPage(0);
-            }}
-          />
-        </label>
-        <div>
-          <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Order</span>
-          <FilterMenu
-            label="Order"
-            value={newestFirst ? "newest" : "oldest"}
-            options={[{ id: "newest", label: "Newest first" }, { id: "oldest", label: "Oldest first" }]}
-            onChange={(next) => {
-              setNewestFirst(next === "newest");
-              setPage(0);
-            }}
-          />
-        </div>
-          </>
-        )}
-        {filtered && !onMe && (
-          <Button variant="secondary" onClick={clearFilters}>
-            Clear
-          </Button>
-        )}
-      </div>
-
       <section className="rounded-2xl border border-line bg-white">
+        <QueueBar name="Proposals">
+          {/* Four controls where the other queues have one, so these keep the little labels above them:
+              two date boxes side by side say nothing about which end of the range each one is. One width
+              for every control, because a dropdown that shrinks to whatever is chosen makes the row jump
+              about as the filter changes, and sets four boxes of four different sizes beside each other
+              when it is still. */}
+          <div className="contents [&>*]:w-44">
+            <div>
+              <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
+              <FilterMenu label="Proposals" value={tab} options={shown} onChange={changeTab} align="right" />
+            </div>
+            {/* The dates narrow what is listed; they say nothing about a queue of what is waiting on you,
+                and the sign-off queue is not asked for them. */}
+            {!onMe && (
+              <>
+                <label className="block">
+                  <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Sent from</span>
+                  <DateInput
+                    id="sent-from"
+                    name="from"
+                    value={from}
+                    clearable
+                    min={yearsAgo(20)}
+                    max={new Date()}
+                    onChange={(next) => {
+                      setFrom(next ?? "");
+                      setPage(0);
+                    }}
+                  />
+                </label>
+                <label className="block">
+                  <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Sent to</span>
+                  <DateInput
+                    id="sent-to"
+                    name="to"
+                    value={to}
+                    clearable
+                    min={yearsAgo(20)}
+                    max={new Date()}
+                    onChange={(next) => {
+                      setTo(next ?? "");
+                      setPage(0);
+                    }}
+                  />
+                </label>
+                <div>
+                  <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Order</span>
+                  <FilterMenu
+                    label="Order"
+                    value={newestFirst ? "newest" : "oldest"}
+                    options={[{ id: "newest", label: "Newest first" }, { id: "oldest", label: "Oldest first" }]}
+                    onChange={(next) => {
+                      setNewestFirst(next === "newest");
+                      setPage(0);
+                    }}
+                    align="right"
+                  />
+                </div>
+              </>
+            )}
+            {filtered && !onMe && (
+              <Button variant="secondary" onClick={clearFilters}>
+                Clear
+              </Button>
+            )}
+          </div>
+        </QueueBar>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>

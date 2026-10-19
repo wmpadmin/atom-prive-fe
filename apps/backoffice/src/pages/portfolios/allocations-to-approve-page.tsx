@@ -10,6 +10,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { formatDateTime } from "../../lib/labels";
 import { AnswerDialog } from "./answer-dialog";
+import { QueueBar } from "./queue-bar";
 
 /** What a reader can narrow the list to, in the order an ask passes through them. */
 const STATUS_TABS = [
@@ -76,30 +77,25 @@ export function AllocationsToApprovePage() {
 
   return (
     <div className="space-y-5">
-
-      {/* Two sections named the state a row was in and left the reader no way to ask for one: everything
-          decided arrived at once, under everything still waiting, however long ago it was answered, and a
-          rejected ask could only be found by reading past the approved ones. */}
-      <div className="w-fit">
-        <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
-        <FilterMenu
-          label="Asks"
-          value={status}
-          options={STATUS_TABS.map((one) => ({
-            id: one.id,
-            label: one.label,
-            count: one.id === "all"
-              ? waiting.length + decided.length
-              : [...waiting, ...decided].filter((row) => row.status === one.id).length,
-          }))}
-          onChange={setStatus}
-        />
-      </div>
-
-      <section className="overflow-hidden rounded-2xl border border-line bg-white">
-        <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          {STATUS_TABS.find((one) => one.id === status)?.label}
-        </h2>
+      <section className="rounded-2xl border border-line bg-white">
+        <QueueBar name="Net AUM">
+          {/* Two sections named the state a row was in and left the reader no way to ask for one:
+              everything decided arrived at once, under everything still waiting, however long ago it was
+              answered, and a rejected ask could only be found by reading past the approved ones. */}
+          <FilterMenu
+            label="Asks"
+            value={status}
+            options={STATUS_TABS.map((one) => ({
+              id: one.id,
+              label: one.label,
+              count: one.id === "all"
+                ? waiting.length + decided.length
+                : [...waiting, ...decided].filter((row) => row.status === one.id).length,
+            }))}
+            onChange={setStatus}
+            align="right"
+          />
+        </QueueBar>
         {queue.isPending ? (
           <p className="px-5 py-8 text-sm text-ink-muted">Reading the asks…</p>
         ) : shown.length === 0 ? (
