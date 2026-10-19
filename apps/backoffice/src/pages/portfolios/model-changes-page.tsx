@@ -8,6 +8,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, FilterMenu, Pagination } from "@atomprive/ui";
 import { AnswerDialog } from "./answer-dialog";
+import { QueueBar } from "./queue-bar";
 import { useState } from "react";
 import { useStaffUser } from "../../auth/session";
 import { hasAuthority } from "../../lib/permissions";
@@ -62,30 +63,25 @@ export function ModelChangesPage() {
 
   return (
     <div className="space-y-6">
-
-      {/* Five chips said the four states you are not reading alongside the one you are, and wrapped onto a
-          second line to do it. One control says the state being read, and it is what every other list on
-          this app filters with. */}
-      <div className="w-fit">
-        <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
-        <FilterMenu
-          label="Requests"
-          value={tab}
-          options={TABS}
-          onChange={(next) => {
-            setTab(next);
-            setPage(0);
-          }}
-        />
-      </div>
-
       {requests.isError && <Alert tone="danger">{requests.error.message}</Alert>}
       {answer.isError && <Alert tone="danger">{answer.error.message}</Alert>}
 
-      <section className="overflow-hidden rounded-2xl border border-line bg-white">
-        <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          {TABS.find((one) => one.id === tab)?.label}
-        </h2>
+      <section className="rounded-2xl border border-line bg-white">
+        <QueueBar name="Model switch">
+          {/* Five chips said the four states you are not reading alongside the one you are, and wrapped
+              onto a second line to do it. One control says the state being read, and it is what every
+              other list on this app filters with. */}
+          <FilterMenu
+            label="Requests"
+            value={tab}
+            options={TABS}
+            onChange={(next) => {
+              setTab(next);
+              setPage(0);
+            }}
+            align="right"
+          />
+        </QueueBar>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>

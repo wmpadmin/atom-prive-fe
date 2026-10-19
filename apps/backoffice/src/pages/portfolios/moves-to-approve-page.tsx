@@ -13,6 +13,7 @@ import { useStaffUser } from "../../auth/session";
 import { formatDateTime } from "../../lib/labels";
 import { AnswerDialog } from "./answer-dialog";
 import { exactly, figure, named, netted, overItsBand } from "./money-words";
+import { QueueBar } from "./queue-bar";
 import { hasAuthority } from "../../lib/permissions";
 
 /** What a reader can narrow the list to, in the order a plan passes through them. */
@@ -118,10 +119,10 @@ export function WaitingPlan({ row, showClient, answering, refusal, onApprove, on
             {row.legs.map((leg, at) => (
               <tr key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`} className="align-top">
                 <th scope="row" className="py-2.5 pr-3 text-left font-medium break-words text-ink">
-                  {named(leg.fromSubClass, leg.fromAssetClass)}
+                  {named(leg.fromSubClass, leg.fromAssetClass, leg.fromSubSubClass)}
                 </th>
                 <td className="px-3 py-2.5 break-words text-ink">
-                  {named(leg.toSubClass, leg.toAssetClass)}
+                  {named(leg.toSubClass, leg.toAssetClass, leg.toSubSubClass)}
                 </td>
                 <td className="py-2.5 pl-3 text-right tabular-nums whitespace-nowrap text-ink">
                   {figure(leg.amount)}
@@ -345,6 +346,34 @@ export function MovesToApprovePage() {
     ? [...waiting, ...dealtWith]
     : [...waiting, ...dealtWith].filter((row) => row.status === status);
 
+  // Two ways of reading the same plans, because the question changes. Deciding what to answer next is a
+  // question about the queue; deciding whether to answer THIS is a question about the client, and the
+  // answer to it was two sections away with everybody else's plans in between.
+  //
+  // Written once and drawn in whichever bar is on screen. Grouping by client takes the status filter away,
+  // and a toggle built twice is a toggle that ends up two sizes.
+  //
+  // Each button says the whole thing rather than finishing a label beside it. Sat next to the pair, a
+  // "Group by" in the uppercase this app gives its section headings read as a third button and made the
+  // control look like three — and the question it raised was what the control even did. Said on the
+  // buttons, there is nothing left beside them to mistake for one of them.
+  const groupBy = (
+    <div className="flex w-fit rounded-lg border border-line p-0.5" role="group" aria-label="Group by">
+      {([["queue", "Group by status"], ["client", "Group by client"]] as const).map(([which, said]) => (
+        <button
+          key={which}
+          type="button"
+          aria-pressed={view === which}
+          onClick={() => setView(which)}
+          className={cn("rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+            view === which ? "bg-primary-600 text-white" : "text-ink-muted hover:text-ink")}
+        >
+          {said}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="space-y-5">
       {/* Whose plans these are, which the masthead above the tabs cannot say: it is this reader's own
@@ -363,36 +392,18 @@ export function MovesToApprovePage() {
         </Alert>
       )}
 
-      {/* Two ways of reading the same plans, because the question changes. Deciding what to answer next is
-          a question about the queue; deciding whether to answer THIS is a question about the client, and
-          the answer to it was two sections away with everybody else's plans in between. */}
-      {/* Each button says the whole thing rather than finishing a label beside it. Sat next to the pair,
-          a "Group by" in the uppercase this app gives its section headings read as a third button and
-          made the control look like three — and the question it raised was what the control even did.
-          Said on the buttons, there is nothing left beside them to mistake for one of them. */}
-      <div className="flex w-fit rounded-lg border border-line p-0.5" role="group" aria-label="Group by">
-        {([["queue", "Group by status"], ["client", "Group by client"]] as const).map(([which, said]) => (
-          <button
-            key={which}
-            type="button"
-            aria-pressed={view === which}
-            onClick={() => setView(which)}
-            className={cn("rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              view === which ? "bg-primary-600 text-white" : "text-ink-muted hover:text-ink")}
-          >
-            {said}
-          </button>
-        ))}
-      </div>
-
-      {view === "queue" ? (
-        <>
-          {/* Grouping by status without being able to pick one is only a heading. A row of pills spread the
-              choice across the page beside a second row of pills that does something else entirely; the
-              dropdown is one control saying one thing, and it is what every other list on this app filters
-              with. */}
-          <div className="w-fit">
-            <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
+      {/* One card either way, so the line that says what is on screen and the controls that change it do
+          not move as the reader switches between the two readings. The queue is read by status and so has
+          a status to pick; the clients are read by name and have nothing to pick, which is the only
+          difference between the two bars. */}
+      <section className="rounded-2xl border border-line bg-white">
+        <QueueBar name="Money moves">
+          {groupBy}
+          {view === "queue" && (
+            /* Grouping by status without being able to pick one is only a heading. A row of pills spread
+               the choice across the page beside a second row of pills that does something else entirely;
+               the dropdown is one control saying one thing, and it is what every other list on this app
+               filters with. */
             <FilterMenu
               label="Plans"
               value={status}
@@ -404,98 +415,95 @@ export function MovesToApprovePage() {
                   : [...waiting, ...dealtWith].filter((row) => row.status === one.id).length,
               }))}
               onChange={setStatus}
+              align="right"
             />
-          </div>
+          )}
+        </QueueBar>
 
-          <section className="overflow-hidden rounded-2xl border border-line bg-white">
-            <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              {STATUS_TABS.find((one) => one.id === status)?.label}
-            </h2>
-            {queue.isPending ? (
-              <p className="px-5 py-8 text-sm text-ink-muted">Reading the plans…</p>
-            ) : shown.length === 0 ? (
-              <p className="px-5 py-8 text-sm text-ink-muted">
-                {status === "PENDING" ? "Nothing is waiting on you." : "Nothing here."}
-              </p>
-            ) : (
-              <ul className="divide-y divide-line">
-                {shown.map((row) => (
-                  <li key={row.id} className="px-5 py-4">
-                    {row.status === "PENDING" ? (
-                      <WaitingPlan
-                        row={row}
-                        showClient
-                        answering={answer.isPending}
-                        refusal={refused[row.id]}
-                        onApprove={() => {
-                          setDeciding({ row, approved: true });
-                          setNote("");
-                        }}
-                        onTurnDown={() => {
-                          setDeciding({ row, approved: false });
-                          setNote("");
-                        }}
-                      />
-                    ) : (
-                      <DealtWithPlan row={row} showClient />
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </>
-      ) : queue.isPending ? (
-        <section className="overflow-hidden rounded-2xl border border-line bg-white">
+        {view === "queue" ? (
+          queue.isPending ? (
+            <p className="px-5 py-8 text-sm text-ink-muted">Reading the plans…</p>
+          ) : shown.length === 0 ? (
+            <p className="px-5 py-8 text-sm text-ink-muted">
+              {status === "PENDING" ? "Nothing is waiting on you." : "Nothing here."}
+            </p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {shown.map((row) => (
+                <li key={row.id} className="px-5 py-4">
+                  {row.status === "PENDING" ? (
+                    <WaitingPlan
+                      row={row}
+                      showClient
+                      answering={answer.isPending}
+                      refusal={refused[row.id]}
+                      onApprove={() => {
+                        setDeciding({ row, approved: true });
+                        setNote("");
+                      }}
+                      onTurnDown={() => {
+                        setDeciding({ row, approved: false });
+                        setNote("");
+                      }}
+                    />
+                  ) : (
+                    <DealtWithPlan row={row} showClient />
+                  )}
+                </li>
+              ))}
+            </ul>
+          )
+        ) : queue.isPending ? (
           <p className="px-5 py-8 text-sm text-ink-muted">Reading the plans…</p>
-        </section>
-      ) : grouped.length === 0 ? (
-        <section className="overflow-hidden rounded-2xl border border-line bg-white">
+        ) : grouped.length === 0 ? (
           <p className="px-5 py-8 text-sm text-ink-muted">None of your clients has a money move to read.</p>
-        </section>
-      ) : (
-        <ul className="space-y-2">
-          {grouped.map((client) => {
-            const asked = client.waiting;
-            return (
-            // A row that goes to the client's own screen rather than opening under itself. Opened in place,
-            // a client's moves pushed every other client down the page, and what was being read sat in a
-            // drawer under the name instead of on a screen of its own.
-            //
-            // The one with something waiting is tinted, because that is the whole question this list is
-            // asked: which of these needs me.
-            <li key={client.customerId}>
-              <Link
-                to={`/moves-to-approve/${client.customerId}?by=client`}
-                className={cn(
-                  "flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-3 transition-colors",
-                  asked
-                    ? "border-primary-200 bg-primary-50 hover:bg-primary-100"
-                    : "border-line bg-white hover:bg-slate-50",
-                )}
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <Avatar name={client.clientName} />
-                  <div className="min-w-0">
-                    <p className="font-semibold">{client.clientName}</p>
-                    <p className="font-mono text-xs text-ink-muted">{client.clientCode}</p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {grouped.map((client) => {
+              const asked = client.waiting;
+              return (
+              // A row that goes to the client's own screen rather than opening under itself. Opened in place,
+              // a client's moves pushed every other client down the page, and what was being read sat in a
+              // drawer under the name instead of on a screen of its own.
+              //
+              // The one with something waiting is tinted, because that is the whole question this list is
+              // asked: which of these needs me.
+              <li key={client.customerId}>
+                <Link
+                  to={`/moves-to-approve/${client.customerId}?by=client`}
+                  className={cn(
+                    // A row of the card's own list, lined up with the heading above it. It used to be a
+                    // card in its own right because it sat loose on the page; inside one, a second border
+                    // a few pixels in from the first reads as a box drawn twice.
+                    "flex flex-wrap items-center justify-between gap-3 px-5 py-3 transition-colors",
+                    asked
+                      ? "bg-primary-50 hover:bg-primary-100"
+                      : "hover:bg-slate-50",
+                  )}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar name={client.clientName} />
+                    <div className="min-w-0">
+                      <p className="font-semibold">{client.clientName}</p>
+                      <p className="font-mono text-xs text-ink-muted">{client.clientCode}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  {asked && <Badge tone="warning">Waiting for approval</Badge>}
-                  <span className="text-xs text-ink-muted">
-                    {client.dealtWith.length + (asked ? 1 : 0) === 1
-                      ? "1 move"
-                      : `${client.dealtWith.length + (asked ? 1 : 0)} moves`}
-                  </span>
-                  <ChevronRight aria-hidden="true" className="size-4 text-ink-muted" />
-                </div>
-              </Link>
-            </li>
-            );
-          })}
-        </ul>
-      )}
+                  <div className="flex shrink-0 items-center gap-3">
+                    {asked && <Badge tone="warning">Waiting for approval</Badge>}
+                    <span className="text-xs text-ink-muted">
+                      {client.dealtWith.length + (asked ? 1 : 0) === 1
+                        ? "1 move"
+                        : `${client.dealtWith.length + (asked ? 1 : 0)} moves`}
+                    </span>
+                    <ChevronRight aria-hidden="true" className="size-4 text-ink-muted" />
+                  </div>
+                </Link>
+              </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       <AnswerDialog
         open={deciding !== null}
@@ -524,8 +532,8 @@ export function MovesToApprovePage() {
               {deciding.row.legs.map((leg, at) => (
                 <li key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`}>
                   {exactly(leg.amount, deciding.row.currency)} out of{" "}
-                  {named(leg.fromSubClass, leg.fromAssetClass)} and into{" "}
-                  {named(leg.toSubClass, leg.toAssetClass)}
+                  {named(leg.fromSubClass, leg.fromAssetClass, leg.fromSubSubClass)} and into{" "}
+                  {named(leg.toSubClass, leg.toAssetClass, leg.toSubSubClass)}
                 </li>
               ))}
             </ul>

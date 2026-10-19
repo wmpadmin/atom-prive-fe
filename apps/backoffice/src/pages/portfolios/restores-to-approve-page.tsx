@@ -7,6 +7,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, FilterMenu } from "@atomprive/ui";
 import { AnswerDialog } from "./answer-dialog";
+import { QueueBar } from "./queue-bar";
 import { useState } from "react";
 import { Link } from "react-router";
 import { formatDateTime } from "../../lib/labels";
@@ -76,30 +77,26 @@ export function RestoresToApprovePage() {
 
   return (
     <div className="space-y-5">
-
-      {/* Two fixed sections told the reader what the screen had decided to show them: everything waiting,
-          and however much of the rest it felt like keeping. Asked instead, the question has one answer at a
-          time — and a rejection from last week is reachable without a section being built for it. */}
-      <div className="w-fit">
-        <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
-        <FilterMenu
-          label="Asks"
-          value={status}
-          options={STATUS_TABS.map((one) => ({
-            id: one.id,
-            label: one.label,
-            count: one.id === "all"
-              ? waiting.length + decided.length
-              : [...waiting, ...decided].filter((row) => row.status === one.id).length,
-          }))}
-          onChange={setStatus}
-        />
-      </div>
-
-      <section className="overflow-hidden rounded-2xl border border-line bg-white">
-        <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          {STATUS_TABS.find((one) => one.id === status)?.label}
-        </h2>
+      <section className="rounded-2xl border border-line bg-white">
+        <QueueBar name="Restores">
+          {/* Two fixed sections told the reader what the screen had decided to show them: everything
+              waiting, and however much of the rest it felt like keeping. Asked instead, the question has
+              one answer at a time — and a rejection from last week is reachable without a section being
+              built for it. */}
+          <FilterMenu
+            label="Asks"
+            value={status}
+            options={STATUS_TABS.map((one) => ({
+              id: one.id,
+              label: one.label,
+              count: one.id === "all"
+                ? waiting.length + decided.length
+                : [...waiting, ...decided].filter((row) => row.status === one.id).length,
+            }))}
+            onChange={setStatus}
+            align="right"
+          />
+        </QueueBar>
         {queue.isPending ? (
           <p className="px-5 py-8 text-sm text-ink-muted">Reading the asks…</p>
         ) : shown.length === 0 ? (

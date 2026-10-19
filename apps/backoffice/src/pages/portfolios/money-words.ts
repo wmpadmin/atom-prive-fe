@@ -28,7 +28,15 @@ export function figure(amount: number) {
  * <p>Named by its class where one is to hand, because two classes can each hold something nobody has
  * grouped and "what is not grouped" said twice in a list is two lines a reader cannot tell apart.
  */
-export function named(subClass: string | null, assetClass?: string) {
+export function named(subClass: string | null, assetClass?: string,
+    subSubClass?: string | null): string {
+  // The line itself, with the sub-asset around it where there is one. The plan goes three deep, so a
+  // move between two lines inside one sub-asset read "Indian equities → Indian equities" for the whole
+  // amount: a sentence that looks like a fault in the screen rather than a plan, and that tells the
+  // person answering it nothing about where the money actually lands.
+  if (subSubClass != null && subSubClass !== "") {
+    return `${named(subClass, assetClass)} · ${subSubClass}`;
+  }
   if (subClass !== null) return subClass;
   return assetClass === undefined ? "what is not grouped" : `${assetClass}, not grouped`;
 }
@@ -75,14 +83,21 @@ export type NettedLine = {
  */
 export function netted(legs: PlannedLeg[]): NettedLine[] {
   const lines = new Map<string, NettedLine>();
-  // Keyed the way the server keys a line — class and sub-asset, not the name on screen — so two classes
-  // each holding something nobody has grouped stay two lines rather than collapsing into one.
-  const line = (assetClass: string, subClass: string | null, holdsNow: number) => {
-    const key = `${assetClass}\t${subClass ?? ""}`;
+  // Keyed the way the server keys a line — class, sub-asset and the line inside it, not the name on
+  // screen — so two classes each holding something nobody has grouped stay two lines rather than
+  // collapsing into one.
+  //
+  // All three parts, because the plan goes three deep. Keyed by two, two legs naming different lines
+  // inside one sub-asset collapsed into a single row: the table said one line where there were two, gave
+  // it a "would hold" figure that was neither of theirs, and the band warning underneath was read against
+  // that wrong figure. Somebody agreed to money landing somewhere this table never named.
+  const line = (assetClass: string, subClass: string | null, subSubClass: string | null,
+      holdsNow: number) => {
+    const key = `${assetClass}\t${subClass ?? ""}\t${subSubClass ?? ""}`;
     const had = lines.get(key);
     if (had) return had;
     const made: NettedLine = {
-      name: named(subClass, assetClass),
+      name: named(subClass, assetClass, subSubClass),
       holdsNow,
       wouldHold: holdsNow,
       mayHold: null,
@@ -93,12 +108,12 @@ export function netted(legs: PlannedLeg[]): NettedLine[] {
     return made;
   };
   for (const leg of legs) {
-    const from = line(leg.fromAssetClass, leg.fromSubClass, leg.heldNow);
+    const from = line(leg.fromAssetClass, leg.fromSubClass, leg.fromSubSubClass, leg.heldNow);
     from.wouldHold -= leg.amount;
     // Said against the line rather than the movement: it is the line whose figure has changed under the
     // plan, and a line named by three legs would otherwise say it three times.
     if (leg.figuresMoved) from.heldWhenRaised = leg.heldWhenRaised;
-    const into = line(leg.toAssetClass, leg.toSubClass, leg.landsOnHeldNow);
+    const into = line(leg.toAssetClass, leg.toSubClass, leg.toSubSubClass, leg.landsOnHeldNow);
     into.wouldHold += leg.amount;
     if (leg.landsOnMayHold !== null) into.mayHold = leg.landsOnMayHold;
     // The server says this per leg, and every leg landing in one line says the same figure about it — it

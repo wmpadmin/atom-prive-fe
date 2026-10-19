@@ -11,6 +11,7 @@ import { useState } from "react";
 import { formatDateTime } from "../../lib/labels";
 import { AnswerDialog } from "./answer-dialog";
 import { exactly, figure, named } from "./money-words";
+import { QueueBar } from "./queue-bar";
 
 /**
  * What a reader can narrow the list to, in the order a request passes through them.
@@ -157,10 +158,10 @@ function ClientRequest({ row, answering, refusal, onAnswer }: {
             {row.legs.map((leg, at) => (
               <tr key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`} className="align-top">
                 <th scope="row" className="py-2.5 pr-3 text-left font-medium break-words text-ink">
-                  {named(leg.fromSubClass, leg.fromAssetClass)}
+                  {named(leg.fromSubClass, leg.fromAssetClass, leg.fromSubSubClass)}
                 </th>
                 <td className="px-3 py-2.5 break-words text-ink">
-                  {named(leg.toSubClass, leg.toAssetClass)}
+                  {named(leg.toSubClass, leg.toAssetClass, leg.toSubSubClass)}
                 </td>
                 <td className="py-2.5 pl-3 text-right tabular-nums whitespace-nowrap text-ink">
                   {figure(leg.amount)}
@@ -288,26 +289,22 @@ export function ClientRequestsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="w-fit">
-        <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
-        <FilterMenu
-          label="Requests"
-          value={status}
-          options={STATUS_TABS.map((one) => ({
-            id: one.id,
-            label: one.label,
-            count: one.id === "all"
-              ? everything.length
-              : everything.filter((row) => row.status === one.id).length,
-          }))}
-          onChange={setStatus}
-        />
-      </div>
-
-      <section className="overflow-hidden rounded-2xl border border-line bg-white">
-        <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          {STATUS_TABS.find((one) => one.id === status)?.label}
-        </h2>
+      <section className="rounded-2xl border border-line bg-white">
+        <QueueBar name="Client requests">
+          <FilterMenu
+            label="Requests"
+            value={status}
+            options={STATUS_TABS.map((one) => ({
+              id: one.id,
+              label: one.label,
+              count: one.id === "all"
+                ? everything.length
+                : everything.filter((row) => row.status === one.id).length,
+            }))}
+            onChange={setStatus}
+            align="right"
+          />
+        </QueueBar>
         {queue.isPending ? (
           <p className="px-5 py-8 text-sm text-ink-muted">Reading the requests…</p>
         ) : shown.length === 0 ? (
@@ -372,8 +369,8 @@ export function ClientRequestsPage() {
               {deciding.row.legs.map((leg, at) => (
                 <li key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`}>
                   {exactly(leg.amount, deciding.row.currency)} out of{" "}
-                  {named(leg.fromSubClass, leg.fromAssetClass)} and into{" "}
-                  {named(leg.toSubClass, leg.toAssetClass)}
+                  {named(leg.fromSubClass, leg.fromAssetClass, leg.fromSubSubClass)} and into{" "}
+                  {named(leg.toSubClass, leg.toAssetClass, leg.toSubSubClass)}
                 </li>
               ))}
             </ul>
