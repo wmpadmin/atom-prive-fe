@@ -183,6 +183,10 @@ export function ClientCashflowsPanel({ customerId, currency }: {
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="px-5 py-3 whitespace-nowrap">The day it moved</th>
+                {/* Which way, in words. It was said only by a sign and a colour, and a minus in front of
+                    a figure is the one thing a reader skims past — on the column that decides whether
+                    every rate above reads the movement as money arriving or money leaving. */}
+                <th scope="col" className="px-5 py-3 whitespace-nowrap">Which way</th>
                 <th scope="col" className="px-5 py-3 text-right whitespace-nowrap">Amount</th>
                 <th scope="col" className="px-5 py-3">What it was</th>
                 <th scope="col" className="px-5 py-3 whitespace-nowrap">Written down by</th>
@@ -193,6 +197,12 @@ export function ClientCashflowsPanel({ customerId, currency }: {
               {rows.map((row) => (
                 <tr key={row.id}>
                   <td className="px-5 py-3 whitespace-nowrap text-ink">{row.happenedOn}</td>
+                  <td className="px-5 py-3 whitespace-nowrap">
+                    <span className={cn("rounded-full px-2 py-0.5 text-2xs font-semibold",
+                      row.amount < 0 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700")}>
+                      {row.amount < 0 ? "Taken out" : "Paid in"}
+                    </span>
+                  </td>
                   <td className={cn("px-5 py-3 text-right font-medium tabular-nums whitespace-nowrap",
                     row.amount < 0 ? "text-red-700" : "text-emerald-700")}>
                     {row.amount > 0 ? "+" : "−"}{exactly(Math.abs(row.amount), row.currency)}
