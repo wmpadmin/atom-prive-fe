@@ -5,7 +5,7 @@ import {
   type MovePlanQueue,
   type MovePlanRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, SelectInput, cn } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, FilterMenu, cn } from "@atomprive/ui";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -395,21 +395,21 @@ export function MovesToApprovePage() {
               choice across the page beside a second row of pills that does something else entirely; the
               dropdown is one control saying one thing, and it is what every other list on this app filters
               with. */}
-          <label className="flex w-fit items-center gap-2">
-            <span className="text-sm text-ink-muted">Status</span>
-            <SelectInput
-              id="moves-status"
+          <div className="w-fit">
+            <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
+            <FilterMenu
+              label="Plans"
               value={status}
-              onChange={(event) => setStatus(event.target.value as StatusTab)}
-              className="w-auto"
-            >
-              {STATUS_TABS.map((one) => (
-                <option key={one.id} value={one.id}>
-                  {one.label}
-                </option>
-              ))}
-            </SelectInput>
-          </label>
+              options={STATUS_TABS.map((one) => ({
+                id: one.id,
+                label: one.label,
+                count: one.id === "all"
+                  ? waiting.length + dealtWith.length
+                  : [...waiting, ...dealtWith].filter((row) => row.status === one.id).length,
+              }))}
+              onChange={setStatus}
+            />
+          </div>
 
           <section className="overflow-hidden rounded-2xl border border-line bg-white">
             <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">

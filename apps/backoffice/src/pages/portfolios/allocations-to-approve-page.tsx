@@ -5,12 +5,23 @@ import {
   type AllocationChangeQueue,
   type AllocationChangeRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, FilterMenu } from "@atomprive/ui";
 import { useState } from "react";
 import { Link } from "react-router";
 import { ListPageHeader } from "../../components/record-list";
 import { formatDateTime } from "../../lib/labels";
 import { AnswerDialog } from "./answer-dialog";
+
+/** What a reader can narrow the list to, in the order an ask passes through them. */
+const STATUS_TABS = [
+  { id: "PENDING", label: "Waiting for approval" },
+  { id: "APPROVED", label: "Approved" },
+  { id: "REJECTED", label: "Rejected" },
+  { id: "WITHDRAWN", label: "Cancelled" },
+  { id: "all", label: "Everything" },
+] as const;
+
+type StatusTab = (typeof STATUS_TABS)[number]["id"];
 
 /** Money, written the way every other portfolio screen writes it. */
 function exactly(amount: number, currency: string) {
@@ -34,6 +45,7 @@ export function AllocationsToApprovePage() {
   const queue = useListAllocationChanges<AllocationChangeQueue, ApiError>({
     query: { refetchOnWindowFocus: true },
   });
+  const [status, setStatus] = useState<StatusTab>("PENDING");
   const [deciding, setDeciding] = useState<{ row: AllocationChangeRow; approved: boolean } | null>(null);
   const [note, setNote] = useState("");
   const [refused, setRefused] = useState<Record<string, string>>({});
@@ -57,6 +69,11 @@ export function AllocationsToApprovePage() {
 
   const waiting = queue.data?.waiting ?? [];
   const decided = queue.data?.decided ?? [];
+  // One list to filter, because an ask is in exactly one state and the two the server sends are only where
+  // it put them. Ordered waiting-first so "Everything" opens on what is still being asked.
+  const shown = status === "all"
+    ? [...waiting, ...decided]
+    : [...waiting, ...decided].filter((row) => row.status === status);
 
   return (
     <div className="space-y-5">
@@ -65,17 +82,61 @@ export function AllocationsToApprovePage() {
         lead={"Asks to rewrite what a client holds. Nothing has changed: saying yes is what writes them."}
       />
 
+      {/* Two sections named the state a row was in and left the reader no way to ask for one: everything
+          decided arrived at once, under everything still waiting, however long ago it was answered, and a
+          rejected ask could only be found by reading past the approved ones. */}
+      <div className="w-fit">
+        <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
+        <FilterMenu
+          label="Asks"
+          value={status}
+          options={STATUS_TABS.map((one) => ({
+            id: one.id,
+            label: one.label,
+            count: one.id === "all"
+              ? waiting.length + decided.length
+              : [...waiting, ...decided].filter((row) => row.status === one.id).length,
+          }))}
+          onChange={setStatus}
+        />
+      </div>
+
       <section className="overflow-hidden rounded-2xl border border-line bg-white">
         <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Waiting for approval
+          {STATUS_TABS.find((one) => one.id === status)?.label}
         </h2>
         {queue.isPending ? (
           <p className="px-5 py-8 text-sm text-ink-muted">Reading the asks…</p>
-        ) : waiting.length === 0 ? (
-          <p className="px-5 py-8 text-sm text-ink-muted">Nothing is waiting on you.</p>
+        ) : shown.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-ink-muted">
+            {status === "PENDING" ? "Nothing is waiting on you." : "Nothing here."}
+          </p>
         ) : (
           <ul className="divide-y divide-line">
-            {waiting.map((row) => {
+            {shown.map((row) => {
+              // Nobody is waiting on this one, and what it would have changed is no longer a decision
+              // anybody makes — so it is said in a line, not in a table of figures to weigh.
+              if (row.status !== "PENDING") {
+                return (
+                  <li key={row.id} className="flex flex-wrap items-start justify-between gap-4 px-5 py-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">{row.clientName}</p>
+                      <p className="mt-0.5 text-xs text-ink-muted">
+                        {exactly(row.netAum ?? row.netAumNow, row.currency)} · {row.statusSaid}
+                        {row.decidedByName && ` by ${row.decidedByName}`}
+                        {row.decidedAt && ` · ${formatDateTime(row.decidedAt)}`}
+                      </p>
+                      <p className="mt-0.5 text-xs text-ink-muted">
+                        Asked by {row.raisedByName} · {formatDateTime(row.raisedAt)}
+                      </p>
+                      {row.decisionNote && (
+                        <p className="mt-1 text-xs text-ink-muted">{row.decisionNote}</p>
+                      )}
+                    </div>
+                    <Badge tone={row.status === "APPROVED" ? "success" : "neutral"}>{row.statusSaid}</Badge>
+                  </li>
+                );
+              }
               const moving = row.lines.filter((line) => line.valueAmount !== line.heldNow);
               // The rest of the calculator, where this ask carries it. Shown only where it would change:
               // a row saying a loan stays what it is adds nothing to a decision about the lines.
@@ -239,33 +300,6 @@ export function AllocationsToApprovePage() {
           </ul>
         )}
       </section>
-
-      {decided.length > 0 && (
-        <section className="overflow-hidden rounded-2xl border border-line bg-white">
-          <h2 className="border-b border-line px-5 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            Recently decided
-          </h2>
-          <ul className="divide-y divide-line">
-            {decided.map((row) => (
-              <li key={row.id} className="flex flex-wrap items-start justify-between gap-4 px-5 py-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold">{row.clientName}</p>
-                  <p className="mt-0.5 text-xs text-ink-muted">
-                    {exactly(row.netAum ?? row.netAumNow, row.currency)} · {row.statusSaid}
-                    {row.decidedByName && ` by ${row.decidedByName}`}
-                    {row.decidedAt && ` · ${formatDateTime(row.decidedAt)}`}
-                  </p>
-                  <p className="mt-0.5 text-xs text-ink-muted">
-                    Asked by {row.raisedByName} · {formatDateTime(row.raisedAt)}
-                  </p>
-                  {row.decisionNote && <p className="mt-1 text-xs text-ink-muted">{row.decisionNote}</p>}
-                </div>
-                <Badge tone={row.status === "APPROVED" ? "success" : "neutral"}>{row.statusSaid}</Badge>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       <AnswerDialog
         open={deciding !== null}
