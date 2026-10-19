@@ -27,13 +27,13 @@ import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
 import { asFigure } from "../../lib/figures";
 import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
-import { SentProposalsHeader } from "./sent-proposals-header";
+import { ProposalsHeader } from "./proposals-header";
 import { ProposalLineEditor } from "./proposal-line-editor";
 import { EMPTY_LINE, linesFrom, type TypedLine } from "./proposal-line-values";
 import { ProposalAttachment } from "./proposal-attachment";
 import { ProposalLines } from "./proposal-lines";
 import { ProposalTrail } from "./proposal-trail";
-import { clientFileHref, hasAnyAuthority, hasAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
+import { clientFileHref, hasAnyAuthority, hasAuthority, readsEveryAdvisors, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
 import { expiryLabel, formatValue, proposalStatusLabels, proposalStatusTones, sentLabel } from "./proposal-labels";
 
@@ -69,7 +69,7 @@ export function ProposalPage() {
   const form = useRef<HTMLFormElement>(null);
   // Where this proposal was opened from. It is read from three screens and is the same screen from all of
   // them: a manager who came from their sign-off queue, and an advisor who came from the client's own file,
-  // were both being sent on to Sent proposals, which is neither the list they were working nor one they had
+  // were both being sent on to the proposals list, which is neither the list they were working nor one they had
   // been on. The client's file needs no id in the address — the proposal names its own client.
   const cameFrom = useSearchParams()[0].get("from");
   const [errors, setErrors] = useState<FormErrors>(noErrors);
@@ -103,7 +103,8 @@ export function ProposalPage() {
     setExporting(true);
     try {
       const all = await listProposals({ page: 0, size: EXPORT_LIMIT });
-      download(csvOf(all.items), `proposals-${new Date().toISOString().slice(0, 10)}.csv`);
+      download(csvOf(all.items, readsEveryAdvisors(user)),
+        `proposals-${new Date().toISOString().slice(0, 10)}.csv`);
     } finally {
       setExporting(false);
     }
@@ -280,7 +281,7 @@ export function ProposalPage() {
     <div className="space-y-6">
       {/* The screen is the list; a proposal is read within it, so the way back is never off the page. */}
       {!writing && (
-        <SentProposalsHeader
+        <ProposalsHeader
           writes={writes}
           search={search}
           onSearch={searchTheList}
