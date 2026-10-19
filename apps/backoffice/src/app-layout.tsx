@@ -43,7 +43,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
-  Stamp,
   TrendingUp,
   TriangleAlert,
   type LucideIcon,
@@ -55,7 +54,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
 import { MENU_GROUPS } from "./menu-groups";
-import { hasAnyAuthority, hasAuthority, ANSWERS_MOVE_PLANS, APPROVES_PROPOSALS, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
+import { hasAnyAuthority, hasAuthority, ANSWERS_MOVE_PLANS, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
@@ -272,15 +271,6 @@ const allNavigation: {
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
   },
-  // Whoever passes a proposal to the client. Its own screen, not a tab on the proposals list: the queue is
-  // other people's work waiting on you, which is a different job from following your own.
-  {
-    to: "/manager-review",
-    label: "Proposals to approve",
-    icon: Stamp,
-    authority: APPROVES_PROPOSALS,
-    at: (path, search) => path === "/manager-review" || ownsSharedScreen(path, search, A_PROPOSAL, "review"),
-  },
   // Three teams read the blotter and each does one thing to an order, so it sits on all three menus.
   {
     to: "/trade-orders",
@@ -371,8 +361,10 @@ const allNavigation: {
     icon: FileSignature,
     authority: READS_PROPOSALS,
     notFor: ["ADMIN"],
-    // A proposal opened from the sign-off queue or from a client's own file is read there, not here.
-    at: (path, search) => path === "/proposals" || livesHere(path, search, A_PROPOSAL, ["review"]),
+    // Every proposal is read here now, including one opened from the sign-off queue — that queue is a
+    // view of this screen rather than a screen of its own, so there is nowhere else for it to light up.
+    // A proposal opened from a client's own file still belongs to the client.
+    at: (path, search) => path === "/proposals" || livesHere(path, search, A_PROPOSAL, ["client"]),
   },
   // The clients assigned to this advisor: the whole book is not theirs, and this is the part that is.
   {

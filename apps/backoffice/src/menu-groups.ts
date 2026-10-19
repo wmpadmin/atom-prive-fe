@@ -65,7 +65,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     routes: [
       "/forms", "/onboarding", "/clients", "/my-clients",
       "/to-sign", "/client-documents", "/kyc-documents", "/kyc", "/post-onboarding",
-      "/proposals", "/manager-review", "/model-changes", "/moves-to-approve", "/restores-to-approve", "/trade-orders",
+      "/proposals", "/model-changes", "/moves-to-approve", "/restores-to-approve", "/trade-orders",
       "/model-performance", "/model-risk", "/reports", "/dashboard",
       "/proposal-trail", "/family-access",
     ],

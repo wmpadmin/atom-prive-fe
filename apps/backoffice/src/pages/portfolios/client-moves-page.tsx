@@ -164,7 +164,10 @@ export function ClientMovesPage() {
                         <span className="block text-2xs">{formatDateTime(row.decidedAt)}</span>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-ink-muted">{row.decisionNote ?? "—"}</td>
+                    {/* "NA" rather than a dash. An approval owes no reason — the note is asked for and
+                        not demanded — so most of this column is empty by design, and a column of dashes
+                        reads as a column that stopped working rather than one with nothing to say. */}
+                    <td className="px-5 py-3 text-ink-muted">{row.decisionNote ?? "NA"}</td>
                     <td className="px-5 py-3 text-right">
                       <Badge tone={row.status === "APPROVED" ? "success" : "neutral"}>
                         {row.statusSaid}
