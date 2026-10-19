@@ -2,7 +2,9 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useAskToRestore,
   useGetClientValuations,
+  useGetCustomer,
   useListClientRestores,
+  type CustomerDetail,
   type RestoreRow,
   type ValuationHistory,
 } from "@atomprive/api-client/backoffice";
@@ -37,6 +39,12 @@ export function DailyTrackerChangePage() {
   const mayAsk = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
   const restores = useListClientRestores<RestoreRow[], ApiError>(customerId);
   const waiting = (restores.data ?? []).find((one) => one.status === "PENDING") ?? null;
+  // Asked for the one sentence that matters: the act behind this screen writes every figure a client has
+  // again, and it was confirmed in a dialog that said "this client" over a page titled with a date. A
+  // back-office reader with two clients open has nothing there to tell them which one they are about to
+  // rewrite.
+  const client = useGetCustomer<CustomerDetail, ApiError>(customerId);
+  const named = client.data?.client.fullName ?? "this client";
   const askToRestore = useAskToRestore<ApiError>();
   const [asking, setAsking] = useState(false);
   const [why, setWhy] = useState("");
@@ -88,18 +96,21 @@ export function DailyTrackerChangePage() {
                 counts. It is the client's whole history, so a day touched once can read "Change 4" with
                 no changes 1 to 3 anywhere on it — which sent its first reader hunting for three records
                 that were on three other days. */}
-            <p className="mt-1 text-sm text-ink-muted">
-              Written on {on}. The numbering runs through everything ever written down for this client,
-              not through this day — {whereItSits(day, reading)}.
+            <p className="mt-1 max-w-prose text-sm text-ink-muted">
+              Written on {on} — the day somebody typed these figures, not a day the market was read.
+              The numbering runs through everything ever written down for this client, not through this
+              day: {whereItSits(day, reading)}.
             </p>
           </div>
           {/* Asking for the figures to be put back, from the screen where they are being read. Nothing is
               written by pressing it: whoever looks after the client answers, exactly as they answer a
               money move, because this replaces every figure rather than two of them. */}
-          {/* Only where there is something to put back. A version written before the platform kept what
-              each sub-asset held has a total and nothing under it, and the server refuses it — offered
-              anyway, the button was a way to be told no. */}
-          {mayAsk && Object.keys(shownLines).length > 0 && (
+          {/* Only where there is something to put back, and said rather than simply absent. A change
+              written before the platform kept what each sub-asset held has class totals and nothing
+              under them; the server refuses to restore one, so offering the button was a way to be told
+              no — but taking it away without a word is a way to be told nothing, and a reader who used
+              it yesterday is left guessing. */}
+          {mayAsk && (Object.keys(shownLines).length > 0 ? (
             <Button
               variant="secondary"
               disabled={waiting !== null}
@@ -112,7 +123,12 @@ export function DailyTrackerChangePage() {
               <RotateCcw aria-hidden="true" />
               Ask to put the figures back
             </Button>
-          )}
+          ) : (
+            <p className="max-w-xs text-xs text-ink-muted">
+              The figures cannot be put back to this change: what each sub-asset held was not kept when it
+              was written, so there is nothing to write back line by line.
+            </p>
+          ))}
         </div>
         {waiting && (
           <div className="mt-3">
@@ -147,7 +163,12 @@ export function DailyTrackerChangePage() {
           <section className="rounded-2xl border border-line bg-white px-6 py-5">
             <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
               <div>
-                <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Net AUM</p>
+                {/* The classes added up, which is what the Net AUM calculator calls a total allocation.
+                    A Net AUM is that less the loan and plus what the client owns outright, and a day
+                    keeps neither — so this heading named a figure the screen has never held. */}
+                <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  Total allocation
+                </p>
                 <p className="mt-1 text-2xl font-bold tabular-nums">{money(worth)}</p>
               </div>
               <div>
@@ -205,18 +226,18 @@ export function DailyTrackerChangePage() {
       {/* The reason is what whoever answers is being asked about. They can see the figures — both sets. */}
       <Dialog
         open={asking}
-        title={`Put this client back to change ${reading} on ${on}?`}
+        title={`Put ${named} back to change ${reading} on ${on}?`}
         onClose={() => setAsking(false)}
       >
         <div className="space-y-4">
           <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
             <p>
-              Every figure the client has would be written again as they stood at change {reading} on {on}{" "}
+              Every figure {named} has would be written again as they stood at change {reading} on {on}{" "}
               — {currency} {money(worth)} across {Object.values(shownLines)
                 .reduce((sum, inClass) => sum + Object.keys(inClass).length, 0)} sub-assets.
             </p>
             <p className="mt-2 text-xs text-ink-muted">
-              This day is left exactly as it is. What it holds is written forward as a new version, so the
+              This day is left exactly as it is. What it holds is written forward as a new change, so the
               trail keeps both what happened and that somebody put it back.
             </p>
           </div>
@@ -355,7 +376,9 @@ export function DailyTrackerDayPage() {
           <section className="rounded-2xl border border-line bg-white px-6 py-5">
             <div className="flex flex-wrap items-baseline gap-x-10 gap-y-3">
               <div>
-                <p className="text-2xs tracking-wider text-ink-muted uppercase">What it closed at</p>
+                <p className="text-2xs tracking-wider text-ink-muted uppercase">
+                  Total allocation it closed at
+                </p>
                 <p className="mt-1 text-2xl font-bold tabular-nums">{money(day.worth)}</p>
               </div>
               <div>
@@ -514,7 +537,7 @@ function Inside({ on, lines, before, first, classes, beforeClasses, codes, names
                     from different readings of the client, so a card whose parts do not come to its
                     heading is telling the truth about both rather than hiding one of them. */}
                 <span className="text-2xs tracking-wider whitespace-nowrap text-ink-muted uppercase">
-                  {byClassOnly ? "The class total" : "From its lines"}
+                  {byClassOnly ? "The class total" : "Its sub-assets, added up"}
                 </span>
                 <span className="tabular-nums font-semibold">
                   {currency} {money(byClassOnly
