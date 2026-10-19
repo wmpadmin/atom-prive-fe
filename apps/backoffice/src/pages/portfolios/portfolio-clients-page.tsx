@@ -41,14 +41,35 @@ const NOTHING_YET = "—";
  * and a poor decade. It goes in the title rather than on the row, where it would be a column of noise
  * beside the one figure anybody came to read.
  */
-function Earned({ percent, days }: { percent: number; days: number }) {
+/**
+ * What the money earned, and whether anybody can tell.
+ *
+ * <p>A return works by taking money paid in and taken out back out of the answer, and it can only take
+ * out what somebody recorded. With nothing on file every penny of the change is read as earnings — so a
+ * client whose figures were written at 728 one day and 28,640 the next reads as having earned 3,831%,
+ * and this cell called that a return with money in and out kept out of it.
+ *
+ * <p>None on file does not make the figure wrong: a client who neither paid in nor took out has none
+ * either, and theirs is exactly right. It is the one thing that separates a return nobody can check from
+ * one nobody needs to, so it is said rather than guessed at — and the figure stays, because hiding it
+ * would lose a real return to save a reader from a doubtful one.
+ */
+function Earned({ percent, days, flows }: { percent: number; days: number; flows: number }) {
+  const unchecked = flows === 0;
   return (
     <span
       className={cn("font-semibold", percent < 0 ? "text-red-600" : "text-ink")}
-      title={`Over ${days} ${days === 1 ? "day" : "days"} on file, with money paid in and taken out kept `
-        + "out of the answer."}
+      title={unchecked
+        ? `Over ${days} ${days === 1 ? "day" : "days"} on file. No money in or out was recorded over this `
+          + "period, so the whole of the change is being read as something the money earned. If any of it "
+          + "was paid in, record it and this figure will drop to what was actually earned."
+        : `Over ${days} ${days === 1 ? "day" : "days"} on file, with ${flows} `
+          + `${flows === 1 ? "movement" : "movements"} of money in or out kept out of the answer.`}
     >
       {percent > 0 ? "+" : ""}{percent.toFixed(2)}%
+      {/* Marked, not hidden. The reader needs to know the platform cannot vouch for it. */}
+      {unchecked && <span aria-hidden="true" className="ml-1 font-normal text-amber-600">*</span>}
+      {unchecked && <span className="sr-only"> (no money in or out recorded over this period)</span>}
     </span>
   );
 }
@@ -245,9 +266,15 @@ export function PortfolioClientsPage() {
                   annualises to something near a hundred and seventy, which is not wrong so much as it is
                   not an answer. The line simply is not drawn, and the hover says why. */}
               <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
-                {standing?.earned ? (
+                {/* Nothing for a client on no model. The firm asked for it left empty until one is
+                    assigned: a return is worked out from what somebody wrote down, so a client who is
+                    not being measured against anything yet has one the moment two figures exist — and a
+                    figure in this column beside an empty Model column reads as performance against a
+                    plan that does not exist. */}
+                {standing?.earned && standing.modelName ? (
                   <>
-                    <Earned percent={standing.earned.sinceInception} days={standing.earned.days} />
+                    <Earned percent={standing.earned.sinceInception} days={standing.earned.days}
+                      flows={standing.earned.flows} />
                     {standing.earned.perYear != null && (
                       <span className="mt-0.5 block text-2xs text-ink-muted">
                         {standing.earned.perYear > 0 ? "+" : ""}
