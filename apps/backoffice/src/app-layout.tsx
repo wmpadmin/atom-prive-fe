@@ -17,7 +17,6 @@ import { NotificationBell } from "./components/notification-bell";
 import {
   ArrowLeftRight,
   BellRing,
-  Calculator,
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
@@ -37,12 +36,12 @@ import {
   Mail,
   PenLine,
   Radio,
-  RotateCcw,
   Scale,
   Settings,
   ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
+  Stamp,
   TrendingUp,
   TriangleAlert,
   type LucideIcon,
@@ -204,50 +203,6 @@ const allNavigation: {
     onlyFor: ["PORTFOLIO_MANAGER"],
   },
   {
-    // Asking for a client's money to be moved. Whoever may write holdings asks; the client's own
-    // relationship manager answers, and the answer is what moves it.
-    //
-    // No onlyFor. The authority already names exactly the people who may answer, and a list of role names
-    // beside it would quietly leave out whoever the firm grants it to next.
-    to: "/moves-to-approve",
-    label: "Moves to approve",
-    icon: ArrowLeftRight,
-    authority: ANSWERS_MOVE_PLANS,
-  },
-  {
-    // Asking for a client's figures to be put back to a version they stood at. The same people answer it
-    // as answer a money move, because it is the same act carried further.
-    to: "/restores-to-approve",
-    label: "Restores to approve",
-    icon: RotateCcw,
-    authority: ANSWERS_MOVE_PLANS,
-  },
-  {
-    // Asking to rewrite what a client holds, which the Net AUM calculator used to do outright. Further
-    // again than a restore: a restore writes figures already on file and this writes new ones.
-    to: "/allocations-to-approve",
-    label: "Figures to approve",
-    icon: Calculator,
-    authority: ANSWERS_MOVE_PLANS,
-  },
-  {
-    // The one approval that is not about a client: a model is shared, so an edit re-judges every client
-    // on it at once. Signed off by somebody holding the same authority as whoever asked.
-    to: "/model-edits-to-approve",
-    label: "Model changes to approve",
-    icon: SlidersHorizontal,
-    authority: "SEND_PROPOSALS:CHANGE",
-  },
-  {
-    // Asking for a client to be put on another plan. An advisor asks; a manager answers, and the answer
-    // is what moves them.
-    to: "/model-changes",
-    label: "Model changes",
-    icon: ArrowLeftRight,
-    authority: READS_CLIENT_PORTFOLIOS,
-    onlyFor: ["PORTFOLIO_MANAGER", "ADVISOR"],
-  },
-  {
     // How the plans themselves are doing, which is a different question from how any one client is doing.
     to: "/model-performance",
     label: "Model performance",
@@ -270,6 +225,21 @@ const allNavigation: {
     icon: FileSpreadsheet,
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  // Six queues were six entries, and two of them were in no menu group at all — the figures queue and the
+  // model sign-off could only be reached by a notification link or a typed address. They are one job done
+  // six ways: something is waiting, and somebody other than whoever raised it says yes or no. So they are
+  // one screen with a tab each, and one entry here.
+  {
+    to: "/approvals",
+    label: "Approvals",
+    icon: Stamp,
+    authority: [...ANSWERS_MOVE_PLANS, ...READS_PROPOSALS, ...READS_CLIENT_PORTFOLIOS],
+    notFor: ["ADMIN"],
+    // A proposal, or one client's moves, opened from here is read here: this is where they live now.
+    at: (path, search) => path === "/approvals"
+      || livesHere(path, search, A_PROPOSAL, ["client"])
+      || path.startsWith("/moves-to-approve/"),
   },
   // Three teams read the blotter and each does one thing to an order, so it sits on all three menus.
   {
@@ -355,17 +325,6 @@ const allNavigation: {
   { to: "/family-access", label: "Family access trail", icon: UsersRound, authority: "VIEW_AUDIT_LOG:VIEW" },
   { to: "/proposal-trail", label: "Proposal trail", icon: FileSignature, authority: "VIEW_AUDIT_LOG:VIEW" },
   { to: "/my-declarations", label: "My declarations", icon: FileCheck, authority: null },
-  {
-    to: "/proposals",
-    label: "Proposals",
-    icon: FileSignature,
-    authority: READS_PROPOSALS,
-    notFor: ["ADMIN"],
-    // Every proposal is read here now, including one opened from the sign-off queue — that queue is a
-    // view of this screen rather than a screen of its own, so there is nowhere else for it to light up.
-    // A proposal opened from a client's own file still belongs to the client.
-    at: (path, search) => path === "/proposals" || livesHere(path, search, A_PROPOSAL, ["client"]),
-  },
   // The clients assigned to this advisor: the whole book is not theirs, and this is the part that is.
   {
     to: "/my-clients",
@@ -407,23 +366,31 @@ const ENTRY_CLASS = "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm tran
  * only the queues have a count worth showing. Everything else answers nought and draws nothing.
  */
 function useWaitingOn(to: string) {
+  // The four queues are one entry now, so the figure beside it is everything waiting on this person
+  // rather than one queue's share of it. A reader who sees 7 opens the screen and the tabs say where the
+  // seven are; four separate numbers down the menu said the same thing and made them add it up.
+  const queue = to === "/approvals";
   const moves = useListMovePlans<MovePlanQueue, ApiError>({
-    query: { enabled: to === "/moves-to-approve", refetchOnWindowFocus: true },
+    query: { enabled: queue, refetchOnWindowFocus: true },
   });
   const restores = useListRestores<RestoreQueue, ApiError>({
-    query: { enabled: to === "/restores-to-approve", refetchOnWindowFocus: true },
+    query: { enabled: queue, refetchOnWindowFocus: true },
   });
   const figures = useListAllocationChanges<AllocationChangeQueue, ApiError>({
-    query: { enabled: to === "/allocations-to-approve", refetchOnWindowFocus: true },
+    query: { enabled: queue, refetchOnWindowFocus: true },
   });
   const modelEdits = useListModelEdits<ModelEditQueue, ApiError>({
-    query: { enabled: to === "/model-edits-to-approve", refetchOnWindowFocus: true },
+    query: { enabled: queue, refetchOnWindowFocus: true },
   });
-  if (to === "/moves-to-approve") return (moves.data?.waiting ?? []).length;
-  if (to === "/restores-to-approve") return (restores.data?.waiting ?? []).length;
-  if (to === "/allocations-to-approve") return (figures.data?.waiting ?? []).length;
-  if (to === "/model-edits-to-approve") return (modelEdits.data?.waiting ?? []).length;
-  return 0;
+  if (!queue) {
+    return 0;
+  }
+  // A queue this reader may not open answers nothing rather than erroring, so a count that never
+  // arrives simply adds nought.
+  return (moves.data?.waiting ?? []).length
+    + (restores.data?.waiting ?? []).length
+    + (figures.data?.waiting ?? []).length
+    + (modelEdits.data?.waiting ?? []).length;
 }
 
 function NavEntry({

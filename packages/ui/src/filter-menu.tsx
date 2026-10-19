@@ -69,7 +69,7 @@ export function FilterMenu<T extends string>({
   }, [open]);
 
   return (
-    <div ref={box} className={cn("relative inline-block", className)}>
+    <div ref={box} className={cn("relative", className)}>
       <button
         type="button"
         id={`${id}-button`}
@@ -77,17 +77,22 @@ export function FilterMenu<T extends string>({
         aria-expanded={open}
         aria-label={`${label}: ${chosen?.label ?? ""}`}
         onClick={() => setOpen((was) => !was)}
+        // The same height and the same least width as every other control on a filter row, so a row of
+        // them lines up instead of each one shrinking to the length of whatever happens to be chosen.
         className={cn(
-          "flex h-10 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-semibold",
-          "text-ink hover:border-ink/25 focus-visible:outline-2 focus-visible:outline-offset-2",
-          "focus-visible:outline-primary-600",
+          "flex h-10 w-full min-w-44 items-center justify-between gap-2 rounded-lg border border-line",
+          "bg-white px-3 text-sm font-semibold text-ink hover:border-ink/25",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
         )}
       >
-        <span>{chosen?.label}</span>
-        {chosen?.count !== undefined && (
-          <span className="tabular-nums text-ink-muted">{chosen.count}</span>
-        )}
-        <ChevronDown aria-hidden="true" className={cn("size-4 text-ink-muted transition-transform", open && "rotate-180")} />
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate">{chosen?.label}</span>
+          {chosen?.count !== undefined && (
+            <span className="shrink-0 tabular-nums text-ink-muted">{chosen.count}</span>
+          )}
+        </span>
+        <ChevronDown aria-hidden="true"
+          className={cn("size-4 shrink-0 text-ink-muted transition-transform", open && "rotate-180")} />
       </button>
 
       {open && (

@@ -3,7 +3,6 @@ import { AppLayout } from "./app-layout";
 import { RequireAuthority, RequireSignIn } from "./auth/guards";
 import { MyClientsPage } from "./pages/advisor/my-clients-page";
 import { ProposalPage } from "./pages/advisor/proposal-page";
-import { ProposalsPage } from "./pages/advisor/proposals-page";
 import { AmlClientPage } from "./pages/aml/aml-client-page";
 import { AmlMatrixPage } from "./pages/aml/aml-matrix-page";
 import { AmlRiskPage } from "./pages/aml/aml-risk-page";
@@ -64,16 +63,12 @@ import { PortfolioReportsPage } from "./pages/portfolios/reports-page";
 import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-page";
 import { ModelPerformancePage } from "./pages/portfolios/model-performance-page";
 import { BulkRebalancingPage } from "./pages/portfolios/bulk-rebalancing-page";
-import { ModelChangesPage } from "./pages/portfolios/model-changes-page";
-import { MovesToApprovePage } from "./pages/portfolios/moves-to-approve-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
 import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
 import { DailyTrackerDayPage } from "./pages/portfolios/daily-tracker-day-page";
 import { ClientMovesPage } from "./pages/portfolios/client-moves-page";
-import { AllocationsToApprovePage } from "./pages/portfolios/allocations-to-approve-page";
-import { ModelEditsToApprovePage } from "./pages/portfolios/model-edits-to-approve-page";
-import { RestoresToApprovePage } from "./pages/portfolios/restores-to-approve-page";
+import { ApprovalsPage } from "./pages/portfolios/approvals-page";
 import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
 import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
@@ -195,7 +190,7 @@ export const router = createBrowserRouter([
             // advises the client, which is why only the writing route below is closed to them.
             element: <RequireAuthority authority={READS_PROPOSALS} />,
             children: [
-              { path: "proposals", element: <ProposalsPage /> },
+              { path: "proposals", element: <Navigate to="/approvals?queue=proposals" replace /> },
               { path: "proposals/:proposalId", element: <ProposalPage /> },
             ],
           },
@@ -228,18 +223,28 @@ export const router = createBrowserRouter([
             children: [{ path: "aml-risk/matrix", element: <AmlMatrixPage /> }],
           },
           {
+            // Everything waiting on somebody, on one screen. Open to whoever holds any one of the three
+            // permissions its tabs sit behind; the screen draws only the tabs that reader may open, so
+            // the gate here is deliberately the widest of them rather than all three.
+            element: <RequireAuthority authority={[...ANSWERS_MOVE_PLANS, ...READS_PROPOSALS,
+              ...READS_CLIENT_PORTFOLIOS]} />,
+            children: [{ path: "approvals", element: <ApprovalsPage /> }],
+          },
+          {
             // Answering a plan to move money is its own permission, narrower than reading a portfolio:
             // whoever may read every client's figures is not thereby somebody who may move their money.
             element: <RequireAuthority authority={ANSWERS_MOVE_PLANS} />,
             children: [
-              { path: "moves-to-approve", element: <MovesToApprovePage /> },
               // One client's moves, on a screen of their own rather than in a drawer under their name.
               { path: "moves-to-approve/:customerId", element: <ClientMovesPage /> },
-              // Putting a client's figures back is answered by the same people under the same rule, so it
-              // sits behind the same gate.
-              { path: "restores-to-approve", element: <RestoresToApprovePage /> },
-              { path: "allocations-to-approve", element: <AllocationsToApprovePage /> },
-              { path: "model-edits-to-approve", element: <ModelEditsToApprovePage /> },
+              // The four queues are tabs on one screen now. Their old addresses keep arriving, because
+              // every bell already sent carries one and those notices are rows in a database rather than
+              // links that can be rewritten.
+              { path: "moves-to-approve", element: <Navigate to="/approvals?queue=moves" replace /> },
+              { path: "restores-to-approve", element: <Navigate to="/approvals?queue=restores" replace /> },
+              { path: "allocations-to-approve", element: <Navigate to="/approvals?queue=figures" replace /> },
+              { path: "model-edits-to-approve",
+                element: <Navigate to="/approvals?queue=model-sign-off" replace /> },
               // Where the screen used to live. Every bell sent before it was renamed carries this path,
               // and those notices are rows in a database rather than links that can be rewritten — so the
               // old address has to keep arriving somewhere rather than at a page that is not there.
@@ -253,7 +258,7 @@ export const router = createBrowserRouter([
             // address stays, because it is in people's history and in older notification links.
             children: [{
               path: "manager-review",
-              element: <Navigate to="/proposals?tab=waitingOnMe" replace />,
+              element: <Navigate to="/approvals?queue=proposals&tab=waitingOnMe" replace />,
             }],
           },
           {
@@ -320,7 +325,7 @@ export const router = createBrowserRouter([
               { path: "model-portfolios", element: <ModelPortfoliosPage /> },
               { path: "drift", element: <DriftBreachesPage /> },
               { path: "bulk-rebalancing", element: <BulkRebalancingPage /> },
-              { path: "model-changes", element: <ModelChangesPage /> },
+              { path: "model-changes", element: <Navigate to="/approvals?queue=model-changes" replace /> },
               { path: "model-performance", element: <ModelPerformancePage /> },
               { path: "model-risk", element: <ModelRiskPage /> },
               { path: "reports", element: <PortfolioReportsPage /> },

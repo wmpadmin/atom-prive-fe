@@ -52,8 +52,8 @@ const CAME_FROM: Record<string, { to: string; label: string }> = {
   dashboard: { to: "/dashboard", label: "Back to the dashboard" },
   // The two approval queues. Somebody who opened a client to read their figures before answering is in
   // the middle of answering, and sending them to the client list made them find the queue again.
-  moves: { to: "/moves-to-approve", label: "Back to moves to approve" },
-  restores: { to: "/restores-to-approve", label: "Back to restores to approve" },
+  moves: { to: "/approvals?queue=moves", label: "Back to moves to approve" },
+  restores: { to: "/approvals?queue=restores", label: "Back to restores to approve" },
 };
 
 const FROM_THE_LIST = { to: "/portfolio-clients", label: "Back to the clients" };

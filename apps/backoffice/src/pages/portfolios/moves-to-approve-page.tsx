@@ -10,7 +10,6 @@ import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { ListPageHeader } from "../../components/record-list";
 import { formatDateTime } from "../../lib/labels";
 import { AnswerDialog } from "./answer-dialog";
 import { exactly, figure, named, netted, overItsBand } from "./money-words";
@@ -348,14 +347,11 @@ export function MovesToApprovePage() {
 
   return (
     <div className="space-y-5">
-      <ListPageHeader
-        title="Moves to approve"
-        lead={
-          firmWide
-            ? "Plans to move money between what a client holds. Nothing has moved: saying yes is what moves it."
-            : "Plans to move money between what your clients hold. Nothing has moved: saying yes is what moves it."
-        }
-      />
+      {/* Whose plans these are, which the masthead above the tabs cannot say: it is this reader's own
+          answer rather than the queue's. */}
+      <p className="text-sm font-semibold text-ink">
+        {firmWide ? "Every client's plans." : "Your clients' plans."}
+      </p>
 
       {/* Said once at the top rather than hunted for row by row, so nobody looks for a button on a row that
           is there and inert. */}

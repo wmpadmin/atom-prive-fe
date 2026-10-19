@@ -220,7 +220,7 @@ export function ModelDetailPage() {
       {asked && (
         <Alert tone="info">
           Your change is waiting to be signed off. Nothing on this plan has changed yet — it is on{" "}
-          <Link to="/model-edits-to-approve" className="font-semibold underline underline-offset-2">
+          <Link to="/approvals?queue=model-sign-off" className="font-semibold underline underline-offset-2">
             Model changes to approve
           </Link>
           {" "}until somebody else answers it.

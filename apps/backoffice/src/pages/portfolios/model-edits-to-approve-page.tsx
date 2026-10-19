@@ -8,7 +8,6 @@ import {
 import { Alert, Badge, Button, FilterMenu } from "@atomprive/ui";
 import { useState } from "react";
 import { Link } from "react-router";
-import { ListPageHeader } from "../../components/record-list";
 import { formatDateTime } from "../../lib/labels";
 import { AnswerDialog } from "./answer-dialog";
 
@@ -71,11 +70,6 @@ export function ModelEditsToApprovePage() {
 
   return (
     <div className="space-y-5">
-      <ListPageHeader
-        title="Model changes to approve"
-        lead={"Changes to a plan clients are measured against. Nothing has changed: saying yes is what "
-          + "writes it, for every client on the plan at once."}
-      />
 
       {/* What had been answered sat in a second section underneath, which told a reader what was signed off
           lately and nothing else: there was no asking for the rejected ones, and the two readings could not

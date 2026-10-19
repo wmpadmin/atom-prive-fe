@@ -9,7 +9,6 @@ import { Alert, Avatar, Badge, Button, FilterMenu } from "@atomprive/ui";
 import { AnswerDialog } from "./answer-dialog";
 import { useState } from "react";
 import { Link } from "react-router";
-import { ListPageHeader } from "../../components/record-list";
 import { formatDateTime } from "../../lib/labels";
 
 /**
@@ -77,11 +76,6 @@ export function RestoresToApprovePage() {
 
   return (
     <div className="space-y-5">
-      <ListPageHeader
-        title="Restores to approve"
-        lead={"Asks to put a client's figures back to a version they stood at. Nothing has changed: saying "
-          + "yes is what writes them."}
-      />
 
       {/* Two fixed sections told the reader what the screen had decided to show them: everything waiting,
           and however much of the rest it felt like keeping. Asked instead, the question has one answer at a

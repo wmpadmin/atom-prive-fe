@@ -277,20 +277,20 @@ export function PortfolioManagerDashboard() {
             <Sent
               label="Awaiting a client's answer"
               value={counts?.awaitingClient}
-              to="/proposals?tab=client"
+              to="/approvals?queue=proposals&tab=client"
               failed={proposals.isError}
             />
             <Sent
               label="Approved in the last week"
               value={counts?.approvedLately}
-              to="/proposals?tab=approved"
+              to="/approvals?queue=proposals&tab=approved"
               failed={proposals.isError}
             />
             {/* Not a failure to hide: no answer in the window and it lapses on its own. */}
             <Sent
               label="Expired without an answer"
               value={counts?.expired}
-              to="/proposals?tab=expired"
+              to="/approvals?queue=proposals&tab=expired"
               failed={proposals.isError}
             />
           </div>
