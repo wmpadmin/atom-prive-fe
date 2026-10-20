@@ -129,6 +129,83 @@ export interface TradeOrderRow {
   limitsBroken: LimitBroken[];
 }
 
+export type DeclarationScheduleWantedCadence = typeof DeclarationScheduleWantedCadence[keyof typeof DeclarationScheduleWantedCadence];
+
+
+export const DeclarationScheduleWantedCadence = {
+  MONTHLY: 'MONTHLY',
+  QUARTERLY: 'QUARTERLY',
+  SIX_MONTHLY: 'SIX_MONTHLY',
+  ANNUAL: 'ANNUAL',
+  ON_APPOINTMENT: 'ON_APPOINTMENT',
+  ON_JOINING: 'ON_JOINING',
+} as const;
+
+export interface DeclarationScheduleWanted {
+  cadence: DeclarationScheduleWantedCadence;
+  /**
+     * @minimum 1
+     * @maximum 12
+     * @nullable
+     */
+  dueMonth: number | null;
+  /**
+     * @minimum 1
+     * @maximum 31
+     * @nullable
+     */
+  dueDay: number | null;
+}
+
+export type DeclarationScheduleRowKind = typeof DeclarationScheduleRowKind[keyof typeof DeclarationScheduleRowKind];
+
+
+export const DeclarationScheduleRowKind = {
+  CONFLICT_OF_INTEREST: 'CONFLICT_OF_INTEREST',
+  AML_PROCEDURES_CERTIFICATION: 'AML_PROCEDURES_CERTIFICATION',
+  AUTHORISED_INDIVIDUALS: 'AUTHORISED_INDIVIDUALS',
+  COMPLIANCE_MANUAL_CERTIFICATION: 'COMPLIANCE_MANUAL_CERTIFICATION',
+  OUTSIDE_INTERESTS: 'OUTSIDE_INTERESTS',
+  DFSA_CONDUCT_PRINCIPLES: 'DFSA_CONDUCT_PRINCIPLES',
+  DATA_CONSENT: 'DATA_CONSENT',
+  FIT_AND_PROPER: 'FIT_AND_PROPER',
+  PERSONAL_ACCOUNT_DEALING: 'PERSONAL_ACCOUNT_DEALING',
+} as const;
+
+export type DeclarationScheduleRowCadence = typeof DeclarationScheduleRowCadence[keyof typeof DeclarationScheduleRowCadence];
+
+
+export const DeclarationScheduleRowCadence = {
+  MONTHLY: 'MONTHLY',
+  QUARTERLY: 'QUARTERLY',
+  SIX_MONTHLY: 'SIX_MONTHLY',
+  ANNUAL: 'ANNUAL',
+  ON_APPOINTMENT: 'ON_APPOINTMENT',
+  ON_JOINING: 'ON_JOINING',
+} as const;
+
+export interface DeclarationScheduleRow {
+  kind: DeclarationScheduleRowKind;
+  title: string;
+  cadence: DeclarationScheduleRowCadence;
+  cadenceLabel: string;
+  /** @nullable */
+  dueMonth: number | null;
+  /** @nullable */
+  dueDay: number | null;
+  schedule: string;
+  setByTheFirm: boolean;
+  asShipped: string;
+  /** @nullable */
+  changedByName: string | null;
+  /** @nullable */
+  changedAt: string | null;
+}
+
+export interface DeclarationSchedulePage {
+  items: DeclarationScheduleRow[];
+}
+
 export interface EntryRequest {
   /**
      * @minLength 0
@@ -1583,12 +1660,11 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
-  floatingPointNumber?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1600,6 +1676,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -6743,6 +6820,157 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getChangeTradeOrderMutationOptions(options), queryClient);
+    }
+
+export const getSetScheduleUrl = (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',) => {
+
+
+
+
+  return `/api/backoffice/staff-declarations/schedules/${kind}`
+}
+
+export const setSchedule = async (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',
+    declarationScheduleWanted: DeclarationScheduleWanted, options?: Parameters<typeof http>[1]): Promise<DeclarationSchedulePage> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<DeclarationSchedulePage>(getSetScheduleUrl(kind),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(declarationScheduleWanted)
+  }
+);}
+
+
+
+
+
+export const getSetScheduleMutationKey = () => ['setSchedule'] as const;
+
+export const getSetScheduleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setSchedule>>, TError,SetScheduleMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof setSchedule>>, TError,SetScheduleMutationVariables, TContext> => {
+
+const mutationKey = getSetScheduleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setSchedule>>, SetScheduleMutationVariables> = (props) => {
+          const {kind,data} = props ?? {};
+
+          return  setSchedule(kind,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof setSchedule>>>
+    export type SetScheduleMutationBody = DeclarationScheduleWanted
+    export type SetScheduleMutationError = unknown
+    export type SetScheduleMutationVariables = {kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING';data: DeclarationScheduleWanted}
+
+    export const useSetSchedule = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setSchedule>>, TError,SetScheduleMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setSchedule>>,
+        TError,
+        SetScheduleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetScheduleMutationOptions(options), queryClient);
+    }
+
+export const getClearScheduleUrl = (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',) => {
+
+
+
+
+  return `/api/backoffice/staff-declarations/schedules/${kind}`
+}
+
+export const clearSchedule = async (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING', options?: Parameters<typeof http>[1]): Promise<DeclarationSchedulePage> => {
+
+  return http<DeclarationSchedulePage>(getClearScheduleUrl(kind),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getClearScheduleMutationKey = () => ['clearSchedule'] as const;
+
+export const getClearScheduleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearSchedule>>, TError,ClearScheduleMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearSchedule>>, TError,ClearScheduleMutationVariables, TContext> => {
+
+const mutationKey = getClearScheduleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearSchedule>>, ClearScheduleMutationVariables> = (props) => {
+          const {kind} = props ?? {};
+
+          return  clearSchedule(kind,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof clearSchedule>>>
+
+    export type ClearScheduleMutationError = unknown
+    export type ClearScheduleMutationVariables = {kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING'}
+
+    export const useClearSchedule = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearSchedule>>, TError,ClearScheduleMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof clearSchedule>>,
+        TError,
+        ClearScheduleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getClearScheduleMutationOptions(options), queryClient);
     }
 
 export const getRenameEntryUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
@@ -22669,6 +22897,101 @@ export function useForStaff<TData = Awaited<ReturnType<typeof forStaff>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getForStaffQueryOptions(staffUserId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListSchedulesUrl = () => {
+
+
+
+
+  return `/api/backoffice/staff-declarations/schedules`
+}
+
+export const listSchedules = async ( options?: Parameters<typeof http>[1]): Promise<DeclarationSchedulePage> => {
+
+  return http<DeclarationSchedulePage>(getListSchedulesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSchedulesQueryKey = () => {
+    return [
+    `/api/backoffice/staff-declarations/schedules`
+    ] as const;
+    }
+
+
+export const getListSchedulesQueryOptions = <TData = Awaited<ReturnType<typeof listSchedules>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSchedules>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSchedulesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSchedules>>> = ({ signal }) => listSchedules({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSchedules>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSchedulesQueryResult = NonNullable<Awaited<ReturnType<typeof listSchedules>>>
+export type ListSchedulesQueryError = unknown
+
+
+export function useListSchedules<TData = Awaited<ReturnType<typeof listSchedules>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSchedules>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSchedules>>,
+          TError,
+          Awaited<ReturnType<typeof listSchedules>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSchedules<TData = Awaited<ReturnType<typeof listSchedules>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSchedules>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSchedules>>,
+          TError,
+          Awaited<ReturnType<typeof listSchedules>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSchedules<TData = Awaited<ReturnType<typeof listSchedules>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSchedules>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListSchedules<TData = Awaited<ReturnType<typeof listSchedules>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSchedules>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSchedulesQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
