@@ -44,7 +44,7 @@ export function PortfolioSettingsPage() {
   // The boxes start from what the firm has settled, and stay as they are typed from then on.
   const held = settings.data;
   const typed = edits ?? asTyped(held);
-  const { watchAt, edgeAt, breachAt, sellOrder, minimumTrade, reviewEveryMonths, breachAlertTo, warnOnNearLimit } =
+  const { watchAt, edgeAt, breachAt, sellOrder, minimumTrade, breachAlertTo, warnOnNearLimit } =
     typed;
   const set = (part: Partial<Typed>) => setEdits({ ...typed, ...part });
 
@@ -62,7 +62,7 @@ export function PortfolioSettingsPage() {
     },
   });
 
-  const figures = [watchAt, edgeAt, breachAt, minimumTrade, reviewEveryMonths];
+  const figures = [watchAt, edgeAt, breachAt, minimumTrade];
   const readable = figures.every((typed) => typed.trim() !== "" && Number.isFinite(Number(typed)));
   // The bands may not narrow, or a drift would be broken before it was worth watching. Equal is allowed
   // and is how the firm writes them now: one figure said three times, which collapses the ladder to the
@@ -79,7 +79,6 @@ export function PortfolioSettingsPage() {
         defaultBreachAt: Number(breachAt),
         sellOrder,
         minimumTrade: Number(minimumTrade),
-        reviewEveryMonths: Number(reviewEveryMonths),
         breachAlertTo,
         warnOnNearLimit,
       },
@@ -204,24 +203,6 @@ export function PortfolioSettingsPage() {
         </Panel>
 
         <Panel
-          title="Review cadence"
-          says="How often a client should be looked at. A client past it shows on the dashboard, and one nobody has ever read is waiting from the day their portfolio is opened."
-          takesEffect
-        >
-          <Field id="set-review" label="Months between reviews" error={errors.fields.reviewEveryMonths}>
-            <TextInput
-              {...describedBy("set-review", errors.fields.reviewEveryMonths)}
-              id="set-review"
-              inputMode="numeric"
-              className="max-w-32"
-              disabled={!mayChange}
-              value={reviewEveryMonths}
-              onChange={(event) => set({ reviewEveryMonths: asFigure(event.target.value, reviewEveryMonths) })}
-            />
-          </Field>
-        </Panel>
-
-        <Panel
           title="Alerts"
           says="Who hears when a client's portfolio breaks its model. Looked for once a day; said once, and again only when a drift gets worse."
           takesEffect
@@ -307,7 +288,6 @@ interface Typed {
   breachAt: string;
   sellOrder: SellOrder;
   minimumTrade: string;
-  reviewEveryMonths: string;
   breachAlertTo: AlertTo;
   warnOnNearLimit: boolean;
 }
@@ -320,7 +300,6 @@ function asTyped(held: SettingsView | undefined): Typed {
     breachAt: held ? String(held.defaultBreachAt) : "",
     sellOrder: held?.sellOrder ?? "ASK",
     minimumTrade: held ? String(held.minimumTrade) : "",
-    reviewEveryMonths: held ? String(held.reviewEveryMonths) : "",
     breachAlertTo: held?.breachAlertTo ?? "PORTFOLIO_MANAGER",
     warnOnNearLimit: held?.warnOnNearLimit ?? true,
   };

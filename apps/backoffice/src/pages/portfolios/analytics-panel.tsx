@@ -502,6 +502,15 @@ function WorthOverTime({ points, everyCount, currency, pending, picked, setPicke
 }
 
 /** What the book is made of today, against what the plan asks it to be made of. */
+/**
+ * How far from its target a class has to be before the figure is marked rather than merely printed.
+ *
+ * <p>Not a band: the firm sets its own watch, edge and breach per model and those are what a verdict is
+ * read from. This is only the point at which a reader's eye should be caught, so one figure for every
+ * client is enough.
+ */
+const FAR_FROM_TARGET = 5;
+
 function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly }: {
   byClass: PortfolioStanding["classes"];
   order: { code: string }[];
@@ -521,12 +530,36 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
   // of the server's own shares or it would put a class at sixty per cent while the card under it put the
   // same class at thirty, on one screen, at one instant. Nobody tells the firm a total any more.
   const whole = written;
+  // Every class the client holds or the plan asks for. A class with neither is not a row: the firm has
+  // nothing there and asks for nothing there, and a line of noughts is a line to read past.
+  const shown = byClass.filter((row) => row.actualValue > 0 || row.targetShare > 0);
+  // What the bars are drawn against. Taken from the figures rather than fixed, so a client with eighty
+  // per cent in one class has a bar that fits instead of one pinned at the end telling nobody how far
+  // past it they are. Rounded up to the next five so the scale is a figure a reader can hold.
+  const scale = Math.max(25, Math.ceil(Math.max(...shown.flatMap((row) =>
+    [whole === 0 ? 0 : (row.actualValue / whole) * 100, row.targetShare])) / 5) * 5);
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
-      <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-        What it is made of
-      </h2>
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+        <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+          What it is made of
+        </h2>
+        {/* What the two marks on each bar mean, said once up here rather than guessed at four times
+            down there. */}
+        {whole > 0 && (
+          <p className="flex items-center gap-3 text-xs text-ink-muted">
+            <span className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="h-2.5 w-5 rounded-full bg-slate-400" />
+              Held
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="h-3.5 w-0.5 rounded-full bg-ink" />
+              Target
+            </span>
+          </p>
+        )}
+      </div>
       {/* Which day, said outright. A ring that quietly changed under a date somebody picked, still
           headed "Today", is the screen telling them the wrong thing in its own words. */}
       <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
@@ -553,81 +586,101 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
         </p>
       ) : (
         <>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+          {/* One ring and a table, not two rings. Read side by side, the second ring said only what the
+              plan asks for — four shares a reader then had to hold in their head while looking back at
+              the first. The targets are beside the holdings now, a row each, with the distance between
+              them drawn and named; and the row is wide, which is what the card had going spare. */}
+          <div className="mt-4 flex flex-wrap items-center gap-x-10 gap-y-6 lg:flex-nowrap">
             <Ring
               title="Held"
-              slices={[
-                ...held.map((row) => ({
-                  code: row.assetClass,
-                  share: (row.actualValue / whole) * 100,
-                  ink: inkFor(row.assetClass, order),
-                })),
-              ]}
+              slices={held.map((row) => ({
+                code: row.assetClass,
+                share: (row.actualValue / whole) * 100,
+                ink: inkFor(row.assetClass, order),
+              }))}
               middle={brief(whole)}
               under={currency}
               only={only}
               setOnly={setOnly}
               names={names}
             />
-          {/* Between the two circles, not beside them. A list of names below them left most of a card
-              the width of the page empty, and off to one side of them it left the other side empty —
-              so the two readings sit at the ends of the card with what they are called in the middle. */}
-          <ul className="mx-auto w-full max-w-sm min-w-56 flex-1 basis-56 space-y-1">
-            {byClass
-              .filter((row) => row.actualValue > 0 || row.targetShare > 0)
-              .map((row) => {
-                const actual = whole === 0 ? 0 : (row.actualValue / whole) * 100;
-                const dimmed = only !== null && only !== row.assetClass;
-                return (
-                  <li key={row.assetClass}>
-                    {/* The names are the other half of the ring and are hit far more easily than an
-                        arc, so they pick the same class the slices do. */}
-                    <button
-                      type="button"
-                      onClick={() => setOnly(only === row.assetClass ? null : row.assetClass)}
-                      className={cn("flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm leading-6",
-                        only === row.assetClass ? "bg-primary-50" : "hover:bg-slate-50",
-                        dimmed && "opacity-45")}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ background: inkFor(row.assetClass, order) }}
-                      />
-                      <span className="min-w-0 flex-1 truncate text-ink">
-                        {row.assetClassName || nameOf(row.assetClass, names)}
-                      </span>
-                      <span className="w-16 shrink-0 text-right font-semibold tabular-nums text-ink">
-                        {actual.toFixed(1)}%
-                      </span>
-                      {/* "of" pinned and the figure right-aligned beside it, rather than the pair
-                          right-aligned together: read as one string, a target of 5% sat a character
-                          further right than one of 70% and the column read as though it were leaning. */}
-                      <span className="flex w-16 shrink-0 items-baseline gap-1 text-2xs text-ink-muted">
-                        <span>of</span>
-                        <span className="flex-1 text-right tabular-nums">
-                          {row.targetShare.toFixed(0)}%
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-          </ul>
-            <Ring
-              title="Asked for"
-              slices={byClass.filter((row) => row.targetShare > 0).map((row) => ({
-                code: row.assetClass,
-                share: row.targetShare,
-                ink: inkFor(row.assetClass, order),
-              }))}
-              middle="100"
-              under="%"
-              only={only}
-              setOnly={setOnly}
-              names={names}
-            />
 
+            <div className="min-w-0 flex-1">
+              <table className="w-full text-sm">
+                <caption className="sr-only">
+                  Each asset class: what is held, what the plan asks for, and how far apart they are.
+                </caption>
+                <thead>
+                  <tr className="text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                    <th scope="col" className="pb-2 pr-4">Asset class</th>
+                    <th scope="col" className="pb-2 pr-4">Held vs target</th>
+                    <th scope="col" className="pb-2 pl-4 text-right">Held</th>
+                    <th scope="col" className="pb-2 pl-4 text-right">Target</th>
+                    <th scope="col" className="pb-2 pl-4 text-right">Drift</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.map((row) => {
+                    const actual = whole === 0 ? 0 : (row.actualValue / whole) * 100;
+                    const target = row.targetShare;
+                    const apart = actual - target;
+                    const far = Math.abs(apart) > FAR_FROM_TARGET;
+                    const dimmed = only !== null && only !== row.assetClass;
+                    const ink = inkFor(row.assetClass, order);
+                    return (
+                      <tr key={row.assetClass} className={cn(dimmed && "opacity-45")}>
+                        <td className="py-1.5 pr-4">
+                          {/* The names are the other half of the ring and are hit far more easily than
+                              an arc, so they pick the same class the slices do. */}
+                          <button
+                            type="button"
+                            onClick={() => setOnly(only === row.assetClass ? null : row.assetClass)}
+                            className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1 text-left",
+                              only === row.assetClass ? "bg-primary-50" : "hover:bg-slate-50")}
+                          >
+                            <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full"
+                              style={{ background: ink }} />
+                            <span className="min-w-0 truncate text-ink">
+                              {row.assetClassName || nameOf(row.assetClass, names)}
+                            </span>
+                          </button>
+                        </td>
+                        <td className="py-1.5 pr-4">
+                          {/* The bar is what is held; the mark on it is what the plan asks for. Both on
+                              one line, so the gap between them is a distance a reader sees rather than a
+                              subtraction they do. */}
+                          <div className="relative h-2.5 w-full min-w-24 rounded-full bg-slate-100">
+                            <div className="h-full rounded-full"
+                              style={{ width: `${Math.min(100, (actual / scale) * 100)}%`, background: ink }} />
+                            <span
+                              aria-hidden="true"
+                              className="absolute top-[-3px] h-[17px] w-0.5 rounded-full bg-ink"
+                              style={{ left: `${Math.min(100, (target / scale) * 100)}%` }}
+                            />
+                          </div>
+                        </td>
+                        <td className="py-1.5 pl-4 text-right font-semibold tabular-nums text-ink">
+                          {actual.toFixed(1)}%
+                        </td>
+                        <td className="py-1.5 pl-4 text-right tabular-nums text-ink-muted">
+                          {target.toFixed(0)}%
+                        </td>
+                        <td className="py-1.5 pl-4 text-right whitespace-nowrap tabular-nums">
+                          <span className={cn("rounded-md px-1.5 py-0.5 text-xs",
+                            far ? "bg-amber-50 font-semibold text-amber-800" : "text-ink-muted")}>
+                            {apart > 0 ? "+" : apart < 0 ? "\u2212" : ""}{Math.abs(apart).toFixed(1)} pp
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p className="mt-2 pl-2 text-xs text-ink-muted">
+                Drift in percentage points, marked beyond {FAR_FROM_TARGET} pp either way. The bar runs
+                0–{scale}%, and the mark on it is what the plan asks for.
+              </p>
+            </div>
           </div>
         </>
       )}
@@ -655,7 +708,7 @@ function Ring({ title, slices, middle, under, only, setOnly, names }: {
     <figure className="text-center">
       {/* Big enough that a slice worth a few per cent is an arc and not a hairline — at nine rem it was
           two pixels, which is neither readable nor a thing anybody can hit with a pointer. */}
-      <svg viewBox="0 0 42 42" className="size-64" role="img" aria-label={`${title}, by asset class`}>
+      <svg viewBox="0 0 42 42" className="size-72" role="img" aria-label={`${title}, by asset class`}>
         <circle cx="21" cy="21" r={R} fill="none" stroke="currentColor" strokeWidth="5"
           className="text-slate-100" />
         {slices.map((slice, at) => {
