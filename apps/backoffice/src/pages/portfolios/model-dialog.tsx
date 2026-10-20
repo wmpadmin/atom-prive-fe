@@ -92,6 +92,22 @@ function breachesOf(model: ModelRow, codes: string[]): Breaches {
   return typed;
 }
 
+/**
+ * The one figure every class on this model is held to, where there is one.
+ *
+ * <p>Nothing where the classes carry different figures, which is what tells the form to open with the
+ * per-class boxes showing: a model written with eight different tolerances must not be reduced to one
+ * the moment somebody opens it to change its name.
+ */
+function oneBandForEveryClass(model: ModelRow | null, codes: string[]): string | null {
+  if (model == null) return null;
+  const said = codes
+    .filter((assetClass) => model.bands?.[assetClass] != null)
+    .map((assetClass) => String(model.bands![assetClass]!.breachAt));
+  if (said.length === 0) return null;
+  return said.every((one) => one === said[0]) ? said[0] : null;
+}
+
 function noTargets(codes: string[]): Targets {
   return Object.fromEntries(codes.map((code) => [code, ""]));
 }
@@ -337,7 +353,27 @@ export function ModelDialog({
   const [typedBreaches, setBreaches] = useState<Breaches>(
     model ? breachesOf(model, codes) : noBreaches(codes),
   );
-  const breaches: Breaches = { ...(model ? breachesOf(model, codes) : noBreaches(codes)), ...typedBreaches };
+  const perClass: Breaches = { ...(model ? breachesOf(model, codes) : noBreaches(codes)), ...typedBreaches };
+  /*
+   * One figure for every class, with the boxes beside each class kept back until somebody wants them
+   * apart. A firm that holds every class to ten and every line inside them to five types two numbers;
+   * before, it typed ten eight times over and the one it mistyped was the one nobody noticed.
+   *
+   * Opened on what the model already is. A model whose classes carry different figures opens with them
+   * showing — reducing eight tolerances to one because somebody came to change the model's name would
+   * rewrite the plan behind their back.
+   */
+  const [apart, setApart] = useState(() => model != null && oneBandForEveryClass(model, codes) == null
+    && codes.some((assetClass) => model.bands?.[assetClass] != null));
+  const [typedClassBand, setClassBand] = useState<string | null>(null);
+  const classBand = typedClassBand ?? oneBandForEveryClass(model, codes) ?? "10";
+  // Held to the classes the plan actually asks for something of. A class the model names at nothing is
+  // on the plan and shown, but writing it a tolerance is writing a rule about money nobody is holding
+  // there — and the form never wrote one before, so one figure for all must not quietly start.
+  const breaches: Breaches = apart
+    ? perClass
+    : Object.fromEntries(codes.map((assetClass) =>
+        [assetClass, (isNumber(targets[assetClass]) && Number(targets[assetClass]) > 0) ? classBand : ""]));
   const [benchmarkId, setBenchmarkId] = useState(model?.benchmarkId ?? "");
   // Which indices the firm holds. Without one named here, Model performance has nothing to compare against.
   const benchmarks = useListBenchmarks<BenchmarkRow[], ApiError>();
@@ -575,6 +611,53 @@ export function ModelDialog({
             is sound between 5% and 15% of that class.
           </p>
 
+          {/* Said once each, for the classes and for the lines inside them, rather than typed onto every
+              row. A firm holding every class to ten and every line to five types two numbers here; it
+              used to type ten as many times as it had classes, and the one it mistyped was the one
+              nobody noticed. */}
+          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-2.5">
+            <label htmlFor="class-band" className="text-xs font-medium text-ink">
+              Every class may wander
+            </label>
+            <span className="relative">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-ink-muted"
+              >
+                ±
+              </span>
+              <TextInput
+                id="class-band"
+                aria-label="How far every class may wander from its target before it has breached"
+                inputMode="decimal"
+                disabled={apart}
+                className="h-8 w-24 pr-6 pl-6 text-right text-sm"
+                value={apart ? "" : classBand}
+                onChange={(event) => setClassBand(asFigure(event.target.value, classBand))}
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-ink-muted"
+              >
+                %
+              </span>
+            </span>
+            <span className="text-xs text-ink-muted">
+              {apart
+                ? "each class is held to its own figure, set beside it below."
+                : "of the whole portfolio, either side of its target."}
+            </span>
+            {/* Offered rather than assumed. Most plans hold every class the same, and the ones that do
+                not are the ones somebody has thought about. */}
+            <button
+              type="button"
+              onClick={() => setApart(!apart)}
+              className="ml-auto text-xs font-medium text-primary-700 underline-offset-2 hover:underline"
+            >
+              {apart ? "Hold them all to one figure" : "Set a different figure for each class"}
+            </button>
+          </div>
+
           {/* One figure for every sub-asset in the model, under the classes it qualifies rather than
               repeated on each of the twenty-odd lines below. */}
           <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-2.5">
@@ -631,7 +714,11 @@ export function ModelDialog({
                   </span>
                 </div>
                 {/* Plus or minus, because it is the same distance either way: a class may be that far over
-                    its target or that far under it before anybody is told. */}
+                    its target or that far under it before anybody is told.
+                    Shown only where the firm has asked for them apart. Held to one figure, the box on
+                    every row said the same number as the row above it and the one below, and the figure
+                    that mattered was the one somebody mistyped. */}
+                {apart && (
                 <div className="relative w-24 shrink-0">
                   <span
                     aria-hidden="true"
@@ -665,6 +752,7 @@ export function ModelDialog({
                     %
                   </span>
                 </div>
+                )}
               </div>
             ))}
           </div>
