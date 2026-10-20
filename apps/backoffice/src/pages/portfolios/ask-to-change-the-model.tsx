@@ -27,12 +27,6 @@ const TONES: Record<string, "neutral" | "success" | "danger" | "warning"> = {
  * the client and changes nothing here. Asking is not moving — somebody who may move them answers it, and
  * their yes is the move.
  */
-/** "a and b", "a, b and c" — a list as a sentence says it. */
-function andList(words: string[]) {
-  if (words.length <= 1) return words.join("");
-  return `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
-}
-
 export function AskToChangeTheModel({
   customerId,
   onModelId,
@@ -66,32 +60,22 @@ export function AskToChangeTheModel({
   const history = asked.data ?? [];
   const open = history.find((one) => one.status === "PENDING");
   /*
-   * What a client may actually be put on.
+   * Every model the firm has, with the ones nobody can be moved to saying why rather than being left
+   * out. Left out, a list of four models showed two and read as a screen that had lost them — and the
+   * one somebody was looking for was the one they had made ten minutes ago.
    *
-   * <p>A draft is a model still being written and the server refuses one outright. A retired model is
-   * one the firm has stopped writing for new clients — those already on it stay on it — so offering it
-   * here is offering the one thing its own status says not to do, and nothing downstream refuses it.
-   * And nobody is moved to the model they are already on.
+   * <p>A draft is still being written and the server refuses one outright. A retired plan is one the
+   * firm has stopped writing for new clients — those on it stay on it — and the server refuses that
+   * too. And nobody is moved to the plan they are already on. All three are shown and none can be
+   * picked.
    */
-  const everyModel = models.data?.items ?? [];
-  const choices = everyModel.filter((model) =>
-    model.status !== "DRAFT" && model.status !== "RETIRED" && model.id !== onModelId);
-  /*
-   * Why the list is shorter than the list of models, said rather than left to be noticed. Two of four
-   * models missing with nothing to explain it reads as a screen that has lost them.
-   */
-  const leftOut = [
-    everyModel.some((model) => model.id === onModelId)
-      && `${onModelName} is the one they are on now`,
-    everyModel.some((model) => model.status === "DRAFT")
-      && `${everyModel.filter((model) => model.status === "DRAFT").length === 1
-        ? "one model is"
-        : `${everyModel.filter((model) => model.status === "DRAFT").length} models are`} still a draft`,
-    everyModel.some((model) => model.status === "RETIRED")
-      && `${everyModel.filter((model) => model.status === "RETIRED").length === 1
-        ? "one is"
-        : `${everyModel.filter((model) => model.status === "RETIRED").length} are`} retired`,
-  ].filter((one): one is string => typeof one === "string");
+  const choices = (models.data?.items ?? []).map((model) => ({
+    model,
+    why: model.id === onModelId ? "they are on this now"
+      : model.status === "DRAFT" ? "still a draft"
+        : model.status === "RETIRED" ? "retired, takes nobody new"
+          : null,
+  }));
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -171,19 +155,14 @@ export function AskToChangeTheModel({
           <Field id="wanted-model" label="Put them on" error={errors.fields.modelPortfolioId} required>
             <SelectInput id="wanted-model" value={wanted} onChange={(event) => setWanted(event.target.value)}>
               <option value="">Choose a model</option>
-              {onModelId !== null && <option value="none">No model — nothing to drift from</option>}
-              {choices.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.name}
+              {choices.map(({ model, why }) => (
+                <option key={model.id} value={model.id} disabled={why !== null}>
+                  {model.name}{why === null ? "" : ` — ${why}`}
                 </option>
               ))}
             </SelectInput>
           </Field>
-          {leftOut.length > 0 && (
-            <p className="-mt-2 text-xs text-ink-muted">
-              Not every model is offered: {andList(leftOut)}.
-            </p>
-          )}
+
           <Field id="why-move" label="Why" error={errors.fields.why} required>
             <TextArea
               id="why-move"
@@ -204,7 +183,7 @@ export function AskToChangeTheModel({
                 raise.mutate({
                   data: {
                     customerId,
-                    modelPortfolioId: wanted === "none" ? null : wanted,
+                    modelPortfolioId: wanted,
                     why: why.trim(),
                   },
                 })
