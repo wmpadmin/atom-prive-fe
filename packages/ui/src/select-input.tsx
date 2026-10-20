@@ -38,6 +38,11 @@ function choicesIn(children: ReactNode): Choice[] {
   return found;
 }
 
+/** What a select shows when nobody told it anything: the first row that can be chosen. */
+function firstChoosable(children: ReactNode): string | null {
+  return choicesIn(children).find((one) => !one.disabled)?.value ?? null;
+}
+
 /**
  * A dropdown that opens below the box rather than over it.
  *
@@ -52,7 +57,9 @@ function choicesIn(children: ReactNode): Choice[] {
  * and a list; the part the platform talks to has not changed.
  */
 export function SelectInput({
-  className, children, value, defaultValue, onChange, disabled, id, required, ...props
+  className, children, value, defaultValue, onChange, disabled, id, required,
+  "aria-invalid": invalid, "aria-label": label, "aria-labelledby": labelledBy,
+  "aria-describedby": describedBy, ...props
 }: SelectHTMLAttributes<HTMLSelectElement>) {
   const listId = useId();
   const select = useRef<HTMLSelectElement>(null);
@@ -65,7 +72,11 @@ export function SelectInput({
 
   const choices = choicesIn(children);
   // Uncontrolled selects read their own value, which only the DOM knows.
-  const [ownValue, setOwnValue] = useState(String(defaultValue ?? ""));
+  //
+  // Told neither, a select is not empty: the browser shows the first row and posts it. Starting at ""
+  // instead drew a blank box over a hidden select that was already carrying the first code — the label
+  // said nothing and the form sent something, which is the one disagreement a form may never have.
+  const [ownValue, setOwnValue] = useState(() => String(defaultValue ?? firstChoosable(children) ?? ""));
   const shown = value === undefined ? ownValue : String(value);
   const chosen = choices.find((one) => one.value === shown) ?? null;
 
@@ -168,11 +179,18 @@ export function SelectInput({
     <span className="relative block">
       {/* The real control: what holds the value, carries the name, fires the change and answers to
           native validation. Kept in the layout rather than display:none so a browser asking somebody to
-          fill it in has somewhere to point. */}
+          fill it in has somewhere to point.
+
+          It does NOT take the id, and wears none of the aria the caller passed. A Field renders
+          <label htmlFor={id}>, and whatever that id names is the thing a click on the label focuses and
+          a screen reader announces the label for — so an id on something aria-hidden and untabbable
+          gives seventy fields a label that points at nothing and a dropdown with no name at all. The
+          same for aria-invalid: the screen that jumps to the first bad field looks one up by that
+          attribute and focuses it, and the first match has to be the control somebody can see. */}
       <select
         {...props}
         ref={select}
-        id={id}
+        id={id === undefined ? undefined : `${id}-value`}
         required={required}
         disabled={disabled}
         value={value === undefined ? undefined : shown}
@@ -190,6 +208,7 @@ export function SelectInput({
 
       <button
         ref={trigger}
+        id={id}
         type="button"
         disabled={disabled}
         onClick={() => (open ? setOpen(false) : opened())}
@@ -197,10 +216,10 @@ export function SelectInput({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
-        aria-invalid={props["aria-invalid"]}
-        aria-labelledby={props["aria-labelledby"]}
-        aria-describedby={props["aria-describedby"]}
-        aria-label={props["aria-label"]}
+        aria-invalid={invalid}
+        aria-labelledby={labelledBy}
+        aria-describedby={describedBy}
+        aria-label={label}
         className={cn(controlClasses, "select-control flex items-center pr-9 text-left", className)}
       >
         <span className={cn("min-w-0 flex-1 truncate", chosen === null && "text-slate-400")}>
