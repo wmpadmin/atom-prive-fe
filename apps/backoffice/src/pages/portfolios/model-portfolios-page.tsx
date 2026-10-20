@@ -1,15 +1,16 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   getListModelPortfoliosQueryKey,
+  useCopyModelPortfolio,
   useCreateModelPortfolio,
   useDeleteModelPortfolio,
   useListModelPortfolios,
   type ModelRow,
   type ModelsPage,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, Dialog, TextInput, cn } from "@atomprive/ui";
+import { Alert, Badge, Button, Dialog, Field, IconButton, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Copy, Plus } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ListPageHeader, RecordList } from "../../components/record-list";
@@ -41,19 +42,24 @@ export function ModelPortfoliosPage() {
   const canWrite = hasAuthority(useStaffUser(), "SEND_PROPOSALS:CHANGE");
   const [writing, setWriting] = useState(false);
   const [removing, setRemoving] = useState<ModelRow | null>(null);
+  /** The model being copied, and what the copy is to be called. */
+  const [copying, setCopying] = useState<ModelRow | null>(null);
+  const [called, setCalled] = useState("");
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [search, setSearch] = useState("");
 
   function kept() {
     setWriting(false);
     setRemoving(null);
+    setCopying(null);
     setErrors(noErrors);
     void queryClient.invalidateQueries({ queryKey: getListModelPortfoliosQueryKey() });
   }
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
   const create = useCreateModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
   const remove = useDeleteModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
-  const busy = create.isPending || remove.isPending;
+  const copy = useCopyModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
+  const busy = create.isPending || remove.isPending || copy.isPending;
 
   if (models.isError) {
     return <Alert tone="danger">{models.error.message}</Alert>;
@@ -194,6 +200,22 @@ export function ModelPortfoliosPage() {
               </Badge>
             </td>
             <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(model.updatedAt)}</td>
+            {/* Stops the row opening underneath it: the line is a way through to the plan, and a press
+                meant for the copy is not a press meant for the plan. */}
+            <td className="px-4 py-3 text-right" onClick={(event) => event.stopPropagation()}>
+              {canWrite && (
+                <IconButton
+                  label={`Make a copy of ${model.name}`}
+                  onClick={() => {
+                    setErrors(noErrors);
+                    setCopying(model);
+                    setCalled(`Copy of ${model.name}`);
+                  }}
+                >
+                  <Copy aria-hidden="true" className="size-4" />
+                </IconButton>
+              )}
+            </td>
           </tr>
         ))}
       </RecordList>
@@ -210,6 +232,41 @@ export function ModelPortfoliosPage() {
           onSave={(data) => create.mutate({ data })}
         />
       )}
+
+      {/* Most models the firm writes are a model it already has with two things changed. Typed again
+          from an empty form, every target, every band and every line inside every class is entered a
+          second time. */}
+      <Dialog
+        open={copying !== null}
+        title={copying ? `Make a copy of ${copying.name}?` : "Make a copy?"}
+        onClose={() => setCopying(null)}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-ink-muted">
+            The copy takes everything this plan says — its targets, its bands, and the lines inside each
+            class. It arrives as a draft with nobody on it, so it can be changed before anybody is
+            measured against it. {copying?.name} is left exactly as it is.
+          </p>
+          {errors.form && <Alert tone="danger">{errors.form}</Alert>}
+          <Field id="copy-name" label="What the copy is called" error={errors.fields.name} required>
+            <TextInput
+              id="copy-name"
+              value={called}
+              aria-invalid={Boolean(errors.fields.name)}
+              onChange={(event) => setCalled(event.target.value)}
+            />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setCopying(null)}>Cancel</Button>
+            <Button
+              disabled={called.trim() === "" || busy}
+              onClick={() => copying && copy.mutate({ id: copying.id, data: { name: called.trim() } })}
+            >
+              {copy.isPending ? "Copying…" : "Make the copy"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       <Dialog open={removing !== null} title="Delete this model?" onClose={() => setRemoving(null)}>
         <div className="space-y-4">
