@@ -1,5 +1,5 @@
 /**
- * The day a portfolio started, as the screens that must not let anybody write before it read it.
+ * The day a client joined the firm, as the screens that must not let anybody write before it read it.
  *
  * <p>One place, because two screens enforce the same date — the calendar that refuses to open on an
  * earlier day, and the sentence that says why — and a date parsed twice is two dates that will one day
@@ -15,10 +15,10 @@ export function asDate(value: string | null | undefined): Date | undefined {
 }
 
 /**
- * The earliest day a figure about this portfolio may be dated: where the portfolio started, or the floor
- * the screen would use anyway where nobody has said.
+ * The earliest day a figure about this client may be dated: the day they joined, or the floor the screen
+ * would use anyway where there is no client to read one from.
  */
-export function noEarlierThan(inceptionOn: string | null | undefined, floor: Date): Date {
-  const started = asDate(inceptionOn);
-  return started && started > floor ? started : floor;
+export function noEarlierThan(joinedOn: string | null | undefined, floor: Date): Date {
+  const joined = asDate(joinedOn);
+  return joined && joined > floor ? joined : floor;
 }
