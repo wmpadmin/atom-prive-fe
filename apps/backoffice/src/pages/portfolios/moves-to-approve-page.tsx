@@ -1,18 +1,23 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useAnswerTheMovePlan,
+  useListMovePlanHistory,
   useListMovePlans,
+  type MovePlanHistoryPage,
   type MovePlanQueue,
   type MovePlanRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, FilterMenu, cn } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, DateInput, FilterMenu, Pagination, cn } from "@atomprive/ui";
+import { keepPreviousData } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatDateTime } from "../../lib/labels";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { AnswerDialog } from "./answer-dialog";
 import { exactly, figure, named, netted, overItsBand } from "./money-words";
+import { PickAClient } from "./pick-a-client";
 import { QueueBar } from "./queue-bar";
 import { hasAuthority } from "../../lib/permissions";
 
@@ -304,6 +309,28 @@ function byClient(waiting: MovePlanRow[], dealtWith: MovePlanRow[]) {
   });
 }
 
+/** As far back as the date pickers will go: older than the firm, so it never gets in the way. */
+function yearsAgo(years: number) {
+  const day = new Date();
+  return new Date(day.getFullYear() - years, day.getMonth(), day.getDate());
+}
+
+/**
+ * Whether a plan was asked for inside the days somebody chose.
+ *
+ * <p>Read on the asked date, and half-open at the top, because that is what the server does to the
+ * history beside it — a queue narrowed by one rule and a history by another is one screen showing two
+ * answers to one question.
+ *
+ * <p>The dates come off a date box as YYYY-MM-DD, so the last day somebody names is counted whole by
+ * taking everything before the day after it.
+ */
+function inRange(raisedAt: string, from: string, to: string) {
+  const when = new Date(raisedAt).getTime();
+  if (from !== "" && when < new Date(from).getTime()) return false;
+  return to === "" || when < new Date(to).getTime() + 86_400_000;
+}
+
 /**
  * Answering a plan to move a client's money.
  *
@@ -334,6 +361,46 @@ export function MovesToApprovePage() {
     setAddress(next, { replace: true });
   };
   const [status, setStatus] = useState<StatusTab>("PENDING");
+  // What narrows the history. Held here rather than in the address because the queue beside it already
+  // owns `by`, and a reader who filters, answers something and comes back wants the queue they left —
+  // not a filter they set a quarter of an hour ago and have forgotten about.
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [client, setClient] = useState<{ customerId: string; name: string } | null>(null);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const narrowed = from !== "" || to !== "" || client !== null;
+  /**
+   * The history, which is a different read from the queue above it.
+   *
+   * <p>The queue keeps a short window of answers beside what is waiting so that answering something does
+   * not make it vanish. That window was what this screen listed and counted — so "Approved 13" meant
+   * thirteen had fitted, and a reader looking for what was done last month was handed the last twenty of
+   * whatever the firm had done since. This asks the other question, and the server answers it with a page
+   * and an honest total.
+   *
+   * <p>It is also where a portfolio manager reads the whole book. The queue stays theirs: a list of other
+   * advisors' work under "nothing is waiting on you" helps nobody. A history is not a queue.
+   */
+  const history = useListMovePlanHistory<MovePlanHistoryPage, ApiError>(
+    {
+      status: status === "PENDING" || status === "all" ? undefined : status,
+      customerId: client?.customerId,
+      from: from === "" ? undefined : new Date(from).toISOString(),
+      // Read as "up to and including", so the day somebody named is counted whole. The server's range is
+      // half-open, which is what every other list in the firm filters by.
+      to: to === "" ? undefined : new Date(new Date(to).getTime() + 86_400_000).toISOString(),
+      page,
+      size: pageSize,
+    },
+    // Kept on screen while the next page is fetched, so paging does not blink the list away.
+    { query: { placeholderData: keepPreviousData } },
+  );
+
+  function narrow(change: () => void) {
+    change();
+    setPage(0);
+  }
   /** The plan being answered and which way, because both answers are given in the same window now. */
   const [deciding, setDeciding] = useState<{ row: MovePlanRow; approved: boolean } | null>(null);
   const [note, setNote] = useState("");
@@ -358,16 +425,37 @@ export function MovesToApprovePage() {
   if (queue.isError) {
     return <Alert tone="danger">{queue.error.message}</Alert>;
   }
+  // Said as loudly as the queue's own refusal. A history that would not load used to leave the tabs
+  // reading nought beside every outcome, which is the same screen a firm that had answered nothing shows.
+  if (history.isError) {
+    return <Alert tone="danger">{history.error.message}</Alert>;
+  }
 
-  const waiting = queue.data?.waiting ?? [];
-  const dealtWith = queue.data?.answered ?? [];
+  // What is waiting is the reader's own work and arrives whole — a queue is read to the bottom, not paged.
+  // The filters still reach it, because a reader who has narrowed to one client and one fortnight means
+  // the screen, not half of it.
+  const everyWaiting = queue.data?.waiting ?? [];
+  const waiting = everyWaiting.filter((row) => inRange(row.raisedAt, from, to)
+    && (client === null || row.customerId === client.customerId));
+  const dealtWith = history.data?.items ?? [];
+  const counts = history.data?.counts;
   const mine = waiting.filter((row) => !row.mayAnswer);
   const grouped = byClient(waiting, dealtWith);
-  // One list to filter, because a plan is in exactly one state and the two the server sends are only
-  // where it put them. Ordered waiting-first so "Everything" opens on what is still being asked.
-  const shown = status === "all"
-    ? [...waiting, ...dealtWith]
-    : [...waiting, ...dealtWith].filter((row) => row.status === status);
+  // A plan is in exactly one state, and the two reads are only where that state puts it: what is still
+  // waiting comes off the queue, everything answered off the history. Ordered waiting-first so
+  // "Everything" opens on what is still being asked.
+  const shown = status === "PENDING" ? waiting
+    : status === "all" ? [...waiting, ...dealtWith]
+      : dealtWith;
+  // How many there are, not how many arrived. The pills used to count the rows the server had sent, and
+  // what it sent was a window — so a number beside a tab was a promise only the page could keep.
+  const howMany = (tab: StatusTab) => {
+    if (tab === "PENDING") return waiting.length;
+    if (tab === "all") return waiting.length + (counts?.all ?? 0);
+    return tab === "APPROVED" ? counts?.approved ?? 0
+      : tab === "REJECTED" ? counts?.rejected ?? 0 : counts?.withdrawn ?? 0;
+  };
+  const total = history.data?.totalItems ?? 0;
 
   // Two ways of reading the same plans, because the question changes. Deciding what to answer next is a
   // question about the queue; deciding whether to answer THIS is a question about the client, and the
@@ -404,7 +492,9 @@ export function MovesToApprovePage() {
           Set like the lead it sits under rather than a weight heavier. Bold, it read as a second heading
           and made this tab the one whose text was a different size from every other tab's. */}
       <p className="-mt-2 text-sm text-ink-muted">
-        {firmWide ? "Every client's plans." : "Your clients' plans."}
+        {firmWide
+          ? "Your clients' plans to answer, and every client's history."
+          : "Your clients' plans."}
       </p>
 
       {/* Said once at the top rather than hunted for row by row, so nobody looks for a button on a row that
@@ -429,28 +519,78 @@ export function MovesToApprovePage() {
                the choice across the page beside a second row of pills that does something else entirely;
                the dropdown is one control saying one thing, and it is what every other list on this app
                filters with. */
-            <FilterMenu
-              label="Plans"
-              value={status}
-              options={STATUS_TABS.map((one) => ({
-                id: one.id,
-                label: one.label,
-                count: one.id === "all"
-                  ? waiting.length + dealtWith.length
-                  : [...waiting, ...dealtWith].filter((row) => row.status === one.id).length,
-              }))}
-              onChange={setStatus}
-              align="right"
-            />
+            <>
+              {/* Whose, and when. The history runs on when each plan was ASKED, which is the date the row
+                  prints under the decision, so the days chosen here are asked-days — a range read against
+                  the answer would put a plan asked yesterday and answered today on the wrong side of a
+                  boundary drawn at midnight. */}
+              <label className="block">
+                <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  Client
+                </span>
+                <PickAClient
+                  id="moves-client"
+                  label="Narrow to one client"
+                  picked={client}
+                  onPick={(who) => narrow(() => setClient(who))}
+                />
+              </label>
+              <label className="block">
+                <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  Asked from
+                </span>
+                <DateInput
+                  id="moves-from"
+                  name="from"
+                  value={from}
+                  clearable
+                  min={yearsAgo(20)}
+                  max={new Date()}
+                  onChange={(next) => narrow(() => setFrom(next ?? ""))}
+                />
+              </label>
+              <label className="block">
+                <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  Asked to
+                </span>
+                <DateInput
+                  id="moves-to"
+                  name="to"
+                  value={to}
+                  clearable
+                  min={yearsAgo(20)}
+                  max={new Date()}
+                  onChange={(next) => narrow(() => setTo(next ?? ""))}
+                />
+              </label>
+              <FilterMenu
+                label="Plans"
+                value={status}
+                options={STATUS_TABS.map((one) => ({
+                  id: one.id,
+                  label: one.label,
+                  count: howMany(one.id as StatusTab),
+                }))}
+                onChange={(next) => narrow(() => setStatus(next as StatusTab))}
+                align="right"
+              />
+            </>
           )}
         </QueueBar>
 
         {view === "queue" ? (
-          queue.isPending ? (
+          // Two reads behind one list, so either one still arriving is the list still arriving. Gated on
+          // the queue alone, a tab of answers read "Nothing here" for as long as the history took.
+          queue.isPending || (status !== "PENDING" && history.isPending) ? (
             <p className="px-5 py-8 text-sm text-ink-muted">Reading the plans…</p>
           ) : shown.length === 0 ? (
             <p className="px-5 py-8 text-sm text-ink-muted">
-              {status === "PENDING" ? "Nothing is waiting on you." : "Nothing here."}
+              {/* A filter is the commonest reason a list is empty and the easiest to forget is on, so an
+                  empty list says which kind of empty it is. "Nothing is waiting on you" over a filtered
+                  queue is the screen telling somebody their work is done when it is only hidden. */}
+              {narrowed
+                ? "Nothing matches what you have narrowed this to."
+                : status === "PENDING" ? "Nothing is waiting on you." : "Nothing here."}
             </p>
           ) : (
             <ul className="divide-y divide-line">
@@ -478,7 +618,25 @@ export function MovesToApprovePage() {
               ))}
             </ul>
           )
-        ) : queue.isPending ? (
+        ) : null}
+
+        {/* Under the list, for the half of it that is a page. What is waiting is not paged — a queue is
+            read to the bottom — so this counts the history alone and says so by naming what it counts. */}
+        {view === "queue" && status !== "PENDING" && total > 0 && (
+          <div className="border-t border-line px-5 py-3">
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              totalItems={total}
+              onPageChange={setPage}
+              pageSizes={PAGE_SIZES}
+              onPageSizeChange={(size) => narrow(() => setPageSize(size))}
+              noun={["answered plan", "answered plans"]}
+            />
+          </div>
+        )}
+
+        {view === "client" ? (queue.isPending ? (
           <p className="px-5 py-8 text-sm text-ink-muted">Reading the plans…</p>
         ) : grouped.length === 0 ? (
           <p className="px-5 py-8 text-sm text-ink-muted">None of your clients has a money move to read.</p>
@@ -527,7 +685,7 @@ export function MovesToApprovePage() {
               );
             })}
           </ul>
-        )}
+        )) : null}
       </section>
 
       <AnswerDialog
