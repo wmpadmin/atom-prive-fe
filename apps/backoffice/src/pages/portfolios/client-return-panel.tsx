@@ -7,7 +7,7 @@ import {
 import { Alert, cn } from "@atomprive/ui";
 import { useState } from "react";
 import { ClientCashflowsPanel } from "./client-cashflows-panel";
-import { ClientInceptionPanel } from "./client-inception-panel";
+import { ClientJoinedPanel } from "./client-joined-panel";
 import { exactly } from "./money-words";
 
 /**
@@ -63,6 +63,10 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
 
   return (
     <div className="space-y-5">
+      {/* Above the windows rather than beside them: it is the floor under every figure on this tab, the
+          day the firm's own record of this client starts, and the earliest a window could ever open. */}
+      <ClientJoinedPanel customerId={customerId} />
+
       <section className="rounded-2xl border border-line bg-white">
         <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3">
           <h2 className="text-sm font-semibold text-ink">Return</h2>
@@ -178,8 +182,6 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
           </>
         )}
       </section>
-
-      <ClientInceptionPanel customerId={customerId} />
 
       <ClientCashflowsPanel customerId={customerId} currency={currency} />
     </div>
