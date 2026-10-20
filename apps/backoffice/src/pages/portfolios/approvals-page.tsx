@@ -1,18 +1,14 @@
 import { ApiError } from "@atomprive/api-client";
 import {
-  useListAllocationChanges,
   useListClientRequests,
   useListModelChanges,
   useListModelEdits,
   useListMovePlans,
   useListProposalsAwaitingMySignOff,
-  useListRestores,
-  type AllocationChangeQueue,
   type ModelChangePage,
   type ModelEditQueue,
   type MovePlanQueue,
   type ProposalPage,
-  type RestoreQueue,
 } from "@atomprive/api-client/backoffice";
 import { cn } from "@atomprive/ui";
 import { useSearchParams } from "react-router";
@@ -25,17 +21,14 @@ import {
   type Authority,
 } from "../../lib/permissions";
 import { ProposalsPage } from "../advisor/proposals-page";
-import { AllocationsToApprovePage } from "./allocations-to-approve-page";
 import { ClientRequestsPage } from "./client-requests-page";
 import { ModelChangesPage } from "./model-changes-page";
 import { ModelEditsToApprovePage } from "./model-edits-to-approve-page";
 import { MovesToApprovePage } from "./moves-to-approve-page";
-import { RestoresToApprovePage } from "./restores-to-approve-page";
 
 /** Which queue is being read. The value is in the address, so a link can point at one. */
 export type ApprovalTab =
-  | "proposals" | "client-requests" | "model-changes" | "moves" | "restores" | "figures"
-  | "model-sign-off";
+  | "proposals" | "client-requests" | "model-changes" | "moves" | "model-sign-off";
 
 type TabSpec = {
   id: ApprovalTab;
@@ -47,8 +40,13 @@ type TabSpec = {
 };
 
 /**
- * The seven queues, in the order the work reaches them: what the firm advises, then what it changes about
- * a client, then what it changes about a plan.
+ * The queues, in the order the work reaches them: what the firm advises, then what it changes about a
+ * client, then what it changes about a plan.
+ *
+ * <p>Two of them are gone. Rewriting what a client holds and putting their figures back to an earlier day
+ * each replaced every figure at once, which is a larger change than the firm wants anybody making by
+ * hand; what a client holds will come from the daily file instead. Money moves between the lines is what
+ * is left, and it is answered here as it always was.
  *
  * <p>Each is named for the act rather than for the thing it touches. "Moves" and "Model moves" sat beside
  * each other reading as the same word twice, and the first person to see them had to ask which was which:
@@ -79,22 +77,6 @@ const TABS: TabSpec[] = [
     lead: "Plans to move money between what a client holds. Nothing has moved: saying yes is what moves it.",
     authority: ANSWERS_MOVE_PLANS,
     Panel: MovesToApprovePage,
-  },
-  {
-    id: "figures",
-    label: "Net AUM",
-    lead: "Asks to rewrite what a client holds, owes and owns outright. Nothing has changed: saying yes "
-      + "is what writes them.",
-    authority: ANSWERS_MOVE_PLANS,
-    Panel: AllocationsToApprovePage,
-  },
-  {
-    id: "restores",
-    label: "Restores",
-    lead: "Asks to put a client's figures back to a version they stood at. Nothing has changed: saying "
-      + "yes is what puts them back.",
-    authority: ANSWERS_MOVE_PLANS,
-    Panel: RestoresToApprovePage,
   },
   {
     id: "model-changes",
@@ -131,10 +113,6 @@ function useHowManyAreWaiting(mine: TabSpec[]) {
     { query: { enabled: offered("client-requests"), refetchOnWindowFocus: true } });
   const moves = useListMovePlans<MovePlanQueue, ApiError>(
     { query: { enabled: offered("moves"), refetchOnWindowFocus: true } });
-  const figures = useListAllocationChanges<AllocationChangeQueue, ApiError>(
-    { query: { enabled: offered("figures"), refetchOnWindowFocus: true } });
-  const restores = useListRestores<RestoreQueue, ApiError>(
-    { query: { enabled: offered("restores"), refetchOnWindowFocus: true } });
   const modelChanges = useListModelChanges<ModelChangePage, ApiError>({ status: "PENDING", page: 0, size: 1 },
     { query: { enabled: offered("model-changes"), refetchOnWindowFocus: true } });
   const modelEdits = useListModelEdits<ModelEditQueue, ApiError>(
@@ -143,8 +121,6 @@ function useHowManyAreWaiting(mine: TabSpec[]) {
     proposals: proposals.data?.totalItems ?? 0,
     "client-requests": (clientRequests.data?.waiting ?? []).length,
     moves: (moves.data?.waiting ?? []).length,
-    figures: (figures.data?.waiting ?? []).length,
-    restores: (restores.data?.waiting ?? []).length,
     "model-changes": modelChanges.data?.totalItems ?? 0,
     "model-sign-off": (modelEdits.data?.waiting ?? []).length,
   } as Record<ApprovalTab, number>;
@@ -153,10 +129,10 @@ function useHowManyAreWaiting(mine: TabSpec[]) {
 /**
  * Everything waiting on somebody, on one screen.
  *
- * <p>Six queues sat as six entries down the menu, and two of them sat nowhere at all — they were never
- * written into a menu group, so the only way to reach the figures queue and the model sign-off was a
- * notification link or a typed address. They are one job done over and over: something is waiting,
- * somebody other than whoever raised it says yes or no. So they are one screen, and which queue is a tab.
+ * <p>The queues sat as entries down the menu, and two of them sat nowhere at all — they were never
+ * written into a menu group, so the only way to reach them was a notification link or a typed address.
+ * They are one job done over and over: something is waiting, somebody other than whoever raised it says
+ * yes or no. So they are one screen, and which queue is a tab.
  *
  * <p>Client requests is the one that runs the other way. Everywhere else the firm asks and whoever looks
  * after the client answers; there the client asked, and the firm answers. It is the same job for all that

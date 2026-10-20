@@ -4,10 +4,10 @@ import {
   type ValuationHistory,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { nameOf, useAssetClasses } from "./asset-classes";
-import { daysFrom, money, versionAndTheOneBefore, type Day } from "./daily-tracker-days";
+import { daysFrom, money, shiftsBetween, versionAndTheOneBefore, type Day } from "./daily-tracker-days";
 
 /**
  * One day of a client's portfolio, in full.
@@ -193,6 +193,7 @@ function nth(at: number) {
 export function DailyTrackerDayPage() {
   const { customerId = "", on = "" } = useParams();
   const history = useGetClientValuations<ValuationHistory, ApiError>(customerId, { every: true });
+  const classes = useAssetClasses();
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
   }
@@ -265,7 +266,7 @@ export function DailyTrackerDayPage() {
             <h2 className="border-b border-line px-6 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               {day.versions.length === 1 ? "One change on this day" : `${day.versions.length} changes on this day`}
             </h2>
-            <Changes day={day} currency={currency} customerId={customerId} />
+            <Changes day={day} currency={currency} customerId={customerId} names={classes.names} />
           </section>
         </>
       )}
@@ -287,10 +288,12 @@ function atTime(when: string) {
  *
  * <p>The one the day ended on is marked, because that is the figure every other screen reads this day by.
  */
-function Changes({ day, currency, customerId }: {
+function Changes({ day, currency, customerId, names }: {
   day: Day;
   currency: string;
   customerId: string;
+  /** What each class is called, so a line reads as a person says it rather than as a code. */
+  names: Record<string, string>;
 }) {
   return (
     <div className="px-6 py-4">
@@ -299,7 +302,14 @@ function Changes({ day, currency, customerId }: {
         <tbody className="divide-y divide-line/60">
           {day.versions.map((one, at) => {
             const before = at === 0 ? null : day.versions[at - 1];
-            const moved = before === null ? null : one.underManagement - before.underManagement;
+            const shifts = shiftsBetween(one.lines ?? {}, before === null ? null : before.lines ?? {});
+            const out = shifts.filter((shift) => shift.by < 0);
+            const into = shifts.filter((shift) => shift.by > 0);
+            // What was taken out, which is the size of the move. Where a change only added money the
+            // two sides do not match, so the larger of them is what moved.
+            const shifted = Math.max(
+              out.reduce((sum, shift) => sum - shift.by, 0),
+              into.reduce((sum, shift) => sum + shift.by, 0));
             // Each change is a row to press. The table below showed the one the day closed on and no
             // other, so a figure written at eleven and corrected at noon left nothing on screen but the
             // correction — the list said it had happened and there was nowhere to go and see it.
@@ -323,19 +333,40 @@ function Changes({ day, currency, customerId }: {
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-1.5 text-right font-medium tabular-nums text-ink">
-                  {money(one.underManagement)}
+                {/* What actually changed, which is almost never the total. Money moved between
+                    sub-assets leaves the portfolio worth exactly what it was worth before, so a column
+                    of totals printed the same figure eight times with "0.00" beside each — eight rows
+                    saying nothing happened on a day eight things happened. */}
+                <td className="px-4 py-1.5 text-ink">
+                  {shifts.length === 0 ? (
+                    <span className="text-ink-muted">
+                      {before === null ? "The first change written down" : "Nothing moved between the lines"}
+                    </span>
+                  ) : (
+                    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                      {out.map((shift) => (
+                        <span key={`${shift.assetClass}-${shift.line}`}
+                          className="rounded-md bg-red-50 px-1.5 py-0.5 text-red-700">
+                          {nameOf(shift.assetClass, names)} · {shift.line}
+                        </span>
+                      ))}
+                      {out.length > 0 && into.length > 0 && (
+                        <ArrowRight aria-label="into" className="size-3.5 shrink-0 text-ink-muted" />
+                      )}
+                      {into.map((shift) => (
+                        <span key={`${shift.assetClass}-${shift.line}`}
+                          className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-emerald-700">
+                          {nameOf(shift.assetClass, names)} · {shift.line}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                 </td>
                 <td className="py-1.5 pl-4 text-right whitespace-nowrap tabular-nums">
-                  {/* The first change of a day is measured against the day before, which the row above
-                      already says. Said again here it would read as a second movement. */}
-                  {moved === null ? (
+                  {shifts.length === 0 ? (
                     <span className="text-ink-muted">—</span>
                   ) : (
-                    <span className={cn("font-medium",
-                      moved > 0 ? "text-emerald-700" : moved < 0 ? "text-red-600" : "text-ink-muted")}>
-                      {moved > 0 ? "+" : moved < 0 ? "−" : ""}{money(Math.abs(moved))}
-                    </span>
+                    <span className="font-medium text-ink">{money(shifted)}</span>
                   )}
                 </td>
               </tr>
@@ -344,9 +375,10 @@ function Changes({ day, currency, customerId }: {
         </tbody>
       </table>
       <p className="mt-2 text-2xs text-ink-muted">
-        Figures in {currency}. Each is measured against the change before it on this day — the first
-        against the day before on file. The number runs through this client's whole history, so it does
-        not start at one on every day. Open one to read what each sub-asset held.
+        Figures in {currency}. Each change says which lines it took money out of and which it put money
+        into, against the change before it on this day — the first against the day before on file. The
+        number runs through this client's whole history, so it does not start at one on every day. Open
+        one to read what every sub-asset held.
       </p>
     </div>
   );

@@ -80,3 +80,56 @@ export function versionAndTheOneBefore(points: ValuationPoint[], revision: numbe
   if (at < 0) return null;
   return { version: inOrder[at], before: at === 0 ? null : inOrder[at - 1] };
 }
+
+/** One line that gained or lost between two changes, named the way the holdings screen names it. */
+export type Shift = {
+  /** The class code, so the screen can name it the way every other screen names it. */
+  assetClass: string;
+  /** The sub-asset inside that class. */
+  line: string;
+  /** Positive where the line gained, negative where it lost. */
+  by: number;
+};
+
+/**
+ * What actually changed between one version of a client's figures and the one before it.
+ *
+ * <p>Said as lines rather than as a total, because the total is usually the one thing that did not
+ * change. Money moved between sub-assets leaves the portfolio worth exactly what it was worth before, so
+ * a list of changes read by their totals printed the same figure eight times over and "0.00" beside each
+ * of them — eight rows saying nothing happened on a day eight things happened.
+ *
+ * <p>A line that appears is a gain from nothing and a line that disappears is a loss to nothing; both
+ * are movements and both are listed, because a sub-asset being opened or emptied is exactly the kind of
+ * thing somebody is looking for when they open a day.
+ */
+export function shiftsBetween(
+  now: Record<string, Record<string, number>>,
+  before: Record<string, Record<string, number>> | null,
+): Shift[] {
+  if (before === null) return [];
+  const every = new Map<string, { now: number; before: number }>();
+  const read = (from: Record<string, Record<string, number>>, which: "now" | "before") => {
+    for (const [assetClass, lines] of Object.entries(from)) {
+      for (const [line, amount] of Object.entries(lines)) {
+        const key = `${assetClass}\u0000${line}`;
+        const had = every.get(key) ?? { now: 0, before: 0 };
+        had[which] = amount;
+        every.set(key, had);
+      }
+    }
+  };
+  read(now, "now");
+  read(before, "before");
+  const shifts: Shift[] = [];
+  for (const [key, both] of every) {
+    const by = both.now - both.before;
+    // A penny either way is rounding rather than a movement, and listing it would bury the one that is.
+    if (Math.abs(by) < 0.005) continue;
+    const [assetClass, line] = key.split("\u0000");
+    shifts.push({ assetClass, line, by });
+  }
+  // What was taken out first and what it went into after, which is the order somebody reads the sentence
+  // in: out of here, into there.
+  return shifts.sort((first, second) => first.by - second.by);
+}
