@@ -42,14 +42,13 @@ export function AdvisorDashboard() {
           failed={clients.isError}
           to="/my-clients"
         />
-        <Tile label="Waiting for client approval" value={counts?.awaitingClient} failed={proposals.isError} to="/proposals" />
         {/* The two that are somebody waiting on you, so they stand out when there are any. */}
         <Tile
-          label="Running out"
-          value={counts?.expiringSoon}
+          label="Proposals waiting on you"
+          value={counts?.pending}
           failed={proposals.isError}
-          to="/proposals"
-          urgent={(counts?.expiringSoon ?? 0) > 0}
+          to="/approvals?queue=proposals&tab=waitingOnMe"
+          urgent={(counts?.pending ?? 0) > 0}
         />
         <Tile
           label="Waiting on your signature"
@@ -60,11 +59,22 @@ export function AdvisorDashboard() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Tile label="Drafts" value={counts?.draft} failed={proposals.isError} to="/proposals" />
-        <Tile label="Waiting for manager approval" value={counts?.awaitingManager} failed={proposals.isError} to="/proposals" />
-        <Tile label="Approved" value={counts?.approved} failed={proposals.isError} to="/proposals" />
-        <Tile label="Rejected" value={counts?.rejected} failed={proposals.isError} to="/proposals" />
+      {/* Their clients' proposals, whoever wrote them — a relationship manager writes none, so a count of
+          their own writing would be a row of noughts. */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Tile label="Proposals for your clients" value={counts?.all} failed={proposals.isError} to="/proposals" />
+        <Tile
+          label="Approved"
+          value={counts?.approved}
+          failed={proposals.isError}
+          to="/approvals?queue=proposals&tab=approved"
+        />
+        <Tile
+          label="Rejected"
+          value={counts?.rejected}
+          failed={proposals.isError}
+          to="/approvals?queue=proposals&tab=rejected"
+        />
       </div>
     </div>
   );

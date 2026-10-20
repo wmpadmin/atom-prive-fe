@@ -1,6 +1,5 @@
 import { Alert, Button, TextInput } from "@atomprive/ui";
 import { Download, Plus, Search } from "lucide-react";
-import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { readsEveryAdvisors } from "../../lib/permissions";
@@ -24,7 +23,6 @@ export function ProposalsHeader({
   exporting,
   canExport,
   cappedAt,
-  extra,
 }: {
   /** Whoever cannot write a proposal is not offered the button that starts one. */
   writes: boolean;
@@ -39,13 +37,11 @@ export function ProposalsHeader({
    * finds out what was missing from it there.
    */
   cappedAt: { carried: number; of: number } | null;
-  /** An action belonging to whatever is open below, such as resending the proposal being read. */
-  extra?: ReactNode;
 }) {
   // Whose proposals this list actually answers with. One reading of it, shared with the list below, which
-  // asked the other question — may you write one — and so told a portfolio manager reading the whole
-  // firm's empty list that they had not written a proposal yet.
-  const everyAdvisors = readsEveryAdvisors(useStaffUser());
+  // asked the other question — may you write one — and so told somebody reading the whole firm's empty
+  // list that they had not written a proposal yet.
+  const wholeBook = readsEveryAdvisors(useStaffUser());
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -53,11 +49,10 @@ export function ProposalsHeader({
           {/* Whose they are, which the screen above cannot say: it is this reader's own answer, not the
               queue's. The queue's own masthead sits above the tabs. */}
           <p className="text-sm font-semibold text-ink">
-            {everyAdvisors ? "Every advisor's proposals." : "Your clients' proposals."}
+            {wholeBook ? "Every proposal the firm has written." : "Proposals written for your clients."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {extra}
           <Button variant="secondary" disabled={exporting || !canExport} onClick={onExport}>
             <Download aria-hidden="true" />
             {exporting ? "Exporting…" : "Export"}

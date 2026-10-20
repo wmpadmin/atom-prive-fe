@@ -54,7 +54,7 @@ export function DashboardPage() {
         <Tile label="Failed syncs today" value={data?.tiles.failedSyncsToday} tone={data && data.tiles.failedSyncsToday > 0 ? "danger" : undefined} to="/bank-syncs" />
         <Tile label="KYC waiting for review" value={data?.tiles.kycPending} />
         <Tile
-          label="Proposals waiting for sign-off"
+          label="Proposals waiting to be answered"
           value={data?.tiles.portfolioApprovalsPending ?? null}
           waitingOn="proposals"
         />
