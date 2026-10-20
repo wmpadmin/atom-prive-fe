@@ -516,14 +516,11 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
 }) {
   const held = byClass.filter((row) => row.actualValue > 0);
   const written = held.reduce((sum, row) => sum + row.actualValue, 0);
-  // What the platform divides by, which is not always what is written down: a client's Net AUM counts
-  // money the calculator was given and nobody has typed into a holding. Divided by the written sum
-  // instead, this card put a class at sixty per cent while the card under it — printing the server's
-  // own share — put the same class at thirty, on one screen, at one instant.
-  const whole = Math.max(...byClass.map((row) =>
-    (row.actualShare > 0 ? (row.actualValue / row.actualShare) * 100 : 0)), written);
-  // And the difference has a name and a slice, rather than being quietly spread across the others.
-  const unwritten = Math.max(whole - written, 0);
+  // What the platform divides by, which is now simply what is written down. There used to be a second
+  // figure — what the firm had been told the client had in all — and this card had to work it back out
+  // of the server's own shares or it would put a class at sixty per cent while the card under it put the
+  // same class at thirty, on one screen, at one instant. Nobody tells the firm a total any more.
+  const whole = written;
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -556,8 +553,8 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
         </p>
       ) : (
         <>
-          <div className="mt-4 grid items-center gap-8 lg:grid-cols-[auto_1fr]">
-          <div className="flex flex-wrap items-center justify-center gap-10">
+          <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-4">
+          <div className="flex flex-wrap items-center justify-center gap-4">
             <Ring
               title="Held"
               slices={[
@@ -566,11 +563,6 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                   share: (row.actualValue / whole) * 100,
                   ink: inkFor(row.assetClass, order),
                 })),
-                // Drawn where there is any, so the ring still comes to a whole and the gap is a thing a
-                // reader can see rather than a rounding they cannot account for.
-                ...(unwritten / whole > 0.0005
-                  ? [{ code: "__unwritten", share: (unwritten / whole) * 100, ink: "#cbd5e1" }]
-                  : []),
               ]}
               middle={brief(whole)}
               under={currency}
@@ -595,7 +587,10 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
 
           {/* Named beside the rings rather than under them, because the card is the width of the page
               now and a list of four names below two circles leaves most of it empty. */}
-          <ul>
+          {/* Beside the rings and close to them. Given the whole of what was left over it sat against
+              the far edge of a card the width of the page, with a hand's breadth of nothing between it
+              and the circles it names. */}
+          <ul className="min-w-64 flex-1 basis-64 md:max-w-md">
             {byClass
               .filter((row) => row.actualValue > 0 || row.targetShare > 0)
               .map((row) => {
@@ -630,19 +625,6 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                   </li>
                 );
               })}
-            {/* Said rather than left as the gap the ring draws. Money the calculator counts that
-                nobody has written into a holding is not held in nothing — it is held in something
-                nobody has typed yet, which is a different sentence and an actionable one. */}
-            {unwritten / whole > 0.0005 && (
-              <li className="flex w-full items-center gap-2 rounded-md px-2 py-px text-left text-sm leading-6">
-                <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full bg-slate-300" />
-                <span className="min-w-0 flex-1 truncate text-ink-muted">Not written down yet</span>
-                <span className="w-16 shrink-0 text-right font-semibold tabular-nums text-ink-muted">
-                  {((unwritten / whole) * 100).toFixed(1)}%
-                </span>
-                <span className="w-20 shrink-0" />
-              </li>
-            )}
           </ul>
           </div>
         </>
@@ -671,7 +653,7 @@ function Ring({ title, slices, middle, under, only, setOnly, names }: {
     <figure className="text-center">
       {/* Big enough that a slice worth a few per cent is an arc and not a hairline — at nine rem it was
           two pixels, which is neither readable nor a thing anybody can hit with a pointer. */}
-      <svg viewBox="0 0 42 42" className="size-64" role="img" aria-label={`${title}, by asset class`}>
+      <svg viewBox="0 0 42 42" className="size-72" role="img" aria-label={`${title}, by asset class`}>
         <circle cx="21" cy="21" r={R} fill="none" stroke="currentColor" strokeWidth="5"
           className="text-slate-100" />
         {slices.map((slice, at) => {

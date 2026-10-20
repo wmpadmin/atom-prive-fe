@@ -14,12 +14,12 @@ import {
   type PortfolioStanding,
   type RiskMatch,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, DateInput, Field, SelectInput, cn } from "@atomprive/ui";
+import { Alert, Badge, DateInput, Field, SelectInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Calculator, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useAssetClasses } from "./asset-classes";
@@ -114,7 +114,6 @@ function yearsAgo(years: number) {
 export function ClientPortfolioPage() {
   const { customerId = "" } = useParams();
   const [address, setAddress] = useSearchParams();
-  const navigate = useNavigate();
   // Which part of the client's portfolio is being read. Four questions about one book, each with its own
   // shape: what it is worth against its plan today, what it did day by day, what it is actually made of,
   // and what all of that looks like drawn. One screen holding all four was a page nobody reached the
@@ -261,22 +260,6 @@ export function ClientPortfolioPage() {
               {standingLabels[standing.data.standing]}
               {standing.data.drift === null ? "" : ` · ${driftLabel(standing.data.drift)}`}
             </Badge>
-          )}
-          {/* Nothing to save and nothing to discard. Everything this screen does is written the moment it
-              is done — a date picked, a first model chosen — or asked for by the button that asks it, and
-              an ask is already sent before anything here could keep it.
-
-              The pair that used to sit here was worse than useless once that was true: Save could only
-              come back refused while something waited, and Discard beside it read as "discard my request",
-              which is the one thing it never did. */}
-          {mayFinishSettingUp(user) && (
-            <Button
-              variant="secondary"
-              onClick={() => void navigate(`/portfolio-clients/${customerId}/net-aum`)}
-            >
-              <Calculator aria-hidden="true" />
-              Recalculate Net AUM
-            </Button>
           )}
         </div>
       </header>
