@@ -971,6 +971,8 @@ export interface PortfolioStanding {
   /** @nullable */
   standing: PortfolioStandingStanding;
   /** @nullable */
+  subAssetBreached: boolean | null;
+  /** @nullable */
   lastRebalancedOn: string | null;
   customModel: boolean;
   riskMatch: RiskMatch | null;
