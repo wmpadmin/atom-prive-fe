@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import { cn } from "./cn";
-import { SelectInput } from "./form";
+import { SelectInput } from "./select-input";
 
 interface PaginationProps {
   /** Zero-based, as the API counts pages. */
