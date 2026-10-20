@@ -1,20 +1,11 @@
 import { ApiError } from "@atomprive/api-client";
 import {
-  useAskToRestore,
   useGetClientValuations,
-  useGetCustomer,
-  useListClientRestores,
-  type CustomerDetail,
-  type RestoreRow,
   type ValuationHistory,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, Dialog, Field, TextArea, cn } from "@atomprive/ui";
-import { ArrowLeft, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { Alert, cn } from "@atomprive/ui";
+import { ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router";
-import { useStaffUser } from "../../auth/session";
-import { formatDateTime } from "../../lib/labels";
-import { hasAuthority } from "../../lib/permissions";
 import { nameOf, useAssetClasses } from "./asset-classes";
 import { daysFrom, money, versionAndTheOneBefore, type Day } from "./daily-tracker-days";
 
@@ -33,22 +24,10 @@ export function DailyTrackerChangePage() {
   const { customerId = "", on = "", revision = "" } = useParams();
   const history = useGetClientValuations<ValuationHistory, ApiError>(customerId, { every: true });
   const classes = useAssetClasses();
-  const user = useStaffUser();
-  // Whoever may write a client's figures is who may ask for them to be put back. Answering is somebody
-  // else's, which is the whole point, so the button here is only ever an asking.
-  const mayAsk = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
-  const restores = useListClientRestores<RestoreRow[], ApiError>(customerId);
-  const waiting = (restores.data ?? []).find((one) => one.status === "PENDING") ?? null;
-  // Asked for the one sentence that matters: the act behind this screen writes every figure a client has
-  // again, and it was confirmed in a dialog that said "this client" over a page titled with a date. A
-  // back-office reader with two clients open has nothing there to tell them which one they are about to
-  // rewrite.
-  const client = useGetCustomer<CustomerDetail, ApiError>(customerId);
-  const named = client.data?.client.fullName ?? "this client";
-  const askToRestore = useAskToRestore<ApiError>();
-  const [asking, setAsking] = useState(false);
-  const [why, setWhy] = useState("");
-  const [failed, setFailed] = useState<string | null>(null);
+  // The figures on this page are read, never put back. Asking for a client's figures to be returned to
+  // an earlier day replaced every figure they had at once, which is a larger change than the firm wants
+  // anybody making by hand; what a client holds will come from the daily file instead. The day itself is
+  // still here to be read, and so is every restore that was asked for while it was possible.
 
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
@@ -89,62 +68,16 @@ export function DailyTrackerChangePage() {
           <ArrowLeft aria-hidden="true" className="size-4" />
           Back to {on}
         </Link>
-        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-[1.625rem] font-bold">Change {reading}</h1>
-            {/* What the number counts, because it does not count what a page about one day looks like it
-                counts. It is the client's whole history, so a day touched once can read "Change 4" with
-                no changes 1 to 3 anywhere on it — which sent its first reader hunting for three records
-                that were on three other days. */}
-            <p className="mt-1 max-w-prose text-sm text-ink-muted">
-              Written on {on} — the day somebody typed these figures, not a day the market was read.
-              The numbering runs through everything ever written down for this client, not through this
-              day: {whereItSits(day, reading)}.
-            </p>
-          </div>
-          {/* Asking for the figures to be put back, from the screen where they are being read. Nothing is
-              written by pressing it: whoever looks after the client answers, exactly as they answer a
-              money move, because this replaces every figure rather than two of them. */}
-          {/* Only where there is something to put back, and said rather than simply absent. A change
-              written before the platform kept what each sub-asset held has class totals and nothing
-              under them; the server refuses to restore one, so offering the button was a way to be told
-              no — but taking it away without a word is a way to be told nothing, and a reader who used
-              it yesterday is left guessing. */}
-          {mayAsk && (Object.keys(shownLines).length > 0 ? (
-            <Button
-              variant="secondary"
-              disabled={waiting !== null}
-              onClick={() => {
-                setFailed(null);
-                setWhy("");
-                setAsking(true);
-              }}
-            >
-              <RotateCcw aria-hidden="true" />
-              Ask to put the figures back
-            </Button>
-          ) : (
-            <p className="max-w-xs text-xs text-ink-muted">
-              The figures cannot be put back to this change: what each sub-asset held was not kept when it
-              was written, so there is nothing to write back line by line.
-            </p>
-          ))}
-        </div>
-        {waiting && (
-          <div className="mt-3">
-            <Alert tone="info">
-              <p className="font-semibold">
-                {waiting.raisedByName} has already asked to put this client back to {waiting.restoreTo}.
-              </p>
-              <p className="mt-1 text-sm">
-                {waiting.why} · asked {formatDateTime(waiting.raisedAt)}
-              </p>
-              <p className="mt-1 text-sm">
-                Nothing has changed. One ask waits at a time, so this one is answered or taken back first.
-              </p>
-            </Alert>
-          </div>
-        )}
+        <h1 className="mt-2 text-[1.625rem] font-bold">Change {reading}</h1>
+        {/* What the number counts, because it does not count what a page about one day looks like it
+            counts. It is the client's whole history, so a day touched once can read "Change 4" with
+            no changes 1 to 3 anywhere on it — which sent its first reader hunting for three records
+            that were on three other days. */}
+        <p className="mt-1 max-w-prose text-sm text-ink-muted">
+          Written on {on} — the day somebody typed these figures, not a day the market was read.
+          The numbering runs through everything ever written down for this client, not through this
+          day: {whereItSits(day, reading)}.
+        </p>
       </div>
 
       {history.isPending ? (
@@ -223,67 +156,6 @@ export function DailyTrackerChangePage() {
         </>
       )}
 
-      {/* The reason is what whoever answers is being asked about. They can see the figures — both sets. */}
-      <Dialog
-        open={asking}
-        title={`Put ${named} back to change ${reading} on ${on}?`}
-        onClose={() => setAsking(false)}
-      >
-        <div className="space-y-4">
-          <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
-            <p>
-              Every figure {named} has would be written again as they stood at change {reading} on {on}{" "}
-              — {currency} {money(worth)} across {Object.values(shownLines)
-                .reduce((sum, inClass) => sum + Object.keys(inClass).length, 0)} sub-assets.
-            </p>
-            <p className="mt-2 text-xs text-ink-muted">
-              This day is left exactly as it is. What it holds is written forward as a new change, so the
-              trail keeps both what happened and that somebody put it back.
-            </p>
-          </div>
-          {failed && <Alert tone="danger">{failed}</Alert>}
-          <Field id="why-it-goes-back" label="Why it should go back" required>
-            <TextArea
-              id="why-it-goes-back"
-              rows={3}
-              value={why}
-              onChange={(event) => setWhy(event.target.value)}
-            />
-          </Field>
-          <p className="text-sm text-ink-muted">
-            Nothing changes yet. This goes to whoever looks after the client.
-          </p>
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setAsking(false)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={why.trim() === "" || askToRestore.isPending || day === null}
-              onClick={() => {
-                if (day === null) return;
-                setFailed(null);
-                void askToRestore
-                  .mutateAsync({
-                    customerId,
-                    data: { revision: reading ?? 0, why: why.trim() },
-                  })
-                  .then(() => {
-                    setAsking(false);
-                    return restores.refetch();
-                  })
-                  .catch((caught: ApiError) => {
-                    // The sentence the server wrote, not the envelope it came in. "Some fields need
-                    // attention" is true of every refusal and tells nobody which field or why.
-                    const said = caught?.problem?.errors ?? {};
-                    setFailed(said.revision ?? caught?.message ?? "That could not be asked for.");
-                  });
-              }}
-            >
-              {askToRestore.isPending ? "Asking…" : "Ask for it"}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
     </div>
   );
 }
@@ -321,9 +193,6 @@ function nth(at: number) {
 export function DailyTrackerDayPage() {
   const { customerId = "", on = "" } = useParams();
   const history = useGetClientValuations<ValuationHistory, ApiError>(customerId, { every: true });
-  const restores = useListClientRestores<RestoreRow[], ApiError>(customerId);
-  const waiting = (restores.data ?? []).find((one) => one.status === "PENDING") ?? null;
-
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
   }
@@ -345,19 +214,6 @@ export function DailyTrackerDayPage() {
           Every change written down on this day. The portfolio is read elsewhere by the one it ended on;
           the others are what it took to get there. Open one to see what each sub-asset held.
         </p>
-        {waiting && (
-          <div className="mt-3">
-            <Alert tone="info">
-              <p className="font-semibold">
-                {waiting.raisedByName} has already asked to put this client back to {waiting.restoreTo}.
-              </p>
-              <p className="mt-1 text-sm">{waiting.why} · asked {formatDateTime(waiting.raisedAt)}</p>
-              <p className="mt-1 text-sm">
-                Nothing has changed. One ask waits at a time, so this one is answered or taken back first.
-              </p>
-            </Alert>
-          </div>
-        )}
       </div>
 
       {history.isPending ? (

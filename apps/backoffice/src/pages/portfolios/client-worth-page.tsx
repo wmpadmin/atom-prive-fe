@@ -5,18 +5,11 @@ import {
   getListClientHoldingsQueryKey,
   getListClientLoansQueryKey,
   getListNonFinancialAssetsQueryKey,
-  useAskToRewriteAllocation,
-  useListClientAllocationChanges,
   useListClientHoldings,
   useListClientLoans,
-  useListClientMovePlans,
-  useListClientRestores,
   useListNonFinancialAssets,
   useWriteClientAllocation,
-  type AllocationChangeRow,
   type ClientHoldings,
-  type MovePlanRow,
-  type RestoreRow,
   type ClientLoans,
   type LoanRequestSecuredOn,
   type ClientNonFinancialAssets,
@@ -103,12 +96,6 @@ function named(one: Line, hasItem: boolean) {
  * is owed — and neither is long enough to be worth a sitting of its own. Both are kept off the allocation:
  * a target is a share of money that can be moved to reach it, and neither a house nor a debt can be moved.
  */
-/** "a money move", "a money move and a restore" — a list as a sentence says it. */
-function andList(words: string[]) {
-  if (words.length <= 1) return words.join("");
-  return `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
-}
-
 export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepProps) {
   const queryClient = useQueryClient();
   const owned = useListNonFinancialAssets<ClientNonFinancialAssets, ApiError>(customerId);
@@ -117,11 +104,7 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
   // as one value, so the step that finishes it carries the lines whether or not anybody typed them.
   const holdings = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
-  /** Why the figures should change, which only an ask needs and only an ask shows a box for. */
-  const [why, setWhy] = useState("");
-
   const writeAllocation = useWriteClientAllocation<ApiError>();
-  const askToRewrite = useAskToRewriteAllocation<ApiError>();
   // One flag for the whole save, not the six mutations' own. They run one after another, so between
   // any two of them every one of them is idle for a tick, and the button flicked back and in again on
   // each one.
@@ -216,7 +199,6 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
   const onFile: Calculator = {
     classes: linesOnFile(holdings.data),
     currency: holdings.data?.currency ?? null,
-    netAum: holdings.data?.underManagement ?? null,
     loanAmount: loanOnFile(owed.data),
     ownedOutright: ownedOnFile(owned.data),
   };
@@ -229,7 +211,6 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
   const whole: Calculator = {
     classes: held?.classes ?? onFile.classes,
     currency: held?.currency ?? onFile.currency,
-    netAum: held?.netAum ?? onFile.netAum,
     loanAmount: (held === undefined) ? onFile.loanAmount : held.loanAmount,
     ownedOutright: sending,
   };
@@ -245,25 +226,17 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
    */
   const changing = !holdings.isPending && !owned.isPending && !owed.isPending
     && saysSomethingNew(whole, onFile);
-  const asking = changing && alreadyWritten;
   /*
-   * What is already waiting on this client, which the server refuses to let anything be raised over.
-   * Each of the three asks is weighed against the figures as they stand and applied as though it were
-   * the only one, so a second raised over a first asks for money out of a line that may no longer hold it.
+   * Figures already written are no longer this screen's to change. The calculator writes a client's
+   * figures the first time, when there is nothing to overrule — no figures an advisor could be
+   * protecting, no drift to change, no day to re-close. After that what a client holds is moved between
+   * lines by a money move, or comes from the daily file; it is not retyped here.
    *
-   * Read here, where the walk can be stopped before it starts. The refusal came from the server at the
-   * last press, so somebody typed four steps and a reason to be told at the end that none of it could be
-   * asked for — and the figures they had typed went with the dialog.
+   * Said before anything is typed rather than after it all is. The refusal used to come from the server
+   * at the last press, so somebody filled four steps and a reason to be told none of it could be asked
+   * for — and the figures they had typed went with the dialog.
    */
-  const moves = useListClientMovePlans<MovePlanRow[], ApiError>(customerId);
-  const restoring = useListClientRestores<RestoreRow[], ApiError>(customerId);
-  const rewriting = useListClientAllocationChanges<AllocationChangeRow[], ApiError>(customerId);
-  const already = [
-    (moves.data ?? []).find((one) => one.status === "PENDING" || one.status === "RETURNED")
-      && "a money move",
-    (restoring.data ?? []).find((one) => one.status === "PENDING") && "an ask to put the figures back",
-    (rewriting.data ?? []).find((one) => one.status === "PENDING") && "an ask to rewrite these figures",
-  ].filter((one): one is string => typeof one === "string");
+  const settled = changing && alreadyWritten;
 
   async function save() {
     if (!changing) {
@@ -274,14 +247,7 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
     setErrors(noErrors);
     setBusy(true);
     try {
-      // Written outright the first time and asked for every time after. The first has nothing to
-      // overrule: no figures an advisor could be protecting, no drift to change, no day to re-close.
-      if (asking) {
-        await askToRewrite.mutateAsync({ customerId, data: { allocation: whole, why: why.trim() } });
-      }
-      else {
-        await writeAllocation.mutateAsync({ customerId, data: whole });
-      }
+      await writeAllocation.mutateAsync({ customerId, data: whole });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getListNonFinancialAssetsQueryKey(customerId) }),
         queryClient.invalidateQueries({ queryKey: getListClientLoansQueryKey(customerId) }),
@@ -320,20 +286,15 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
 
   return (
     <div className="flex flex-1 flex-col space-y-4">
-      {/* Said before anything is typed rather than after it is all typed. The server refuses to raise a
-          second ask over a first, and it refused at the last press — so a reader filled four steps and a
-          reason, was told none of it could be asked for, and lost the figures with the dialog. */}
-      {already.length > 0 && (
+      {settled && (
         <Alert tone="warning">
           <p className="font-semibold">
-            {already.length === 1
-              ? `There is already ${already[0]} waiting on this client.`
-              : `There are already ${andList(already)} waiting on this client.`}
+            This client's figures are already written down, so they cannot be typed again here.
           </p>
           <p className="mt-1 text-sm">
-            Nothing more can be asked for until that is answered or taken back. Each ask is weighed
-            against the figures as they stand and applied as though it were the only one, so a second
-            raised over the first would ask for money out of a line that may no longer hold it.
+            What a client holds is moved between lines by a money move, which somebody else answers.
+            Retyping the whole portfolio replaced every figure at once, which is a larger change than
+            the firm wants anybody making by hand.
           </p>
         </Alert>
       )}
@@ -502,35 +463,6 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
           the list from this one, weighed together against what is on file. It is the one thing holding
           the only button on the step, and a reader who could not see that went hunting through the step
           for a box they had failed to fill. */}
-      {asking && (
-        <div className={cn("mt-6 rounded-xl border px-4 py-3",
-          why.trim() === "" ? "border-red-600 bg-red-50/40" : "border-line bg-slate-50/60")}>
-          <label htmlFor="why-it-changed"
-            className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            Why it should change <span aria-hidden="true" className="text-red-700">*</span>
-            <span className="sr-only">(required)</span>
-          </label>
-          <TextInput
-            id="why-it-changed"
-            aria-invalid={why.trim() === "" || undefined}
-            className={cn("mt-1.5", why.trim() === "" && "border-red-600 ring-1 ring-red-600")}
-            value={why}
-            placeholder="The custodian statement came in at a different figure."
-            onChange={(event) => setWhy(event.target.value)}
-          />
-          {why.trim() === "" && (
-            <p className="mt-1.5 text-xs font-medium text-red-700">
-              A figure has changed, so this is needed before it can be asked for.
-            </p>
-          )}
-          <p className="mt-2 text-xs text-ink-muted">
-            This client's figures are already written down, so the whole calculator — what they hold, what
-            they owe and what they own outright — is answered by whoever looks after them. Nothing changes
-            until they agree, and nothing is asked for if nothing changed.
-          </p>
-        </div>
-      )}
-
       <div className="mt-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
         <Button variant="secondary" size="lg" type="button" onClick={back}>
           Back
@@ -539,24 +471,20 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
             reader hunting through the step for a box they had failed to fill — and the likeliest guess,
             the empty row at the top asking what the client owns outright, is the one thing on this step
             that may be left alone. */}
-        {!busy && (!readable || already.length > 0 || (asking && why.trim() === "")) && (
+        {!busy && (!readable || settled) && (
           <p className="mr-auto text-xs text-red-700">
-            {already.length > 0
-              ? "Nothing can be asked for while something is waiting on this client."
-              : !readable
-                ? "Put right what is marked above first."
-                : "Say why it should change. Whoever answers is being asked about the reason."}
+            {settled
+              ? "These figures are already written down. Move money between the lines instead."
+              : "Put right what is marked above first."}
           </p>
         )}
         <Button
           type="button"
           size="lg"
-          disabled={busy || !readable || already.length > 0 || (asking && why.trim() === "")}
+          disabled={busy || !readable || settled}
           onClick={() => void save()}
         >
-          {busy
-            ? (asking ? "Asking…" : "Writing it down…")
-            : asking ? "Ask for this change" : "Next"}
+          {busy ? "Writing it down…" : "Next"}
         </Button>
       </div>
     </div>

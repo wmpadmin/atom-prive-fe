@@ -24,7 +24,7 @@ import { WorthStep } from "./client-worth-page";
  */
 export type Draft = {
   /** What the first step typed, where somebody has been there. Lines, currency and the loan. */
-  held?: Pick<Calculator, "classes" | "currency" | "netAum" | "loanAmount">;
+  held?: Pick<Calculator, "classes" | "currency" | "loanAmount">;
   /** What the second step typed, where somebody went there and came back. */
   owned?: NonFinancialAssetRequest[];
 };
