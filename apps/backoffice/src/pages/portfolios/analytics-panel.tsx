@@ -590,7 +590,7 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
           {/* Beside the rings and close to them. Given the whole of what was left over it sat against
               the far edge of a card the width of the page, with a hand's breadth of nothing between it
               and the circles it names. */}
-          <ul className="min-w-64 flex-1 basis-64 md:max-w-md">
+          <ul className="min-w-64 flex-1 basis-64 space-y-0.5 md:max-w-sm">
             {byClass
               .filter((row) => row.actualValue > 0 || row.targetShare > 0)
               .map((row) => {
@@ -603,7 +603,7 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                     <button
                       type="button"
                       onClick={() => setOnly(only === row.assetClass ? null : row.assetClass)}
-                      className={cn("flex w-full items-center gap-2 rounded-md px-2 py-px text-left text-sm leading-6",
+                      className={cn("flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm leading-6",
                         only === row.assetClass ? "bg-primary-50" : "hover:bg-slate-50",
                         dimmed && "opacity-45")}
                     >
@@ -618,8 +618,14 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                       <span className="w-16 shrink-0 text-right font-semibold tabular-nums text-ink">
                         {actual.toFixed(1)}%
                       </span>
-                      <span className="w-20 shrink-0 text-right text-2xs tabular-nums text-ink-muted">
-                        of {row.targetShare.toFixed(0)}%
+                      {/* "of" pinned and the figure right-aligned beside it, rather than the pair
+                          right-aligned together: read as one string, a target of 5% sat a character
+                          further right than one of 70% and the column read as though it were leaning. */}
+                      <span className="flex w-16 shrink-0 items-baseline gap-1 text-2xs text-ink-muted">
+                        <span>of</span>
+                        <span className="flex-1 text-right tabular-nums">
+                          {row.targetShare.toFixed(0)}%
+                        </span>
                       </span>
                     </button>
                   </li>
@@ -653,7 +659,7 @@ function Ring({ title, slices, middle, under, only, setOnly, names }: {
     <figure className="text-center">
       {/* Big enough that a slice worth a few per cent is an arc and not a hairline — at nine rem it was
           two pixels, which is neither readable nor a thing anybody can hit with a pointer. */}
-      <svg viewBox="0 0 42 42" className="size-72" role="img" aria-label={`${title}, by asset class`}>
+      <svg viewBox="0 0 42 42" className="size-56" role="img" aria-label={`${title}, by asset class`}>
         <circle cx="21" cy="21" r={R} fill="none" stroke="currentColor" strokeWidth="5"
           className="text-slate-100" />
         {slices.map((slice, at) => {
