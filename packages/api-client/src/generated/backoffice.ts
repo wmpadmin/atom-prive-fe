@@ -901,6 +901,8 @@ export interface ClassStanding {
   /** @nullable */
   standing: ClassStandingStanding;
   band: BandRequest;
+  /** @nullable */
+  subAssetBreached: boolean | null;
 }
 
 export interface ClientReturn {
@@ -970,8 +972,6 @@ export interface PortfolioStanding {
   driftValue: number | null;
   /** @nullable */
   standing: PortfolioStandingStanding;
-  /** @nullable */
-  subAssetBreached: boolean | null;
   /** @nullable */
   lastRebalancedOn: string | null;
   customModel: boolean;

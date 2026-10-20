@@ -1,4 +1,5 @@
 import type { ClassStanding } from "@atomprive/api-client/backoffice";
+import { TriangleAlert } from "lucide-react";
 import { Badge } from "@atomprive/ui";
 import { driftLabel, standingLabels, standingTones } from "./portfolio-labels";
 
@@ -141,6 +142,19 @@ export function ClassStandingTable({
                         title={`${driftLabel(row.drift)} from target. Watched from ${row.band.watchAt}, at the edge from ${row.band.edgeAt}, breached from ${row.band.breachAt}.`}
                       >
                         <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>
+                      </span>
+                    )}
+                    {/* A separate question from the one above it. The class is judged on its own share
+                        of the portfolio, and it can sit exactly on its target while every penny of it
+                        is in one of the two lines the plan splits it between — which the verdict above
+                        cannot say, because by its own measure there is nothing to say. */}
+                    {row.subAssetBreached && (
+                      <span
+                        className="mt-1 flex items-center gap-1.5 font-normal text-red-600"
+                        title="Something inside this class has broken its band. Open the class to see which."
+                      >
+                        <TriangleAlert aria-hidden="true" className="size-3.5 shrink-0" />
+                        <span className="text-xs">Breached inside</span>
                       </span>
                     )}
                   </th>
