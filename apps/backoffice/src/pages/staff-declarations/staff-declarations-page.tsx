@@ -12,11 +12,12 @@ import {
   type StaffDeclarations,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, TextInput, cn } from "@atomprive/ui";
-import { Download, Mail, Search } from "lucide-react";
+import { CalendarCog, Download, Mail, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { downloadTextFile } from "../../lib/download";
 import { formatDate } from "../../lib/labels";
 import { DeclarationsProgress, DeclarationsTable } from "./declarations-table";
+import { HowOftenDialog } from "./how-often-dialog";
 
 const MISSING = "—";
 
@@ -73,6 +74,7 @@ export function StaffDeclarationsPage() {
   const [chosen, setChosen] = useState<string>();
   const [notice, setNotice] = useState<{ tone: "success" | "info" | "danger"; message: string }>();
   const [exporting, setExporting] = useState(false);
+  const [howOften, setHowOften] = useState(false);
   const reminders = useSendReminders<ApiError>();
 
   const register = useListRegister<Register, ApiError>();
@@ -137,6 +139,12 @@ export function StaffDeclarationsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
+          {/* The firm's own compliance calendar, beside the two things it governs. How often a declaration
+              is wanted used to be written into the code it shipped with, so changing it was a release. */}
+          <Button variant="secondary" onClick={() => setHowOften(true)}>
+            <CalendarCog aria-hidden="true" />
+            How often
+          </Button>
           <Button variant="secondary" onClick={() => void exportTheRegister()} disabled={exporting || !register.data}>
             <Download aria-hidden="true" />
             {exporting ? "Exporting…" : "Export register"}
@@ -151,6 +159,8 @@ export function StaffDeclarationsPage() {
           </Button>
         </div>
       </header>
+
+      <HowOftenDialog open={howOften} onClose={() => setHowOften(false)} />
 
       {notice && <Alert tone={notice.tone}>{notice.message}</Alert>}
       {register.isError && <Alert tone="danger">{register.error.message}</Alert>}
