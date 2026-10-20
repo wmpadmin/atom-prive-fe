@@ -27,6 +27,12 @@ const TONES: Record<string, "neutral" | "success" | "danger" | "warning"> = {
  * the client and changes nothing here. Asking is not moving — somebody who may move them answers it, and
  * their yes is the move.
  */
+/** "a and b", "a, b and c" — a list as a sentence says it. */
+function andList(words: string[]) {
+  if (words.length <= 1) return words.join("");
+  return `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
+}
+
 export function AskToChangeTheModel({
   customerId,
   onModelId,
@@ -59,10 +65,33 @@ export function AskToChangeTheModel({
 
   const history = asked.data ?? [];
   const open = history.find((one) => one.status === "PENDING");
-  // A draft cannot be asked for, and neither can the model they are already on.
-  const choices = (models.data?.items ?? []).filter(
-    (model) => model.status !== "DRAFT" && model.id !== onModelId,
-  );
+  /*
+   * What a client may actually be put on.
+   *
+   * <p>A draft is a model still being written and the server refuses one outright. A retired model is
+   * one the firm has stopped writing for new clients — those already on it stay on it — so offering it
+   * here is offering the one thing its own status says not to do, and nothing downstream refuses it.
+   * And nobody is moved to the model they are already on.
+   */
+  const everyModel = models.data?.items ?? [];
+  const choices = everyModel.filter((model) =>
+    model.status !== "DRAFT" && model.status !== "RETIRED" && model.id !== onModelId);
+  /*
+   * Why the list is shorter than the list of models, said rather than left to be noticed. Two of four
+   * models missing with nothing to explain it reads as a screen that has lost them.
+   */
+  const leftOut = [
+    everyModel.some((model) => model.id === onModelId)
+      && `${onModelName} is the one they are on now`,
+    everyModel.some((model) => model.status === "DRAFT")
+      && `${everyModel.filter((model) => model.status === "DRAFT").length === 1
+        ? "one model is"
+        : `${everyModel.filter((model) => model.status === "DRAFT").length} models are`} still a draft`,
+    everyModel.some((model) => model.status === "RETIRED")
+      && `${everyModel.filter((model) => model.status === "RETIRED").length === 1
+        ? "one is"
+        : `${everyModel.filter((model) => model.status === "RETIRED").length} are`} retired`,
+  ].filter((one): one is string => typeof one === "string");
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -150,6 +179,11 @@ export function AskToChangeTheModel({
               ))}
             </SelectInput>
           </Field>
+          {leftOut.length > 0 && (
+            <p className="-mt-2 text-xs text-ink-muted">
+              Not every model is offered: {andList(leftOut)}.
+            </p>
+          )}
           <Field id="why-move" label="Why" error={errors.fields.why} required>
             <TextArea
               id="why-move"
