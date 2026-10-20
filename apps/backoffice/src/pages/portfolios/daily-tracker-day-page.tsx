@@ -4,7 +4,7 @@ import {
   type ValuationHistory,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { nameOf, useAssetClasses } from "./asset-classes";
 import { daysFrom, money, shiftsBetween, versionAndTheOneBefore, type Day } from "./daily-tracker-days";
@@ -299,6 +299,14 @@ function Changes({ day, currency, customerId, names }: {
     <div className="px-6 py-4">
       {/* The heading is the section's, above. Said here too it was printed twice over. */}
       <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            <th scope="col" className="py-2 pr-4 whitespace-nowrap">Change</th>
+            <th scope="col" className="px-4 py-2">Money came out of</th>
+            <th scope="col" className="px-4 py-2">And went into</th>
+            <th scope="col" className="py-2 pl-4 text-right whitespace-nowrap">Moved</th>
+          </tr>
+        </thead>
         <tbody className="divide-y divide-line/60">
           {day.versions.map((one, at) => {
             const before = at === 0 ? null : day.versions[at - 1];
@@ -316,7 +324,7 @@ function Changes({ day, currency, customerId, names }: {
             const its = `/portfolio-clients/${customerId}/days/${day.on}/changes/${one.revision}`;
             return (
               <tr key={one.id} className="hover:bg-slate-50">
-                <td className="py-2 pr-4 whitespace-nowrap text-ink-muted">
+                <td className="py-2 pr-4 align-top whitespace-nowrap text-ink-muted">
                   {/* A link rather than a press that swaps the page beneath it: a change is a thing with
                       an address, so it can be sent to somebody, kept in a tab and come back to. */}
                   <Link
@@ -333,40 +341,55 @@ function Changes({ day, currency, customerId, names }: {
                     </span>
                   )}
                 </td>
-                {/* What actually changed, which is almost never the total. Money moved between
-                    sub-assets leaves the portfolio worth exactly what it was worth before, so a column
-                    of totals printed the same figure eight times with "0.00" beside each — eight rows
-                    saying nothing happened on a day eight things happened. */}
-                <td className="px-4 py-1.5 text-ink">
-                  {shifts.length === 0 ? (
+                {/* Out of on one side, into on the other, each line with what it lost or gained. Said
+                    as one wrapping run of names it was a wall to read: a change taking money out of one
+                    line and putting it into three ran the four names together with an arrow somewhere
+                    in the middle, and which of them was which took working out. */}
+                <td className="px-4 py-2 align-top">
+                  {out.length === 0 ? (
                     <span className="text-ink-muted">
-                      {before === null ? "The first change written down" : "Nothing moved between the lines"}
+                      {before === null ? "The first change written down" : "—"}
                     </span>
                   ) : (
-                    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                    <ul className="space-y-0.5">
                       {out.map((shift) => (
-                        <span key={`${shift.assetClass}-${shift.line}`}
-                          className="rounded-md bg-red-50 px-1.5 py-0.5 text-red-700">
-                          {nameOf(shift.assetClass, names)} · {shift.line}
-                        </span>
+                        <li key={`${shift.assetClass}-${shift.line}`}
+                          className="flex items-baseline justify-between gap-3">
+                          <span className="min-w-0 text-red-700">
+                            {nameOf(shift.assetClass, names)} · {shift.line}
+                          </span>
+                          <span className="shrink-0 tabular-nums text-red-700">
+                            −{money(Math.abs(shift.by))}
+                          </span>
+                        </li>
                       ))}
-                      {out.length > 0 && into.length > 0 && (
-                        <ArrowRight aria-label="into" className="size-3.5 shrink-0 text-ink-muted" />
-                      )}
-                      {into.map((shift) => (
-                        <span key={`${shift.assetClass}-${shift.line}`}
-                          className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-emerald-700">
-                          {nameOf(shift.assetClass, names)} · {shift.line}
-                        </span>
-                      ))}
-                    </span>
+                    </ul>
                   )}
                 </td>
-                <td className="py-1.5 pl-4 text-right whitespace-nowrap tabular-nums">
+                <td className="px-4 py-2 align-top">
+                  {into.length === 0 ? (
+                    <span className="text-ink-muted">{before === null ? "" : "—"}</span>
+                  ) : (
+                    <ul className="space-y-0.5">
+                      {into.map((shift) => (
+                        <li key={`${shift.assetClass}-${shift.line}`}
+                          className="flex items-baseline justify-between gap-3">
+                          <span className="min-w-0 text-emerald-700">
+                            {nameOf(shift.assetClass, names)} · {shift.line}
+                          </span>
+                          <span className="shrink-0 tabular-nums text-emerald-700">
+                            +{money(shift.by)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </td>
+                <td className="py-2 pl-4 text-right align-top whitespace-nowrap tabular-nums">
                   {shifts.length === 0 ? (
                     <span className="text-ink-muted">—</span>
                   ) : (
-                    <span className="font-medium text-ink">{money(shifted)}</span>
+                    <span className="font-semibold text-ink">{money(shifted)}</span>
                   )}
                 </td>
               </tr>

@@ -5,8 +5,6 @@ import {
   useGetCustomer,
   useListClientHoldings,
   useListModelPortfolios,
-  useRecordRebalance,
-  useRecordReview,
   useSetClientModelPortfolio,
   type ClientHoldings,
   type CustomerDetail,
@@ -14,10 +12,9 @@ import {
   type PortfolioStanding,
   type RiskMatch,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, DateInput, Field, SelectInput, cn } from "@atomprive/ui";
+import { Alert, Badge, Field, SelectInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
-import type { ReactNode } from "react";
 import { useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -38,7 +35,6 @@ import {
   underManagementLabel,
 } from "./portfolio-labels";
 import { isSetUp, mayFinishSettingUp } from "./set-up";
-import { formatDate } from "../../lib/labels";
 import { ValuationHistoryPanel } from "./valuation-history-panel";
 import { WhatIfPanel } from "./what-if-panel";
 
@@ -89,17 +85,6 @@ function heldFrom(standing: PortfolioStanding | undefined, codes: string[]): Hel
   return typed;
 }
 
-/** Today, as the calendar writes it, so a rebalance can be dated today but no later. */
-function today() {
-  const day = new Date();
-  return new Date(day.getFullYear(), day.getMonth(), day.getDate());
-}
-
-function yearsAgo(years: number) {
-  const day = new Date();
-  return new Date(day.getFullYear() - years, day.getMonth(), day.getDate());
-}
-
 /**
  * A client's portfolio: the model it is measured against, what it holds, and when it was last put back.
  *
@@ -146,8 +131,6 @@ export function ClientPortfolioPage() {
   const models = useListModelPortfolios<ModelsPage, ApiError>();
   const assetClasses = useAssetClasses();
   const [errors, setErrors] = useState<FormErrors>(noErrors);
-  const [rebalancedOn, setRebalancedOn] = useState<string | null>(null);
-  const [reviewedOn, setReviewedOn] = useState<string | null>(null);
   /** Whether the client is already measured against something, which makes a change somebody else's to answer. */
   const onAmodel = (standing.data?.modelPortfolioId ?? null) !== null;
   // The class somebody asked to see the inside of, from the table that measures it. Kept so the card opens
@@ -177,8 +160,6 @@ export function ClientPortfolioPage() {
     void queryClient.invalidateQueries({ queryKey: getGetClientValuationsQueryKey(customerId) });
   };
   const setModel = useSetClientModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
-  const rebalanced = useRecordRebalance<ApiError>({ mutation: { onSuccess: kept, onError } });
-  const reviewed = useRecordReview<ApiError>({ mutation: { onSuccess: kept, onError } });
   // Each control waits on its own work and nothing else's. One flag over the whole screen dimmed every
   // button the moment any of them was pressed, which reads as the page pressing all of them at once.
 
@@ -189,13 +170,11 @@ export function ClientPortfolioPage() {
   // What is on file, and only that. There is no typing over it here any more: a class total is the sum of
   // the sub-assets written under it, and those are written in the panel below or through the calculator.
   const holdings: Held = heldFrom(standing.data, boxes);
-  const on = rebalancedOn ?? standing.data?.lastRebalancedOn ?? "";
-  const looked = reviewedOn ?? standing.data?.lastReviewedOn ?? "";
   const total = Object.values(holdings).reduce((sum: number, typed) => sum + (Number(typed) || 0), 0);
   // What the client is measured against, read off the portfolio. Picking in the box writes it, so there
   // is never a picked-but-unwritten model for the screen to hold.
   const model = standing.data?.modelPortfolioId ?? "";
-  const saving = setModel.isPending || rebalanced.isPending || reviewed.isPending;
+  const saving = setModel.isPending;
 
   const named = client.data?.client.fullName ?? "";
 
@@ -412,64 +391,6 @@ export function ClientPortfolioPage() {
         </fieldset>
       </section>
 
-      {/* Two dates the platform cannot work out for itself: the trading happens at the custodian and the
-          reading happens in somebody's head. Written down here, they are what the review cadence and the
-          drift queue are measured from.
-
-          Set out as a record rather than as a column of fields: stacked, a label, a date and a line of
-          explanation three times over reads as one thing running into the next. */}
-      <section className="rounded-2xl border border-line bg-white px-6 py-5">
-        <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">When it was dealt with</h2>
-
-        <dl className="mt-4 grid gap-x-10 gap-y-4 sm:grid-cols-2">
-          <Dealt
-            id="rebalanced-on"
-            label="Last put back to the model"
-            said="The day the trades were done. Drift is read as how far it has wandered since."
-          >
-            {/* Written where it is read, on the day somebody picks it. A record of what already happened
-                is not a decision anybody answers, so it never belonged behind a mode. */}
-            <DateInput
-              id="rebalanced-on"
-              name="rebalancedOn"
-              value={on}
-              min={yearsAgo(20)}
-              max={today()}
-              onChange={(picked) => {
-                setRebalancedOn(picked);
-                if (picked) rebalanced.mutate({ customerId, data: { on: picked } });
-              }}
-            />
-          </Dealt>
-
-          {/* Reading the file is not the same as putting it back: a review can end in doing nothing at all. */}
-          <Dealt
-            id="reviewed-on"
-            label="Last looked at"
-            said={
-              standing.data?.lastReviewedOn
-                ? standing.data.reviewOverdue
-                  ? "Due another look."
-                  : `Next due ${standing.data.reviewDueOn ? formatDate(standing.data.reviewDueOn) : ""}.`
-                : "The day somebody read this file through. Nobody has yet."
-            }
-          >
-            <DateInput
-              id="reviewed-on"
-              name="reviewedOn"
-              value={looked}
-              min={yearsAgo(20)}
-              max={today()}
-              onChange={(picked) => {
-                setReviewedOn(picked);
-                if (picked) reviewed.mutate({ customerId, data: { on: picked } });
-              }}
-            />
-          </Dealt>
-        </dl>
-        {errors.fields.on && <p className="mt-3 text-xs text-red-600">{errors.fields.on}</p>}
-      </section>
-
       {/* Asking is not moving. An advisor who thinks they are on the wrong plan says so here, and whoever
           may move them answers it. */}
       {standing.data && (
@@ -535,37 +456,6 @@ function classesShown(
     .filter((one) => (one.retiredAt === null || held.has(one.code))
       && (asked.size === 0 || asked.has(one.code) || held.has(one.code)))
     .map((one) => one.code);
-}
-
-/**
- * One dated fact: what is being dated, the date itself, and what the date means.
- *
- * <p>Side by side with the other, and each stacked the way every other field on the page is stacked. A
- * label column wide enough for the longer name left the date marooned in the middle of the row with the
- * whole right-hand side of the screen empty beside it.
- */
-function Dealt({
-  id,
-  label,
-  said,
-  children,
-}: {
-  id: string;
-  label: string;
-  said: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="min-w-0">
-      <dt>
-        <label htmlFor={id} className="text-sm font-medium text-ink">
-          {label}
-        </label>
-      </dt>
-      <dd className="mt-1.5">{children}</dd>
-      <dd className="mt-1.5 text-xs text-ink-muted">{said}</dd>
-    </div>
-  );
 }
 
 /**
