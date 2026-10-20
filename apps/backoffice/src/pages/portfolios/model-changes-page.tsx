@@ -11,7 +11,6 @@ import { AnswerDialog } from "./answer-dialog";
 import { QueueBar } from "./queue-bar";
 import { useState } from "react";
 import { useStaffUser } from "../../auth/session";
-import { hasAuthority } from "../../lib/permissions";
 import { formatDateTime } from "../../lib/labels";
 
 const TABS: { id: ModelChangeRowStatus | "all"; label: string }[] = [
@@ -37,7 +36,6 @@ const TONES: Record<ModelChangeRowStatus, "neutral" | "success" | "danger" | "wa
  */
 export function ModelChangesPage() {
   const user = useStaffUser();
-  const mayAnswer = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
   const [tab, setTab] = useState<ModelChangeRowStatus | "all">("PENDING");
   const [page, setPage] = useState(0);
   /** The change being answered and which way, because both answers are given in the same window now. */
@@ -146,8 +144,13 @@ export function ModelChangesPage() {
                     <Badge tone={TONES[row.status]}>{row.statusLabel}</Badge>
                   </td>
                   <td className="py-3 pr-5 pl-4 text-right">
-                    {/* Whoever asked cannot answer, so the buttons are not offered to them either. */}
-                    {row.status === "PENDING" && mayAnswer && row.raisedBy !== user.id && (
+                    {/* Offered on the server's own answer rather than on a permission read here. The
+                        screen used to look up one authority and draw buttons for whoever held it — so a
+                        client's own advisor, who may answer this, got no buttons, and the row sat there
+                        with nothing on it and nothing said. mayAnswer is worked out with the same rule the
+                        answering itself uses, so a button is never offered that would then be refused and
+                        a row is never silent about why it has none. */}
+                    {row.status === "PENDING" && row.mayAnswer && (
                       <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                         <Button
                           variant="secondary"
@@ -171,9 +174,14 @@ export function ModelChangesPage() {
                         </Button>
                       </div>
                     )}
-                    {row.status === "PENDING" && mayAnswer && row.raisedBy === user.id && (
+                    {/* A row waiting on somebody else says so. A pending row with an empty cell beside it
+                        reads as a screen that has not finished loading, or a button that has stopped
+                        working — not as work that belongs to another person. */}
+                    {row.status === "PENDING" && !row.mayAnswer && (
                       <p className="ml-auto max-w-56 text-xs text-ink-muted">
-                        You asked for this one, so somebody else answers it.
+                        {row.raisedBy === user.id
+                          ? "You asked for this one, so somebody else answers it."
+                          : "This client's relationship manager answers this one."}
                       </p>
                     )}
                   </td>
