@@ -407,7 +407,9 @@ function useWaitingOn(to: string) {
     + (modelEdits.data?.waiting ?? []).length
     + (clientRequests.data?.waiting ?? []).length
     + (proposals.data?.totalItems ?? 0)
-    + (modelChanges.data?.totalItems ?? 0);
+    // Waiting on this reader, not visible to them: a bell that counts somebody else's work sends
+    // people to a queue with nothing in it for them.
+    + (modelChanges.data?.waitingOnYou ?? 0);
 }
 
 function NavEntry({

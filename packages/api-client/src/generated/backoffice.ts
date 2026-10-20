@@ -1581,14 +1581,14 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
+  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
-  valueNode?: boolean;
-  missingNode?: boolean;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -3540,6 +3540,7 @@ export interface ModelChangeRow {
   /** @nullable */
   decisionNote: string | null;
   updatedAt: string;
+  mayAnswer: boolean;
 }
 
 export interface ModelChangeDecision {
@@ -4876,6 +4877,7 @@ export interface ModelChangePage {
   page: number;
   size: number;
   totalItems: number;
+  waitingOnYou: number;
 }
 
 export interface AssetsByModel {
