@@ -22,6 +22,7 @@ import { useState } from "react";
  * screen where they already notice that a cycle is wrong.
  */
 const CADENCES: { id: DeclarationScheduleRowCadence; label: string }[] = [
+  { id: "WEEKLY", label: "Weekly" },
   { id: "MONTHLY", label: "Monthly" },
   { id: "QUARTERLY", label: "Quarterly" },
   { id: "SIX_MONTHLY", label: "Six-monthly" },
@@ -32,9 +33,23 @@ const CADENCES: { id: DeclarationScheduleRowCadence; label: string }[] = [
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/** Monday is 1, the way the server numbers them. */
+const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
 /** A cadence that comes round needs a day to come round on; one that does not has no day of its own. */
 function recurs(cadence: DeclarationScheduleRowCadence) {
   return cadence !== "ON_APPOINTMENT" && cadence !== "ON_JOINING";
+}
+
+/**
+ * Whether the day it is set to is a day of the week rather than a day of the year.
+ *
+ * <p>Weekly is the one cycle that does not take a month and a date: "the 31st, every week" is not a rule
+ * anybody could follow. So the two boxes swap for one, and the server holds the two apart as well — a
+ * weekly cycle has no day of the year, and nothing else has a day of the week.
+ */
+function onAWeekday(cadence: DeclarationScheduleRowCadence) {
+  return cadence === "WEEKLY";
 }
 
 export function HowOftenDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -142,6 +157,7 @@ function OneCycle({ row, onDone, onSaved }: {
   // the first time it comes round. So it is a month and a day rather than a date picker.
   const [month, setMonth] = useState(String(row.dueMonth ?? 1));
   const [day, setDay] = useState(String(row.dueDay ?? 31));
+  const [weekday, setWeekday] = useState(String(row.dueWeekday ?? 1));
   const refused = set.isError ? set.error : null;
 
   return (
@@ -153,8 +169,10 @@ function OneCycle({ row, onDone, onSaved }: {
           kind: row.kind,
           data: {
             cadence,
-            dueMonth: recurs(cadence) ? Number(month) : null,
-            dueDay: recurs(cadence) ? Number(day) : null,
+            // The two kinds of day never travel together, which is what the server refuses to hold.
+            dueMonth: recurs(cadence) && !onAWeekday(cadence) ? Number(month) : null,
+            dueDay: recurs(cadence) && !onAWeekday(cadence) ? Number(day) : null,
+            dueWeekday: onAWeekday(cadence) ? Number(weekday) : null,
           },
         });
       }}
@@ -178,7 +196,24 @@ function OneCycle({ row, onDone, onSaved }: {
         </label>
         {/* Only where it comes round. A day on a one-off is a day nobody would ever be asked for, and a
             box somebody fills in that the server then ignores is a rule they believe is in force. */}
-        {recurs(cadence) && (
+        {onAWeekday(cadence) && (
+          <label className="block">
+            <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              Day of the week
+            </span>
+            <SelectInput
+              id={`weekday-${row.kind}`}
+              value={weekday}
+              onChange={(event) => setWeekday(event.target.value)}
+              className="w-36"
+            >
+              {WEEKDAYS.map((name, at) => (
+                <option key={name} value={String(at + 1)}>{name}</option>
+              ))}
+            </SelectInput>
+          </label>
+        )}
+        {recurs(cadence) && !onAWeekday(cadence) && (
           <>
             <label className="block">
               <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -212,10 +247,19 @@ function OneCycle({ row, onDone, onSaved }: {
       </div>
       {/* Said where it is chosen rather than only in the dialog's own blurb: the 31st, stepped quarterly,
           is the end of every quarter, and that is the whole reason the day is a day of the year. */}
-      {recurs(cadence) && (
+      {recurs(cadence) && !onAWeekday(cadence) && (
         <p className="text-xs text-ink-muted">
           A day the month is too short for falls on that month's last, so the 31st every three months is
           the end of each quarter.
+        </p>
+      )}
+      {/* Said where it is chosen, because a week is a tight cycle and the rule surprises people: it is the
+          next such day AFTER the signature, the same as every other cycle here. Signed on the Wednesday,
+          a declaration due on Fridays is wanted again two days later. */}
+      {onAWeekday(cadence) && (
+        <p className="text-xs text-ink-muted">
+          Wanted again on the next {WEEKDAYS[Number(weekday) - 1] ?? "day"} after it is signed — which can
+          be a day or two later, for somebody who signs it late in the week.
         </p>
       )}
       {refused && <Alert tone="danger">{refused.message}</Alert>}

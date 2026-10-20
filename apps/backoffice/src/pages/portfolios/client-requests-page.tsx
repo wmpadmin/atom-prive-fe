@@ -8,6 +8,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, FilterMenu } from "@atomprive/ui";
 import { useState } from "react";
+import { useStaffUser } from "../../auth/session";
 import { formatDateTime } from "../../lib/labels";
 import { AnswerDialog } from "./answer-dialog";
 import { exactly, figure, named } from "./money-words";
@@ -83,11 +84,13 @@ function stillOpen(row: MovePlanRow) {
  * last month is asking about what moved, and a row that kept the reason and dropped the legs answers the
  * easier half of that question.
  */
-function ClientRequest({ row, answering, refusal, onAnswer }: {
+function ClientRequest({ row, answering, refusal, onAnswer, mine }: {
   row: MovePlanRow;
   answering: boolean;
   refusal: string | undefined;
   onAnswer: (how: Answer) => void;
+  /** Whether this reader is the person who wrote it down, which decides what a row with no buttons says. */
+  mine: boolean;
 }) {
   const open = stillOpen(row);
   return (
@@ -123,12 +126,20 @@ function ClientRequest({ row, answering, refusal, onAnswer }: {
               </Button>
             </>
           ) : (
-            // Two different reasons for having no buttons, and they are not the same sentence. One is
-            // whose work it is; the other is whose turn it is.
+            // Three different reasons for having no buttons, and they are not the same sentence. Whose
+            // turn it is, whose work it is, and whose job it is.
+            //
+            // The third used to be told as the second: everybody who could not answer was told they had
+            // written it down themselves. This list is the whole book — a client's asking is read by
+            // whoever holds it, not by the clients one person looks after — so a relationship manager
+            // reading it sees every other manager's work and was told, on every row of it, that it was
+            // their own.
             <p className="max-w-56 text-xs text-ink-muted">
               {row.status === "RETURNED"
                 ? `Waiting on ${row.raisedByName} to put it right.`
-                : "You wrote this one down, so somebody else answers it."}
+                : mine
+                  ? "You wrote this one down, so somebody else answers it."
+                  : `${row.raisedByName} wrote this down. Somebody who holds the whole book answers it.`}
             </p>
           ))}
         </div>
@@ -236,6 +247,9 @@ function ClientRequest({ row, answering, refusal, onAnswer }: {
  * <p>Nothing has moved. Saying yes is what moves it, through exactly the code the holdings screen calls.
  */
 export function ClientRequestsPage() {
+  // To tell a row this reader wrote down from one somebody else did, which is the difference between
+  // "somebody else answers it" and "this is not yours to answer".
+  const user = useStaffUser();
   const queue = useListClientRequests<MovePlanQueue, ApiError>({
     query: { refetchOnWindowFocus: true },
   });
@@ -317,6 +331,7 @@ export function ClientRequestsPage() {
               <li key={row.id} className="px-5 py-4">
                 <ClientRequest
                   row={row}
+                  mine={row.raisedBy === user.id}
                   answering={busy}
                   refusal={refused[row.id]}
                   onAnswer={(how) => {
