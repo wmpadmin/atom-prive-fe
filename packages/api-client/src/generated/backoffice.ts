@@ -133,6 +133,7 @@ export type DeclarationScheduleWantedCadence = typeof DeclarationScheduleWantedC
 
 
 export const DeclarationScheduleWantedCadence = {
+  WEEKLY: 'WEEKLY',
   MONTHLY: 'MONTHLY',
   QUARTERLY: 'QUARTERLY',
   SIX_MONTHLY: 'SIX_MONTHLY',
@@ -155,6 +156,12 @@ export interface DeclarationScheduleWanted {
      * @nullable
      */
   dueDay: number | null;
+  /**
+     * @minimum 1
+     * @maximum 7
+     * @nullable
+     */
+  dueWeekday: number | null;
 }
 
 export type DeclarationScheduleRowKind = typeof DeclarationScheduleRowKind[keyof typeof DeclarationScheduleRowKind];
@@ -176,6 +183,7 @@ export type DeclarationScheduleRowCadence = typeof DeclarationScheduleRowCadence
 
 
 export const DeclarationScheduleRowCadence = {
+  WEEKLY: 'WEEKLY',
   MONTHLY: 'MONTHLY',
   QUARTERLY: 'QUARTERLY',
   SIX_MONTHLY: 'SIX_MONTHLY',
@@ -193,6 +201,8 @@ export interface DeclarationScheduleRow {
   dueMonth: number | null;
   /** @nullable */
   dueDay: number | null;
+  /** @nullable */
+  dueWeekday: number | null;
   schedule: string;
   setByTheFirm: boolean;
   asShipped: string;
@@ -1660,11 +1670,12 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
+  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1676,7 +1687,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
