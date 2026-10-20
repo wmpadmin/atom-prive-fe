@@ -1,12 +1,9 @@
 import { ApiError } from "@atomprive/api-client";
 import {
-  useAnswerTheRestore,
   useListRestores,
   type RestoreQueue,
-  type RestoreRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, FilterMenu } from "@atomprive/ui";
-import { AnswerDialog } from "./answer-dialog";
+import { Alert, Avatar, Badge, FilterMenu } from "@atomprive/ui";
 import { QueueBar } from "./queue-bar";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -34,34 +31,23 @@ function exactly(amount: number, currency: string) {
 }
 
 /**
- * Answering an ask to put a client's figures back to a version they stood at.
+ * What was asked when a client's figures could be put back to a version they stood at.
  *
- * <p>Its own queue rather than a second kind of row on the money moves one. The two are answered by the
- * same people under the same rules, but they are not the same question: a move is read by its legs, and
- * this is read by the difference between what the client comes to now and what they came to then.
+ * <p>A record now, not a queue. Nobody may ask for a restore any more: it replaced every figure a client
+ * had at once, which is a larger change than the firm wants anybody making by hand, and what a client
+ * holds will come from the daily file instead. Taking the asking away is not the same as taking away the
+ * record that it happened, so every ask ever raised is still read here — what was wanted, by whom, and
+ * what became of it.
+ *
+ * <p>The waiting branch is kept rather than cut. Nothing can reach it today, because no ask can be
+ * raised and none was left open; it stays so that a row somebody finds in an old database still draws as
+ * itself instead of falling through to the shape meant for a decided one.
  */
 export function RestoresToApprovePage() {
   const queue = useListRestores<RestoreQueue, ApiError>({ query: { refetchOnWindowFocus: true } });
-  const [status, setStatus] = useState<StatusTab>("PENDING");
-  /** The ask being answered and which way, because both answers are given in the same window now. */
-  const [deciding, setDeciding] = useState<{ row: RestoreRow; approved: boolean } | null>(null);
-  const [note, setNote] = useState("");
-  const [refused, setRefused] = useState<Record<string, string>>({});
-  const answer = useAnswerTheRestore<ApiError>({
-    mutation: {
-      onSuccess: () => {
-        setDeciding(null);
-        setNote("");
-        void queue.refetch();
-      },
-      // Kept on the row rather than thrown away in a notice that fades: both refusals this can give change
-      // what the reader does next.
-      onError: (error, variables) => {
-        setRefused((was) => ({ ...was, [variables.id]: error.message }));
-        void queue.refetch();
-      },
-    },
-  });
+  // Everything, because nothing is waiting: opening on "Waiting for approval" would show an empty list
+  // over a screen whose whole content is what has already been decided.
+  const [status, setStatus] = useState<StatusTab>("all");
 
   if (queue.isError) {
     return <Alert tone="danger">{queue.error.message}</Alert>;
@@ -172,41 +158,11 @@ export function RestoresToApprovePage() {
                       <div className="flex shrink-0 flex-wrap items-center gap-2">
                         {row.changedAt && <Badge tone="warning">Changed</Badge>}
                         {row.nobodyCloserCanAnswer && <Badge tone="warning">Nobody else can answer this</Badge>}
-                        {row.mayAnswer ? (
-                          <>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => {
-                                setDeciding({ row, approved: false });
-                                setNote("");
-                              }}
-                            >
-                              Reject
-                            </Button>
-                            <Button
-                              size="sm"
-                              disabled={answer.isPending}
-                              onClick={() => {
-                                setDeciding({ row, approved: true });
-                                setNote("");
-                              }}
-                            >
-                              Approve and put them back
-                            </Button>
-                          </>
-                        ) : (
-                          <p className="max-w-56 text-xs text-ink-muted">
-                            You asked for this one, so somebody else answers it.
-                          </p>
-                        )}
+                        <p className="max-w-56 text-xs text-ink-muted">
+                          Restores are no longer asked for or answered.
+                        </p>
                       </div>
                     </div>
-                    {refused[row.id] && (
-                      <div className="mt-3">
-                        <Alert tone="danger">{refused[row.id]}</Alert>
-                      </div>
-                    )}
                   </>
                 ) : (
                   <div className="flex flex-wrap items-start justify-between gap-4">
@@ -227,40 +183,6 @@ export function RestoresToApprovePage() {
           </ul>
         )}
       </section>
-
-      <AnswerDialog
-        open={deciding !== null}
-        approved={deciding?.approved ?? false}
-        title={deciding
-          ? `${deciding.approved ? "Approve" : "Reject"} the restore for ${deciding.row.clientName}?`
-          : "Answer it"}
-        consequence={deciding?.approved
-          ? "Every figure this client holds is written again as it stood."
-          : "Nothing changes."}
-        shownTo={deciding?.row.raisedByName}
-        note={note}
-        onNote={setNote}
-        busy={answer.isPending}
-        error={answer.isError ? answer.error.message : null}
-        onClose={() => setDeciding(null)}
-        onConfirm={() => deciding && answer.mutate({
-          id: deciding.row.id,
-          data: { approved: deciding.approved, note: note.trim() === "" ? null : note.trim() },
-        })}
-        confirm={deciding?.approved ? "Approve and put them back" : "Reject"}
-        confirming={deciding?.approved ? "Putting them back…" : "Rejecting…"}
-      >
-        {deciding && (
-          <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
-            <p>{deciding.row.why}</p>
-            <p className="mt-2 text-xs text-ink-muted">
-              Back to {deciding.row.restoreTo} · version {deciding.row.fromRevision} ·{" "}
-              {exactly(deciding.row.worthThen, deciding.row.currency)} then against{" "}
-              {exactly(deciding.row.worthNow, deciding.row.currency)} now
-            </p>
-          </div>
-        )}
-      </AnswerDialog>
     </div>
   );
 }

@@ -266,7 +266,6 @@ export function AllocationStep({ customerId, onDone, draft, onDraft }: StepProps
             })),
         })),
         currency: currency || null,
-        netAum: whole,
         loanAmount: owing,
       },
     });

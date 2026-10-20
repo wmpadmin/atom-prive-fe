@@ -375,7 +375,6 @@ export function ClientPortfolioPage() {
                   currency={standing.data.currency}
                   suggestions={!standing.data.customModel}
                   underManagement={standing.data.underManagement}
-                  unwritten={standing.data.unwritten}
                   onPick={showClass}
                 />
               </div>

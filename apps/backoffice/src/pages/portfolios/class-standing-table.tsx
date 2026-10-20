@@ -41,7 +41,6 @@ export function ClassStandingTable({
   classes,
   currency,
   underManagement,
-  unwritten,
   suggestions = true,
   onPick,
 }: {
@@ -59,11 +58,6 @@ export function ClassStandingTable({
   suggestions?: boolean;
   currency: string;
   underManagement: number;
-  /**
-   * What the client is said to have that nobody has written down yet. Buying and selling do not cancel out
-   * while it is there — the buying includes putting it somewhere — and that is an answer, not a fault.
-   */
-  unwritten?: number;
 }) {
   if (classes.length === 0) return null;
 
@@ -73,11 +67,6 @@ export function ClassStandingTable({
   const moving = classes.reduce((sum, row) => sum + row.suggestion, 0);
   const pennies = Math.round(moving * 100);
   const balances = Math.abs(pennies) <= 1;
-  // Where money is still unplaced, the buying is larger than the selling by exactly that much: it has to be
-  // put somewhere, and nothing is being sold to pay for it. Said as the explanation it is, rather than as
-  // the warning it was, which marked every half-written portfolio as figures not to be trusted.
-  const unplaced = Math.round((unwritten ?? 0) * 100);
-  const explained = !balances && unplaced > 0 && Math.abs(pennies - unplaced) <= 1;
 
   return (
     <div>
@@ -208,11 +197,12 @@ export function ClassStandingTable({
         {suggestions && <>
         Figures in {currency}. Buying and selling cancel out, because a rebalance only moves money between
         classes — it never adds or takes any away.{" "}
+        {/* There used to be a third reading here: the buying could exceed the selling by exactly what the
+            client was said to have that nobody had written down, which was an answer rather than a fault.
+            Nobody tells the firm a total any more, so what is written down is the whole of it and the two
+            columns have nothing left to differ by but rounding. */}
         {balances ? (
           "Each target is rounded to the penny on its own, so the two can differ by a penny."
-        ) : explained ? (
-          `Here the buying is ${money(moving)} more than the selling, which is what the client is said to `
-          + "have that nobody has written down yet. It has to go somewhere, and nothing is sold to pay for it."
         ) : (
           <span className="font-medium text-red-700">
             Here they do not cancel out, by {money(moving)}. That is more than rounding, so these figures need
