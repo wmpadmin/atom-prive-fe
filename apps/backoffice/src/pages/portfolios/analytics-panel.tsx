@@ -553,8 +553,7 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
         </p>
       ) : (
         <>
-          <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-4">
-          <div className="flex flex-wrap items-center justify-center gap-4">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
             <Ring
               title="Held"
               slices={[
@@ -570,27 +569,10 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
               setOnly={setOnly}
               names={names}
             />
-            <Ring
-              title="Asked for"
-              slices={byClass.filter((row) => row.targetShare > 0).map((row) => ({
-                code: row.assetClass,
-                share: row.targetShare,
-                ink: inkFor(row.assetClass, order),
-              }))}
-              middle="100"
-              under="%"
-              only={only}
-              setOnly={setOnly}
-              names={names}
-            />
-          </div>
-
-          {/* Named beside the rings rather than under them, because the card is the width of the page
-              now and a list of four names below two circles leaves most of it empty. */}
-          {/* Beside the rings and close to them. Given the whole of what was left over it sat against
-              the far edge of a card the width of the page, with a hand's breadth of nothing between it
-              and the circles it names. */}
-          <ul className="min-w-64 flex-1 basis-64 space-y-0.5 md:max-w-sm">
+          {/* Between the two circles, not beside them. A list of names below them left most of a card
+              the width of the page empty, and off to one side of them it left the other side empty —
+              so the two readings sit at the ends of the card with what they are called in the middle. */}
+          <ul className="mx-auto w-full max-w-sm min-w-56 flex-1 basis-56 space-y-1">
             {byClass
               .filter((row) => row.actualValue > 0 || row.targetShare > 0)
               .map((row) => {
@@ -632,6 +614,20 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                 );
               })}
           </ul>
+            <Ring
+              title="Asked for"
+              slices={byClass.filter((row) => row.targetShare > 0).map((row) => ({
+                code: row.assetClass,
+                share: row.targetShare,
+                ink: inkFor(row.assetClass, order),
+              }))}
+              middle="100"
+              under="%"
+              only={only}
+              setOnly={setOnly}
+              names={names}
+            />
+
           </div>
         </>
       )}
@@ -659,7 +655,7 @@ function Ring({ title, slices, middle, under, only, setOnly, names }: {
     <figure className="text-center">
       {/* Big enough that a slice worth a few per cent is an arc and not a hairline — at nine rem it was
           two pixels, which is neither readable nor a thing anybody can hit with a pointer. */}
-      <svg viewBox="0 0 42 42" className="size-56" role="img" aria-label={`${title}, by asset class`}>
+      <svg viewBox="0 0 42 42" className="size-64" role="img" aria-label={`${title}, by asset class`}>
         <circle cx="21" cy="21" r={R} fill="none" stroke="currentColor" strokeWidth="5"
           className="text-slate-100" />
         {slices.map((slice, at) => {
