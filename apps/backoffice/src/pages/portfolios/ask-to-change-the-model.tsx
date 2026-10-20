@@ -60,20 +60,25 @@ export function AskToChangeTheModel({
   const history = asked.data ?? [];
   const open = history.find((one) => one.status === "PENDING");
   /*
-   * The models a client may actually be moved to: the live ones.
+   * Every model but the drafts.
    *
-   * <p>A draft is a model still being written and a retired one is a model the firm has stopped
-   * writing for new clients — neither is a plan anybody can be put on, and the server refuses both. A
-   * list offering them is a list offering a refusal.
+   * <p>A draft is a model still being written — nobody is measured against one and the server refuses
+   * it outright, so a list offering it is a list offering a refusal. It is left out rather than shown
+   * and barred, because it is not a plan yet at all.
    *
-   * <p>The one they are on is shown and cannot be picked, because leaving it out is what made four
-   * models read as two and sent somebody looking for the one that was missing.
+   * <p>The retired plans are shown and cannot be picked. Retired says what it means — no longer
+   * written for new clients, though those on it stay on it — so it is a plan the firm has, and a list
+   * that silently lost it is the thing that sent somebody looking for what was missing.
+   *
+   * <p>So is the one they are on, for the same reason.
    */
   const choices = (models.data?.items ?? [])
-    .filter((model) => model.status === "LIVE")
+    .filter((model) => model.status !== "DRAFT")
     .map((model) => ({
       model,
-      why: model.id === onModelId ? "they are on this now" : null,
+      why: model.id === onModelId ? "they are on this now"
+        : model.status === "RETIRED" ? "retired, takes nobody new"
+          : null,
     }));
 
   return (
