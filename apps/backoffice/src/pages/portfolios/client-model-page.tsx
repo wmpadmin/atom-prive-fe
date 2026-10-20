@@ -124,7 +124,6 @@ export function ModelStep({ customerId, onDone, onBack }: StepProps) {
               currency={read.currency}
               suggestions={!read.customModel}
               underManagement={read.underManagement}
-              unwritten={read.unwritten}
             />
           </div>
         </section>
