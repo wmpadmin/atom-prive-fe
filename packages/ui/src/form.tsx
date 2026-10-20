@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
 import { cn } from "./cn";
 
 /** Shared look of every text box, select and the date picker's button. */
@@ -60,7 +60,4 @@ export function TextArea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return <textarea className={cn(controlClasses, "h-auto py-2.5", className)} {...props} />;
 }
 
-export function SelectInput({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  // pr-9 keeps the longest option clear of the chevron, which `select-control` draws in from the edge.
-  return <select className={cn(controlClasses, "select-control pr-9", className)} {...props} />;
-}
+
