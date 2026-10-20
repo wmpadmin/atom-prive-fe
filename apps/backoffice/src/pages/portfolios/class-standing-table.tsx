@@ -100,6 +100,12 @@ export function ClassStandingTable({
               <th scope="col" className="px-4 py-3 text-right">
                 % allocated
               </th>
+              {/* Its own column rather than a second line under the class's name. Said there, it sat
+                  beneath the class's own verdict and read as more of the same sentence — and on a class
+                  carrying both, the name cell said "Breached" and "Breached inside" one under the other. */}
+              <th scope="col" className="px-4 py-3 text-center">
+                <abbr title="Sub-asset status" className="no-underline">SA status</abbr>
+              </th>
               {suggestions && (
                 <th scope="col" className="py-3 pl-4 text-right">
                   Suggestion
@@ -144,19 +150,6 @@ export function ClassStandingTable({
                         <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>
                       </span>
                     )}
-                    {/* A separate question from the one above it. The class is judged on its own share
-                        of the portfolio, and it can sit exactly on its target while every penny of it
-                        is in one of the two lines the plan splits it between — which the verdict above
-                        cannot say, because by its own measure there is nothing to say. */}
-                    {row.subAssetBreached && (
-                      <span
-                        className="mt-1 flex items-center gap-1.5 font-normal text-red-600"
-                        title="Something inside this class has broken its band. Open the class to see which."
-                      >
-                        <TriangleAlert aria-hidden="true" className="size-3.5 shrink-0" />
-                        <span className="text-xs">Breached inside</span>
-                      </span>
-                    )}
                   </th>
                   <td className={NUMBER}>{share(row.targetShare)}</td>
                   <td className={NUMBER}>{money(row.targetValue)}</td>
@@ -171,6 +164,23 @@ export function ClassStandingTable({
                     title={`What is held, as a proportion of what the model asks for. ${driftLabel(row.drift)} from target.`}
                   >
                     {filled(row.targetValue, row.actualValue)}
+                  </td>
+                  {/* A separate question from the class's own verdict. A class can sit exactly on its
+                      target while every penny of it is in one of the two lines the plan splits it
+                      between — which the verdict beside it cannot say, because by its own measure there
+                      is nothing to say. */}
+                  <td className="px-4 py-3 text-center">
+                    {row.subAssetBreached ? (
+                      <span
+                        className="inline-flex items-center justify-center text-red-600"
+                        title="Something inside this class has broken its band. Open the class to see which."
+                      >
+                        <TriangleAlert aria-hidden="true" className="size-4" />
+                        <span className="sr-only">A sub-asset inside this class has broken its band</span>
+                      </span>
+                    ) : (
+                      <span className="text-ink-muted" aria-hidden="true">—</span>
+                    )}
                   </td>
                   {suggestions && (
                     <td className={`${NUMBER} pr-0 pl-4`}>
@@ -196,6 +206,7 @@ export function ClassStandingTable({
               <td className={NUMBER}>
                 {filled(classes.reduce((sum, row) => sum + row.targetValue, 0), underManagement)}
               </td>
+              <td className="px-4 py-3" />
               {suggestions && <td className={`${NUMBER} pr-0 pl-4`}>{money(moving)}</td>}
             </tr>
           </tfoot>
