@@ -17,8 +17,18 @@ export type Day = {
   holdings: Record<string, number>;
   /** What each sub-asset was worth, by class. Empty for a day written before the platform kept it. */
   lines: Record<string, Record<string, number>>;
-  /** The day before's lines, so a movement can be read without hunting back up the list. */
-  linesBefore: Record<string, Record<string, number>>;
+  /**
+   * The day before on file, with what each of its sub-assets closed at.
+   *
+   * <p>Null where there is no day before — the first holdings ever written down for this client. Carried
+   * rather than hunted back up the list, because the first change of a day has to be read against
+   * something and the only honest something is how the day before ended.
+   *
+   * <p>Its lines can be empty while the day itself exists: a day written before the platform kept
+   * sub-asset figures has a total and nothing under it. That is not the same as a day that held nothing,
+   * and reading one as the other would print every line of today as money arriving from nowhere.
+   */
+  dayBefore: { on: string; lines: Record<string, Record<string, number>> } | null;
   /**
    * Every change written down on this day, in the order they were made.
    *
@@ -60,7 +70,9 @@ export function daysFrom(points: ValuationPoint[]): Day[] {
         ? null : (moved / before.underManagement) * 100,
       holdings: close.holdings ?? {},
       lines: close.lines ?? {},
-      linesBefore: before?.lines ?? {},
+      dayBefore: (before === null || earlier === null)
+        ? null
+        : { on: dates[at - 1], lines: before.lines ?? {} },
       versions,
     };
   });
@@ -132,4 +144,88 @@ export function shiftsBetween(
   // What was taken out first and what it went into after, which is the order somebody reads the sentence
   // in: out of here, into there.
   return shifts.sort((first, second) => first.by - second.by);
+}
+
+/**
+ * What a change was measured against, said so the screen can name it rather than go quiet.
+ *
+ * <p>A change with nothing to show is three different facts wearing one face: the first holdings ever
+ * written for a client, a day whose predecessor on file predates sub-asset figures, and a change that
+ * genuinely moved nothing. The screen used to print one phrase for all three — under the heading "Money
+ * came out of", where it answered a question nobody had asked.
+ */
+export type Basis =
+  /** Against the change written immediately before it, on the same day. */
+  | { kind: "earlier-change" }
+  /** The first change of a day, against how the day before on file ended. */
+  | { kind: "day-before"; on: string }
+  /** The first holdings ever written down for this client: there is nothing to measure against. */
+  | { kind: "nothing-before" }
+  /** A day before exists, but it was written before sub-asset figures were kept. */
+  | { kind: "no-lines-before"; on: string };
+
+/** One change on a day: what it took out, what it put in, how much that was, and what it was read against. */
+export type DayChange = {
+  version: ValuationPoint;
+  /** Lines that lost, biggest loss first. */
+  out: Shift[];
+  /** Lines that gained. */
+  into: Shift[];
+  /**
+   * What the change moved.
+   *
+   * <p>What came out of the lines that lost — or, where a change only added money, what went into the
+   * ones that gained, since the two sides do not match then and the larger of them is the movement.
+   */
+  shifted: number;
+  basis: Basis;
+};
+
+/**
+ * Every change on a day, each read against the right thing.
+ *
+ * <p>Worked out once here and read by both the figure at the top of the day and the table under it. The
+ * table used to do it inline and the figure at the top did something else entirely — so a day could say
+ * nothing moved above a list of what had moved.
+ *
+ * <p>The first change of a day is read against how the day before on file ended, which is what the page
+ * has always told its readers it does. Measured against nothing, the opening change of every day came out
+ * blank: the first thing written on a day is usually the whole of what happened on it, and on a day
+ * written once it was the whole page.
+ */
+export function changesIn(day: Day): DayChange[] {
+  return day.versions.map((version, at) => {
+    const earlier = at === 0 ? null : day.versions[at - 1];
+    const basis: Basis = earlier !== null ? { kind: "earlier-change" }
+      : day.dayBefore === null ? { kind: "nothing-before" }
+        : Object.keys(day.dayBefore.lines).length === 0
+          ? { kind: "no-lines-before", on: day.dayBefore.on }
+          : { kind: "day-before", on: day.dayBefore.on };
+    const before = earlier !== null ? earlier.lines ?? {}
+      : basis.kind === "day-before" ? day.dayBefore?.lines ?? {} : null;
+    const shifts = shiftsBetween(version.lines ?? {}, before);
+    const out = shifts.filter((shift) => shift.by < 0);
+    const into = shifts.filter((shift) => shift.by > 0);
+    return {
+      version,
+      out,
+      into,
+      shifted: Math.max(
+        out.reduce((sum, shift) => sum - shift.by, 0),
+        into.reduce((sum, shift) => sum + shift.by, 0)),
+      basis,
+    };
+  });
+}
+
+/**
+ * What the day moved between its own lines, which is not what the day's total did.
+ *
+ * <p>Money taken out of one sub-asset and put into another leaves the portfolio worth exactly what it was
+ * worth before. A day that moved 280 between holdings and took nothing in or out has a total that did not
+ * budge, and a day read by its total alone says nothing happened — which is what it said, in bold, above
+ * the list of what happened.
+ */
+export function movedWithin(changes: DayChange[]) {
+  return changes.reduce((sum, change) => sum + change.shifted, 0);
 }
