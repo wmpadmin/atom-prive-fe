@@ -73,7 +73,7 @@ export function TransactionsPanel() {
   );
 }
 
-/** Every proposal written for this client, newest first: what was sent, where it got to, and what it was for. */
+/** Every proposal written for this client, newest first: what was sent, where it got to, and who answered. */
 export function ProposalsPanel({ clientId }: { clientId: string }) {
   const proposals = useListProposals<ProposalPage, ApiError>(
     { customerId: clientId, size: 50 },
@@ -101,7 +101,7 @@ export function ProposalsPanel({ clientId }: { clientId: string }) {
               <th scope="col" className="px-4 py-3">Reference</th>
               <th scope="col" className="px-4 py-3">Status</th>
               <th scope="col" className="px-4 py-3">Sent</th>
-              <th scope="col" className="py-3 pr-5 pl-4">Expires</th>
+              <th scope="col" className="py-3 pr-5 pl-4">Answered by</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -126,7 +126,7 @@ export function ProposalsPanel({ clientId }: { clientId: string }) {
                   {proposal.sentAt ? formatDateTime(proposal.sentAt) : "Not sent"}
                 </td>
                 <td className="py-3 pr-5 pl-4 whitespace-nowrap text-ink-soft">
-                  {proposal.expiresAt ? formatDateTime(proposal.expiresAt) : "—"}
+                  {proposal.answeredByName ?? "—"}
                 </td>
               </tr>
             ))}

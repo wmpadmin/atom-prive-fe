@@ -262,9 +262,9 @@ export function PortfolioManagerDashboard() {
           </div>
           <div className="divide-y divide-line">
             <Sent
-              label="Awaiting a client's answer"
-              value={counts?.awaitingClient}
-              to="/approvals?queue=proposals&tab=client"
+              label="Waiting on a relationship manager"
+              value={counts?.pending}
+              to="/approvals?queue=proposals&tab=pending"
               failed={proposals.isError}
             />
             <Sent
@@ -273,11 +273,12 @@ export function PortfolioManagerDashboard() {
               to="/approvals?queue=proposals&tab=approved"
               failed={proposals.isError}
             />
-            {/* Not a failure to hide: no answer in the window and it lapses on its own. */}
+            {/* Not a failure to hide: a relationship manager said no on their client's behalf, which is
+                the answer working rather than the answer going wrong. */}
             <Sent
-              label="Expired without an answer"
-              value={counts?.expired}
-              to="/approvals?queue=proposals&tab=expired"
+              label="Turned down"
+              value={counts?.rejected}
+              to="/approvals?queue=proposals&tab=rejected"
               failed={proposals.isError}
             />
           </div>

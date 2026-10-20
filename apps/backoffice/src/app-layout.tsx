@@ -3,7 +3,7 @@ import {
   useListClientRequests,
   useListModelChanges,
   useListMovePlans,
-  useListProposalsAwaitingMySignOff,
+  useListProposalsAwaitingMyAnswer,
   useListAllocationChanges,
   useListModelEdits,
   useListRestores,
@@ -392,7 +392,7 @@ function useWaitingOn(to: string) {
   const clientRequests = useListClientRequests<MovePlanQueue, ApiError>({
     query: { enabled: queue, refetchOnWindowFocus: true },
   });
-  const proposals = useListProposalsAwaitingMySignOff<ProposalPage, ApiError>({ page: 0, size: 1 },
+  const proposals = useListProposalsAwaitingMyAnswer<ProposalPage, ApiError>({ page: 0, size: 1 },
     { query: { enabled: queue, refetchOnWindowFocus: true } });
   const modelChanges = useListModelChanges<ModelChangePage, ApiError>({ status: "PENDING", page: 0, size: 1 },
     { query: { enabled: queue, refetchOnWindowFocus: true } });

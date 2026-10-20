@@ -316,12 +316,9 @@ export type ProposalRowStatus = typeof ProposalRowStatus[keyof typeof ProposalRo
 
 export const ProposalRowStatus = {
   DRAFT: 'DRAFT',
-  PENDING_MANAGER_REVIEW: 'PENDING_MANAGER_REVIEW',
-  RETURNED: 'RETURNED',
-  PENDING_REVIEW: 'PENDING_REVIEW',
+  PENDING: 'PENDING',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
-  EXPIRED: 'EXPIRED',
 } as const;
 
 export interface ProposalRow {
@@ -344,15 +341,11 @@ export interface ProposalRow {
   /** @nullable */
   sentAt: string | null;
   /** @nullable */
-  expiresAt: string | null;
-  expiringSoon: boolean;
-  /** @nullable */
-  submittedAt: string | null;
-  signOffOverdue: boolean;
-  /** @nullable */
   decidedAt: string | null;
   /** @nullable */
-  managerComment: string | null;
+  answeredByName: string | null;
+  /** @nullable */
+  answerNote: string | null;
 }
 
 export interface TrailEntry {
@@ -366,11 +359,7 @@ export interface ProposalDetail {
   summary: ProposalRow;
   body: string;
   /** @nullable */
-  clientComment: string | null;
-  /** @nullable */
   decidedAt: string | null;
-  /** @nullable */
-  resentFromId: string | null;
   /** @nullable */
   objective: string | null;
   lines: MoveLegRequest[];
@@ -1621,12 +1610,12 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  floatingPointNumber?: boolean;
-  nodeType?: JsonNodeNodeType;
   valueNode?: boolean;
   missingNode?: boolean;
+  nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
   pojo?: boolean;
@@ -2867,8 +2856,19 @@ export interface StaffUserDetail {
   recentActivity: ActivityEntry[];
 }
 
-export interface UpdateProposalSignOffRequest {
-  required: boolean;
+export type UpdateRolePermissionRequestLevel = typeof UpdateRolePermissionRequestLevel[keyof typeof UpdateRolePermissionRequestLevel];
+
+
+export const UpdateRolePermissionRequestLevel = {
+  FULL: 'FULL',
+  VIEW_ONLY: 'VIEW_ONLY',
+  OWN_CLIENTS: 'OWN_CLIENTS',
+  ASSIGNED: 'ASSIGNED',
+  NONE: 'NONE',
+} as const;
+
+export interface UpdateRolePermissionRequest {
+  level: UpdateRolePermissionRequestLevel;
 }
 
 export type PermissionGrantPermission = typeof PermissionGrantPermission[keyof typeof PermissionGrantPermission];
@@ -2932,22 +2932,6 @@ export interface RoleAccessView {
   role: RoleAccessViewRole;
   name: string;
   grants: PermissionGrant[];
-  proposalsNeedSignOff: boolean;
-}
-
-export type UpdateRolePermissionRequestLevel = typeof UpdateRolePermissionRequestLevel[keyof typeof UpdateRolePermissionRequestLevel];
-
-
-export const UpdateRolePermissionRequestLevel = {
-  FULL: 'FULL',
-  VIEW_ONLY: 'VIEW_ONLY',
-  OWN_CLIENTS: 'OWN_CLIENTS',
-  ASSIGNED: 'ASSIGNED',
-  NONE: 'NONE',
-} as const;
-
-export interface UpdateRolePermissionRequest {
-  level: UpdateRolePermissionRequestLevel;
 }
 
 export interface AssetClassRequest {
@@ -3264,7 +3248,7 @@ export interface DecisionRequest {
      * @maxLength 2000
      * @nullable
      */
-  comment: string | null;
+  note: string | null;
 }
 
 export interface MarkNoticeSentRequest {
@@ -4646,13 +4630,9 @@ export interface SignaturePackPage {
 export interface ProposalCounts {
   all: number;
   draft: number;
-  awaitingManager: number;
-  returned: number;
-  awaitingClient: number;
-  expiringSoon: number;
+  pending: number;
   approved: number;
   rejected: number;
-  expired: number;
   approvedLately: number;
 }
 
@@ -6037,7 +6017,6 @@ status?: ListProposalsStatus;
 customerId?: string;
 from?: string;
 to?: string;
-expiringSoon?: boolean;
 query?: string;
 newestFirst?: boolean;
 page?: number;
@@ -6049,12 +6028,9 @@ export type ListProposalsStatus = typeof ListProposalsStatus[keyof typeof ListPr
 
 export const ListProposalsStatus = {
   DRAFT: 'DRAFT',
-  PENDING_MANAGER_REVIEW: 'PENDING_MANAGER_REVIEW',
-  RETURNED: 'RETURNED',
-  PENDING_REVIEW: 'PENDING_REVIEW',
+  PENDING: 'PENDING',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
-  EXPIRED: 'EXPIRED',
 } as const;
 
 export type ListModelChangesParams = {
@@ -6236,7 +6212,7 @@ page?: number;
 size?: number;
 };
 
-export type ListProposalsAwaitingMySignOffParams = {
+export type ListProposalsAwaitingMyAnswerParams = {
 page?: number;
 size?: number;
 };
@@ -11253,89 +11229,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateStaffUserMutationOptions(options), queryClient);
     }
 
-export const getUpdateProposalSignOffUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',) => {
-
-
-
-
-  return `/api/backoffice/admin/roles/${role}/proposal-sign-off`
-}
-
-export const updateProposalSignOff = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    updateProposalSignOffRequest: UpdateProposalSignOffRequest, options?: Parameters<typeof http>[1]): Promise<RoleAccessView> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<RoleAccessView>(getUpdateProposalSignOffUrl(role),
-  {
-    ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(updateProposalSignOffRequest)
-  }
-);}
-
-
-
-
-
-export const getUpdateProposalSignOffMutationKey = () => ['updateProposalSignOff'] as const;
-
-export const getUpdateProposalSignOffMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProposalSignOff>>, TError,UpdateProposalSignOffMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateProposalSignOff>>, TError,UpdateProposalSignOffMutationVariables, TContext> => {
-
-const mutationKey = getUpdateProposalSignOffMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProposalSignOff>>, UpdateProposalSignOffMutationVariables> = (props) => {
-          const {role,data} = props ?? {};
-
-          return  updateProposalSignOff(role,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UpdateProposalSignOffMutationResult = NonNullable<Awaited<ReturnType<typeof updateProposalSignOff>>>
-    export type UpdateProposalSignOffMutationBody = UpdateProposalSignOffRequest
-    export type UpdateProposalSignOffMutationError = unknown
-    export type UpdateProposalSignOffMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';data: UpdateProposalSignOffRequest}
-
-    export const useUpdateProposalSignOff = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProposalSignOff>>, TError,UpdateProposalSignOffMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof updateProposalSignOff>>,
-        TError,
-        UpdateProposalSignOffMutationVariables,
-        TContext
-      > => {
-      return useMutation(getUpdateProposalSignOffMutationOptions(options), queryClient);
-    }
-
 export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
     permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'PLACE_TRADE_ORDERS' | 'REVIEW_TRADE_ORDERS' | 'EXECUTE_TRADE_ORDERS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'VIEW_AUDIT_LOG',) => {
 
@@ -13835,15 +13728,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getSubmitProposalMutationOptions(options), queryClient);
     }
 
-export const getSignOffProposalUrl = (id: string,) => {
+export const getAnswerProposalUrl = (id: string,) => {
 
 
 
 
-  return `/api/backoffice/proposals/${id}/sign-off`
+  return `/api/backoffice/proposals/${id}/answer`
 }
 
-export const signOffProposal = async (id: string,
+export const answerProposal = async (id: string,
     decisionRequest: DecisionRequest, options?: Parameters<typeof http>[1]): Promise<ProposalDetail> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -13860,7 +13753,7 @@ export const signOffProposal = async (id: string,
     }
     return headers;
   };
-return http<ProposalDetail>(getSignOffProposalUrl(id),
+return http<ProposalDetail>(getAnswerProposalUrl(id),
   {
     ...options,
     method: 'POST',
@@ -13873,13 +13766,13 @@ return http<ProposalDetail>(getSignOffProposalUrl(id),
 
 
 
-export const getSignOffProposalMutationKey = () => ['signOffProposal'] as const;
+export const getAnswerProposalMutationKey = () => ['answerProposal'] as const;
 
-export const getSignOffProposalMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signOffProposal>>, TError,SignOffProposalMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof signOffProposal>>, TError,SignOffProposalMutationVariables, TContext> => {
+export const getAnswerProposalMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerProposal>>, TError,AnswerProposalMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerProposal>>, TError,AnswerProposalMutationVariables, TContext> => {
 
-const mutationKey = getSignOffProposalMutationKey();
+const mutationKey = getAnswerProposalMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -13889,10 +13782,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof signOffProposal>>, SignOffProposalMutationVariables> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerProposal>>, AnswerProposalMutationVariables> = (props) => {
           const {id,data} = props ?? {};
 
-          return  signOffProposal(id,data,requestOptions)
+          return  answerProposal(id,data,requestOptions)
         }
 
 
@@ -13902,171 +13795,20 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type SignOffProposalMutationResult = NonNullable<Awaited<ReturnType<typeof signOffProposal>>>
-    export type SignOffProposalMutationBody = DecisionRequest
-    export type SignOffProposalMutationError = unknown
-    export type SignOffProposalMutationVariables = {id: string;data: DecisionRequest}
+    export type AnswerProposalMutationResult = NonNullable<Awaited<ReturnType<typeof answerProposal>>>
+    export type AnswerProposalMutationBody = DecisionRequest
+    export type AnswerProposalMutationError = unknown
+    export type AnswerProposalMutationVariables = {id: string;data: DecisionRequest}
 
-    export const useSignOffProposal = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signOffProposal>>, TError,SignOffProposalMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+    export const useAnswerProposal = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerProposal>>, TError,AnswerProposalMutationVariables, TContext>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof signOffProposal>>,
+        Awaited<ReturnType<typeof answerProposal>>,
         TError,
-        SignOffProposalMutationVariables,
+        AnswerProposalMutationVariables,
         TContext
       > => {
-      return useMutation(getSignOffProposalMutationOptions(options), queryClient);
-    }
-
-export const getResendProposalUrl = (id: string,) => {
-
-
-
-
-  return `/api/backoffice/proposals/${id}/resend`
-}
-
-export const resendProposal = async (id: string, options?: Parameters<typeof http>[1]): Promise<ProposalDetail> => {
-
-  return http<ProposalDetail>(getResendProposalUrl(id),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-
-
-
-export const getResendProposalMutationKey = () => ['resendProposal'] as const;
-
-export const getResendProposalMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendProposal>>, TError,ResendProposalMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof resendProposal>>, TError,ResendProposalMutationVariables, TContext> => {
-
-const mutationKey = getResendProposalMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resendProposal>>, ResendProposalMutationVariables> = (props) => {
-          const {id} = props ?? {};
-
-          return  resendProposal(id,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type ResendProposalMutationResult = NonNullable<Awaited<ReturnType<typeof resendProposal>>>
-
-    export type ResendProposalMutationError = unknown
-    export type ResendProposalMutationVariables = {id: string}
-
-    export const useResendProposal = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendProposal>>, TError,ResendProposalMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof resendProposal>>,
-        TError,
-        ResendProposalMutationVariables,
-        TContext
-      > => {
-      return useMutation(getResendProposalMutationOptions(options), queryClient);
-    }
-
-export const getRecordClientDecisionUrl = (id: string,) => {
-
-
-
-
-  return `/api/backoffice/proposals/${id}/client-decision`
-}
-
-export const recordClientDecision = async (id: string,
-    decisionRequest: DecisionRequest, options?: Parameters<typeof http>[1]): Promise<ProposalDetail> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<ProposalDetail>(getRecordClientDecisionUrl(id),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(decisionRequest)
-  }
-);}
-
-
-
-
-
-export const getRecordClientDecisionMutationKey = () => ['recordClientDecision'] as const;
-
-export const getRecordClientDecisionMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordClientDecision>>, TError,RecordClientDecisionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof recordClientDecision>>, TError,RecordClientDecisionMutationVariables, TContext> => {
-
-const mutationKey = getRecordClientDecisionMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordClientDecision>>, RecordClientDecisionMutationVariables> = (props) => {
-          const {id,data} = props ?? {};
-
-          return  recordClientDecision(id,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RecordClientDecisionMutationResult = NonNullable<Awaited<ReturnType<typeof recordClientDecision>>>
-    export type RecordClientDecisionMutationBody = DecisionRequest
-    export type RecordClientDecisionMutationError = unknown
-    export type RecordClientDecisionMutationVariables = {id: string;data: DecisionRequest}
-
-    export const useRecordClientDecision = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordClientDecision>>, TError,RecordClientDecisionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof recordClientDecision>>,
-        TError,
-        RecordClientDecisionMutationVariables,
-        TContext
-      > => {
-      return useMutation(getRecordClientDecisionMutationOptions(options), queryClient);
+      return useMutation(getAnswerProposalMutationOptions(options), queryClient);
     }
 
 export const getMarkPostOnboardingNoticeSentUrl = (caseId: string,) => {
@@ -23118,7 +22860,7 @@ export function useListClientPacks<TData = Awaited<ReturnType<typeof listClientP
 
 
 
-export const getListProposalsAwaitingMySignOffUrl = (params?: ListProposalsAwaitingMySignOffParams,) => {
+export const getListProposalsAwaitingMyAnswerUrl = (params?: ListProposalsAwaitingMyAnswerParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -23130,12 +22872,12 @@ export const getListProposalsAwaitingMySignOffUrl = (params?: ListProposalsAwait
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/backoffice/proposals/awaiting-my-sign-off?${stringifiedParams}` : `/api/backoffice/proposals/awaiting-my-sign-off`
+  return stringifiedParams.length > 0 ? `/api/backoffice/proposals/awaiting-my-answer?${stringifiedParams}` : `/api/backoffice/proposals/awaiting-my-answer`
 }
 
-export const listProposalsAwaitingMySignOff = async (params?: ListProposalsAwaitingMySignOffParams, options?: Parameters<typeof http>[1]): Promise<ProposalPage> => {
+export const listProposalsAwaitingMyAnswer = async (params?: ListProposalsAwaitingMyAnswerParams, options?: Parameters<typeof http>[1]): Promise<ProposalPage> => {
 
-  return http<ProposalPage>(getListProposalsAwaitingMySignOffUrl(params),
+  return http<ProposalPage>(getListProposalsAwaitingMyAnswerUrl(params),
   {
     ...options,
     method: 'GET'
@@ -23148,66 +22890,66 @@ export const listProposalsAwaitingMySignOff = async (params?: ListProposalsAwait
 
 
 
-export const getListProposalsAwaitingMySignOffQueryKey = (params?: ListProposalsAwaitingMySignOffParams,) => {
+export const getListProposalsAwaitingMyAnswerQueryKey = (params?: ListProposalsAwaitingMyAnswerParams,) => {
     return [
-    `/api/backoffice/proposals/awaiting-my-sign-off`, ...(params ? [params] : [])
+    `/api/backoffice/proposals/awaiting-my-answer`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListProposalsAwaitingMySignOffQueryOptions = <TData = Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError = unknown>(params?: ListProposalsAwaitingMySignOffParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getListProposalsAwaitingMyAnswerQueryOptions = <TData = Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>, TError = unknown>(params?: ListProposalsAwaitingMyAnswerParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListProposalsAwaitingMySignOffQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getListProposalsAwaitingMyAnswerQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>> = ({ signal }) => listProposalsAwaitingMySignOff(params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>> = ({ signal }) => listProposalsAwaitingMyAnswer(params, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
-export type ListProposalsAwaitingMySignOffQueryResult = NonNullable<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>>
-export type ListProposalsAwaitingMySignOffQueryError = unknown
+export type ListProposalsAwaitingMyAnswerQueryResult = NonNullable<Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>>
+export type ListProposalsAwaitingMyAnswerQueryError = unknown
 
 
-export function useListProposalsAwaitingMySignOff<TData = Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError = unknown>(
- params: undefined |  ListProposalsAwaitingMySignOffParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError, TData>> & Pick<
+export function useListProposalsAwaitingMyAnswer<TData = Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>, TError = unknown>(
+ params: undefined |  ListProposalsAwaitingMyAnswerParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>,
+          Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>,
           TError,
-          Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>
+          Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>
         > , 'initialData'
       >, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListProposalsAwaitingMySignOff<TData = Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError = unknown>(
- params?: ListProposalsAwaitingMySignOffParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError, TData>> & Pick<
+export function useListProposalsAwaitingMyAnswer<TData = Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>, TError = unknown>(
+ params?: ListProposalsAwaitingMyAnswerParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>,
+          Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>,
           TError,
-          Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>
+          Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>
         > , 'initialData'
       >, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListProposalsAwaitingMySignOff<TData = Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError = unknown>(
- params?: ListProposalsAwaitingMySignOffParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export function useListProposalsAwaitingMyAnswer<TData = Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>, TError = unknown>(
+ params?: ListProposalsAwaitingMyAnswerParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useListProposalsAwaitingMySignOff<TData = Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError = unknown>(
- params?: ListProposalsAwaitingMySignOffParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMySignOff>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export function useListProposalsAwaitingMyAnswer<TData = Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>, TError = unknown>(
+ params?: ListProposalsAwaitingMyAnswerParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProposalsAwaitingMyAnswer>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListProposalsAwaitingMySignOffQueryOptions(params,options)
+  const queryOptions = getListProposalsAwaitingMyAnswerQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

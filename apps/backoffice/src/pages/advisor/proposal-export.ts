@@ -11,13 +11,13 @@ export function quoted(value: string | number | null) {
 }
 
 /**
- * @param everyAdvisors whether this export covers more than one advisor's work, in which case it has to
- * say whose each row is — a firm-wide file with no author column cannot be read back
+ * @param everyAdvisors whether this export covers more than one person's writing, in which case it has
+ * to say whose each row is — a firm-wide file with no author column cannot be read back
  */
 export function csvOf(rows: ProposalPage["items"], everyAdvisors: boolean) {
   const head = ["Reference", "Proposal", "Summary", "Client", "Client code",
-    ...(everyAdvisors ? ["Advisor"] : []),
-    "Sent", "Value", "Currency", "Expires", "Status"];
+    ...(everyAdvisors ? ["Written by"] : []),
+    "Sent", "Value", "Currency", "Answered", "Answered by", "Status"];
   const lines = rows.map((row) =>
     [
       row.reference,
@@ -29,7 +29,8 @@ export function csvOf(rows: ProposalPage["items"], everyAdvisors: boolean) {
       row.sentAt ? formatDate(row.sentAt) : "",
       row.valueAmount ?? "",
       row.valueCurrency ?? "",
-      row.expiresAt ? formatDate(row.expiresAt) : "",
+      row.decidedAt ? formatDate(row.decidedAt) : "",
+      row.answeredByName ?? "",
       proposalStatusLabels[row.status as ProposalRowStatus],
     ]
       .map(quoted)

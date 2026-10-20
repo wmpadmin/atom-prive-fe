@@ -4,7 +4,7 @@ import {
   useListModelChanges,
   useListModelEdits,
   useListMovePlans,
-  useListProposalsAwaitingMySignOff,
+  useListProposalsAwaitingMyAnswer,
   type ModelChangePage,
   type ModelEditQueue,
   type MovePlanQueue,
@@ -56,8 +56,9 @@ const TABS: TabSpec[] = [
   {
     id: "proposals",
     label: "Proposals",
-    lead: "The firm's advice to its clients, and what became of each piece of it. Advisory only — the "
-      + "platform never places a trade.",
+    lead: "What a portfolio manager has suggested for a client's money, answered on that client's behalf "
+      + "by the relationship manager who looks after them. Advisory only — the platform never places a "
+      + "trade.",
     authority: READS_PROPOSALS,
     Panel: ProposalsPage,
   },
@@ -107,7 +108,7 @@ const TABS: TabSpec[] = [
  */
 function useHowManyAreWaiting(mine: TabSpec[]) {
   const offered = (id: ApprovalTab) => mine.some((one) => one.id === id);
-  const proposals = useListProposalsAwaitingMySignOff<ProposalPage, ApiError>({ page: 0, size: 1 },
+  const proposals = useListProposalsAwaitingMyAnswer<ProposalPage, ApiError>({ page: 0, size: 1 },
     { query: { enabled: offered("proposals"), refetchOnWindowFocus: true } });
   const clientRequests = useListClientRequests<MovePlanQueue, ApiError>(
     { query: { enabled: offered("client-requests"), refetchOnWindowFocus: true } });

@@ -37,7 +37,7 @@ export function placeFrom(key: string): Place | null {
 
 /** Every line inside one sub-asset, however deep the plan goes, deepest-first so the finest line is offered. */
 function inside(assetClass: string, groups: SubClassGroup[], found: Choice[]) {
-  for (const group of groups) {
+  for (const group of groups ?? []) {
     const place = { assetClass, subClass: group.subClass, subSubClass: group.subSubClass };
     found.push({ key: keyOf(place), said: named(group.subClass, assetClass, group.subSubClass),
       held: group.valueAmount });
@@ -53,11 +53,15 @@ function inside(assetClass: string, groups: SubClassGroup[], found: Choice[]) {
  * sitting approved with nothing done about them.
  */
 export function sources(holdings: ClientHoldings | undefined): Choice[] {
-  if (holdings === undefined) {
+  // Read off what arrived rather than off what the type promises. A reply that is not a client's holdings
+  // — an error body, a half-filled cache — used to throw here, and throwing here takes down the whole
+  // proposal page, which is the page somebody has to open to answer one.
+  const classes = holdings?.classes;
+  if (!Array.isArray(classes)) {
     return [];
   }
   const found: Choice[] = [];
-  for (const klass of holdings.classes) {
+  for (const klass of classes) {
     found.push({ key: keyOf({ assetClass: klass.assetClass, subClass: null, subSubClass: null }),
       said: klass.assetClassName, held: klass.valueAmount });
     inside(klass.assetClass, klass.subClasses, found);
@@ -71,15 +75,16 @@ export function sources(holdings: ClientHoldings | undefined): Choice[] {
  * <p>Money has to be able to land somewhere it is not yet, or no proposal could ever start a holding.
  */
 export function destinations(holdings: ClientHoldings | undefined): Choice[] {
-  if (holdings === undefined) {
+  const classes = holdings?.classes;
+  if (!Array.isArray(classes)) {
     return [];
   }
   const found: Choice[] = [];
-  for (const klass of holdings.classes) {
+  for (const klass of classes) {
     found.push({ key: keyOf({ assetClass: klass.assetClass, subClass: null, subSubClass: null }),
       said: klass.assetClassName, held: klass.valueAmount });
     inside(klass.assetClass, klass.subClasses, found);
-    for (const line of holdings.modelSubClasses[klass.assetClass] ?? []) {
+    for (const line of holdings?.modelSubClasses?.[klass.assetClass] ?? []) {
       const key = keyOf({ assetClass: klass.assetClass, subClass: line.name, subSubClass: null });
       if (!found.some((one) => one.key === key)) {
         found.push({ key, said: named(line.name, klass.assetClassName), held: null });

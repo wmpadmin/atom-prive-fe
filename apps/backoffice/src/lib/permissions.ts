@@ -90,30 +90,44 @@ export const READS_CLIENT_FORMS: Authority[] = [
 /** Who may type on one: Operations and Admin on any, an advisor on their own clients'. */
 export const FILLS_CLIENT_FORMS: Authority[] = ["FILL_CLIENT_FORMS:CHANGE", "FILL_CLIENT_FORMS:OWN_CLIENTS"];
 
-export const WRITES_PROPOSALS: Authority[] = ["SEND_PROPOSALS:OWN_CLIENTS", "SEND_PROPOSALS:ASSIGNED", "SEND_PROPOSALS:CHANGE"];
-
 /**
- * Who may START one, which is narrower than who may write figures.
+ * Who writes proposals: whoever reads the firm's whole book.
  *
- * <p>A proposal is a letter to the client in the voice of whoever looks after them, so the levels that
- * are held to a set of clients may begin one and the level that is held to none may not. A manager who
- * wants that client's money moved has the door for that, and the relationship manager answers it.
+ * <p>It used to be the other way round, and this list used to be the three levels held to a set of
+ * clients. A proposal was a letter to the client in the voice of whoever looked after them. It moves that
+ * client's money on a yes now, so it is written by whoever sees the position across the firm, and it is
+ * answered by the one person who may speak for that client — which keeps the rule that matters whole:
+ * writing it and agreeing to it are two people.
  */
-export const STARTS_PROPOSALS: Authority[] = ["SEND_PROPOSALS:OWN_CLIENTS", "SEND_PROPOSALS:ASSIGNED"];
+export const WRITES_PROPOSALS: Authority[] = ["SEND_PROPOSALS:CHANGE"];
 
-/** Enough to read proposals: whoever writes them, and Compliance, who oversee the advice the firm gives. */
-export const READS_PROPOSALS: Authority[] = ["SEND_PROPOSALS:VIEW", ...WRITES_PROPOSALS];
+/** Starting one and writing one are the same job now, and the same permission. */
+export const STARTS_PROPOSALS: Authority[] = WRITES_PROPOSALS;
 
 /**
- * Whether this person reads every advisor's proposals rather than only their own clients'.
+ * Enough to open the proposals screen at all.
  *
- * <p>Asked the same way the API asks it, and asked in one place. Reading it off whether somebody may
- * WRITE a proposal is a different question with a different answer — a portfolio manager writes
- * proposals and reads everybody's — and the screen has already been wrong once that way, saying "your
- * clients only" over a list full of other advisors' work.
+ * <p>Four different jobs reach it: whoever writes them, whoever answers them for their own clients,
+ * whoever answers for the whole firm, and Compliance, who oversee the advice and do neither. Leaving the
+ * answering out shut the relationship manager — who now writes none and answers all of theirs — out of
+ * the only screen they have here.
+ */
+export const READS_PROPOSALS: Authority[] = [
+  "SEND_PROPOSALS:VIEW",
+  "SEND_PROPOSALS:CHANGE",
+  "APPROVE_PROPOSALS:CHANGE",
+  "APPROVE_PROPOSALS:OWN_CLIENTS",
+];
+
+/**
+ * Whether this person reads the firm's whole book of proposals rather than only their own clients'.
+ *
+ * <p>Asked the same way the API asks it, and asked in one place: a relationship manager is held to the
+ * clients assigned to them, and everybody else here reads the lot. The screen has been wrong this way
+ * once already, saying "your clients only" over a list full of other people's work.
  */
 export function readsEveryAdvisors(user: StaffProfile) {
-  return hasAuthority(user, "SEND_PROPOSALS:VIEW");
+  return hasAnyAuthority(user, "SEND_PROPOSALS:VIEW", "SEND_PROPOSALS:CHANGE", "APPROVE_PROPOSALS:CHANGE");
 }
 
 /** Raising a trade order, passing one, and placing one: three different jobs, held by three different people. */
@@ -145,7 +159,13 @@ export const RATES_AML_RISK: Authority[] = ["RATE_AML_RISK:CHANGE", "RATE_AML_RI
 /** Anyone who may see where clients sit, whichever of the two jobs is theirs. */
 export const READS_AML_RISK: Authority[] = ["RATE_AML_RISK:VIEW", ...RATES_AML_RISK];
 
-/** Whoever may pass a proposal to the client, or send it back to the advisor who wrote it. */
+/**
+ * Whoever answers a proposal on a client's behalf.
+ *
+ * <p>Both authorities, always. A relationship manager holds only the own-clients one — which is exactly
+ * who the queue narrows itself for — so gating any of this on the firm-wide string alone hides the screen
+ * from the one person it is built for.
+ */
 export const APPROVES_PROPOSALS: Authority[] = ["APPROVE_PROPOSALS:CHANGE", "APPROVE_PROPOSALS:OWN_CLIENTS"];
 
 /**
@@ -167,7 +187,7 @@ export const READS_CLIENT_PORTFOLIOS: Authority[] = [
   "VIEW_CUSTOMER_PROFILE:ASSIGNED",
 ];
 
-/** Whoever may write proposals for their own clients. */
+/** Whoever may write a proposal. */
 export function writesProposals(user: StaffProfile) {
   return hasAnyAuthority(user, ...WRITES_PROPOSALS);
 }

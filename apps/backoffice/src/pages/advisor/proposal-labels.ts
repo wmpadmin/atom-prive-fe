@@ -1,61 +1,54 @@
 import type { ProposalRowStatus } from "@atomprive/api-client/backoffice";
 import { formatDate } from "../../lib/labels";
 
+/**
+ * Where a proposal has got to, in the words a reader uses.
+ *
+ * <p>There were seven of these, because a proposal travelled between three desks with a fortnight's clock
+ * over the last leg. It makes one journey now — written, waiting on one person, answered — and the labels
+ * say whose desk it is on rather than which stage of a process it has reached.
+ */
 export const proposalStatusLabels: Record<ProposalRowStatus, string> = {
   DRAFT: "Draft",
-  PENDING_MANAGER_REVIEW: "Waiting for manager approval",
-  RETURNED: "Sent back",
-  PENDING_REVIEW: "Waiting for client approval",
+  PENDING: "Waiting on the relationship manager",
   APPROVED: "Approved",
   REJECTED: "Rejected",
-  EXPIRED: "Expired",
 };
 
 export const proposalStatusTones: Record<ProposalRowStatus, "neutral" | "info" | "warning" | "success" | "danger"> = {
   DRAFT: "neutral",
-  PENDING_MANAGER_REVIEW: "warning",
-  // Somebody has to act on it, which a draft nobody has started is not.
-  RETURNED: "danger",
-  PENDING_REVIEW: "info",
+  PENDING: "info",
   APPROVED: "success",
   REJECTED: "danger",
-  EXPIRED: "neutral",
 };
 
 /**
- * What has become of it, for the tile headed "Sent".
+ * What has become of it, for the column headed "Sent".
  *
- * <p>Sent means reached the client, which is the only moment the firm counts as having given the advice. One
- * with the manager, or one a manager handed back, has not reached them — but "not sent yet" says nothing
- * happened, and on a proposal that went for sign-off and came back that is untrue twice over.
+ * <p>One moment now. Sent and submitted used to be two, because a proposal could stop at a manager's desk
+ * on the way to the client — so this had to explain where a proposal was that had left its author and
+ * reached nobody. There is no such place any more.
  */
-export function sentLabel(status: ProposalRowStatus, sentAt: string | null, submittedAt: string | null) {
-  if (sentAt) return formatDate(sentAt);
-  if (status === "RETURNED") return "Came back from sign-off";
-  if (status === "PENDING_MANAGER_REVIEW") {
-    return submittedAt
-      ? `Waiting for manager approval since ${formatDate(submittedAt)}`
-      : "Waiting for manager approval";
-  }
-  return "Not sent yet";
+export function sentLabel(sentAt: string | null) {
+  return sentAt ? formatDate(sentAt) : "Not sent yet";
 }
 
 /**
- * "2 days left" while the client still has it, and once they have answered, what they said and when — the
- * column is about where a proposal stands in time, and for a decided one that is the day it was decided.
+ * Where it stands in time: waiting, or what was decided and when.
+ *
+ * <p>It used to count down a fortnight, because the client had that long to answer. Nothing runs out now —
+ * a proposal waits with its relationship manager until they answer it — so the column says how long it has
+ * been waiting rather than how long is left.
  */
-export function expiryLabel(expiresAt: string | null, status: ProposalRowStatus, decidedAt?: string | null) {
+export function standingLabel(status: ProposalRowStatus, sentAt: string | null, decidedAt: string | null) {
   if (status === "APPROVED" || status === "REJECTED") {
     const said = status === "APPROVED" ? "Approved" : "Rejected";
     return decidedAt ? `${said} ${formatDate(decidedAt)}` : said;
   }
-  if (status === "EXPIRED") return "Expired";
-  // It was sent, and it came back: "not sent yet" would be untrue twice over.
-  if (status === "RETURNED") return "Back with the advisor";
-  if (!expiresAt) return "Not sent yet";
-  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
-  if (days <= 0) return "Expires today";
-  return days === 1 ? "1 day left" : `${days} days left`;
+  if (status === "DRAFT" || !sentAt) return "Not sent yet";
+  const days = Math.floor((Date.now() - new Date(sentAt).getTime()) / 86_400_000);
+  if (days <= 0) return "Sent today";
+  return days === 1 ? "Waiting 1 day" : `Waiting ${days} days`;
 }
 
 export function formatValue(amount: number | null, currency: string | null) {
