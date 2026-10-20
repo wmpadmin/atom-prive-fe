@@ -3485,6 +3485,14 @@ export interface BulkRebalancing {
   breached: number;
 }
 
+export interface ModelCopyAsked {
+  /**
+     * @minLength 0
+     * @maxLength 120
+     */
+  name: string;
+}
+
 export interface ModelChangeRequested {
   customerId: string;
   /** @nullable */
@@ -15190,6 +15198,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAskToEditModelMutationOptions(options), queryClient);
+    }
+
+export const getCopyModelPortfolioUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/models/${id}/copies`
+}
+
+export const copyModelPortfolio = async (id: string,
+    modelCopyAsked: ModelCopyAsked, options?: Parameters<typeof http>[1]): Promise<ModelRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ModelRow>(getCopyModelPortfolioUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(modelCopyAsked)
+  }
+);}
+
+
+
+
+
+export const getCopyModelPortfolioMutationKey = () => ['copyModelPortfolio'] as const;
+
+export const getCopyModelPortfolioMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof copyModelPortfolio>>, TError,CopyModelPortfolioMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof copyModelPortfolio>>, TError,CopyModelPortfolioMutationVariables, TContext> => {
+
+const mutationKey = getCopyModelPortfolioMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof copyModelPortfolio>>, CopyModelPortfolioMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  copyModelPortfolio(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CopyModelPortfolioMutationResult = NonNullable<Awaited<ReturnType<typeof copyModelPortfolio>>>
+    export type CopyModelPortfolioMutationBody = ModelCopyAsked
+    export type CopyModelPortfolioMutationError = unknown
+    export type CopyModelPortfolioMutationVariables = {id: string;data: ModelCopyAsked}
+
+    export const useCopyModelPortfolio = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof copyModelPortfolio>>, TError,CopyModelPortfolioMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof copyModelPortfolio>>,
+        TError,
+        CopyModelPortfolioMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCopyModelPortfolioMutationOptions(options), queryClient);
     }
 
 export const getTakeBackTheModelEditUrl = (id: string,) => {

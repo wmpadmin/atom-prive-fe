@@ -592,22 +592,6 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
       return [placeKey(place), String(asked)];
     }),
   ));
-  /**
-   * The rows somebody has typed into, which are theirs and are left alone.
-   *
-   * <p>What is left over after them is split across the rest, there and then. Asked to put 100 into one
-   * sub-asset and told 20 instead, the other 80 has to go somewhere, and a screen that leaves it sitting
-   * in a "still to place" line makes somebody work out the rest by hand across five boxes. Rows already
-   * typed into are not touched: a figure somebody put there is their plan for it, and a fresh split would
-   * write over the very thing they just said.
-   */
-  const [typedIn, setTypedIn] = useState<Set<string>>(
-    // Keyed the way every lookup against this set is keyed. Seeded with bare sub-asset names while the
-    // lookups had moved on to the line, nothing in it ever matched: editing one box re-split every other,
-    // writing over figures somebody had deliberately set — which is the exact loss this set exists to
-    // prevent.
-    () => new Set(changing?.legs.map((leg) => theLine(leg.toSubClass, leg.toSubSubClass)) ?? []),
-  );
   const [failed, setFailed] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
   // What the last click did, and the fact that it was a click rather than typing. A move used to leave
@@ -674,31 +658,18 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
   //
   // The source goes first of the two: if the second leg fails, the money is missing rather than counted
   /**
-   * A figure typed into one row, and the remainder re-split across the rest, there and then.
+   * A figure typed into one row, and nothing else touched.
    *
-   * <p>The loop the firm asked for. Told 20 where the window suggested 100, the other 80 is offered to the
-   * sub-assets that have not been spoken for, and again on the next figure, until what is left to place is
-   * nothing. Left out, somebody dividing a breach across five lines does the arithmetic themselves and the
-   * window only tells them when they are wrong.
+   * <p>The remainder used to be re-split across every row nobody had typed into yet, there and then.
+   * Cutting a suggested 8 down to 2 sent the other 6 into the line below, which nobody had asked for:
+   * a figure appeared in a row somebody had not looked at, and the only way to find out where their
+   * money had gone was to read every row again.
    *
-   * <p>Rows already typed into are never written over. The figure in them is somebody's plan for that
-   * line, and re-splitting across it would undo the very thing they just said.
+   * <p>What is left to place is said underneath instead. The screen does the arithmetic and says the
+   * answer; where the money goes stays the reader's to decide, one row at a time.
    */
   function typedInto(name: string, said: string) {
-    const mine = new Set(typedIn).add(name);
-    setTypedIn(mine);
-    setMoves((was) => {
-      const next = { ...was, [name]: asFigure(said, was[name] ?? "0") };
-      const claimed = inOrder
-        .filter((place) => mine.has(placeKey(place)))
-        .reduce((sum, place) => sum + typed(next[placeKey(place)]), 0);
-      const rest = inOrder.filter((place) => !mine.has(placeKey(place)));
-      const split = suggest(Math.max(0, mostToMove - claimed), rest);
-      for (const place of rest) {
-        next[placeKey(place)] = String(split[placeKey(place)] ?? 0);
-      }
-      return next;
-    });
+    setMoves((was) => ({ ...was, [name]: asFigure(said, was[name] ?? "0") }));
   }
 
   /** A different class to land in: the figures start again, because the room they were split against has. */
@@ -713,7 +684,6 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
       : (elsewhere.find((one) => one.assetClass === assetClass)?.places ?? []);
     setGoingTo(assetClass);
     setOpened({ forClass: assetClass, places: landing });
-    setTypedIn(new Set());
     setFailed(null);
     const split = suggest(mostToMove, landing);
     setMoves(Object.fromEntries(landing.map((place) =>
@@ -982,7 +952,8 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
           {!nowhere && !nothingLeft && (
             <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1">
               <span className="text-sm font-semibold text-ink">
-                {left < -0.5 ? "Placed more than there is" : "Still to place"}
+                {left < -0.5 ? "Placed more than there is"
+                  : left > 0.5 ? "Yet to place another" : "Still to place"}
               </span>
               <span className={cn("text-sm font-semibold tabular-nums",
                 left < -0.5 ? "text-amber-700" : "text-ink")}>
