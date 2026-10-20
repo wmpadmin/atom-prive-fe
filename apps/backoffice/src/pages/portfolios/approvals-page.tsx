@@ -121,7 +121,10 @@ function useHowManyAreWaiting(mine: TabSpec[]) {
     proposals: proposals.data?.totalItems ?? 0,
     "client-requests": (clientRequests.data?.waiting ?? []).length,
     moves: (moves.data?.waiting ?? []).length,
-    "model-changes": modelChanges.data?.totalItems ?? 0,
+    // What is waiting on THIS reader, not what they can see. The total counted every pending request
+    // their scope reached, including ones somebody else answers — so a tab read "1" over a row the
+    // reader had no button on.
+    "model-changes": modelChanges.data?.waitingOnYou ?? 0,
     "model-sign-off": (modelEdits.data?.waiting ?? []).length,
   } as Record<ApprovalTab, number>;
 }
