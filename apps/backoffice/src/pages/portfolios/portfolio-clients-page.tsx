@@ -10,7 +10,6 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { TriangleAlert } from "lucide-react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
 import { PAGE_SIZES } from "../../lib/page-sizes";
@@ -189,12 +188,6 @@ export function PortfolioClientsPage() {
                 read off, so they sit under in small. */}
             <th scope="col" className="px-4 py-3 text-right font-semibold">Drift</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Status</th>
-            {/* The class verdict beside it cannot say this: a class sitting exactly on its target may
-                hold its money in all the wrong places, and the only way to find that client was to open
-                every client in turn. */}
-            <th scope="col" className="px-4 py-3 text-center font-semibold">
-              <abbr title="Sub-asset status" className="no-underline">SA status</abbr>
-            </th>
             {/* The two dates together, because they are read as a pair: how long the firm has had them,
                 and how long since anybody touched it. */}
             {/* "Registered", the same word the servicing clients list uses for the same field. Two
@@ -206,7 +199,7 @@ export function PortfolioClientsPage() {
             </th>
           </>
         }
-        columns={12}
+        columns={11}
         loading={clients.isLoading}
         stale={clients.isPlaceholderData}
         empty={
@@ -340,19 +333,7 @@ export function PortfolioClientsPage() {
                 ) : (
                   <span className="text-ink-muted">{NOTHING_YET}</span>
                 )}
-              </td>
-              <td className="px-4 py-3 text-center">
-                {standing?.subAssetBreached ? (
-                  <span
-                    title="Something inside a class has broken its band. Open the client to see which."
-                    className="inline-flex items-center justify-center text-red-600"
-                  >
-                    <TriangleAlert aria-hidden="true" className="size-4" />
-                    <span className="sr-only">A sub-asset has broken its band</span>
-                  </span>
-                ) : (
-                  <span className="text-ink-muted" aria-hidden="true">—</span>
-                )}
+
               </td>
               {/* When they became a client, which is the moment the firm has a record of. It comes with
                   the row rather than with the standing: a client who has had nothing written down yet
