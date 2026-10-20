@@ -3,11 +3,9 @@ import {
   useListDrift,
   useListModelPortfolios,
   useListProposals,
-  useListReviewsDue,
   type DriftPage,
   type ModelsPage,
   type ProposalPage,
-  type ReviewsDue,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, cn } from "@atomprive/ui";
 import { Link, useNavigate } from "react-router";
@@ -41,9 +39,6 @@ export function PortfolioManagerDashboard() {
   const queue = useListDrift<DriftPage, ApiError>({ standing: WANDERED, page: 0, size: NEEDS_ME });
   // One row, asked for only to read the counts off it.
   const proposals = useListProposals<ProposalPage, ApiError>({ size: 1 });
-  // One row for the same reason: the tile wants the total, not the list.
-  const reviews = useListReviewsDue<ReviewsDue, ApiError>({ size: 1 });
-
 
   const rows = models.data?.items ?? [];
   const onModels = rows.filter((model) => model.clients > 0);
@@ -103,14 +98,6 @@ export function PortfolioManagerDashboard() {
           failed={queue.isError}
           to="/drift"
           urgent={(queue.data?.breached ?? 0) > 0}
-        />
-        {/* The deck's amber: a client nobody has looked at in the firm's own cadence. */}
-        <Tile
-          label="Due a review"
-          value={reviews.data ? String(reviews.data.total) : undefined}
-          failed={reviews.isError}
-          to="/portfolio-clients"
-          urgent={(reviews.data?.total ?? 0) > 0}
         />
       </div>
 
