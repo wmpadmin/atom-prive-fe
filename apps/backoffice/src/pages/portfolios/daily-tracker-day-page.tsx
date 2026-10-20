@@ -7,7 +7,10 @@ import { Alert, cn } from "@atomprive/ui";
 import { ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { nameOf, useAssetClasses } from "./asset-classes";
-import { daysFrom, money, shiftsBetween, versionAndTheOneBefore, type Day } from "./daily-tracker-days";
+import {
+  changesIn, daysFrom, money, movedWithin, versionAndTheOneBefore,
+  type Basis, type Day, type DayChange,
+} from "./daily-tracker-days";
 
 /**
  * One day of a client's portfolio, in full.
@@ -199,6 +202,11 @@ export function DailyTrackerDayPage() {
   }
   const currency = history.data?.currency ?? "";
   const day = daysFrom(history.data?.points ?? []).find((one) => one.on === on) ?? null;
+  // Worked out once, for the figure at the top of the day and for the table underneath it. A day read
+  // twice is two answers waiting to differ, and they did: the total at the top said nothing had moved,
+  // over a list of what had moved.
+  const changes = day === null ? [] : changesIn(day);
+  const moved = movedWithin(changes);
 
   return (
     <div className="space-y-5">
@@ -238,9 +246,27 @@ export function DailyTrackerDayPage() {
                 </p>
                 <p className="mt-1 text-2xl font-bold tabular-nums">{money(day.worth)}</p>
               </div>
+              {/* What the day did INSIDE itself — the question somebody opens a day to ask, and the one
+                  figure that was not on the page. Money taken out of one sub-asset and put into another
+                  leaves the total exactly where it was, so a day read by its total alone announced that
+                  nothing had happened directly above the list of what had happened. */}
               <div>
                 <p className="text-2xs tracking-wider text-ink-muted uppercase">
-                  Moved since the day before on file
+                  Moved between holdings
+                </p>
+                <p className={cn("mt-1 text-2xl font-bold tabular-nums",
+                  moved > 0.005 ? "text-ink" : "text-ink-muted")}>
+                  {moved > 0.005 ? money(moved) : "Nothing"}
+                </p>
+              </div>
+              {/* And what the day did to the total, which is a different question that used to wear the
+                  other one's name. Said against a date rather than against "the day before on file":
+                  that day can be a fortnight back, and a reader has no way to tell which day it was. */}
+              <div>
+                <p className="text-2xs tracking-wider text-ink-muted uppercase">
+                  {day.dayBefore === null
+                    ? "Nothing on file before this"
+                    : `Allocation against ${day.dayBefore.on}`}
                 </p>
                 <p className={cn("mt-1 text-2xl font-bold tabular-nums",
                   day.moved === null ? "text-ink-muted"
@@ -250,15 +276,13 @@ export function DailyTrackerDayPage() {
                     : `${day.moved > 0 ? "+" : day.moved < 0 ? "−" : ""}${money(Math.abs(day.moved))}`}
                 </p>
               </div>
-              <div>
-                <p className="text-2xs tracking-wider text-ink-muted uppercase">Changes written</p>
-                <p className="mt-1 text-2xl font-bold tabular-nums">{day.versions.length}</p>
-              </div>
             </div>
             <p className="mt-4 text-xs text-ink-muted">
-              Figures in {currency}. What moved is the whole of the change, which includes anything paid in
-              or taken out — it is not what the money earned. The day before on file may be weeks earlier:
-              a day exists here only where somebody wrote the holdings down.
+              Figures in {currency}. What moved between holdings is money that went from one sub-asset to
+              another, which leaves the total where it was. What the allocation did against an earlier day
+              is the whole of the change, anything paid in or taken out included — it is not what the money
+              earned. A day exists here only where somebody wrote the holdings down, so the day it is read
+              against may be weeks earlier.
             </p>
           </section>
 
@@ -266,7 +290,13 @@ export function DailyTrackerDayPage() {
             <h2 className="border-b border-line px-6 py-3 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               {day.versions.length === 1 ? "One change on this day" : `${day.versions.length} changes on this day`}
             </h2>
-            <Changes day={day} currency={currency} customerId={customerId} names={classes.names} />
+            <Changes
+              day={day}
+              changes={changes}
+              currency={currency}
+              customerId={customerId}
+              names={classes.names}
+            />
           </section>
         </>
       )}
@@ -280,16 +310,41 @@ function atTime(when: string) {
 }
 
 /**
+ * Why a change has nothing to show, which is three different facts and used to be one phrase.
+ *
+ * <p>"The first change written down" was printed under the heading "Money came out of" on every opening
+ * change of every day — where it answered a question nobody had asked, and said nothing about the money.
+ * Worse, it was usually untrue as a description of the change: the first thing written on a day is
+ * normally the whole of what happened on it.
+ */
+function nothingSaid(change: DayChange, basis: Basis) {
+  if (change.out.length > 0 || change.into.length > 0) return null;
+  if (basis.kind === "nothing-before") return "The first holdings written down for this client";
+  if (basis.kind === "no-lines-before") {
+    return `${basis.on} was written before sub-asset figures were kept, so there is nothing to read this against`;
+  }
+  return "Nothing moved between the lines";
+}
+
+/**
  * The changes a day was made of, oldest first, and what each one moved by.
  *
  * <p>A day used to keep one figure, so five decisions taken in it were kept as the last of them. Each
  * writes its own now, and this is where they are read: what the portfolio stood at after each, and what
- * that change moved it by — measured against the change before it, not against the day before.
+ * that change moved it by.
+ *
+ * <p>Each is measured against the change before it on the day, and the first against how the day before
+ * on file ended — which is what the paragraph under this table has always told its readers. It was not
+ * what the table did: the first change of every day was measured against nothing and came out blank, so
+ * the opening move of a day was invisible and a day written once showed a page of dashes. The reading is
+ * done in {@code changesIn}, once, and handed to this and to the figure above it alike.
  *
  * <p>The one the day ended on is marked, because that is the figure every other screen reads this day by.
  */
-function Changes({ day, currency, customerId, names }: {
+function Changes({ day, changes, currency, customerId, names }: {
   day: Day;
+  /** Worked out above and handed down, so the figure at the top and this table cannot part. */
+  changes: DayChange[];
   currency: string;
   customerId: string;
   /** What each class is called, so a line reads as a person says it rather than as a code. */
@@ -308,16 +363,9 @@ function Changes({ day, currency, customerId, names }: {
           </tr>
         </thead>
         <tbody className="divide-y divide-line/60">
-          {day.versions.map((one, at) => {
-            const before = at === 0 ? null : day.versions[at - 1];
-            const shifts = shiftsBetween(one.lines ?? {}, before === null ? null : before.lines ?? {});
-            const out = shifts.filter((shift) => shift.by < 0);
-            const into = shifts.filter((shift) => shift.by > 0);
-            // What was taken out, which is the size of the move. Where a change only added money the
-            // two sides do not match, so the larger of them is what moved.
-            const shifted = Math.max(
-              out.reduce((sum, shift) => sum - shift.by, 0),
-              into.reduce((sum, shift) => sum + shift.by, 0));
+          {changes.map((change) => {
+            const one = change.version;
+            const quiet = nothingSaid(change, change.basis);
             // Each change is a row to press. The table below showed the one the day closed on and no
             // other, so a figure written at eleven and corrected at noon left nothing on screen but the
             // correction — the list said it had happened and there was nowhere to go and see it.
@@ -340,56 +388,71 @@ function Changes({ day, currency, customerId, names }: {
                       the day closed here
                     </span>
                   )}
+                  {/* Which day the first change of a day was read against, said on the row that was read
+                      against it. The day before on file can be a fortnight back, and a movement measured
+                      over a fortnight is a different claim from one measured over a night. */}
+                  {change.basis.kind === "day-before" && (
+                    <span className="mt-0.5 block text-2xs text-ink-muted">
+                      against {change.basis.on}
+                    </span>
+                  )}
                 </td>
                 {/* Out of on one side, into on the other, each line with what it lost or gained. Said
                     as one wrapping run of names it was a wall to read: a change taking money out of one
                     line and putting it into three ran the four names together with an arrow somewhere
-                    in the middle, and which of them was which took working out. */}
-                <td className="px-4 py-2 align-top">
-                  {out.length === 0 ? (
-                    <span className="text-ink-muted">
-                      {before === null ? "The first change written down" : "—"}
-                    </span>
-                  ) : (
-                    <ul className="space-y-0.5">
-                      {out.map((shift) => (
-                        <li key={`${shift.assetClass}-${shift.line}`}
-                          className="flex items-baseline justify-between gap-3">
-                          <span className="min-w-0 text-red-700">
-                            {nameOf(shift.assetClass, names)} · {shift.line}
-                          </span>
-                          <span className="shrink-0 tabular-nums text-red-700">
-                            −{money(Math.abs(shift.by))}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </td>
-                <td className="px-4 py-2 align-top">
-                  {into.length === 0 ? (
-                    <span className="text-ink-muted">{before === null ? "" : "—"}</span>
-                  ) : (
-                    <ul className="space-y-0.5">
-                      {into.map((shift) => (
-                        <li key={`${shift.assetClass}-${shift.line}`}
-                          className="flex items-baseline justify-between gap-3">
-                          <span className="min-w-0 text-emerald-700">
-                            {nameOf(shift.assetClass, names)} · {shift.line}
-                          </span>
-                          <span className="shrink-0 tabular-nums text-emerald-700">
-                            +{money(shift.by)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </td>
+                    in the middle, and which of them was which took working out.
+
+                    Where there is nothing to show, the reason is said once across the pair rather than
+                    twice down it — a sentence about the day is not an answer to "money came out of". */}
+                {quiet !== null ? (
+                  <td className="px-4 py-2 align-top text-ink-muted" colSpan={2}>{quiet}</td>
+                ) : (
+                  <>
+                    <td className="px-4 py-2 align-top">
+                      {change.out.length === 0 ? (
+                        <span className="text-ink-muted">—</span>
+                      ) : (
+                        <ul className="space-y-0.5">
+                          {change.out.map((shift) => (
+                            <li key={`${shift.assetClass}-${shift.line}`}
+                              className="flex items-baseline justify-between gap-3">
+                              <span className="min-w-0 text-red-700">
+                                {nameOf(shift.assetClass, names)} · {shift.line}
+                              </span>
+                              <span className="shrink-0 tabular-nums text-red-700">
+                                −{money(Math.abs(shift.by))}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 align-top">
+                      {change.into.length === 0 ? (
+                        <span className="text-ink-muted">—</span>
+                      ) : (
+                        <ul className="space-y-0.5">
+                          {change.into.map((shift) => (
+                            <li key={`${shift.assetClass}-${shift.line}`}
+                              className="flex items-baseline justify-between gap-3">
+                              <span className="min-w-0 text-emerald-700">
+                                {nameOf(shift.assetClass, names)} · {shift.line}
+                              </span>
+                              <span className="shrink-0 tabular-nums text-emerald-700">
+                                +{money(shift.by)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </td>
+                  </>
+                )}
                 <td className="py-2 pl-4 text-right align-top whitespace-nowrap tabular-nums">
-                  {shifts.length === 0 ? (
-                    <span className="text-ink-muted">—</span>
+                  {change.shifted > 0.005 ? (
+                    <span className="font-semibold text-ink">{money(change.shifted)}</span>
                   ) : (
-                    <span className="font-semibold text-ink">{money(shifted)}</span>
+                    <span className="text-ink-muted">—</span>
                   )}
                 </td>
               </tr>
@@ -399,9 +462,9 @@ function Changes({ day, currency, customerId, names }: {
       </table>
       <p className="mt-2 text-2xs text-ink-muted">
         Figures in {currency}. Each change says which lines it took money out of and which it put money
-        into, against the change before it on this day — the first against the day before on file. The
-        number runs through this client's whole history, so it does not start at one on every day. Open
-        one to read what every sub-asset held.
+        into, against the change before it on this day — the first against the day before on file, which is
+        named on the row. The number runs through this client's whole history, so it does not start at one
+        on every day. Open one to read what every sub-asset held.
       </p>
     </div>
   );
