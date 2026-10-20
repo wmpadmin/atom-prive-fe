@@ -60,22 +60,21 @@ export function AskToChangeTheModel({
   const history = asked.data ?? [];
   const open = history.find((one) => one.status === "PENDING");
   /*
-   * Every model the firm has, with the ones nobody can be moved to saying why rather than being left
-   * out. Left out, a list of four models showed two and read as a screen that had lost them — and the
-   * one somebody was looking for was the one they had made ten minutes ago.
+   * The models a client may actually be moved to: the live ones.
    *
-   * <p>A draft is still being written and the server refuses one outright. A retired plan is one the
-   * firm has stopped writing for new clients — those on it stay on it — and the server refuses that
-   * too. And nobody is moved to the plan they are already on. All three are shown and none can be
-   * picked.
+   * <p>A draft is a model still being written and a retired one is a model the firm has stopped
+   * writing for new clients — neither is a plan anybody can be put on, and the server refuses both. A
+   * list offering them is a list offering a refusal.
+   *
+   * <p>The one they are on is shown and cannot be picked, because leaving it out is what made four
+   * models read as two and sent somebody looking for the one that was missing.
    */
-  const choices = (models.data?.items ?? []).map((model) => ({
-    model,
-    why: model.id === onModelId ? "they are on this now"
-      : model.status === "DRAFT" ? "still a draft"
-        : model.status === "RETIRED" ? "retired, takes nobody new"
-          : null,
-  }));
+  const choices = (models.data?.items ?? [])
+    .filter((model) => model.status === "LIVE")
+    .map((model) => ({
+      model,
+      why: model.id === onModelId ? "they are on this now" : null,
+    }));
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -155,6 +154,9 @@ export function AskToChangeTheModel({
           <Field id="wanted-model" label="Put them on" error={errors.fields.modelPortfolioId} required>
             <SelectInput id="wanted-model" value={wanted} onChange={(event) => setWanted(event.target.value)}>
               <option value="">Choose a model</option>
+              {/* The one way a client comes off a plan at all. Offered only where they are on one:
+                  there is nothing to come off otherwise. */}
+              {onModelId !== null && <option value="none">No model — nothing to drift from</option>}
               {choices.map(({ model, why }) => (
                 <option key={model.id} value={model.id} disabled={why !== null}>
                   {model.name}{why === null ? "" : ` — ${why}`}
@@ -183,7 +185,7 @@ export function AskToChangeTheModel({
                 raise.mutate({
                   data: {
                     customerId,
-                    modelPortfolioId: wanted,
+                    modelPortfolioId: wanted === "none" ? null : wanted,
                     why: why.trim(),
                   },
                 })
