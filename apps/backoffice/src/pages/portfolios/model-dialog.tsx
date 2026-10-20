@@ -608,7 +608,9 @@ export function ModelDialog({
             What each class is asked to be, and how far it may wander either way before it has breached.
             A class may be allowed further than the lines inside it, so the sub-assets carry their own
             figure, said once below for the whole model: a line asked for 10% of its class, held to five,
-            is sound between 5% and 15% of that class.
+            is sound between 5% and 15% of that class. The same figure holds a line broken down further,
+            and one broken down again after that — and it is read against the class every time, however
+            deep the line sits.
           </p>
 
           {/* Said once each, for the classes and for the lines inside them, rather than typed onto every
@@ -686,7 +688,9 @@ export function ModelDialog({
                 %
               </span>
             </span>
-            <span className="text-xs text-ink-muted">of its class, either side of its own share.</span>
+            <span className="text-xs text-ink-muted">
+              of its class, either side of its own share — at every depth, however deep the line sits.
+            </span>
           </div>
 
           <div className="grid gap-x-5 gap-y-2.5 sm:grid-cols-2">
