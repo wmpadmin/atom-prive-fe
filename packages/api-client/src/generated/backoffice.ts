@@ -337,11 +337,6 @@ export interface SettingsRequest {
   sellOrder: SettingsRequestSellOrder;
   /** @minimum 0 */
   minimumTrade: number;
-  /**
-     * @minimum 1
-     * @maximum 120
-     */
-  reviewEveryMonths: number;
   breachAlertTo: SettingsRequestBreachAlertTo;
   warnOnNearLimit: boolean;
 }
@@ -372,7 +367,6 @@ export interface SettingsView {
   sellOrder: SettingsViewSellOrder;
   sellOrderActsYet: boolean;
   minimumTrade: number;
-  reviewEveryMonths: number;
   breachAlertTo: SettingsViewBreachAlertTo;
   warnOnNearLimit: boolean;
   updatedAt: string;
@@ -978,13 +972,6 @@ export interface PortfolioStanding {
   standing: PortfolioStandingStanding;
   /** @nullable */
   lastRebalancedOn: string | null;
-  /** @nullable */
-  lastReviewedOn: string | null;
-  /** @nullable */
-  lastReviewedBy: string | null;
-  /** @nullable */
-  reviewDueOn: string | null;
-  reviewOverdue: boolean;
   customModel: boolean;
   riskMatch: RiskMatch | null;
   earned: ClientReturn | null;
@@ -1592,11 +1579,12 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
+  nodeType?: JsonNodeNodeType;
   valueNode?: boolean;
   missingNode?: boolean;
-  nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
   pojo?: boolean;
@@ -1610,7 +1598,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -3569,14 +3556,6 @@ export interface WhatIf {
   netChange: number;
 }
 
-export interface ReviewedRequest {
-  on: string;
-}
-
-export interface RebalancedRequest {
-  on: string;
-}
-
 export interface CashflowRequest {
   happenedOn: string;
   amount: number;
@@ -3779,63 +3758,6 @@ export interface BenchmarkRow {
   /** @nullable */
   lastLevelOn: string | null;
   levels: number;
-}
-
-export interface AllocationChangeLine {
-  assetClass: string;
-  assetClassName: string;
-  name: string;
-  valueAmount: number;
-  heldNow: number;
-}
-
-export type AllocationChangeRowStatus = typeof AllocationChangeRowStatus[keyof typeof AllocationChangeRowStatus];
-
-
-export const AllocationChangeRowStatus = {
-  PENDING: 'PENDING',
-  RETURNED: 'RETURNED',
-  APPROVED: 'APPROVED',
-  REJECTED: 'REJECTED',
-  WITHDRAWN: 'WITHDRAWN',
-} as const;
-
-export interface AllocationChangeRow {
-  id: string;
-  customerId: string;
-  clientName: string;
-  clientCode: string;
-  status: AllocationChangeRowStatus;
-  statusSaid: string;
-  why: string;
-  lines: AllocationChangeLine[];
-  /** @nullable */
-  netAum: number | null;
-  netAumNow: number;
-  currency: string;
-  worthNow: number;
-  linesGoing: number;
-  /** @nullable */
-  loanAmount: number | null;
-  loanNow: number;
-  ownedOutright: NonFinancialAssetRequest[];
-  ownedOutrightNow: number;
-  coversTheRest: boolean;
-  raisedBy: string;
-  raisedByName: string;
-  raisedAt: string;
-  /** @nullable */
-  changedAt: string | null;
-  /** @nullable */
-  decidedByName: string | null;
-  /** @nullable */
-  decidedAt: string | null;
-  /** @nullable */
-  decisionNote: string | null;
-  /** @nullable */
-  appliedRevision: number | null;
-  mayAnswer: boolean;
-  nobodyCloserCanAnswer: boolean;
 }
 
 export interface SentForSignOff {
@@ -4764,27 +4686,6 @@ export interface ModelRiskTable {
   asOf: string;
 }
 
-export interface ReviewDue {
-  customerId: string;
-  clientName: string;
-  clientCode: string;
-  /** @nullable */
-  modelName: string | null;
-  currency: string;
-  underManagement: number;
-  /** @nullable */
-  lastReviewedOn: string | null;
-  /** @nullable */
-  dueOn: string | null;
-  overdueByDays: number;
-}
-
-export interface ReviewsDue {
-  items: ReviewDue[];
-  total: number;
-  everyMonths: number;
-}
-
 export type RestoreRowStatus = typeof RestoreRowStatus[keyof typeof RestoreRowStatus];
 
 
@@ -5211,6 +5112,63 @@ export interface Attribution {
   takenOut: number;
   rebalancedWithin: boolean;
   observations: number;
+}
+
+export interface AllocationChangeLine {
+  assetClass: string;
+  assetClassName: string;
+  name: string;
+  valueAmount: number;
+  heldNow: number;
+}
+
+export type AllocationChangeRowStatus = typeof AllocationChangeRowStatus[keyof typeof AllocationChangeRowStatus];
+
+
+export const AllocationChangeRowStatus = {
+  PENDING: 'PENDING',
+  RETURNED: 'RETURNED',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  WITHDRAWN: 'WITHDRAWN',
+} as const;
+
+export interface AllocationChangeRow {
+  id: string;
+  customerId: string;
+  clientName: string;
+  clientCode: string;
+  status: AllocationChangeRowStatus;
+  statusSaid: string;
+  why: string;
+  lines: AllocationChangeLine[];
+  /** @nullable */
+  netAum: number | null;
+  netAumNow: number;
+  currency: string;
+  worthNow: number;
+  linesGoing: number;
+  /** @nullable */
+  loanAmount: number | null;
+  loanNow: number;
+  ownedOutright: NonFinancialAssetRequest[];
+  ownedOutrightNow: number;
+  coversTheRest: boolean;
+  raisedBy: string;
+  raisedByName: string;
+  raisedAt: string;
+  /** @nullable */
+  changedAt: string | null;
+  /** @nullable */
+  decidedByName: string | null;
+  /** @nullable */
+  decidedAt: string | null;
+  /** @nullable */
+  decisionNote: string | null;
+  /** @nullable */
+  appliedRevision: number | null;
+  mayAnswer: boolean;
+  nobodyCloserCanAnswer: boolean;
 }
 
 export interface AllocationChangeQueue {
@@ -6247,10 +6205,6 @@ size?: number;
 
 export type ListPostOnboardingNoticesParams = {
 sent?: boolean;
-};
-
-export type ListReviewsDueParams = {
-size?: number;
 };
 
 export type ListDriftParams = {
@@ -15807,172 +15761,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getWhatIfMutationOptions(options), queryClient);
     }
 
-export const getRecordReviewUrl = (customerId: string,) => {
-
-
-
-
-  return `/api/backoffice/portfolios/clients/${customerId}/reviewed`
-}
-
-export const recordReview = async (customerId: string,
-    reviewedRequest: ReviewedRequest, options?: Parameters<typeof http>[1]): Promise<PortfolioStanding> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<PortfolioStanding>(getRecordReviewUrl(customerId),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(reviewedRequest)
-  }
-);}
-
-
-
-
-
-export const getRecordReviewMutationKey = () => ['recordReview'] as const;
-
-export const getRecordReviewMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordReview>>, TError,RecordReviewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof recordReview>>, TError,RecordReviewMutationVariables, TContext> => {
-
-const mutationKey = getRecordReviewMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordReview>>, RecordReviewMutationVariables> = (props) => {
-          const {customerId,data} = props ?? {};
-
-          return  recordReview(customerId,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RecordReviewMutationResult = NonNullable<Awaited<ReturnType<typeof recordReview>>>
-    export type RecordReviewMutationBody = ReviewedRequest
-    export type RecordReviewMutationError = unknown
-    export type RecordReviewMutationVariables = {customerId: string;data: ReviewedRequest}
-
-    export const useRecordReview = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordReview>>, TError,RecordReviewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof recordReview>>,
-        TError,
-        RecordReviewMutationVariables,
-        TContext
-      > => {
-      return useMutation(getRecordReviewMutationOptions(options), queryClient);
-    }
-
-export const getRecordRebalanceUrl = (customerId: string,) => {
-
-
-
-
-  return `/api/backoffice/portfolios/clients/${customerId}/rebalanced`
-}
-
-export const recordRebalance = async (customerId: string,
-    rebalancedRequest: RebalancedRequest, options?: Parameters<typeof http>[1]): Promise<PortfolioStanding> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<PortfolioStanding>(getRecordRebalanceUrl(customerId),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(rebalancedRequest)
-  }
-);}
-
-
-
-
-
-export const getRecordRebalanceMutationKey = () => ['recordRebalance'] as const;
-
-export const getRecordRebalanceMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordRebalance>>, TError,RecordRebalanceMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof recordRebalance>>, TError,RecordRebalanceMutationVariables, TContext> => {
-
-const mutationKey = getRecordRebalanceMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordRebalance>>, RecordRebalanceMutationVariables> = (props) => {
-          const {customerId,data} = props ?? {};
-
-          return  recordRebalance(customerId,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RecordRebalanceMutationResult = NonNullable<Awaited<ReturnType<typeof recordRebalance>>>
-    export type RecordRebalanceMutationBody = RebalancedRequest
-    export type RecordRebalanceMutationError = unknown
-    export type RecordRebalanceMutationVariables = {customerId: string;data: RebalancedRequest}
-
-    export const useRecordRebalance = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordRebalance>>, TError,RecordRebalanceMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof recordRebalance>>,
-        TError,
-        RecordRebalanceMutationVariables,
-        TContext
-      > => {
-      return useMutation(getRecordRebalanceMutationOptions(options), queryClient);
-    }
-
 export const getListNonFinancialAssetsUrl = (customerId: string,) => {
 
 
@@ -17026,157 +16814,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getCreateBenchmarkMutationOptions(options), queryClient);
-    }
-
-export const getTakeBackTheAllocationChangeUrl = (id: string,) => {
-
-
-
-
-  return `/api/backoffice/portfolios/allocation-changes/${id}/withdrawal`
-}
-
-export const takeBackTheAllocationChange = async (id: string, options?: Parameters<typeof http>[1]): Promise<AllocationChangeRow> => {
-
-  return http<AllocationChangeRow>(getTakeBackTheAllocationChangeUrl(id),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-
-
-
-export const getTakeBackTheAllocationChangeMutationKey = () => ['takeBackTheAllocationChange'] as const;
-
-export const getTakeBackTheAllocationChangeMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeBackTheAllocationChange>>, TError,TakeBackTheAllocationChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof takeBackTheAllocationChange>>, TError,TakeBackTheAllocationChangeMutationVariables, TContext> => {
-
-const mutationKey = getTakeBackTheAllocationChangeMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof takeBackTheAllocationChange>>, TakeBackTheAllocationChangeMutationVariables> = (props) => {
-          const {id} = props ?? {};
-
-          return  takeBackTheAllocationChange(id,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type TakeBackTheAllocationChangeMutationResult = NonNullable<Awaited<ReturnType<typeof takeBackTheAllocationChange>>>
-
-    export type TakeBackTheAllocationChangeMutationError = unknown
-    export type TakeBackTheAllocationChangeMutationVariables = {id: string}
-
-    export const useTakeBackTheAllocationChange = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeBackTheAllocationChange>>, TError,TakeBackTheAllocationChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof takeBackTheAllocationChange>>,
-        TError,
-        TakeBackTheAllocationChangeMutationVariables,
-        TContext
-      > => {
-      return useMutation(getTakeBackTheAllocationChangeMutationOptions(options), queryClient);
-    }
-
-export const getAnswerTheAllocationChangeUrl = (id: string,) => {
-
-
-
-
-  return `/api/backoffice/portfolios/allocation-changes/${id}/answer`
-}
-
-export const answerTheAllocationChange = async (id: string,
-    movePlanDecision: MovePlanDecision, options?: Parameters<typeof http>[1]): Promise<AllocationChangeRow> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<AllocationChangeRow>(getAnswerTheAllocationChangeUrl(id),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(movePlanDecision)
-  }
-);}
-
-
-
-
-
-export const getAnswerTheAllocationChangeMutationKey = () => ['answerTheAllocationChange'] as const;
-
-export const getAnswerTheAllocationChangeMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerTheAllocationChange>>, TError,AnswerTheAllocationChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof answerTheAllocationChange>>, TError,AnswerTheAllocationChangeMutationVariables, TContext> => {
-
-const mutationKey = getAnswerTheAllocationChangeMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerTheAllocationChange>>, AnswerTheAllocationChangeMutationVariables> = (props) => {
-          const {id,data} = props ?? {};
-
-          return  answerTheAllocationChange(id,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AnswerTheAllocationChangeMutationResult = NonNullable<Awaited<ReturnType<typeof answerTheAllocationChange>>>
-    export type AnswerTheAllocationChangeMutationBody = MovePlanDecision
-    export type AnswerTheAllocationChangeMutationError = unknown
-    export type AnswerTheAllocationChangeMutationVariables = {id: string;data: MovePlanDecision}
-
-    export const useAnswerTheAllocationChange = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerTheAllocationChange>>, TError,AnswerTheAllocationChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof answerTheAllocationChange>>,
-        TError,
-        AnswerTheAllocationChangeMutationVariables,
-        TContext
-      > => {
-      return useMutation(getAnswerTheAllocationChangeMutationOptions(options), queryClient);
     }
 
 export const getListOnboardingCasesUrl = (params?: ListOnboardingCasesParams,) => {
@@ -23699,108 +23336,6 @@ export function useGetModelRisk<TData = Awaited<ReturnType<typeof getModelRisk>>
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetModelRiskQueryOptions(options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getListReviewsDueUrl = (params?: ListReviewsDueParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/backoffice/portfolios/reviews-due?${stringifiedParams}` : `/api/backoffice/portfolios/reviews-due`
-}
-
-export const listReviewsDue = async (params?: ListReviewsDueParams, options?: Parameters<typeof http>[1]): Promise<ReviewsDue> => {
-
-  return http<ReviewsDue>(getListReviewsDueUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListReviewsDueQueryKey = (params?: ListReviewsDueParams,) => {
-    return [
-    `/api/backoffice/portfolios/reviews-due`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getListReviewsDueQueryOptions = <TData = Awaited<ReturnType<typeof listReviewsDue>>, TError = unknown>(params?: ListReviewsDueParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReviewsDue>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListReviewsDueQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReviewsDue>>> = ({ signal }) => listReviewsDue(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReviewsDue>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListReviewsDueQueryResult = NonNullable<Awaited<ReturnType<typeof listReviewsDue>>>
-export type ListReviewsDueQueryError = unknown
-
-
-export function useListReviewsDue<TData = Awaited<ReturnType<typeof listReviewsDue>>, TError = unknown>(
- params: undefined |  ListReviewsDueParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReviewsDue>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listReviewsDue>>,
-          TError,
-          Awaited<ReturnType<typeof listReviewsDue>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListReviewsDue<TData = Awaited<ReturnType<typeof listReviewsDue>>, TError = unknown>(
- params?: ListReviewsDueParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReviewsDue>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listReviewsDue>>,
-          TError,
-          Awaited<ReturnType<typeof listReviewsDue>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListReviewsDue<TData = Awaited<ReturnType<typeof listReviewsDue>>, TError = unknown>(
- params?: ListReviewsDueParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReviewsDue>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useListReviewsDue<TData = Awaited<ReturnType<typeof listReviewsDue>>, TError = unknown>(
- params?: ListReviewsDueParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReviewsDue>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getListReviewsDueQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
