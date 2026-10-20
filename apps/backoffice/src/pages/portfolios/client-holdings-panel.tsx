@@ -627,6 +627,9 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
   const changeIt = useChangeTheMovePlan<ApiError>();
   const placed = inOrder.reduce((sum, place) => sum + typed(moves[placeKey(place)]), 0);
   const left = spare - placed;
+  // Half a unit, not nought: the room each line has is worked out in points of a class, so a split that
+  // uses every last one of them lands a hair off the figure it came from rather than exactly on it.
+  const allPlaced = Math.abs(left) <= 0.5;
   // What this class could take in all, however it is split up, and so what genuinely cannot stay in it.
   // Money nobody has placed yet is not money with nowhere to go, and saying it has to leave the class
   // while eight sub-assets sit there with room for it is telling somebody the opposite of the truth.
@@ -948,24 +951,33 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
           )}
 
           {/* A minus sign in a money column is a figure somebody has to stop and decode. This says which way
-              it has gone instead, and the figure stays a plain amount. */}
+              it has gone instead, and the figure stays a plain amount.
+
+              Coloured, because money left behind is easy to walk past: the button below goes live the moment
+              anything at all has been placed, so a split that is half done reads exactly like one that is
+              finished — and what gets raised is the half. The strip is there whether or not anything is
+              left, because a box that only appears when something is wrong is a box nobody has learnt to
+              read by the time it matters. */}
           {!nowhere && !nothingLeft && (
-            <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1">
-              <span className="text-sm font-semibold text-ink">
+            <div className={cn(
+              "mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-xl border px-4 py-3",
+              allPlaced ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50")}>
+              <span className={cn("text-sm font-semibold", allPlaced ? "text-emerald-800" : "text-red-700")}>
                 {left < -0.5 ? "Placed more than there is"
-                  : left > 0.5 ? "Yet to place another" : "Still to place"}
+                  : left > 0.5 ? "Yet to place another" : "All of it placed"}
               </span>
-              <span className={cn("text-sm font-semibold tabular-nums",
-                left < -0.5 ? "text-amber-700" : "text-ink")}>
-                {exactly(Math.abs(left), currency)}
-              </span>
-              <span className="text-xs text-ink-muted">
+              {!allPlaced && (
+                <span className="text-base font-bold tabular-nums text-red-700">
+                  {exactly(Math.abs(left), currency)}
+                </span>
+              )}
+              <span className={cn("text-xs", allPlaced ? "text-emerald-700" : "text-red-700")}>
                 {left > 0.5 && (beyond > 0.5
                   ? `${exactly(beyond, currency)} of it has nowhere to go inside ${className} and has to`
                     + " leave the class"
                   : `${className} has room for it — it has not been put anywhere yet`)}
                 {left < -0.5 && `more than is coming out of ${from}`}
-                {Math.abs(left) <= 0.5 && "all of it placed"}
+                {allPlaced && `${exactly(spare, currency)} out of ${from}, nothing left over`}
               </span>
             </div>
           )}
