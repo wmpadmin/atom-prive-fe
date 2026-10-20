@@ -239,6 +239,29 @@ export function DealtWithPlan({ row, showClient }: { row: MovePlanRow; showClien
         <p className="mt-0.5 text-xs text-ink-muted">
           Asked by {row.raisedByName} · {formatDateTime(row.raisedAt)}
         </p>
+        {/* What it actually did. The row carried an amount and a verdict and nothing about the money:
+            somebody asking "which move was that, and where did it go?" a day later had the answer in the
+            plan's own legs, sent down with every row, and nowhere on the screen they were reading.
+
+            Every leg, not the first. A plan is applied whole or not at all, so one leg of five describes
+            a fifth of what happened. */}
+        {row.legs.length > 0 && (
+          <ul className="mt-1 space-y-0.5 text-xs text-ink-muted">
+            {row.legs.map((leg, at) => (
+              <li key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`}>
+                <span className="tabular-nums">{figure(leg.amount)}</span>
+                {" out of "}
+                <span className="text-ink">
+                  {named(leg.fromSubClass, leg.fromAssetClass, leg.fromSubSubClass)}
+                </span>
+                {" into "}
+                <span className="text-ink">
+                  {named(leg.toSubClass, leg.toAssetClass, leg.toSubSubClass)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
         {row.why && <p className="mt-0.5 text-xs text-ink-muted">{row.why}</p>}
         {row.decisionNote && <p className="mt-1 text-xs text-ink-muted">{row.decisionNote}</p>}
       </div>
