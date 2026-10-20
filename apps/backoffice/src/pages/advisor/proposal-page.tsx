@@ -7,10 +7,7 @@ import {
   listProposals,
   useListCurrencies,
   useListCustomers,
-  useListMyClients,
-  useRecordClientDecision,
-  useResendProposal,
-  useSignOffProposal,
+  useAnswerProposal,
   useSubmitProposal,
   useUpdateProposal,
   type ClientHoldings,
@@ -34,9 +31,9 @@ import { ProposalLegEditor } from "./proposal-leg-editor";
 import { destinations, EMPTY_LEG, legsFrom, sources, typedFrom, type TypedLeg } from "./proposal-leg-values";
 import { ProposalLegs } from "./proposal-legs";
 import { ProposalTrail } from "./proposal-trail";
-import { clientFileHref, hasAnyAuthority, hasAuthority, readsEveryAdvisors, STARTS_PROPOSALS } from "../../lib/permissions";
+import { APPROVES_PROPOSALS, clientFileHref, hasAnyAuthority, readsEveryAdvisors, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
-import { expiryLabel, formatValue, proposalStatusLabels, proposalStatusTones, sentLabel } from "./proposal-labels";
+import { formatValue, proposalStatusLabels, proposalStatusTones, sentLabel, standingLabel } from "./proposal-labels";
 
 /** One of the four facts above a proposal: what it was advised against, and the dates it turns on. */
 function Fact({ label, children }: { label: string; children: ReactNode }) {
@@ -69,10 +66,9 @@ export function ProposalPage() {
   const [notice, setNotice] = useState<string>();
   // Where what just happened is said, so a send can take the reader to it.
   const moments = useRef<HTMLDivElement>(null);
-  /** Which answer is being written down: a manager sending it back, or the client's own. */
-  const [answering, setAnswering] = useState<"send-back" | "client" | null>(null);
-  const [comment, setComment] = useState("");
-  const [clientSaid, setClientSaid] = useState(true);
+  /** Whether the answer dialog is open, and which way it is being answered. */
+  const [answering, setAnswering] = useState<"approve" | "reject" | null>(null);
+  const [note, setNote] = useState("");
   // Typed rather than native: a number box takes "e" as scientific notation and then reports itself empty,
   // so a figure somebody fumbled would be dropped on the way out instead of questioned.
   // Null until somebody types: the box then shows what is on the proposal, and what was typed from then on.
@@ -111,8 +107,8 @@ export function ProposalPage() {
     }
   }
   const user = useStaffUser();
-  const signsOff = hasAnyAuthority(user, "APPROVE_PROPOSALS:CHANGE", "APPROVE_PROPOSALS:OWN_CLIENTS");
-  const writes = hasAnyAuthority(user, ...STARTS_PROPOSALS);
+  const answersProposals = hasAnyAuthority(user, ...APPROVES_PROPOSALS);
+  const writes = hasAnyAuthority(user, ...WRITES_PROPOSALS);
 
   const detail = useGetProposal<ProposalDetail, ApiError>(proposalId ?? "", { query: { enabled: !writing } });
   // Whether anything has been raised to actually do what the client agreed to. The paper and the act
@@ -122,13 +118,9 @@ export function ProposalPage() {
     query: { enabled: !writing && proposalId !== undefined, refetchOnWindowFocus: true },
   });
   const currencies = useListCurrencies<Currency[], ApiError>();
-  // Whose clients may be written for: an advisor's own assigned list, or the whole book for whoever holds
-  // proposals at full. Offering an advisor every client would be offering them ones the API then refuses;
-  // offering a portfolio manager only their own would be an empty list, because they are assigned none.
-  const forEveryClient = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
-  const mine = useListMyClients<CustomerPage, ApiError>({ size: 100 }, { query: { enabled: !forEveryClient } });
-  const everyone = useListCustomers<CustomerPage, ApiError>({ size: 100 }, { query: { enabled: forEveryClient } });
-  const clients = forEveryClient ? everyone : mine;
+  // The whole book, because whoever writes a proposal reads the whole book. It used to depend on whether
+  // the writer was held to a set of clients; nobody who is still writes one.
+  const clients = useListCustomers<CustomerPage, ApiError>({ size: 100 }, { query: { enabled: writes } });
   const noClients = clients.isSuccess && (clients.data?.items.length ?? 0) === 0;
 
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
@@ -141,16 +133,9 @@ export function ProposalPage() {
   const submit = useSubmitProposal<ApiError>({
     mutation: {
       onSuccess: (saved) =>
-        moved(
-          saved.summary.status === "PENDING_MANAGER_REVIEW"
-            ? "Sent to your manager for approval."
-            : "Sent to the client.",
-        ),
+        moved(`Sent to ${saved.summary.customerName}'s relationship manager.`),
       onError,
     },
-  });
-  const resend = useResendProposal<ApiError>({
-    mutation: { onSuccess: (copy) => navigate(`/proposals/${copy.summary.id}`), onError },
   });
   /**
    * Says what happened, and reads the proposal back. Both halves matter: a proposal that has been sent is a
@@ -167,22 +152,19 @@ export function ProposalPage() {
 
   function answered(said: string) {
     setAnswering(null);
-    setComment("");
+    setNote("");
     moved(said);
   }
-  const signOff = useSignOffProposal<ApiError>({
+  const answer = useAnswerProposal<ApiError>({
     mutation: {
       onSuccess: (saved) =>
         answered(
-          saved.summary.status === "RETURNED"
-            ? "Sent back to the advisor."
-            : "Approved, and sent to the client.",
+          saved.summary.status === "APPROVED"
+            ? "Approved on the client's behalf."
+            : "Turned down. Nothing has changed for the client.",
         ),
       onError,
     },
-  });
-  const clientAnswer = useRecordClientDecision<ApiError>({
-    mutation: { onSuccess: () => answered("The client's answer is on the record."), onError },
   });
   // A proposal stays with the client it was written for, so a saved one's pickers read from that client
   // whatever the box says; a new one reads from whoever has just been chosen. Asked for up here with the
@@ -211,20 +193,21 @@ export function ProposalPage() {
   // A draft is only editable by whoever wrote it. Whoever oversees the firm's advice reads every proposal,
   // and the API answers their save with "doesn't exist" — so the form is not offered to them in the first
   // place rather than inviting an edit that cannot land.
-  // Never sent, or sent and handed back to be put right: both are the author's to write. The same two states
-  // the API calls editable, so a screen that offers Save never meets a refusal from the other side.
-  const editable =
-    writing || ((status === "DRAFT" || status === "RETURNED") && proposal?.summary.advisorId === user.id);
+  // Never sent, and the author's own. The same state the API calls editable, so a screen that offers Save
+  // never meets a refusal from the other side. There is no second editable state any more: a proposal
+  // used to come back from a manager to be put right, and nothing comes back now.
+  const editable = writing || (status === "DRAFT" && proposal?.summary.advisorId === user.id);
   const busy = create.isPending || update.isPending || submit.isPending;
-  const deciding = signOff.isPending || clientAnswer.isPending;
-  // A sign-off is what sends it to the client, and it is somebody else's to give: the advisor who wrote it
-  // does not see the buttons, because the API would refuse them anyway.
-  const toSignOff = !writing && status === "PENDING_MANAGER_REVIEW" && signsOff && proposal!.summary.advisorId !== user.id;
-  const withTheClient = !writing && status === "PENDING_REVIEW";
+  const deciding = answer.isPending;
+  // Waiting, and this reader is not the one who wrote it. Whoever wrote it does not see the buttons,
+  // because the API would refuse them anyway — and being able to press a button that cannot work is
+  // worse than not having one.
+  const toAnswer = !writing && status === "PENDING" && answersProposals
+    && proposal!.summary.advisorId !== user.id;
 
-  /** Opens one of the answer dialogs on an empty box: the two share it, and neither inherits the other's. */
-  function asking(which: "send-back" | "client" | null) {
-    setComment("");
+  /** Opens the answer dialog on an empty box, so neither way of answering inherits the other's note. */
+  function asking(which: "approve" | "reject" | null) {
+    setNote("");
     setErrors(noErrors);
     setAnswering(which);
   }
@@ -297,17 +280,6 @@ export function ProposalPage() {
           exporting={exporting}
           canExport
           cappedAt={cappedAt}
-          extra={
-            status === "EXPIRED" ? (
-              <Button
-                variant="secondary"
-                disabled={resend.isPending}
-                onClick={() => resend.mutate({ id: proposalId! })}
-              >
-                {resend.isPending ? "Copying…" : "Resend as new proposal"}
-              </Button>
-            ) : null
-          }
         />
       )}
 
@@ -349,24 +321,15 @@ export function ProposalPage() {
       <div ref={moments}>{notice && <Alert tone="success">{notice}</Alert>}</div>
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
-      {/* While it is back with its author. The comment stays on the record after they send it again, so
-          reading it off the comment alone said "your manager sent this back" about one that had since gone. */}
-      {status === "RETURNED" && proposal?.summary.managerComment && (
-        <Alert tone="warning">
-          <span className="font-semibold">Your manager sent this back:</span> {proposal.summary.managerComment}
-        </Alert>
-      )}
-
-      {status === "EXPIRED" && (
-        <Alert tone="danger">
-          This proposal ran out before the client answered, so it can't be approved. Send it again as a new one.
-        </Alert>
-      )}
-
-      {proposal?.clientComment && (
+      {/* What whoever answered said, and who they were. A refusal owes a reason; an agreement may carry
+          one, and either way it is said here rather than left in a column somebody has to go looking for. */}
+      {proposal?.summary.answerNote && (
         <Alert tone={status === "APPROVED" ? "success" : "danger"}>
-          <span className="font-semibold">The client {status === "APPROVED" ? "approved" : "rejected"} this:</span>{" "}
-          {proposal.clientComment}
+          <span className="font-semibold">
+            {proposal.summary.answeredByName ?? "The relationship manager"}{" "}
+            {status === "APPROVED" ? "approved this" : "turned this down"}:
+          </span>{" "}
+          {proposal.summary.answerNote}
         </Alert>
       )}
 
@@ -390,11 +353,9 @@ export function ProposalPage() {
               ? "Not recorded"
               : formatValue(proposal!.portfolioValue, proposal!.portfolioCurrency)}
           </Fact>
-          <Fact label="Sent">
-            {sentLabel(status, proposal!.summary.sentAt, proposal!.summary.submittedAt)}
-          </Fact>
-          <Fact label="Expires">
-            {expiryLabel(proposal!.summary.expiresAt, status, proposal!.summary.decidedAt)}
+          <Fact label="Sent">{sentLabel(proposal!.summary.sentAt)}</Fact>
+          <Fact label="Standing">
+            {standingLabel(status, proposal!.summary.sentAt, proposal!.summary.decidedAt)}
           </Fact>
           <Fact label="Objective">{proposal!.objective ?? "Not set"}</Fact>
         </dl>
@@ -573,31 +534,21 @@ export function ProposalPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
           <p className="text-xs text-ink-muted">
             {writing
-              ? "Saved as a draft first. Nothing reaches the client until you send it."
+              ? "Saved as a draft first. It reaches nobody until you send it."
               : proposal!.summary.sentAt
-                ? `Sent ${formatDate(proposal!.summary.sentAt)} · ${expiryLabel(proposal!.summary.expiresAt, status, proposal!.summary.decidedAt)}`
-                : status === "RETURNED"
-                  ? "Sent back by the manager. Put it right and send it again."
-                  : `Draft, last saved ${formatDateTime(proposal!.summary.createdAt)}`}
+                ? `Sent ${formatDate(proposal!.summary.sentAt)} · ${standingLabel(status, proposal!.summary.sentAt, proposal!.summary.decidedAt)}`
+                : `Draft, last saved ${formatDateTime(proposal!.summary.createdAt)}`}
           </p>
           <div className="flex flex-wrap gap-3">
-            {toSignOff && (
+            {toAnswer && (
               <>
-                <Button variant="secondary" disabled={deciding} onClick={() => asking("send-back")}>
-                  Send back
+                <Button variant="secondary" disabled={deciding} onClick={() => asking("reject")}>
+                  Reject
                 </Button>
-                <Button
-                  disabled={deciding}
-                  onClick={() => signOff.mutate({ id: proposalId!, data: { approved: true, comment: null } })}
-                >
-                  {signOff.isPending ? "Approving…" : "Approve and send"}
+                <Button disabled={deciding} onClick={() => asking("approve")}>
+                  Approve
                 </Button>
               </>
-            )}
-            {withTheClient && (
-              <Button variant="secondary" disabled={deciding} onClick={() => asking("client")}>
-                Record the client's answer
-              </Button>
             )}
             {editable && (
               <Button type="submit" variant="secondary" disabled={busy}>
@@ -628,19 +579,30 @@ export function ProposalPage() {
         </section>
       )}
 
-      <Dialog open={answering === "send-back"} title="Send this proposal back?" onClose={() => asking(null)}>
+      <Dialog
+        open={answering !== null}
+        title={answering === "approve" ? "Approve on the client's behalf?" : "Turn this down?"}
+        onClose={() => asking(null)}
+      >
         <div className="space-y-4">
           <p className="text-sm text-ink-muted">
-            It goes back to whoever wrote it, who sees what you write here. Nothing reaches the client.
+            {answering === "approve"
+              ? "You are answering for this client. Nobody else is asked, and the answer is written once."
+              : "Nothing changes for the client. Whoever wrote it sees what you write here."}
           </p>
           {errors.form && <Alert tone="danger">{errors.form}</Alert>}
-          <Field id="send-back-comment" label="What needs putting right?" required error={errors.fields.comment}>
+          <Field
+            id="answer-note"
+            label={answering === "approve" ? "Anything to say about it" : "Why?"}
+            required={answering === "reject"}
+            error={errors.fields.note}
+          >
             <TextArea
-              {...describedBy("send-back-comment", errors.fields.comment)}
-              id="send-back-comment"
+              {...describedBy("answer-note", errors.fields.note)}
+              id="answer-note"
               rows={3}
-              value={comment}
-              onChange={(event) => setComment(event.target.value)}
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
             />
           </Field>
           <div className="flex justify-end gap-2">
@@ -648,60 +610,18 @@ export function ProposalPage() {
               Cancel
             </Button>
             <Button
-              disabled={deciding || comment.trim() === ""}
-              onClick={() => signOff.mutate({ id: proposalId!, data: { approved: false, comment } })}
-            >
-              {signOff.isPending ? "Sending back…" : "Send back"}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
-
-      <Dialog open={answering === "client"} title="What did the client say?" onClose={() => asking(null)}>
-        <div className="space-y-4">
-          <p className="text-sm text-ink-muted">
-            Write down the answer they gave you. It is the firm's record of their decision, so it is written once.
-          </p>
-          {errors.form && <Alert tone="danger">{errors.form}</Alert>}
-          <fieldset>
-            <legend className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Their answer</legend>
-            <div className="mt-1.5 flex gap-4">
-              {[
-                { said: true, text: "They approved it" },
-                { said: false, text: "They rejected it" },
-              ].map((one) => (
-                <label key={one.text} className="flex items-center gap-2 text-sm text-ink">
-                  <input
-                    type="radio"
-                    name="client-said"
-                    checked={clientSaid === one.said}
-                    onChange={() => setClientSaid(one.said)}
-                  />
-                  {one.text}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <Field id="client-comment" label="Anything they said about it" error={errors.fields.comment}>
-            <TextArea
-              {...describedBy("client-comment", errors.fields.comment)}
-              id="client-comment"
-              rows={3}
-              value={comment}
-              onChange={(event) => setComment(event.target.value)}
-            />
-          </Field>
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => asking(null)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={deciding}
+              // A refusal owes a reason, so the button waits for one. An agreement does not.
+              disabled={deciding || (answering === "reject" && note.trim() === "")}
               onClick={() =>
-                clientAnswer.mutate({ id: proposalId!, data: { approved: clientSaid, comment: comment || null } })
+                answer.mutate({
+                  id: proposalId!,
+                  data: { approved: answering === "approve", note: note.trim() || null },
+                })
               }
             >
-              {clientAnswer.isPending ? "Recording…" : "Record it"}
+              {answer.isPending
+                ? answering === "approve" ? "Approving…" : "Rejecting…"
+                : answering === "approve" ? "Approve" : "Reject"}
             </Button>
           </div>
         </div>

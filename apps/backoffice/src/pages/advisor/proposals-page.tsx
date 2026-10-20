@@ -2,7 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import {
   listProposals,
   useListProposals,
-  useListProposalsAwaitingMySignOff,
+  useListProposalsAwaitingMyAnswer,
   type ListProposalsStatus,
   type ProposalPage,
   type ProposalRowStatus,
@@ -14,37 +14,34 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { APPROVES_PROPOSALS, hasAnyAuthority, readsEveryAdvisors, STARTS_PROPOSALS } from "../../lib/permissions";
+import { APPROVES_PROPOSALS, hasAnyAuthority, readsEveryAdvisors, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate } from "../../lib/labels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { QueueBar } from "../portfolios/queue-bar";
 import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
 import { ProposalsHeader } from "./proposals-header";
-import { expiryLabel, formatValue, proposalStatusLabels, proposalStatusTones } from "./proposal-labels";
+import { formatValue, proposalStatusLabels, proposalStatusTones, standingLabel } from "./proposal-labels";
 
 /**
- * What the list can be narrowed to. "Expiring soon" is a view of those with the client rather than a
- * status of its own, and "Waiting on me" is a different question again — not what state a proposal is in
- * but whose desk it is on, which is why it reads from the sign-off queue and not from the status filter.
+ * What the list can be narrowed to.
+ *
+ * <p>Four states and one question that is not a state: "Waiting on me" asks whose desk a proposal is on
+ * rather than what state it is in, which is why it reads from its own queue and not from the status
+ * filter. There were ten of these when a proposal travelled between three desks with a clock on the last
+ * leg; six of them named steps that no longer happen.
  */
-type Tab = "waitingOnMe" | "all" | "draft" | "manager" | "returned" | "client" | "expiringSoon"
-  | "approved" | "rejected" | "expired";
+type Tab = "waitingOnMe" | "all" | "draft" | "pending" | "approved" | "rejected";
 
 /** The one that is answered rather than watched, so it is offered first and only to whoever answers. */
 const WAITING_ON_ME: Tab = "waitingOnMe";
 
-const TABS: { id: Tab; label: string; status?: ListProposalsStatus; expiringSoon?: boolean }[] = [
+const TABS: { id: Tab; label: string; status?: ListProposalsStatus }[] = [
   { id: "waitingOnMe", label: "Waiting on me" },
   { id: "all", label: "All" },
   { id: "draft", label: "Drafts", status: "DRAFT" },
-  { id: "manager", label: "Waiting for manager approval", status: "PENDING_MANAGER_REVIEW" },
-  // Its own tab, not a draft: somebody has to act on what the manager wrote on it.
-  { id: "returned", label: "Sent back", status: "RETURNED" },
-  { id: "client", label: "Waiting for client approval", status: "PENDING_REVIEW" },
-  { id: "expiringSoon", label: "Expiring soon", expiringSoon: true },
+  { id: "pending", label: "Waiting on the relationship manager", status: "PENDING" },
   { id: "approved", label: "Approved", status: "APPROVED" },
   { id: "rejected", label: "Rejected", status: "REJECTED" },
-  { id: "expired", label: "Expired", status: "EXPIRED" },
 ];
 
 /** As far back as the date pickers will go: older than the firm, so it never gets in the way. */
@@ -59,14 +56,14 @@ export function ProposalsPage() {
   // Whoever oversees the firm's advice reads every proposal without writing any, so the screen is the same
   // list with nothing on it to write with.
   const user = useStaffUser();
-  const writes = hasAnyAuthority(user, ...STARTS_PROPOSALS);
-  // Whoever gives a sign-off gets the one view that is theirs to act on. To everybody else it is not a
-  // filter that comes back empty — it is not offered at all, because an empty queue of other people's
-  // work reads as a queue you are failing to clear.
-  const signsOff = hasAnyAuthority(user, ...APPROVES_PROPOSALS);
-  // Whose list this is, which is a different question from whether you may write one. A portfolio manager
-  // reads every advisor's, so the author is worth a column of its own and an empty list is not "you
-  // haven't written one yet" — it is the firm that has written none.
+  const writes = hasAnyAuthority(user, ...WRITES_PROPOSALS);
+  // Whoever answers gets the one view that is theirs to act on. To everybody else it is not a filter that
+  // comes back empty — it is not offered at all, because an empty queue of other people's work reads as a
+  // queue you are failing to clear.
+  const answers = hasAnyAuthority(user, ...APPROVES_PROPOSALS);
+  // Whose list this is, which is a different question from whether you may write one. A relationship
+  // manager reads what was written for their clients and writes none, so the author is worth a column of
+  // its own and an empty list is not "you haven't written one yet".
   const everyAdvisors = readsEveryAdvisors(user);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
@@ -111,7 +108,6 @@ export function ProposalsPage() {
 
   const asked = {
     status: chosen.status,
-    expiringSoon: chosen.expiringSoon,
     query: search || undefined,
     from: from ? new Date(from).toISOString() : undefined,
     // A date range people read as "up to and including", so the day asked for is counted in whole.
@@ -119,18 +115,17 @@ export function ProposalsPage() {
     newestFirst,
   };
   // Whose desk it is on is a different question from what state it is in, so it is a different endpoint:
-  // the sign-off queue already knows which proposals may be answered by whoever is reading, and works
-  // that out from the client's advisors rather than from a status anybody could filter to.
-  // Held to whoever gives a sign-off, because the address can be typed and the old queue's link still
-  // redirects here. Without this, somebody who answers nothing would ask for a queue the server will not
-  // give them and sit on "Loading proposals…" for ever.
-  const onMe = tab === WAITING_ON_ME && signsOff;
-  const mineToAnswer = useListProposalsAwaitingMySignOff<ProposalPage, ApiError>(
+  // the queue already knows which proposals may be answered by whoever is reading, and works that out
+  // from the client's advisors rather than from a status anybody could filter to.
+  // Held to whoever answers, because the address can be typed. Without this, somebody who answers nothing
+  // would ask for a queue the server will not give them and sit on "Loading proposals…" for ever.
+  const onMe = tab === WAITING_ON_ME && answers;
+  const mineToAnswer = useListProposalsAwaitingMyAnswer<ProposalPage, ApiError>(
     { page, size: pageSize },
     // Asked for even when the list is showing something else, because the count beside it is the whole
     // point: somebody reading their drafts should be able to see that three proposals are waiting on
     // them without first going and looking.
-    { query: { placeholderData: keepPreviousData, enabled: signsOff } },
+    { query: { placeholderData: keepPreviousData, enabled: answers } },
   );
   const listed = useListProposals<ProposalPage, ApiError>(
     { ...asked, page, size: pageSize },
@@ -174,36 +169,31 @@ export function ProposalsPage() {
     waitingOnMe: undefined,
     all: counts?.all,
     draft: counts?.draft,
-    manager: counts?.awaitingManager,
-    returned: counts?.returned,
-    client: counts?.awaitingClient,
-    expiringSoon: counts?.expiringSoon,
+    pending: counts?.pending,
     approved: counts?.approved,
     rejected: counts?.rejected,
-    expired: counts?.expired,
   };
   const total = proposals.data?.totalItems ?? 0;
   const rows = proposals.data?.items ?? [];
   // Counted over this page rather than the whole queue: the API gives no firm-wide figure, and claiming
   // one from a single page would understate it on every page but the last.
-  const overdue = onMe ? rows.filter((row) => row.signOffOverdue).length : 0;
   const yoursHere = onMe ? rows.filter((row) => row.advisorId === user.id).length : 0;
   /**
-   * What the filter offers. The sign-off queue is left off for anybody who gives no sign-off, and its
-   * count comes from the queue itself rather than from the status counts — "waiting for a manager" is
-   * every advisor's, and "waiting on me" is the part of it this person may answer.
+   * What the filter offers. The queue is left off for anybody who answers nothing, and its count comes
+   * from the queue itself rather than from the status counts — "waiting on the relationship manager" is
+   * every client's, and "waiting on me" is the part of it this person may answer.
    */
-  // Whose work it is matters on any list holding more than one person's, and the sign-off queue is other
-  // people's work by definition — an advisor who answers for their own clients still reads proposals
-  // somebody else wrote.
+  // Whose work it is matters on any list holding more than one person's, and the queue is other people's
+  // work by definition — a relationship manager answering for their own clients is always reading
+  // something somebody else wrote.
   const showAdvisor = everyAdvisors || onMe;
   const shown: FilterOption<Tab>[] = TABS
-    .filter((one) => one.id !== WAITING_ON_ME || signsOff)
+    .filter((one) => one.id !== WAITING_ON_ME || answers)
     .map((one) => ({
       id: one.id,
       label: one.label,
       count: one.id === WAITING_ON_ME
-        ? (signsOff ? mineToAnswer.data?.totalItems : undefined)
+        ? (answers ? mineToAnswer.data?.totalItems : undefined)
         : countFor[one.id],
     }));
 
@@ -219,17 +209,11 @@ export function ProposalsPage() {
         cappedAt={cappedAt}
       />
 
-      {onMe && overdue > 0 && (
-        <Alert tone="warning">
-          {overdue === 1 ? "One proposal on this page has" : `${overdue} proposals on this page have`} been
-          waiting more than two days. Whoever can approve {overdue === 1 ? "it" : "them"} has been told once.
-        </Alert>
-      )}
       {onMe && yoursHere > 0 && (
         <Alert tone="info">
           {yoursHere === 1 ? "One of these is yours" : `${yoursHere} of these are yours`}, so somebody else
-          approves {yoursHere === 1 ? "it" : "them"}. You can read {yoursHere === 1 ? "it" : "them"}, but not
-          approve your own work.
+          answers {yoursHere === 1 ? "it" : "them"}. You can read {yoursHere === 1 ? "it" : "them"}, but not
+          answer your own.
         </Alert>
       )}
 
@@ -246,7 +230,7 @@ export function ProposalsPage() {
               <FilterMenu label="Proposals" value={tab} options={shown} onChange={changeTab} align="right" />
             </div>
             {/* The dates narrow what is listed; they say nothing about a queue of what is waiting on you,
-                and the sign-off queue is not asked for them. */}
+                and the queue is not asked for them. */}
             {!onMe && (
               <>
                 <label className="block">
@@ -310,9 +294,9 @@ export function ProposalsPage() {
                 {/* Only where the list holds more than one advisor's work. On a list that is all your
                     own, a column repeating your name down every row says nothing. */}
                 {showAdvisor && <th scope="col" className="px-4 py-3">Advisor</th>}
-                <th scope="col" className="px-4 py-3">{onMe ? "Waiting since" : "Sent"}</th>
+                <th scope="col" className="px-4 py-3">Sent</th>
                 <th scope="col" className="px-4 py-3">Value</th>
-                <th scope="col" className="px-4 py-3">Expiry</th>
+                <th scope="col" className="px-4 py-3">Standing</th>
                 <th scope="col" className="py-3 pr-5 pl-4">Status</th>
               </tr>
             </thead>
@@ -340,8 +324,8 @@ export function ProposalsPage() {
                 </tr>
               )}
               {rows.map((proposal) => (
-                // The row opens the proposal, the same as its name does. Opened from the sign-off queue it
-                // says so, which is how the proposal knows to offer the way back to it.
+                // The row opens the proposal, the same as its name does. Opened from the queue it says so,
+                // which is how the proposal knows to offer the way back to it.
                 <tr
                   key={proposal.id}
                   onClick={() => void navigate(`/proposals/${proposal.id}${onMe ? "?from=review" : ""}`)}
@@ -374,18 +358,13 @@ export function ProposalsPage() {
                     </td>
                   )}
                   <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                    {onMe
-                      // When it was sent for a sign-off. The draft may have been started long before, and
-                      // it has no sent date at all until somebody passes it.
-                      ? (proposal.submittedAt ? formatDate(proposal.submittedAt) : "—")
-                      : (proposal.sentAt ? formatDate(proposal.sentAt) : "—")}
-                    {onMe && proposal.signOffOverdue && <Badge tone="warning">Waiting too long</Badge>}
+                    {proposal.sentAt ? formatDate(proposal.sentAt) : "—"}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap tabular-nums">
                     {formatValue(proposal.valueAmount, proposal.valueCurrency)}
                   </td>
-                  <td className={`px-4 py-3 whitespace-nowrap ${proposal.expiringSoon ? "font-semibold text-amber-700" : "text-ink-soft"}`}>
-                    {expiryLabel(proposal.expiresAt, proposal.status as ProposalRowStatus, proposal.decidedAt)}
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
+                    {standingLabel(proposal.status as ProposalRowStatus, proposal.sentAt, proposal.decidedAt)}
                   </td>
                   <td className="py-3 pr-5 pl-4">
                     <Badge tone={proposalStatusTones[proposal.status as ProposalRowStatus]}>

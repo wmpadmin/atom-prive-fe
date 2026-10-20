@@ -186,8 +186,9 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            // Compliance and the Portfolio Manager read the firm's advice; writing it stays with whoever
-            // advises the client, which is why only the writing route below is closed to them.
+            // Four jobs reach this: whoever writes proposals, whoever answers them for their own
+            // clients, whoever answers for the firm, and Compliance, who oversee the advice and do
+            // neither. Writing is closed to all but the first, on the route below.
             element: <RequireAuthority authority={READS_PROPOSALS} />,
             children: [
               { path: "proposals", element: <Navigate to="/approvals?queue=proposals" replace /> },
@@ -252,19 +253,18 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            // Giving a sign-off is its own permission: whoever passes a proposal need not write any.
+            // Answering is its own permission: whoever answers a proposal writes none.
             element: <RequireAuthority authority={APPROVES_PROPOSALS} />,
-            // The sign-off queue is a view of the proposals list now, not a screen of its own. The
-            // address stays, because it is in people's history and in older notification links.
+            // The queue is a view of the proposals list now, not a screen of its own. The address stays,
+            // because it is in people's history and in older notification links.
             children: [{
               path: "manager-review",
               element: <Navigate to="/approvals?queue=proposals&tab=waitingOnMe" replace />,
             }],
           },
           {
-            // Started by whoever looks after the client. Holding proposals at full is not holding the
-            // clients, and a manager who wants that client's money moved has a door of their own for it.
-            // Held here as well as on the button, so the address cannot be typed into a refusal on save.
+            // Written by whoever reads the firm's whole book, and by nobody else. Held here as well as
+            // on the button, so the address cannot be typed into a refusal on save.
             element: <RequireAuthority authority={STARTS_PROPOSALS} />,
             children: [
               { path: "proposals/new", element: <ProposalPage /> },

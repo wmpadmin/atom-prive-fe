@@ -153,7 +153,7 @@ export function PortfolioSettingsPage() {
 
         <Panel
           title="Rebalancing rules"
-          says="Which holding to sell when a class is over-weight, and how small a trade is not worth raising. Drafting proposals from a model's rebalancing obeys both."
+          says="Which holding to sell when a class is over-weight, and how small a trade is not worth raising."
           takesEffect
         >
           <div className="grid gap-3 sm:grid-cols-2">
@@ -163,7 +163,7 @@ export function PortfolioSettingsPage() {
               hint={
                 held && !held.sellOrderActsYet
                   ? "Recorded, not yet obeyed anywhere."
-                  : "On Ask, bulk rebalancing refuses to draft rather than guessing for the firm."
+                  : "On Ask, nothing is raised without somebody choosing."
               }
               error={errors.fields.sellOrder}
             >
