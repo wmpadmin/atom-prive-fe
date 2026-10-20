@@ -2,6 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useCreateProposal,
   useGetProposal,
+  useListClientHoldings,
   useListMovesCarryingOut,
   listProposals,
   useListCurrencies,
@@ -12,6 +13,7 @@ import {
   useSignOffProposal,
   useSubmitProposal,
   useUpdateProposal,
+  type ClientHoldings,
   type Currency,
   type CustomerPage,
   type MovePlanRow,
@@ -28,10 +30,9 @@ import { useShowFirstError } from "../../lib/show-first-error";
 import { asFigure } from "../../lib/figures";
 import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
 import { ProposalsHeader } from "./proposals-header";
-import { ProposalLineEditor } from "./proposal-line-editor";
-import { EMPTY_LINE, linesFrom, type TypedLine } from "./proposal-line-values";
-import { ProposalAttachment } from "./proposal-attachment";
-import { ProposalLines } from "./proposal-lines";
+import { ProposalLegEditor } from "./proposal-leg-editor";
+import { destinations, EMPTY_LEG, legsFrom, sources, typedFrom, type TypedLeg } from "./proposal-leg-values";
+import { ProposalLegs } from "./proposal-legs";
 import { ProposalTrail } from "./proposal-trail";
 import { clientFileHref, hasAnyAuthority, hasAuthority, readsEveryAdvisors, STARTS_PROPOSALS } from "../../lib/permissions";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
@@ -47,16 +48,6 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** A saved proposal's lines, as the form holds them for editing. */
-function typedFrom(lines: ProposalDetail["lines"]): TypedLine[] {
-  return lines.map((line) => ({
-    asset: line.asset,
-    action: line.action,
-    amount: line.amount === null || line.amount === undefined ? "" : String(line.amount),
-    weightFrom: String(line.weightFrom),
-    weightTo: String(line.weightTo),
-  }));
-}
 
 /**
  * Writing a proposal, and reading one back (#86, #87, #88, #93). A draft can be edited and sent; once it has gone it
@@ -88,7 +79,10 @@ export function ProposalPage() {
   const [typedAmount, setTypedAmount] = useState<string | null>(null);
   const [chosenCurrency, setChosenCurrency] = useState<string | null>(null);
   const [typedObjective, setTypedObjective] = useState<string | null>(null);
-  const [typedLines, setTypedLines] = useState<TypedLine[] | null>(null);
+  const [typedLegs, setTypedLegs] = useState<TypedLeg[] | null>(null);
+  // Which client the legs are picked from, held rather than read off the form at save time: the pickers
+  // list that client's own allocation, so they have to change the moment the choice does.
+  const [chosenClient, setChosenClient] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
 
@@ -190,6 +184,12 @@ export function ProposalPage() {
   const clientAnswer = useRecordClientDecision<ApiError>({
     mutation: { onSuccess: () => answered("The client's answer is on the record."), onError },
   });
+  // A proposal stays with the client it was written for, so a saved one's pickers read from that client
+  // whatever the box says; a new one reads from whoever has just been chosen. Asked for up here with the
+  // other hooks, because the screen returns early while the proposal itself is still being read.
+  const forClient = detail.data?.summary.customerId ?? chosenClient;
+  const held = useListClientHoldings<ClientHoldings, ApiError>(forClient ?? "", undefined,
+    { query: { enabled: forClient !== null } });
 
   if (!writing && !detail.data) {
     return detail.isError ? (
@@ -204,7 +204,9 @@ export function ProposalPage() {
   const amount = typedAmount ?? (proposal?.summary.valueAmount == null ? "" : String(proposal.summary.valueAmount));
   const currency = chosenCurrency ?? proposal?.summary.valueCurrency ?? "USD";
   const objective = typedObjective ?? proposal?.objective ?? "";
-  const lines = typedLines ?? (proposal && proposal.lines.length > 0 ? typedFrom(proposal.lines) : [{ ...EMPTY_LINE }]);
+  const legs = typedLegs ?? (proposal && proposal.lines.length > 0 ? typedFrom(proposal.lines) : [{ ...EMPTY_LEG }]);
+  const outOf = sources(held.data);
+  const into = destinations(held.data);
   const status = (proposal?.summary.status ?? "DRAFT") as ProposalRowStatus;
   // A draft is only editable by whoever wrote it. Whoever oversees the firm's advice reads every proposal,
   // and the API answers their save with "doesn't exist" — so the form is not offered to them in the first
@@ -238,9 +240,8 @@ export function ProposalPage() {
       body: String(said.get("body")),
       valueAmount: figure ? Number(figure) : null,
       valueCurrency: currency.trim() || null,
-      affectedAccounts: String(said.get("affectedAccounts")).trim() || null,
       objective: objective.trim() || null,
-      lines: linesFrom(lines),
+      lines: legsFrom(legs, outOf),
     };
   }
 
@@ -407,9 +408,14 @@ export function ProposalPage() {
           <SelectInput
             {...describedBy("customerId", errors.fields.customerId)}
             name="customerId"
-            defaultValue={proposal?.summary.customerId ?? ""}
+            value={forClient ?? ""}
             disabled={!editable || noClients}
             required
+            onChange={(event) => {
+              setChosenClient(event.target.value);
+              // The legs named another client's lines, so they are not this client's to keep.
+              setTypedLegs(null);
+            }}
           >
             <option value="" disabled>
               {noClients ? "No clients are assigned to you" : "Choose a client"}
@@ -468,20 +474,35 @@ export function ProposalPage() {
 
         <fieldset>
           <legend className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            What you're proposing
+            What would move
           </legend>
           <p className="mt-1 text-xs text-ink-muted">
-            Holding by holding, so the client can see what moves and where it leaves them. A part-written line
-            is left out. Advisory only — nothing here is executed.
+            Out of one line of the portfolio and into another, picked from this client's own allocation. A
+            part-written leg is left out.
           </p>
           <div className="mt-2">
             {editable ? (
-              <ProposalLineEditor lines={lines} disabled={busy} onChange={setTypedLines} />
+              <ProposalLegEditor
+                legs={legs}
+                from={outOf}
+                into={into}
+                disabled={busy}
+                waiting={forClient === null
+                  ? "Choose a client first — the legs are picked from their own allocation."
+                  : held.isPending
+                    ? "Reading this client's allocation…"
+                    : outOf.length === 0
+                      ? "This client holds nothing yet, so there is nothing to move."
+                      : null}
+                onChange={setTypedLegs}
+              />
             ) : (
-              <ProposalLines lines={proposal?.lines ?? []} currency={proposal?.summary.valueCurrency ?? null} />
+              <ProposalLegs legs={proposal?.lines ?? []} currency={proposal?.summary.valueCurrency ?? null} />
             )}
           </div>
-          {errors.fields.lines && <p className="mt-1.5 text-xs text-red-600">{errors.fields.lines}</p>}
+          {(errors.fields.lines ?? errors.fields.amount) && (
+            <p className="mt-1.5 text-xs text-red-600">{errors.fields.lines ?? errors.fields.amount}</p>
+          )}
         </fieldset>
 
         <Field id="body" label="Rationale shown to the client" error={errors.fields.body}>
@@ -528,41 +549,14 @@ export function ProposalPage() {
           </Field>
         </div>
 
-        <Field
-          id="affectedAccounts"
-          label="Accounts this touches"
-          error={errors.fields.affectedAccounts}
-          hint="One per line. A proper checklist arrives with the bank accounts."
-        >
-          <textarea
-            {...describedBy("affectedAccounts", errors.fields.affectedAccounts)}
-            name="affectedAccounts"
-            defaultValue={proposal?.affectedAccounts ?? ""}
-            rows={3}
-            disabled={!editable}
-            placeholder={"Custody ••4410\nManaged ••2290"}
-            className="block w-full rounded-lg border border-line bg-slate-50 px-3 py-2 text-sm text-ink placeholder:text-slate-400 focus:border-primary-600 focus:ring-2 focus:ring-primary-600/15 focus:outline-none disabled:text-ink-soft"
-          />
-        </Field>
-
-        <ProposalAttachment
-          proposalId={proposalId ?? null}
-          attachment={proposal?.attachment ?? null}
-          editable={editable}
-          onChanged={() => void detail.refetch()}
-        />
-
           </>
         ) : (
           <>
-        {/* Sent, it is a record of advice given rather than something to fill in, so it reads as one. */}
+        {/* Sent, it is a record of what was asked for rather than something to fill in, so it reads as one. */}
         <section>
-          <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">What was proposed</h2>
-          <p className="mt-1 text-xs text-ink-muted">
-            Line-by-line changes shown to the client. Advisory only — no execution.
-          </p>
+          <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">What would move</h2>
           <div className="mt-3">
-            <ProposalLines lines={proposal!.lines} currency={proposal!.summary.valueCurrency} />
+            <ProposalLegs legs={proposal!.lines} currency={proposal!.summary.valueCurrency} />
           </div>
         </section>
 
@@ -572,23 +566,6 @@ export function ProposalPage() {
           </h2>
           <p className="mt-2 text-sm leading-6 whitespace-pre-line text-ink">{proposal!.body}</p>
         </section>
-
-        {proposal!.affectedAccounts && (
-          <section>
-            <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              Accounts this touches
-            </h2>
-            <p className="mt-2 text-sm leading-6 whitespace-pre-line text-ink">{proposal!.affectedAccounts}</p>
-          </section>
-        )}
-
-        {/* A manager signing one off reads all of it, so what came with it is here too, not only on the draft. */}
-        <ProposalAttachment
-          proposalId={proposalId ?? null}
-          attachment={proposal!.attachment}
-          editable={false}
-          onChanged={() => void detail.refetch()}
-        />
 
           </>
         )}

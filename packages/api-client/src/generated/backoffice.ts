@@ -239,37 +239,37 @@ export interface StillUsedRequest {
   stillUsed: boolean;
 }
 
-export type LineRequestAction = typeof LineRequestAction[keyof typeof LineRequestAction];
-
-
-export const LineRequestAction = {
-  REDUCE: 'REDUCE',
-  INCREASE: 'INCREASE',
-  HOLD: 'HOLD',
-} as const;
-
-export interface LineRequest {
+export interface MoveLegRequest {
+  fromAssetClass: string;
   /**
      * @minLength 0
-     * @maxLength 200
-     */
-  asset: string;
-  action: LineRequestAction;
-  /**
-     * @minimum 0
+     * @maxLength 120
      * @nullable
      */
-  amount: number | null;
+  fromSubClass: string | null;
   /**
-     * @minimum 0
-     * @maximum 100
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
      */
-  weightFrom: number;
+  fromSubSubClass: string | null;
+  toAssetClass: string;
   /**
-     * @minimum 0
-     * @maximum 100
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
      */
-  weightTo: number;
+  toSubClass: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  toSubSubClass: string | null;
+  /** @minimum 0 */
+  amount: number;
+  /** @nullable */
+  heldWhenRaised: number | null;
 }
 
 export interface ProposalRequest {
@@ -300,26 +300,15 @@ export interface ProposalRequest {
   valueCurrency: string | null;
   /**
      * @minLength 0
-     * @maxLength 2000
-     * @nullable
-     */
-  affectedAccounts: string | null;
-  /**
-     * @minLength 0
      * @maxLength 300
      * @nullable
      */
   objective: string | null;
-  /** @nullable */
-  lines: LineRequest[] | null;
-}
-
-export interface AttachmentView {
-  fileName: string;
-  contentType: string;
-  sizeBytes: number;
-  uploadedBy: string;
-  uploadedAt: string;
+  /**
+     * @minItems 1
+     * @maxItems 2147483647
+     */
+  lines: MoveLegRequest[];
 }
 
 export type ProposalRowStatus = typeof ProposalRowStatus[keyof typeof ProposalRowStatus];
@@ -377,9 +366,6 @@ export interface ProposalDetail {
   summary: ProposalRow;
   body: string;
   /** @nullable */
-  affectedAccounts: string | null;
-  attachment: AttachmentView | null;
-  /** @nullable */
   clientComment: string | null;
   /** @nullable */
   decidedAt: string | null;
@@ -387,7 +373,7 @@ export interface ProposalDetail {
   resentFromId: string | null;
   /** @nullable */
   objective: string | null;
-  lines: LineRequest[];
+  lines: MoveLegRequest[];
   /** @nullable */
   portfolioValue: number | null;
   /** @nullable */
@@ -542,39 +528,6 @@ export interface PreTradeLimitRow {
   updatedAt: string | null;
   /** @nullable */
   updatedBy: string | null;
-}
-
-export interface MoveLegRequest {
-  fromAssetClass: string;
-  /**
-     * @minLength 0
-     * @maxLength 120
-     * @nullable
-     */
-  fromSubClass: string | null;
-  /**
-     * @minLength 0
-     * @maxLength 120
-     * @nullable
-     */
-  fromSubSubClass: string | null;
-  toAssetClass: string;
-  /**
-     * @minLength 0
-     * @maxLength 120
-     * @nullable
-     */
-  toSubClass: string | null;
-  /**
-     * @minLength 0
-     * @maxLength 120
-     * @nullable
-     */
-  toSubSubClass: string | null;
-  /** @minimum 0 */
-  amount: number;
-  /** @nullable */
-  heldWhenRaised: number | null;
 }
 
 export interface MovePlanAsked {
@@ -1672,10 +1625,10 @@ export interface JsonNode {
   container?: boolean;
   floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
+  valueNode?: boolean;
+  missingNode?: boolean;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -3312,31 +3265,6 @@ export interface DecisionRequest {
      * @nullable
      */
   comment: string | null;
-}
-
-export interface BulkRebalanceRequest {
-  modelPortfolioId: string;
-  /**
-     * @minLength 0
-     * @maxLength 120
-     */
-  modelName: string;
-}
-
-export interface DraftedFor {
-  customerId: string;
-  clientName: string;
-  /** @nullable */
-  proposalId: string | null;
-  /** @nullable */
-  skipped: string | null;
-}
-
-export interface BulkDrafted {
-  modelPortfolioId: string;
-  modelName: string;
-  drafted: DraftedFor[];
-  skipped: DraftedFor[];
 }
 
 export interface MarkNoticeSentRequest {
@@ -6128,10 +6056,6 @@ export const ListProposalsStatus = {
   REJECTED: 'REJECTED',
   EXPIRED: 'EXPIRED',
 } as const;
-
-export type AttachToProposalBody = {
-  file: Blob | File;
-};
 
 export type ListModelChangesParams = {
 status?: ListModelChangesStatus;
@@ -14143,324 +14067,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordClientDecisionMutationOptions(options), queryClient);
-    }
-
-export const getOpenProposalAttachmentUrl = (id: string,) => {
-
-
-
-
-  return `/api/backoffice/proposals/${id}/attachment`
-}
-
-export const openProposalAttachment = async (id: string, options?: Parameters<typeof http>[1]): Promise<string> => {
-
-  return http<string>(getOpenProposalAttachmentUrl(id),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getOpenProposalAttachmentQueryKey = (id: string,) => {
-    return [
-    `/api/backoffice/proposals/${id}/attachment`
-    ] as const;
-    }
-
-
-export const getOpenProposalAttachmentQueryOptions = <TData = Awaited<ReturnType<typeof openProposalAttachment>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof openProposalAttachment>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getOpenProposalAttachmentQueryKey(id);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof openProposalAttachment>>> = ({ signal }) => openProposalAttachment(id, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof openProposalAttachment>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type OpenProposalAttachmentQueryResult = NonNullable<Awaited<ReturnType<typeof openProposalAttachment>>>
-export type OpenProposalAttachmentQueryError = unknown
-
-
-export function useOpenProposalAttachment<TData = Awaited<ReturnType<typeof openProposalAttachment>>, TError = unknown>(
- id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof openProposalAttachment>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof openProposalAttachment>>,
-          TError,
-          Awaited<ReturnType<typeof openProposalAttachment>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useOpenProposalAttachment<TData = Awaited<ReturnType<typeof openProposalAttachment>>, TError = unknown>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof openProposalAttachment>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof openProposalAttachment>>,
-          TError,
-          Awaited<ReturnType<typeof openProposalAttachment>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useOpenProposalAttachment<TData = Awaited<ReturnType<typeof openProposalAttachment>>, TError = unknown>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof openProposalAttachment>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useOpenProposalAttachment<TData = Awaited<ReturnType<typeof openProposalAttachment>>, TError = unknown>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof openProposalAttachment>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getOpenProposalAttachmentQueryOptions(id,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getAttachToProposalUrl = (id: string,) => {
-
-
-
-
-  return `/api/backoffice/proposals/${id}/attachment`
-}
-
-export const attachToProposal = async (id: string,
-    attachToProposalBody?: AttachToProposalBody, options?: Parameters<typeof http>[1]): Promise<ProposalDetail> => {
-    const formData = new FormData();
-if(attachToProposalBody?.file !== undefined) {
- formData.append(`file`, attachToProposalBody.file);
- }
-
-  return http<ProposalDetail>(getAttachToProposalUrl(id),
-  {
-    ...options,
-    method: 'POST'
-    ,
-    body: formData
-  }
-);}
-
-
-
-
-
-export const getAttachToProposalMutationKey = () => ['attachToProposal'] as const;
-
-export const getAttachToProposalMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof attachToProposal>>, TError,AttachToProposalMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof attachToProposal>>, TError,AttachToProposalMutationVariables, TContext> => {
-
-const mutationKey = getAttachToProposalMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof attachToProposal>>, AttachToProposalMutationVariables> = (props) => {
-          const {id,data} = props ?? {};
-
-          return  attachToProposal(id,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AttachToProposalMutationResult = NonNullable<Awaited<ReturnType<typeof attachToProposal>>>
-    export type AttachToProposalMutationBody = AttachToProposalBody | undefined
-    export type AttachToProposalMutationError = unknown
-    export type AttachToProposalMutationVariables = {id: string;data?: AttachToProposalBody}
-
-    export const useAttachToProposal = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof attachToProposal>>, TError,AttachToProposalMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof attachToProposal>>,
-        TError,
-        AttachToProposalMutationVariables,
-        TContext
-      > => {
-      return useMutation(getAttachToProposalMutationOptions(options), queryClient);
-    }
-
-export const getRemoveProposalAttachmentUrl = (id: string,) => {
-
-
-
-
-  return `/api/backoffice/proposals/${id}/attachment`
-}
-
-export const removeProposalAttachment = async (id: string, options?: Parameters<typeof http>[1]): Promise<ProposalDetail> => {
-
-  return http<ProposalDetail>(getRemoveProposalAttachmentUrl(id),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-
-
-
-export const getRemoveProposalAttachmentMutationKey = () => ['removeProposalAttachment'] as const;
-
-export const getRemoveProposalAttachmentMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeProposalAttachment>>, TError,RemoveProposalAttachmentMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof removeProposalAttachment>>, TError,RemoveProposalAttachmentMutationVariables, TContext> => {
-
-const mutationKey = getRemoveProposalAttachmentMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeProposalAttachment>>, RemoveProposalAttachmentMutationVariables> = (props) => {
-          const {id} = props ?? {};
-
-          return  removeProposalAttachment(id,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RemoveProposalAttachmentMutationResult = NonNullable<Awaited<ReturnType<typeof removeProposalAttachment>>>
-
-    export type RemoveProposalAttachmentMutationError = unknown
-    export type RemoveProposalAttachmentMutationVariables = {id: string}
-
-    export const useRemoveProposalAttachment = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeProposalAttachment>>, TError,RemoveProposalAttachmentMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof removeProposalAttachment>>,
-        TError,
-        RemoveProposalAttachmentMutationVariables,
-        TContext
-      > => {
-      return useMutation(getRemoveProposalAttachmentMutationOptions(options), queryClient);
-    }
-
-export const getDraftFromRebalancingUrl = () => {
-
-
-
-
-  return `/api/backoffice/proposals/from-rebalancing`
-}
-
-export const draftFromRebalancing = async (bulkRebalanceRequest: BulkRebalanceRequest, options?: Parameters<typeof http>[1]): Promise<BulkDrafted> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<BulkDrafted>(getDraftFromRebalancingUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(bulkRebalanceRequest)
-  }
-);}
-
-
-
-
-
-export const getDraftFromRebalancingMutationKey = () => ['draftFromRebalancing'] as const;
-
-export const getDraftFromRebalancingMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftFromRebalancing>>, TError,DraftFromRebalancingMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof draftFromRebalancing>>, TError,DraftFromRebalancingMutationVariables, TContext> => {
-
-const mutationKey = getDraftFromRebalancingMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof draftFromRebalancing>>, DraftFromRebalancingMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  draftFromRebalancing(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DraftFromRebalancingMutationResult = NonNullable<Awaited<ReturnType<typeof draftFromRebalancing>>>
-    export type DraftFromRebalancingMutationBody = BulkRebalanceRequest
-    export type DraftFromRebalancingMutationError = unknown
-    export type DraftFromRebalancingMutationVariables = {data: BulkRebalanceRequest}
-
-    export const useDraftFromRebalancing = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftFromRebalancing>>, TError,DraftFromRebalancingMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof draftFromRebalancing>>,
-        TError,
-        DraftFromRebalancingMutationVariables,
-        TContext
-      > => {
-      return useMutation(getDraftFromRebalancingMutationOptions(options), queryClient);
     }
 
 export const getMarkPostOnboardingNoticeSentUrl = (caseId: string,) => {

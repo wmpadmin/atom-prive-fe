@@ -1,18 +1,16 @@
 import { ApiError } from "@atomprive/api-client";
 import {
-  useDraftFromRebalancing,
   useListModelPortfolios,
   useListRebalancing,
   useRaiseTradeOrdersFromRebalancing,
   useRecordBulkRebalance,
-  type BulkDrafted,
   type BulkRebalancing,
   type ClientRebalance,
   type ModelsPage,
   type OrdersRaised,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, DateInput, Dialog, SelectInput, cn } from "@atomprive/ui";
-import { FileSignature, Receipt } from "lucide-react";
+import { Receipt } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -63,10 +61,6 @@ export function BulkRebalancingPage() {
       },
     },
   });
-  const [drafted, setDrafted] = useState<BulkDrafted | null>(null);
-  const draft = useDraftFromRebalancing<ApiError>({
-    mutation: { onSuccess: (result) => setDrafted(result) },
-  });
   const [raised, setRaised] = useState<OrdersRaised | null>(null);
   const orders = useRaiseTradeOrdersFromRebalancing<ApiError>({
     mutation: { onSuccess: (result) => setRaised(result) },
@@ -105,8 +99,6 @@ export function BulkRebalancingPage() {
             onChange={(event) => {
               setModelId(event.target.value);
               setChosen(new Set());
-              // What was drafted was drafted for the model that was showing, so it goes with it.
-              setDrafted(null);
               setRaised(null);
             }}
           >
@@ -161,20 +153,6 @@ export function BulkRebalancingPage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-end gap-3">
-                {/* Drafts, never a send: eighteen clients drifting the same way is still eighteen
-                    conversations, and one button that posted them all would be the platform giving advice. */}
-                <Button
-                  variant="secondary"
-                  disabled={draft.isPending}
-                  onClick={() =>
-                    draft.mutate({
-                      data: { modelPortfolioId: modelId, modelName: rebalancing.data!.modelName },
-                    })
-                  }
-                >
-                  <FileSignature aria-hidden="true" />
-                  {draft.isPending ? "Drafting…" : "Draft proposals"}
-                </Button>
                 {/* The same trades, as paper the dealing desk can act on — drafts, so each still goes past
                     Compliance. Whoever may not raise an order does not see the button. */}
                 {mayRaiseOrders && (
@@ -216,41 +194,6 @@ export function BulkRebalancingPage() {
                 </Button>
               </div>
             </div>
-
-            {/* The firm's own judgement is what makes a holding-by-holding plan possible; without it,
-                nothing is drafted. Shown as a refusal rather than a note: as a quiet yellow aside it read
-                like a standing warning about the page, and the button looked as though it had done
-                nothing at all. */}
-            {draft.isError && (
-              <div className="px-5 pt-4">
-                <Alert tone="danger">
-                  <span className="font-semibold">No proposals were drafted.</span> {draft.error.message}
-                </Alert>
-              </div>
-            )}
-
-            {drafted && (
-              <div className="space-y-2 px-5 pt-4">
-                <Alert tone="success">
-                  {drafted.drafted.length === 0
-                    ? "Nothing to draft."
-                    : `${drafted.drafted.length} draft${drafted.drafted.length === 1 ? "" : "s"} written. Nothing has been sent — each one is opened, read and sent by the client's own advisor.`}{" "}
-                  <Link to="/proposals" className="font-semibold underline">
-                    Open proposals
-                  </Link>
-                </Alert>
-                {/* Who was left out and why, so it is learnt here rather than from the drafts not being there. */}
-                {drafted.skipped.length > 0 && (
-                  <ul className="rounded-xl border border-line bg-slate-50/60 px-4 py-3 text-xs text-ink-soft">
-                    {drafted.skipped.map((one) => (
-                      <li key={one.customerId} className="py-0.5">
-                        <span className="font-medium">{one.clientName}</span> — {one.skipped}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
 
             {orders.isError && (
               <div className="px-5 pt-4">
