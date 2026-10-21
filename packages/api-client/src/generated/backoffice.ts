@@ -144,16 +144,6 @@ export const DeclarationCycleWantedCadence = {
 
 export interface DeclarationCycleWanted {
   cadence: DeclarationCycleWantedCadence;
-  /**
-     * @minimum 1
-     * @maximum 12
-     */
-  dueMonth: number;
-  /**
-     * @minimum 1
-     * @maximum 31
-     */
-  dueDay: number;
 }
 
 export type DeclarationCycleViewCadence = typeof DeclarationCycleViewCadence[keyof typeof DeclarationCycleViewCadence];
@@ -172,8 +162,6 @@ export const DeclarationCycleViewCadence = {
 export interface DeclarationCycleView {
   cadence: DeclarationCycleViewCadence;
   cadenceLabel: string;
-  dueMonth: number;
-  dueDay: number;
   said: string;
   setByTheFirm: boolean;
   asShipped: string;
@@ -1579,12 +1567,13 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1597,7 +1586,6 @@ export interface JsonNode {
   boolean?: boolean;
   binary?: boolean;
   floatingPointNumber?: boolean;
-  number?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
