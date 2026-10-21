@@ -35,6 +35,11 @@ export function isAsked(row: AskedRow, holdings?: ClientHoldings) {
   if (row.fromClass === "" || row.toClass === "" || !(Number(row.amount) > 0)) {
     return false;
   }
+  // Money moved to where it already is moves nothing. The same class on both ends is ordinary — most
+  // askings are between two lines of one class — but the same line is not an asking at all.
+  if (row.fromClass === row.toClass && row.fromSub === row.toSub && row.fromSubSub === row.toSubSub) {
+    return false;
+  }
   const out = row.fromSubSub !== "" ? "" : row.fromSub;
   const into = row.toSubSub !== "" ? "" : row.toSub;
   return !(row.fromSubSub === "" && broken(holdings, row.fromClass, out))
@@ -108,11 +113,19 @@ function insideOf(holdings: ClientHoldings | undefined, assetClass: string, sub:
     .filter((one): one is string => one !== null);
 }
 
-/** What the line the money is coming out of holds today, as a sentence for the box beside it. */
-function holds(holdings: ClientHoldings | undefined, row: AskedRow) {
-  const has = heldIn(holdings, row.fromClass, row.fromSub, row.fromSubSub);
-  if (has === null) {
+/**
+ * What the line at one end of a leg holds today.
+ *
+ * <p>Said under each end rather than once beside the amount, where it read as a figure about the row and
+ * left the reader to guess which of the two lines it was about.
+ */
+function holds(holdings: ClientHoldings | undefined, assetClass: string, sub: string, subSub: string) {
+  if (assetClass === "") {
     return undefined;
+  }
+  const has = heldIn(holdings, assetClass, sub, subSub);
+  if (has === null || has === 0) {
+    return "Nothing held here yet";
   }
   return `Holds ${has.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -198,6 +211,9 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
                     ))}
                   </SelectInput>
                 )}
+                <p className="text-xs text-ink-muted">
+                  {holds(holdings, row.fromClass, row.fromSub, row.fromSubSub)}
+                </p>
               </div>
             </Field>
             <Field id={`into-${at}`} label="Into">
@@ -224,7 +240,13 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
                     onChange={(event) => change(at, { toSub: event.target.value, toSubSub: "" })}
                   >
                     <option value="">Sub-asset</option>
-                    {subsOf(holdings, row.toClass, true).map((one) => (
+                    {/* Never the line the money is leaving. The same class on both ends is ordinary —
+                        most askings are between two lines of one class — but money sent to where it
+                        already is moves nothing, and the server says so rather than doing it. */}
+                    {subsOf(holdings, row.toClass, true)
+                      .filter((one) => !(row.toClass === row.fromClass && row.fromSubSub === ""
+                        && one === row.fromSub))
+                      .map((one) => (
                       <option key={one} value={one}>{one}</option>
                     ))}
                   </SelectInput>
@@ -237,21 +259,23 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
                     onChange={(event) => change(at, { toSubSub: event.target.value })}
                   >
                     <option value="">Line</option>
-                    {insideOf(holdings, row.toClass, row.toSub, true).map((one) => (
+                    {insideOf(holdings, row.toClass, row.toSub, true)
+                      .filter((one) => !(row.toClass === row.fromClass && row.toSub === row.fromSub
+                        && one === row.fromSubSub))
+                      .map((one) => (
                       <option key={one} value={one}>{one}</option>
                     ))}
                   </SelectInput>
                 )}
+                <p className="text-xs text-ink-muted">
+                  {holds(holdings, row.toClass, row.toSub, row.toSubSub)}
+                </p>
               </div>
             </Field>
             {/* What the chosen line holds, said beside the box rather than checked in it. The server
                 refuses an amount a line cannot give, and it is the only place that rule lives; saying the
                 figure here is what stops somebody meeting that refusal in the first place. */}
-            <Field
-              id={`amount-${at}`}
-              label={`Amount${holdings?.currency ? ` (${holdings.currency})` : ""}`}
-              hint={row.fromClass === "" ? undefined : holds(holdings, row)}
-            >
+            <Field id={`amount-${at}`} label={`Amount${holdings?.currency ? ` (${holdings.currency})` : ""}`}>
               <TextInput
                 id={`amount-${at}`}
                 inputMode="decimal"
