@@ -24,14 +24,26 @@ export const EMPTY_ROW: AskedRow = {
   fromClass: "", fromSub: "", fromSubSub: "", toClass: "", toSub: "", toSubSub: "", amount: "",
 };
 
-/** A row counts once it says where the money leaves, where it lands, and how much of it moves. */
-export function isAsked(row: AskedRow) {
-  return row.fromClass !== "" && row.toClass !== "" && Number(row.amount) > 0;
+/**
+ * A row counts once both ends name a place in its own right and an amount is written.
+ *
+ * <p>A class split into sub-assets is not such a place, and neither is a sub-asset split into lines: the
+ * money is in what is inside them. Sent anyway, the server refuses it — and a button that cannot work is
+ * worse than one that waits.
+ */
+export function isAsked(row: AskedRow, holdings?: ClientHoldings) {
+  if (row.fromClass === "" || row.toClass === "" || !(Number(row.amount) > 0)) {
+    return false;
+  }
+  const out = row.fromSubSub !== "" ? "" : row.fromSub;
+  const into = row.toSubSub !== "" ? "" : row.toSub;
+  return !(row.fromSubSub === "" && broken(holdings, row.fromClass, out))
+    && !(row.toSubSub === "" && broken(holdings, row.toClass, into));
 }
 
 /** The rows as the API takes them. */
 export function legsFromRows(rows: AskedRow[], holdings: ClientHoldings | undefined): MoveLegRequest[] {
-  return rows.filter(isAsked).map((row) => ({
+  return rows.filter((row) => isAsked(row, holdings)).map((row) => ({
     fromAssetClass: row.fromClass,
     fromSubClass: row.fromSub || null,
     fromSubSubClass: row.fromSubSub || null,
@@ -65,14 +77,18 @@ function heldIn(holdings: ClientHoldings | undefined, assetClass: string, sub: s
 }
 
 /**
- * The sub-assets a class is split into.
+ * The sub-assets a class is split into, as one end of a leg may name them.
  *
- * @param alsoUnheld whether to offer the ones the model names that the client holds nothing in. Money has
- * to be able to land somewhere it is not yet, or no asking could ever start a holding; it can only come
- * out of somewhere it already is.
+ * <p>Money comes out of somewhere it already is and may land somewhere it is not yet, so the two ends do
+ * not offer the same list: the source offers what the client holds, and the destination offers that plus
+ * the lines the model names them nothing in — otherwise a holding could never be started.
+ *
+ * <p>A sub-asset broken into lines is offered either way, but only as the way to those lines: its own
+ * money sits in them, so nothing can come out of it and nothing sent to it would sit anywhere.
  */
 function subsOf(holdings: ClientHoldings | undefined, assetClass: string, alsoUnheld: boolean) {
   const named = groupsOf(holdings, assetClass)
+    .filter((group) => group.inside.length > 0 || alsoUnheld || group.valueAmount > 0)
     .map((group) => group.subClass)
     .filter((one): one is string => one !== null);
   if (!alsoUnheld) {
@@ -83,11 +99,31 @@ function subsOf(holdings: ClientHoldings | undefined, assetClass: string, alsoUn
 }
 
 /** And the lines inside one of those, where the model goes that deep. Most sub-assets have none. */
-function insideOf(holdings: ClientHoldings | undefined, assetClass: string, sub: string) {
+function insideOf(holdings: ClientHoldings | undefined, assetClass: string, sub: string,
+    alsoUnheld: boolean) {
   const group = groupsOf(holdings, assetClass).find((one) => one.subClass === sub);
   return (group?.inside ?? [])
+    .filter((one) => alsoUnheld || one.valueAmount > 0)
     .map((one) => one.subSubClass)
     .filter((one): one is string => one !== null);
+}
+
+/** What the line the money is coming out of holds today, as a sentence for the box beside it. */
+function holds(holdings: ClientHoldings | undefined, row: AskedRow) {
+  const has = heldIn(holdings, row.fromClass, row.fromSub, row.fromSubSub);
+  if (has === null) {
+    return undefined;
+  }
+  return `Holds ${has.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Whether what has been chosen is a place in its own right, rather than the way to the places inside it. */
+function broken(holdings: ClientHoldings | undefined, assetClass: string, sub: string) {
+  if (sub === "") {
+    return groupsOf(holdings, assetClass).length > 0;
+  }
+  const group = groupsOf(holdings, assetClass).find((one) => one.subClass === sub);
+  return (group?.inside.length ?? 0) > 0;
 }
 
 /**
@@ -143,21 +179,21 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
                     disabled={disabled}
                     onChange={(event) => change(at, { fromSub: event.target.value, fromSubSub: "" })}
                   >
-                    <option value="">The whole class</option>
+                    <option value="">Sub-asset</option>
                     {subsOf(holdings, row.fromClass, false).map((one) => (
                       <option key={one} value={one}>{one}</option>
                     ))}
                   </SelectInput>
                 )}
-                {row.fromSub !== "" && insideOf(holdings, row.fromClass, row.fromSub).length > 0 && (
+                {row.fromSub !== "" && insideOf(holdings, row.fromClass, row.fromSub, false).length > 0 && (
                   <SelectInput
                     aria-label={`Line the money leaves on line ${at + 1}`}
                     value={row.fromSubSub}
                     disabled={disabled}
                     onChange={(event) => change(at, { fromSubSub: event.target.value })}
                   >
-                    <option value="">The whole sub-asset</option>
-                    {insideOf(holdings, row.fromClass, row.fromSub).map((one) => (
+                    <option value="">Line</option>
+                    {insideOf(holdings, row.fromClass, row.fromSub, false).map((one) => (
                       <option key={one} value={one}>{one}</option>
                     ))}
                   </SelectInput>
@@ -187,28 +223,35 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
                     disabled={disabled}
                     onChange={(event) => change(at, { toSub: event.target.value, toSubSub: "" })}
                   >
-                    <option value="">The whole class</option>
+                    <option value="">Sub-asset</option>
                     {subsOf(holdings, row.toClass, true).map((one) => (
                       <option key={one} value={one}>{one}</option>
                     ))}
                   </SelectInput>
                 )}
-                {row.toSub !== "" && insideOf(holdings, row.toClass, row.toSub).length > 0 && (
+                {row.toSub !== "" && insideOf(holdings, row.toClass, row.toSub, true).length > 0 && (
                   <SelectInput
                     aria-label={`Line the money goes to on line ${at + 1}`}
                     value={row.toSubSub}
                     disabled={disabled}
                     onChange={(event) => change(at, { toSubSub: event.target.value })}
                   >
-                    <option value="">The whole sub-asset</option>
-                    {insideOf(holdings, row.toClass, row.toSub).map((one) => (
+                    <option value="">Line</option>
+                    {insideOf(holdings, row.toClass, row.toSub, true).map((one) => (
                       <option key={one} value={one}>{one}</option>
                     ))}
                   </SelectInput>
                 )}
               </div>
             </Field>
-            <Field id={`amount-${at}`} label={`Amount${holdings?.currency ? ` (${holdings.currency})` : ""}`}>
+            {/* What the chosen line holds, said beside the box rather than checked in it. The server
+                refuses an amount a line cannot give, and it is the only place that rule lives; saying the
+                figure here is what stops somebody meeting that refusal in the first place. */}
+            <Field
+              id={`amount-${at}`}
+              label={`Amount${holdings?.currency ? ` (${holdings.currency})` : ""}`}
+              hint={row.fromClass === "" ? undefined : holds(holdings, row)}
+            >
               <TextInput
                 id={`amount-${at}`}
                 inputMode="decimal"
