@@ -1,130 +1,101 @@
 import type { ApiError } from "@atomprive/api-client";
 import {
-  useClearSchedule,
-  useListSchedules,
-  useSetSchedule,
-  type DeclarationScheduleRow,
-  type DeclarationSchedulePage,
-  type DeclarationScheduleRowCadence,
+  useCycle,
+  usePutTheCycleBack,
+  useSetCycle,
+  type DeclarationCycleView,
+  type DeclarationCycleViewCadence,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, Dialog, SelectInput, TextInput } from "@atomprive/ui";
 import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 
 /**
- * How often each declaration is wanted, in the firm's own words.
+ * How often the firm's declarations are wanted, in the firm's own words.
  *
- * <p>It was written into the code each one shipped with, so moving the Conflict of Interest form from
- * yearly to six-monthly was a release — a software change standing in front of a compliance calendar.
+ * <p>One cycle, for all of them. Each declaration used to carry its own — yearly on 31 January, quarterly,
+ * one on appointment, one once on joining — which was nine answers to one question and a compliance
+ * calendar nobody could hold in their head. The firm names a day, and everybody's fall due on it.
  *
  * <p>Opened from the register rather than from Configuration, because the permission that lets somebody
  * chase a declaration is the permission that lets them say how often it is wanted: the same people, on the
  * screen where they already notice that a cycle is wrong.
  */
-const CADENCES: { id: DeclarationScheduleRowCadence; label: string }[] = [
-  { id: "WEEKLY", label: "Weekly" },
+const CADENCES: { id: DeclarationCycleViewCadence; label: string }[] = [
   { id: "MONTHLY", label: "Monthly" },
   { id: "QUARTERLY", label: "Quarterly" },
   { id: "SIX_MONTHLY", label: "Six-monthly" },
-  { id: "ANNUAL", label: "Annual" },
-  { id: "ON_APPOINTMENT", label: "On appointment and on change" },
-  { id: "ON_JOINING", label: "One-off, on joining" },
+  { id: "ANNUAL", label: "Yearly" },
 ];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** Monday is 1, the way the server numbers them. */
-const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
-/** A cadence that comes round needs a day to come round on; one that does not has no day of its own. */
-function recurs(cadence: DeclarationScheduleRowCadence) {
-  return cadence !== "ON_APPOINTMENT" && cadence !== "ON_JOINING";
-}
-
-/**
- * Whether the day it is set to is a day of the week rather than a day of the year.
- *
- * <p>Weekly is the one cycle that does not take a month and a date: "the 31st, every week" is not a rule
- * anybody could follow. So the two boxes swap for one, and the server holds the two apart as well — a
- * weekly cycle has no day of the year, and nothing else has a day of the week.
- */
-function onAWeekday(cadence: DeclarationScheduleRowCadence) {
-  return cadence === "WEEKLY";
-}
-
 export function HowOftenDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const schedules = useListSchedules<DeclarationSchedulePage, ApiError>({ query: { enabled: open } });
-  const [editing, setEditing] = useState<string | null>(null);
+  const cycle = useCycle<DeclarationCycleView, ApiError>({ query: { enabled: open } });
+  const [editing, setEditing] = useState(false);
 
   return (
     <Dialog
       open={open}
       size="lg"
-      title="How often each declaration is wanted"
+      title="How often the declarations are wanted"
       description={
-        "Changing one takes effect at once, on everybody: nothing records the cycle a signature was given "
-        + "under, so a declaration moved from yearly to six-monthly moves every next-due date the firm holds."
+        "One cycle, for every declaration the firm asks its staff to sign. Changing it takes effect at "
+        + "once, on everybody: nothing records the cycle a signature was given under, so moving the firm "
+        + "from yearly to monthly moves every next-due date it holds."
       }
       onClose={onClose}
     >
-      {schedules.isError && <Alert tone="danger">{schedules.error.message}</Alert>}
-      {schedules.isPending ? (
-        <p className="text-sm text-ink-muted">Reading the firm's cycles…</p>
+      {cycle.isError && <Alert tone="danger">{cycle.error.message}</Alert>}
+      {cycle.isPending ? (
+        <p className="text-sm text-ink-muted">Reading the firm's cycle…</p>
+      ) : editing ? (
+        <TheCycle
+          now={cycle.data}
+          onDone={() => setEditing(false)}
+          onSaved={() => void cycle.refetch()}
+        />
       ) : (
-        <ul className="divide-y divide-line">
-          {(schedules.data?.items ?? []).map((row) => (
-            <li key={row.kind} className="py-4 first:pt-0">
-              {/* The list is what the row is read from, so a change that does not reach it is a change
-                  the reader cannot see happened. The server hands back the whole list on every write and
-                  react-query has no way to know that, so it is asked again. */}
-              {editing === row.kind ? (
-                <OneCycle
-                  row={row}
-                  onDone={() => setEditing(null)}
-                  onSaved={() => void schedules.refetch()}
-                />
-              ) : (
-                <AtRest
-                  row={row}
-                  onChange={() => setEditing(row.kind)}
-                  onCleared={() => void schedules.refetch()}
-                />
-              )}
-            </li>
-          ))}
-        </ul>
+        <AtRest
+          now={cycle.data}
+          onChange={() => setEditing(true)}
+          onPutBack={() => void cycle.refetch()}
+        />
       )}
     </Dialog>
   );
 }
 
-/** One row as it sits: what the cycle is, and whose answer that is. */
-function AtRest({ row, onChange, onCleared }: {
-  row: DeclarationScheduleRow;
+/** The cycle as it sits: what it is, and whose answer that is. */
+function AtRest({ now, onChange, onPutBack }: {
+  now: DeclarationCycleView | undefined;
   onChange: () => void;
-  onCleared: () => void;
+  onPutBack: () => void;
 }) {
-  const clear = useClearSchedule<ApiError>({ mutation: { onSuccess: onCleared } });
+  const back = usePutTheCycleBack<ApiError>({ mutation: { onSuccess: onPutBack } });
+  if (!now) {
+    return null;
+  }
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-ink">{row.title}</p>
-        <p className="mt-0.5 text-sm text-ink-muted">{row.schedule}</p>
+        <p className="text-sm font-semibold text-ink">Every declaration</p>
+        <p className="mt-0.5 text-sm text-ink-muted">{now.said}</p>
         {/* Whose answer it is, and what it would go back to. Somebody changing a cycle wants to know
             whether they are changing the firm's own decision or the one it arrived with. */}
-        {row.setByTheFirm && (
+        {now.setByTheFirm && (
           <p className="mt-0.5 text-xs text-ink-muted">
-            Set by {row.changedByName ?? "the firm"} · was {row.asShipped}
+            Set by {now.changedByName ?? "the firm"} · was {now.asShipped}
           </p>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        {row.setByTheFirm && (
+        {now.setByTheFirm && (
           <Button
             variant="secondary"
             size="sm"
-            disabled={clear.isPending}
-            onClick={() => clear.mutate({ kind: row.kind })}
+            disabled={back.isPending}
+            onClick={() => back.mutate()}
           >
             <RotateCcw aria-hidden="true" className="size-3.5" />
             Put back
@@ -138,13 +109,13 @@ function AtRest({ row, onChange, onCleared }: {
   );
 }
 
-/** One row being changed: how often, and by which day of the year. */
-function OneCycle({ row, onDone, onSaved }: {
-  row: DeclarationScheduleRow;
+/** Being changed: how often, and by which day of the year. */
+function TheCycle({ now, onDone, onSaved }: {
+  now: DeclarationCycleView | undefined;
   onDone: () => void;
   onSaved: () => void;
 }) {
-  const set = useSetSchedule<ApiError>({
+  const set = useSetCycle<ApiError>({
     mutation: {
       onSuccess: () => {
         onSaved();
@@ -152,41 +123,34 @@ function OneCycle({ row, onDone, onSaved }: {
       },
     },
   });
-  const [cadence, setCadence] = useState<DeclarationScheduleRowCadence>(row.cadence);
+  const [cadence, setCadence] = useState<DeclarationCycleViewCadence>(now?.cadence ?? "ANNUAL");
   // A day of the YEAR, not a day in one: "the 31st of January" is the rule, and 31 January 2026 is only
   // the first time it comes round. So it is a month and a day rather than a date picker.
-  const [month, setMonth] = useState(String(row.dueMonth ?? 1));
-  const [day, setDay] = useState(String(row.dueDay ?? 31));
-  const [weekday, setWeekday] = useState(String(row.dueWeekday ?? 1));
+  const [month, setMonth] = useState(String(now?.dueMonth ?? 1));
+  const [day, setDay] = useState(String(now?.dueDay ?? 31));
   const refused = set.isError ? set.error : null;
+  // A monthly cycle lands in every month, so the month it is anchored in decides nothing. Asked for on
+  // the others, where it decides which months the cycle falls in: quarterly from March is March, June,
+  // September, December.
+  const monthMatters = cadence !== "MONTHLY";
 
   return (
     <form
       className="space-y-3"
       onSubmit={(event) => {
         event.preventDefault();
-        set.mutate({
-          kind: row.kind,
-          data: {
-            cadence,
-            // The two kinds of day never travel together, which is what the server refuses to hold.
-            dueMonth: recurs(cadence) && !onAWeekday(cadence) ? Number(month) : null,
-            dueDay: recurs(cadence) && !onAWeekday(cadence) ? Number(day) : null,
-            dueWeekday: onAWeekday(cadence) ? Number(weekday) : null,
-          },
-        });
+        set.mutate({ data: { cadence, dueMonth: Number(month), dueDay: Number(day) } });
       }}
     >
-      <p className="text-sm font-semibold text-ink">{row.title}</p>
       <div className="flex flex-wrap items-end gap-3">
         <label className="block">
           <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             How often
           </span>
           <SelectInput
-            id={`cadence-${row.kind}`}
+            id="declaration-cadence"
             value={cadence}
-            onChange={(event) => setCadence(event.target.value as DeclarationScheduleRowCadence)}
+            onChange={(event) => setCadence(event.target.value as DeclarationCycleViewCadence)}
             className="w-56"
           >
             {CADENCES.map((one) => (
@@ -194,74 +158,44 @@ function OneCycle({ row, onDone, onSaved }: {
             ))}
           </SelectInput>
         </label>
-        {/* Only where it comes round. A day on a one-off is a day nobody would ever be asked for, and a
-            box somebody fills in that the server then ignores is a rule they believe is in force. */}
-        {onAWeekday(cadence) && (
+        {monthMatters && (
           <label className="block">
             <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              Day of the week
+              Month
             </span>
             <SelectInput
-              id={`weekday-${row.kind}`}
-              value={weekday}
-              onChange={(event) => setWeekday(event.target.value)}
-              className="w-36"
+              id="declaration-month"
+              value={month}
+              onChange={(event) => setMonth(event.target.value)}
+              className="w-28"
             >
-              {WEEKDAYS.map((name, at) => (
+              {MONTHS.map((name, at) => (
                 <option key={name} value={String(at + 1)}>{name}</option>
               ))}
             </SelectInput>
           </label>
         )}
-        {recurs(cadence) && !onAWeekday(cadence) && (
-          <>
-            <label className="block">
-              <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                Month
-              </span>
-              <SelectInput
-                id={`month-${row.kind}`}
-                value={month}
-                onChange={(event) => setMonth(event.target.value)}
-                className="w-28"
-              >
-                {MONTHS.map((name, at) => (
-                  <option key={name} value={String(at + 1)}>{name}</option>
-                ))}
-              </SelectInput>
-            </label>
-            <label className="block">
-              <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                Day
-              </span>
-              <TextInput
-                id={`day-${row.kind}`}
-                inputMode="numeric"
-                value={day}
-                onChange={(event) => setDay(event.target.value)}
-                className="w-20"
-              />
-            </label>
-          </>
-        )}
+        <label className="block">
+          <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Day
+          </span>
+          <TextInput
+            id="declaration-day"
+            inputMode="numeric"
+            value={day}
+            onChange={(event) => setDay(event.target.value)}
+            className="w-20"
+          />
+        </label>
       </div>
       {/* Said where it is chosen rather than only in the dialog's own blurb: the 31st, stepped quarterly,
           is the end of every quarter, and that is the whole reason the day is a day of the year. */}
-      {recurs(cadence) && !onAWeekday(cadence) && (
-        <p className="text-xs text-ink-muted">
-          A day the month is too short for falls on that month's last, so the 31st every three months is
-          the end of each quarter.
-        </p>
-      )}
-      {/* Said where it is chosen, because a week is a tight cycle and the rule surprises people: it is the
-          next such day AFTER the signature, the same as every other cycle here. Signed on the Wednesday,
-          a declaration due on Fridays is wanted again two days later. */}
-      {onAWeekday(cadence) && (
-        <p className="text-xs text-ink-muted">
-          Wanted again on the next {WEEKDAYS[Number(weekday) - 1] ?? "day"} after it is signed — which can
-          be a day or two later, for somebody who signs it late in the week.
-        </p>
-      )}
+      <p className="text-xs text-ink-muted">
+        {cadence === "MONTHLY"
+          ? "Every month, on that day — the last of the month where the month is too short for it."
+          : "A day the month is too short for falls on that month's last, so the 31st every three months "
+            + "is the end of each quarter."}
+      </p>
       {refused && <Alert tone="danger">{refused.message}</Alert>}
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={set.isPending}>
