@@ -1005,34 +1005,41 @@ function LineList({
           const named = line.name.trim();
           return (
             <li key={at}>
-              <div className="flex items-center gap-2">
+              {/* A grid rather than a row of floating controls, because the two ways of naming a line
+                  are different shapes: a box somebody types in sits beside a "Pick from the list" link,
+                  a dropdown has no link at all, and a dropdown's own wrapper is only as wide as the word
+                  inside it. Left to themselves they lined up at none of their edges and the percentages
+                  wandered across the card. Named columns put every name, every percentage and every bin
+                  under the one above it, at whatever depth the line sits. */}
+              <div className="grid grid-cols-[minmax(0,1fr)_7.25rem_6rem_7rem_1.75rem] items-center gap-2">
                 {/* Picked from the list, or written on purpose — never half way between. The firm keeps no
                     master list of sub-assets; the names live only inside the models somebody has written,
                     so those are offered and anything else has to be asked for by name. Left as a box to
                     type in, the same line went down three ways across three models and nothing joined them
                     up. */}
                 {line.written || (line.name !== "" && !offered.includes(line.name)) ? (
-                  <span className="flex min-w-0 flex-1 items-center gap-2">
+                  <>
                     <TextInput
                       aria-label={`Name of line ${at + 1} inside ${where}`}
                       placeholder="A name nobody has used yet"
-                      className="min-w-0 flex-1"
+                      className="min-w-0"
                       value={line.name}
                       onChange={(event) =>
                         change(at, (one) => ({ ...one, name: event.target.value, written: true }))}
                     />
                     <button
                       type="button"
-                      className="shrink-0 text-xs font-medium text-primary-700 hover:underline"
+                      className="text-left text-xs font-medium whitespace-nowrap text-primary-700 hover:underline"
                       onClick={() => change(at, (one) => ({ ...one, name: "", written: false }))}
                     >
                       Pick from the list
                     </button>
-                  </span>
+                  </>
                 ) : (
+                  <>
                   <SelectInput
                     aria-label={`Name of line ${at + 1} inside ${where}`}
-                    className="min-w-0 flex-1"
+                    className="min-w-0 w-full"
                     value={line.name}
                     onChange={(event) =>
                       change(at, (one) =>
@@ -1051,8 +1058,10 @@ function LineList({
                       ))}
                     <option value={WRITE_ONE}>Something else…</option>
                   </SelectInput>
+                  <span aria-hidden="true" />
+                  </>
                 )}
-                <div className="relative w-24 shrink-0">
+                <div className="relative">
                   <TextInput
                     aria-label={`Share of ${where} for line ${at + 1}`}
                     inputMode="decimal"
@@ -1070,14 +1079,14 @@ function LineList({
                 </div>
                 {/* The figure the rest of the platform actually measures against, beside the one being
                     typed: a share of a share is two sums away from it, and of a share of a share, three. */}
-                <span className="w-28 shrink-0 text-right text-xs whitespace-nowrap tabular-nums text-ink-muted">
+                <span className="text-right text-xs whitespace-nowrap tabular-nums text-ink-muted">
                   {ofAll === null ? "" : `= ${asPercent(ofAll)}% of all`}
                 </span>
                 <button
                   type="button"
                   aria-label={`Remove line ${at + 1} inside ${where}`}
                   onClick={() => set(lines.filter((_, which) => which !== at))}
-                  className="rounded p-1 text-ink-muted hover:text-rose-700"
+                  className="justify-self-end rounded p-1 text-ink-muted hover:text-rose-700"
                 >
                   <Trash2 aria-hidden="true" className="size-4" />
                 </button>
