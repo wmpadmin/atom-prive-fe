@@ -55,7 +55,6 @@ import { ResetPasswordPage } from "./pages/sign-in/reset-password-page";
 import { OnboardingCasePage } from "./pages/onboarding/onboarding-case-page";
 import { OnboardingListPage } from "./pages/onboarding/onboarding-list-page";
 import { PostOnboardingPage } from "./pages/onboarding/post-onboarding-page";
-import { BenchmarksPage } from "./pages/portfolios/benchmarks-page";
 import { ModelDetailPage } from "./pages/portfolios/model-detail-page";
 import { ModelRiskPage } from "./pages/portfolios/model-risk-page";
 import { ManagementInformationPage } from "./pages/portfolios/management-information-page";
@@ -336,7 +335,8 @@ export const router = createBrowserRouter([
               { path: "reports", element: <PortfolioReportsPage /> },
               { path: "mis", element: <ManagementInformationPage /> },
               { path: "portfolio-settings", element: <PortfolioSettingsPage /> },
-              { path: "benchmarks", element: <BenchmarksPage /> },
+              // Benchmarks are a panel on Portfolio settings now, with the rest of the portfolio rules.
+              { path: "benchmarks", element: <Navigate to="/portfolio-settings" replace /> },
               { path: "model-portfolios/:modelId", element: <ModelDetailPage /> },
             ],
           },
