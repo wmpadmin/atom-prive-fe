@@ -3,6 +3,7 @@ import { useListPacksToSign, type SignaturePackPage } from "@atomprive/api-clien
 import { Alert, Badge, Pagination, cn } from "@atomprive/ui";
 import { ChevronRight, FileSignature } from "lucide-react";
 import { useState } from "react";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { Link } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { packTones, whatIsLeft } from "./to-sign-labels";
@@ -14,8 +15,10 @@ import { packTones, whatIsLeft } from "./to-sign-labels";
 export function ToSignPage() {
   const [waiting, setWaiting] = useState(true);
   const [page, setPage] = useState(0);
+  // Offered rather than fixed, so this footer reads like every other one in the portal.
+  const [size, setSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const packs = useListPacksToSign<SignaturePackPage, ApiError>(
-    { waiting, page, size: 10 },
+    { waiting, page, size },
     { query: { placeholderData: (kept) => kept } },
   );
   const rows = packs.data?.items ?? [];
@@ -113,6 +116,11 @@ export function ToSignPage() {
           pageSize={packs.data.size}
           totalItems={packs.data.totalItems}
           onPageChange={setPage}
+          pageSizes={PAGE_SIZES}
+          onPageSizeChange={(next) => {
+            setSize(next);
+            setPage(0);
+          }}
           noun={["pack", "packs"]}
         />
       )}

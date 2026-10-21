@@ -41,8 +41,11 @@ export function sentLabel(sentAt: string | null) {
  * second relationship manager of a client would find the buttons gone with nothing saying who had been
  * there first.
  */
-export function answeredLabel(status: ProposalRowStatus, answeredByName: string | null, decidedAt: string | null) {
-  const said = status === "APPROVED" ? "Approved" : "Rejected";
+export function answeredLabel(status: ProposalRowStatus, answeredByName: string | null, decidedAt: string | null,
+  fromRebalance = false) {
+  // Agreed, not approved, where agreeing moved nothing. A rebalance says only what to sell; the money
+  // moves as the portfolio desk places it, so "approved" over one of these reads as work already done.
+  const said = status !== "APPROVED" ? "Rejected" : fromRebalance ? "Agreed" : "Approved";
   const who = `${said} by ${answeredByName ?? "their relationship manager"}`;
   return decidedAt ? `${who} on ${formatDate(decidedAt)}` : who;
 }
@@ -54,9 +57,13 @@ export function answeredLabel(status: ProposalRowStatus, answeredByName: string 
  * a proposal waits with its relationship manager until they answer it — so the column says how long it has
  * been waiting rather than how long is left.
  */
-export function standingLabel(status: ProposalRowStatus, sentAt: string | null, decidedAt: string | null) {
+export function standingLabel(status: ProposalRowStatus, sentAt: string | null, decidedAt: string | null,
+  fromRebalance = false, openForPlacing = false) {
   if (status === "APPROVED" || status === "REJECTED") {
-    const said = status === "APPROVED" ? "Approved" : "Rejected";
+    // A rebalance still being placed is not finished work, and a column that called it Approved put it
+    // beside proposals whose money had actually moved.
+    const said = status !== "APPROVED" ? "Rejected"
+      : openForPlacing ? "Being placed" : fromRebalance ? "Placed" : "Approved";
     return decidedAt ? `${said} ${formatDate(decidedAt)}` : said;
   }
   if (status === "DRAFT" || !sentAt) return "Not sent yet";

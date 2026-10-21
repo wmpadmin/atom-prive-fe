@@ -3,6 +3,7 @@ import { useListClientFiles, type CustomerPage } from "@atomprive/api-client/bac
 import { Alert, Badge, Pagination, TextInput } from "@atomprive/ui";
 import { ChevronRight, Search } from "lucide-react";
 import { useState } from "react";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { hasAnyAuthority, hasAuthority, UPLOADS_CLIENT_DOCUMENTS } from "../../lib/permissions";
@@ -21,6 +22,8 @@ import { formatDate } from "../../lib/labels";
 export function ClientDocumentsPage() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
+  // Offered rather than fixed, so this footer reads like every other one in the portal.
+  const [size, setSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const user = useStaffUser();
   // Three different jobs on one screen: Compliance add and decide, an advisor adds for their own clients,
   // Operations read every client's to service them and add to none.
@@ -30,7 +33,7 @@ export function ClientDocumentsPage() {
   // may act for is a client they can find. The All clients list answers a different question and narrows
   // a restricted client away from everybody but whoever runs the firm.
   const clients = useListClientFiles<CustomerPage, ApiError>(
-    { query: query.trim() || undefined, page, size: 10 },
+    { query: query.trim() || undefined, page, size },
     { query: { placeholderData: (held) => held } },
   );
   const rows = clients.data?.items ?? [];
@@ -109,6 +112,11 @@ export function ClientDocumentsPage() {
           pageSize={clients.data.size}
           totalItems={clients.data.totalItems}
           onPageChange={setPage}
+          pageSizes={PAGE_SIZES}
+          onPageSizeChange={(next) => {
+            setSize(next);
+            setPage(0);
+          }}
           noun={["client", "clients"]}
         />
       )}

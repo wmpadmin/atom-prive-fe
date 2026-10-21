@@ -11,15 +11,17 @@ import {
   type MovePlanQueue,
   type MovePlanRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, Field, FilterMenu, TextArea, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, Dialog, Field, TextArea, TextInput } from "@atomprive/ui";
 import { ChevronLeft } from "lucide-react";
 import { useState } from "react";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { useStaffUser } from "../../auth/session";
 import { formatDateTime } from "../../lib/labels";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { hasAnyAuthority, RAISES_CLIENT_REQUESTS } from "../../lib/permissions";
 import { ClientAskingRows, EMPTY_ROW, isAsked, legsFromRows, type AskedRow } from "./client-asking-rows";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
+import { QueueFilters } from "./queue-filters";
 import { AnswerDialog } from "./answer-dialog";
 import { exactly, figure, named } from "./money-words";
 import { QueueBar } from "./queue-bar";
@@ -32,12 +34,17 @@ import { QueueBar } from "./queue-bar";
  * as a decision would be reading it as the opposite of what it is.
  */
 const STATUS_TABS = [
+  // Everything first, because that is where a reader starts: a client's own asking moves the money as it
+  // is written down, so the list is a record rather than a queue.
+  { id: "all", label: "Everything" },
+  { id: "APPROVED", label: "Moved" },
+  // Nothing new arrives in either of these two. What is left waiting was raised before a client's asking
+  // moved the money by itself, and is still the portfolio manager's to finish — until one is answered,
+  // the client it is about cannot be written at all.
   { id: "PENDING", label: "Waiting for approval" },
   { id: "RETURNED", label: "Sent back" },
-  { id: "APPROVED", label: "Approved" },
   { id: "REJECTED", label: "Rejected" },
   { id: "WITHDRAWN", label: "Cancelled" },
-  { id: "all", label: "Everything" },
 ] as const;
 
 type StatusTab = (typeof STATUS_TABS)[number]["id"];
@@ -344,6 +351,9 @@ function WritingForAclient({ client, onDone, onClose }: {
   const [rows, setRows] = useState<AskedRow[]>([{ ...EMPTY_ROW }]);
   const [why, setWhy] = useState("");
   const [refused, setRefused] = useState<FormErrors>(noErrors);
+  // A press between a typed figure and the client's holdings. Nobody reads this after them, and there is
+  // no way back from a mistyped one.
+  const [confirming, setConfirming] = useState(false);
 
   const ask = useAskOnBehalfOfTheClient<ApiError>({
     mutation: {
@@ -357,6 +367,8 @@ function WritingForAclient({ client, onDone, onClose }: {
 
   const written = rows.filter((row) => isAsked(row, held.data));
   const ready = written.length > 0 && why.trim() !== "";
+  // What the confirm puts in front of them: the whole of what is about to move, as one figure.
+  const moving = written.reduce((sum, row) => sum + Number(row.amount), 0);
 
   return (
     <div className="space-y-5">
@@ -373,7 +385,7 @@ function WritingForAclient({ client, onDone, onClose }: {
           <div>
             <h2 className="text-lg font-semibold">What {client.name} asked for</h2>
             <p className="text-sm text-ink-muted">
-              {client.code} · Nothing moves until a portfolio manager agrees to it.
+              {client.code} · Writing one down moves the money: nobody else is asked.
             </p>
           </div>
           {/* Above what it is about, where somebody looking for it looks: under a portfolio this long it
@@ -400,7 +412,8 @@ function WritingForAclient({ client, onDone, onClose }: {
             }}
           />
           <Field id="why-the-client-asked" label="Why it should move" required
-            hint="Whoever answers is being asked about the reason, not the figures. They can see those.">
+            hint="What the client said, in their words. Nobody else is asked, so this is the record of why
+              the money moved.">
             <TextArea
               id="why-the-client-asked"
               rows={2}
@@ -423,30 +436,73 @@ function WritingForAclient({ client, onDone, onClose }: {
           )}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-ink-muted">
-              Nothing moves yet. This goes to the portfolio manager, and agreeing to it is what moves the
+              This is {client.name}'s own request, so nobody else is asked: writing it down moves the
               money.
             </p>
             <div className="flex gap-3">
               <Button variant="secondary" disabled={ask.isPending} onClick={() => setWriting(false)}>
                 Cancel
               </Button>
-              <Button
-                disabled={!ready || ask.isPending}
-                onClick={() => {
-                  setRefused(noErrors);
-                  ask.mutate({
-                    customerId: client.id,
-                    // Raised by hand, not carried out of a proposal: this is the client's own asking.
-                    data: { legs: legsFromRows(rows, held.data), why: why.trim(), fromProposalId: null },
-                  });
-                }}
-              >
-                {ask.isPending ? "Sending…" : "Send to the portfolio manager"}
+              {/* Asked once more, because this press is the last one before the money is gone. Not a
+                  second reader — the client already asked — but a second look by the person who typed
+                  the figures, at the figures they typed. */}
+              <Button disabled={!ready || ask.isPending} onClick={() => setConfirming(true)}>
+                {ask.isPending ? "Moving it…" : "Move it now"}
               </Button>
             </div>
           </div>
         </section>
       )}
+
+      <Dialog
+        open={confirming}
+        title={`Move ${exactly(moving, held.data?.currency ?? "USD")} for ${client.name}?`}
+        description={"This is the client's own request, so it moves as soon as you confirm it. Nobody "
+          + "else is asked, and it cannot be undone."}
+        onClose={() => setConfirming(false)}
+      >
+        <div className="space-y-4">
+          <ul className="divide-y divide-line rounded-xl border border-line">
+            {written.map((row, at) => (
+              <li key={at} className="flex items-baseline justify-between gap-4 px-3 py-2">
+                <span className="text-sm">
+                  {row.fromSubSub || row.fromSub || row.fromClass} →{" "}
+                  {row.toSubSub || row.toSub || row.toClass}
+                </span>
+                <span className="text-sm font-semibold tabular-nums">
+                  {exactly(Number(row.amount), held.data?.currency ?? "USD")}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div>
+            <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              What the client said
+            </p>
+            <p className="mt-1 text-sm">{why.trim()}</p>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" disabled={ask.isPending} onClick={() => setConfirming(false)}>
+              Go back
+            </Button>
+            <Button
+              disabled={ask.isPending}
+              onClick={() => {
+                setConfirming(false);
+                setRefused(noErrors);
+                ask.mutate({
+                  customerId: client.id,
+                  // Carrying out no proposal: this is the client's own asking, and agreeing to a proposal
+                  // is what moves money for one of those.
+                  data: { legs: legsFromRows(rows, held.data), why: why.trim(), fromProposalId: null },
+                });
+              }}
+            >
+              Move it now
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }
@@ -464,7 +520,17 @@ export function ClientRequestsPage() {
   const queue = useListClientRequests<MovePlanQueue, ApiError>({
     query: { refetchOnWindowFocus: true },
   });
-  const [status, setStatus] = useState<StatusTab>("PENDING");
+  // Everything, because nothing waits any more. A client's own asking moves the money as it is written
+  // down, so it lands answered — and opening on the waiting filter showed a request somebody had just
+  // made an empty screen, with the record of it one menu away and nothing saying so.
+  const [status, setStatus] = useState<StatusTab>("all");
+  /** The request being read, if one is open. The list is a table; a request is read inside it. */
+  const [opened, setOpened] = useState<string | null>(null);
+  /** Narrowed the same way the proposals beside this are: by client, by date, and read either way up. */
+  const [search, setSearch] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [newestFirst, setNewestFirst] = useState(true);
   /** The request being answered and which way, because all three answers are given in the same window. */
   const [deciding, setDeciding] = useState<{ row: MovePlanRow; how: Answer } | null>(null);
   const [note, setNote] = useState("");
@@ -496,16 +562,40 @@ export function ClientRequestsPage() {
     },
   });
 
-  if (queue.isError) {
-    return <Alert tone="danger">{queue.error.message}</Alert>;
-  }
-
   const waiting = queue.data?.waiting ?? [];
   const dealtWith = queue.data?.answered ?? [];
   // One list to filter, because a request is in exactly one state and the two the server sends are only
   // where it put them. Ordered waiting-first so "Everything" opens on what is still being asked.
   const everything = [...waiting, ...dealtWith];
-  const shown = status === "all" ? everything : everything.filter((row) => row.status === status);
+  const byStatus = status === "all" ? everything : everything.filter((row) => row.status === status);
+  // Matched on what the row actually shows: the client, their code, and what was asked. The whole list is
+  // here already — the server sends it in two pieces and this screen holds both — so it is narrowed here
+  // rather than asked for again.
+  const looking = search.trim().toLowerCase();
+  const matched = looking === "" ? byStatus : byStatus.filter((row) =>
+    row.clientName.toLowerCase().includes(looking)
+    || row.clientCode.toLowerCase().includes(looking)
+    || (row.why ?? "").toLowerCase().includes(looking));
+  // A date range people read as "up to and including", so the day asked for is counted whole.
+  const after = from === "" ? null : new Date(from).getTime();
+  const before = to === "" ? null : new Date(to).getTime() + 86_400_000;
+  const dated = matched.filter((row) => {
+    const when = new Date(row.raisedAt).getTime();
+    return (after === null || when >= after) && (before === null || when < before);
+  });
+  const shown = [...dated].sort((one, other) => {
+    const gap = new Date(other.raisedAt).getTime() - new Date(one.raisedAt).getTime();
+    return newestFirst ? gap : -gap;
+  });
+  // Read a page at a time, the same as the queue beside it. The server sends this one whole — it is two
+  // short lists, not a cursor — so the page is taken here rather than asked for.
+  const paged = usePagedRows(shown);
+
+  if (queue.isError) {
+    return <Alert tone="danger">{queue.error.message}</Alert>;
+  }
+
+  const reading = shown.find((row) => row.id === opened) ?? null;
 
   const busy = answer.isPending || sendBack.isPending;
   const failed = deciding?.how === "back"
@@ -537,50 +627,137 @@ export function ClientRequestsPage() {
 
   return (
     <div className="space-y-5">
+      <QueueFilters
+        search={search}
+        onSearch={(next) => {
+          setSearch(next);
+          setOpened(null);
+        }}
+        searchPlaceholder="Search by client or reason"
+        show={{
+          value: status,
+          options: STATUS_TABS.map((one) => ({
+            id: one.id,
+            label: one.label,
+            count: one.id === "all"
+              ? everything.length
+              : everything.filter((row) => row.status === one.id).length,
+          })),
+          onChange: setStatus,
+        }}
+        dated={{
+          verb: "Asked",
+          from,
+          to,
+          onFrom: (day) => { setFrom(day); setOpened(null); },
+          onTo: (day) => { setTo(day); setOpened(null); },
+        }}
+        newestFirst={newestFirst}
+        onNewestFirst={setNewestFirst}
+      >
+        {writes && (
+          <Button size="sm" onClick={() => setChoosing(true)}>
+            Create client request
+          </Button>
+        )}
+      </QueueFilters>
       <section className="rounded-2xl border border-line bg-white">
-        <QueueBar name="Client requests">
-          {writes && (
-            <Button size="sm" onClick={() => setChoosing(true)}>
-              Create client request
-            </Button>
-          )}
-          <FilterMenu
-            label="Requests"
-            value={status}
-            options={STATUS_TABS.map((one) => ({
-              id: one.id,
-              label: one.label,
-              count: one.id === "all"
-                ? everything.length
-                : everything.filter((row) => row.status === one.id).length,
-            }))}
-            onChange={setStatus}
-            align="right"
-          />
-        </QueueBar>
+        <QueueBar name="Client requests" />
+
         {queue.isPending ? (
           <p className="px-5 py-8 text-sm text-ink-muted">Reading the requests…</p>
         ) : shown.length === 0 ? (
           <p className="px-5 py-8 text-sm text-ink-muted">
             {status === "PENDING" ? "No client is waiting on you." : "Nothing here."}
           </p>
+        ) : reading !== null ? (
+          <div className="px-5 py-4">
+            <button
+              type="button"
+              onClick={() => setOpened(null)}
+              className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline"
+            >
+              <ChevronLeft aria-hidden="true" className="size-4" />
+              Back to client requests
+            </button>
+            <ClientRequest
+              row={reading}
+              mine={reading.raisedBy === user.id}
+              answering={busy}
+              refusal={refused[reading.id]}
+              onAnswer={(how) => {
+                setDeciding({ row: reading, how });
+                setNote("");
+              }}
+            />
+          </div>
         ) : (
-          <ul className="divide-y divide-line">
-            {shown.map((row) => (
-              <li key={row.id} className="px-5 py-4">
-                <ClientRequest
-                  row={row}
-                  mine={row.raisedBy === user.id}
-                  answering={busy}
-                  refusal={refused[row.id]}
-                  onAnswer={(how) => {
-                    setDeciding({ row, how });
-                    setNote("");
-                  }}
-                />
-              </li>
-            ))}
-          </ul>
+          /* A table, read the way the proposals beside it are read: a row a request, and the request
+             itself opened from it. Written out in full down the list it was a page of tables — six
+             requests meant six headed grids of legs, and finding one meant scrolling past the others. */
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed text-sm">
+              <colgroup>
+                <col className="w-[22%]" />
+                <col className="w-[30%]" />
+                <col className="w-[14%]" />
+                <col className="w-[18%]" />
+                <col className="w-[16%]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  <th scope="col" className="py-3 pr-4 pl-5">Client</th>
+                  <th scope="col" className="px-4 py-3">What they asked for</th>
+                  <th scope="col" className="px-4 py-3 text-right">Amount</th>
+                  <th scope="col" className="px-4 py-3">Asked by</th>
+                  <th scope="col" className="py-3 pr-5 pl-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {paged.shown.map((row) => (
+                  <tr
+                    key={row.id}
+                    onClick={() => setOpened(row.id)}
+                    className="cursor-pointer hover:bg-slate-50/60"
+                  >
+                    <th scope="row" className="py-3 pr-4 pl-5 text-left font-normal">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={row.clientName} />
+                        <div className="min-w-0">
+                          <span className="block truncate font-medium">{row.clientName}</span>
+                          <span className="block font-mono text-xs text-ink-muted">{row.clientCode}</span>
+                        </div>
+                      </div>
+                    </th>
+                    <td className="px-4 py-3">
+                      <span className="block truncate">{row.why}</span>
+                      <span className="block truncate text-xs text-ink-muted">
+                        {row.legs.length === 1
+                          ? `Out of ${named(row.legs[0].fromSubClass, row.legs[0].fromAssetClass,
+                              row.legs[0].fromSubSubClass)}`
+                          : `${row.legs.length} lines`}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                      {row.currency} {figure(row.amount)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="block truncate">{row.raisedByName}</span>
+                      <span className="block text-xs text-ink-muted">{formatDateTime(row.raisedAt)}</span>
+                    </td>
+                    <td className="py-3 pr-5 pl-4">
+                      <Badge tone={TONES[row.status]}>{row.statusSaid}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {/* Under the list and not under an open request: a reader who has opened one is reading that,
+            and the count of the list behind it is not what they are looking at. */}
+        {!queue.isPending && reading === null && shown.length > 0 && (
+          <PagedFooter paged={paged} noun={["request", "requests"]} />
         )}
       </section>
 

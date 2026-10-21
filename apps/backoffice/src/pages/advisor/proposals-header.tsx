@@ -1,16 +1,18 @@
 import { Alert, Button, TextInput } from "@atomprive/ui";
 import { Download, Plus, Search } from "lucide-react";
 import { Link } from "react-router";
-import { useStaffUser } from "../../auth/session";
-import { readsEveryAdvisors } from "../../lib/permissions";
+import { QueueActions } from "../../components/queue-actions";
 
 /**
- * The top of the proposals screen: what it is, what can be done from it, and the box that searches it.
+ * The top of the proposals screen: what it is and what can be done from it.
  *
  * <p>Named for the thing and not for a direction. "Sent" was true for an advisor, who sends what is on
  * this list, and false for whoever reads every advisor's — and flatly confusing for somebody holding
- * both roles, who sends some of these and oversees the rest. The subtitle below says whose they are,
- * which is the question a direction was standing in for.
+ * both roles, who sends some of these and oversees the rest.
+ *
+ * <p>No line of its own saying whose proposals these are. It said what the screen already says: the tab
+ * that opened it is named, the card below is named, and every row carries the advisor who wrote it — so
+ * the sentence was a third naming, set above the filter row it had nothing to do with.
  *
  * <p>It sits above an open proposal as well as above the list, so opening one never loses the way back to
  * everything else — the screen is the list, and a proposal is read within it.
@@ -27,8 +29,16 @@ export function ProposalsHeader({
 }: {
   /** Whoever cannot write a proposal is not offered the button that starts one. */
   writes: boolean;
-  search: string;
-  onSearch: (value: string) => void;
+  /**
+   * The box that searches the list, where this header stands above an open proposal rather than above the
+   * list itself.
+   *
+   * <p>Left out above the list, where the search sits in the filter row with everything else that narrows
+   * it — one row, the same row every other queue draws, rather than a box of its own floating a strip of
+   * page above the controls it belongs with.
+   */
+  search?: string;
+  onSearch?: (value: string) => void;
   onExport: () => void;
   exporting: boolean;
   canExport: boolean;
@@ -48,35 +58,26 @@ export function ProposalsHeader({
    */
   reading?: boolean;
 }) {
-  // Whose proposals this list actually answers with. One reading of it, shared with the list below, which
-  // asked the other question — may you write one — and so told somebody reading the whole firm's empty
-  // list that they had not written a proposal yet.
-  const wholeBook = readsEveryAdvisors(useStaffUser());
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          {/* Whose they are, which the screen above cannot say: it is this reader's own answer, not the
-              queue's. The queue's own masthead sits above the tabs. */}
-          <p className="text-sm font-semibold text-ink">
-            {wholeBook ? "Every proposal the firm has written." : "Proposals written for your clients."}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" disabled={exporting || !canExport} onClick={onExport}>
-            <Download aria-hidden="true" />
-            {exporting ? (reading ? "Preparing…" : "Exporting…") : reading ? "Download PDF" : "Export"}
-          </Button>
-          {writes && !reading && (
-            <Link to="/proposals/new">
-              <Button>
-                <Plus aria-hidden="true" />
-                New proposal
-              </Button>
-            </Link>
-          )}
-        </div>
-      </div>
+    // No box of its own. Above a list the buttons go up to the screen's heading row, where there was room
+    // for them, and what is left here is the alert and the search — each spaced by whatever holds them.
+    <>
+      {/* Only what can be done, at the end of the row. There is nothing on the left of it to justify
+          against any more, so the row ends at the right edge rather than spanning a width of nothing. */}
+      <QueueActions className="flex flex-wrap items-center justify-end gap-2">
+        <Button variant="secondary" disabled={exporting || !canExport} onClick={onExport}>
+          <Download aria-hidden="true" />
+          {exporting ? (reading ? "Preparing…" : "Exporting…") : reading ? "Download PDF" : "Export"}
+        </Button>
+        {writes && !reading && (
+          <Link to="/proposals/new">
+            <Button>
+              <Plus aria-hidden="true" />
+              New proposal
+            </Button>
+          </Link>
+        )}
+      </QueueActions>
 
       {cappedAt && (
         <Alert tone="warning">
@@ -86,19 +87,21 @@ export function ProposalsHeader({
         </Alert>
       )}
 
-      <label className="relative block max-w-md">
-        <span className="sr-only">Search proposals</span>
-        <Search
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
-        />
-        <TextInput
-          value={search}
-          placeholder="Search by proposal, reference or client"
-          className="pl-9"
-          onChange={(event) => onSearch(event.target.value)}
-        />
-      </label>
-    </div>
+      {onSearch && (
+        <label className="relative block max-w-md">
+          <span className="sr-only">Search proposals</span>
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
+          />
+          <TextInput
+            value={search ?? ""}
+            placeholder="Search by proposal, reference or client"
+            className="pl-9"
+            onChange={(event) => onSearch(event.target.value)}
+          />
+        </label>
+      )}
+    </>
   );
 }

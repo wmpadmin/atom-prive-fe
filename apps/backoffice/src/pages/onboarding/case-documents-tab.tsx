@@ -11,6 +11,7 @@ import { Alert, Badge, Button, cn, DateInput, Dialog, Field } from "@atomprive/u
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { DueDate, Mark } from "../forms/checklist-parts";
 import { formStatus, progressLine, stillBeingFilledIn } from "../forms/form-labels";
 import { categoryLabels, categoryOf, dueLabel } from "./case-category";
@@ -51,6 +52,11 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
   const open = useStartForm<ApiError>();
   const refresh = () => queryClient.invalidateQueries({ queryKey: getListCaseFormsQueryKey(caseId) });
 
+  // Read above the return below, because usePagedRows is a hook and a hook cannot be called on only some of
+  // a component's renders — and this one returns early for a case with no client to hold forms.
+  const rows = forms.data ?? [];
+  const paged = usePagedRows(rows);
+
   if (!detail.summary.submitted || !client) {
     return (
       <Alert tone="info">
@@ -59,7 +65,8 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
     );
   }
 
-  const rows = forms.data ?? [];
+  // Counted over the whole pack and not the page: how far the checklist has got is the same answer
+  // whichever page of it is open, and so is which forms are waiting to be sent.
   const done = rows.filter((form) => form.status === "SUBMITTED").length;
   const sendable = rows.filter(readyToSend);
   const picked = sendable.filter((form) => chosen.includes(form.kind));
@@ -139,7 +146,7 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
                 </td>
               </tr>
             )}
-            {rows.map((form) => {
+            {paged.shown.map((form) => {
               const due = dueLabel(form.dueOn, form.submittedAt);
               const waiting = form.status === "WAITING_ON_CLIENT";
               const openRow = actionOf(form);
@@ -229,6 +236,10 @@ export function CaseDocumentsTab({ detail, canChange }: { detail: CaseDetail; ca
           </tbody>
         </table>
       </div>
+      {/* Outside the scrolling box, so the way through the pack does not slide sideways with the columns.
+          Above the send bar, which still counts every form chosen across the whole pack rather than the
+          ones on this page. */}
+      {rows.length > 0 && <PagedFooter paged={paged} noun={["form", "forms"]} />}
 
       {canChange && (
         <SendToSignBar

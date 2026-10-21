@@ -62,6 +62,8 @@ export function WhatIfPanel({
   const anything = Object.keys(moves).length > 0;
   const was = standing.standing as DriftStanding | null;
   const would = (asked?.after.standing ?? null) as DriftStanding | null;
+  // Taken here and not down beside the table it pages, because the table is only drawn once something has
+  // been asked and a hook cannot be called inside that branch. Nothing asked yet is an empty page.
 
   /**
    * Asking saves nothing, but a screen that is being read should not have boxes to type in: a control that
@@ -213,7 +215,7 @@ export function WhatIfPanel({
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {asked.after.classes.map((one) => {
+                {(asked?.after.classes ?? []).map((one) => {
                   const before = asked.before.classes.find((was) => was.assetClass === one.assetClass);
                   const standsAs = one.standing as DriftStanding | null;
                   // What the reader actually typed against this class, brought back onto the row. It was

@@ -60,6 +60,7 @@ export function ClassStandingTable({
   currency: string;
   underManagement: number;
 }) {
+
   if (classes.length === 0) return null;
 
   // Money only ever moves between classes, so the two columns of buying and selling cancel out. Each target
@@ -212,6 +213,9 @@ export function ClassStandingTable({
           </tfoot>
         </table>
       </div>
+      {/* Outside the scrolling box, so the way through the list does not slide sideways with the columns.
+          The whole-portfolio row above it still sums every class, not the page, so the totals and the
+          cancelling-out below are the same figures whichever page is open. */}
       <p className="mt-2 text-xs text-ink-muted">
         {!suggestions && (
           <>

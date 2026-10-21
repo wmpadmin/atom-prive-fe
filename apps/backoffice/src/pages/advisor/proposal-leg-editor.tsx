@@ -1,6 +1,7 @@
 import { Button, SelectInput, TextInput } from "@atomprive/ui";
 import { Plus, X } from "lucide-react";
 import { asFigure } from "../../lib/figures";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { figure } from "../portfolios/money-words";
 import { EMPTY_LEG, type Choice, type TypedLeg } from "./proposal-leg-values";
 
@@ -38,6 +39,13 @@ export function ProposalLegEditor({
   const change = (at: number, part: Partial<TypedLeg>) =>
     onChange(legs.map((leg, index) => (index === at ? { ...leg, ...part } : leg)));
 
+  // Each row keeps its place in the whole list, because the pickers, the labels read out on them and the
+  // remove button all act on that index — numbered off a page instead, page two would edit page one's legs.
+  const numbered = legs.map((leg, at) => ({ leg, at }));
+  // Asked for above the waiting case below, because which page a reader is on is held in a hook, and a hook
+  // reached on one render and skipped on the next loses track of which state is its own.
+  const paged = usePagedRows(numbered);
+
   if (waiting !== null) {
     return <p className="text-sm text-ink-muted">{waiting}</p>;
   }
@@ -63,7 +71,7 @@ export function ProposalLegEditor({
             </tr>
           </thead>
           <tbody>
-            {legs.map((leg, at) => (
+            {paged.shown.map(({ leg, at }) => (
               <tr key={at}>
                 <td className="pr-3 pb-2">
                   <SelectInput
@@ -122,12 +130,19 @@ export function ProposalLegEditor({
           </tbody>
         </table>
       </div>
+      {/* Outside the box the table scrolls in, and above Add a leg: it counts the legs already written. */}
+      <PagedFooter paged={paged} noun={["leg", "legs"]} />
       <Button
         variant="secondary"
         size="sm"
         type="button"
         disabled={disabled}
-        onClick={() => onChange([...legs, { ...EMPTY_LEG }])}
+        // Follow the new leg on to whatever page it lands on. Left where it was, a leg added to a list
+        // already a page long dropped out of sight and read as a press that did nothing.
+        onClick={() => {
+          onChange([...legs, { ...EMPTY_LEG }]);
+          paged.onPage(paged.pageOf(legs.length));
+        }}
       >
         <Plus aria-hidden="true" />
         Add a leg

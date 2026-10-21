@@ -18,6 +18,7 @@ import { useState, type FormEvent } from "react";
 import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { NotAsked, ReportFields } from "./report-fields";
 import { saveApiFile } from "../../lib/download";
 import { ReportSchedules } from "./report-schedules";
@@ -40,10 +41,9 @@ const KINDS: { kind: Kind; title: string; answers: string }[] = [
   { kind: "HOLDINGS", title: "Holdings", answers: "Every individual holding, one per line, with who issued it, which country it is in and its credit rating." },
   { kind: "DRIFT_HISTORY", title: "Drift history", answers: "What each portfolio was worth on every day somebody wrote the holdings down, and how the money was split between classes on that day." },
   { kind: "MODEL_PERFORMANCE", title: "Model performance", answers: "How each model has performed, the same figures the Model performance screen shows." },
-  { kind: "TRADE_ORDERS", title: "Trade orders", answers: "Every trade order in the dates you pick, with who raised it, who passed it at Compliance, and when the money changed hands." },
 ];
 
-/** Nothing was traded tomorrow, and the firm's record does not go back twenty years. */
+/** Nothing happened tomorrow, and the firm's record does not go back twenty years. */
 function today() {
   const day = new Date();
   return new Date(day.getFullYear(), day.getMonth(), day.getDate());
@@ -54,8 +54,14 @@ function yearsAgo(years: number) {
   return new Date(day.getFullYear() - years, day.getMonth(), day.getDate());
 }
 
-/** The reports read by date. Only the record of what was traded is a period rather than a position. */
-const OVER_A_PERIOD: Kind[] = ["TRADE_ORDERS"];
+/**
+ * The reports read by date rather than as a position.
+ *
+ * <p>None of them. The one that was is gone with the blotter it read: bulk rebalancing asks the client's
+ * manager now instead of raising orders, so there are no orders to list over a period. Kept as a list
+ * rather than deleted, because a report read over a stretch is a thing the firm will want again.
+ */
+const OVER_A_PERIOD: Kind[] = [];
 
 /**
  * Reports produced from what the platform holds, and the record of every one that has been.
@@ -119,6 +125,8 @@ export function PortfolioReportsPage() {
   }
 
   const rows = reports.data?.items ?? [];
+  // The record comes back whole rather than a page at a time, so the page is taken here.
+  const paged = usePagedRows(rows);
   const chosen = KINDS.find((one) => one.kind === kind);
   const overAperiod = OVER_A_PERIOD.includes(kind);
 
@@ -264,71 +272,78 @@ The firm's own portfolio review is not here yet. It is written in a template the
         models={models.data?.items ?? []}
       />
 
-      <section className="overflow-x-auto rounded-2xl border border-line bg-white">
+      <section className="rounded-2xl border border-line bg-white">
         <h2 className="px-5 pt-5 text-base font-bold">Reports already made</h2>
-        <table className="mt-3 min-w-full text-sm">
-          <thead>
-            <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              <th scope="col" className="py-3 pr-4 pl-5">Report</th>
-              <th scope="col" className="px-4 py-3">Who it covered</th>
-              <th scope="col" className="px-4 py-3">File type</th>
-              <th scope="col" className="px-4 py-3 text-right">Lines</th>
-              <th scope="col" className="px-4 py-3">Made by</th>
-              <th scope="col" className="px-4 py-3">Made how</th>
-              <th scope="col" className="py-3 pr-5 pl-4">
-                <span className="sr-only">Download</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {reports.isPending && (
-              <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">Looking for reports…</td>
+        {/* The sideways scroll is its own box so that the footer below sits still while a table wider
+            than the card is dragged across. */}
+        <div className="mt-3 overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                <th scope="col" className="py-3 pr-4 pl-5">Report</th>
+                <th scope="col" className="px-4 py-3">Who it covered</th>
+                <th scope="col" className="px-4 py-3">File type</th>
+                <th scope="col" className="px-4 py-3 text-right">Lines</th>
+                <th scope="col" className="px-4 py-3">Made by</th>
+                <th scope="col" className="px-4 py-3">Made how</th>
+                <th scope="col" className="py-3 pr-5 pl-4">
+                  <span className="sr-only">Download</span>
+                </th>
               </tr>
-            )}
-            {reports.data && rows.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">
-                  No reports made yet. Make one above and it appears here.
-                </td>
-              </tr>
-            )}
-            {rows.map((row) => (
-              <tr key={row.id} className="hover:bg-slate-50/60">
-                <td className="py-3 pr-4 pl-5 font-semibold">{row.title}</td>
-                <td className="px-4 py-3 text-ink-soft">{row.scopeLabel}</td>
-                <td className="px-4 py-3">
-                  <Badge tone="neutral">{row.format}</Badge>
-                </td>
-                <td
-                  className={cn(
-                    "px-4 py-3 text-right tabular-nums",
-                    // A report that came to nothing is worth noticing rather than downloading to find out.
-                    row.lineCount === 0 ? "text-amber-700" : "text-ink-soft",
-                  )}
-                >
-                  {row.lineCount}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                  {row.producedBy ?? "System"}
-                  <span className="block text-xs text-ink-muted">{formatDateTime(row.producedAt)}</span>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{row.schedule}</td>
-                <td className="py-3 pr-5 pl-4 text-right">
-                  <button
-                    type="button"
-                    onClick={() => void take(row)}
-                    disabled={taking === row.id}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 hover:underline disabled:text-ink-muted"
+            </thead>
+            <tbody className="divide-y divide-line">
+              {reports.isPending && (
+                <tr>
+                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">Looking for reports…</td>
+                </tr>
+              )}
+              {reports.data && rows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">
+                    No reports made yet. Make one above and it appears here.
+                  </td>
+                </tr>
+              )}
+              {paged.shown.map((row) => (
+                <tr key={row.id} className="hover:bg-slate-50/60">
+                  <td className="py-3 pr-4 pl-5 font-semibold">{row.title}</td>
+                  <td className="px-4 py-3 text-ink-soft">{row.scopeLabel}</td>
+                  <td className="px-4 py-3">
+                    <Badge tone="neutral">{row.format}</Badge>
+                  </td>
+                  <td
+                    className={cn(
+                      "px-4 py-3 text-right tabular-nums",
+                      // A report that came to nothing is worth noticing rather than downloading to find out.
+                      row.lineCount === 0 ? "text-amber-700" : "text-ink-soft",
+                    )}
                   >
-                    <Download aria-hidden="true" className="size-3.5" />
-                    {taking === row.id ? "Fetching…" : "Download"}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    {row.lineCount}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
+                    {row.producedBy ?? "System"}
+                    <span className="block text-xs text-ink-muted">{formatDateTime(row.producedAt)}</span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{row.schedule}</td>
+                  <td className="py-3 pr-5 pl-4 text-right">
+                    <button
+                      type="button"
+                      onClick={() => void take(row)}
+                      disabled={taking === row.id}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 hover:underline disabled:text-ink-muted"
+                    >
+                      <Download aria-hidden="true" className="size-3.5" />
+                      {taking === row.id ? "Fetching…" : "Download"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Not while the record is still being read: a count of nothing, said before anybody has looked,
+            reads as there being nothing. */}
+        {!reports.isPending && <PagedFooter paged={paged} noun={["report", "reports"]} />}
       </section>
     </div>
   );

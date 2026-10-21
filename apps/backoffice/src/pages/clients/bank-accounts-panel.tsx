@@ -18,6 +18,7 @@ import { Banknote, Plus } from "lucide-react";
 import { useState } from "react";
 import { useStaffUser } from "../../auth/session";
 import { formatRelative } from "../../lib/labels";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { hasAuthority } from "../../lib/permissions";
 import { accountTypeLabels, accountTypes, bankAccountStatus } from "./bank-account-labels";
 
@@ -39,6 +40,7 @@ export function BankAccountsPanel({ client }: { client: CustomerDetail["client"]
 
   const rows = accounts.data ?? [];
   const busy = deactivate.isPending || reactivate.isPending;
+  const paged = usePagedRows(rows);
 
   return (
     <section className="rounded-2xl border border-line bg-white">
@@ -94,7 +96,7 @@ export function BankAccountsPanel({ client }: { client: CustomerDetail["client"]
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {rows.map((account) => {
+              {paged.shown.map((account) => {
                 const status = bankAccountStatus(account.status);
                 const off = account.status === "DEACTIVATED";
                 return (
@@ -153,6 +155,13 @@ export function BankAccountsPanel({ client }: { client: CustomerDetail["client"]
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Under the list and inside the card, the way the client requests queue draws its own. Left off
+          while the accounts are still being read, and where none are linked: the empty panel says that
+          itself, and a count of nothing under it says it twice. */}
+      {!accounts.isPending && rows.length > 0 && (
+        <PagedFooter paged={paged} noun={["account", "accounts"]} />
       )}
 
       <LinkAccountDialog

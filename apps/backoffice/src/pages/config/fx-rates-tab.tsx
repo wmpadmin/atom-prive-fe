@@ -18,7 +18,7 @@ import { Plus, RefreshCw } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { PAGE_SIZES } from "../../lib/page-sizes";
-import { usePagedRows } from "../../lib/use-paged-rows";
+import { usePagedRows } from "../../lib/paged-rows";
 import { formatUtc } from "./config-labels";
 
 type Notice = { tone: "success" | "info" | "danger"; message: string };
@@ -216,15 +216,15 @@ export function FxRatesTab() {
         </table>
       </div>
 
-      {paged.totalItems > 0 && (
+      {paged.total > 0 && (
         <div className="mt-2 border-t border-line px-1 py-3">
           <Pagination
             page={paged.page}
-            pageSize={paged.pageSize}
-            totalItems={paged.totalItems}
-            onPageChange={paged.setPage}
+            pageSize={paged.size}
+            totalItems={paged.total}
+            onPageChange={paged.onPage}
             pageSizes={PAGE_SIZES}
-            onPageSizeChange={paged.setPageSize}
+            onPageSizeChange={paged.onSize}
             noun={["currency", "currencies"]}
           />
         </div>
@@ -460,15 +460,15 @@ function RateHistory({ codes }: { codes: string[] }) {
         </table>
       </div>
 
-      {paged.totalItems > 0 && (
+      {paged.total > 0 && (
         <div className="mt-2 border-t border-line px-1 py-3">
           <Pagination
             page={paged.page}
-            pageSize={paged.pageSize}
-            totalItems={paged.totalItems}
-            onPageChange={paged.setPage}
+            pageSize={paged.size}
+            totalItems={paged.total}
+            onPageChange={paged.onPage}
             pageSizes={PAGE_SIZES}
-            onPageSizeChange={paged.setPageSize}
+            onPageSizeChange={paged.onSize}
             noun={["rate", "rates"]}
           />
         </div>

@@ -6,12 +6,13 @@ import {
   type ModelChangeRow,
   type ModelChangeRowStatus,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, FilterMenu, Pagination } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, Pagination } from "@atomprive/ui";
 import { AnswerDialog } from "./answer-dialog";
 import { QueueBar } from "./queue-bar";
+import { QueueFilters } from "./queue-filters";
 import { useState } from "react";
-import { useStaffUser } from "../../auth/session";
 import { formatDateTime } from "../../lib/labels";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 
 const TABS: { id: ModelChangeRowStatus | "all"; label: string }[] = [
   { id: "PENDING", label: "Waiting for approval" },
@@ -35,17 +36,31 @@ const TONES: Record<ModelChangeRowStatus, "neutral" | "success" | "danger" | "wa
  * Saying yes is what moves the client — there is no second step afterwards to forget.
  */
 export function ModelChangesPage() {
-  const user = useStaffUser();
   const [tab, setTab] = useState<ModelChangeRowStatus | "all">("PENDING");
   const [page, setPage] = useState(0);
+  // Chosen rather than fixed, the same as every other queue. Twenty-five was written into the request and
+  // nowhere offered, so the footer counted the rows but gave nobody a way to change how many there were.
+  const [size, setSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  /** Narrowed the same way the proposals beside this are: by client, by date, and read either way up. */
+  const [search, setSearch] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [newestFirst, setNewestFirst] = useState(true);
   /** The change being answered and which way, because both answers are given in the same window now. */
   const [deciding, setDeciding] = useState<{ row: ModelChangeRow; approved: boolean } | null>(null);
   const [note, setNote] = useState("");
 
   const requests = useListModelChanges<ModelChangePage, ApiError>({
     status: tab === "all" ? undefined : tab,
+    // Matched against the client's name by the server: a request holds their id and not their name, so
+    // this is the one end that can turn the one into the other.
+    query: search.trim() === "" ? undefined : search.trim(),
+    from: from === "" ? undefined : new Date(from).toISOString(),
+    // A date range people read as "up to and including", so the day asked for is counted whole.
+    to: to === "" ? undefined : new Date(new Date(to).getTime() + 86_400_000).toISOString(),
+    newestFirst,
     page,
-    size: 25,
+    size,
   });
   const answer = useAnswerModelChange<ApiError>({
     mutation: {
@@ -64,31 +79,57 @@ export function ModelChangesPage() {
       {requests.isError && <Alert tone="danger">{requests.error.message}</Alert>}
       {answer.isError && <Alert tone="danger">{answer.error.message}</Alert>}
 
+      <QueueFilters
+        search={search}
+        onSearch={(next) => {
+          setSearch(next);
+          setPage(0);
+        }}
+        searchPlaceholder="Search by client"
+        show={{
+          value: tab,
+          options: TABS.map((one) => ({ id: one.id, label: one.label })),
+          onChange: (next) => {
+            setTab(next);
+            setPage(0);
+          },
+        }}
+        dated={{
+          verb: "Asked",
+          from,
+          to,
+          onFrom: (day) => { setFrom(day); setPage(0); },
+          onTo: (day) => { setTo(day); setPage(0); },
+        }}
+        newestFirst={newestFirst}
+        onNewestFirst={(next) => {
+          setNewestFirst(next);
+          setPage(0);
+        }}
+      />
       <section className="rounded-2xl border border-line bg-white">
-        <QueueBar name="Model switch">
-          {/* Five chips said the four states you are not reading alongside the one you are, and wrapped
-              onto a second line to do it. One control says the state being read, and it is what every
-              other list on this app filters with. */}
-          <FilterMenu
-            label="Requests"
-            value={tab}
-            options={TABS}
-            onChange={(next) => {
-              setTab(next);
-              setPage(0);
-            }}
-            align="right"
-          />
-        </QueueBar>
+        <QueueBar name="Model switch" />
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="w-full table-fixed text-sm">
+            {/* Every column told what it gets, so none of them is decided by what happens to be in it.
+                Left to the browser the widths moved row to row — a long reason squeezed "Answered by" onto
+                two lines, and a row nobody may answer handed its share of the table to empty space. */}
+            <colgroup>
+              <col className="w-[18%]" />
+              <col className="w-[20%]" />
+              <col className="w-[14%]" />
+              <col className="w-[16%]" />
+              <col className="w-[13%]" />
+              <col className="w-[13%]" />
+              <col className="w-[6%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">Client</th>
                 <th scope="col" className="px-4 py-3">Change</th>
                 <th scope="col" className="px-4 py-3">Why</th>
                 <th scope="col" className="px-4 py-3">Asked by</th>
-                <th scope="col" className="px-4 py-3">Answered by</th>
+                <th scope="col" className="px-4 py-3 whitespace-nowrap">Answered by</th>
                 <th scope="col" className="px-4 py-3">Status</th>
                 <th scope="col" className="py-3 pr-5 pl-4 text-right"><span className="sr-only">Answer</span></th>
               </tr>
@@ -174,16 +215,6 @@ export function ModelChangesPage() {
                         </Button>
                       </div>
                     )}
-                    {/* A row waiting on somebody else says so. A pending row with an empty cell beside it
-                        reads as a screen that has not finished loading, or a button that has stopped
-                        working — not as work that belongs to another person. */}
-                    {row.status === "PENDING" && !row.mayAnswer && (
-                      <p className="ml-auto max-w-56 text-xs text-ink-muted">
-                        {row.raisedBy === user.id
-                          ? "You asked for this one, so somebody else answers it."
-                          : "This client's relationship manager answers this one."}
-                      </p>
-                    )}
                   </td>
                 </tr>
               ))}
@@ -195,9 +226,14 @@ export function ModelChangesPage() {
           <div className="border-t border-line px-5 py-3">
             <Pagination
               page={page}
-              pageSize={requests.data?.size ?? 25}
+              pageSize={requests.data?.size ?? size}
               totalItems={requests.data?.totalItems ?? 0}
               onPageChange={setPage}
+              pageSizes={PAGE_SIZES}
+              onPageSizeChange={(next) => {
+                setSize(next);
+                setPage(0);
+              }}
               noun={["request", "requests"]}
             />
           </div>

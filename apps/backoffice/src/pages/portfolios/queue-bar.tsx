@@ -38,14 +38,16 @@ export function QueueBar({ name, children }: {
   return (
     // Wraps rather than scrolls. On a phone the controls drop under the heading and stay against the right
     // edge; a row that scrolled would park the filter off the side of a card nobody thinks to drag.
-    // Bottom-aligned, because a queue whose controls carry their own little labels above them is a row
-    // of two heights, and centring put the heading half a label lower than everything it sits beside.
-    <div className="flex flex-wrap items-end gap-3 border-b border-line px-5 py-3">
+    //
+    // Top-aligned. The controls carry their own little labels above them, so the row is two heights — and
+    // bottom-aligning the heading dropped it a label's depth below everything it names, reading as a word
+    // left behind at the foot of the row rather than as the heading of the card.
+    <div className="flex flex-wrap items-start gap-3 border-b border-line px-5 py-3">
       {/* Said once, in the card's own voice rather than in the voice its controls use. Set in the same
           micro-caps as the little labels above the controls, the heading read as one more caption
           belonging to the box beside it — and on the queue that has four of them it sat out of line with
           all four. */}
-      <h2 className="text-sm font-semibold text-ink">{name}</h2>
+      <h2 className="text-base font-bold text-ink">{name}</h2>
       <div className="ml-auto flex flex-wrap items-end justify-end gap-3">{children}</div>
     </div>
   );

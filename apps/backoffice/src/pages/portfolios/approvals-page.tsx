@@ -2,27 +2,25 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useListClientRequests,
   useListModelChanges,
-  useListModelEdits,
   useListProposalsAwaitingMyAnswer,
   type ModelChangePage,
-  type ModelEditQueue,
   type MovePlanQueue,
   type ProposalPage,
 } from "@atomprive/api-client/backoffice";
 import { cn } from "@atomprive/ui";
 import { useSearchParams } from "react-router";
+import { QueueActionsBox, QueueActionsFrame } from "../../components/queue-actions";
 import { useStaffUser } from "../../auth/session";
 import {
+  READS_CLIENT_PORTFOLIOS,
   READS_CLIENT_REQUESTS,
   hasAnyAuthority,
-  READS_CLIENT_PORTFOLIOS,
   READS_PROPOSALS,
   type Authority,
 } from "../../lib/permissions";
 import { ProposalsPage } from "../advisor/proposals-page";
 import { ClientRequestsPage } from "./client-requests-page";
 import { ModelChangesPage } from "./model-changes-page";
-import { ModelEditsToApprovePage } from "./model-edits-to-approve-page";
 
 /** Which queue is being read. The value is in the address, so a link can point at one. */
 export type ApprovalTab =
@@ -54,7 +52,10 @@ const TABS: TabSpec[] = [
     id: "proposals",
     label: "Proposals",
     authority: READS_PROPOSALS,
-    Panel: ProposalsPage,
+    // The firm's own advice, where agreeing moves the money. A bulk rebalance is a different act answered
+    // differently — agreeing to one opens the client to the portfolio desk and moves nothing — so it is
+    // read on Trade logs instead of sitting here under words that do not fit it.
+    Panel: () => <ProposalsPage fromRebalance={false} />,
   },
   {
     id: "client-requests",
@@ -68,16 +69,12 @@ const TABS: TabSpec[] = [
   {
     id: "model-changes",
     label: "Model switch",
+    // Shown to both desks: the portfolio desk asks for a client to be moved and wants to see what became
+    // of it, and the relationship manager is the one who answers. Whether a row carries a button is the
+    // row's own answer, worked out by the rule the answering applies — so the desk that asked reads its
+    // own request here and finds nothing to press on it.
     authority: READS_CLIENT_PORTFOLIOS,
     Panel: ModelChangesPage,
-  },
-  {
-    id: "model-sign-off",
-    label: "Model edits",
-    // Not the money-move permission: a model is shared, so its edit is signed off by somebody who may
-    // write the firm's advice rather than by whoever answers for one client.
-    authority: ["SEND_PROPOSALS:CHANGE"],
-    Panel: ModelEditsToApprovePage,
   },
 ];
 
@@ -97,8 +94,6 @@ function useHowManyAreWaiting(mine: TabSpec[]) {
     { query: { enabled: offered("client-requests"), refetchOnWindowFocus: true } });
   const modelChanges = useListModelChanges<ModelChangePage, ApiError>({ status: "PENDING", page: 0, size: 1 },
     { query: { enabled: offered("model-changes"), refetchOnWindowFocus: true } });
-  const modelEdits = useListModelEdits<ModelEditQueue, ApiError>(
-    { query: { enabled: offered("model-sign-off"), refetchOnWindowFocus: true } });
   return {
     proposals: proposals.data?.totalItems ?? 0,
     "client-requests": (clientRequests.data?.waiting ?? []).length,
@@ -106,7 +101,6 @@ function useHowManyAreWaiting(mine: TabSpec[]) {
     // their scope reached, including ones somebody else answers — so a tab read "1" over a row the
     // reader had no button on.
     "model-changes": modelChanges.data?.waitingOnYou ?? 0,
-    "model-sign-off": (modelEdits.data?.waiting ?? []).length,
   } as Record<ApprovalTab, number>;
 }
 
@@ -153,52 +147,61 @@ export function ApprovalsPage() {
   const Panel = tab.Panel;
 
   return (
-    <div className="space-y-5">
-      <h1 className="text-[1.625rem] font-bold">Approvals</h1>
+    <QueueActionsFrame>
+      <div className="space-y-5">
+        <h1 className="text-[1.625rem] font-bold">Approvals</h1>
 
-      {/* Scrolls rather than wraps: a second row would break the line the tabs sit on.
-          Above the lead, not below it. The lead belongs to whichever tab is open and they are not the
-          same length — one wraps to two lines, the next fits on one — so with the lead between the
-          heading and the tabs, the whole row jumped up and down as somebody read across it. The tabs now
-          sit at one height whatever is chosen, which is what a row of tabs is for. */}
-      <div role="tablist" aria-label="What is waiting" className="flex gap-1 overflow-x-auto border-b border-line">
-        {mine.map((one) => (
-          <button
-            key={one.id}
-            type="button"
-            role="tab"
-            aria-selected={tab.id === one.id}
-            onClick={() => choose(one.id)}
-            className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm font-semibold whitespace-nowrap transition-colors",
-              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
-              tab.id === one.id
-                ? "border-primary-600 text-primary-700"
-                : "border-transparent text-ink-muted hover:text-ink",
-            )}
-          >
-            {one.label}
-            {/* How many are in it. The menu says one thing is waiting; without this the reader opens
-                seven tabs to find out which. */}
-            {(waiting[one.id] ?? 0) > 0 && (
-              <span className={cn(
-                "ml-2 rounded-full px-1.5 py-0.5 text-2xs tabular-nums",
-                tab.id === one.id ? "bg-primary-600 text-on-accent" : "bg-slate-200 text-ink-soft",
-              )}>
-                {waiting[one.id]}
-              </span>
-            )}
-          </button>
-        ))}
+        {/* The tabs and the open queue's own buttons on one line, with the rule under both.
+
+            The buttons had a row to themselves between the tabs and the filters — a band of empty page on
+            the two queues that have no buttons — and then the heading's row, which sat them a line above
+            everything they act on. Here they end where the rule ends and stand at the height of the tabs
+            beside them, so the line reads as one line.
+
+            The tabs scroll rather than wrap: a second row of them would break the line they sit on. */}
+        <div className="flex flex-wrap items-end gap-4 border-b border-line">
+          <div role="tablist" aria-label="What is waiting" className="flex min-w-0 gap-1 overflow-x-auto">
+            {mine.map((one) => (
+              <button
+                key={one.id}
+                type="button"
+                role="tab"
+                aria-selected={tab.id === one.id}
+                onClick={() => choose(one.id)}
+                className={cn(
+                  "-mb-px border-b-2 px-3 py-2 text-sm font-semibold whitespace-nowrap transition-colors",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
+                  tab.id === one.id
+                    ? "border-primary-600 text-primary-700"
+                    : "border-transparent text-ink-muted hover:text-ink",
+                )}
+              >
+                {one.label}
+                {/* How many are in it. The menu says one thing is waiting; without this the reader opens
+                    seven tabs to find out which. */}
+                {(waiting[one.id] ?? 0) > 0 && (
+                  <span className={cn(
+                    "ml-2 rounded-full px-1.5 py-0.5 text-2xs tabular-nums",
+                    tab.id === one.id ? "bg-primary-600 text-on-accent" : "bg-slate-200 text-ink-soft",
+                  )}>
+                    {waiting[one.id]}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          {/* Clear of the rule by the same step the tabs keep above it, so neither sits on the line. */}
+          <QueueActionsBox className="mb-2 ml-auto flex flex-wrap items-center gap-2" />
+        </div>
+
+        {/* A paragraph explaining each queue stood here. It said what the rows already say — who answers a
+            proposal is on the row, and what saying yes does is on the button — and it pushed the work itself
+            below the fold on a screen somebody opens to do that work. */}
+
+        {/* Keyed by tab, so leaving one queue and coming back opens it afresh rather than on whatever was
+            typed into the one before it. */}
+        <Panel key={tab.id} />
       </div>
-
-      {/* A paragraph explaining each queue stood here. It said what the rows already say — who answers a
-          proposal is on the row, and what saying yes does is on the button — and it pushed the work itself
-          below the fold on a screen somebody opens to do that work. */}
-
-      {/* Keyed by tab, so leaving one queue and coming back opens it afresh rather than on whatever was
-          typed into the one before it. */}
-      <Panel key={tab.id} />
-    </div>
+    </QueueActionsFrame>
   );
 }

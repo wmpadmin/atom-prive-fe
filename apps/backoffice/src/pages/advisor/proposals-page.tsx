@@ -8,7 +8,7 @@ import {
   type ProposalRow,
   type ProposalRowStatus,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, DateInput, FilterMenu, type FilterOption } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, type FilterOption } from "@atomprive/ui";
 import { Pagination } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 
@@ -19,6 +19,7 @@ import { APPROVES_PROPOSALS, hasAnyAuthority, readsEveryAdvisors, WRITES_PROPOSA
 import { formatDate } from "../../lib/labels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { QueueBar } from "../portfolios/queue-bar";
+import { QueueFilters } from "../portfolios/queue-filters";
 import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
 import { ProposalsHeader } from "./proposals-header";
 import {
@@ -51,14 +52,16 @@ const TABS: { id: Tab; label: string; status?: ListProposalsStatus }[] = [
   { id: "rejected", label: "Rejected", status: "REJECTED" },
 ];
 
-/** As far back as the date pickers will go: older than the firm, so it never gets in the way. */
-function yearsAgo(years: number) {
-  const day = new Date();
-  return new Date(day.getFullYear() - years, day.getMonth(), day.getDate());
-}
-
-/** Every proposal this advisor has sent (#87). */
-export function ProposalsPage() {
+/**
+ * Every proposal of one kind, with the same table and the same screen behind each row.
+ *
+ * <p>Two screens are this component. The proposals tab is the firm's own advice, where agreeing moves the
+ * money. Trade logs is the bulk rebalances, where agreeing opens the client to the portfolio desk and the
+ * money moves as they place it. They are different acts and they are answered differently, so they are
+ * read apart — but a reader works them the same way, so the table, the filters and the row that opens are
+ * the same table, filters and row.
+ */
+export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
   const navigate = useNavigate();
   // Whoever oversees the firm's advice reads every proposal without writing any, so the screen is the same
   // list with nothing on it to write with.
@@ -112,6 +115,9 @@ export function ProposalsPage() {
     // A date range people read as "up to and including", so the day asked for is counted in whole.
     to: to ? new Date(new Date(to).getTime() + 86_400_000).toISOString() : undefined,
     newestFirst,
+    // Which kind this screen is. Left off nowhere: both screens name it, so neither can quietly show the
+    // other's rows.
+    fromRebalance,
   };
   // Whose desk it is on is a different question from what state it is in, so it is a different endpoint:
   // the queue already knows which proposals may be answered by whoever is reading, and works that out
@@ -119,8 +125,11 @@ export function ProposalsPage() {
   // Held to whoever answers, because the address can be typed. Without this, somebody who answers nothing
   // would ask for a queue the server will not give them and sit on "Loading proposals…" for ever.
   const onMe = tab === WAITING_ON_ME && answers;
+  // Which screen this row was opened from, so the menu keeps its highlight on it and the way back leads
+  // there. A proposal has three doors into it now and the address is the only thing that knows which.
+  const openedFrom = onMe ? "?from=review" : fromRebalance ? "?from=trade-logs" : "";
   const mineToAnswer = useListProposalsAwaitingMyAnswer<ProposalPage, ApiError>(
-    { page, size: pageSize },
+    { page, size: pageSize, fromRebalance },
     // Asked for even when the list is showing something else, because the count beside it is the whole
     // point: somebody reading their drafts should be able to see that three proposals are waiting on
     // them without first going and looking.
@@ -207,7 +216,8 @@ export function ProposalsPage() {
     if (row.status === "APPROVED" || row.status === "REJECTED") {
       return {
         review: false,
-        said: row.answeredByName ? answeredLabel(row.status, row.answeredByName, null) : null,
+        said: row.answeredByName
+          ? answeredLabel(row.status, row.answeredByName, null, row.fromRebalance) : null,
       };
     }
     if (row.status !== "PENDING" || !answers) {
@@ -232,8 +242,6 @@ export function ProposalsPage() {
     <div className="space-y-6">
       <ProposalsHeader
         writes={writes}
-        search={typed}
-        onSearch={setTyped}
         onExport={() => void exportFiltered()}
         exporting={exporting}
         canExport={total > 0}
@@ -248,69 +256,31 @@ export function ProposalsPage() {
         </Alert>
       )}
 
+      {/* Above the card, beside the search, where every other queue on the approvals screens puts them.
+          Inside the card's heading row these four pushed the card's own name to the far left of four tall
+          controls and read as part of the table below. */}
+      <QueueFilters
+        search={typed}
+        onSearch={setTyped}
+        searchPlaceholder="Search by proposal, reference or client"
+        show={{ value: tab, options: shown, onChange: changeTab }}
+        dated={onMe
+          ? undefined
+          : {
+              verb: "Sent",
+              from,
+              to,
+              onFrom: (day) => { setFrom(day); setPage(0); },
+              onTo: (day) => { setTo(day); setPage(0); },
+            }}
+        newestFirst={newestFirst}
+        // The queue of what is waiting on you comes from its own endpoint, which is not asked which end to
+        // read from, so it is not offered a control that would do nothing.
+        onNewestFirst={onMe ? undefined : (next) => { setNewestFirst(next); setPage(0); }}
+      />
+
       <section className="rounded-2xl border border-line bg-white">
-        <QueueBar name="Proposals">
-          {/* Four controls where the other queues have one, so these keep the little labels above them:
-              two date boxes side by side say nothing about which end of the range each one is. One width
-              for every control, because a dropdown that shrinks to whatever is chosen makes the row jump
-              about as the filter changes, and sets four boxes of four different sizes beside each other
-              when it is still. */}
-          <div className="contents [&>*]:w-44">
-            <div>
-              <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Show</span>
-              <FilterMenu label="Proposals" value={tab} options={shown} onChange={changeTab} align="right" />
-            </div>
-            {/* The dates narrow what is listed; they say nothing about a queue of what is waiting on you,
-                and the queue is not asked for them. */}
-            {!onMe && (
-              <>
-                <label className="block">
-                  <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Sent from</span>
-                  <DateInput
-                    id="sent-from"
-                    name="from"
-                    value={from}
-                    clearable
-                    min={yearsAgo(20)}
-                    max={new Date()}
-                    onChange={(next) => {
-                      setFrom(next ?? "");
-                      setPage(0);
-                    }}
-                  />
-                </label>
-                <label className="block">
-                  <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Sent to</span>
-                  <DateInput
-                    id="sent-to"
-                    name="to"
-                    value={to}
-                    clearable
-                    min={yearsAgo(20)}
-                    max={new Date()}
-                    onChange={(next) => {
-                      setTo(next ?? "");
-                      setPage(0);
-                    }}
-                  />
-                </label>
-                <div>
-                  <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">Order</span>
-                  <FilterMenu
-                    label="Order"
-                    value={newestFirst ? "newest" : "oldest"}
-                    options={[{ id: "newest", label: "Newest first" }, { id: "oldest", label: "Oldest first" }]}
-                    onChange={(next) => {
-                      setNewestFirst(next === "newest");
-                      setPage(0);
-                    }}
-                    align="right"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        </QueueBar>
+        <QueueBar name={fromRebalance ? "Bulk rebalancing" : "Proposals"} />
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -320,8 +290,8 @@ export function ProposalsPage() {
                   lines beside it. Named in parts of the table, so the row still fits whatever the window
                   is; everything that is a date, a figure or a word stays on one line. */}
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                <th scope="col" className="w-[30%] py-3 pr-4 pl-5">Proposal</th>
-                <th scope="col" className="w-[16%] px-4 py-3">Client</th>
+                <th scope="col" className="w-[16%] py-3 pr-4 pl-5">Client</th>
+                <th scope="col" className="w-[30%] px-4 py-3">Proposal</th>
                 {/* Only where the list holds more than one advisor's work. On a list that is all your
                     own, a column repeating your name down every row says nothing. */}
                 {showAdvisor && <th scope="col" className="w-[12%] px-4 py-3">Advisor</th>}
@@ -360,22 +330,10 @@ export function ProposalsPage() {
                 // which is how the proposal knows to offer the way back to it.
                 <tr
                   key={proposal.id}
-                  onClick={() => void navigate(`/proposals/${proposal.id}${onMe ? "?from=review" : ""}`)}
+                  onClick={() => void navigate(`/proposals/${proposal.id}${openedFrom}`)}
                   className="cursor-pointer hover:bg-slate-50/60"
                 >
                   <td className="py-3 pr-4 pl-5">
-                    <Link to={`/proposals/${proposal.id}${onMe ? "?from=review" : ""}`} onClick={(event) => event.stopPropagation()} className="font-semibold hover:text-primary-600">
-                      {proposal.title}
-                    </Link>
-                    {/* The reference and nothing else. The summary sat here too and said the title again
-                        in other words — "Out of Yield Enhancement Strategies, into 3 lines" under "Move
-                        USD 2,895 out of Yield Enhancement Strategies" — which took a second line of every
-                        row to repeat what the first had said. It is on the proposal itself, where the
-                        legs it describes are. The reference stays: it is what somebody searches by, and
-                        the row says it nowhere else. */}
-                    <span className="block text-xs text-ink-muted">{proposal.reference}</span>
-                  </td>
-                  <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <Avatar name={proposal.customerName} />
                       {/* A name is read as one thing, so it is kept on one line and cut where it will not
@@ -385,6 +343,18 @@ export function ProposalsPage() {
                         <span className="block font-mono text-xs text-ink-muted">{proposal.customerCode}</span>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link to={`/proposals/${proposal.id}${openedFrom}`} onClick={(event) => event.stopPropagation()} className="font-semibold hover:text-primary-600">
+                      {proposal.title}
+                    </Link>
+                    {/* The reference and nothing else. The summary sat here too and said the title again
+                        in other words — "Out of Yield Enhancement Strategies, into 3 lines" under "Move
+                        USD 2,895 out of Yield Enhancement Strategies" — which took a second line of every
+                        row to repeat what the first had said. It is on the proposal itself, where the
+                        legs it describes are. The reference stays: it is what somebody searches by, and
+                        the row says it nowhere else. */}
+                    <span className="block text-xs text-ink-muted">{proposal.reference}</span>
                   </td>
                   {showAdvisor && (
                     <td className="px-4 py-3 text-ink-soft">
@@ -401,12 +371,23 @@ export function ProposalsPage() {
                     {formatValue(proposal.valueAmount, proposal.valueCurrency)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                    {standingLabel(proposal.status as ProposalRowStatus, proposal.sentAt, proposal.decidedAt)}
+                    {standingLabel(proposal.status as ProposalRowStatus, proposal.sentAt, proposal.decidedAt,
+                      proposal.fromRebalance, proposal.openForPlacing)}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  {/* Who answered it sits under the answer, where it belongs. It used to sit in the last
+                      column — the one the Review button is in — so on an answered row it was a sentence
+                      floating at the far right of the table under no heading at all, a hand's width from
+                      the badge it was about. */}
+                  <td className="px-4 py-3">
                     <Badge tone={proposalStatusTones[proposal.status as ProposalRowStatus]}>
                       {proposalStatusLabels[proposal.status as ProposalRowStatus]}
                     </Badge>
+                    {(() => {
+                      const part = theirPart(proposal);
+                      return !part.review && part.said
+                        ? <span className="mt-1 block text-xs text-ink-muted">{part.said}</span>
+                        : null;
+                    })()}
                   </td>
                   {/* The way in to answering it, and the only one: a proposal is answered on its own page,
                       where the legs, the reason and the client's position against their plan are. Saying
@@ -425,15 +406,13 @@ export function ProposalsPage() {
                               size="sm"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                void navigate(`/proposals/${proposal.id}${onMe ? "?from=review" : ""}`);
+                                void navigate(`/proposals/${proposal.id}${openedFrom}`);
                               }}
                             >
                               Review
                             </Button>
                           )
-                        : part.said && (
-                          <span className="text-xs whitespace-nowrap text-ink-muted">{part.said}</span>
-                        );
+                        : null;
                     })()}
                   </td>
                 </tr>

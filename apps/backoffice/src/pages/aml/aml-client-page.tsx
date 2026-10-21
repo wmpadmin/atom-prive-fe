@@ -14,6 +14,7 @@ import { Link, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { formatDate, formatDateTime } from "../../lib/labels";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { hasAnyAuthority, RATES_AML_RISK } from "../../lib/permissions";
 import { bandTone } from "./aml-labels";
 
@@ -271,6 +272,9 @@ function Line({
 /** A rating as it was given, with the sheet it was given on. */
 function Rated({ rating }: { rating: RatingRow }) {
   const [open, setOpen] = useState(false);
+  // Beside the open state rather than inside the block below, because which page a reader is on is held in
+  // a hook, and one called only while the sheet is unfolded would be skipped the moment it is folded away.
+  const paged = usePagedRows(rating.lines);
   return (
     <li className="px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -296,43 +300,47 @@ function Rated({ rating }: { rating: RatingRow }) {
       )}
       {rating.note && <p className="mt-2 text-sm text-ink-soft">{rating.note}</p>}
       {open && (
-        <table className="mt-3 min-w-full text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              <th scope="col" className="py-2 pr-4">Line</th>
-              <th scope="col" className="px-4 py-2">Answered</th>
-              <th scope="col" className="px-4 py-2 text-right">Score</th>
-              <th scope="col" className="py-2 pl-4 text-right">Counts</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {rating.lines.map((line, at) => (
-              <tr key={`${line.factorName}-${at}`}>
-                <td className="py-2 pr-4">
-                  <span className="block">{line.factorName}</span>
-                  <span className="block text-xs text-ink-muted">{line.groupTitle}</span>
-                </td>
-                <td className="px-4 py-2 text-ink-soft">
-                  {line.optionLabel}
-                  {/* Where the answer came from, which is the thing an inspector asks about. */}
-                  {line.fromTheRecord && (
-                    <span className="block text-xs text-ink-muted">
-                      From the record: <span className="font-mono">{line.whatTheRecordSaid}</span>
-                    </span>
-                  )}
-                  {line.overriddenBecause && (
-                    <span className="block text-xs text-amber-700">
-                      Set aside{line.whatTheRecordSaid && <> what the record said ({line.whatTheRecordSaid})</>}:{" "}
-                      {line.overriddenBecause}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-2 text-right tabular-nums">{line.score}</td>
-                <td className="py-2 pl-4 text-right tabular-nums text-ink-muted">{line.weight}&times;</td>
+        <>
+          <table className="mt-3 min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                <th scope="col" className="py-2 pr-4">Line</th>
+                <th scope="col" className="px-4 py-2">Answered</th>
+                <th scope="col" className="px-4 py-2 text-right">Score</th>
+                <th scope="col" className="py-2 pl-4 text-right">Counts</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {paged.shown.map((line, at) => (
+                <tr key={`${line.factorName}-${at}`}>
+                  <td className="py-2 pr-4">
+                    <span className="block">{line.factorName}</span>
+                    <span className="block text-xs text-ink-muted">{line.groupTitle}</span>
+                  </td>
+                  <td className="px-4 py-2 text-ink-soft">
+                    {line.optionLabel}
+                    {/* Where the answer came from, which is the thing an inspector asks about. */}
+                    {line.fromTheRecord && (
+                      <span className="block text-xs text-ink-muted">
+                        From the record: <span className="font-mono">{line.whatTheRecordSaid}</span>
+                      </span>
+                    )}
+                    {line.overriddenBecause && (
+                      <span className="block text-xs text-amber-700">
+                        Set aside{line.whatTheRecordSaid && <> what the record said ({line.whatTheRecordSaid})</>}:{" "}
+                        {line.overriddenBecause}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-right tabular-nums">{line.score}</td>
+                  <td className="py-2 pl-4 text-right tabular-nums text-ink-muted">{line.weight}&times;</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {/* Inside the rating it belongs to, under the sheet it was scored on. */}
+          <PagedFooter paged={paged} noun={["line", "lines"]} />
+        </>
       )}
     </li>
   );

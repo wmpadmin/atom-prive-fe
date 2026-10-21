@@ -3,22 +3,25 @@ import {
   useListClientHoldings,
   useAskOnBehalfOfTheClient,
   useCreateProposal,
+  usePlaceAgainstArebalance,
   useSubmitProposal,
   useChangeTheMovePlan,
   useListClientMovePlans,
+  usePlacingOpenFor,
   useTakeBackTheMovePlan,
   type ClassPositions,
   type SubClassGroup,
   type ClientHoldings,
   type MovePlanRow,
+  type PlacingOpen,
   type PositionRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, TextInput, cn } from "@atomprive/ui";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useRef, useState } from "react";
-import { useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { asFigure } from "../../lib/figures";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { hasAnyAuthority, hasAuthority } from "../../lib/permissions";
 import { useAssetClasses } from "./asset-classes";
 import {
@@ -480,7 +483,7 @@ function typed(value: string | undefined) {
  * above puts both back, because each is handed over as a holding this panel has touched.
  */
 function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, places, className, currency,
-  readOnly, claim, release, asksForNone, settledRight, onAsked, elsewhere, changing, carrying }: {
+  readOnly, claim, release, asksForNone, settledRight, onAsked, elsewhere, changing, agreed }: {
   customerId: string;
   assetClass: string;
   /**
@@ -534,8 +537,8 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
    * figure somebody already decided on is not a suggestion to be re-split under them.
    */
   changing: MovePlanRow | null;
-  /** The proposal this window was opened to carry out, where it was. */
-  carrying: string | null;
+  /** Whether this client's rebalance has been agreed to and the desk is still placing it. */
+  agreed: boolean;
 }) {
   // Emptied from the fullest first, so the smaller lines are left whole where the whole sum does not need
   // them. Nothing is ever asked to go below nothing.
@@ -576,6 +579,11 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
     ...held.map((place) => now.get(placeKey(place)) ?? { ...place, room: 0 }),
     ...where.filter((place) => !held.some((was) => placeKey(was) === placeKey(place))),
   ];
+  // A page of destinations to draw, and nothing else. Every figure under this table — what has been
+  // placed, what the class can still take, what is left over, and the legs the plan goes out with — is
+  // read off the whole list rather than off the page: a plan carrying only the rows somebody could see
+  // would leave the money typed into the others behind, with nothing on screen saying so.
+  const paged = usePagedRows(inOrder);
   // The most that may leave this sub-asset: what the breach comes to in whole units, never more than is
   // actually there. Rounding to the nearest is what lands a line cleanly inside its band rather than a
   // hair outside it — but a line the model asks none of has its whole holding to shed, and rounding that
@@ -595,6 +603,9 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
   ));
   const [failed, setFailed] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
+  // A press between a typed figure and the client's holdings. A client's own asking moves the money as
+  // it is written down, with nobody else to read it first, and there is no way back from a mistyped one.
+  const [confirming, setConfirming] = useState(false);
   // What the last click did, and the fact that it was a click rather than typing. A move used to leave
   // every remaining box filled with a fresh split and the buttons back where they were, so it never looked
   // as though anything had happened — and the whole table sat one click away from going out the door.
@@ -626,9 +637,13 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
    * words they had no business putting in a client's mouth.
    */
   const writesAdvice = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
+  // The desk acting on an agreement already given. While it is open this client's portfolio is theirs to
+  // balance: they move the money here and now, and the manager is not asked again.
+  const placing = writesAdvice && agreed && changing === null;
   const onTheirBehalf = !writesAdvice
     && hasAnyAuthority(user, "APPROVE_PORTFOLIO_CHANGES:OWN_CLIENTS", "APPROVE_PORTFOLIO_CHANGES:CHANGE");
   const askForTheClient = useAskOnBehalfOfTheClient<ApiError>();
+  const placeIt = usePlaceAgainstArebalance<ApiError>();
   const writeProposal = useCreateProposal<ApiError>();
   const sendProposal = useSubmitProposal<ApiError>();
   const changeIt = useChangeTheMovePlan<ApiError>();
@@ -708,8 +723,9 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
    * five times over. What is on this screen is one decision anyway: where the money that has to leave this
    * sub-asset should go.
    *
-   * <p>Nothing is written. The figures behind this window stand exactly as they are until whoever looks
-   * after the client says yes.
+   * <p>What the press does depends on which door it is. The firm's own suggestion is written up as a
+   * proposal and the figures stand until the client's manager agrees to it. A client's own asking moves
+   * the money as it is written: the client is the one who asked, so there is nobody to ask.
    */
   async function ask() {
     const legs = inOrder
@@ -734,13 +750,18 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
     // More than has to leave is a breach of its own, the other way round. Typing 5,000 into a window
     // about 4,708 empties the sub-asset altogether and leaves it below its floor — and the window, having
     // nothing left to shed, then says the line is inside its range. Said instead, where it is typed.
-    if (asking > mostToMove) {
+    // What has to leave to put the line right. Not a limit on placing: the desk is working an agreement
+    // their manager has already given, and holding them to the breach figure would stop them emptying a
+    // line the plan asks nothing of at all.
+    if (!placing && asking > mostToMove) {
       setFailed(`Only ${exactly(mostToMove, currency)} has to leave ${from}. Asking for more would put it `
         + "below its own range.");
       return;
     }
     if (why.trim() === "") {
-      setFailed("Say why this should move. Whoever answers is being asked about the reason, not the figures.");
+      setFailed(onTheirBehalf
+        ? "Say why this should move. What the client said is the only record of why it moved."
+        : "Say why this should move. Whoever answers is being asked about the reason, not the figures.");
       // The cursor goes where the thing that stopped the press is, rather than near it.
       document.getElementById("why-it-moves")?.focus();
       return;
@@ -749,7 +770,12 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
     setFailed(null);
     setMoving("asking");
     try {
-      if (changing === null && writesAdvice) {
+      if (changing === null && placing) {
+        // Agreed to already. The relationship manager said yes to this client being put back, and where
+        // each piece lands is this desk's to decide — so it moves here rather than going back to them.
+        await placeIt.mutateAsync({ customerId, data: { legs, why: why.trim() } });
+      }
+      else if (changing === null && writesAdvice) {
         // A proposal, filled in from the window that is already open. Everything it needs is here — the
         // client, the legs, what each source holds today, and the reason — so asking for it twice would
         // be asking somebody to retype what they have just typed.
@@ -770,9 +796,10 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
         await sendProposal.mutateAsync({ id: written.summary.id });
       }
       else if (changing === null) {
-        // Stamped with the proposal where this window was opened to carry one out, so the paper and
-        // the act know about each other afterwards.
-        const asked = { legs, why: why.trim(), fromProposalId: carrying ?? null };
+        // Carrying out no proposal, whatever the address bar says. Agreeing to a proposal is what moves
+        // money for one of those, and it goes through its own door — so claiming one here would be a way
+        // round the second desk that reads the firm's own advice. The server refuses it too.
+        const asked = { legs, why: why.trim(), fromProposalId: null };
         await askForTheClient.mutateAsync({ customerId, data: asked });
       }
       else {
@@ -905,7 +932,7 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
                   </tr>
                 </thead>
                 <tbody>
-                  {inOrder.map((place) => {
+                  {paged.shown.map((place) => {
                     const past = typed(moves[placeKey(place)]) - place.room;
                     return (
                       <tr key={placeKey(place)} className="border-b border-ink/15 last:border-0 align-top">
@@ -973,6 +1000,9 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
                   })}
                 </tbody>
               </table>
+              {/* Inside the card the table sits in, which hides whatever runs past its own edge: a
+                  count put below the card would be a count nobody could see. */}
+              <PagedFooter paged={paged} noun={["sub-asset", "sub-assets"]} />
             </div>
           )}
 
@@ -1017,8 +1047,14 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
               <label htmlFor="why-it-moves" className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 Why it should move
               </label>
+              {/* Said from the door it is said at. A proposal is read by somebody, so the reason is for
+                  them; a client's asking is read by nobody, so the reason is the only record of why the
+                  money moved — and telling the writer somebody will weigh it would be untrue. */}
               <p className="mt-1 text-xs text-ink-muted">
-                Whoever answers is being asked about the reason, not the figures. They can see those.
+                {onTheirBehalf
+                  ? "What the client said, in their words. Nobody else is asked, so this is the record of "
+                    + "why the money moved."
+                  : "Whoever answers is being asked about the reason, not the figures. They can see those."}
               </p>
               <TextInput
                 id="why-it-moves"
@@ -1047,30 +1083,177 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
                     box are the client's. */}
                 <p className="text-xs text-ink-muted">
                   {onTheirBehalf
-                    ? "Nothing moves yet. This is written down as the client's own request, and goes to "
-                      + "the portfolio manager. Agreeing to it is what moves the money."
-                    : "Nothing moves yet. This is written up as a proposal and goes to this client's "
-                      + "relationship manager. Agreeing to it is what moves the money."}
+                    ? "This is the client's own request, so nobody else is asked: writing it down moves "
+                      + "the money."
+                    : placing
+                      ? "Their manager has agreed to this client being put back, so this moves the money "
+                        + "now. They are not asked again."
+                      : "Nothing moves yet. This is written up as a proposal and goes to this client's "
+                        + "relationship manager. Agreeing to it is what moves the money."}
                 </p>
                 <Button
                   size="sm"
                   disabled={placed <= 0 || moving !== null || (!onTheirBehalf && !writesAdvice)}
-                  onClick={() => void ask()}
+                  /* The client's own asking is asked once more, here, because this press is the last one
+                     before the money is gone. The proposal goes as it always did: somebody reads it. */
+                  onClick={() => (onTheirBehalf && changing === null ? setConfirming(true) : void ask())}
                 >
                   {moving === "asking"
-                    ? (changing !== null ? "Saving the change…" : onTheirBehalf ? "Asking…" : "Sending…")
+                    ? (changing !== null ? "Saving the change…"
+                        : (onTheirBehalf || placing) ? "Moving it…" : "Sending…")
                     : changing !== null
                       ? `Change it to ${exactly(placed, currency)}`
-                      : onTheirBehalf
-                        ? `Ask for ${exactly(placed, currency)} on the client's behalf`
+                      : (onTheirBehalf || placing)
+                        ? `Move ${exactly(placed, currency)} now`
                         : `Propose moving ${exactly(placed, currency)}`}
                 </Button>
               </div>
             </div>
           )}
+
+          {/* Asked once more, because this is the last press before the money is gone and there is no
+              way back from it. Not a second reader — the client already asked — but a second look by the
+              person who typed the figures, at the figures they typed. */}
+          <Dialog
+            open={confirming}
+            title={`Move ${exactly(placed, currency)} out of ${from}?`}
+            description={"This is the client's own request, so it moves as soon as you confirm it. "
+              + "Nobody else is asked, and it cannot be undone."}
+            onClose={() => setConfirming(false)}
+          >
+            <div className="space-y-4">
+              <ul className="divide-y divide-line rounded-xl border border-line">
+                {inOrder
+                  .filter((place) => typed(moves[placeKey(place)]) > 0)
+                  .map((place) => (
+                    <li key={placeKey(place)} className="flex items-baseline justify-between gap-4 px-3 py-2">
+                      <span className="text-sm">{place.name}</span>
+                      <span className="text-sm font-semibold tabular-nums">
+                        {exactly(typed(moves[placeKey(place)]), currency)}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+              <div>
+                <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  What the client said
+                </p>
+                <p className="mt-1 text-sm">{why.trim()}</p>
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button variant="secondary" disabled={moving !== null} onClick={() => setConfirming(false)}>
+                  Go back
+                </Button>
+                <Button
+                  disabled={moving !== null}
+                  onClick={() => {
+                    setConfirming(false);
+                    void ask();
+                  }}
+                >
+                  Move it now
+                </Button>
+              </div>
+            </div>
+          </Dialog>
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * What one asset class is made of, sub-asset by sub-asset, a page at a time.
+ *
+ * <p>A component of its own because the page somebody is on is state and this table is drawn once per
+ * class: taking the page inside the loop over the classes would be a different number of hooks on every
+ * render, which React counts as hooks going missing.
+ *
+ * <p>The page is of the sub-assets. Whatever the plan breaks one of them into travels with it, because
+ * a line inside a sub-asset is part of it — and the class's own total is the server's figure, read on
+ * the row above this table rather than added up from whichever rows are on screen.
+ */
+function SubAssetTable({ klass, whole, currency, onPlan }: {
+  klass: ClassPositions;
+  /** Everything the client has, which is the one denominator every share on this table is out of. */
+  whole: number;
+  currency: string;
+  /** Opens the plan for whichever line was pressed, bound by the caller as it always was. */
+  onPlan: (group: SubClassGroup) => void;
+}) {
+  const paged = usePagedRows(klass.subClasses);
+  return (
+    <>
+      <div className="overflow-x-auto border-t border-ink/15 bg-slate-50/40">
+        {/* A table with its columns named. These were six figures and two phrases run together
+            on one line — "USD 56 · 50.0% of the class · 0.0% asked for" — which told somebody
+            who already knew what each number meant what it was, and told everybody else
+            nothing. Named columns say it once at the top instead. */}
+        <table className="min-w-full text-sm">
+          <caption className="sr-only">
+            What {klass.assetClassName || klass.assetClass} is made of, by sub-asset. Figures in{" "}
+            {currency}.
+          </caption>
+          <thead>
+            <tr className="border-b border-ink/15 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              <th scope="col" className="py-3 pr-3 pl-4">
+                Sub-asset
+              </th>
+              {/* The firm's own sheet, column for column, in the firm's own words. Close to
+                  the table that measures the classes above, but not word for word: a value
+                  column says so here, where up there the figure beside it makes it plain.
+
+                  Every share is of the whole portfolio, which is the only frame in which a
+                  target value and an actual value can be set beside each other and subtracted.
+                  What the model asks of a line inside its own class — 9% of equities, say — is
+                  still what the line is judged against, and it is still what the target below
+                  is worked out from; it is simply not a column any more.
+
+                  Gap used to sit where % allocated does. It said the same thing in points that
+                  % allocated says as a proportion, and the sheet has never had it. */}
+              <th scope="col" className="px-3 py-2 text-right">
+                Target allocation %
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Target allocation value
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Current allocation %
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Actual allocation value
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                % allocated
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Suggestion
+              </th>
+            </tr>
+          </thead>
+          {/* One row group per sub-asset, whatever the plan breaks it into: a line inside
+              one is still part of it, and ending the group at each line would make the rule
+              those borders draw — one sub-asset, one block — stop meaning anything. */}
+          {paged.shown.map((group) => (
+            <tbody
+              key={theLine(group.subClass, group.subSubClass)}
+              className="border-b border-ink/15 last:border-0"
+            >
+              <SubAssetRow
+                group={group}
+                whole={whole}
+                currency={currency}
+                depth={0}
+                onPlan={onPlan}
+              />
+            </tbody>
+          ))}
+        </table>
+      </div>
+      {/* Outside the strip the table scrolls in and inside the card, which hides whatever runs past
+          its own edge: a count below the card would be a count nobody could see. */}
+      <PagedFooter paged={paged} noun={["sub-asset", "sub-assets"]} />
+    </>
   );
 }
 
@@ -1104,9 +1287,6 @@ export function ClientHoldingsPanel({
   // Grouped by whatever the client is measured against on file. The screen no longer holds a model that
   // has been picked but not written, so there is no second answer for this to prefer.
   const held = useListClientHoldings<ClientHoldings, ApiError>(customerId);
-  // A proposal this screen was opened to carry out, named in the address by the proposal that sent the
-  // reader here. Every move raised while it is in force says which advice it serves.
-  const carrying = useSearchParams()[0].get("carrying");
   // What has been shut, rather than what has been opened: a class is open until somebody closes it. Kept
   // this way round because the classes arrive after the first render, and a set of what is open would have
   // to be filled in from them by an effect that renders twice to say what the list already said.
@@ -1178,6 +1358,11 @@ export function ClientHoldingsPanel({
     .find((plan) => plan.status === "APPROVED" || plan.status === "REJECTED") ?? null;
   const takeBack = useTakeBackTheMovePlan<ApiError>();
   const user = useStaffUser();
+  // Whether this client's rebalance has been agreed to and not yet recorded as put back. Only the desk
+  // that places may ask, so it is left alone for everybody else.
+  const placingOpen = usePlacingOpenFor<PlacingOpen, ApiError>(customerId, {
+    query: { enabled: hasAuthority(user, "SEND_PROPOSALS:CHANGE") },
+  });
   const [planFailed, setPlanFailed] = useState<string | null>(null);
   /** Which plan is being cancelled, so one plan's button says so and the others simply wait. */
   const [cancelling, setCancelling] = useState<string | null>(null);
@@ -1249,18 +1434,11 @@ export function ClientHoldingsPanel({
 
   return (
     <section className="space-y-3">
-      {/* Why this screen was opened. A reader sent here from a proposal has the advice in another tab
-          and the lines in front of them; naming it here is what joins the two in their head, and what
-          lets the move they raise say which advice it serves. */}
-      {carrying !== null && (
-        <Alert tone="info">
-          <p className="font-semibold">You are carrying out a proposal.</p>
-          <p className="mt-1 text-sm">
-            Open a line below and ask for the move. Whatever you raise while you are here says it carries
-            this advice out, so the proposal stops reading as agreed to and untouched.
-          </p>
-        </Alert>
-      )}
+      {/* The banner that said "you are carrying out a proposal" stood here. It was driven by a
+          ?carrying= parameter nothing in the app linked with, and the only thing it did was stamp the
+          move it raised with a proposal id the server never checked — which, once a client's asking
+          moves the money by itself, was a way round the second desk that reads the firm's own advice.
+          Agreeing to the proposal is what carries one out, and that door writes its own stamp. */}
       {/* What has been asked for and not yet answered, over the figures rather than in them. The figures
           below are what the client holds; a plan is not a holding, and writing one in would say the breach
           was fixed when nobody has agreed to fix it yet. */}
@@ -1557,77 +1735,17 @@ export function ClientHoldingsPanel({
                 )}
 
                 {isOpen && (
-                  <div className="overflow-x-auto border-t border-ink/15 bg-slate-50/40">
-                    {/* A table with its columns named. These were six figures and two phrases run together
-                        on one line — "USD 56 · 50.0% of the class · 0.0% asked for" — which told somebody
-                        who already knew what each number meant what it was, and told everybody else
-                        nothing. Named columns say it once at the top instead. */}
-                    <table className="min-w-full text-sm">
-                      <caption className="sr-only">
-                        What {one.assetClassName || one.assetClass} is made of, by sub-asset. Figures in{" "}
-                        {currency}.
-                      </caption>
-                      <thead>
-                        <tr className="border-b border-ink/15 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                          <th scope="col" className="py-3 pr-3 pl-4">
-                            Sub-asset
-                          </th>
-                          {/* The firm's own sheet, column for column, in the firm's own words. Close to
-                              the table that measures the classes above, but not word for word: a value
-                              column says so here, where up there the figure beside it makes it plain.
-
-                              Every share is of the whole portfolio, which is the only frame in which a
-                              target value and an actual value can be set beside each other and subtracted.
-                              What the model asks of a line inside its own class — 9% of equities, say — is
-                              still what the line is judged against, and it is still what the target below
-                              is worked out from; it is simply not a column any more.
-
-                              Gap used to sit where % allocated does. It said the same thing in points that
-                              % allocated says as a proportion, and the sheet has never had it. */}
-                          <th scope="col" className="px-3 py-2 text-right">
-                            Target allocation %
-                          </th>
-                          <th scope="col" className="px-3 py-2 text-right">
-                            Target allocation value
-                          </th>
-                          <th scope="col" className="px-3 py-2 text-right">
-                            Current allocation %
-                          </th>
-                          <th scope="col" className="px-3 py-2 text-right">
-                            Actual allocation value
-                          </th>
-                          <th scope="col" className="px-3 py-2 text-right">
-                            % allocated
-                          </th>
-                          <th scope="col" className="px-3 py-2 text-right">
-                            Suggestion
-                          </th>
-                        </tr>
-                      </thead>
-                      {/* One row group per sub-asset, whatever the plan breaks it into: a line inside
-                          one is still part of it, and ending the group at each line would make the rule
-                          those borders draw — one sub-asset, one block — stop meaning anything. */}
-                      {one.subClasses.map((group) => (
-                        <tbody
-                          key={theLine(group.subClass, group.subSubClass)}
-                          className="border-b border-ink/15 last:border-0"
-                        >
-                          <SubAssetRow
-                            group={group}
-                            whole={whole}
-                            currency={currency}
-                            depth={0}
-                            onPlan={(which) => setPlanning({
-                              changing: null,
-                              assetClass: one.assetClass,
-                              subClass: which.subClass,
-                              subSubClass: which.subSubClass,
-                            })}
-                          />
-                        </tbody>
-                      ))}
-                    </table>
-                  </div>
+                  <SubAssetTable
+                    klass={one}
+                    whole={whole}
+                    currency={currency}
+                    onPlan={(which) => setPlanning({
+                      changing: null,
+                      assetClass: one.assetClass,
+                      subClass: which.subClass,
+                      subSubClass: which.subSubClass,
+                    })}
+                  />
                 )}
               </li>
             );
@@ -1708,7 +1826,7 @@ export function ClientHoldingsPanel({
               release={releaseTheMove}
               asksForNone={group.targetShare === 0}
               changing={planning.changing}
-              carrying={carrying}
+              agreed={placingOpen.data?.open === true}
               onAsked={async () => {
                 setPlanning(null);
                 // The holdings too: a line's free room is now read net of what waiting plans have
