@@ -49,7 +49,7 @@ const PALETTE = [
  * the bars beside it would say two different things about the same class on one screen. Same order, same
  * hues, read by position exactly as the classes are.
  */
-const INK = [
+export const INK = [
   "#2563eb",
   "#38bdf8",
   "#fbbf24",
