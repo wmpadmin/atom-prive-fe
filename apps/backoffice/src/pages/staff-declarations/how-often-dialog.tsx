@@ -6,204 +6,111 @@ import {
   type DeclarationCycleView,
   type DeclarationCycleViewCadence,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, Dialog, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Button, Dialog } from "@atomprive/ui";
 import { RotateCcw } from "lucide-react";
 import { useState } from "react";
+import { ChoiceCards, type Choice } from "../../components/choice-cards";
 
 /**
  * How often the firm's declarations are wanted, in the firm's own words.
  *
- * <p>One cycle, for all of them. Each declaration used to carry its own — yearly on 31 January, quarterly,
- * one on appointment, one once on joining — which was nine answers to one question and a compliance
- * calendar nobody could hold in their head. The firm names a day, and everybody's fall due on it.
+ * <p>One cycle, for all of them. Each declaration used to carry its own, which was nine answers to one
+ * question and a compliance calendar nobody could hold in their head.
+ *
+ * <p>All four shown at once rather than hidden behind a dropdown that opened over the dialog, and each
+ * saying which days it lands on — the days are the question somebody opened this to answer, and they are
+ * no longer anything to type: the first of the month, of the quarter, of the half, of the year.
  *
  * <p>Opened from the register rather than from Configuration, because the permission that lets somebody
- * chase a declaration is the permission that lets them say how often it is wanted: the same people, on the
- * screen where they already notice that a cycle is wrong.
+ * chase a declaration is the permission that lets them say how often it is wanted.
  */
-const CADENCES: { id: DeclarationCycleViewCadence; label: string }[] = [
-  { id: "MONTHLY", label: "Monthly" },
-  { id: "QUARTERLY", label: "Quarterly" },
-  { id: "SIX_MONTHLY", label: "Six-monthly" },
-  { id: "ANNUAL", label: "Yearly" },
+const CADENCES: Choice<DeclarationCycleViewCadence>[] = [
+  { value: "MONTHLY", label: "Monthly", description: "The 1st, every month" },
+  { value: "QUARTERLY", label: "Quarterly", description: "1 Jan, Apr, Jul, Oct" },
+  { value: "SIX_MONTHLY", label: "Six-monthly", description: "1 Jan and 1 Jul" },
+  { value: "ANNUAL", label: "Yearly", description: "1 Jan" },
 ];
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export function HowOftenDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const cycle = useCycle<DeclarationCycleView, ApiError>({ query: { enabled: open } });
-  const [editing, setEditing] = useState(false);
 
   return (
     <Dialog
       open={open}
-      size="lg"
       title="How often the declarations are wanted"
-      description={
-        "One cycle, for every declaration the firm asks its staff to sign. Changing it takes effect at "
-        + "once, on everybody: nothing records the cycle a signature was given under, so moving the firm "
-        + "from yearly to monthly moves every next-due date it holds."
-      }
+      description="Every declaration, for everybody. Changing it moves every next-due date at once."
       onClose={onClose}
     >
       {cycle.isError && <Alert tone="danger">{cycle.error.message}</Alert>}
       {cycle.isPending ? (
         <p className="text-sm text-ink-muted">Reading the firm's cycle…</p>
-      ) : editing ? (
-        <TheCycle
-          now={cycle.data}
-          onDone={() => setEditing(false)}
-          onSaved={() => void cycle.refetch()}
-        />
       ) : (
-        <AtRest
+        // Keyed on the firm's own answer, so putting the cycle back leaves the cards showing what was
+        // put back rather than the choice that was on screen a moment earlier.
+        <TheCycle
+          key={cycle.data?.cadence}
           now={cycle.data}
-          onChange={() => setEditing(true)}
-          onPutBack={() => void cycle.refetch()}
+          onSaved={() => void cycle.refetch()}
+          onClose={onClose}
         />
       )}
     </Dialog>
   );
 }
 
-/** The cycle as it sits: what it is, and whose answer that is. */
-function AtRest({ now, onChange, onPutBack }: {
+/** The four of them, with the firm's own ticked. */
+function TheCycle({ now, onSaved, onClose }: {
   now: DeclarationCycleView | undefined;
-  onChange: () => void;
-  onPutBack: () => void;
-}) {
-  const back = usePutTheCycleBack<ApiError>({ mutation: { onSuccess: onPutBack } });
-  if (!now) {
-    return null;
-  }
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-ink">Every declaration</p>
-        <p className="mt-0.5 text-sm text-ink-muted">{now.said}</p>
-        {/* Whose answer it is, and what it would go back to. Somebody changing a cycle wants to know
-            whether they are changing the firm's own decision or the one it arrived with. */}
-        {now.setByTheFirm && (
-          <p className="mt-0.5 text-xs text-ink-muted">
-            Set by {now.changedByName ?? "the firm"} · was {now.asShipped}
-          </p>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {now.setByTheFirm && (
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={back.isPending}
-            onClick={() => back.mutate()}
-          >
-            <RotateCcw aria-hidden="true" className="size-3.5" />
-            Put back
-          </Button>
-        )}
-        <Button variant="secondary" size="sm" onClick={onChange}>
-          Change
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-/** Being changed: how often, and by which day of the year. */
-function TheCycle({ now, onDone, onSaved }: {
-  now: DeclarationCycleView | undefined;
-  onDone: () => void;
   onSaved: () => void;
+  onClose: () => void;
 }) {
-  const set = useSetCycle<ApiError>({
-    mutation: {
-      onSuccess: () => {
-        onSaved();
-        onDone();
-      },
-    },
-  });
+  const set = useSetCycle<ApiError>({ mutation: { onSuccess: () => { onSaved(); onClose(); } } });
+  const back = usePutTheCycleBack<ApiError>({ mutation: { onSuccess: onSaved } });
   const [cadence, setCadence] = useState<DeclarationCycleViewCadence>(now?.cadence ?? "ANNUAL");
-  // A day of the YEAR, not a day in one: "the 31st of January" is the rule, and 31 January 2026 is only
-  // the first time it comes round. So it is a month and a day rather than a date picker.
-  const [month, setMonth] = useState(String(now?.dueMonth ?? 1));
-  const [day, setDay] = useState(String(now?.dueDay ?? 31));
-  const refused = set.isError ? set.error : null;
-  // A monthly cycle lands in every month, so the month it is anchored in decides nothing. Asked for on
-  // the others, where it decides which months the cycle falls in: quarterly from March is March, June,
-  // September, December.
-  const monthMatters = cadence !== "MONTHLY";
+  const refused = set.isError ? set.error : back.isError ? back.error : null;
+  // Nothing to save until something changes, so Save is a button that means something when it is on.
+  const changed = now != null && cadence !== now.cadence;
 
   return (
     <form
-      className="space-y-3"
+      className="space-y-4"
       onSubmit={(event) => {
         event.preventDefault();
-        set.mutate({ data: { cadence, dueMonth: Number(month), dueDay: Number(day) } });
+        set.mutate({ data: { cadence } });
       }}
     >
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="block">
-          <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            How often
-          </span>
-          <SelectInput
-            id="declaration-cadence"
-            value={cadence}
-            onChange={(event) => setCadence(event.target.value as DeclarationCycleViewCadence)}
-            className="w-56"
-          >
-            {CADENCES.map((one) => (
-              <option key={one.id} value={one.id}>{one.label}</option>
-            ))}
-          </SelectInput>
-        </label>
-        {monthMatters && (
-          <label className="block">
-            <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              Month
-            </span>
-            <SelectInput
-              id="declaration-month"
-              value={month}
-              onChange={(event) => setMonth(event.target.value)}
-              className="w-28"
-            >
-              {MONTHS.map((name, at) => (
-                <option key={name} value={String(at + 1)}>{name}</option>
-              ))}
-            </SelectInput>
-          </label>
-        )}
-        <label className="block">
-          <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            Day
-          </span>
-          <TextInput
-            id="declaration-day"
-            inputMode="numeric"
-            value={day}
-            onChange={(event) => setDay(event.target.value)}
-            className="w-20"
-          />
-        </label>
-      </div>
-      {/* Said where it is chosen rather than only in the dialog's own blurb: the 31st, stepped quarterly,
-          is the end of every quarter, and that is the whole reason the day is a day of the year. */}
-      <p className="text-xs text-ink-muted">
-        {cadence === "MONTHLY"
-          ? "Every month, on that day — the last of the month where the month is too short for it."
-          : "A day the month is too short for falls on that month's last, so the 31st every three months "
-            + "is the end of each quarter."}
-      </p>
+      <ChoiceCards
+        name="declaration-cadence"
+        legend="How often"
+        value={cadence}
+        onChange={setCadence}
+        choices={CADENCES}
+      />
       {refused && <Alert tone="danger">{refused.message}</Alert>}
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={set.isPending}>
-          {set.isPending ? "Saving…" : "Save"}
-        </Button>
-        <Button type="button" variant="secondary" size="sm" onClick={onDone}>
-          Cancel
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {/* Whose answer is in force, so somebody changing it sees what they are leaving. */}
+        <p className="text-xs text-ink-muted">
+          {now?.setByTheFirm
+            ? `Set by ${now.changedByName ?? "the firm"} · was ${now.asShipped}`
+            : "As it shipped"}
+        </p>
+        <div className="ms-auto flex items-center gap-2">
+          {now?.setByTheFirm && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={back.isPending}
+              onClick={() => back.mutate()}
+            >
+              <RotateCcw aria-hidden="true" className="size-3.5" />
+              Put back
+            </Button>
+          )}
+          <Button type="submit" size="sm" disabled={!changed || set.isPending}>
+            {set.isPending ? "Saving…" : "Save"}
+          </Button>
+        </div>
       </div>
     </form>
   );
