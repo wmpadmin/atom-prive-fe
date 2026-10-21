@@ -9,10 +9,10 @@ import { Alert, Button, Field, SelectInput, TextInput, cn, describedBy } from "@
 import { useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { BenchmarksPanel } from "./benchmarks-panel";
 import { PreTradeLimitsPanel } from "./pre-trade-limits-panel";
 import { useShowFirstError } from "../../lib/show-first-error";
 import { asFigure } from "../../lib/figures";
@@ -44,7 +44,8 @@ export function PortfolioSettingsPage() {
   // The boxes start from what the firm has settled, and stay as they are typed from then on.
   const held = settings.data;
   const typed = edits ?? asTyped(held);
-  const { watchAt, edgeAt, breachAt, sellOrder, minimumTrade, breachAlertTo, warnOnNearLimit } =
+  const { classBreachAt, subAssetBreachAt, insideSubAssetBreachAt, sellOrder, minimumTrade,
+    breachAlertTo, warnOnNearLimit } =
     typed;
   const set = (part: Partial<Typed>) => setEdits({ ...typed, ...part });
 
@@ -62,21 +63,20 @@ export function PortfolioSettingsPage() {
     },
   });
 
-  const figures = [watchAt, edgeAt, breachAt, minimumTrade];
+  const figures = [classBreachAt, subAssetBreachAt, insideSubAssetBreachAt, minimumTrade];
   const readable = figures.every((typed) => typed.trim() !== "" && Number.isFinite(Number(typed)));
-  // The bands may not narrow, or a drift would be broken before it was worth watching. Equal is allowed
-  // and is how the firm writes them now: one figure said three times, which collapses the ladder to the
-  // single verdict the firm asked for — nothing can be past an edge equal to the breach without being past
-  // the breach first.
-  const widen = readable && Number(watchAt) <= Number(edgeAt) && Number(edgeAt) <= Number(breachAt);
+  // Nothing to put in order. Each figure answers for its own depth, and a depth has no reading finer than
+  // past its band or not — so no figure here has to be wider or narrower than the one beside it. A class
+  // is usually allowed further than the lines inside it, but that is the firm's judgement to make rather
+  // than a rule to enforce.
 
   function submit(event: FormEvent) {
     event.preventDefault();
     change.mutate({
       data: {
-        defaultWatchAt: Number(watchAt),
-        defaultEdgeAt: Number(edgeAt),
-        defaultBreachAt: Number(breachAt),
+        classBreachAt: Number(classBreachAt),
+        subAssetBreachAt: Number(subAssetBreachAt),
+        insideSubAssetBreachAt: Number(insideSubAssetBreachAt),
         sellOrder,
         minimumTrade: Number(minimumTrade),
         breachAlertTo,
@@ -107,48 +107,48 @@ export function PortfolioSettingsPage() {
       )}
 
       <form ref={form} onSubmit={submit} className="space-y-5">
+        {/* One figure for each depth a plan is written at, which is the shape the firm plans in: a class,
+            the lines inside it, and the lines inside those. What stood here was three figures for one
+            depth — worth watching, at the edge, broken — and nothing read any of them: a model carried
+            its own numbers in the code, so the screen promised a rule it never applied. */}
         <Panel
-          title="Default tolerance bands"
-          says="Applied to a new model unless it overrides them. Changing these does not re-judge a model already written."
+          title="How far a plan may drift before it has breached"
+          says="Percentage points from target, at each depth. Carried into a new model, which may write its own; a model already written is left as it was settled."
           takesEffect
         >
           <div className="grid gap-3 sm:grid-cols-3">
-            <Field id="set-watch" label="Worth watching from" error={errors.fields.defaultWatchAt}>
+            <Field id="set-class" label="Asset class" error={errors.fields.classBreachAt}>
               <TextInput
-                {...describedBy("set-watch", errors.fields.defaultWatchAt)}
-                id="set-watch"
+                {...describedBy("set-class", errors.fields.classBreachAt)}
+                id="set-class"
                 inputMode="decimal"
                 disabled={!mayChange}
-                value={watchAt}
-                onChange={(event) => set({ watchAt: asFigure(event.target.value, watchAt) })}
+                value={classBreachAt}
+                onChange={(event) => set({ classBreachAt: asFigure(event.target.value, classBreachAt) })}
               />
             </Field>
-            <Field id="set-edge" label="At the edge from" error={errors.fields.defaultEdgeAt}>
+            <Field id="set-sub-asset" label="Sub-asset" error={errors.fields.subAssetBreachAt}>
               <TextInput
-                {...describedBy("set-edge", errors.fields.defaultEdgeAt)}
-                id="set-edge"
+                {...describedBy("set-sub-asset", errors.fields.subAssetBreachAt)}
+                id="set-sub-asset"
                 inputMode="decimal"
                 disabled={!mayChange}
-                value={edgeAt}
-                onChange={(event) => set({ edgeAt: asFigure(event.target.value, edgeAt) })}
+                value={subAssetBreachAt}
+                onChange={(event) => set({ subAssetBreachAt: asFigure(event.target.value, subAssetBreachAt) })}
               />
             </Field>
-            <Field id="set-breach" label="Breached from" error={errors.fields.defaultBreachAt}>
+            <Field id="set-inside" label="Inside a sub-asset" error={errors.fields.insideSubAssetBreachAt}>
               <TextInput
-                {...describedBy("set-breach", errors.fields.defaultBreachAt)}
-                id="set-breach"
+                {...describedBy("set-inside", errors.fields.insideSubAssetBreachAt)}
+                id="set-inside"
                 inputMode="decimal"
                 disabled={!mayChange}
-                value={breachAt}
-                onChange={(event) => set({ breachAt: asFigure(event.target.value, breachAt) })}
+                value={insideSubAssetBreachAt}
+                onChange={(event) =>
+                  set({ insideSubAssetBreachAt: asFigure(event.target.value, insideSubAssetBreachAt) })}
               />
             </Field>
           </div>
-          {readable && !widen && (
-            <p className="mt-2 text-xs text-red-600">
-              The bands have to widen: worth watching, then the edge, then broken.
-            </p>
-          )}
         </Panel>
 
         <Panel
@@ -243,7 +243,7 @@ export function PortfolioSettingsPage() {
 
         {mayChange && (
           <div className="flex items-center justify-end gap-3">
-            <Button type="submit" disabled={change.isPending || !readable || !widen}>
+            <Button type="submit" disabled={change.isPending || !readable}>
               {change.isPending ? "Saving…" : "Save the rules"}
             </Button>
           </div>
@@ -253,20 +253,14 @@ export function PortfolioSettingsPage() {
       {/* Its own record and its own Save: the form above is one row of defaults, these are a row a class. */}
       <PreTradeLimitsPanel mayChange={mayChange} />
 
+      {/* The indices themselves, not a line of small print pointing at them. They were a screen of their
+          own, reached from here and from nowhere else — so the thing that makes Model performance work
+          was two screens away from the rules it belongs with. */}
+      <BenchmarksPanel />
+
       <section className="rounded-2xl border border-line bg-white p-5">
         <h2 className="text-base font-bold">Where the rest of the rules live</h2>
         <dl className="mt-3 space-y-3 text-sm">
-          <div>
-            <dt className="font-semibold">
-              <Link to="/benchmarks" className="text-primary-700 hover:underline">
-                Benchmarks
-              </Link>
-            </dt>
-            <dd className="text-ink-muted">
-              Which index each model is measured against, and in which currency. On its own screen, because
-              each one carries a series of levels rather than a single figure.
-            </dd>
-          </div>
           <div>
             <dt className="font-semibold">Asset class taxonomy</dt>
             <dd className="text-ink-muted">
@@ -283,9 +277,9 @@ export function PortfolioSettingsPage() {
 
 /** The rules as they are typed, which is as text until they are saved as figures. */
 interface Typed {
-  watchAt: string;
-  edgeAt: string;
-  breachAt: string;
+  classBreachAt: string;
+  subAssetBreachAt: string;
+  insideSubAssetBreachAt: string;
   sellOrder: SellOrder;
   minimumTrade: string;
   breachAlertTo: AlertTo;
@@ -295,9 +289,9 @@ interface Typed {
 /** What the firm has settled, as boxes. Blank until it has been read, rather than a guess at the defaults. */
 function asTyped(held: SettingsView | undefined): Typed {
   return {
-    watchAt: held ? String(held.defaultWatchAt) : "",
-    edgeAt: held ? String(held.defaultEdgeAt) : "",
-    breachAt: held ? String(held.defaultBreachAt) : "",
+    classBreachAt: held ? String(held.classBreachAt) : "",
+    subAssetBreachAt: held ? String(held.subAssetBreachAt) : "",
+    insideSubAssetBreachAt: held ? String(held.insideSubAssetBreachAt) : "",
     sellOrder: held?.sellOrder ?? "ASK",
     minimumTrade: held ? String(held.minimumTrade) : "",
     breachAlertTo: held?.breachAlertTo ?? "PORTFOLIO_MANAGER",

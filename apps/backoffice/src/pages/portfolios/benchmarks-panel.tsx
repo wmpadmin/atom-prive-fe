@@ -28,7 +28,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { ListPageHeader } from "../../components/record-list";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { formatDate } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
@@ -43,8 +42,13 @@ const EARLIEST = new Date(1970, 0, 1);
  * <p>An index is a name, a currency and a series of levels. A return over any period is one level against
  * another, which is how an index actually works — so no period has to be decided here, and a level written
  * down once serves every period that crosses it.
+ *
+ * <p>A panel on Portfolio settings rather than a screen of its own. It was a screen, reached by a link from
+ * the settings page and from nowhere else — not on the menu, so the only way to the thing that makes Model
+ * performance work was a line of small print on another screen. The rule it holds is a portfolio rule like
+ * the bands above it, and it is now kept where the rest of them are.
  */
-export function BenchmarksPage() {
+export function BenchmarksPanel() {
   const user = useStaffUser();
   const mayChange = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
   const benchmarks = useListBenchmarks<BenchmarkRow[], ApiError>();
@@ -52,32 +56,37 @@ export function BenchmarksPage() {
   const [opened, setOpened] = useState<BenchmarkRow | null>(null);
 
   if (benchmarks.isError) {
-    return <Alert tone="danger">{benchmarks.error.message}</Alert>;
+    return (
+      <section className="rounded-2xl border border-line bg-white p-5">
+        <h2 className="text-base font-bold">Benchmarks</h2>
+        <div className="mt-3">
+          <Alert tone="danger">{benchmarks.error.message}</Alert>
+        </div>
+      </section>
+    );
   }
   const rows = benchmarks.data ?? [];
 
   return (
-    <div className="space-y-6">
-      <ListPageHeader
-        title="Benchmarks"
-        lead="The indices the firm measures its plans against, and what each one stood at."
-      >
+    <section className="rounded-2xl border border-line bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-base font-bold">Benchmarks</h2>
+          <p className="mt-0.5 text-sm text-ink-muted">
+            The indices the firm measures its plans against, and what each one stood at. Named with its
+            currency, or the comparison means nothing: a plan kept in dollars has not beaten an index quoted
+            in rupees just because the number is bigger.
+          </p>
+        </div>
         {mayChange && (
-          <Button onClick={() => setAdding(true)}>
+          <Button className="shrink-0" onClick={() => setAdding(true)}>
             <Plus aria-hidden="true" />
             New benchmark
           </Button>
         )}
-      </ListPageHeader>
+      </div>
 
-      <Alert tone="info">
-        A benchmark is named with its currency, or the comparison means nothing: a plan kept in dollars has not
-        beaten an index quoted in rupees just because the number is bigger. Model performance compares a plan
-        with its index over the same days the plan itself covers, so a level is only needed on the days
-        portfolios were written down.
-      </Alert>
-
-      <section className="overflow-x-auto rounded-2xl border border-line bg-white">
+      <div className="mt-4 overflow-x-auto rounded-xl border border-line">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -100,7 +109,7 @@ export function BenchmarksPage() {
               <tr>
                 <td colSpan={5} className="px-5 py-10 text-center text-ink-muted">
                   No benchmark yet. Until a plan has one, Model performance shows its return and nothing to
-                  compare it with.
+                  compare it with — and the Benchmark box on a model has nothing to offer.
                 </td>
               </tr>
             )}
@@ -140,11 +149,19 @@ export function BenchmarksPage() {
             ))}
           </tbody>
         </table>
-      </section>
+      </div>
+
+      {/* Said under the table rather than above it: somebody reads this when they wonder how many levels to
+          write, which is after they have seen what is there. */}
+      <p className="mt-3 text-xs text-ink-muted">
+        Model performance compares a plan with its index over the same days the plan itself covers, so a
+        level is only needed on the days portfolios were written down — and two of them at least, or there
+        is no period to compare.
+      </p>
 
       {adding && <NewBenchmarkDialog onClose={() => setAdding(false)} />}
       {opened && <LevelsDialog benchmark={opened} mayChange={mayChange} onClose={() => setOpened(null)} />}
-    </div>
+    </section>
   );
 }
 

@@ -1,5 +1,6 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  useGetPortfolioSettings,
   useListBenchmarks,
   useListModelPortfolios,
   type BenchmarkRow,
@@ -8,6 +9,7 @@ import {
   type ModelRequestRiskProfile,
   type BandRequest,
   type ModelRow,
+  type SettingsView,
   type SubAllocationRequest,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
@@ -50,6 +52,28 @@ function firstLineBand(model: ModelRow | null): string | null {
     }
   }
   return null;
+}
+
+/**
+ * The figure a model holds a line INSIDE a sub-asset to, where it holds one.
+ *
+ * <p>Read a level below {@link firstLineBand}, because the two are different rules: a sub-asset may be
+ * allowed five points of its class while the lines broken out of it are held to two.
+ */
+function firstInsideBand(model: ModelRow | null): string | null {
+  for (const lines of Object.values(model?.subAllocations ?? {})) {
+    for (const line of lines ?? []) {
+      for (const inside of line.lines ?? []) {
+        if (inside.band?.breachAt != null) return String(inside.band.breachAt);
+      }
+    }
+  }
+  return null;
+}
+
+/** A figure the firm has settled, as a box wants it — and nothing at all until it has been read. */
+function asTyped(figure: number | undefined): string | null {
+  return figure == null ? null : String(figure);
 }
 
 /** One line of a spread by country or by sector, as it is typed. */
@@ -348,8 +372,14 @@ export function ModelDialog({
   // the class's. The two are deliberately different — a class may wander further than the lines inside
   // it — and only saying both keeps them that way: a line left to inherit carries the class's figure, so
   // editing a model would quietly widen every line in it.
+  // The firm's own figures, which a new model starts from. They used to be written here as 10 and 5,
+  // so Portfolio settings set a band nothing read and this dialog set one nobody could see.
+  const firm = useGetPortfolioSettings<SettingsView, ApiError>();
   const [typedLineBand, setLineBand] = useState<string | null>(null);
-  const lineBand = typedLineBand ?? firstLineBand(model) ?? "5";
+  const lineBand = typedLineBand ?? firstLineBand(model) ?? asTyped(firm.data?.subAssetBreachAt) ?? "5";
+  const [typedInsideBand, setInsideBand] = useState<string | null>(null);
+  const insideBand = typedInsideBand ?? firstInsideBand(model)
+    ?? asTyped(firm.data?.insideSubAssetBreachAt) ?? "5";
   const [typedBreaches, setBreaches] = useState<Breaches>(
     model ? breachesOf(model, codes) : noBreaches(codes),
   );
@@ -366,7 +396,8 @@ export function ModelDialog({
   const [apart, setApart] = useState(() => model != null && oneBandForEveryClass(model, codes) == null
     && codes.some((assetClass) => model.bands?.[assetClass] != null));
   const [typedClassBand, setClassBand] = useState<string | null>(null);
-  const classBand = typedClassBand ?? oneBandForEveryClass(model, codes) ?? "10";
+  const classBand = typedClassBand ?? oneBandForEveryClass(model, codes)
+    ?? asTyped(firm.data?.classBreachAt) ?? "10";
   // Held to the classes the plan actually asks for something of. A class the model names at nothing is
   // on the plan and shown, but writing it a tolerance is writing a rule about money nobody is holding
   // there — and the form never wrote one before, so one figure for all must not quietly start.
@@ -435,22 +466,26 @@ export function ModelDialog({
    * deep as on one directly in its class: the firm asked for one figure per model, and a line that is a
    * quarter of a quarter is not a reason to hold it to a different one.
    */
-  function asked(line: TypedLine): SubAllocationRequest {
+  function asked(line: TypedLine, depth = 0): SubAllocationRequest {
+    // A sub-asset answers to the firm's sub-asset figure; anything inside one answers to the figure for
+    // inside. Written by depth rather than by name, so a line three deep cannot quietly take the figure
+    // meant for the line above it.
+    const band = depth === 0 ? lineBand : insideBand;
     return {
       name: line.name.trim(),
       shareOfClass: Number(line.shareOfClass),
-      band: isNumber(lineBand) && Number(lineBand) > 0
+      band: isNumber(band) && Number(band) > 0
         ? {
             basis: "ABSOLUTE" as const,
-            watchAt: Number(lineBand),
-            edgeAt: Number(lineBand),
-            breachAt: Number(lineBand),
+            watchAt: Number(band),
+            edgeAt: Number(band),
+            breachAt: Number(band),
             watchBelow: null,
             edgeBelow: null,
             breachBelow: null,
           }
         : null,
-      lines: line.lines.length > 0 ? line.lines.map(asked) : null,
+      lines: line.lines.length > 0 ? line.lines.map((one) => asked(one, depth + 1)) : null,
     };
   }
 
@@ -602,16 +637,6 @@ export function ModelDialog({
             The split
           </legend>
 
-          {/* Two figures a class, and what each of them is. Said once above the boxes rather than labelled
-              on every row, which at six classes was the same two words twelve times. */}
-          <p className="mb-3 text-xs text-ink-muted">
-            What each class is asked to be, and how far it may wander either way before it has breached.
-            A class may be allowed further than the lines inside it, so the sub-assets carry their own
-            figure, said once below for the whole model: a line asked for 10% of its class, held to five,
-            is sound between 5% and 15% of that class. The same figure holds a line broken down further,
-            and one broken down again after that — and it is read against the class every time, however
-            deep the line sits.
-          </p>
 
           {/* Said once each, for the classes and for the lines inside them, rather than typed onto every
               row. A firm holding every class to ten and every line to five types two numbers here; it
@@ -645,9 +670,7 @@ export function ModelDialog({
               </span>
             </span>
             <span className="text-xs text-ink-muted">
-              {apart
-                ? "each class is held to its own figure, set beside it below."
-                : "of the whole portfolio, either side of its target."}
+              {apart ? "each to its own, below" : "of its target"}
             </span>
             {/* Offered rather than assumed. Most plans hold every class the same, and the ones that do
                 not are the ones somebody has thought about. */}
@@ -688,9 +711,34 @@ export function ModelDialog({
                 %
               </span>
             </span>
-            <span className="text-xs text-ink-muted">
-              of its class, either side of its own share — at every depth, however deep the line sits.
+            <span className="text-xs text-ink-muted">of its class</span>
+
+            <label htmlFor="inside-band" className="text-xs font-medium text-ink">
+              Inside a sub-asset
+            </label>
+            <span className="relative">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-ink-muted"
+              >
+                ±
+              </span>
+              <TextInput
+                id="inside-band"
+                aria-label="How far a line inside a sub-asset may wander from its own share before it has breached"
+                inputMode="decimal"
+                className="h-8 w-24 pr-6 pl-6 text-right text-sm"
+                value={insideBand}
+                onChange={(event) => setInsideBand(asFigure(event.target.value, insideBand))}
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-ink-muted"
+              >
+                %
+              </span>
             </span>
+            <span className="text-xs text-ink-muted">of what it sits in</span>
           </div>
 
           <div className="grid gap-x-5 gap-y-2.5 sm:grid-cols-2">
