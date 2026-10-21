@@ -367,10 +367,13 @@ export function ProposalsPage() {
                     <Link to={`/proposals/${proposal.id}${onMe ? "?from=review" : ""}`} onClick={(event) => event.stopPropagation()} className="font-semibold hover:text-primary-600">
                       {proposal.title}
                     </Link>
-                    <span className="block text-xs text-ink-muted">
-                      {proposal.reference}
-                      {proposal.summary && ` · ${proposal.summary}`}
-                    </span>
+                    {/* The reference and nothing else. The summary sat here too and said the title again
+                        in other words — "Out of Yield Enhancement Strategies, into 3 lines" under "Move
+                        USD 2,895 out of Yield Enhancement Strategies" — which took a second line of every
+                        row to repeat what the first had said. It is on the proposal itself, where the
+                        legs it describes are. The reference stays: it is what somebody searches by, and
+                        the row says it nowhere else. */}
+                    <span className="block text-xs text-ink-muted">{proposal.reference}</span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
