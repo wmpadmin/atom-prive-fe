@@ -16,6 +16,7 @@ import { ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { useStaffUser } from "../../auth/session";
 import { formatDateTime } from "../../lib/labels";
+import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { hasAnyAuthority, RAISES_CLIENT_REQUESTS } from "../../lib/permissions";
 import { ClientAskingRows, EMPTY_ROW, isAsked, legsFromRows, type AskedRow } from "./client-asking-rows";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
@@ -342,18 +343,19 @@ function WritingForAclient({ client, onDone, onClose }: {
   const [writing, setWriting] = useState(false);
   const [rows, setRows] = useState<AskedRow[]>([{ ...EMPTY_ROW }]);
   const [why, setWhy] = useState("");
-  const [refused, setRefused] = useState<string | null>(null);
+  const [refused, setRefused] = useState<FormErrors>(noErrors);
 
   const ask = useAskOnBehalfOfTheClient<ApiError>({
     mutation: {
       onSuccess: onDone,
-      // Kept on the screen rather than in a notice that fades: every refusal this can give changes what
-      // the writer does next, and the server's sentence is the only place its figures appear.
-      onError: (error) => setRefused(error.message),
+      // Read field by field, not as one sentence. A refusal about a line the client holds nothing in comes
+      // back as "Some fields need attention." with the real sentence under the field it is about — and
+      // shown as that sentence alone, the screen says there is a problem and refuses to say what.
+      onError: (error) => setRefused(toFormErrors(error)),
     },
   });
 
-  const written = rows.filter(isAsked);
+  const written = rows.filter((row) => isAsked(row, held.data));
   const ready = written.length > 0 && why.trim() !== "";
 
   return (
@@ -394,7 +396,7 @@ function WritingForAclient({ client, onDone, onClose }: {
             disabled={ask.isPending}
             onChange={(next) => {
               setRows(next);
-              setRefused(null);
+              setRefused(noErrors);
             }}
           />
           <Field id="why-the-client-asked" label="Why it should move" required
@@ -408,7 +410,17 @@ function WritingForAclient({ client, onDone, onClose }: {
               onChange={(event) => setWhy(event.target.value)}
             />
           </Field>
-          {refused && <Alert tone="danger">{refused}</Alert>}
+          {(refused.form || Object.keys(refused.fields).length > 0) && (
+            <Alert tone="danger">
+              {refused.form ?? (
+                <ul className="space-y-1">
+                  {Object.entries(refused.fields).map(([field, said]) => (
+                    <li key={field}>{said}</li>
+                  ))}
+                </ul>
+              )}
+            </Alert>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-ink-muted">
               Nothing moves yet. This goes to the portfolio manager, and agreeing to it is what moves the
@@ -421,7 +433,7 @@ function WritingForAclient({ client, onDone, onClose }: {
               <Button
                 disabled={!ready || ask.isPending}
                 onClick={() => {
-                  setRefused(null);
+                  setRefused(noErrors);
                   ask.mutate({
                     customerId: client.id,
                     // Raised by hand, not carried out of a proposal: this is the client's own asking.
