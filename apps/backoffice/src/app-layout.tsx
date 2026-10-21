@@ -41,7 +41,6 @@ import {
   Radio,
   Scale,
   Settings,
-  ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
   Stamp,
@@ -164,6 +163,9 @@ const allNavigation: {
     label: "Dashboard",
     icon: LayoutGrid,
     authority: null,
+    // Not the portfolio desk's: their work is the clients, the plans and the queues, and the firm asked
+    // for the screens that are not that taken off their menu.
+    notFor: ["PORTFOLIO_MANAGER"],
     at: (path, search) => path === "/dashboard" || ownsSharedScreen(path, search, A_PORTFOLIO, "dashboard"),
   },
   {
@@ -214,15 +216,6 @@ const allNavigation: {
     to: "/model-performance",
     label: "Model performance",
     icon: TrendingUp,
-    authority: READS_CLIENT_PORTFOLIOS,
-    onlyFor: ["PORTFOLIO_MANAGER"],
-  },
-  {
-    // How risky the plans are, which is a different question from how they have done: two plans that
-    // returned the same are not the same plan if one of them lurched to get there.
-    to: "/model-risk",
-    label: "Model risk",
-    icon: ShieldAlert,
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
   },
@@ -357,7 +350,10 @@ const allNavigation: {
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
   },
-  { to: "/settings", label: "Settings", icon: Settings, authority: null },
+  // Somebody's own account. Off the portfolio desk's menu at the firm's asking; switching role, changing
+  // a password and signing out are all on the profile menu at the top of every screen, so nothing they
+  // need has gone with it.
+  { to: "/settings", label: "Settings", icon: Settings, authority: null, notFor: ["PORTFOLIO_MANAGER"] },
 ];
 
 /** Whether an entry is the one being read, which it is for its own address and whatever hangs off it. */
