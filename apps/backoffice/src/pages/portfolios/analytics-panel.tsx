@@ -10,14 +10,14 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, DateInput, Field, FilterMenu, cn } from "@atomprive/ui";
 import { useEffect, useRef, useState } from "react";
-import { inkFor, nameOf, useAssetClasses } from "./asset-classes";
+import { INK, inkFor, nameOf, useAssetClasses } from "./asset-classes";
 
 function money(amount: number) {
   return amount.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 
 /**
- * Every stretch the client has spent on one plan, and what their money did over it.
+ * Every stretch the client has spent on one plan, drawn as the share of their time it took.
  *
  * <p>A client moved from one model to another has two answers and not one, and the figures that follow
  * them say so nowhere else: the Return tab reads their whole history as a single run, so what the money
@@ -26,10 +26,12 @@ function money(amount: number) {
  *
  * <p>A stretch rather than a model. A client who goes aggressive, conservative and aggressive again has
  * been on the aggressive plan twice, with a different portfolio and a different market each time; two
- * rows say that and one row hides it.
+ * slices say that and one hides it.
  *
- * <p>Picking one narrows this whole panel to the days it covers, which is the point of it: the mix, the
- * movement and the worth are then the ones the client had while they were held to that plan.
+ * <p>The ring is time, because time is the only thing here that divides into a whole — a return cannot
+ * be a slice of anything, least of all a negative one, so each plan's return is written beside its
+ * slice instead. Picking one narrows this whole panel to the days it covers, which is the point of it:
+ * the mix, the movement and the worth are then the ones the client had while held to that plan.
  */
 function OnEachPlan({ customerId, inForce, show, clear }: {
   customerId: string;
@@ -38,7 +40,9 @@ function OnEachPlan({ customerId, inForce, show, clear }: {
   clear: () => void;
 }) {
   const history = useGetClientModelSpells<ModelHistory, ApiError>(customerId);
-  const spells = history.data?.spells ?? [];
+  // Only the plans. A stretch on no plan at all is time the firm was not measuring the client against
+  // anything, so it has no answer to give and is left out rather than drawn as a share of their time.
+  const spells = (history.data?.spells ?? []).filter((spell) => spell.modelPortfolioId !== null);
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
   }
@@ -46,6 +50,18 @@ function OnEachPlan({ customerId, inForce, show, clear }: {
     return null;
   }
   const showing = (spell: ModelSpell) => inForce.from === spell.from && inForce.to === spell.to;
+  // A stretch of one day is still a stretch, and a ring drawn from days alone would lose it entirely.
+  const weight = (spell: ModelSpell) => Math.max(spell.days, 1);
+  const whole = spells.reduce((sum, spell) => sum + weight(spell), 0);
+  const starts = spells.reduce<number[]>((walked, spell) =>
+    [...walked, (walked[walked.length - 1] ?? 0) + (weight(spell) / whole) * 100], [0]);
+  // A colour a PLAN, not a slice. A client who went back to the plan they started on should see that in
+  // the ring: two stretches of one colour read as one plan twice, which is what happened, where two
+  // colours read as two plans. They can never sit side by side — consecutive days on one plan are one
+  // stretch — so nothing merges.
+  const plans = [...new Set(spells.map((spell) => spell.modelPortfolioId))];
+  const inkFor = (spell: ModelSpell) => INK[plans.indexOf(spell.modelPortfolioId) % INK.length]!;
+  const R = 15.9155;
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -53,8 +69,8 @@ function OnEachPlan({ customerId, inForce, show, clear }: {
         <div className="min-w-0">
           <h3 className="text-base font-bold text-ink">On each plan</h3>
           <p className="mt-0.5 text-sm text-ink-muted">
-            What the money did while the client was held to it. Time-weighted, so what was paid in or
-            taken out is not read as earnings.
+            How long the client was held to each, and what the money did over it. Time-weighted, so what
+            was paid in or taken out is not read as earnings.
           </p>
         </div>
         {spells.some(showing) && (
@@ -62,60 +78,74 @@ function OnEachPlan({ customerId, inForce, show, clear }: {
         )}
       </div>
 
-      <div className="mt-4 overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              <th scope="col" className="py-2 pr-4">Plan</th>
-              <th scope="col" className="px-4 py-2">While</th>
-              <th scope="col" className="px-4 py-2 text-right">Days</th>
-              <th scope="col" className="px-4 py-2 text-right">Return</th>
-              <th scope="col" className="px-4 py-2 text-right">In</th>
-              <th scope="col" className="px-4 py-2 text-right">Out</th>
-              <th scope="col" className="py-2 pl-4 text-right"><span className="sr-only">Show</span></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {history.isPending && (
-              <tr><td colSpan={7} className="py-6 text-center text-ink-muted">Reading the plans…</td></tr>
-            )}
+      {history.isPending ? (
+        <p className="mt-4 text-sm text-ink-muted">Reading the plans…</p>
+      ) : (
+        <div className="mt-4 flex flex-wrap items-center gap-x-10 gap-y-6">
+          <svg viewBox="0 0 42 42" className="size-60 shrink-0" role="img"
+            aria-label="How long the client was held to each plan">
+            <circle cx="21" cy="21" r={R} fill="none" stroke="currentColor" strokeWidth="5"
+              className="text-slate-100" />
+            {spells.map((spell, at) => {
+              const share = (weight(spell) / whole) * 100;
+              const lit = spells.some(showing) ? showing(spell) : true;
+              return (
+                <circle
+                  key={`${spell.from}-${spell.modelPortfolioId}`}
+                  cx="21" cy="21" r={R}
+                  fill="none"
+                  stroke={inkFor(spell)}
+                  strokeWidth={showing(spell) ? 7 : 5}
+                  strokeDasharray={`${share} ${100 - share}`}
+                  strokeDashoffset={25 - starts[at]!}
+                  opacity={lit ? 1 : 0.22}
+                  className="cursor-pointer transition-[opacity,stroke-width]"
+                  onClick={() => (showing(spell) ? clear() : show(spell))}
+                >
+                  <title>{spell.modelName}: {spell.days} days</title>
+                </circle>
+              );
+            })}
+            <text x="21" y="20.5" textAnchor="middle" className="fill-ink text-[5px] font-bold">
+              {whole}
+            </text>
+            <text x="21" y="25" textAnchor="middle" className="fill-ink-muted text-[3px]">
+              days on a plan
+            </text>
+          </svg>
+
+          <ul className="min-w-0 flex-1 space-y-2.5">
             {spells.map((spell) => (
-              <tr key={`${spell.from}-${spell.modelPortfolioId ?? "none"}`}
-                className={cn(showing(spell) && "bg-primary-50/60")}>
-                <td className="py-2.5 pr-4 font-semibold text-ink">
-                  {/* A plan the firm has since taken off its list still named the days it was in force. */}
-                  {spell.modelName ?? <span className="font-normal text-ink-muted">On no plan</span>}
-                </td>
-                <td className="px-4 py-2.5 whitespace-nowrap text-ink-soft">
-                  {longDay(spell.from)} — {longDay(spell.to)}
-                </td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-ink-soft">{spell.days}</td>
-                <td className={cn("px-4 py-2.5 text-right font-semibold tabular-nums",
-                  spell.percent === null ? "text-ink-muted"
-                    : spell.percent < 0 ? "text-rose-700" : "text-emerald-700")}>
+              <li key={`${spell.from}-${spell.modelPortfolioId}`}>
+                <button
+                  type="button"
+                  onClick={() => (showing(spell) ? clear() : show(spell))}
+                  className={cn("flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left",
+                    showing(spell) ? "bg-primary-50" : "hover:bg-slate-50")}
+                >
+                  <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: inkFor(spell) }} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-ink">{spell.modelName}</span>
+                    <span className="block text-xs text-ink-muted">
+                      {longDay(spell.from)} — {longDay(spell.to)} · {spell.days} days
+                      {spell.paidIn > 0 && ` · ${money(spell.paidIn)} in`}
+                      {spell.takenOut > 0 && ` · ${money(spell.takenOut)} out`}
+                    </span>
+                  </span>
                   {/* Two days written down at the least, or there is no period to measure between. */}
-                  {spell.percent === null ? "—" : `${spell.percent > 0 ? "+" : spell.percent < 0 ? "−" : ""}${Math.abs(spell.percent).toFixed(1)}%`}
-                </td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-ink-soft">
-                  {spell.paidIn > 0 ? money(spell.paidIn) : <span className="text-ink-muted">—</span>}
-                </td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-ink-soft">
-                  {spell.takenOut > 0 ? money(spell.takenOut) : <span className="text-ink-muted">—</span>}
-                </td>
-                <td className="py-2.5 pl-4 text-right">
-                  <button
-                    type="button"
-                    onClick={() => (showing(spell) ? clear() : show(spell))}
-                    className="text-xs font-semibold text-primary-700 hover:underline"
-                  >
-                    {showing(spell) ? "Showing" : "Show these days"}
-                  </button>
-                </td>
-              </tr>
+                  <span className={cn("shrink-0 text-sm font-semibold tabular-nums",
+                    spell.percent === null ? "text-ink-muted"
+                      : spell.percent < 0 ? "text-rose-700" : "text-emerald-700")}>
+                    {spell.percent === null ? "—"
+                      : `${spell.percent > 0 ? "+" : spell.percent < 0 ? "−" : ""}${Math.abs(spell.percent).toFixed(1)}%`}
+                  </span>
+                </button>
+              </li>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </ul>
+        </div>
+      )}
 
       <p className="mt-3 text-xs text-ink-muted">
         Measured between the days written down while each plan was in force. The stretch between the last
