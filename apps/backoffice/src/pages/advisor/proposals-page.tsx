@@ -199,10 +199,16 @@ export function ProposalsPage() {
     if (row.mayAnswer) {
       return { review: true, said: null };
     }
-    // What became of it, with the name of whoever answered: on a client with two relationship managers,
-    // the one who comes second finds the buttons gone and is owed the reason.
+    // Who answered it: on a client with two relationship managers, the one who comes second finds the
+    // buttons gone and is owed the name of whoever was there first. The date is not repeated — the
+    // column beside this one carries it — and a proposal answered before the firm recorded the name
+    // says nothing here rather than "by their relationship manager", which is a column's width of
+    // words for no fact at all.
     if (row.status === "APPROVED" || row.status === "REJECTED") {
-      return { review: false, said: answeredLabel(row.status, row.answeredByName, row.decidedAt) };
+      return {
+        review: false,
+        said: row.answeredByName ? answeredLabel(row.status, row.answeredByName, null) : null,
+      };
     }
     if (row.status !== "PENDING" || !answers) {
       return { review: false, said: null };
@@ -308,16 +314,21 @@ export function ProposalsPage() {
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
+              {/* The widths are set here rather than left to the longest cell. A proposal's title is the
+                  only thing on the row that is as long as somebody chose to make it, so without them one
+                  long title took the width from every other column and a client's name broke across two
+                  lines beside it. Named in parts of the table, so the row still fits whatever the window
+                  is; everything that is a date, a figure or a word stays on one line. */}
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                <th scope="col" className="py-3 pr-4 pl-5">Proposal</th>
-                <th scope="col" className="px-4 py-3">Client</th>
+                <th scope="col" className="w-[30%] py-3 pr-4 pl-5">Proposal</th>
+                <th scope="col" className="w-[16%] px-4 py-3">Client</th>
                 {/* Only where the list holds more than one advisor's work. On a list that is all your
                     own, a column repeating your name down every row says nothing. */}
-                {showAdvisor && <th scope="col" className="px-4 py-3">Advisor</th>}
-                <th scope="col" className="px-4 py-3">Sent</th>
-                <th scope="col" className="px-4 py-3">Value</th>
-                <th scope="col" className="px-4 py-3">Standing</th>
-                <th scope="col" className="px-4 py-3">Status</th>
+                {showAdvisor && <th scope="col" className="w-[12%] px-4 py-3">Advisor</th>}
+                <th scope="col" className="px-4 py-3 whitespace-nowrap">Sent</th>
+                <th scope="col" className="px-4 py-3 whitespace-nowrap">Value</th>
+                <th scope="col" className="px-4 py-3 whitespace-nowrap">Standing</th>
+                <th scope="col" className="px-4 py-3 whitespace-nowrap">Status</th>
                 <th scope="col" className="py-3 pr-5 pl-4 text-right"><span className="sr-only">Answer</span></th>
               </tr>
             </thead>
@@ -364,8 +375,10 @@ export function ProposalsPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <Avatar name={proposal.customerName} />
-                      <div>
-                        <span className="block">{proposal.customerName}</span>
+                      {/* A name is read as one thing, so it is kept on one line and cut where it will not
+                          fit — broken across two it reads as two people. */}
+                      <div className="min-w-0">
+                        <span className="block truncate">{proposal.customerName}</span>
                         <span className="block font-mono text-xs text-ink-muted">{proposal.customerCode}</span>
                       </div>
                     </div>
@@ -387,7 +400,7 @@ export function ProposalsPage() {
                   <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
                     {standingLabel(proposal.status as ProposalRowStatus, proposal.sentAt, proposal.decidedAt)}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <Badge tone={proposalStatusTones[proposal.status as ProposalRowStatus]}>
                       {proposalStatusLabels[proposal.status as ProposalRowStatus]}
                     </Badge>
