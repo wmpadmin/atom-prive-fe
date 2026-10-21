@@ -1610,14 +1610,13 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1629,6 +1628,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -4786,11 +4786,6 @@ export interface ModelPerformanceTable {
   asOf: string;
 }
 
-export interface MovePlanQueue {
-  waiting: MovePlanRow[];
-  answered: MovePlanRow[];
-}
-
 export interface MovePlanHistoryCounts {
   approved: number;
   rejected: number;
@@ -5191,6 +5186,11 @@ export interface AllocationChangeRow {
   appliedRevision: number | null;
   mayAnswer: boolean;
   nobodyCloserCanAnswer: boolean;
+}
+
+export interface MovePlanQueue {
+  waiting: MovePlanRow[];
+  answered: MovePlanRow[];
 }
 
 export interface AllocationChangeQueue {
@@ -15655,184 +15655,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRecordNonFinancialAssetMutationOptions(options), queryClient);
     }
 
-export const getListClientMovePlansUrl = (customerId: string,) => {
-
-
-
-
-  return `/api/backoffice/portfolios/clients/${customerId}/move-plans`
-}
-
-export const listClientMovePlans = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<MovePlanRow[]> => {
-
-  return http<MovePlanRow[]>(getListClientMovePlansUrl(customerId),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListClientMovePlansQueryKey = (customerId: string,) => {
-    return [
-    `/api/backoffice/portfolios/clients/${customerId}/move-plans`
-    ] as const;
-    }
-
-
-export const getListClientMovePlansQueryOptions = <TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListClientMovePlansQueryKey(customerId);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientMovePlans>>> = ({ signal }) => listClientMovePlans(customerId, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListClientMovePlansQueryResult = NonNullable<Awaited<ReturnType<typeof listClientMovePlans>>>
-export type ListClientMovePlansQueryError = unknown
-
-
-export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(
- customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listClientMovePlans>>,
-          TError,
-          Awaited<ReturnType<typeof listClientMovePlans>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listClientMovePlans>>,
-          TError,
-          Awaited<ReturnType<typeof listClientMovePlans>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getListClientMovePlansQueryOptions(customerId,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getAskToMoveMoneyUrl = (customerId: string,) => {
-
-
-
-
-  return `/api/backoffice/portfolios/clients/${customerId}/move-plans`
-}
-
-export const askToMoveMoney = async (customerId: string,
-    movePlanAsked: MovePlanAsked, options?: Parameters<typeof http>[1]): Promise<MovePlanRow> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<MovePlanRow>(getAskToMoveMoneyUrl(customerId),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(movePlanAsked)
-  }
-);}
-
-
-
-
-
-export const getAskToMoveMoneyMutationKey = () => ['askToMoveMoney'] as const;
-
-export const getAskToMoveMoneyMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToMoveMoney>>, TError,AskToMoveMoneyMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof askToMoveMoney>>, TError,AskToMoveMoneyMutationVariables, TContext> => {
-
-const mutationKey = getAskToMoveMoneyMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askToMoveMoney>>, AskToMoveMoneyMutationVariables> = (props) => {
-          const {customerId,data} = props ?? {};
-
-          return  askToMoveMoney(customerId,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AskToMoveMoneyMutationResult = NonNullable<Awaited<ReturnType<typeof askToMoveMoney>>>
-    export type AskToMoveMoneyMutationBody = MovePlanAsked
-    export type AskToMoveMoneyMutationError = unknown
-    export type AskToMoveMoneyMutationVariables = {customerId: string;data: MovePlanAsked}
-
-    export const useAskToMoveMoney = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToMoveMoney>>, TError,AskToMoveMoneyMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof askToMoveMoney>>,
-        TError,
-        AskToMoveMoneyMutationVariables,
-        TContext
-      > => {
-      return useMutation(getAskToMoveMoneyMutationOptions(options), queryClient);
-    }
-
 export const getListClientLoansUrl = (customerId: string,) => {
 
 
@@ -23444,101 +23266,6 @@ export function useGetModelPerformance<TData = Awaited<ReturnType<typeof getMode
 
 
 
-export const getListMovePlansUrl = () => {
-
-
-
-
-  return `/api/backoffice/portfolios/move-plans`
-}
-
-export const listMovePlans = async ( options?: Parameters<typeof http>[1]): Promise<MovePlanQueue> => {
-
-  return http<MovePlanQueue>(getListMovePlansUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListMovePlansQueryKey = () => {
-    return [
-    `/api/backoffice/portfolios/move-plans`
-    ] as const;
-    }
-
-
-export const getListMovePlansQueryOptions = <TData = Awaited<ReturnType<typeof listMovePlans>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListMovePlansQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMovePlans>>> = ({ signal }) => listMovePlans({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMovePlans>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListMovePlansQueryResult = NonNullable<Awaited<ReturnType<typeof listMovePlans>>>
-export type ListMovePlansQueryError = unknown
-
-
-export function useListMovePlans<TData = Awaited<ReturnType<typeof listMovePlans>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlans>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listMovePlans>>,
-          TError,
-          Awaited<ReturnType<typeof listMovePlans>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListMovePlans<TData = Awaited<ReturnType<typeof listMovePlans>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlans>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listMovePlans>>,
-          TError,
-          Awaited<ReturnType<typeof listMovePlans>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListMovePlans<TData = Awaited<ReturnType<typeof listMovePlans>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useListMovePlans<TData = Awaited<ReturnType<typeof listMovePlans>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getListMovePlansQueryOptions(options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
 export const getListMovesCarryingOutUrl = (proposalId: string,) => {
 
 
@@ -24820,6 +24547,101 @@ export function useClientOnThatModel<TData = Awaited<ReturnType<typeof clientOnT
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getClientOnThatModelQueryOptions(customerId,modelPortfolioId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListClientMovePlansUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/move-plans`
+}
+
+export const listClientMovePlans = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<MovePlanRow[]> => {
+
+  return http<MovePlanRow[]>(getListClientMovePlansUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientMovePlansQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/move-plans`
+    ] as const;
+    }
+
+
+export const getListClientMovePlansQueryOptions = <TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientMovePlansQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientMovePlans>>> = ({ signal }) => listClientMovePlans(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListClientMovePlansQueryResult = NonNullable<Awaited<ReturnType<typeof listClientMovePlans>>>
+export type ListClientMovePlansQueryError = unknown
+
+
+export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientMovePlans>>,
+          TError,
+          Awaited<ReturnType<typeof listClientMovePlans>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClientMovePlans>>,
+          TError,
+          Awaited<ReturnType<typeof listClientMovePlans>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listClientMovePlans>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClientMovePlans>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListClientMovePlansQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
