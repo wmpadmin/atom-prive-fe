@@ -361,23 +361,29 @@ function WritingForAclient({ client, onDone, onClose }: {
       <div>
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => (writing ? setWriting(false) : onClose())}
           className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline"
         >
           <ChevronLeft aria-hidden="true" className="size-4" />
-          Back to client requests
+          {writing ? `Back to ${client.name}'s portfolio` : "Back to client requests"}
         </button>
-        <h2 className="mt-2 text-lg font-semibold">What {client.name} asked for</h2>
-        <p className="text-sm text-ink-muted">
-          {client.code} · Nothing moves until a portfolio manager agrees to it.
-        </p>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">What {client.name} asked for</h2>
+            <p className="text-sm text-ink-muted">
+              {client.code} · Nothing moves until a portfolio manager agrees to it.
+            </p>
+          </div>
+          {/* Above what it is about, where somebody looking for it looks: under a portfolio this long it
+              sat below the fold on every client the firm has. */}
+          {!writing && <Button onClick={() => setWriting(true)}>Create client request</Button>}
+        </div>
       </div>
 
-      <ClientHoldingsPanel customerId={client.id} readOnly />
-
-      {!writing ? (
-        <Button onClick={() => setWriting(true)}>Create client request</Button>
-      ) : (
+      {/* The portfolio, until the asking is being written. They are two steps rather than one screen: the
+          holdings are long, and a form under them is a form nobody sees without scrolling past the whole
+          book. */}
+      {!writing ? <ClientHoldingsPanel customerId={client.id} readOnly /> : (
         <section className="space-y-4 rounded-2xl border border-line bg-white p-5">
           <h3 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             What the client asked for

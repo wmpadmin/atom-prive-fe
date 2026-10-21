@@ -1,5 +1,5 @@
 import type { ClientHoldings, MoveLegRequest, SubClassGroup } from "@atomprive/api-client/backoffice";
-import { Button, SelectInput, TextInput } from "@atomprive/ui";
+import { Button, Field, SelectInput, TextInput } from "@atomprive/ui";
 import { Plus, X } from "lucide-react";
 import { asFigure } from "../../lib/figures";
 
@@ -110,130 +110,128 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              <th scope="col" className="pr-3 pb-2">Out of</th>
-              <th scope="col" className="px-3 pb-2">Into</th>
-              <th scope="col" className="px-3 pb-2">Amount</th>
-              <th scope="col" className="pb-2 pl-3"><span className="sr-only">Remove</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, at) => (
-              <tr key={at} className="align-top">
-                <td className="space-y-2 pr-3 pb-3">
+      {/* Rows as blocks rather than a table. A table of these needs a scrolling box to hold six pickers
+          across, and a box that scrolls clips what opens inside it — so the list of classes was being cut
+          off at the edge of the row it belonged to. */}
+      {rows.map((row, at) => (
+        <div key={at} className="rounded-xl border border-line bg-canvas/60 p-4">
+          <div className="flex items-center justify-between gap-3 pb-3">
+            <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              {rows.length === 1 ? "What moves" : `Line ${at + 1}`}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              disabled={disabled || rows.length === 1}
+              aria-label={`Remove line ${at + 1}`}
+              onClick={() => onChange(rows.filter((_, index) => index !== at))}
+            >
+              <X aria-hidden="true" />
+            </Button>
+          </div>
+          <div className="grid gap-4 md:grid-cols-[1fr_1fr_12rem]">
+            <Field id={`out-of-${at}`} label="Out of">
+              <div className="space-y-2">
+                <SelectInput
+                  id={`out-of-${at}`}
+                  aria-label={`Asset class the money leaves on line ${at + 1}`}
+                  value={row.fromClass}
+                  disabled={disabled}
+                  onChange={(event) =>
+                    change(at, { fromClass: event.target.value, fromSub: "", fromSubSub: "" })}
+                >
+                  <option value="">Asset class</option>
+                  {classes.map((one) => (
+                    <option key={one.assetClass} value={one.assetClass}>
+                      {one.assetClassName || one.assetClass}
+                    </option>
+                  ))}
+                </SelectInput>
+                {row.fromClass !== "" && subsOf(holdings, row.fromClass, false).length > 0 && (
                   <SelectInput
-                    aria-label={`Asset class the money leaves on row ${at + 1}`}
-                    value={row.fromClass}
+                    aria-label={`Sub-asset the money leaves on line ${at + 1}`}
+                    value={row.fromSub}
                     disabled={disabled}
-                    onChange={(event) =>
-                      change(at, { fromClass: event.target.value, fromSub: "", fromSubSub: "" })}
+                    onChange={(event) => change(at, { fromSub: event.target.value, fromSubSub: "" })}
                   >
-                    <option value="">Asset class</option>
-                    {classes.map((one) => (
-                      <option key={one.assetClass} value={one.assetClass}>
-                        {one.assetClassName || one.assetClass}
-                      </option>
+                    <option value="">The whole class</option>
+                    {subsOf(holdings, row.fromClass, false).map((one) => (
+                      <option key={one} value={one}>{one}</option>
                     ))}
                   </SelectInput>
-                  {row.fromClass !== "" && subsOf(holdings, row.fromClass, false).length > 0 && (
-                    <SelectInput
-                      aria-label={`Sub-asset the money leaves on row ${at + 1}`}
-                      value={row.fromSub}
-                      disabled={disabled}
-                      onChange={(event) => change(at, { fromSub: event.target.value, fromSubSub: "" })}
-                    >
-                      <option value="">The whole class</option>
-                      {subsOf(holdings, row.fromClass, false).map((one) => (
-                        <option key={one} value={one}>{one}</option>
-                      ))}
-                    </SelectInput>
-                  )}
-                  {row.fromSub !== "" && insideOf(holdings, row.fromClass, row.fromSub).length > 0 && (
-                    <SelectInput
-                      aria-label={`Line the money leaves on row ${at + 1}`}
-                      value={row.fromSubSub}
-                      disabled={disabled}
-                      onChange={(event) => change(at, { fromSubSub: event.target.value })}
-                    >
-                      <option value="">The whole sub-asset</option>
-                      {insideOf(holdings, row.fromClass, row.fromSub).map((one) => (
-                        <option key={one} value={one}>{one}</option>
-                      ))}
-                    </SelectInput>
-                  )}
-                </td>
-                <td className="space-y-2 px-3 pb-3">
+                )}
+                {row.fromSub !== "" && insideOf(holdings, row.fromClass, row.fromSub).length > 0 && (
                   <SelectInput
-                    aria-label={`Asset class the money goes to on row ${at + 1}`}
-                    value={row.toClass}
+                    aria-label={`Line the money leaves on line ${at + 1}`}
+                    value={row.fromSubSub}
                     disabled={disabled}
-                    onChange={(event) =>
-                      change(at, { toClass: event.target.value, toSub: "", toSubSub: "" })}
+                    onChange={(event) => change(at, { fromSubSub: event.target.value })}
                   >
-                    <option value="">Asset class</option>
-                    {classes.map((one) => (
-                      <option key={one.assetClass} value={one.assetClass}>
-                        {one.assetClassName || one.assetClass}
-                      </option>
+                    <option value="">The whole sub-asset</option>
+                    {insideOf(holdings, row.fromClass, row.fromSub).map((one) => (
+                      <option key={one} value={one}>{one}</option>
                     ))}
                   </SelectInput>
-                  {row.toClass !== "" && subsOf(holdings, row.toClass, true).length > 0 && (
-                    <SelectInput
-                      aria-label={`Sub-asset the money goes to on row ${at + 1}`}
-                      value={row.toSub}
-                      disabled={disabled}
-                      onChange={(event) => change(at, { toSub: event.target.value, toSubSub: "" })}
-                    >
-                      <option value="">The whole class</option>
-                      {subsOf(holdings, row.toClass, true).map((one) => (
-                        <option key={one} value={one}>{one}</option>
-                      ))}
-                    </SelectInput>
-                  )}
-                  {row.toSub !== "" && insideOf(holdings, row.toClass, row.toSub).length > 0 && (
-                    <SelectInput
-                      aria-label={`Line the money goes to on row ${at + 1}`}
-                      value={row.toSubSub}
-                      disabled={disabled}
-                      onChange={(event) => change(at, { toSubSub: event.target.value })}
-                    >
-                      <option value="">The whole sub-asset</option>
-                      {insideOf(holdings, row.toClass, row.toSub).map((one) => (
-                        <option key={one} value={one}>{one}</option>
-                      ))}
-                    </SelectInput>
-                  )}
-                </td>
-                <td className="px-3 pb-3">
-                  <TextInput
-                    aria-label={`Amount on row ${at + 1}`}
-                    inputMode="decimal"
-                    placeholder={holdings?.currency ?? ""}
-                    value={row.amount}
+                )}
+              </div>
+            </Field>
+            <Field id={`into-${at}`} label="Into">
+              <div className="space-y-2">
+                <SelectInput
+                  id={`into-${at}`}
+                  aria-label={`Asset class the money goes to on line ${at + 1}`}
+                  value={row.toClass}
+                  disabled={disabled}
+                  onChange={(event) => change(at, { toClass: event.target.value, toSub: "", toSubSub: "" })}
+                >
+                  <option value="">Asset class</option>
+                  {classes.map((one) => (
+                    <option key={one.assetClass} value={one.assetClass}>
+                      {one.assetClassName || one.assetClass}
+                    </option>
+                  ))}
+                </SelectInput>
+                {row.toClass !== "" && subsOf(holdings, row.toClass, true).length > 0 && (
+                  <SelectInput
+                    aria-label={`Sub-asset the money goes to on line ${at + 1}`}
+                    value={row.toSub}
                     disabled={disabled}
-                    onChange={(event) => change(at, { amount: asFigure(event.target.value, row.amount) })}
-                  />
-                </td>
-                <td className="pb-3 pl-3">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    type="button"
-                    disabled={disabled || rows.length === 1}
-                    aria-label={`Remove row ${at + 1}`}
-                    onClick={() => onChange(rows.filter((_, index) => index !== at))}
+                    onChange={(event) => change(at, { toSub: event.target.value, toSubSub: "" })}
                   >
-                    <X aria-hidden="true" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    <option value="">The whole class</option>
+                    {subsOf(holdings, row.toClass, true).map((one) => (
+                      <option key={one} value={one}>{one}</option>
+                    ))}
+                  </SelectInput>
+                )}
+                {row.toSub !== "" && insideOf(holdings, row.toClass, row.toSub).length > 0 && (
+                  <SelectInput
+                    aria-label={`Line the money goes to on line ${at + 1}`}
+                    value={row.toSubSub}
+                    disabled={disabled}
+                    onChange={(event) => change(at, { toSubSub: event.target.value })}
+                  >
+                    <option value="">The whole sub-asset</option>
+                    {insideOf(holdings, row.toClass, row.toSub).map((one) => (
+                      <option key={one} value={one}>{one}</option>
+                    ))}
+                  </SelectInput>
+                )}
+              </div>
+            </Field>
+            <Field id={`amount-${at}`} label={`Amount${holdings?.currency ? ` (${holdings.currency})` : ""}`}>
+              <TextInput
+                id={`amount-${at}`}
+                inputMode="decimal"
+                value={row.amount}
+                disabled={disabled}
+                onChange={(event) => change(at, { amount: asFigure(event.target.value, row.amount) })}
+              />
+            </Field>
+          </div>
+        </div>
+      ))}
       {/* A client asks for several things in one telephone call as often as for one. */}
       <Button
         variant="secondary"
