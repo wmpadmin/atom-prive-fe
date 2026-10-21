@@ -4,7 +4,6 @@ import { Alert, Avatar, Badge, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
-import { formatDate } from "../../lib/labels";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress } from "../../lib/use-list-address";
 import {
@@ -15,9 +14,6 @@ import {
   underManagementLabel,
   type DriftStanding,
 } from "./portfolio-labels";
-
-/** Nothing is known about it yet, which is said the same way in every column that has nothing. */
-const NOTHING_YET = "—";
 
 /** The standings worth queueing: a portfolio where the model wants it is not a thing to do. */
 const WANDERED: DriftStanding[] = ["BREACHED", "AT_EDGE", "WATCH"];
@@ -107,15 +103,12 @@ export function DriftBreachesPage() {
             <th scope="col" className="px-4 py-3 text-left font-semibold">
               Standing
             </th>
-            <th scope="col" className="px-4 py-3 text-left font-semibold">
-              Last rebalanced
-            </th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">
               <span className="sr-only">Open</span>
             </th>
           </>
         }
-        columns={7}
+        columns={6}
         loading={queue.isLoading}
         stale={queue.isPlaceholderData}
         empty={
@@ -172,13 +165,6 @@ export function DriftBreachesPage() {
             </td>
             <td className="px-4 py-3">
               <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>
-            </td>
-            <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-              {row.lastRebalancedOn ? (
-                formatDate(row.lastRebalancedOn)
-              ) : (
-                <span className="text-ink-muted">{NOTHING_YET}</span>
-              )}
             </td>
             <td className="px-4 py-3 text-right">
               <Link

@@ -6,6 +6,7 @@ import {
 import { Alert, cn } from "@atomprive/ui";
 import { ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { nameOf, useAssetClasses } from "./asset-classes";
 import {
   changesIn, daysFrom, money, movedWithin, versionAndTheOneBefore,
@@ -350,6 +351,9 @@ function Changes({ day, changes, currency, customerId, names }: {
   /** What each class is called, so a line reads as a person says it rather than as a code. */
   names: Record<string, string>;
 }) {
+  // The changes were worked out above and are handed down whole, so the page is taken here, over the list
+  // as it stands. What the day moved by is still read off all of them, above this table.
+  const paged = usePagedRows(changes);
   return (
     <div className="px-6 py-4">
       {/* The heading is the section's, above. Said here too it was printed twice over. */}
@@ -363,7 +367,7 @@ function Changes({ day, changes, currency, customerId, names }: {
           </tr>
         </thead>
         <tbody className="divide-y divide-line/60">
-          {changes.map((change) => {
+          {paged.shown.map((change) => {
             const one = change.version;
             const quiet = nothingSaid(change, change.basis);
             // Each change is a row to press. The table below showed the one the day closed on and no
@@ -460,6 +464,9 @@ function Changes({ day, changes, currency, customerId, names }: {
           })}
         </tbody>
       </table>
+      {/* Directly under the table it counts. This list is drawn in one padded block rather than a strip
+          that scrolls, so there is nothing for the count to sit outside of. */}
+      <PagedFooter paged={paged} noun={["change", "changes"]} />
       <p className="mt-2 text-2xs text-ink-muted">
         Figures in {currency}. Each change says which lines it took money out of and which it put money
         into, against the change before it on this day — the first against the day before on file, which is
@@ -499,9 +506,6 @@ function Inside({ on, lines, before, first, classes, beforeClasses, codes, names
         // inside a class. It has a figure for the class and nothing under it — which is a different thing
         // from a class holding nothing, and the page used to say the second about the first.
         const byClassOnly = Object.keys(now).length === 0;
-        // Every line either side of the change, so one that has gone is still named rather than simply
-        // absent — a line that disappears without a word reads as a line nobody wrote down.
-        const every = [...new Set([...Object.keys(now), ...Object.keys(was)])].sort();
         return (
           <li key={code} className="overflow-hidden rounded-xl border border-ink/20 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/15 px-5 py-3">
@@ -558,74 +562,108 @@ function Inside({ on, lines, before, first, classes, beforeClasses, codes, names
                 </p>
               </dl>
             ) : (
-            <div className="overflow-x-auto">
-              {/* Laid out to fixed widths, the same in every card. Sized to their contents instead, each
-                  class worked its columns out from its own longest name — so "FX Derivatives" and "Yield
-                  Enhancement Strategies" pushed the three figure columns to different places, and the
-                  headings over them stepped left and right down the page. The figures are the same kind of
-                  figure in every card and belong under one line. */}
-              <table className="w-full table-fixed text-sm">
-                <caption className="sr-only">
-                  What {nameOf(code, names)} held on {on}, in {currency}, beside the change before it.
-                </caption>
-                <colgroup>
-                  <col className="w-[40%]" />
-                  <col className="w-[20%]" />
-                  <col className="w-[20%]" />
-                  <col className="w-[20%]" />
-                </colgroup>
-                <thead>
-                  <tr className="border-b border-ink/15 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                    <th scope="col" className="py-3 pr-3 pl-5">Sub-asset</th>
-                    <th scope="col" className="px-5 py-3 text-right whitespace-nowrap">Before</th>
-                    <th scope="col" className="px-5 py-3 text-right">Held</th>
-                    <th scope="col" className="px-5 py-3 text-right">Moved</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-ink/10">
-                  {every.map((line) => {
-                    const held = now[line];
-                    const before = was[line];
-                    // Known only where the change before this one recorded its lines at all. It may not
-                    // have: the platform kept class totals for a fortnight before it kept what was inside
-                    // them, so a line's figure beforehand can be unrecorded rather than nought — and read
-                    // as nought, every line on the first day that kept them was printed as money arriving
-                    // that had in truth been sitting there all along.
-                    const knownBefore = !first && Object.keys(was).length > 0;
-                    const moved = (held ?? 0) - (before ?? 0);
-                    return (
-                      <tr key={line}>
-                        <th scope="row" className={cn("py-3 pr-3 pl-5 text-left font-medium break-words",
-                          held === undefined ? "text-ink-muted line-through" : "text-ink")}
-                        >
-                          {line}
-                        </th>
-                        <td className="px-5 py-3 text-right tabular-nums text-ink-muted">
-                          {!knownBefore ? "—" : before === undefined ? "not held" : money(before)}
-                        </td>
-                        <td className="px-5 py-3 text-right tabular-nums font-medium text-ink">
-                          {held === undefined ? "gone" : money(held)}
-                        </td>
-                        <td className={cn("px-5 py-3 text-right tabular-nums",
-                          !knownBefore ? "text-ink-muted"
-                            : moved > 0 ? "text-emerald-700" : moved < 0 ? "text-red-700" : "text-ink-muted")}
-                        >
-                          {!knownBefore
-                            ? "—"
-                            : moved === 0
-                              ? "no change"
-                              : `${moved > 0 ? "+" : "−"}${money(Math.abs(moved))}`}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+              <ClassLines code={code} on={on} now={now} was={was} first={first}
+                names={names} currency={currency} />
             )}
           </li>
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * What every line of one asset class held either side of a change, a page at a time.
+ *
+ * <p>A component of its own because the page somebody is on is state and this table is drawn once per
+ * class: taking the page inside the loop over the classes would be a different number of hooks on every
+ * render, which React counts as hooks going missing.
+ */
+function ClassLines({ code, on, now, was, first, names, currency }: {
+  code: string;
+  on: string;
+  /** What each line of this class held after the change. */
+  now: Record<string, number>;
+  /** And what it held before it. */
+  was: Record<string, number>;
+  /** Whether nothing was written before this change, so there is nothing to measure it against. */
+  first: boolean;
+  names: Record<string, string>;
+  currency: string;
+}) {
+  // Every line either side of the change, so one that has gone is still named rather than simply
+  // absent — a line that disappears without a word reads as a line nobody wrote down.
+  const every = [...new Set([...Object.keys(now), ...Object.keys(was)])].sort();
+  const paged = usePagedRows(every);
+  return (
+    <>
+      <div className="overflow-x-auto">
+        {/* Laid out to fixed widths, the same in every card. Sized to their contents instead, each
+            class worked its columns out from its own longest name — so "FX Derivatives" and "Yield
+            Enhancement Strategies" pushed the three figure columns to different places, and the
+            headings over them stepped left and right down the page. The figures are the same kind of
+            figure in every card and belong under one line. */}
+        <table className="w-full table-fixed text-sm">
+          <caption className="sr-only">
+            What {nameOf(code, names)} held on {on}, in {currency}, beside the change before it.
+          </caption>
+          <colgroup>
+            <col className="w-[40%]" />
+            <col className="w-[20%]" />
+            <col className="w-[20%]" />
+            <col className="w-[20%]" />
+          </colgroup>
+          <thead>
+            <tr className="border-b border-ink/15 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              <th scope="col" className="py-3 pr-3 pl-5">Sub-asset</th>
+              <th scope="col" className="px-5 py-3 text-right whitespace-nowrap">Before</th>
+              <th scope="col" className="px-5 py-3 text-right">Held</th>
+              <th scope="col" className="px-5 py-3 text-right">Moved</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-ink/10">
+            {paged.shown.map((line) => {
+              const held = now[line];
+              const before = was[line];
+              // Known only where the change before this one recorded its lines at all. It may not
+              // have: the platform kept class totals for a fortnight before it kept what was inside
+              // them, so a line's figure beforehand can be unrecorded rather than nought — and read
+              // as nought, every line on the first day that kept them was printed as money arriving
+              // that had in truth been sitting there all along.
+              const knownBefore = !first && Object.keys(was).length > 0;
+              const moved = (held ?? 0) - (before ?? 0);
+              return (
+                <tr key={line}>
+                  <th scope="row" className={cn("py-3 pr-3 pl-5 text-left font-medium break-words",
+                    held === undefined ? "text-ink-muted line-through" : "text-ink")}
+                  >
+                    {line}
+                  </th>
+                  <td className="px-5 py-3 text-right tabular-nums text-ink-muted">
+                    {!knownBefore ? "—" : before === undefined ? "not held" : money(before)}
+                  </td>
+                  <td className="px-5 py-3 text-right tabular-nums font-medium text-ink">
+                    {held === undefined ? "gone" : money(held)}
+                  </td>
+                  <td className={cn("px-5 py-3 text-right tabular-nums",
+                    !knownBefore ? "text-ink-muted"
+                      : moved > 0 ? "text-emerald-700" : moved < 0 ? "text-red-700" : "text-ink-muted")}
+                  >
+                    {!knownBefore
+                      ? "—"
+                      : moved === 0
+                        ? "no change"
+                        : `${moved > 0 ? "+" : "−"}${money(Math.abs(moved))}`}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {/* Outside the strip the table scrolls in, so the count keeps its place while the columns
+          move under it. */}
+      <PagedFooter paged={paged} noun={["sub-asset", "sub-assets"]} />
+    </>
   );
 }

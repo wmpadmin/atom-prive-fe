@@ -15,7 +15,7 @@ import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/r
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { formatDate } from "../../lib/labels";
-import { AdvisorChips } from "../clients/advisor-chips";
+import { AdvisorStack } from "../clients/advisor-stack";
 import { ClientSearch } from "../clients/client-search";
 import { PortfolioSetupDialog } from "./portfolio-setup-dialog";
 import { isSetUp } from "./set-up";
@@ -142,14 +142,16 @@ export function PortfolioClientsPage() {
       <RecordList
         caption="Clients"
         subtitle="Newest first"
+        search={
+          <ClientSearch
+            value={typed.search}
+            filters={{ advisorId: advisorId || undefined }}
+            onChange={typed.change}
+            onSearch={typed.apply}
+          />
+        }
         filters={
           <>
-            <ClientSearch
-              value={typed.search}
-              filters={{ advisorId: advisorId || undefined }}
-              onChange={typed.change}
-              onSearch={typed.apply}
-            />
             <label>
               <span className="sr-only">Advisor</span>
               <SelectInput
@@ -193,13 +195,12 @@ export function PortfolioClientsPage() {
             {/* "Registered", the same word the servicing clients list uses for the same field. Two
                 screens naming one date two ways makes a reader wonder which one they are looking at. */}
             <th scope="col" className="px-4 py-3 text-left font-semibold">Registered</th>
-            <th scope="col" className="px-4 py-3 text-left font-semibold">Last rebalanced</th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">
               <span className="sr-only">Open</span>
             </th>
           </>
         }
-        columns={11}
+        columns={10}
         loading={clients.isLoading}
         stale={clients.isPlaceholderData}
         empty={
@@ -253,7 +254,7 @@ export function PortfolioClientsPage() {
                 </div>
               </td>
               <td className="px-4 py-3">
-                <AdvisorChips advisors={client.advisors} />
+                <AdvisorStack advisors={client.advisors} />
               </td>
               <td className="px-4 py-3">
                 {standing?.modelName ?? <span className="text-ink-muted">{NOTHING_YET}</span>}
@@ -340,13 +341,6 @@ export function PortfolioClientsPage() {
                   still has a day they arrived. */}
               <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
                 {formatDate(client.registeredAt)}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                {standing?.lastRebalancedOn ? (
-                  formatDate(standing.lastRebalancedOn)
-                ) : (
-                  <span className="text-ink-muted">{NOTHING_YET}</span>
-                )}
               </td>
               <td className="px-4 py-3 text-right">
                 <Link

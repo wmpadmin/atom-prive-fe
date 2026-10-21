@@ -13,8 +13,6 @@ import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { AssetClassesTab } from "../config/asset-classes-tab";
-import { BenchmarksPanel } from "./benchmarks-panel";
-import { PreTradeLimitsPanel } from "./pre-trade-limits-panel";
 import { useShowFirstError } from "../../lib/show-first-error";
 import { asFigure } from "../../lib/figures";
 import { formatDateTime } from "../../lib/labels";
@@ -69,7 +67,7 @@ export function PortfolioSettingsPage() {
     },
   });
 
-  const figures = [classBreachAt, subAssetBreachAt, insideSubAssetBreachAt, minimumTrade];
+  const figures = [classBreachAt, subAssetBreachAt, insideSubAssetBreachAt];
   const readable = figures.every((typed) => typed.trim() !== "" && Number.isFinite(Number(typed)));
   // Nothing to put in order. Each figure answers for its own depth, and a depth has no reading finer than
   // past its band or not — so no figure here has to be wider or narrower than the one beside it. A class
@@ -159,11 +157,6 @@ export function PortfolioSettingsPage() {
 
       </div>
 
-      {/* The indices themselves, not a line of small print pointing at them. They were a screen of their
-          own, reached from here and from nowhere else — so the thing that makes Model performance work
-          was two screens away from the rules it belongs with. */}
-      <BenchmarksPanel />
-
       {/* The classes themselves, on the screen where the plans that use them are set up. Adding one used
           to be Admin work, because it sat behind managing configuration with the banks and the email
           templates; it has a permission of its own now and the portfolio desk holds it. */}
@@ -175,60 +168,9 @@ export function PortfolioSettingsPage() {
       </section>
 
       {/* A second form for the rules that are not about drift. One record behind both, so either Save
-          writes the whole screen; they are apart because the plans' own furniture — the indices and the
-          classes — belongs between them, and a form cannot hold a form. */}
+          writes the whole screen; they are apart because the classes the plans are built from belong
+          between them, and a form cannot hold a form. */}
       <div className="space-y-5">
-        <Panel
-          title="Rebalancing rules"
-          says="Which holding to sell when a class is over-weight, and how small a trade is not worth raising."
-          takesEffect
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field
-              id="set-sell"
-              label="Sell first"
-              hint={
-                held && !held.sellOrderActsYet
-                  ? "Recorded, not yet obeyed anywhere."
-                  : "On Ask, nothing is raised without somebody choosing."
-              }
-              error={errors.fields.sellOrder}
-            >
-              <SelectInput
-                id="set-sell"
-                value={sellOrder}
-                disabled={!mayChange}
-                onChange={(event) => set({ sellOrder: event.target.value as SellOrder })}
-              >
-                <option value="ASK">Ask — raise no trade without somebody choosing</option>
-                <option value="LARGEST_FIRST">The largest holding first</option>
-                <option value="WORST_PERFORMER_FIRST">Whatever has done worst first</option>
-              </SelectInput>
-            </Field>
-            <Field
-              id="set-minimum"
-              label="Smallest trade worth raising"
-              hint="Below this, bulk rebalancing leaves the drift alone."
-              error={errors.fields.minimumTrade}
-            >
-              <TextInput
-                {...describedBy("set-minimum", errors.fields.minimumTrade)}
-                id="set-minimum"
-                inputMode="decimal"
-                disabled={!mayChange}
-                value={minimumTrade}
-                onChange={(event) => set({ minimumTrade: asFigure(event.target.value, minimumTrade) })}
-              />
-            </Field>
-          </div>
-          {sellOrder === "WORST_PERFORMER_FIRST" && (
-            <p className="mt-2 text-xs text-amber-700">
-              Choosing by performance needs what each holding has done, which the platform does not record: it
-              keeps what a portfolio was worth, not what each line in it did.
-            </p>
-          )}
-        </Panel>
-
         {/* Two boxes of the same kind. A dropdown beside a tick-box read as two different sorts of
             question when they are one: who is told, and from when. */}
         <Panel
@@ -270,12 +212,8 @@ export function PortfolioSettingsPage() {
 
       </div>
 
-      {/* Its own record and its own Save: the rules above are one row of defaults, these are a row a class. */}
-      <PreTradeLimitsPanel mayChange={mayChange} />
-
       {/* One Save for the rules, at the foot of the screen rather than in the middle of it, and off until
-          something is different from what the firm has settled. The ceilings below keep their own, because
-          they are their own record. */}
+          something is different from what the firm has settled. */}
       {mayChange && (
         <div className="flex items-center justify-end gap-3">
           <Button disabled={!changed || !readable || change.isPending} onClick={() => submit()}>
@@ -325,7 +263,7 @@ function Panel({
 }) {
   // A section with a heading rather than a fieldset with a legend. A legend is drawn ON the border it
   // belongs to, so every title here sat half inside the box and half out of it, which the panels beside
-  // them — benchmarks, pre-trade limits — do not. Grouped for a screen reader by the heading it is
+  // them do not. Grouped for a screen reader by the heading it is
   // labelled with, which is what those panels do too.
   const titleId = `panel-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   return (

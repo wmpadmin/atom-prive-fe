@@ -28,7 +28,7 @@ export const MENU_ORDER: string[] = [
   // then the orders that advice raises, and the reads that come back off all of it.
   "/forms", "/onboarding", "/clients", "/my-clients",
   "/to-sign", "/client-documents", "/kyc-documents", "/kyc", "/post-onboarding",
-  "/approvals", "/trade-orders",
+  "/approvals", "/trade-logs",
   "/model-performance", "/model-risk", "/reports", "/dashboard",
   "/proposal-trail", "/family-access",
 ];

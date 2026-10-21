@@ -2,6 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import { useGetClientAttribution, type Attribution } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { formatDate } from "../../lib/labels";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 
 /** Money as a statement writes it: grouped thousands, two decimal places. */
 function money(amount: number, currency: string) {
@@ -22,6 +23,10 @@ function signed(amount: number, currency: string) {
  */
 export function AttributionPanel({ customerId }: { customerId: string }) {
   const split = useGetClientAttribution<Attribution, ApiError>(customerId);
+  // Read before the two returns below, because usePagedRows is a hook and a hook cannot be called on only
+  // some of a component's renders. Optional chaining carries it while there is nothing to read yet.
+  const classes = split.data?.classes ?? [];
+  const paged = usePagedRows(classes);
 
   if (split.isError) {
     // A portfolio with nothing written down has no change to account for, which is not an error worth raising.
@@ -29,7 +34,6 @@ export function AttributionPanel({ customerId }: { customerId: string }) {
   }
   const found = split.data;
   if (!found) return null;
-  const classes = found.classes;
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -58,7 +62,7 @@ export function AttributionPanel({ customerId }: { customerId: string }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {classes.map((one) => (
+                {paged.shown.map((one) => (
                   <tr key={one.assetClass}>
                     <th scope="row" className="py-2 pr-4 text-left font-medium text-ink">
                       {one.name}
@@ -103,6 +107,10 @@ export function AttributionPanel({ customerId }: { customerId: string }) {
               </tfoot>
             </table>
           </div>
+          {/* Outside the scrolling box, so the way through the list does not slide sideways with the
+              columns. The whole-portfolio row above it is the server's own figure for the period and is
+              unaffected by which page is being read. */}
+          <PagedFooter paged={paged} noun={["asset class", "asset classes"]} />
 
           {/* What is not performance has to be said, or a deposit reads as a good month. */}
           {(found.paidIn > 0 || found.takenOut > 0) && (

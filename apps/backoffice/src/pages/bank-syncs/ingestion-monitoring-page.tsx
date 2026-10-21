@@ -16,6 +16,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatDateTime } from "../../lib/labels";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { hasAuthority } from "../../lib/permissions";
 import { connectionLabels, feedStanding, scheduleLabels } from "./feed-labels";
 
@@ -42,13 +43,18 @@ export function IngestionMonitoringPage() {
     },
   });
 
-  if (feeds.isError) {
-    return <Alert tone="danger">{feeds.error.message}</Alert>;
-  }
+  // Worked out above the refusal below rather than after it, because which page a reader is on is held in a
+  // hook, and a hook reached on one render and skipped on the next loses track of which state is its own.
+  // The three buttons go on counting the whole list — what is failing is not what is failing on this page.
   const all = feeds.data ?? [];
   const failed = all.filter((feed) => feed.enabled && (feed.failingForDays || feed.lastOutcome === "FAILED"));
   const off = all.filter((feed) => !feed.enabled);
   const rows = only === "failed" ? failed : only === "off" ? off : all;
+  const paged = usePagedRows(rows);
+
+  if (feeds.isError) {
+    return <Alert tone="danger">{feeds.error.message}</Alert>;
+  }
 
   return (
     <div className="space-y-6">
@@ -138,7 +144,7 @@ export function IngestionMonitoringPage() {
                   </td>
                 </tr>
               )}
-              {rows.map((feed) => {
+              {paged.shown.map((feed) => {
                 const standing = feedStanding(feed);
                 return (
                   <tr key={feed.id} className={feed.failingForDays ? "bg-red-50/40" : undefined}>
@@ -189,6 +195,10 @@ export function IngestionMonitoringPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Outside the box the table scrolls in, and left off while the loading and empty lines hold the
+            table: a count of nothing under a row saying there is nothing says it twice. */}
+        {feeds.data && rows.length > 0 && <PagedFooter paged={paged} noun={["feed", "feeds"]} />}
       </section>
     </div>
   );

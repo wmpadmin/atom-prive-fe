@@ -16,7 +16,8 @@ import { Link, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { downloadTextFile } from "../../lib/download";
 import { PAGE_SIZES } from "../../lib/page-sizes";
-import { usePagedRows } from "../../lib/use-paged-rows";
+import { PagedFooter } from "../../lib/paged-rows";
+import { usePagedRows } from "../../lib/paged-rows";
 import { formatDateTime, formatRelative, roleList, statusLabels } from "../../lib/labels";
 import { countryName } from "../../lib/countries";
 import { formatMobileNumber } from "../../lib/mobile-numbers";
@@ -319,8 +320,14 @@ function Info({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+/** What this table will hold once client accounts are in the platform. Nothing until then. */
+const NO_CLIENTS_YET: { id: string }[] = [];
+
 /** Clients come with the customer module; until then the table shows how it will look, with nothing in it. */
 function AssignedClients() {
+  // Counted even though there is nothing to count: the footer is drawn whatever the number, and a table
+  // with none under it leaves a reader unsure whether the list is empty or only cut off.
+  const paged = usePagedRows(NO_CLIENTS_YET);
   return (
     <section aria-labelledby="assigned-clients-title" className="rounded-2xl border border-line bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-5 pb-4">
@@ -362,6 +369,18 @@ function AssignedClients() {
           </tbody>
         </table>
       </div>
+      {/* This file pages its rows with the older hook of the same name, whose fields are spelled
+          differently; the line itself is the shared one, so both tables on this screen read alike. */}
+      <PagedFooter
+        paged={{
+          page: paged.page,
+          size: paged.size,
+          total: paged.total,
+          onPage: paged.onPage,
+          onSize: paged.onSize,
+        }}
+        noun={["client", "clients"]}
+      />
     </section>
   );
 }
@@ -425,15 +444,15 @@ function RecentActivity({ user }: { user: StaffUserDetail }) {
           </table>
         </div>
       )}
-      {paged.totalItems > 0 && (
+      {paged.total > 0 && (
         <div className="border-t border-line px-6 py-3">
           <Pagination
             page={paged.page}
-            pageSize={paged.pageSize}
-            totalItems={paged.totalItems}
-            onPageChange={paged.setPage}
+            pageSize={paged.size}
+            totalItems={paged.total}
+            onPageChange={paged.onPage}
             pageSizes={PAGE_SIZES}
-            onPageSizeChange={paged.setPageSize}
+            onPageSizeChange={paged.onSize}
             noun={["entry", "entries"]}
           />
         </div>

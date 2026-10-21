@@ -8,8 +8,11 @@ import {
   type ProposalPage,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, cn } from "@atomprive/ui";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { PagedFooter } from "../../lib/paged-rows";
+import { DEFAULT_PAGE_SIZE } from "../../lib/page-sizes";
 import {
   averageDriftLabel,
   driftLabel,
@@ -23,8 +26,14 @@ import {
 /** Everything off plan: within band is not work, and nothing written down is not an answer. */
 const WANDERED: DriftStanding[] = ["BREACHED", "AT_EDGE", "WATCH"];
 
-/** Enough of the queue to see the shape of the day without turning the dashboard into the queue itself. */
-const NEEDS_ME = 5;
+/**
+ * Enough of the queue to see the shape of the day without turning the dashboard into the queue itself.
+ *
+ * <p>The portal's own page size, now that the footer under the table offers the rows per page: a figure of
+ * its own would leave "Rows per page" showing a number that is not one of the choices. How much of the
+ * queue to read is the reader's from here — the rest of it is a page away rather than only on Drift.
+ */
+const NEEDS_ME = DEFAULT_PAGE_SIZE;
 
 /**
  * Where the portfolio manager's day starts: how much is under the firm's models, what has wandered off them,
@@ -36,7 +45,11 @@ export function PortfolioManagerDashboard() {
   const user = useStaffUser();
   const models = useListModelPortfolios<ModelsPage, ApiError>();
   // Worst first, as the queue itself orders them; totalItems counts the whole queue, not this page of it.
-  const queue = useListDrift<DriftPage, ApiError>({ standing: WANDERED, page: 0, size: NEEDS_ME });
+  // Which page is asked for is the reader's now, so the server is asked again rather than the page being
+  // cut out of a page it already sent.
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState<number>(NEEDS_ME);
+  const queue = useListDrift<DriftPage, ApiError>({ standing: WANDERED, page, size });
   // One row, asked for only to read the counts off it.
   const proposals = useListProposals<ProposalPage, ApiError>({ size: 1 });
 
@@ -189,6 +202,23 @@ export function PortfolioManagerDashboard() {
               </tbody>
             </table>
           </div>
+        )}
+        {/* The server sends this one a page at a time and counts the whole queue for the tile above, so
+            the footer reads its page and its total rather than slicing what arrived a second time. */}
+        {queue.data && (
+          <PagedFooter
+            paged={{
+              page,
+              size,
+              total: queue.data.totalItems,
+              onPage: setPage,
+              onSize: (next) => {
+                setSize(next);
+                setPage(0);
+              },
+            }}
+            noun={["client", "clients"]}
+          />
         )}
       </section>
 

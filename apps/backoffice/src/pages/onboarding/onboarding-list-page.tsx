@@ -102,9 +102,11 @@ export function OnboardingListPage() {
 
       <RecordList
         caption="Onboarding cases"
+        search={
+          <CaseSearch value={typed.search} status={status} onChange={typed.change} onSearch={typed.apply} onOpenCase={openCase} />
+        }
         filters={
           <>
-            <CaseSearch value={typed.search} status={status} onChange={typed.change} onSearch={typed.apply} onOpenCase={openCase} />
             <label>
               <span className="sr-only">Status</span>
               <SelectInput id="onboarding-status" value={status} onChange={(event) => update({ status: event.target.value })} className="w-auto">

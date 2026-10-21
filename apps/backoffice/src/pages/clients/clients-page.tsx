@@ -291,9 +291,11 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
 
       <RecordList
         caption="Clients"
+        search={
+          <ClientSearch value={typed.search} filters={filters} onChange={typed.change} onSearch={typed.apply} />
+        }
         filters={
           <>
-            <ClientSearch value={typed.search} filters={filters} onChange={typed.change} onSearch={typed.apply} />
             {!mine && (
               <label>
                 <span className="sr-only">Advisor</span>

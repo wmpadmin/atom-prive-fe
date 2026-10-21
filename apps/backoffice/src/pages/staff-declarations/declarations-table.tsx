@@ -1,5 +1,6 @@
 import type { DeclarationRow } from "@atomprive/api-client/backoffice";
 import { Badge, cn } from "@atomprive/ui";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { formatDate } from "../../lib/labels";
 
 const MISSING = "—";
@@ -9,48 +10,55 @@ const MISSING = "—";
  * register and on the employee's own staff record, so it is the one table in both places.
  */
 export function DeclarationsTable({ declarations }: { declarations: DeclarationRow[] }) {
+  // Numbered from the whole register before the page is taken, because the number on a row is which of the
+  // nine it is: counted from the page, the sixth declaration would be read as the first one again.
+  const numbered = declarations.map((one, at) => ({ one, at }));
+  const paged = usePagedRows(numbered);
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[40rem] border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-line text-2xs tracking-wider text-ink-muted uppercase">
-            <th scope="col" className="w-10 py-2 text-left font-semibold" />
-            <th scope="col" className="py-2 text-left font-semibold">
-              Declaration
-            </th>
-            <th scope="col" className="py-2 text-left font-semibold">
-              Status
-            </th>
-            <th scope="col" className="py-2 text-left font-semibold">
-              Signed date
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-line">
-          {declarations.map((one, at) => (
-            <tr key={one.kind}>
-              <td className="py-3 align-top">
-                <span className="grid size-6 place-items-center rounded-full bg-canvas text-2xs font-semibold text-ink-muted">
-                  {at + 1}
-                </span>
-              </td>
-              <td className="py-3 pr-4 align-top">
-                <span className="block font-semibold text-ink">{one.title}</span>
-                {/* The cycle, as the firm sets it. The day it fell due is said once, where it is overdue. */}
-                <span className={cn("block text-xs", one.overdue && !one.signed ? "text-red-600" : "text-ink-muted")}>
-                  {one.schedule}
-                  {one.overdue && !one.signed && one.dueOn ? ` · overdue since ${formatDate(one.dueOn)}` : ""}
-                </span>
-              </td>
-              <td className="py-3 pr-4 align-top">
-                <Badge tone={one.signed ? "success" : "danger"}>{one.signed ? "Signed" : "Unsigned"}</Badge>
-              </td>
-              <td className="py-3 align-top text-ink">{one.signedOn ? formatDate(one.signedOn) : MISSING}</td>
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[40rem] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-line text-2xs tracking-wider text-ink-muted uppercase">
+              <th scope="col" className="w-10 py-2 text-left font-semibold" />
+              <th scope="col" className="py-2 text-left font-semibold">
+                Declaration
+              </th>
+              <th scope="col" className="py-2 text-left font-semibold">
+                Status
+              </th>
+              <th scope="col" className="py-2 text-left font-semibold">
+                Signed date
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {paged.shown.map(({ one, at }) => (
+              <tr key={one.kind}>
+                <td className="py-3 align-top">
+                  <span className="grid size-6 place-items-center rounded-full bg-canvas text-2xs font-semibold text-ink-muted">
+                    {at + 1}
+                  </span>
+                </td>
+                <td className="py-3 pr-4 align-top">
+                  <span className="block font-semibold text-ink">{one.title}</span>
+                  {/* The cycle, as the firm sets it. The day it fell due is said once, where it is overdue. */}
+                  <span className={cn("block text-xs", one.overdue && !one.signed ? "text-red-600" : "text-ink-muted")}>
+                    {one.schedule}
+                    {one.overdue && !one.signed && one.dueOn ? ` · overdue since ${formatDate(one.dueOn)}` : ""}
+                  </span>
+                </td>
+                <td className="py-3 pr-4 align-top">
+                  <Badge tone={one.signed ? "success" : "danger"}>{one.signed ? "Signed" : "Unsigned"}</Badge>
+                </td>
+                <td className="py-3 align-top text-ink">{one.signedOn ? formatDate(one.signedOn) : MISSING}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <PagedFooter paged={paged} noun={["declaration", "declarations"]} />
+    </>
   );
 }
 

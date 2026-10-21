@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { CalendarClock } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { NotAsked, ReportFields } from "./report-fields";
 import { formatDateTime } from "../../lib/labels";
 
@@ -95,6 +96,8 @@ export function ReportSchedules({
   }
 
   const rows = schedules.data?.items ?? [];
+  // The schedules come back whole rather than a page at a time, so the page is taken here.
+  const paged = usePagedRows(rows);
 
   return (
     <section className="space-y-4">
@@ -212,15 +215,6 @@ export function ReportSchedules({
                 {canTellSomebody
                   ? "Emailed to them with the file attached, as soon as it is made."
                   : "Nobody is emailed. It appears under Reports already made, for whoever wants it."}
-                {/* A report read by date covers the stretch that has just ended, so each run says
-                    something new. */}
-                {kind === "TRADE_ORDERS"
-                  ? cadence === "MONTHLY_FIRST"
-                    ? " Each run covers the month just gone."
-                    : cadence === "QUARTERLY"
-                      ? " Each run covers the quarter just gone."
-                      : " Each run covers whatever has been raised since the last one."
-                  : ""}
               </p>
               <Button type="submit" disabled={create.isPending || (scope !== "FIRM" && !scopeId)}>
                 <CalendarClock aria-hidden="true" />
@@ -231,77 +225,84 @@ export function ReportSchedules({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              <th scope="col" className="py-3 pr-4 pl-5">Report</th>
-              <th scope="col" className="px-4 py-3">Who it covers</th>
-              <th scope="col" className="px-4 py-3">How often</th>
-              <th scope="col" className="px-4 py-3">File type</th>
-              <th scope="col" className="px-4 py-3">Emailed to</th>
-              <th scope="col" className="px-4 py-3">Last made</th>
-              <th scope="col" className="py-3 pr-5 pl-4">
-                <span className="sr-only">On or off</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {schedules.isPending && (
-              <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-ink-muted">Reading the schedules…</td>
+      <div className="rounded-2xl border border-line bg-white">
+        {/* The sideways scroll is its own box so that the footer below sits still while a table wider
+            than the card is dragged across. */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                <th scope="col" className="py-3 pr-4 pl-5">Report</th>
+                <th scope="col" className="px-4 py-3">Who it covers</th>
+                <th scope="col" className="px-4 py-3">How often</th>
+                <th scope="col" className="px-4 py-3">File type</th>
+                <th scope="col" className="px-4 py-3">Emailed to</th>
+                <th scope="col" className="px-4 py-3">Last made</th>
+                <th scope="col" className="py-3 pr-5 pl-4">
+                  <span className="sr-only">On or off</span>
+                </th>
               </tr>
-            )}
-            {schedules.data && rows.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-ink-muted">
-                  Nothing is set up yet. Anything you set up above is listed here.
-                </td>
-              </tr>
-            )}
-            {rows.map((row) => (
-              <tr key={row.id} className={cn("hover:bg-slate-50/60", !row.active && "opacity-60")}>
-                <td className="py-3 pr-4 pl-5 font-semibold">{row.title}</td>
-                <td className="px-4 py-3 text-ink-soft">{row.scopeLabel}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{CADENCES[row.cadence]}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{FORMATS[row.format]}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{SEND_TO[row.sendTo]}</td>
-                <td className="px-4 py-3">
-                  {row.lastRunAt === null ? (
-                    <span className="text-ink-muted">Not yet</span>
-                  ) : (
-                    <>
-                      <span className="block whitespace-nowrap text-ink-soft">{formatDateTime(row.lastRunAt)}</span>
-                      {/* What happened last time, so a schedule quietly failing is seen rather than assumed. */}
-                      {row.lastOutcome && (
-                        <span
-                          className={cn(
-                            "block text-xs",
-                            row.lastOutcome.startsWith("Couldn't") ? "text-rose-700" : "text-ink-muted",
-                          )}
-                        >
-                          {row.lastOutcome}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </td>
-                <td className="py-3 pr-5 pl-4 text-right whitespace-nowrap">
-                  {row.active ? <Badge tone="success">On</Badge> : <Badge tone="neutral">Off</Badge>}
-                  {mayChange && (
-                    <button
-                      type="button"
-                      onClick={() => switched.mutate({ id: row.id, params: { on: !row.active } })}
-                      className="ml-3 text-sm font-medium text-primary-700 hover:underline"
-                    >
-                      {row.active ? "Stop" : "Start"}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {schedules.isPending && (
+                <tr>
+                  <td colSpan={7} className="px-5 py-8 text-center text-ink-muted">Reading the schedules…</td>
+                </tr>
+              )}
+              {schedules.data && rows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-5 py-8 text-center text-ink-muted">
+                    Nothing is set up yet. Anything you set up above is listed here.
+                  </td>
+                </tr>
+              )}
+              {paged.shown.map((row) => (
+                <tr key={row.id} className={cn("hover:bg-slate-50/60", !row.active && "opacity-60")}>
+                  <td className="py-3 pr-4 pl-5 font-semibold">{row.title}</td>
+                  <td className="px-4 py-3 text-ink-soft">{row.scopeLabel}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{CADENCES[row.cadence]}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{FORMATS[row.format]}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{SEND_TO[row.sendTo]}</td>
+                  <td className="px-4 py-3">
+                    {row.lastRunAt === null ? (
+                      <span className="text-ink-muted">Not yet</span>
+                    ) : (
+                      <>
+                        <span className="block whitespace-nowrap text-ink-soft">{formatDateTime(row.lastRunAt)}</span>
+                        {/* What happened last time, so a schedule quietly failing is seen rather than assumed. */}
+                        {row.lastOutcome && (
+                          <span
+                            className={cn(
+                              "block text-xs",
+                              row.lastOutcome.startsWith("Couldn't") ? "text-rose-700" : "text-ink-muted",
+                            )}
+                          >
+                            {row.lastOutcome}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </td>
+                  <td className="py-3 pr-5 pl-4 text-right whitespace-nowrap">
+                    {row.active ? <Badge tone="success">On</Badge> : <Badge tone="neutral">Off</Badge>}
+                    {mayChange && (
+                      <button
+                        type="button"
+                        onClick={() => switched.mutate({ id: row.id, params: { on: !row.active } })}
+                        className="ml-3 text-sm font-medium text-primary-700 hover:underline"
+                      >
+                        {row.active ? "Stop" : "Start"}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Not while the schedules are still being read: a count of nothing, said before anybody has
+            looked, reads as there being nothing. */}
+        {!schedules.isPending && <PagedFooter paged={paged} noun={["schedule", "schedules"]} />}
       </div>
     </section>
   );

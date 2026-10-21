@@ -2,12 +2,12 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useListModelPortfolios,
   useListRebalancing,
-  useRaiseTradeOrdersFromRebalancing,
+  useRaiseProposalsFromRebalancing,
   useRecordBulkRebalance,
+  type BulkProposalsRaised,
   type BulkRebalancing,
   type ClientRebalance,
   type ModelsPage,
-  type OrdersRaised,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, DateInput, Dialog, SelectInput, cn } from "@atomprive/ui";
 import { Receipt } from "lucide-react";
@@ -15,10 +15,10 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
-import { hasAnyAuthority, RAISES_ORDERS } from "../../lib/permissions";
+import { hasAnyAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate } from "../../lib/labels";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { ClassStandingTable } from "./class-standing-table";
-import { nameOf, useAssetClasses } from "./asset-classes";
 import { driftLabel, driftTones, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
 
 /** Today, as the calendar writes it, so a rebalance can be dated today but no later. */
@@ -61,17 +61,24 @@ export function BulkRebalancingPage() {
       },
     },
   });
-  const [raised, setRaised] = useState<OrdersRaised | null>(null);
-  const orders = useRaiseTradeOrdersFromRebalancing<ApiError>({
+  const [raised, setRaised] = useState<BulkProposalsRaised | null>(null);
+  // One proposal a client, each carrying every sell that client's rebalance calls for, sent to the person
+  // who looks after them. It used to write trade orders straight to the blotter, which sold a client's
+  // holdings without their relationship manager ever having agreed to it.
+  const proposals = useRaiseProposalsFromRebalancing<ApiError>({
     mutation: { onSuccess: (result) => setRaised(result) },
   });
 
-  const assetClasses = useAssetClasses();
   const user = useStaffUser();
-  const mayRaiseOrders = hasAnyAuthority(user, ...RAISES_ORDERS);
+  const mayAsk = hasAnyAuthority(user, ...WRITES_PROPOSALS);
 
   const clients = rebalancing.data?.clients ?? [];
-  // Only a portfolio that has actually wandered is worth putting back, so only those can be chosen.
+  // The model's whole list arrives in one piece, so the page is taken here rather than asked for.
+  const paged = usePagedRows(clients);
+  // Only a portfolio that has actually wandered is worth putting back, so only those can be chosen. Counted
+  // over everyone on the model and not the page: ticking the box in the heading is a decision about the
+  // model's clients, and one that reached only as far as the page would quietly ask for fewer rebalances
+  // than the button beside it says.
   const worthDoing = clients.filter((client) => client.standing !== null && client.standing !== "WITHIN_BAND");
   const allChosen = worthDoing.length > 0 && worthDoing.every((client) => chosen.has(client.customerId));
 
@@ -153,14 +160,15 @@ export function BulkRebalancingPage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-end gap-3">
-                {/* The same trades, as paper the dealing desk can act on — drafts, so each still goes past
-                    Compliance. Whoever may not raise an order does not see the button. */}
-                {mayRaiseOrders && (
+                {/* One question a client, to the person who speaks to them. Answered whole: agreed to,
+                    every sell the model asks of that client is carried out into cash; turned down, none of
+                    them is. Where the money goes afterwards is this desk's to decide. */}
+                {mayAsk && (
                   <Button
                     variant="secondary"
-                    disabled={orders.isPending}
+                    disabled={proposals.isPending}
                     onClick={() =>
-                      orders.mutate({
+                      proposals.mutate({
                         data: {
                           modelPortfolioId: modelId,
                           // Whoever is ticked, or everybody on the model when nobody is.
@@ -172,11 +180,11 @@ export function BulkRebalancingPage() {
                     }
                   >
                     <Receipt aria-hidden="true" />
-                    {orders.isPending
-                      ? "Raising…"
+                    {proposals.isPending
+                      ? "Asking…"
                       : chosen.size === 0
-                        ? "Raise orders for everyone"
-                        : `Raise orders for ${chosen.size}`}
+                        ? "Ask every manager"
+                        : `Ask for ${chosen.size}`}
                   </Button>
                 )}
                 {/* The date is asked for inside the dialog, not over the table.
@@ -195,34 +203,36 @@ export function BulkRebalancingPage() {
               </div>
             </div>
 
-            {orders.isError && (
+            {proposals.isError && (
               <div className="px-5 pt-4">
-                <Alert tone="danger">{orders.error.message}</Alert>
+                <Alert tone="danger">{proposals.error.message}</Alert>
               </div>
             )}
 
             {raised && (
               <div className="space-y-2 px-5 pt-4">
-                <Alert
-                  tone={raised.raised === 0 ? "info" : raised.skipped.length > 0 ? "warning" : "success"}
-                >
-                  {raised.raised === 0
-                    ? "Nothing raised. Every trade asked for already has an order running, or the portfolios are where their model wants them."
-                    : `${raised.raised} order${raised.raised === 1 ? "" : "s"} raised as draft${raised.raised === 1 ? "" : "s"}. Nothing is with Compliance until somebody submits it.`}{" "}
-                  <Link to="/trade-orders" className="font-semibold underline">
-                    Open the blotter
-                  </Link>
-                </Alert>
-                {/* A trade already in flight is left alone rather than raised twice, and saying so is the
-                    whole point — two orders for one class would move twice what the model asked for. */}
-                {raised.skipped.length > 0 && (
+                {/* Only what was asked. Why somebody was NOT asked is said on their own row, in the
+                    Request column, where the decision to tick them is made — said twice it was a banner
+                    repeating what the table already showed. */}
+                {raised.raised.length > 0 && (
+                  <Alert tone="success">
+                    {`${raised.raised.length} proposal${raised.raised.length === 1 ? "" : "s"} sent, one a client, each to the person who looks after them. Nothing sells until they agree.`}{" "}
+                    <Link to="/proposals" className="font-semibold underline">
+                      Open the proposals
+                    </Link>
+                  </Alert>
+                )}
+                {/* Who was asked, and for how much. A line a client each, because "four proposals sent"
+                    over a table of twelve clients is a sentence somebody has to do arithmetic on. */}
+                {raised.raised.length > 0 && (
                   <ul className="space-y-1 text-xs text-ink-soft">
-                    {raised.skipped.map((one) => (
-                      <li key={`${one.customerId}-${one.assetClass}`}>
-                        <span className="font-semibold">
-                          {one.client} · {nameOf(one.assetClass, assetClasses.names)}
-                        </span>{" "}
-                        — {one.why}
+                    {raised.raised.map((one) => (
+                      <li key={one.id}>
+                        <span className="font-semibold">{one.customerName}</span>{" "}
+                        — {one.reference}, selling out of {one.classes}{" "}
+                        {one.classes === 1 ? "class" : "classes"}, {one.currency}{" "}
+                        {one.total.toLocaleString("en-US", { minimumFractionDigits: 2,
+                          maximumFractionDigits: 2 })} in all
                       </li>
                     ))}
                   </ul>
@@ -249,7 +259,7 @@ export function BulkRebalancingPage() {
                     <th scope="col" className="px-4 py-3 text-right">AUM</th>
                     <th scope="col" className="px-4 py-3 text-right">Drift</th>
                     <th scope="col" className="px-4 py-3">Standing</th>
-                    <th scope="col" className="px-4 py-3">Last put back</th>
+                    <th scope="col" className="px-4 py-3">Request</th>
                     <th scope="col" className="py-3 pr-5 pl-4 text-right">
                       <span className="sr-only">Trade list</span>
                     </th>
@@ -263,7 +273,7 @@ export function BulkRebalancingPage() {
                       </td>
                     </tr>
                   )}
-                  {clients.map((client) => (
+                  {paged.shown.map((client) => (
                     <Row
                       key={client.customerId}
                       client={client}
@@ -278,6 +288,10 @@ export function BulkRebalancingPage() {
                 </tbody>
               </table>
             </div>
+            {/* Outside the scrolling box, so the way through the list does not slide sideways with the
+                columns. What is ticked survives turning the page — the count on the buttons above is
+                everyone chosen, not everyone chosen here. */}
+            {clients.length > 0 && <PagedFooter paged={paged} noun={["client", "clients"]} />}
           </section>
         </>
       )}
@@ -341,6 +355,9 @@ function Row({
 }) {
   // A portfolio where its model wants it has nothing to put back, so it cannot be chosen.
   const settled = client.standing === null || client.standing === "WITHIN_BAND";
+  // Nor one already asked about. The money has not moved yet, so they still read as breached with the
+  // same trades beside them — and without this the screen offers a press the server then refuses.
+  const asked = client.requestStanding !== "NONE";
   return (
     <>
       <tr className={cn(chosen && "bg-primary-50/40")}>
@@ -348,8 +365,8 @@ function Row({
           <input
             type="checkbox"
             aria-label={`Put ${client.clientName} back`}
-            checked={chosen}
-            disabled={settled}
+            checked={chosen && !asked}
+            disabled={settled || asked}
             onChange={onToggle}
           />
         </td>
@@ -382,8 +399,17 @@ function Row({
             <span className="text-ink-muted">Nothing written down</span>
           )}
         </td>
-        <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-          {client.lastRebalancedOn ? formatDate(client.lastRebalancedOn) : <span className="text-ink-muted">Never</span>}
+        {/* Where their request has got to. Said on the row because the row is where somebody decides
+            whether to tick them, and a client whose manager has already agreed still reads as breached
+            with the same trades beside them — the money does not move until the desk places it. */}
+        <td className="px-4 py-3 whitespace-nowrap">
+          {client.requestStanding === "BEING_PLACED" ? (
+            <Badge tone="success">Agreed · being placed</Badge>
+          ) : client.requestStanding === "WAITING" ? (
+            <Badge tone="info">Waiting on their manager</Badge>
+          ) : (
+            <span className="text-ink-muted">—</span>
+          )}
         </td>
         <td className="py-3 pr-5 pl-4 text-right">
           <Button variant="secondary" size="sm" onClick={onOpen}>

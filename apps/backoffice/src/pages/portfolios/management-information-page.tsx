@@ -3,6 +3,7 @@ import { useGetManagementInformation, type ManagementFigures } from "@atomprive/
 import { Alert, cn } from "@atomprive/ui";
 import { ListPageHeader } from "../../components/record-list";
 import { formatDate } from "../../lib/labels";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { underManagementLabel } from "./portfolio-labels";
 
 /**
@@ -11,12 +12,16 @@ import { underManagementLabel } from "./portfolio-labels";
  */
 export function ManagementInformationPage() {
   const figures = useGetManagementInformation<ManagementFigures, ApiError>();
+  // Read off the figures before the two returns below, because usePagedRows is a hook and a hook cannot be
+  // called on only some of a component's renders. Optional chaining carries it while nothing is counted yet.
+  const byModel = figures.data?.byModel ?? [];
+  const paged = usePagedRows(byModel);
 
   if (figures.isError) return <Alert tone="danger">{figures.error.message}</Alert>;
   if (!figures.data) {
     return <p className="py-10 text-center text-sm text-ink-muted">Counting…</p>;
   }
-  const { underModels, currency, clientsOnAModel, clientsAltogether, rebalancedThisMonth, quarter, byModel, asOf } =
+  const { underModels, currency, clientsOnAModel, clientsAltogether, rebalancedThisMonth, quarter, asOf } =
     figures.data;
   const withoutAPlan = clientsAltogether - clientsOnAModel;
 
@@ -71,7 +76,7 @@ export function ManagementInformationPage() {
                     </td>
                   </tr>
                 )}
-                {byModel.map((row) => (
+                {paged.shown.map((row) => (
                   <tr key={row.modelPortfolioId}>
                     <th scope="row" className="py-3 pr-4 pl-6 text-left font-semibold">
                       {row.modelName}
@@ -95,6 +100,10 @@ export function ManagementInformationPage() {
               </tbody>
             </table>
           </div>
+          {/* Outside the scrolling box, so the way through the list does not slide sideways with the
+              columns. Each row's share is the server's own figure against the whole book, so it reads the
+              same whichever page is open. */}
+          <PagedFooter paged={paged} noun={["model", "models"]} />
         </section>
 
         <section className="rounded-2xl border border-line bg-white p-6">

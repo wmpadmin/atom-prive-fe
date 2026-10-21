@@ -140,23 +140,6 @@ export function readsEveryAdvisors(user: StaffProfile) {
   return hasAnyAuthority(user, "SEND_PROPOSALS:VIEW", "SEND_PROPOSALS:CHANGE", "APPROVE_PROPOSALS:CHANGE");
 }
 
-/** Raising a trade order, passing one, and placing one: three different jobs, held by three different people. */
-export const RAISES_ORDERS: Authority[] = ["PLACE_TRADE_ORDERS:CHANGE", "PLACE_TRADE_ORDERS:OWN_CLIENTS"];
-
-export const REVIEWS_ORDERS: Authority[] = ["REVIEW_TRADE_ORDERS:CHANGE"];
-
-export const PLACES_ORDERS: Authority[] = ["EXECUTE_TRADE_ORDERS:CHANGE"];
-
-/** Anyone who may see the blotter at all, whichever of the three jobs is theirs. */
-export const READS_ORDERS: Authority[] = [
-  "PLACE_TRADE_ORDERS:VIEW",
-  "REVIEW_TRADE_ORDERS:VIEW",
-  "EXECUTE_TRADE_ORDERS:VIEW",
-  ...RAISES_ORDERS,
-  ...REVIEWS_ORDERS,
-  ...PLACES_ORDERS,
-];
-
 /** Whoever writes the firm's money-laundering risk sheet: its lines, their weights and its bands. */
 export const WRITES_AML_MATRIX: Authority[] = ["MANAGE_AML_MATRIX:CHANGE"];
 

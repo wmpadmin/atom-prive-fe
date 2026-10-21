@@ -6,6 +6,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, cn } from "@atomprive/ui";
 import { useState } from "react";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { standingLabels, standingTones, type DriftStanding } from "./portfolio-labels";
 
 type Dimension = "geography" | "sector";
@@ -44,6 +45,15 @@ export function ExposurePanel({ customerId }: { customerId: string }) {
   const sectors = useGetClientSectors<ExposureTable, ApiError>(customerId);
   const asked = showing === "geography" ? geography : sectors;
   const tab = TABS.find((one) => one.id === showing)!;
+  // Sorted and paged before the two returns below, because usePagedRows is a hook and a hook cannot be
+  // called on only some of a component's renders. Optional chaining carries it while there is nothing to
+  // read yet.
+  const items = [...(asked.data?.items ?? [])].sort((one, two) => two.actualShare - one.actualShare);
+  const paged = usePagedRows(items);
+  // What a row is changes with the tab, and a count of sectors under a list of countries names the wrong
+  // thing.
+  const counted: [string, string] =
+    showing === "geography" ? ["country", "countries"] : ["sector", "sectors"];
 
   if (asked.isError) {
     // A portfolio with nothing written down has no spread to show, which is not an error worth raising.
@@ -51,7 +61,6 @@ export function ExposurePanel({ customerId }: { customerId: string }) {
   }
   const table = asked.data;
   if (!table) return null;
-  const items = [...table.items].sort((one, two) => two.actualShare - one.actualShare);
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -92,7 +101,7 @@ export function ExposurePanel({ customerId }: { customerId: string }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {items.map((one) => (
+                {paged.shown.map((one) => (
                   <tr key={one.code}>
                     <th scope="row" className="py-2 pr-4 text-left font-medium text-ink">{one.name}</th>
                     {/* The plan may ask nothing of somewhere the money happens to be. */}
@@ -133,6 +142,10 @@ export function ExposurePanel({ customerId }: { customerId: string }) {
               </tbody>
             </table>
           </div>
+          {/* Outside the scrolling box, so the way through the list does not slide sideways with the
+              columns. The coverage line below it is the server's own figure for the whole portfolio and
+              does not change with the page. */}
+          <PagedFooter paged={paged} noun={counted} />
 
           {/* How much of the money the answer is actually about. Said plainly, because a spread read against
               part of a portfolio is a different claim from one read against all of it. */}

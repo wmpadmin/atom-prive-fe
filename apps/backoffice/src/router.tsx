@@ -6,8 +6,7 @@ import { ProposalPage } from "./pages/advisor/proposal-page";
 import { AmlClientPage } from "./pages/aml/aml-client-page";
 import { AmlMatrixPage } from "./pages/aml/aml-matrix-page";
 import { AmlRiskPage } from "./pages/aml/aml-risk-page";
-import { TradeBlotterPage } from "./pages/trading/trade-blotter-page";
-import { TradeOrderPage } from "./pages/trading/trade-order-page";
+import { TradeLogsPage } from "./pages/portfolios/trade-logs-page";
 import { AuditLogPage } from "./pages/audit-log/audit-log-page";
 import { IngestionMonitoringPage } from "./pages/bank-syncs/ingestion-monitoring-page";
 import { SyncErrorsPage } from "./pages/bank-syncs/sync-errors-page";
@@ -44,9 +43,7 @@ import {
   READS_CLIENT_FORMS,
   READS_AML_MATRIX,
   READS_AML_RISK,
-  READS_ORDERS,
   READS_PROPOSALS,
-  RAISES_ORDERS,
   STARTS_PROPOSALS,
 } from "./lib/permissions";
 import { ForgotPasswordPage } from "./pages/sign-in/forgot-password-page";
@@ -195,18 +192,16 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            // The blotter is read by whoever raises an order, whoever passes one and whoever places one.
-            // What each may actually do to an order is decided on the order itself.
-            element: <RequireAuthority authority={READS_ORDERS} />,
-            children: [
-              { path: "trade-orders", element: <TradeBlotterPage /> },
-              { path: "trade-orders/:orderId", element: <TradeOrderPage /> },
-            ],
+            // Every bulk rebalance, read by the desk that raises them and by the managers who answer them.
+            // The blotter stood here: orders raised, passed by Compliance and placed by Operations. Bulk
+            // rebalancing was the only thing that fed it and it feeds it no longer — it asks the client's
+            // manager instead — so what is left is the record of those askings.
+            element: <RequireAuthority authority={READS_PROPOSALS} />,
+            children: [{ path: "trade-logs", element: <TradeLogsPage /> }],
           },
-          {
-            element: <RequireAuthority authority={RAISES_ORDERS} />,
-            children: [{ path: "trade-orders/new", element: <TradeOrderPage /> }],
-          },
+          // Where the blotter used to be. A link in somebody's notes, or a tab they left open, lands on
+          // the screen that replaced it rather than on nothing.
+          { path: "trade-orders", element: <Navigate to="/trade-logs" replace /> },
           {
             // Where clients sit on the firm's AML sheet is read by whoever scores them and by whoever
             // oversees the scoring; writing the sheet itself is a permission of its own.
@@ -243,8 +238,6 @@ export const router = createBrowserRouter([
               { path: "moves-to-approve", element: <Navigate to="/approvals" replace /> },
               { path: "restores-to-approve", element: <Navigate to="/approvals?queue=restores" replace /> },
               { path: "allocations-to-approve", element: <Navigate to="/approvals?queue=figures" replace /> },
-              { path: "model-edits-to-approve",
-                element: <Navigate to="/approvals?queue=model-sign-off" replace /> },
               // Where the screen used to live. Every bell sent before it was renamed carries this path,
               // and those notices are rows in a database rather than links that can be rewritten — so the
               // old address has to keep arriving somewhere rather than at a page that is not there.

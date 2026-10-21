@@ -13,6 +13,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatDate } from "../../lib/labels";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { hasAnyAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
 
 /**
@@ -27,11 +28,14 @@ export function PostOnboardingPage() {
     { query: { placeholderData: keepPreviousData } },
   );
   const canSend = hasAnyAuthority(useStaffUser(), ...ONBOARDS_CLIENTS_CHANGE);
+  // Read above the refusal below, because usePagedRows is a hook and a hook cannot be called on only some
+  // of a component's renders. The server sends this queue whole, so the page is taken here.
+  const rows = notices.data?.items ?? [];
+  const paged = usePagedRows(rows);
 
   if (notices.isError) {
     return <Alert tone="danger">{notices.error.message}</Alert>;
   }
-  const rows = notices.data?.items ?? [];
   const overdue = notices.data?.overdue ?? 0;
   const sentThisMonth = notices.data?.sentThisMonth ?? 0;
   const lateThisMonth = notices.data?.lateThisMonth ?? 0;
@@ -116,7 +120,7 @@ export function PostOnboardingPage() {
                   </td>
                 </tr>
               )}
-              {rows.map((notice) => (
+              {paged.shown.map((notice) => (
                 <tr key={notice.caseId} className={notice.overdue ? "bg-red-50/40" : undefined}>
                   <td className="py-3 pr-4 pl-5">
                     <Link to={`/onboarding/${notice.caseId}`} className="font-semibold hover:text-primary-600">
@@ -164,6 +168,10 @@ export function PostOnboardingPage() {
             </tbody>
           </table>
         </div>
+        {/* Outside the scrolling box, so the way through the queue does not slide sideways with the columns.
+            The three counts above the table are the server's own figures for the whole queue and are
+            unaffected by which page is being read. */}
+        {rows.length > 0 && <PagedFooter paged={paged} noun={["notice", "notices"]} />}
       </section>
 
       <Dialog

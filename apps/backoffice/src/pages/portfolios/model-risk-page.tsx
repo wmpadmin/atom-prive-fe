@@ -3,6 +3,7 @@ import { useGetModelRisk, type ModelRiskRow, type ModelRiskTable } from "@atompr
 import { Alert, cn } from "@atomprive/ui";
 import { ListPageHeader } from "../../components/record-list";
 import { formatDate } from "../../lib/labels";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { underManagementLabel } from "./portfolio-labels";
 
 /**
@@ -18,10 +19,13 @@ import { underManagementLabel } from "./portfolio-labels";
  */
 export function ModelRiskPage() {
   const table = useGetModelRisk<ModelRiskTable, ApiError>();
-
-  if (table.isError) return <Alert tone="danger">{table.error.message}</Alert>;
+  // Read before the refusal below, because usePagedRows is a hook and a hook cannot be called on only some
+  // of a component's renders. Both lines already carried their own optional chaining, so they are safe here.
   const rows = table.data?.items ?? [];
   const measured = rows.filter((row) => row.volatility !== null);
+  const paged = usePagedRows(rows);
+
+  if (table.isError) return <Alert tone="danger">{table.error.message}</Alert>;
 
   return (
     <div className="space-y-6">
@@ -49,45 +53,52 @@ export function ModelRiskPage() {
         </Alert>
       )}
 
-      <section className="overflow-x-auto rounded-2xl border border-line bg-white">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              <th scope="col" className="py-3 pr-4 pl-5">Model</th>
-              <th scope="col" className="px-4 py-3 text-right">Assets</th>
-              <th scope="col" className="px-4 py-3 text-right">Volatility</th>
-              <th scope="col" className="px-4 py-3 text-right">Worst fall</th>
-              <th scope="col" className="px-4 py-3 text-right">Return per unit of risk</th>
-              <th scope="col" className="px-4 py-3 text-right" title="The loss only one reading in twenty has been worse than.">
-                At risk 95%
-              </th>
-              <th scope="col" className="px-4 py-3 text-right" title="The loss only one reading in a hundred has been worse than.">
-                At risk 99%
-              </th>
-              <th scope="col" className="px-4 py-3 text-right" title="What has been lost on average on the readings past the 95% figure.">
-                Beyond it
-              </th>
-              <th scope="col" className="py-3 pr-5 pl-4">Credit quality</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {table.isPending && (
-              <tr>
-                <td colSpan={9} className="px-5 py-10 text-center text-ink-muted">Working out the risk…</td>
+      {/* The scrolling is the table's own rather than the card's, so the footer below sits still while the
+          nine columns slide under it. */}
+      <section className="rounded-2xl border border-line bg-white">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                <th scope="col" className="py-3 pr-4 pl-5">Model</th>
+                <th scope="col" className="px-4 py-3 text-right">Assets</th>
+                <th scope="col" className="px-4 py-3 text-right">Volatility</th>
+                <th scope="col" className="px-4 py-3 text-right">Worst fall</th>
+                <th scope="col" className="px-4 py-3 text-right">Return per unit of risk</th>
+                <th scope="col" className="px-4 py-3 text-right" title="The loss only one reading in twenty has been worse than.">
+                  At risk 95%
+                </th>
+                <th scope="col" className="px-4 py-3 text-right" title="The loss only one reading in a hundred has been worse than.">
+                  At risk 99%
+                </th>
+                <th scope="col" className="px-4 py-3 text-right" title="What has been lost on average on the readings past the 95% figure.">
+                  Beyond it
+                </th>
+                <th scope="col" className="py-3 pr-5 pl-4">Credit quality</th>
               </tr>
-            )}
-            {table.data && rows.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-5 py-10 text-center text-ink-muted">
-                  There are no model portfolios yet.
-                </td>
-              </tr>
-            )}
-            {rows.map((row) => (
-              <Row key={row.id} row={row} currency={table.data!.currency} />
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {table.isPending && (
+                <tr>
+                  <td colSpan={9} className="px-5 py-10 text-center text-ink-muted">Working out the risk…</td>
+                </tr>
+              )}
+              {table.data && rows.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-5 py-10 text-center text-ink-muted">
+                    There are no model portfolios yet.
+                  </td>
+                </tr>
+              )}
+              {paged.shown.map((row) => (
+                <Row key={row.id} row={row} currency={table.data!.currency} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Not while the risk is still being worked out: a count under a table that says it is still
+            counting answers a question nobody has asked yet. */}
+        {!table.isPending && <PagedFooter paged={paged} noun={["model", "models"]} />}
       </section>
     </div>
   );
