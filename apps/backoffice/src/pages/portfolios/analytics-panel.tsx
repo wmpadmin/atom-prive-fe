@@ -1,7 +1,10 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  useGetClientModelSpells,
   useGetClientPortfolio,
   useGetClientValuations,
+  type ModelHistory,
+  type ModelSpell,
   type PortfolioStanding,
   type ValuationHistory,
 } from "@atomprive/api-client/backoffice";
@@ -11,6 +14,116 @@ import { inkFor, nameOf, useAssetClasses } from "./asset-classes";
 
 function money(amount: number) {
   return amount.toLocaleString("en-US", { maximumFractionDigits: 0 });
+}
+
+/**
+ * Every stretch the client has spent on one plan, and what their money did over it.
+ *
+ * <p>A client moved from one model to another has two answers and not one, and the figures that follow
+ * them say so nowhere else: the Return tab reads their whole history as a single run, so what the money
+ * did while it was invested aggressively cannot be told from what it has done since it was moved to
+ * something conservative.
+ *
+ * <p>A stretch rather than a model. A client who goes aggressive, conservative and aggressive again has
+ * been on the aggressive plan twice, with a different portfolio and a different market each time; two
+ * rows say that and one row hides it.
+ *
+ * <p>Picking one narrows this whole panel to the days it covers, which is the point of it: the mix, the
+ * movement and the worth are then the ones the client had while they were held to that plan.
+ */
+function OnEachPlan({ customerId, inForce, show, clear }: {
+  customerId: string;
+  inForce: { from: string; to: string };
+  show: (spell: ModelSpell) => void;
+  clear: () => void;
+}) {
+  const history = useGetClientModelSpells<ModelHistory, ApiError>(customerId);
+  const spells = history.data?.spells ?? [];
+  if (history.isError) {
+    return <Alert tone="danger">{history.error.message}</Alert>;
+  }
+  if (!history.isPending && spells.length === 0) {
+    return null;
+  }
+  const showing = (spell: ModelSpell) => inForce.from === spell.from && inForce.to === spell.to;
+
+  return (
+    <section className="rounded-2xl border border-line bg-white px-6 py-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-bold text-ink">On each plan</h3>
+          <p className="mt-0.5 text-sm text-ink-muted">
+            What the money did while the client was held to it. Time-weighted, so what was paid in or
+            taken out is not read as earnings.
+          </p>
+        </div>
+        {spells.some(showing) && (
+          <Button variant="secondary" size="sm" onClick={clear}>Show the whole history</Button>
+        )}
+      </div>
+
+      <div className="mt-4 overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              <th scope="col" className="py-2 pr-4">Plan</th>
+              <th scope="col" className="px-4 py-2">While</th>
+              <th scope="col" className="px-4 py-2 text-right">Days</th>
+              <th scope="col" className="px-4 py-2 text-right">Return</th>
+              <th scope="col" className="px-4 py-2 text-right">In</th>
+              <th scope="col" className="px-4 py-2 text-right">Out</th>
+              <th scope="col" className="py-2 pl-4 text-right"><span className="sr-only">Show</span></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {history.isPending && (
+              <tr><td colSpan={7} className="py-6 text-center text-ink-muted">Reading the plans…</td></tr>
+            )}
+            {spells.map((spell) => (
+              <tr key={`${spell.from}-${spell.modelPortfolioId ?? "none"}`}
+                className={cn(showing(spell) && "bg-primary-50/60")}>
+                <td className="py-2.5 pr-4 font-semibold text-ink">
+                  {/* A plan the firm has since taken off its list still named the days it was in force. */}
+                  {spell.modelName ?? <span className="font-normal text-ink-muted">On no plan</span>}
+                </td>
+                <td className="px-4 py-2.5 whitespace-nowrap text-ink-soft">
+                  {longDay(spell.from)} — {longDay(spell.to)}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-ink-soft">{spell.days}</td>
+                <td className={cn("px-4 py-2.5 text-right font-semibold tabular-nums",
+                  spell.percent === null ? "text-ink-muted"
+                    : spell.percent < 0 ? "text-rose-700" : "text-emerald-700")}>
+                  {/* Two days written down at the least, or there is no period to measure between. */}
+                  {spell.percent === null ? "—" : `${spell.percent > 0 ? "+" : spell.percent < 0 ? "−" : ""}${Math.abs(spell.percent).toFixed(1)}%`}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-ink-soft">
+                  {spell.paidIn > 0 ? money(spell.paidIn) : <span className="text-ink-muted">—</span>}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-ink-soft">
+                  {spell.takenOut > 0 ? money(spell.takenOut) : <span className="text-ink-muted">—</span>}
+                </td>
+                <td className="py-2.5 pl-4 text-right">
+                  <button
+                    type="button"
+                    onClick={() => (showing(spell) ? clear() : show(spell))}
+                    className="text-xs font-semibold text-primary-700 hover:underline"
+                  >
+                    {showing(spell) ? "Showing" : "Show these days"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="mt-3 text-xs text-ink-muted">
+        Measured between the days written down while each plan was in force. The stretch between the last
+        day under one plan and the first under the next belongs to neither: half of it was invested under
+        each, and nothing on file says which half.
+      </p>
+    </section>
+  );
 }
 
 /**
@@ -168,6 +281,21 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
           setInForce({ from: "", to: "" });
         }}
         bounds={bounds}
+      />
+
+      {/* What the money did under each plan the client has been held to. Read before the charts, because
+          picking a stretch is what the charts below are then drawn from. */}
+      <OnEachPlan
+        customerId={customerId}
+        inForce={inForce}
+        show={(spell) => {
+          setPicked({ from: spell.from, to: spell.to });
+          setInForce({ from: spell.from, to: spell.to });
+        }}
+        clear={() => {
+          setPicked({ from: "", to: "" });
+          setInForce({ from: "", to: "" });
+        }}
       />
 
       {/* One chart a row. Side by side, the mix table had a column a class in half a card and the rings

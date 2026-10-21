@@ -1569,11 +1569,11 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -4974,6 +4974,30 @@ export interface ClientNonFinancialAssets {
   currency: string;
   total: number;
   items: NonFinancialAssetRow[];
+}
+
+export interface ModelSpell {
+  /** @nullable */
+  modelPortfolioId: string | null;
+  /** @nullable */
+  modelName: string | null;
+  from: string;
+  to: string;
+  days: number;
+  readings: number;
+  /** @nullable */
+  percent: number | null;
+  openedAt: number;
+  closedAt: number;
+  paidIn: number;
+  takenOut: number;
+  split: number;
+}
+
+export interface ModelHistory {
+  customerId: string;
+  currency: string;
+  spells: ModelSpell[];
 }
 
 export interface ClientLoans {
@@ -24560,6 +24584,101 @@ export function useListClientMovePlans<TData = Awaited<ReturnType<typeof listCli
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListClientMovePlansQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientModelSpellsUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/model-spells`
+}
+
+export const getClientModelSpells = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ModelHistory> => {
+
+  return http<ModelHistory>(getGetClientModelSpellsUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientModelSpellsQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/model-spells`
+    ] as const;
+    }
+
+
+export const getGetClientModelSpellsQueryOptions = <TData = Awaited<ReturnType<typeof getClientModelSpells>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientModelSpells>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientModelSpellsQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientModelSpells>>> = ({ signal }) => getClientModelSpells(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientModelSpells>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientModelSpellsQueryResult = NonNullable<Awaited<ReturnType<typeof getClientModelSpells>>>
+export type GetClientModelSpellsQueryError = unknown
+
+
+export function useGetClientModelSpells<TData = Awaited<ReturnType<typeof getClientModelSpells>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientModelSpells>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientModelSpells>>,
+          TError,
+          Awaited<ReturnType<typeof getClientModelSpells>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientModelSpells<TData = Awaited<ReturnType<typeof getClientModelSpells>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientModelSpells>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientModelSpells>>,
+          TError,
+          Awaited<ReturnType<typeof getClientModelSpells>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientModelSpells<TData = Awaited<ReturnType<typeof getClientModelSpells>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientModelSpells>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientModelSpells<TData = Awaited<ReturnType<typeof getClientModelSpells>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientModelSpells>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientModelSpellsQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
