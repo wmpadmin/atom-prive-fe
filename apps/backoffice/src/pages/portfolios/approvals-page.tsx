@@ -57,8 +57,8 @@ const TABS: TabSpec[] = [
     id: "proposals",
     label: "Proposals",
     lead: "What a portfolio manager has suggested for a client's money, answered on that client's behalf "
-      + "by the relationship manager who looks after them. Advisory only — the platform never places a "
-      + "trade.",
+      + "by the relationship manager who looks after them. Saying yes moves it; no order is placed with a "
+      + "broker.",
     authority: READS_PROPOSALS,
     Panel: ProposalsPage,
   },
