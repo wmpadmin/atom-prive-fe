@@ -10,6 +10,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, DateInput, Field, FilterMenu, cn } from "@atomprive/ui";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { INK, inkFor, nameOf, useAssetClasses } from "./asset-classes";
 
 function money(amount: number) {
@@ -138,35 +139,7 @@ function OnEachPlan({ customerId, inForce, show, clear }: {
               {/* What they held on average against what the plan asked for. Held first, because the
                   question is what the client had, and the target beside it is what it should have been. */}
               {spell.mix.length > 0 && (
-                <table className="mt-3 w-full text-xs">
-                  <caption className="sr-only">Average mix under {spell.modelName}</caption>
-                  <tbody>
-                    {spell.mix.filter((row) => row.held > 0 || row.target > 0).map((row) => (
-                      <tr key={row.assetClass}>
-                        <td className="w-40 truncate py-1 pr-3 text-ink">{row.name}</td>
-                        <td className="py-1">
-                          {/* Held drawn against the plan's own mark, so a class running over its target
-                              is seen rather than worked out from two numbers. */}
-                          <span className="relative block h-2 rounded-full bg-slate-100">
-                            <span className="absolute inset-y-0 left-0 rounded-full"
-                              style={{ width: `${Math.min(row.held, 100)}%`, backgroundColor: inkFor(spell) }} />
-                            <span aria-hidden="true"
-                              className="absolute inset-y-[-2px] w-px bg-ink-soft"
-                              style={{ left: `${Math.min(row.target, 100)}%` }} />
-                          </span>
-                        </td>
-                        <td className="w-28 py-1 pl-3 text-right tabular-nums text-ink-soft">
-                          {row.held.toFixed(1)}% <span className="text-ink-muted">of {row.target.toFixed(0)}%</span>
-                        </td>
-                        <td className="w-20 py-1 pl-2 text-right tabular-nums">
-                          {row.breachedOn > 0
-                            ? <span className="text-rose-700">{row.breachedOn} past</span>
-                            : <span className="text-ink-muted">—</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <AverageMix mix={spell.mix} modelName={spell.modelName} ink={inkFor(spell)} />
               )}
             </li>
           ))}
@@ -179,6 +152,61 @@ function OnEachPlan({ customerId, inForce, show, clear }: {
         to neither: half of it was invested under each, and nothing on file says which half.
       </p>
     </section>
+  );
+}
+
+/**
+ * What the client held on average under one plan, class by class, against what the plan asked for.
+ *
+ * <p>Its own component rather than part of the card above, because the hook that pages it cannot be called
+ * inside the list of plans: one plan's table has to be one component for it to keep its own place in its
+ * own list.
+ */
+function AverageMix({ mix, modelName, ink }: {
+  mix: ModelSpell["mix"];
+  /** Nullable as the plan's own name is, so the caption says whatever the card above it says. */
+  modelName: ModelSpell["modelName"];
+  /** The plan's own colour, which the held bars are drawn in. */
+  ink: string;
+}) {
+  // A class the client held nothing in and the plan asked nothing of is not a row: a line of noughts is a
+  // line to read past.
+  const rows = mix.filter((row) => row.held > 0 || row.target > 0);
+  const paged = usePagedRows(rows);
+
+  return (
+    <>
+      <table className="mt-3 w-full text-xs">
+        <caption className="sr-only">Average mix under {modelName}</caption>
+        <tbody>
+          {paged.shown.map((row) => (
+            <tr key={row.assetClass}>
+              <td className="w-40 truncate py-1 pr-3 text-ink">{row.name}</td>
+              <td className="py-1">
+                {/* Held drawn against the plan's own mark, so a class running over its target
+                    is seen rather than worked out from two numbers. */}
+                <span className="relative block h-2 rounded-full bg-slate-100">
+                  <span className="absolute inset-y-0 left-0 rounded-full"
+                    style={{ width: `${Math.min(row.held, 100)}%`, backgroundColor: ink }} />
+                  <span aria-hidden="true"
+                    className="absolute inset-y-[-2px] w-px bg-ink-soft"
+                    style={{ left: `${Math.min(row.target, 100)}%` }} />
+                </span>
+              </td>
+              <td className="w-28 py-1 pl-3 text-right tabular-nums text-ink-soft">
+                {row.held.toFixed(1)}% <span className="text-ink-muted">of {row.target.toFixed(0)}%</span>
+              </td>
+              <td className="w-20 py-1 pl-2 text-right tabular-nums">
+                {row.breachedOn > 0
+                  ? <span className="text-rose-700">{row.breachedOn} past</span>
+                  : <span className="text-ink-muted">—</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length > 0 && <PagedFooter paged={paged} noun={["asset class", "asset classes"]} />}
+    </>
   );
 }
 
@@ -727,9 +755,13 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
   // Every class the client holds or the plan asks for. A class with neither is not a row: the firm has
   // nothing there and asks for nothing there, and a line of noughts is a line to read past.
   const shown = byClass.filter((row) => row.actualValue > 0 || row.targetShare > 0);
+  const paged = usePagedRows(shown);
   // What the bars are drawn against. Taken from the figures rather than fixed, so a client with eighty
   // per cent in one class has a bar that fits instead of one pinned at the end telling nobody how far
   // past it they are. Rounded up to the next five so the scale is a figure a reader can hold.
+  //
+  // Read off every class and not the page, because a bar is only comparable against the same scale: taken
+  // from a page, the same class would be drawn to a different length depending on which page it fell on.
   const scale = Math.max(25, Math.ceil(Math.max(...shown.flatMap((row) =>
     [whole === 0 ? 0 : (row.actualValue / whole) * 100, row.targetShare])) / 5) * 5);
 
@@ -814,7 +846,7 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                   </tr>
                 </thead>
                 <tbody>
-                  {shown.map((row) => {
+                  {paged.shown.map((row) => {
                     const actual = whole === 0 ? 0 : (row.actualValue / whole) * 100;
                     const target = row.targetShare;
                     const apart = actual - target;
@@ -870,6 +902,9 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                   })}
                 </tbody>
               </table>
+              {/* The ring beside this table is the whole portfolio whichever page is open: it is drawn from
+                  everything held, not from the rows on show. */}
+              {shown.length > 0 && <PagedFooter paged={paged} noun={["asset class", "asset classes"]} />}
               <p className="mt-2 pl-2 text-xs text-ink-muted">
                 How far each class sits from its target, marked beyond {FAR_FROM_TARGET} either way. The bar runs
                 0–{scale}%, and the mark on it is what the plan asks for.

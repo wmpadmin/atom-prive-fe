@@ -3,6 +3,7 @@ import { useGetClientValuations, type ValuationHistory, type ValuationPoint } fr
 import { Alert } from "@atomprive/ui";
 import { useEffect, useRef, useState } from "react";
 import { formatDate } from "../../lib/labels";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 
 /**
  * The drawing is made at the size it is shown at, never scaled to fit.
@@ -98,13 +99,20 @@ function useWidth() {
 export function ValuationHistoryPanel({ customerId }: { customerId: string }) {
   const history = useGetClientValuations<ValuationHistory, ApiError>(customerId);
   const [box, width] = useWidth();
+  // Read above the refusal below rather than after it, because the page the table shows is taken by a hook
+  // and a hook cannot be called after a return. Nothing here needs an answer to have arrived.
+  const points = history.data?.points ?? [];
+  const currency = history.data?.currency ?? "USD";
+  // Counted over every day on file and not over the page, because it decides whether the column exists at
+  // all: counted on the page, a page with no restated day on it would drop a column the other pages keep.
+  const restated = points.filter((point) => point.asRecorded !== null).length;
+  // Newest first, as the table has always read. Reversed before the page is taken, so the first page is
+  // the most recent days rather than the oldest.
+  const paged = usePagedRows([...points].reverse());
 
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
   }
-  const points = history.data?.points ?? [];
-  const currency = history.data?.currency ?? "USD";
-  const restated = points.filter((point) => point.asRecorded !== null).length;
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5" ref={box}>
@@ -242,7 +250,7 @@ export function ValuationHistoryPanel({ customerId }: { customerId: string }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {[...points].reverse().map((point) => (
+                {paged.shown.map((point) => (
                   <tr key={point.valuedOn}>
                     <th scope="row" className="py-1.5 pr-4 text-left font-medium whitespace-nowrap text-ink">
                       {formatDate(point.valuedOn)}
@@ -263,6 +271,7 @@ export function ValuationHistoryPanel({ customerId }: { customerId: string }) {
               </tbody>
             </table>
           </div>
+          <PagedFooter paged={paged} noun={["day", "days"]} />
           {restated > 0 && (
             <p className="mt-2 text-xs text-ink-muted">
               <strong className="font-semibold">As recorded</strong> is what a day was first written

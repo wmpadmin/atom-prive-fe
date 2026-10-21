@@ -17,23 +17,25 @@ import {
   type ProposalDetail,
   type ProposalRowStatus,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, describedBy, Dialog, Field, SelectInput, TextArea, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, cn, describedBy, Dialog, Field, SelectInput, TextArea, TextInput } from "@atomprive/ui";
 import { ChevronLeft } from "lucide-react";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
 import { saveApiFile } from "../../lib/download";
 import { asFigure } from "../../lib/figures";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { ProposalsHeader } from "./proposals-header";
 import { ProposalLegEditor } from "./proposal-leg-editor";
 import { destinations, EMPTY_LEG, legsFrom, sources, typedFrom, type TypedLeg } from "./proposal-leg-values";
-import { ProposalLegs } from "./proposal-legs";
+import { ProposalLegs, ProposalMoves } from "./proposal-legs";
 import { ProposalTrail } from "./proposal-trail";
-import { somethingElseLandsHere, WhatItWouldLeave, wouldBreakAband } from "../portfolios/what-it-would-leave";
+import { somethingElseLandsHere, wouldBreakAband } from "../portfolios/what-it-would-leave";
 import { APPROVES_PROPOSALS, clientFileHref, hasAnyAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
+import { figure, named } from "../portfolios/money-words";
 import { answeredLabel, formatValue, proposalStatusLabels, proposalStatusTones, sentLabel, standingLabel } from "./proposal-labels";
 
 /** One of the four facts above a proposal: what it was advised against, and the dates it turns on. */
@@ -54,6 +56,8 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 export function ProposalPage() {
   const { proposalId } = useParams();
   const navigate = useNavigate();
+  // Whether this screen was reached from inside the app, which decides whether there is a back to go to.
+  const location = useLocation();
   const writing = proposalId === undefined;
   const form = useRef<HTMLFormElement>(null);
   // Where this proposal was opened from. It is read from three screens and is the same screen from all of
@@ -116,6 +120,8 @@ export function ProposalPage() {
   const carryingOut = useListMovesCarryingOut<MovePlanRow[], ApiError>(proposalId ?? "", {
     query: { enabled: !writing && proposalId !== undefined, refetchOnWindowFocus: true },
   });
+  /** Which half of a sent request is being read: what was asked, or what has happened since. */
+  const [shown, setShown] = useState<"request" | "history">("request");
   const currencies = useListCurrencies<Currency[], ApiError>();
   // The whole book, because whoever writes a proposal reads the whole book. It used to depend on whether
   // the writer was held to a set of clients; nobody who is still writes one.
@@ -158,9 +164,13 @@ export function ProposalPage() {
     mutation: {
       onSuccess: (saved) =>
         answered(
-          saved.summary.status === "APPROVED"
-            ? "Approved on the client's behalf, and the money has moved."
-            : "Turned down. Nothing has changed for the client.",
+          saved.summary.status !== "APPROVED"
+            ? "Turned down. Nothing has changed for the client."
+            : saved.summary.fromRebalance
+              // A rebalance says only what to sell. Where it lands is the portfolio desk's judgement, so
+              // agreeing moves nothing and telling the manager it had would be telling them wrong.
+              ? "Agreed. Nothing has moved yet — the portfolio desk will put this client back."
+              : "Approved on the client's behalf, and the money has moved.",
         ),
       onError,
     },
@@ -272,6 +282,8 @@ export function ProposalPage() {
   const back =
     cameFrom === "review"
       ? { to: "/approvals?queue=proposals&tab=waitingOnMe", label: "Back to what is waiting on you" }
+      : cameFrom === "trade-logs"
+      ? { to: "/trade-logs", label: "Back to trade logs" }
       : cameFrom === "client" && proposal
         ? {
             to: clientFileHref(user, proposal.summary.customerId),
@@ -295,7 +307,20 @@ export function ProposalPage() {
         />
       )}
 
-      <Link to={back.to} className="inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:underline">
+      {/* Back a screen, not back to a place. Somebody who opened this from Trade logs, or from a search,
+          or from the client's own file, means "undo that press" — and a link that always landed on the
+          client's portfolio took them somewhere they had not been. The address is kept as the href so a
+          deep link, where there is nothing to go back to, still lands somewhere sensible. */}
+      <Link
+        to={back.to}
+        onClick={(event) => {
+          if (location.key !== "default") {
+            event.preventDefault();
+            navigate(-1);
+          }
+        }}
+        className="inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:underline"
+      >
         <ChevronLeft aria-hidden="true" className="size-4" />
         {back.label}
       </Link>
@@ -353,7 +378,8 @@ export function ProposalPage() {
           now nothing joined the two — so agreed-to advice nobody acted on was indistinguishable from
           advice that had been carried out. */}
       {status === "APPROVED" && proposal && (
-        <CarriedOutBy moves={carryingOut.data ?? []} pending={carryingOut.isPending} />
+        <CarriedOutBy moves={carryingOut.data ?? []} pending={carryingOut.isPending}
+          fromRebalance={proposal?.summary.fromRebalance ?? false} />
       )}
 
       {/* What the advice was given against, and the dates it turns on — the four facts read before the detail. */}
@@ -366,7 +392,8 @@ export function ProposalPage() {
           </Fact>
           <Fact label="Sent">{sentLabel(proposal!.summary.sentAt)}</Fact>
           <Fact label="Standing">
-            {standingLabel(status, proposal!.summary.sentAt, proposal!.summary.decidedAt)}
+            {standingLabel(status, proposal!.summary.sentAt, proposal!.summary.decidedAt,
+              proposal!.summary.fromRebalance, proposal!.summary.openForPlacing)}
           </Fact>
           <Fact label="Objective">{proposal!.objective ?? "Not set"}</Fact>
         </dl>
@@ -524,21 +551,59 @@ export function ProposalPage() {
           </>
         ) : (
           <>
-        {/* Sent, it is a record of what was asked for rather than something to fill in, so it reads as one. */}
+        {/* Sent, it is a record of what was asked for rather than something to fill in, so it reads as one.
+            Two halves, because they answer different questions: what was asked, and what has been done
+            about it since. Read on one page the second was a footnote under the first — and on a rebalance,
+            where the doing is the whole of what happens after the asking, that is the half somebody comes
+            back for. */}
+        <div role="tablist" aria-label="This request" className="flex gap-1 border-b border-line">
+          {([
+            { id: "request", label: "The request" },
+            { id: "history", label: "History" },
+          ] as const).map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              role="tab"
+              aria-selected={shown === option.id}
+              onClick={() => setShown(option.id)}
+              className={cn(
+                "-mb-px border-b-2 px-3 py-2 text-sm font-semibold whitespace-nowrap transition-colors",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
+                shown === option.id
+                  ? "border-primary-600 text-primary-700"
+                  : "border-transparent text-ink-muted hover:text-ink",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {shown === "history" ? (
+          <MoneyMovementHistory
+            moves={carryingOut.data ?? []}
+            pending={carryingOut.isPending}
+            client={proposal!.summary.customerName}
+          />
+        ) : (
+          <>
         <section>
           <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">What would move</h2>
+          {/* What moves and what it leaves, in one table. Saying yes here moves the money, and the person
+              saying it was once shown the legs and nothing else: not what each line is left holding, not
+              the most the line being filled may hold, and not that something else was waiting to fill the
+              same line. Read as two tables it was the reader joining them up; read as one it is the
+              question they are actually answering. */}
           <div className="mt-3">
-            <ProposalLegs legs={proposal!.lines} currency={proposal!.summary.valueCurrency} />
+            {weighed.length > 0 ? (
+              <ProposalMoves legs={weighed} currency={proposal!.summary.valueCurrency} />
+            ) : (
+              // Written before a proposal carried the figures its lines were weighed against. The legs
+              // are all there is for one of those, so the legs are what it shows.
+              <ProposalLegs legs={proposal!.lines} currency={proposal!.summary.valueCurrency} />
+            )}
           </div>
-          {/* And what it would leave. Saying yes here moves the money, and until now the person saying it
-              was shown the legs and nothing else: not the most the line they are filling may hold, and not
-              that something else was waiting to fill the same line. The queue that answers a client's own
-              asking has shown both all along; advice showed neither. */}
-          {weighed.length > 0 && (
-            <div className="mt-5">
-              <WhatItWouldLeave legs={weighed} />
-            </div>
-          )}
         </section>
 
         <section>
@@ -547,6 +612,8 @@ export function ProposalPage() {
           </h2>
           <p className="mt-2 text-sm leading-6 whitespace-pre-line text-ink">{proposal!.body}</p>
         </section>
+          </>
+        )}
 
           </>
         )}
@@ -560,8 +627,10 @@ export function ProposalPage() {
               : proposal!.summary.sentAt
                 ? `Sent ${formatDate(proposal!.summary.sentAt)} · ${
                   status === "APPROVED" || status === "REJECTED"
-                    ? answeredLabel(status, proposal!.summary.answeredByName, proposal!.summary.decidedAt)
-                    : standingLabel(status, proposal!.summary.sentAt, proposal!.summary.decidedAt)}`
+                    ? answeredLabel(status, proposal!.summary.answeredByName, proposal!.summary.decidedAt,
+                        proposal!.summary.fromRebalance)
+                    : standingLabel(status, proposal!.summary.sentAt, proposal!.summary.decidedAt,
+                        proposal!.summary.fromRebalance, proposal!.summary.openForPlacing)}`
                 : `Draft, last saved ${formatDateTime(proposal!.summary.createdAt)}`}
           </p>
           {whyNotMine && <p className="text-xs text-ink-muted">{whyNotMine}</p>}
@@ -613,9 +682,13 @@ export function ProposalPage() {
       >
         <div className="space-y-4">
           <p className="text-sm text-ink-muted">
-            {answering === "approve"
-              ? "You are answering for this client, and saying yes moves the money. Nobody else is asked, and the answer is written once."
-              : "Nothing changes for the client. Whoever wrote it sees what you write here."}
+            {answering !== "approve"
+              ? "Nothing changes for the client. Whoever wrote it sees what you write here."
+              : proposal?.summary.fromRebalance
+                ? "You are answering for this client, and saying yes moves nothing by itself. It lets the "
+                  + "portfolio desk put this client back — they choose where each piece goes, and you are "
+                  + "not asked again. Nobody else is asked, and the answer is written once."
+                : "You are answering for this client, and saying yes moves the money. Nobody else is asked, and the answer is written once."}
           </p>
           {/* The one thing that cannot be said after the press. Going past a band is a decision the firm
               makes rather than a mistake it blocks — so it is put in front of whoever is making it, in
@@ -665,8 +738,11 @@ export function ProposalPage() {
 
       {!writing && proposal!.summary.valueAmount !== null && (
         <p className="text-xs text-ink-muted">
-          Value {formatValue(proposal!.summary.valueAmount, proposal!.summary.valueCurrency)} · approving this
-          moves the money in the firm's record. No order is placed with a broker.
+          Value {formatValue(proposal!.summary.valueAmount, proposal!.summary.valueCurrency)} ·{" "}
+          {proposal!.summary.fromRebalance
+            ? "agreeing to this moves nothing; the portfolio desk places it afterwards."
+            : "approving this moves the money in the firm's record."}{" "}
+          No order is placed with a broker.
         </p>
       )}
     </div>
@@ -684,10 +760,21 @@ export function ProposalPage() {
  * <p>Agreeing is what moves it now, so neither can be true any more. What is left is the thing itself:
  * which move carried this out, for how much, and the way through to it.
  */
-function CarriedOutBy({ moves, pending }: { moves: MovePlanRow[]; pending: boolean }) {
+function CarriedOutBy({ moves, pending, fromRebalance }: {
+  moves: MovePlanRow[];
+  pending: boolean;
+  /** Whether agreeing to this moved the money, or only let the desk start placing it. */
+  fromRebalance: boolean;
+}) {
   if (pending || moves.length === 0) {
     // Nothing rather than a warning. A proposal agreed to before agreeing moved the money can read
     // Approved with no move behind it, and that is history — not something anybody can act on here.
+    return null;
+  }
+  if (fromRebalance) {
+    // Nothing here for a rebalance. Agreeing to one moves no money, so there is no figure to put in a
+    // banner — and what the desk has done since is the History tab below, move by move, with everything
+    // else that touched the portfolio beside it. Said in both places it was the same list twice.
     return null;
   }
   return (
@@ -711,5 +798,93 @@ function CarriedOutBy({ moves, pending }: { moves: MovePlanRow[]; pending: boole
         ))}
       </ul>
     </Alert>
+  );
+}
+
+
+/**
+ * What has moved under one request, a row per movement.
+ *
+ * <p>This request's and no others. It showed the client's whole history for a while, on the reasoning
+ * that what else touched the portfolio while this was being placed is worth knowing — but a reader
+ * opening the history of one request is asking what happened to THAT request, and answering with every
+ * move the client has ever made buries the one or two that are the answer.
+ *
+ * <p>A row per LEG rather than per move, because a leg is the movement: out of here, into there, this
+ * much. A move of five legs written as one row says a figure and hides the five places it came from, and
+ * those five places are the whole of what somebody reads this to find out.
+ */
+function MoneyMovementHistory({ moves, pending, client }: {
+  moves: MovePlanRow[];
+  pending: boolean;
+  client: string;
+}) {
+  // Flattened to a row per leg up here, above the two cases that return below, because which page a reader
+  // is on is held in a hook and a hook reached on one render and skipped on the next loses its own state.
+  // Each leg keeps the place it holds among its own move's legs, which is what says the reason once.
+  // Paged by move rather than by leg. A move is one act — its legs and the reason written against it are
+  // read together — and paging the legs split a move across two pages, leaving the second page's legs
+  // under no reason at all.
+  const paged = usePagedRows(moves);
+  if (pending) {
+    return <p className="py-8 text-sm text-ink-muted">Reading what has moved…</p>;
+  }
+  if (moves.length === 0) {
+    return (
+      <p className="py-8 text-sm text-ink-muted">
+        Nothing has moved under this request yet. {client}'s portfolio is the desk's to balance until they
+        record it as put back.
+      </p>
+    );
+  }
+  return (
+    <section>
+      <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+        What has moved under this request
+      </h2>
+      <p className="mt-1 text-xs text-ink-muted">Newest first.</p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <caption className="sr-only">Each movement: where it came out of, where it went, and how much.</caption>
+          <thead>
+            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              <th scope="col" className="py-3 pr-4">Out of</th>
+              <th scope="col" className="px-4 py-3">Into</th>
+              <th scope="col" className="px-4 py-3 text-right">Amount</th>
+              <th scope="col" className="px-4 py-3 whitespace-nowrap">Moved</th>
+              <th scope="col" className="py-3 pl-4 whitespace-nowrap">By</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {paged.shown.flatMap((move) => move.legs.map((leg, at) => (
+              <tr key={`${move.id}-${at}`} className="align-top">
+                <th scope="row" className="py-3 pr-4 text-left font-medium text-ink">
+                  {named(leg.fromSubClass, leg.fromAssetClass, leg.fromSubSubClass)}
+                  {/* Said once, on the first leg: it is the reason for the move, not for each of its
+                      parts, and repeated down five rows it reads as five reasons. */}
+                  {at === 0 && move.why && (
+                    <span className="mt-0.5 block text-xs font-normal text-ink-muted">{move.why}</span>
+                  )}
+                </th>
+                <td className="px-4 py-3 text-ink">
+                  {named(leg.toSubClass, leg.toAssetClass, leg.toSubSubClass)}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                  {move.currency} {figure(leg.amount)}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-ink-muted">
+                  {formatDateTime(move.raisedAt)}
+                </td>
+                <td className="py-3 pl-4 whitespace-nowrap text-ink-muted">{move.raisedByName}</td>
+              </tr>
+            )))}
+          </tbody>
+        </table>
+      </div>
+      {/* Outside the box the table scrolls in, so the pager stays where it is put while the columns slide.
+          Counted in moves, which is what a page holds: a move with three legs draws three rows, and
+          counting those rows would promise ten moves a page and show three. */}
+      <PagedFooter paged={paged} noun={["move", "moves"]} />
+    </section>
   );
 }

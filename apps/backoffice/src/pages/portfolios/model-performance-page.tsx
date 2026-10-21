@@ -8,6 +8,7 @@ import {
 import { Alert, cn } from "@atomprive/ui";
 import { ListPageHeader } from "../../components/record-list";
 import { formatDate } from "../../lib/labels";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { underManagementLabel } from "./portfolio-labels";
 
 /**
@@ -17,13 +18,15 @@ import { underManagementLabel } from "./portfolio-labels";
  */
 export function ModelPerformancePage() {
   const table = useGetModelPerformance<ModelPerformanceTable, ApiError>();
+  // Read before the refusal below, because usePagedRows is a hook and a hook cannot be called on only some
+  // of a component's renders. Both lines already carried their own optional chaining, so they are safe here.
+  const rows = table.data?.items ?? [];
+  const measured = rows.filter((row) => row.sinceStart.percent !== null);
+  const paged = usePagedRows(rows);
 
   if (table.isError) {
     return <Alert tone="danger">{table.error.message}</Alert>;
   }
-  const rows = table.data?.items ?? [];
-  const measured = rows.filter((row) => row.sinceStart.percent !== null);
-  const withoutBenchmark = rows.filter((row) => row.benchmarkName === null);
 
   return (
     <div className="space-y-6">
@@ -50,47 +53,56 @@ export function ModelPerformancePage() {
         </Alert>
       )}
 
-      {withoutBenchmark.length > 0 && measured.length > 0 && (
-        <Alert tone="warning">
-          {withoutBenchmark.length === 1
-            ? `${withoutBenchmark[0]!.modelName} is measured against no index, so there is nothing to compare it with.`
-            : `${withoutBenchmark.length} plans are measured against no index, so there is nothing to compare them with.`}{" "}
-          Name a benchmark on the model and its levels, and the comparison columns fill in.
-        </Alert>
-      )}
-
-      <section className="overflow-x-auto rounded-2xl border border-line bg-white">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              <th scope="col" className="py-3 pr-4 pl-5">Model</th>
-              <th scope="col" className="px-4 py-3 text-right">Clients</th>
-              <th scope="col" className="px-4 py-3 text-right">Assets</th>
-              <th scope="col" className="px-4 py-3 text-right">This year</th>
-              <th scope="col" className="px-4 py-3 text-right">Benchmark</th>
-              <th scope="col" className="px-4 py-3 text-right">Difference</th>
-              <th scope="col" className="px-4 py-3 text-right">3 years p.a.</th>
-              <th scope="col" className="py-3 pr-5 pl-4 text-right">Since start</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {table.isPending && (
-              <tr>
-                <td colSpan={8} className="px-5 py-10 text-center text-ink-muted">Working out the returns…</td>
+      {/* The scrolling is the table's own rather than the card's, so the footer below sits still while the
+          columns slide under it. */}
+      <section className="rounded-2xl border border-line bg-white">
+        <div className="overflow-x-auto">
+          {/* Laid out to a fixed grid rather than to whatever the longest cell happens to be. Left to
+              size itself, the column of dates pushed to the far right of the table and left a hand's
+              width of nothing between it and the figure it belongs beside. Six columns, one width. */}
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col className="w-1/6" />
+              <col className="w-1/6" />
+              <col className="w-1/6" />
+              <col className="w-1/6" />
+              <col className="w-1/6" />
+              <col className="w-1/6" />
+            </colgroup>
+            <thead>
+              <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                <th scope="col" className="py-3 pr-4 pl-5">Model</th>
+                <th scope="col" className="px-4 py-3 text-right">Clients</th>
+                <th scope="col" className="px-4 py-3 text-right">Assets</th>
+                <th scope="col" className="px-4 py-3 text-right">This year</th>
+                <th scope="col" className="px-4 py-3 text-right">Since start</th>
+              {/* The day "since start" counts from. Two plans both reading "+69.3% since start" are not
+                  the same answer when one was written a month ago and the other four years ago. */}
+              <th scope="col" className="py-3 pr-5 pl-4 text-right whitespace-nowrap">Started</th>
               </tr>
-            )}
-            {table.data && rows.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-5 py-10 text-center text-ink-muted">
-                  There are no model portfolios yet.
-                </td>
-              </tr>
-            )}
-            {rows.map((row) => (
-              <Row key={row.id} row={row} currency={table.data!.currency} />
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {table.isPending && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-10 text-center text-ink-muted">Working out the returns…</td>
+                </tr>
+              )}
+              {table.data && rows.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-10 text-center text-ink-muted">
+                    There are no model portfolios yet.
+                  </td>
+                </tr>
+              )}
+              {paged.shown.map((row) => (
+                <Row key={row.id} row={row} currency={table.data!.currency} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Not while the returns are still being worked out: a count under a table that says it is still
+            counting answers a question nobody has asked yet. */}
+        {!table.isPending && <PagedFooter paged={paged} noun={["model", "models"]} />}
       </section>
     </div>
   );
@@ -101,21 +113,19 @@ function Row({ row, currency }: { row: ModelPerformanceRow; currency: string }) 
     <tr className="hover:bg-slate-50/60">
       <td className="py-3 pr-4 pl-5">
         <span className="block font-semibold">{row.modelName}</span>
-        {/* Named with its currency, or the comparison means nothing: a plan kept in dollars has not beaten an
-            index quoted in rupees just because the number is bigger. */}
-        <span className="block text-xs text-ink-muted">
-          {row.benchmarkName ? `vs ${row.benchmarkName} · ${row.benchmarkCurrency}` : "No benchmark named"}
-        </span>
       </td>
       <td className="px-4 py-3 text-right tabular-nums text-ink-soft">{row.clients}</td>
       <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
         {row.assets > 0 ? underManagementLabel(row.assets, currency) : <span className="text-ink-muted">—</span>}
       </td>
       <Percent value={row.thisYear.percent} period={row.thisYear} />
-      <Percent value={row.thisYear.benchmark} muted />
-      <Difference value={row.thisYear.difference} />
-      <Percent value={row.threeYears.percent} period={row.threeYears} />
-      <Percent value={row.sinceStart.percent} period={row.sinceStart} last />
+      <Percent value={row.sinceStart.percent} period={row.sinceStart} />
+      {/* The day the plan itself was written, which is what the figure beside it is now counted from.
+          Always known — a plan that has never been given a client still has a day it was made, so this
+          column answers on the rows where every other one reads "—". */}
+      <td className="py-3 pr-5 pl-4 text-right whitespace-nowrap text-ink-soft">
+        {formatDate(row.createdAt)}
+      </td>
     </tr>
   );
 }
@@ -149,20 +159,6 @@ function Percent({
       }
     >
       {value === null ? <span className="text-ink-muted">—</span> : percentLabel(value)}
-    </td>
-  );
-}
-
-/** The number that earns its place: the plan against its index, in percentage points. */
-function Difference({ value }: { value: number | null }) {
-  return (
-    <td
-      className={cn(
-        "px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums",
-        value === null ? "text-ink-muted" : value < 0 ? "text-rose-700" : "text-emerald-700",
-      )}
-    >
-      {value === null ? "—" : `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toFixed(1)}`}
     </td>
   );
 }

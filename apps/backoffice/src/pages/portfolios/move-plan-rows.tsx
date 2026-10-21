@@ -1,6 +1,7 @@
 import type { MovePlanRow } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, cn } from "@atomprive/ui";
 import { formatDateTime } from "../../lib/labels";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { exactly, figure, named, netted, overItsBand } from "./money-words";
 import { WhatItWouldLeave } from "./what-it-would-leave";
 
@@ -22,6 +23,9 @@ export function WaitingPlan({ row, showClient, answering, refusal, onApprove, on
 }) {
   const moved = row.legs.some((leg) => leg.figuresMoved);
   const leaves = netted(row.legs);
+  // Both lines above read every leg and not the page: what has moved and what the plan would leave are
+  // facts about the whole plan, which is applied whole or not at all.
+  const paged = usePagedRows(row.legs);
   return (
     <>
       {/* Who and why across the top, the buttons at the far end of that same line, and the figures given
@@ -73,52 +77,59 @@ export function WaitingPlan({ row, showClient, answering, refusal, onApprove, on
           one reading — what moves, and what that leaves — and apart they are two lists to hold in the
           head at once. */}
       <div className="mt-4 grid gap-x-10 gap-y-5 lg:grid-cols-2">
-        {/* Each column is the same width in both tables, so the names start in one place and the figures
-            end in one place whichever table the eye is in. Left to the content they lined up with
-            nothing, which is most of what made this unreadable. */}
-        <table className="w-full table-fixed text-sm">
-          <caption className="border-b border-line pb-2 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            What would move
-          </caption>
-          <colgroup>
-            <col className="w-[38%]" />
-            <col className="w-[38%]" />
-            <col className="w-[24%]" />
-          </colgroup>
-          <thead>
-            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              <th scope="col" className="py-2 pr-3">Out of</th>
-              <th scope="col" className="px-3 py-2">Into</th>
-              <th scope="col" className="py-2 pl-3 text-right">Amount</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {row.legs.map((leg, at) => (
-              <tr key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`} className="align-top">
-                <th scope="row" className="py-2.5 pr-3 text-left font-medium break-words text-ink">
-                  {named(leg.fromSubClass, leg.fromAssetClass, leg.fromSubSubClass)}
-                </th>
-                <td className="px-3 py-2.5 break-words text-ink">
-                  {named(leg.toSubClass, leg.toAssetClass, leg.toSubSubClass)}
-                </td>
-                <td className="py-2.5 pl-3 text-right tabular-nums whitespace-nowrap text-ink">
-                  {figure(leg.amount)}
-                </td>
+        {/* The table and the line under it held in one cell. Left as two children of the grid the footer
+            would take the column beside it, where what the move would leave belongs. */}
+        <div>
+          {/* Each column is the same width in both tables, so the names start in one place and the figures
+              end in one place whichever table the eye is in. Left to the content they lined up with
+              nothing, which is most of what made this unreadable. */}
+          <table className="w-full table-fixed text-sm">
+            <caption className="border-b border-line pb-2 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              What would move
+            </caption>
+            <colgroup>
+              <col className="w-[38%]" />
+              <col className="w-[38%]" />
+              <col className="w-[24%]" />
+            </colgroup>
+            <thead>
+              <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                <th scope="col" className="py-2 pr-3">Out of</th>
+                <th scope="col" className="px-3 py-2">Into</th>
+                <th scope="col" className="py-2 pl-3 text-right">Amount</th>
               </tr>
-            ))}
-          </tbody>
-          {/* Only where there is more than one. A total under a single figure is that figure again. */}
-          {row.legs.length > 1 && (
-            <tfoot>
-              <tr className="border-t-2 border-line font-semibold">
-                <th scope="row" colSpan={2} className="py-2.5 pr-3 text-left">Total</th>
-                <td className="py-2.5 pl-3 text-right tabular-nums whitespace-nowrap">
-                  {figure(row.amount)}
-                </td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {paged.shown.map((leg, at) => (
+                <tr key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`} className="align-top">
+                  <th scope="row" className="py-2.5 pr-3 text-left font-medium break-words text-ink">
+                    {named(leg.fromSubClass, leg.fromAssetClass, leg.fromSubSubClass)}
+                  </th>
+                  <td className="px-3 py-2.5 break-words text-ink">
+                    {named(leg.toSubClass, leg.toAssetClass, leg.toSubSubClass)}
+                  </td>
+                  <td className="py-2.5 pl-3 text-right tabular-nums whitespace-nowrap text-ink">
+                    {figure(leg.amount)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {/* Only where there is more than one. A total under a single figure is that figure again.
+                The figure is the plan's own total for every leg, not a sum of the page, so it reads the
+                same whichever page of the legs is open. */}
+            {row.legs.length > 1 && (
+              <tfoot>
+                <tr className="border-t-2 border-line font-semibold">
+                  <th scope="row" colSpan={2} className="py-2.5 pr-3 text-left">Total</th>
+                  <td className="py-2.5 pl-3 text-right tabular-nums whitespace-nowrap">
+                    {figure(row.amount)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+          <PagedFooter paged={paged} noun={["line", "lines"]} />
+        </div>
         <WhatItWouldLeave legs={row.legs} />
       </div>
       {/* An amount with no denominator beside it could be a rounding error or half the book. The

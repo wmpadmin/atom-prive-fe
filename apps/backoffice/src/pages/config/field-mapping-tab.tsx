@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { countryName } from "../../lib/countries";
 import { PAGE_SIZES } from "../../lib/page-sizes";
-import { usePagedRows } from "../../lib/use-paged-rows";
+import { usePagedRows } from "../../lib/paged-rows";
 import { AddFieldDialog } from "./add-field-dialog";
 import { ConfirmDialog } from "./confirm-dialog";
 
@@ -237,7 +237,7 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
             )}
             {paged.shown.map((field, indexOnPage) => {
               // choices runs alongside every field, so the row needs its place in the whole list, not on the page.
-              const index = paged.page * paged.pageSize + indexOnPage;
+              const index = paged.page * paged.size + indexOnPage;
               const choice = choices[index];
               const unmapped = !choice.ignored && !choice.standardField;
               const selectValue = choice.ignored ? "__ignored" : (choice.standardField ?? "");
@@ -314,15 +314,15 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
         </table>
       </div>
 
-      {paged.totalItems > 0 && (
+      {paged.total > 0 && (
         <div className="mt-2 border-t border-line px-1 py-3">
           <Pagination
             page={paged.page}
-            pageSize={paged.pageSize}
-            totalItems={paged.totalItems}
-            onPageChange={paged.setPage}
+            pageSize={paged.size}
+            totalItems={paged.total}
+            onPageChange={paged.onPage}
             pageSizes={PAGE_SIZES}
-            onPageSizeChange={paged.setPageSize}
+            onPageSizeChange={paged.onSize}
             noun={["incoming field", "incoming fields"]}
           />
         </div>

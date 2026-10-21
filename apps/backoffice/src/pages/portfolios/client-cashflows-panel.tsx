@@ -12,6 +12,7 @@ import { Alert, Button, DateInput, IconButton, SelectInput, TextInput, cn } from
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { formatDateTime } from "../../lib/labels";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { noEarlierThan } from "./joined-on";
@@ -77,6 +78,9 @@ export function ClientCashflowsPanel({ customerId, currency }: {
   const busy = record.isPending || remove.isPending;
 
   const rows: CashflowRow[] = listed.data?.items ?? [];
+  // Read a page at a time, the same as every other table in the back office. The server sends this list
+  // whole, so the page is taken here rather than asked for.
+  const paged = usePagedRows(rows);
   // The calendar does not open on a day the server would refuse. Refusing after the fact is honest but
   // late: somebody has typed a date, chosen a direction and an amount, and only then is told the day
   // was never allowed. The same date is still checked on the way in — this narrows the choice, it does
@@ -207,7 +211,7 @@ export function ClientCashflowsPanel({ customerId, currency }: {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {rows.map((row) => (
+              {paged.shown.map((row) => (
                 <tr key={row.id}>
                   <td className="px-5 py-3 whitespace-nowrap text-ink">{row.happenedOn}</td>
                   <td className="px-5 py-3 whitespace-nowrap">
@@ -241,6 +245,11 @@ export function ClientCashflowsPanel({ customerId, currency }: {
           </table>
         </div>
       )}
+
+      {/* Outside the strip the table scrolls in, so the count keeps its place while the columns move.
+          Not under the sentences that stand in for the table while nothing is written down or while it is
+          still being read: a reader of those is not counting rows. */}
+      {rows.length > 0 && <PagedFooter paged={paged} noun={["movement", "movements"]} />}
     </section>
   );
 }

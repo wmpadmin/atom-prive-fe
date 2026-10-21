@@ -11,6 +11,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatRelative } from "../../lib/labels";
+import { DEFAULT_PAGE_SIZE } from "../../lib/page-sizes";
+import { PagedFooter } from "../../lib/paged-rows";
 import { hasAuthority } from "../../lib/permissions";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
 import { clientTypeLabels } from "../clients/client-labels";
@@ -33,11 +35,17 @@ export function KycReviewQueuePage() {
   const [typed, setTyped] = useState("");
   const [standing, setStanding] = useState("");
   const query = useDebouncedValue(typed, 250);
+  // The server pages this queue itself and always had the page and the size to take; the screen asked for
+  // fifty in one go and then drew no footer at all, so a fifty-first client in review was off the end of a
+  // table that said nothing about having an end. The reader's own page is asked for instead.
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const queue = useListClientsForReview<ReviewQueue, ApiError>(
-    { query: query || undefined, standing: (standing || undefined) as never, size: 50 },
+    { query: query || undefined, standing: (standing || undefined) as never, page, size },
     { query: { placeholderData: keepPreviousData } },
   );
   const rows = queue.data?.items ?? [];
+  const found = queue.data?.totalItems ?? 0;
 
   return (
     <div className="space-y-6">
@@ -69,7 +77,12 @@ export function KycReviewQueuePage() {
           <TextInput
             id="kyc-search"
             value={typed}
-            onChange={(event) => setTyped(event.target.value)}
+            // Back to the first page, because narrowing a long queue from page four otherwise leaves the
+            // reader standing past the end of what is left and reading an empty table.
+            onChange={(event) => {
+              setTyped(event.target.value);
+              setPage(0);
+            }}
             placeholder="Search clients"
             className="pl-9"
             aria-label="Search clients"
@@ -78,7 +91,10 @@ export function KycReviewQueuePage() {
         <SelectInput
           id="kyc-standing"
           value={standing}
-          onChange={(event) => setStanding(event.target.value)}
+          onChange={(event) => {
+            setStanding(event.target.value);
+            setPage(0);
+          }}
           aria-label="Filter by where the review has got to"
           className="w-56"
         >
@@ -135,6 +151,23 @@ export function KycReviewQueuePage() {
             </tbody>
           </table>
         </div>
+        {/* The server's own page, size and count rather than a second slice of them: the rows here are one
+            page of the queue and not the whole of it, so counting what arrived would count the page. */}
+        {found > 0 && (
+          <PagedFooter
+            paged={{
+              page,
+              size,
+              total: found,
+              onPage: setPage,
+              onSize: (next) => {
+                setSize(next);
+                setPage(0);
+              },
+            }}
+            noun={["client", "clients"]}
+          />
+        )}
       </section>
     </div>
   );

@@ -14,7 +14,7 @@ import { Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { countryName } from "../../lib/countries";
 import { PAGE_SIZES } from "../../lib/page-sizes";
-import { usePagedRows } from "../../lib/use-paged-rows";
+import { usePagedRows } from "../../lib/paged-rows";
 import { formatRelative } from "../../lib/labels";
 import { BankDialog } from "./bank-dialog";
 import { connectionLabels, scheduleLabels } from "./config-labels";
@@ -206,11 +206,11 @@ export function BanksTab() {
         <div className="mt-2 border-t border-line px-1 py-3">
           <Pagination
             page={paged.page}
-            pageSize={paged.pageSize}
-            totalItems={paged.totalItems}
-            onPageChange={paged.setPage}
+            pageSize={paged.size}
+            totalItems={paged.total}
+            onPageChange={paged.onPage}
             pageSizes={PAGE_SIZES}
-            onPageSizeChange={paged.setPageSize}
+            onPageSizeChange={paged.onSize}
             noun={["bank", "banks"]}
           />
         </div>

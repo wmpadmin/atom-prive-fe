@@ -4,13 +4,11 @@ import {
   useListModelChanges,
   useListProposalsAwaitingMyAnswer,
   useListAllocationChanges,
-  useListModelEdits,
   useListRestores,
   type ModelChangePage,
   type MovePlanQueue,
   type ProposalPage,
   type AllocationChangeQueue,
-  type ModelEditQueue,
   type RestoreQueue,
 } from "@atomprive/api-client/backoffice";
 import { Avatar, cn } from "@atomprive/ui";
@@ -55,7 +53,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
 import { MENU_ORDER } from "./menu-order";
-import { hasAnyAuthority, hasAuthority, ANSWERS_MOVE_PLANS, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, SIGNS_CLIENT_FORMS, type Authority } from "./lib/permissions";
+import { hasAnyAuthority, hasAuthority, ANSWERS_MOVE_PLANS, ONBOARDS_CLIENTS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, SIGNS_CLIENT_FORMS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
@@ -238,16 +236,20 @@ const allNavigation: {
     notFor: ["ADMIN"],
     // A proposal, or one client's moves, opened from here is read here: this is where they live now.
     at: (path, search) => path === "/approvals"
-      || livesHere(path, search, A_PROPOSAL, ["client"])
+      // Not one opened from Trade logs. A bulk rebalance is read and answered there, and the two screens
+      // show different halves of the same table — so the highlight follows the door somebody came in by.
+      || livesHere(path, search, A_PROPOSAL, ["client", "trade-logs"])
       || path.startsWith("/moves-to-approve/"),
   },
-  // Three teams read the blotter and each does one thing to an order, so it sits on all three menus.
+  // Both desks. The portfolio desk raises these and places them; the relationship managers answer them,
+  // and this is the only screen either of them is shown one on.
   {
-    to: "/trade-orders",
-    label: "Trade blotter",
+    to: "/trade-logs",
+    label: "Trade logs",
     icon: ArrowLeftRight,
-    authority: READS_ORDERS,
-    at: (path) => path === "/trade-orders" || path.startsWith("/trade-orders/"),
+    authority: READS_PROPOSALS,
+    at: (path, search) => path === "/trade-logs" || path === "/trade-orders"
+      || (A_PROPOSAL.test(path) && openedFrom(search) === "trade-logs"),
   },
   { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: ONBOARDS_CLIENTS, notFor: ["ADMIN"] },
   {
@@ -388,9 +390,6 @@ function useWaitingOn(to: string) {
   const figures = useListAllocationChanges<AllocationChangeQueue, ApiError>({
     query: { enabled: queue, refetchOnWindowFocus: true },
   });
-  const modelEdits = useListModelEdits<ModelEditQueue, ApiError>({
-    query: { enabled: queue, refetchOnWindowFocus: true },
-  });
   // The other three queues on that screen. They were left out when the entries were merged, so the
   // number beside it counted four of seven — a reader could open it on the strength of a 2 and find a
   // third thing they had not been counted.
@@ -408,7 +407,6 @@ function useWaitingOn(to: string) {
   // arrives simply adds nought.
   return (restores.data?.waiting ?? []).length
     + (figures.data?.waiting ?? []).length
-    + (modelEdits.data?.waiting ?? []).length
     + (clientRequests.data?.waiting ?? []).length
     + (proposals.data?.totalItems ?? 0)
     // Waiting on this reader, not visible to them: a bell that counts somebody else's work sends

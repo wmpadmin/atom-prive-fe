@@ -84,9 +84,12 @@ function heldIn(holdings: ClientHoldings | undefined, assetClass: string, sub: s
 /**
  * The sub-assets a class is split into, as one end of a leg may name them.
  *
- * <p>Money comes out of somewhere it already is and may land somewhere it is not yet, so the two ends do
- * not offer the same list: the source offers what the client holds, and the destination offers that plus
- * the lines the model names them nothing in — otherwise a holding could never be started.
+ * <p>Both ends offer every line the plan names, whether the client holds anything in it or not. The
+ * source used to offer only what was actually held, on the reasoning that money cannot come out of an
+ * empty line — true, and it left a reader looking at a plan of five fixed-income lines and a list with
+ * one in it, with nothing saying why the other four were missing. The line that holds nothing is offered
+ * and what it holds is said beside it; asking for money out of it is refused where it is asked, with a
+ * sentence about that line rather than a list that quietly left it out.
  *
  * <p>A sub-asset broken into lines is offered either way, but only as the way to those lines: its own
  * money sits in them, so nothing can come out of it and nothing sent to it would sit anywhere.
@@ -185,7 +188,7 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
                     </option>
                   ))}
                 </SelectInput>
-                {row.fromClass !== "" && subsOf(holdings, row.fromClass, false).length > 0 && (
+                {row.fromClass !== "" && subsOf(holdings, row.fromClass, true).length > 0 && (
                   <SelectInput
                     aria-label={`Sub-asset the money leaves on line ${at + 1}`}
                     value={row.fromSub}
@@ -193,12 +196,12 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
                     onChange={(event) => change(at, { fromSub: event.target.value, fromSubSub: "" })}
                   >
                     <option value="">Sub-asset</option>
-                    {subsOf(holdings, row.fromClass, false).map((one) => (
+                    {subsOf(holdings, row.fromClass, true).map((one) => (
                       <option key={one} value={one}>{one}</option>
                     ))}
                   </SelectInput>
                 )}
-                {row.fromSub !== "" && insideOf(holdings, row.fromClass, row.fromSub, false).length > 0 && (
+                {row.fromSub !== "" && insideOf(holdings, row.fromClass, row.fromSub, true).length > 0 && (
                   <SelectInput
                     aria-label={`Line the money leaves on line ${at + 1}`}
                     value={row.fromSubSub}
@@ -206,7 +209,7 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
                     onChange={(event) => change(at, { fromSubSub: event.target.value })}
                   >
                     <option value="">Line</option>
-                    {insideOf(holdings, row.fromClass, row.fromSub, false).map((one) => (
+                    {insideOf(holdings, row.fromClass, row.fromSub, true).map((one) => (
                       <option key={one} value={one}>{one}</option>
                     ))}
                   </SelectInput>

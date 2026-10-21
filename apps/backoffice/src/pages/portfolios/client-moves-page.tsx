@@ -13,6 +13,7 @@ import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { formatDateTime } from "../../lib/labels";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { exactly, named as whatItIsCalled } from "./money-words";
 import { AnswerDialog } from "./answer-dialog";
 import { QueueBar } from "./queue-bar";
@@ -55,15 +56,20 @@ export function ClientMovesPage() {
   // move was approved either side of midnight — a trail that ends in a page saying nothing happened.
   const history = useGetClientValuations<ValuationHistory, ApiError>(customerId, { every: true });
 
-  if (plans.isError) {
-    return <Alert tone="danger">{plans.error.message}</Alert>;
-  }
-
+  // Read above the refusal below rather than under it, because taking a page is a hook and a hook
+  // skipped on the way out of an early return is one React counts as missing on the render after it.
+  // Nothing moves by reading them earlier: with no plans in hand both lists are simply empty.
   const every = plans.data ?? [];
   // Sent back counts as still open: it is waiting on whoever wrote it down, not on a reader, and filing
   // it under what was decided hid the one thing its author still has to do.
   const waiting = every.filter((one) => one.status === "PENDING" || one.status === "RETURNED");
   const decided = every.filter((one) => one.status !== "PENDING" && one.status !== "RETURNED");
+  const paged = usePagedRows(decided);
+
+  if (plans.isError) {
+    return <Alert tone="danger">{plans.error.message}</Alert>;
+  }
+
   const named = client.data?.client.fullName ?? "";
   const dayOf = new Map((history.data?.points ?? []).map((one) => [one.revision, one.valuedOn]));
 
@@ -93,8 +99,8 @@ export function ClientMovesPage() {
           </Link>
         </div>
         <p className="mt-2 text-sm text-ink-muted">
-          Every plan to move money between what this client holds. Nothing has moved: saying yes is what
-          moves it.
+          Every move of money between what this client holds. What the client asked for moved as it was
+          written down; anything still waiting below was raised before that was so, and is answered here.
         </p>
       </div>
 
@@ -106,7 +112,10 @@ export function ClientMovesPage() {
         {plans.isPending ? (
           <p className="px-5 py-8 text-sm text-ink-muted">Reading the plans…</p>
         ) : waiting.length === 0 ? (
-          <p className="px-5 py-8 text-sm text-ink-muted">Nothing is waiting for this client.</p>
+          <p className="px-5 py-8 text-sm text-ink-muted">
+            Nothing is waiting for this client. A client's own asking moves the money as it is written
+            down, so nothing new arrives here.
+          </p>
         ) : (
           <ul className="divide-y divide-line">
             {waiting.map((row) => (
@@ -159,7 +168,7 @@ export function ClientMovesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {decided.map((row) => (
+                {paged.shown.map((row) => (
                   <tr key={row.id}>
                     <td className="px-5 py-3 text-right tabular-nums font-medium whitespace-nowrap text-ink">
                       {exactly(row.amount, row.currency)}
@@ -224,6 +233,9 @@ export function ClientMovesPage() {
               </tbody>
             </table>
           </div>
+          {/* Outside the strip the table scrolls in, so the count keeps its place while the columns
+              move under it. */}
+          <PagedFooter paged={paged} noun={["move", "moves"]} />
         </section>
       )}
 

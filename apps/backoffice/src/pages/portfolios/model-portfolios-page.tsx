@@ -77,33 +77,40 @@ export function ModelPortfoliosPage() {
       <ListPageHeader
         title="Model portfolios"
         lead="What a client's money is supposed to be spread across, and how far it may wander before somebody looks."
-      >
-        {canWrite && (
-          <Button
-            onClick={() => {
-              setErrors(noErrors);
-              setWriting(true);
-            }}
-          >
-            <Plus aria-hidden="true" />
-            New model
-          </Button>
-        )}
-      </ListPageHeader>
+      />
 
       <RecordList
         caption="Model portfolios"
         subtitle="By name"
-        filters={
-          <label className="w-full max-w-sm">
-            <span className="sr-only">Search models</span>
-            <TextInput
-              id="model-search"
-              value={search}
-              placeholder="Search models"
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </label>
+        search={
+          <>
+            <label className="w-full max-w-md">
+              <span className="sr-only">Search models</span>
+              <TextInput
+                id="model-search"
+                value={search}
+                placeholder="Search models"
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </label>
+            {/* The one thing this screen exists to do, at the far end of the line that finds what is
+                already here: looking and making are the two things somebody opens this screen to do. */}
+            {canWrite && (
+              <Button
+                size="lg"
+                // Lifted clear of the search box's line and held off the right edge: flush with the card
+                // below it, the button read as part of the card rather than as the thing above it.
+                className="-mt-2 mr-2 ml-auto"
+                onClick={() => {
+                  setErrors(noErrors);
+                  setWriting(true);
+                }}
+              >
+                <Plus aria-hidden="true" />
+                New model
+              </Button>
+            )}
+          </>
         }
         filtered={search.trim() !== ""}
         onClear={() => setSearch("")}

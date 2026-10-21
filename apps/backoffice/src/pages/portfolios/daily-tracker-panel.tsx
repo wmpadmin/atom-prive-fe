@@ -8,6 +8,7 @@ import { Alert, DateInput, cn } from "@atomprive/ui";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { nameOf, useAssetClasses } from "./asset-classes";
 import { daysFrom, money } from "./daily-tracker-days";
 
@@ -51,11 +52,6 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
-  if (history.isError) {
-    return <Alert tone="danger">{history.error.message}</Alert>;
-  }
-
-  const currency = history.data?.currency ?? "";
   const points: ValuationPoint[] = history.data?.points ?? [];
   // Worked out before the dates are applied, so a day's movement is measured against the day that
   // actually came before it rather than against the first day somebody happened to filter to.
@@ -67,9 +63,21 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
   const shown = everyDay
     .filter((day) => (from === "" || day.on >= from) && (to === "" || day.on <= to))
     .reverse();
+  // The days are read above the refusal below, rather than under it, because taking a page is a hook —
+  // and a hook skipped on the way out of an early return is one React counts as missing on the render
+  // after it. With nothing read back yet there are simply no days, which is what the empty line says.
+  const paged = usePagedRows(shown);
+
+  if (history.isError) {
+    return <Alert tone="danger">{history.error.message}</Alert>;
+  }
+
+  const currency = history.data?.currency ?? "";
 
   // Every class that appears on any day shown, in the firm's own order, so a column does not come and go
-  // as the days are filtered.
+  // as the days are filtered. Read over the whole filtered list rather than the page on screen: a column
+  // that appeared on the second page and not on the first would be a different table either side of a
+  // click, with the row that led there suddenly short of a figure.
   //
   // Every class the firm has, not only those still in use. A day holding money in a class retired since
   // counts in the total beside it and had no column of its own, so the figures on the row did not come to
@@ -154,7 +162,7 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {shown.map((day) => {
+              {paged.shown.map((day) => {
                 const its = `/portfolio-clients/${customerId}/days/${day.on}`;
                 return (
                 // The whole row, not the date in it. The date alone is where a reader's eye is, but it is
@@ -225,6 +233,10 @@ export function DailyTrackerPanel({ customerId }: { customerId: string }) {
           </table>
         </div>
       )}
+
+      {/* Outside the strip the table scrolls in, so the count keeps its place while the columns move.
+          Left off the two lines that stand in for the table, which are not a list to count through. */}
+      {shown.length > 0 && <PagedFooter paged={paged} noun={["day", "days"]} />}
 
       {/* Said once under the table rather than on every row of it. */}
       {shown.length > 0 && (
