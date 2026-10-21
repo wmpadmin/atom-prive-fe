@@ -4786,21 +4786,6 @@ export interface ModelPerformanceTable {
   asOf: string;
 }
 
-export interface MovePlanHistoryCounts {
-  approved: number;
-  rejected: number;
-  withdrawn: number;
-  all: number;
-}
-
-export interface MovePlanHistoryPage {
-  items: MovePlanRow[];
-  page: number;
-  size: number;
-  totalItems: number;
-  counts: MovePlanHistoryCounts;
-}
-
 export interface ModelsPage {
   items: ModelRow[];
 }
@@ -6220,26 +6205,6 @@ size?: number;
 export type ListPostOnboardingNoticesParams = {
 sent?: boolean;
 };
-
-export type ListMovePlanHistoryParams = {
-status?: ListMovePlanHistoryStatus;
-customerId?: string;
-from?: string;
-to?: string;
-page?: number;
-size?: number;
-};
-
-export type ListMovePlanHistoryStatus = typeof ListMovePlanHistoryStatus[keyof typeof ListMovePlanHistoryStatus];
-
-
-export const ListMovePlanHistoryStatus = {
-  PENDING: 'PENDING',
-  RETURNED: 'RETURNED',
-  APPROVED: 'APPROVED',
-  REJECTED: 'REJECTED',
-  WITHDRAWN: 'WITHDRAWN',
-} as const;
 
 export type ListDriftParams = {
 standing?: ListDriftStandingItem[];
@@ -23349,108 +23314,6 @@ export function useListMovesCarryingOut<TData = Awaited<ReturnType<typeof listMo
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListMovesCarryingOutQueryOptions(proposalId,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getListMovePlanHistoryUrl = (params?: ListMovePlanHistoryParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/backoffice/portfolios/move-plan-history?${stringifiedParams}` : `/api/backoffice/portfolios/move-plan-history`
-}
-
-export const listMovePlanHistory = async (params?: ListMovePlanHistoryParams, options?: Parameters<typeof http>[1]): Promise<MovePlanHistoryPage> => {
-
-  return http<MovePlanHistoryPage>(getListMovePlanHistoryUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListMovePlanHistoryQueryKey = (params?: ListMovePlanHistoryParams,) => {
-    return [
-    `/api/backoffice/portfolios/move-plan-history`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getListMovePlanHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listMovePlanHistory>>, TError = unknown>(params?: ListMovePlanHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlanHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListMovePlanHistoryQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMovePlanHistory>>> = ({ signal }) => listMovePlanHistory(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMovePlanHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListMovePlanHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof listMovePlanHistory>>>
-export type ListMovePlanHistoryQueryError = unknown
-
-
-export function useListMovePlanHistory<TData = Awaited<ReturnType<typeof listMovePlanHistory>>, TError = unknown>(
- params: undefined |  ListMovePlanHistoryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlanHistory>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listMovePlanHistory>>,
-          TError,
-          Awaited<ReturnType<typeof listMovePlanHistory>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListMovePlanHistory<TData = Awaited<ReturnType<typeof listMovePlanHistory>>, TError = unknown>(
- params?: ListMovePlanHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlanHistory>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listMovePlanHistory>>,
-          TError,
-          Awaited<ReturnType<typeof listMovePlanHistory>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListMovePlanHistory<TData = Awaited<ReturnType<typeof listMovePlanHistory>>, TError = unknown>(
- params?: ListMovePlanHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlanHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useListMovePlanHistory<TData = Awaited<ReturnType<typeof listMovePlanHistory>>, TError = unknown>(
- params?: ListMovePlanHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovePlanHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getListMovePlanHistoryQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

@@ -2,6 +2,8 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useListClientHoldings,
   useAskOnBehalfOfTheClient,
+  useCreateProposal,
+  useSubmitProposal,
   useChangeTheMovePlan,
   useListClientMovePlans,
   useTakeBackTheMovePlan,
@@ -14,10 +16,10 @@ import {
 import { Alert, Badge, Button, Dialog, TextInput, cn } from "@atomprive/ui";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { asFigure } from "../../lib/figures";
-import { hasAnyAuthority } from "../../lib/permissions";
+import { hasAnyAuthority, hasAuthority } from "../../lib/permissions";
 import { useAssetClasses } from "./asset-classes";
 import {
   anchorFor,
@@ -611,20 +613,24 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
 
   const user = useStaffUser();
   /**
-   * This window writes down what a client asked for, and nothing else.
+   * Which door this press goes through, which is decided by what the reader may write.
    *
-   * <p>There were two doors behind it, chosen by permission: the firm's own plan for somebody who may
-   * write the firm's advice, and the client's own asking for the manager who took the call. The firm's
-   * door is a proposal now — written leg by leg, sent to the client's manager, and moving the money when
-   * they agree — so what is left here is the one act this window was always better at: the client rang,
-   * and the person they rang writes it down.
+   * <p>Whoever writes the firm's advice sends a PROPOSAL: the same legs, the same reason, filled in from
+   * this window and sent to the relationship manager of the client it is about, who agrees to it on their
+   * behalf. Whoever does not — the relationship manager themselves — writes down what their client rang
+   * up and asked for, which goes the other way, to whoever holds the book.
    *
    * <p>Asked with the same strings the API checks, so the window never posts through a door that is then
-   * shut in its face.
+   * shut in its face. Read off APPROVE_PORTFOLIO_CHANGES alone it was wrong in the one case that matters:
+   * a portfolio manager holds that at full, so their press was written down as the client's own asking —
+   * words they had no business putting in a client's mouth.
    */
-  const onTheirBehalf = hasAnyAuthority(user, "APPROVE_PORTFOLIO_CHANGES:OWN_CLIENTS",
-      "APPROVE_PORTFOLIO_CHANGES:CHANGE");
+  const writesAdvice = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
+  const onTheirBehalf = !writesAdvice
+    && hasAnyAuthority(user, "APPROVE_PORTFOLIO_CHANGES:OWN_CLIENTS", "APPROVE_PORTFOLIO_CHANGES:CHANGE");
   const askForTheClient = useAskOnBehalfOfTheClient<ApiError>();
+  const writeProposal = useCreateProposal<ApiError>();
+  const sendProposal = useSubmitProposal<ApiError>();
   const changeIt = useChangeTheMovePlan<ApiError>();
   const placed = inOrder.reduce((sum, place) => sum + typed(moves[placeKey(place)]), 0);
   const left = spare - placed;
@@ -743,7 +749,27 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
     setFailed(null);
     setMoving("asking");
     try {
-      if (changing === null) {
+      if (changing === null && writesAdvice) {
+        // A proposal, filled in from the window that is already open. Everything it needs is here — the
+        // client, the legs, what each source holds today, and the reason — so asking for it twice would
+        // be asking somebody to retype what they have just typed.
+        //
+        // Written and sent in one press. A draft would sit on the writer's own screen waiting to be sent
+        // again, which is a second step for nobody's benefit: the thing that checks this is the
+        // relationship manager who answers it, not a second look by the person who wrote it.
+        const written = await writeProposal.mutateAsync({ data: {
+          customerId,
+          title: `Move ${exactly(placed, currency)} out of ${from}`,
+          summary: `Out of ${from}, into ${legs.length === 1 ? "one line" : `${legs.length} lines`}`,
+          body: why.trim(),
+          valueAmount: placed,
+          valueCurrency: currency,
+          objective: null,
+          lines: legs,
+        } });
+        await sendProposal.mutateAsync({ id: written.summary.id });
+      }
+      else if (changing === null) {
         // Stamped with the proposal where this window was opened to carry one out, so the paper and
         // the act know about each other afterwards.
         const asked = { legs, why: why.trim(), fromProposalId: carrying ?? null };
@@ -1007,40 +1033,31 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
                   the press did nothing anybody could see, which reads as a broken button rather than as a
                   question. */}
               {failed && <div className="mt-3"><Alert tone="danger">{failed}</Alert></div>}
-              {/* Whoever reads the firm's whole book does not write a client's asking down for them — they
-                  were never the person the client rang. Their route to the same money is a proposal, which
-                  goes to this client's own manager and moves the money when that manager agrees. Said here
-                  rather than by a button that refuses, because a window that opens and then will not post
-                  is worse than one that explains itself. */}
-              {!onTheirBehalf && (
-                <div className="mt-3">
-                  <Alert tone="info">
-                    This writes down what a client has asked for, so it is for the manager they asked. To
-                    move this money yourself,{" "}
-                    <Link to="/proposals/new" className="font-semibold underline underline-offset-2">
-                      write a proposal
-                    </Link>{" "}
-                    — it goes to their manager, and agreeing to it is what moves it.
-                  </Alert>
-                </div>
-              )}
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                {/* Said, because what goes in the box has to be the client's words. Somebody who thinks
-                    they are raising the firm's own plan has no reason to be careful about that. */}
+                {/* Said, because the two are not the same thing to the person pressing it. One is the
+                    firm suggesting something, and it goes to the person who holds the relationship; the
+                    other is that person writing down what their client asked for. Somebody who thinks
+                    they are raising the firm's own plan has no reason to be careful that the words in the
+                    box are the client's. */}
                 <p className="text-xs text-ink-muted">
-                  Nothing moves yet. This is written down as the client's own request, and goes to whoever
-                  holds the book.
+                  {onTheirBehalf
+                    ? "Nothing moves yet. This is written down as the client's own request, and goes to "
+                      + "whoever holds the book."
+                    : "Nothing moves yet. This is written up as a proposal and goes to this client's "
+                      + "relationship manager. Agreeing to it is what moves the money."}
                 </p>
                 <Button
                   size="sm"
-                  disabled={placed <= 0 || moving !== null || !onTheirBehalf}
+                  disabled={placed <= 0 || moving !== null || (!onTheirBehalf && !writesAdvice)}
                   onClick={() => void ask()}
                 >
                   {moving === "asking"
-                    ? (changing === null ? "Asking…" : "Saving the change…")
+                    ? (changing !== null ? "Saving the change…" : onTheirBehalf ? "Asking…" : "Sending…")
                     : changing !== null
                       ? `Change it to ${exactly(placed, currency)}`
-                      : `Ask for ${exactly(placed, currency)} on the client's behalf`}
+                      : onTheirBehalf
+                        ? `Ask for ${exactly(placed, currency)} on the client's behalf`
+                        : `Propose moving ${exactly(placed, currency)}`}
                 </Button>
               </div>
             </div>

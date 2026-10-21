@@ -71,11 +71,11 @@ export function ClientMovesPage() {
     <div className="space-y-5">
       <div>
         <Link
-          to="/approvals?queue=moved"
+          to={`/portfolio-clients/${customerId}`}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 underline-offset-2 hover:underline"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
-          Back to moves to approve
+          Back to this client's portfolio
         </Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">

@@ -47,9 +47,9 @@ import { WhatIfPanel } from "./what-if-panel";
 const CAME_FROM: Record<string, { to: string; label: string }> = {
   drift: { to: "/drift", label: "Back to drift & breaches" },
   dashboard: { to: "/dashboard", label: "Back to the dashboard" },
-  // The two approval queues. Somebody who opened a client to read their figures before answering is in
+  // The approval queue somebody came from. Opening a client to read their figures before answering is
   // the middle of answering, and sending them to the client list made them find the queue again.
-  moves: { to: "/approvals?queue=moved", label: "Back to what has been moved" },
+  moves: { to: "/approvals?queue=client-requests", label: "Back to client requests" },
   restores: { to: "/approvals?queue=restores", label: "Back to restores to approve" },
 };
 
