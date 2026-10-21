@@ -13,7 +13,7 @@ import {
   type MovePlanRow,
   type PositionRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, Dialog, TextInput, cn } from "@atomprive/ui";
+import { Alert, Badge, Button, Dialog, Field, TextInput, cn } from "@atomprive/ui";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useRef, useState } from "react";
 import { useSearchParams } from "react-router";
@@ -294,12 +294,19 @@ function overIts(group: SubClassGroup): number | null {
  * is also what makes the deeper level correct for nothing: a nested line's target is a share of its parent
  * rather than of its class, so a screen doing its own arithmetic would have had to learn where it sat.
  */
-function SubAssetRow({ group, whole, currency, depth, onPlan }: {
+function SubAssetRow({ group, whole, currency, depth, anyLine, onPlan }: {
   group: SubClassGroup;
   /** Everything the client has, which is the one denominator every share on this table is out of. */
   whole: number;
   currency: string;
   depth: number;
+  /**
+   * Whether any line can be the one money comes out of, rather than only a line over its band.
+   *
+   * <p>True where somebody is writing down what a client asked for: a client asks out of what they hold,
+   * not out of what the model says is surplus.
+   */
+  anyLine: boolean;
   /**
    * Opens the plan for whichever line was pressed. Bound by the caller rather than built here from an
    * asset class passed down, so the identity of a line — its class, its sub-asset and itself — is
@@ -339,13 +346,16 @@ function SubAssetRow({ group, whole, currency, depth, onPlan }: {
   // line are refused, so the second could only fail. The list of somewhere-to-put-it says the same thing
   // from the other side: a broken-down line is not a destination either, only its parts are.
   const toShed = broken ? null : overIts(group);
+  // A line broken into others is never a source — its money is in them — and a line with nothing in it has
+  // nothing to move. Everything else is somewhere a client's asking can come out of.
+  const outOfThis = anyLine ? !broken && group.valueAmount >= 1 : toShed !== null;
   const named = group.subSubClass ?? group.subClass ?? UNGROUPED;
 
   return (
     <>
       <tr
-        className={cn("align-middle", toShed !== null && "cursor-pointer hover:bg-primary-50/40")}
-        onClick={toShed === null ? undefined : () => onPlan(group)}
+        className={cn("align-middle", outOfThis && "cursor-pointer hover:bg-primary-50/40")}
+        onClick={!outOfThis ? undefined : () => onPlan(group)}
       >
         {/* A row group is one sub-asset, so only the sub-asset heads one. A line inside it heads its own
             row and nothing below it, which is what scope="row" says. */}
@@ -356,7 +366,21 @@ function SubAssetRow({ group, whole, currency, depth, onPlan }: {
           <span className="flex flex-wrap items-center gap-2">
             {/* A line is read by where it sits as well as by its name, and the indent alone cannot say
                 that on a row somebody has scrolled to. */}
-            {named}
+            {/* The name is the button where any line can be a source: the row is the larger target for
+                a mouse, and the name is what a keyboard can reach. */}
+            {anyLine && outOfThis ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPlan(group);
+                }}
+                className="text-left font-semibold text-primary-700 hover:underline"
+                title={`Write down what the client asked to move out of ${named}`}
+              >
+                {named}
+              </button>
+            ) : named}
             {/* A class can sit on its target while the money inside it sits in the wrong places, because
                 the halves cancel out. This is where that shows. */}
             {group.standing && group.standing !== "WITHIN_BAND" && (
@@ -454,6 +478,7 @@ function SubAssetRow({ group, whole, currency, depth, onPlan }: {
           whole={whole}
           currency={currency}
           depth={depth + 1}
+          anyLine={anyLine}
           onPlan={onPlan}
         />
       ))}
@@ -1025,7 +1050,13 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
                 name="why-it-moves"
                 value={why}
                 onChange={(event) => setWhy(event.target.value)}
-                placeholder={`${from} is past its band and this puts it back inside`}
+                /* What goes in the box is not the same sentence from the two sides. The firm's own plan
+                   is explained by the band it puts right; a client's asking is explained by what the
+                   client said, and a box hinting at bands invites the writer to explain it as a rebalance
+                   — which is the one thing it is not. */
+                placeholder={onTheirBehalf
+                  ? "The client rang and asked for this"
+                  : `${from} is past its band and this puts it back inside`}
                 className="mt-2"
               />
               {/* Beside the button that produced it. Put at the top of the window, with a table of
@@ -1042,7 +1073,7 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
                 <p className="text-xs text-ink-muted">
                   {onTheirBehalf
                     ? "Nothing moves yet. This is written down as the client's own request, and goes to "
-                      + "whoever holds the book."
+                      + "the portfolio manager. Agreeing to it is what moves the money."
                     : "Nothing moves yet. This is written up as a proposal and goes to this client's "
                       + "relationship manager. Agreeing to it is what moves the money."}
                 </p>
@@ -1080,6 +1111,7 @@ export function ClientHoldingsPanel({
   offer,
   reveal = null,
   readOnly = false,
+  forTheClient = false,
 }: {
   customerId: string;
   /**
@@ -1094,6 +1126,15 @@ export function ClientHoldingsPanel({
   reveal?: string | null;
   /** Read somewhere other than the portfolio screen, where writing them down is not the job. */
   readOnly?: boolean;
+  /**
+   * Whether this is the screen for writing down what a client asked for.
+   *
+   * <p>It changes which lines can be the source. Rebalancing, only a line holding more than its band
+   * allows has anything to move — the money that has to go is exactly the money over the line. A client
+   * asking is not a rebalance: they ask for what they ask for, out of whatever they hold, and a screen
+   * that only opened on breached lines could not write down most of what clients actually say.
+   */
+  forTheClient?: boolean;
 }) {
   // Grouped by whatever the client is measured against on file. The screen no longer holds a model that
   // has been picked but not written, so there is no second answer for this to prefer.
@@ -1134,8 +1175,32 @@ export function ClientHoldingsPanel({
        */
       subSubClass: string | null;
       changing: MovePlanRow | null;
+      /**
+       * What the client asked to move out of this line, where this is a client's asking rather than a
+       * rebalance. The window then reads it as the money that has to be placed — which is what every
+       * sentence in it already means — so the same window serves both without a second set of words.
+       */
+      asked?: number;
     } | null
   >(null);
+  /**
+   * The line a client's asking is being written against, while the amount is still being typed.
+   *
+   * <p>Its own step, so that the window behind it keeps meaning one thing: the money it is given is the
+   * money that has to be placed. Rebalancing that is what the line holds over its band; here it is what
+   * the client asked for — and every sentence in that window is true of both.
+   */
+  const [asking, setAsking] = useState<
+    {
+      assetClass: string;
+      subClass: string | null;
+      subSubClass: string | null;
+      named: string;
+      holds: number;
+    } | null
+  >(null);
+  const [howMuch, setHowMuch] = useState("");
+
   const claimTheMove = () => {
     if (moveUnderway.current) return false;
     moveUnderway.current = true;
@@ -1610,12 +1675,29 @@ export function ClientHoldingsPanel({
                             whole={whole}
                             currency={currency}
                             depth={0}
-                            onPlan={(which) => setPlanning({
-                              changing: null,
-                              assetClass: one.assetClass,
-                              subClass: which.subClass,
-                              subSubClass: which.subSubClass,
-                            })}
+                            anyLine={forTheClient}
+                            onPlan={(which) => {
+                              // A client's asking starts with the amount they asked for. Rebalancing, the
+                              // amount is already known — it is what the line holds over its band — and
+                              // the window opens straight on where to put it.
+                              if (forTheClient) {
+                                setAsking({
+                                  assetClass: one.assetClass,
+                                  subClass: which.subClass,
+                                  subSubClass: which.subSubClass,
+                                  named: which.subSubClass ?? which.subClass ?? UNGROUPED,
+                                  holds: which.valueAmount,
+                                });
+                                setHowMuch("");
+                                return;
+                              }
+                              setPlanning({
+                                changing: null,
+                                assetClass: one.assetClass,
+                                subClass: which.subClass,
+                                subSubClass: which.subSubClass,
+                              });
+                            }}
                           />
                         </tbody>
                       ))}
@@ -1632,6 +1714,48 @@ export function ClientHoldingsPanel({
           Nested, only one could be shown — the worst of them — and a reader who meant to deal with another
           first had to clear that one before the screen would talk about theirs. Any of them opens now, in
           whatever order somebody wants to work. */}
+      {/* What the client asked for, before where it goes. Its own step so that the window behind it keeps
+          meaning one thing: the money it is handed is the money that has to be placed. */}
+      {asking && (
+        <Dialog
+          open
+          title={`What did the client ask to move out of ${asking.named}?`}
+          description={`${asking.named} holds ${exactly(asking.holds, currency)}. Nothing moves until a `
+            + "portfolio manager agrees to it."}
+          onClose={() => setAsking(null)}
+        >
+          <div className="space-y-4 px-5 py-4">
+            <Field id="asked-amount" label="Amount" hint={`In ${currency}, and no more than the line holds.`}>
+              <TextInput
+                id="asked-amount"
+                autoFocus
+                inputMode="decimal"
+                value={howMuch}
+                onChange={(event) => setHowMuch(event.target.value)}
+              />
+            </Field>
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setAsking(null)}>Cancel</Button>
+              <Button
+                disabled={!(typed(howMuch) >= 1 && typed(howMuch) <= asking.holds)}
+                onClick={() => {
+                  setPlanning({
+                    changing: null,
+                    assetClass: asking.assetClass,
+                    subClass: asking.subClass,
+                    subSubClass: asking.subSubClass,
+                    asked: typed(howMuch),
+                  });
+                  setAsking(null);
+                }}
+              >
+                Where it goes
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+
       {planning && (() => {
         const its = classes.find((one) => one.assetClass === planning.assetClass);
         // Walked rather than looked up at the top: the line a plan is about may sit inside another, and a
@@ -1666,6 +1790,11 @@ export function ClientHoldingsPanel({
             size="2xl"
             title={planning.changing !== null
               ? `Change what is asked for out of ${saidAs(group.subClass, group.subSubClass)}`
+              // What the client asked for names itself. The other three titles are about a band, which is
+              // not what this window is about when somebody has already said how much is moving.
+              : planning.asked !== undefined
+                ? `Where ${exactly(planning.asked, currency)} out of `
+                  + `${saidAs(group.subClass, group.subSubClass)} goes`
               : toShed >= 1
                 ? `Where ${exactly(toShed, currency)} out of ${saidAs(group.subClass, group.subSubClass)} can go`
                 : right
@@ -1675,7 +1804,7 @@ export function ClientHoldingsPanel({
           >
             <MoveOutPlan
               customerId={customerId}
-              spare={toShed}
+              spare={planning.asked ?? toShed}
               rows={group.positions}
               assetClass={its.assetClass}
               from={saidAs(group.subClass, group.subSubClass)}

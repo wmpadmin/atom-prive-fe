@@ -13,7 +13,7 @@ import { cn } from "@atomprive/ui";
 import { useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import {
-  ANSWERS_MOVE_PLANS,
+  READS_CLIENT_REQUESTS,
   hasAnyAuthority,
   READS_CLIENT_PORTFOLIOS,
   READS_PROPOSALS,
@@ -59,9 +59,10 @@ const TABS: TabSpec[] = [
   {
     id: "client-requests",
     label: "Client requests",
-    // The money-move permission, because answering one of these moves the money. It is the queue beside it
-    // read the other way round: the asking comes from outside the firm, and the same people answer it.
-    authority: ANSWERS_MOVE_PLANS,
+    // Both desks. The relationship manager writes these down and watches what became of them; the
+    // portfolio manager answers them. Gated on the answering permission alone, the one person who writes
+    // them could not see the queue they write into.
+    authority: READS_CLIENT_REQUESTS,
     Panel: ClientRequestsPage,
   },
   {

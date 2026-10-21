@@ -2,14 +2,19 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useAnswerTheMovePlan,
   useListClientRequests,
+  useListMyClients,
   useSendTheMovePlanBack,
+  type CustomerPage,
   type MovePlanQueue,
   type MovePlanRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, FilterMenu } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, FilterMenu, TextInput } from "@atomprive/ui";
+import { ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { useStaffUser } from "../../auth/session";
 import { formatDateTime } from "../../lib/labels";
+import { hasAnyAuthority, RAISES_CLIENT_REQUESTS } from "../../lib/permissions";
+import { ClientHoldingsPanel } from "./client-holdings-panel";
 import { AnswerDialog } from "./answer-dialog";
 import { exactly, figure, named } from "./money-words";
 import { QueueBar } from "./queue-bar";
@@ -246,10 +251,87 @@ function ClientRequest({ row, answering, refusal, onAnswer, mine }: {
  *
  * <p>Nothing has moved. Saying yes is what moves it, through exactly the code the holdings screen calls.
  */
+/**
+ * Which of this reader's clients the request is for.
+ *
+ * <p>Their own clients and no others, read from the list the firm keeps rather than filtered here: a
+ * relationship manager writes down what their own clients say, and a picker that offered the whole book
+ * would be offering to write down something nobody said to them.
+ */
+function WhichClient({ onPick, onClose }: {
+  onPick: (client: { id: string; name: string; code: string }) => void;
+  onClose: () => void;
+}) {
+  const [typed, setTyped] = useState("");
+  const mine = useListMyClients<CustomerPage, ApiError>(
+    { query: typed.trim() === "" ? undefined : typed.trim(), page: 0, size: 25 },
+    { query: { refetchOnWindowFocus: false } },
+  );
+  const found = mine.data?.items ?? [];
+
+  return (
+    <div className="space-y-4">
+      <button
+        type="button"
+        onClick={onClose}
+        className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline"
+      >
+        <ChevronLeft aria-hidden="true" className="size-4" />
+        Back to client requests
+      </button>
+      <section className="rounded-2xl border border-line bg-white">
+        <QueueBar name="Which client asked?">
+          <div className="w-72">
+            <TextInput
+              aria-label="Search your clients"
+              placeholder="Search your clients"
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+            />
+          </div>
+        </QueueBar>
+        {mine.isError ? (
+          <p className="px-5 py-8 text-sm text-red-600">{mine.error.message}</p>
+        ) : mine.isPending ? (
+          <p className="px-5 py-8 text-sm text-ink-muted">Reading your clients…</p>
+        ) : found.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-ink-muted">
+            {typed.trim() === "" ? "You look after nobody yet." : "No client of yours matches that."}
+          </p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {found.map((client) => (
+              <li key={client.id}>
+                <button
+                  type="button"
+                  onClick={() => onPick({ id: client.id, name: client.fullName, code: client.code })}
+                  className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-slate-50/60"
+                >
+                  <Avatar name={client.fullName} />
+                  <span>
+                    <span className="block font-semibold">{client.fullName}</span>
+                    <span className="block font-mono text-xs text-ink-muted">{client.code}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
+
 export function ClientRequestsPage() {
   // To tell a row this reader wrote down from one somebody else did, which is the difference between
   // "somebody else answers it" and "this is not yours to answer".
   const user = useStaffUser();
+  // The relationship manager writes these; the portfolio manager answers them. One screen, because what
+  // became of a request is the same reader's business as writing the next one.
+  const writes = hasAnyAuthority(user, ...RAISES_CLIENT_REQUESTS);
+  /** Which client a new request is being written for, and whether one is being chosen. */
+  const [writingFor, setWritingFor] = useState<{ id: string; name: string; code: string } | null>(null);
+  const [choosing, setChoosing] = useState(false);
   const queue = useListClientRequests<MovePlanQueue, ApiError>({
     query: { refetchOnWindowFocus: true },
   });
@@ -301,10 +383,52 @@ export function ClientRequestsPage() {
     ? (sendBack.isError ? sendBack.error.message : null)
     : (answer.isError ? answer.error.message : null);
 
+  // Writing one down: the client is chosen first, then their own portfolio is what it is written against.
+  // Against their holdings rather than into an empty form, because what a client asks for is always about
+  // something they already have — and a line typed from memory is a line that matches nothing.
+  if (writingFor) {
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <button
+              type="button"
+              onClick={() => setWritingFor(null)}
+              className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline"
+            >
+              <ChevronLeft aria-hidden="true" className="size-4" />
+              Back to client requests
+            </button>
+            <h2 className="mt-2 text-lg font-semibold">
+              What {writingFor.name} asked for
+            </h2>
+            <p className="text-sm text-ink-muted">
+              {writingFor.code} · Press the line the money comes out of, then say where it goes. Nothing
+              moves until a portfolio manager agrees to it.
+            </p>
+          </div>
+        </div>
+        <ClientHoldingsPanel customerId={writingFor.id} forTheClient />
+      </div>
+    );
+  }
+
+  if (choosing) {
+    return <WhichClient onPick={(client) => {
+      setWritingFor(client);
+      setChoosing(false);
+    }} onClose={() => setChoosing(false)} />;
+  }
+
   return (
     <div className="space-y-5">
       <section className="rounded-2xl border border-line bg-white">
         <QueueBar name="Client requests">
+          {writes && (
+            <Button size="sm" onClick={() => setChoosing(true)}>
+              Create client request
+            </Button>
+          )}
           <FilterMenu
             label="Requests"
             value={status}
