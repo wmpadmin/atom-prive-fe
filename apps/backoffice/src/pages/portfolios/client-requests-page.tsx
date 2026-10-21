@@ -1,19 +1,23 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useAnswerTheMovePlan,
+  useAskOnBehalfOfTheClient,
+  useListClientHoldings,
   useListClientRequests,
   useListMyClients,
   useSendTheMovePlanBack,
+  type ClientHoldings,
   type CustomerPage,
   type MovePlanQueue,
   type MovePlanRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, FilterMenu, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, Field, FilterMenu, TextArea, TextInput } from "@atomprive/ui";
 import { ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { useStaffUser } from "../../auth/session";
 import { formatDateTime } from "../../lib/labels";
 import { hasAnyAuthority, RAISES_CLIENT_REQUESTS } from "../../lib/permissions";
+import { ClientAskingRows, EMPTY_ROW, isAsked, legsFromRows, type AskedRow } from "./client-asking-rows";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
 import { AnswerDialog } from "./answer-dialog";
 import { exactly, figure, named } from "./money-words";
@@ -322,6 +326,113 @@ function WhichClient({ onPick, onClose }: {
   );
 }
 
+/**
+ * Writing down what one client asked for.
+ *
+ * <p>Their portfolio first, because it is what the asking is about and what the person writing it reads
+ * while they write. The asking itself is rows: out of a line, into a line, an amount — as many as the
+ * client asked for in the one telephone call.
+ */
+function WritingForAclient({ client, onDone, onClose }: {
+  client: { id: string; name: string; code: string };
+  onDone: () => void;
+  onClose: () => void;
+}) {
+  const held = useListClientHoldings<ClientHoldings, ApiError>(client.id);
+  const [writing, setWriting] = useState(false);
+  const [rows, setRows] = useState<AskedRow[]>([{ ...EMPTY_ROW }]);
+  const [why, setWhy] = useState("");
+  const [refused, setRefused] = useState<string | null>(null);
+
+  const ask = useAskOnBehalfOfTheClient<ApiError>({
+    mutation: {
+      onSuccess: onDone,
+      // Kept on the screen rather than in a notice that fades: every refusal this can give changes what
+      // the writer does next, and the server's sentence is the only place its figures appear.
+      onError: (error) => setRefused(error.message),
+    },
+  });
+
+  const written = rows.filter(isAsked);
+  const ready = written.length > 0 && why.trim() !== "";
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline"
+        >
+          <ChevronLeft aria-hidden="true" className="size-4" />
+          Back to client requests
+        </button>
+        <h2 className="mt-2 text-lg font-semibold">What {client.name} asked for</h2>
+        <p className="text-sm text-ink-muted">
+          {client.code} · Nothing moves until a portfolio manager agrees to it.
+        </p>
+      </div>
+
+      <ClientHoldingsPanel customerId={client.id} readOnly />
+
+      {!writing ? (
+        <Button onClick={() => setWriting(true)}>Create client request</Button>
+      ) : (
+        <section className="space-y-4 rounded-2xl border border-line bg-white p-5">
+          <h3 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            What the client asked for
+          </h3>
+          <ClientAskingRows
+            holdings={held.data}
+            rows={rows}
+            disabled={ask.isPending}
+            onChange={(next) => {
+              setRows(next);
+              setRefused(null);
+            }}
+          />
+          <Field id="why-the-client-asked" label="Why it should move" required
+            hint="Whoever answers is being asked about the reason, not the figures. They can see those.">
+            <TextArea
+              id="why-the-client-asked"
+              rows={2}
+              value={why}
+              disabled={ask.isPending}
+              placeholder="The client rang and asked for this"
+              onChange={(event) => setWhy(event.target.value)}
+            />
+          </Field>
+          {refused && <Alert tone="danger">{refused}</Alert>}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-ink-muted">
+              Nothing moves yet. This goes to the portfolio manager, and agreeing to it is what moves the
+              money.
+            </p>
+            <div className="flex gap-3">
+              <Button variant="secondary" disabled={ask.isPending} onClick={() => setWriting(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={!ready || ask.isPending}
+                onClick={() => {
+                  setRefused(null);
+                  ask.mutate({
+                    customerId: client.id,
+                    // Raised by hand, not carried out of a proposal: this is the client's own asking.
+                    data: { legs: legsFromRows(rows, held.data), why: why.trim(), fromProposalId: null },
+                  });
+                }}
+              >
+                {ask.isPending ? "Sending…" : "Send to the portfolio manager"}
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
 export function ClientRequestsPage() {
   // To tell a row this reader wrote down from one somebody else did, which is the difference between
   // "somebody else answers it" and "this is not yours to answer".
@@ -383,33 +494,19 @@ export function ClientRequestsPage() {
     ? (sendBack.isError ? sendBack.error.message : null)
     : (answer.isError ? answer.error.message : null);
 
-  // Writing one down: the client is chosen first, then their own portfolio is what it is written against.
-  // Against their holdings rather than into an empty form, because what a client asks for is always about
-  // something they already have — and a line typed from memory is a line that matches nothing.
+  // Writing one down: the client is chosen first, then their portfolio is read, and the asking is written
+  // against it. The portfolio is there to be read while it is written — what a client asks for is always
+  // about something they already hold, and a line written from memory matches nothing.
   if (writingFor) {
     return (
-      <div className="space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <button
-              type="button"
-              onClick={() => setWritingFor(null)}
-              className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline"
-            >
-              <ChevronLeft aria-hidden="true" className="size-4" />
-              Back to client requests
-            </button>
-            <h2 className="mt-2 text-lg font-semibold">
-              What {writingFor.name} asked for
-            </h2>
-            <p className="text-sm text-ink-muted">
-              {writingFor.code} · Press the line the money comes out of, then say where it goes. Nothing
-              moves until a portfolio manager agrees to it.
-            </p>
-          </div>
-        </div>
-        <ClientHoldingsPanel customerId={writingFor.id} forTheClient />
-      </div>
+      <WritingForAclient
+        client={writingFor}
+        onDone={() => {
+          setWritingFor(null);
+          void queue.refetch();
+        }}
+        onClose={() => setWritingFor(null)}
+      />
     );
   }
 
