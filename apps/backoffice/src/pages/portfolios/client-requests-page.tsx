@@ -159,14 +159,14 @@ function ClientRequest({ row, answering, refusal, onAnswer, mine }: {
           in one place. Left to the content they line up with nothing, which is most of what makes a table
           of money unreadable. */}
       <div className="mt-4">
-        <table className="w-full table-fixed text-sm lg:w-1/2">
+        <table className="w-full table-fixed text-sm">
           <caption className="border-b border-line pb-2 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             What would move
           </caption>
           <colgroup>
-            <col className="w-[38%]" />
-            <col className="w-[38%]" />
-            <col className="w-[24%]" />
+            <col className="w-[40%]" />
+            <col className="w-[40%]" />
+            <col className="w-[20%]" />
           </colgroup>
           <thead>
             <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
