@@ -240,14 +240,28 @@ export function StaffDeclarationsPage() {
         </section>
 
         <div className="space-y-6">
-          {detail.data ? <StaffPanel held={detail.data} onTold={(told) => setNotice(toldOne(told))} /> : <p className="text-sm text-ink-muted">Loading…</p>}
+          {detail.data ? (
+            <StaffPanel
+              held={detail.data}
+              onTold={(told) => setNotice(toldOne(told))}
+              onRefused={(message) => setNotice({ tone: "danger", message })}
+            />
+          ) : (
+            <p className="text-sm text-ink-muted">Loading…</p>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function StaffPanel({ held, onTold }: { held: StaffDeclarations; onTold: (told: Reminders) => void }) {
+function StaffPanel({ held, onTold, onRefused }: {
+  held: StaffDeclarations;
+  onTold: (told: Reminders) => void;
+  /** A refusal is said out loud. Asking one person is the only thing on this screen that used to fail in
+      silence: the button un-busied itself and nothing anywhere said why. */
+  onRefused: (message: string) => void;
+}) {
   const { employee, declarations, outstanding, oldestOverdueSince } = held;
   const ask = useRemindOne<ApiError>();
   return (
@@ -297,7 +311,8 @@ function StaffPanel({ held, onTold }: { held: StaffDeclarations; onTold: (told: 
             variant="secondary"
             size="sm"
             disabled={outstanding === 0 || ask.isPending}
-            onClick={() => ask.mutate({ staffUserId: employee.id }, { onSuccess: onTold })}
+            onClick={() => ask.mutate({ staffUserId: employee.id },
+              { onSuccess: onTold, onError: (caught) => onRefused(caught.message) })}
           >
             {ask.isPending ? "Asking…" : "Request outstanding"}
           </Button>

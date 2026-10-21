@@ -131,6 +131,10 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   { to: "/roles" },
   { to: "/config" },
   { to: "/audit-log" },
+  // An Admin signs the same nine as everybody else. Their menu is written out rather than filtered down, so
+  // their own declarations had to be written into it or they had no way to them at all — the screen was
+  // open to them the whole time, with nothing on the menu pointing at it.
+  { to: "/my-declarations" },
   { to: "/settings" },
 ];
 
@@ -302,8 +306,17 @@ const allNavigation: {
       path === "/client-documents" || ownsSharedScreen(path, search, A_CLIENT_KYC, "documents"),
   },
   { to: "/forms", label: "Forms", icon: FileText, authority: "FILL_CLIENT_FORMS:VIEW", notFor: ["ADMIN"] },
-  { to: "/staff-declarations", label: "Staff declarations", icon: ClipboardCheck, authority: "VIEW_STAFF_DECLARATIONS:VIEW", notFor: ["ADMIN"] },
-  // An Admin's own screen. Operations keep the declarations register itself, under its own name.
+  // The register of everybody's, which is the Admin's alone: staff declarations are administration of the
+  // staff, like creating them and setting what they may do. It is reached from under the staff tracker, so
+  // the Admin's menu says where it is; here it is the entry that screen is drawn from.
+  {
+    to: "/staff-declarations",
+    label: "Staff declarations",
+    icon: ClipboardCheck,
+    authority: "VIEW_STAFF_DECLARATIONS:VIEW",
+    onlyFor: ["ADMIN"],
+  },
+  // An Admin's own screen, which gathers what the firm is waiting on from its staff.
   {
     to: "/staff-tracker",
     label: "Staff tracker",
