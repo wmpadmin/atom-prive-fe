@@ -1005,38 +1005,29 @@ function LineList({
           const named = line.name.trim();
           return (
             <li key={at}>
-              {/* A grid rather than a row of floating controls, because the two ways of naming a line
-                  are different shapes: a box somebody types in sits beside a "Pick from the list" link,
-                  a dropdown has no link at all, and a dropdown's own wrapper is only as wide as the word
-                  inside it. Left to themselves they lined up at none of their edges and the percentages
-                  wandered across the card. Named columns put every name, every percentage and every bin
-                  under the one above it, at whatever depth the line sits. */}
-              <div className="grid grid-cols-[minmax(0,1fr)_7.25rem_6rem_7rem_1.75rem] items-center gap-2">
+              {/* Four columns and no fifth standing empty. The two ways of naming a line are different
+                  shapes — a box somebody types in, or a dropdown whose own wrapper is only as wide as the
+                  word inside it — so left to themselves they lined up at none of their edges. Columns fix
+                  that, but a column for the way off the list is a hole on every line that does not use
+                  one, so that link went under the name with the other one. What a line comes to of the
+                  whole portfolio holds a dash until it can be worked out, for the same reason: a column
+                  that empties itself is a gap in the middle of the row. */}
+              <div className="grid grid-cols-[minmax(0,1fr)_6rem_6.5rem_1.75rem] items-center gap-2">
                 {/* Picked from the list, or written on purpose — never half way between. The firm keeps no
                     master list of sub-assets; the names live only inside the models somebody has written,
                     so those are offered and anything else has to be asked for by name. Left as a box to
                     type in, the same line went down three ways across three models and nothing joined them
                     up. */}
                 {line.written || (line.name !== "" && !offered.includes(line.name)) ? (
-                  <>
-                    <TextInput
-                      aria-label={`Name of line ${at + 1} inside ${where}`}
-                      placeholder="A name nobody has used yet"
-                      className="min-w-0"
-                      value={line.name}
-                      onChange={(event) =>
-                        change(at, (one) => ({ ...one, name: event.target.value, written: true }))}
-                    />
-                    <button
-                      type="button"
-                      className="text-left text-xs font-medium whitespace-nowrap text-primary-700 hover:underline"
-                      onClick={() => change(at, (one) => ({ ...one, name: "", written: false }))}
-                    >
-                      Pick from the list
-                    </button>
-                  </>
+                  <TextInput
+                    aria-label={`Name of line ${at + 1} inside ${where}`}
+                    placeholder="A name nobody has used yet"
+                    className="min-w-0"
+                    value={line.name}
+                    onChange={(event) =>
+                      change(at, (one) => ({ ...one, name: event.target.value, written: true }))}
+                  />
                 ) : (
-                  <>
                   <SelectInput
                     aria-label={`Name of line ${at + 1} inside ${where}`}
                     className="min-w-0 w-full"
@@ -1058,8 +1049,6 @@ function LineList({
                       ))}
                     <option value={WRITE_ONE}>Something else…</option>
                   </SelectInput>
-                  <span aria-hidden="true" />
-                  </>
                 )}
                 <div className="relative">
                   <TextInput
@@ -1080,7 +1069,7 @@ function LineList({
                 {/* The figure the rest of the platform actually measures against, beside the one being
                     typed: a share of a share is two sums away from it, and of a share of a share, three. */}
                 <span className="text-right text-xs whitespace-nowrap tabular-nums text-ink-muted">
-                  {ofAll === null ? "" : `= ${asPercent(ofAll)}% of all`}
+                  {ofAll === null ? "—" : `= ${asPercent(ofAll)}% of all`}
                 </span>
                 <button
                   type="button"
@@ -1124,14 +1113,31 @@ function LineList({
                   of its own class. Asked for a share here too, the way in was invisible until somebody
                   filled a box they had no reason to fill first — and nothing on the row said why.
                   The name is still wanted, because the block it opens is headed with it. */}
-              {line.lines.length === 0 && depth < DEEPEST - 1 && named !== "" && (
-                <button
-                  type="button"
-                  onClick={() => change(at, (one) => ({ ...one, lines: [blankLine()] }))}
-                  className="mt-1 ml-4 text-2xs font-semibold text-primary-700 hover:underline"
-                >
-                  Break {named} down further
-                </button>
+              {(line.written
+                || (line.lines.length === 0 && depth < DEEPEST - 1 && named !== "")) && (
+                <span className="mt-1 ml-4 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                  {/* Back to the list, for a name somebody started typing. The firm keeps no master list
+                      of sub-assets, so the names other models have used are all there is to offer, and a
+                      line written by hand should be able to go back to them. */}
+                  {line.written && (
+                    <button
+                      type="button"
+                      className="text-2xs font-semibold text-primary-700 hover:underline"
+                      onClick={() => change(at, (one) => ({ ...one, name: "", written: false }))}
+                    >
+                      Pick from the list
+                    </button>
+                  )}
+                  {line.lines.length === 0 && depth < DEEPEST - 1 && named !== "" && (
+                    <button
+                      type="button"
+                      onClick={() => change(at, (one) => ({ ...one, lines: [blankLine()] }))}
+                      className="text-2xs font-semibold text-primary-700 hover:underline"
+                    >
+                      Break {named} down further
+                    </button>
+                  )}
+                </span>
               )}
             </li>
           );
