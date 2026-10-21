@@ -45,6 +45,16 @@ export const ONBOARDS_CLIENTS: Authority[] = ["ONBOARD_CLIENTS:VIEW", "ONBOARD_C
 export const ONBOARDS_CLIENTS_CHANGE: Authority[] = ["ONBOARD_CLIENTS:CHANGE", "ONBOARD_CLIENTS:OWN_CLIENTS"];
 
 /**
+ * Whoever has a client's forms sent to them to sign: the relationship manager, who signs for their own.
+ *
+ * <p>Named for the job rather than borrowed from another one. This screen was reached through the
+ * proposals permission, which has nothing to do with signing a client's papers — it happened to be held
+ * by the same role, so it worked, and a change to who answers proposals would have taken the signing
+ * screen off their menu without anybody touching it.
+ */
+export const SIGNS_CLIENT_FORMS: Authority[] = ["ONBOARD_CLIENTS:OWN_CLIENTS"];
+
+/**
  * Onboarding across the whole book rather than an advisor's own clients. The post-onboarding notice is every
  * client's pack, so it belongs to whoever follows all of them and not to an advisor who onboards their own.
  */
