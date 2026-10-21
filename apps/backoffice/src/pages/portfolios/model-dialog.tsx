@@ -642,7 +642,7 @@ export function ModelDialog({
               row. A firm holding every class to ten and every line to five types two numbers here; it
               used to type ten as many times as it had classes, and the one it mistyped was the one
               nobody noticed. */}
-          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-2.5">
+          <div className={cn(BAND_ROW, "mb-3")}>
             <label htmlFor="class-band" className="text-xs font-medium text-ink">
               Every class may wander
             </label>
@@ -677,7 +677,7 @@ export function ModelDialog({
             <button
               type="button"
               onClick={() => setApart(!apart)}
-              className="ml-auto text-xs font-medium text-primary-700 underline-offset-2 hover:underline"
+              className="text-xs font-medium text-primary-700 underline-offset-2 hover:underline sm:justify-self-end"
             >
               {apart ? "Hold them all to one figure" : "Set a different figure for each class"}
             </button>
@@ -685,7 +685,7 @@ export function ModelDialog({
 
           {/* One figure for every sub-asset in the model, under the classes it qualifies rather than
               repeated on each of the twenty-odd lines below. */}
-          <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-2.5">
+          <div className={cn(BAND_ROW, "mb-4")}>
             <label htmlFor="line-band" className="text-xs font-medium text-ink">
               Every sub-asset may wander
             </label>
@@ -713,6 +713,7 @@ export function ModelDialog({
             </span>
             <span className="text-xs text-ink-muted">of its class</span>
 
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <label htmlFor="inside-band" className="text-xs font-medium text-ink">
               Inside a sub-asset
             </label>
@@ -739,6 +740,7 @@ export function ModelDialog({
               </span>
             </span>
             <span className="text-xs text-ink-muted">of what it sits in</span>
+            </span>
           </div>
 
           <div className="grid gap-x-5 gap-y-2.5 sm:grid-cols-2">
@@ -1010,6 +1012,17 @@ export function ModelDialog({
  * that cannot be read on a page.
  */
 const DEEPEST = 2;
+
+/**
+ * The two band rows, on one grid.
+ *
+ * <p>Laid out as rows of floating controls they lined up nowhere: "Every class may wander" is shorter
+ * than "Every sub-asset may wander", so each row started its box wherever its own label ended. Named
+ * columns hold the label, the figure and what it is a figure OF in the same place on both rows, and
+ * leave the last column to whatever that row carries beyond them.
+ */
+const BAND_ROW = "grid grid-cols-1 items-center gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-2.5 "
+  + "sm:grid-cols-[13rem_6rem_7rem_1fr]";
 
 /**
  * The lines inside one thing — a class, or a line of a class — and the lines inside those.
