@@ -2,7 +2,6 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useListClientHoldings,
   useAskOnBehalfOfTheClient,
-  useAskToMoveMoney,
   useChangeTheMovePlan,
   useListClientMovePlans,
   useTakeBackTheMovePlan,
@@ -15,10 +14,10 @@ import {
 import { Alert, Badge, Button, Dialog, TextInput, cn } from "@atomprive/ui";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useRef, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { asFigure } from "../../lib/figures";
-import { hasAnyAuthority, hasAuthority } from "../../lib/permissions";
+import { hasAnyAuthority } from "../../lib/permissions";
 import { useAssetClasses } from "./asset-classes";
 import {
   anchorFor,
@@ -612,17 +611,19 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
 
   const user = useStaffUser();
   /**
-   * Whether this is the firm asking or the client asking, which decides which door the plan goes through.
+   * This window writes down what a client asked for, and nothing else.
    *
-   * <p>Two endpoints, because they are two different acts. The firm's own plan is raised by somebody who
-   * may write the firm's advice; a relationship manager holds nothing of the sort and that door refuses
-   * them — all they can do is write down what the client rang up and asked for, which is what the second
-   * one is. Asked here with the same strings the API checks, so the window never posts through a door that
-   * is then shut in its face.
+   * <p>There were two doors behind it, chosen by permission: the firm's own plan for somebody who may
+   * write the firm's advice, and the client's own asking for the manager who took the call. The firm's
+   * door is a proposal now — written leg by leg, sent to the client's manager, and moving the money when
+   * they agree — so what is left here is the one act this window was always better at: the client rang,
+   * and the person they rang writes it down.
+   *
+   * <p>Asked with the same strings the API checks, so the window never posts through a door that is then
+   * shut in its face.
    */
-  const onTheirBehalf = !hasAuthority(user, "SEND_PROPOSALS:CHANGE")
-    && hasAnyAuthority(user, "APPROVE_PORTFOLIO_CHANGES:OWN_CLIENTS", "APPROVE_PORTFOLIO_CHANGES:CHANGE");
-  const askToMove = useAskToMoveMoney<ApiError>();
+  const onTheirBehalf = hasAnyAuthority(user, "APPROVE_PORTFOLIO_CHANGES:OWN_CLIENTS",
+      "APPROVE_PORTFOLIO_CHANGES:CHANGE");
   const askForTheClient = useAskOnBehalfOfTheClient<ApiError>();
   const changeIt = useChangeTheMovePlan<ApiError>();
   const placed = inOrder.reduce((sum, place) => sum + typed(moves[placeKey(place)]), 0);
@@ -746,8 +747,7 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
         // Stamped with the proposal where this window was opened to carry one out, so the paper and
         // the act know about each other afterwards.
         const asked = { legs, why: why.trim(), fromProposalId: carrying ?? null };
-        if (onTheirBehalf) await askForTheClient.mutateAsync({ customerId, data: asked });
-        else await askToMove.mutateAsync({ customerId, data: asked });
+        await askForTheClient.mutateAsync({ customerId, data: asked });
       }
       else {
         // The legs are replaced whole, which is what the window has anyway: every box on it, including the
@@ -1007,29 +1007,40 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
                   the press did nothing anybody could see, which reads as a broken button rather than as a
                   question. */}
               {failed && <div className="mt-3"><Alert tone="danger">{failed}</Alert></div>}
+              {/* Whoever reads the firm's whole book does not write a client's asking down for them — they
+                  were never the person the client rang. Their route to the same money is a proposal, which
+                  goes to this client's own manager and moves the money when that manager agrees. Said here
+                  rather than by a button that refuses, because a window that opens and then will not post
+                  is worse than one that explains itself. */}
+              {!onTheirBehalf && (
+                <div className="mt-3">
+                  <Alert tone="info">
+                    This writes down what a client has asked for, so it is for the manager they asked. To
+                    move this money yourself,{" "}
+                    <Link to="/proposals/new" className="font-semibold underline underline-offset-2">
+                      write a proposal
+                    </Link>{" "}
+                    — it goes to their manager, and agreeing to it is what moves it.
+                  </Alert>
+                </div>
+              )}
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                {/* Said, because the two are not the same thing to the person pressing it: one is the firm
-                    asking, and the other is the client's own asking being written down for them. Somebody
-                    who thinks they are raising the firm's plan has no reason to be careful that the words
-                    in the box are the client's. */}
+                {/* Said, because what goes in the box has to be the client's words. Somebody who thinks
+                    they are raising the firm's own plan has no reason to be careful about that. */}
                 <p className="text-xs text-ink-muted">
-                  {onTheirBehalf
-                    ? "Nothing moves yet. This is written down as the client's own request, and goes to "
-                      + "whoever holds the book."
-                    : "Nothing moves yet. This goes to whoever looks after the client."}
+                  Nothing moves yet. This is written down as the client's own request, and goes to whoever
+                  holds the book.
                 </p>
                 <Button
                   size="sm"
-                  disabled={placed <= 0 || moving !== null}
+                  disabled={placed <= 0 || moving !== null || !onTheirBehalf}
                   onClick={() => void ask()}
                 >
                   {moving === "asking"
                     ? (changing === null ? "Asking…" : "Saving the change…")
                     : changing !== null
                       ? `Change it to ${exactly(placed, currency)}`
-                      : onTheirBehalf
-                        ? `Ask for ${exactly(placed, currency)} on the client's behalf`
-                        : `Ask to move ${exactly(placed, currency)}`}
+                      : `Ask for ${exactly(placed, currency)} on the client's behalf`}
                 </Button>
               </div>
             </div>
@@ -1129,7 +1140,12 @@ export function ClientHoldingsPanel({
   // invisible on the screen somebody would go to to check it, and "Cancel this plan" cancelled whichever
   // the server happened to return first.
   const waiting = useListClientMovePlans<MovePlanRow[], ApiError>(customerId);
-  const open = (waiting.data ?? []).filter((plan) => plan.status === "PENDING");
+  // Waiting, and also sent back to be put right. A request somebody asked to have changed is still open —
+  // it is simply open on the author's desk rather than the reader's — and it was shown on no screen at
+  // all, so the one person who could act on it could not find it. The Change it button beside it has
+  // always worked; nothing ever offered it.
+  const open = (waiting.data ?? [])
+    .filter((plan) => plan.status === "PENDING" || plan.status === "RETURNED");
   // The last one somebody actually answered. The bell that tells whoever asked that their move was turned
   // down links to this page — and this page used to say nothing at all about it, because the banner above
   // reads only the plan that is still waiting. They arrived at a screen identical to the one before they

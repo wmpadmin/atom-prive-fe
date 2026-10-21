@@ -2,7 +2,6 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useListClientRequests,
   useListModelChanges,
-  useListMovePlans,
   useListProposalsAwaitingMyAnswer,
   useListAllocationChanges,
   useListModelEdits,
@@ -374,9 +373,6 @@ function useWaitingOn(to: string) {
   // rather than one queue's share of it. A reader who sees 7 opens the screen and the tabs say where the
   // seven are; four separate numbers down the menu said the same thing and made them add it up.
   const queue = to === "/approvals";
-  const moves = useListMovePlans<MovePlanQueue, ApiError>({
-    query: { enabled: queue, refetchOnWindowFocus: true },
-  });
   const restores = useListRestores<RestoreQueue, ApiError>({
     query: { enabled: queue, refetchOnWindowFocus: true },
   });
@@ -401,8 +397,7 @@ function useWaitingOn(to: string) {
   }
   // A queue this reader may not open answers nothing rather than erroring, so a count that never
   // arrives simply adds nought.
-  return (moves.data?.waiting ?? []).length
-    + (restores.data?.waiting ?? []).length
+  return (restores.data?.waiting ?? []).length
     + (figures.data?.waiting ?? []).length
     + (modelEdits.data?.waiting ?? []).length
     + (clientRequests.data?.waiting ?? []).length

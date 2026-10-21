@@ -241,7 +241,7 @@ export const router = createBrowserRouter([
               // The four queues are tabs on one screen now. Their old addresses keep arriving, because
               // every bell already sent carries one and those notices are rows in a database rather than
               // links that can be rewritten.
-              { path: "moves-to-approve", element: <Navigate to="/approvals?queue=moves" replace /> },
+              { path: "moves-to-approve", element: <Navigate to="/approvals?queue=moved" replace /> },
               { path: "restores-to-approve", element: <Navigate to="/approvals?queue=restores" replace /> },
               { path: "allocations-to-approve", element: <Navigate to="/approvals?queue=figures" replace /> },
               { path: "model-edits-to-approve",

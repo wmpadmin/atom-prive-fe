@@ -3,7 +3,6 @@ import {
   useListClientRequests,
   useListModelChanges,
   useListModelEdits,
-  useListMovePlans,
   useListProposalsAwaitingMyAnswer,
   type ModelChangePage,
   type ModelEditQueue,
@@ -24,11 +23,11 @@ import { ProposalsPage } from "../advisor/proposals-page";
 import { ClientRequestsPage } from "./client-requests-page";
 import { ModelChangesPage } from "./model-changes-page";
 import { ModelEditsToApprovePage } from "./model-edits-to-approve-page";
-import { MovesToApprovePage } from "./moves-to-approve-page";
+import { MoveHistoryPage } from "./move-history-page";
 
 /** Which queue is being read. The value is in the address, so a link can point at one. */
 export type ApprovalTab =
-  | "proposals" | "client-requests" | "model-changes" | "moves" | "model-sign-off";
+  | "proposals" | "client-requests" | "model-changes" | "moved" | "model-sign-off";
 
 type TabSpec = {
   id: ApprovalTab;
@@ -73,11 +72,12 @@ const TABS: TabSpec[] = [
     Panel: ClientRequestsPage,
   },
   {
-    id: "moves",
-    label: "Money moves",
-    lead: "Plans to move money between what a client holds. Nothing has moved: saying yes is what moves it.",
+    id: "moved",
+    label: "Money moved",
+    lead: "Every move the firm has made for a client, however it was asked for \u2014 a client's own asking, "
+      + "and the moves a proposal made when somebody agreed to it. Read rather than answered.",
     authority: ANSWERS_MOVE_PLANS,
-    Panel: MovesToApprovePage,
+    Panel: MoveHistoryPage,
   },
   {
     id: "model-changes",
@@ -112,8 +112,6 @@ function useHowManyAreWaiting(mine: TabSpec[]) {
     { query: { enabled: offered("proposals"), refetchOnWindowFocus: true } });
   const clientRequests = useListClientRequests<MovePlanQueue, ApiError>(
     { query: { enabled: offered("client-requests"), refetchOnWindowFocus: true } });
-  const moves = useListMovePlans<MovePlanQueue, ApiError>(
-    { query: { enabled: offered("moves"), refetchOnWindowFocus: true } });
   const modelChanges = useListModelChanges<ModelChangePage, ApiError>({ status: "PENDING", page: 0, size: 1 },
     { query: { enabled: offered("model-changes"), refetchOnWindowFocus: true } });
   const modelEdits = useListModelEdits<ModelEditQueue, ApiError>(
@@ -121,7 +119,9 @@ function useHowManyAreWaiting(mine: TabSpec[]) {
   return {
     proposals: proposals.data?.totalItems ?? 0,
     "client-requests": (clientRequests.data?.waiting ?? []).length,
-    moves: (moves.data?.waiting ?? []).length,
+    // Nothing waits here. It is a record of what has already been answered, so a number beside it would
+    // be a count of work nobody has to do.
+    moved: 0,
     // What is waiting on THIS reader, not what they can see. The total counted every pending request
     // their scope reached, including ones somebody else answers — so a tab read "1" over a row the
     // reader had no button on.
