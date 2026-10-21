@@ -56,7 +56,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
 import { MENU_ORDER } from "./menu-order";
-import { hasAnyAuthority, hasAuthority, ANSWERS_MOVE_PLANS, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
+import { hasAnyAuthority, hasAuthority, ANSWERS_MOVE_PLANS, ONBOARDS_CLIENTS, READS_ORDERS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, SIGNS_CLIENT_FORMS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
@@ -263,7 +263,7 @@ const allNavigation: {
     notFor: ["ADMIN"],
     at: (path) => path === "/post-onboarding" || NOTICE_OF_TREATMENT.test(path),
   },
-  { to: "/to-sign", label: "To sign", icon: PenLine, authority: "APPROVE_PROPOSALS:OWN_CLIENTS" },
+  { to: "/to-sign", label: "To sign", icon: PenLine, authority: SIGNS_CLIENT_FORMS },
   // The queue is where a client's KYC is signed off, which is Compliance's alone. The papers themselves the
   // Admin reads too, so the document review sits on both menus.
   {
