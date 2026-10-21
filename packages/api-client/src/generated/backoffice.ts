@@ -4976,6 +4976,15 @@ export interface ClientNonFinancialAssets {
   items: NonFinancialAssetRow[];
 }
 
+export interface ClassOverASpell {
+  assetClass: string;
+  name: string;
+  held: number;
+  target: number;
+  worstDrift: number;
+  breachedOn: number;
+}
+
 export interface ModelSpell {
   /** @nullable */
   modelPortfolioId: string | null;
@@ -4992,6 +5001,14 @@ export interface ModelSpell {
   paidIn: number;
   takenOut: number;
   split: number;
+  breachedOn: number;
+  /** @nullable */
+  worstDrift: number | null;
+  /** @nullable */
+  worstDriftClass: string | null;
+  /** @nullable */
+  worstDriftName: string | null;
+  mix: ClassOverASpell[];
 }
 
 export interface ModelHistory {

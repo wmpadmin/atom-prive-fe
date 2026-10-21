@@ -32,7 +32,7 @@ import {
   riskProfileLabel,
   standingLabels,
   standingTones,
-  underManagementLabel,
+  worthLabel,
 } from "./portfolio-labels";
 import { isSetUp, mayFinishSettingUp } from "./set-up";
 import { ValuationHistoryPanel } from "./valuation-history-panel";
@@ -228,11 +228,19 @@ export function ClientPortfolioPage() {
             {standing.data?.modelName ? ` · measured against ${standing.data.modelName}` : " · on no model yet"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        {/* The figure somebody opened this screen to read, written as a figure rather than tucked into
+            the line of small print beside the client's name. Said in full: a client's own screen has
+            room for the thousands, and 41.8K is a column's answer to a question nobody asked here. */}
+        <div className="flex items-start gap-4">
           {standing.data && standing.data.underManagement > 0 && (
-            <span className="text-sm text-ink-muted">
-              {underManagementLabel(standing.data.underManagement, standing.data.currency)}
-            </span>
+            <div className="text-right">
+              <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                Under management
+              </p>
+              <p className="text-xl font-bold whitespace-nowrap text-ink tabular-nums">
+                {worthLabel(standing.data.underManagement, standing.data.currency)}
+              </p>
+            </div>
           )}
           {standing.data?.standing && (
             <Badge tone={standingTones[standing.data.standing]}>

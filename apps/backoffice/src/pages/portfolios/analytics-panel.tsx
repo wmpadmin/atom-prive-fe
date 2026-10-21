@@ -9,7 +9,7 @@ import {
   type ValuationHistory,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, DateInput, Field, FilterMenu, cn } from "@atomprive/ui";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { INK, inkFor, nameOf, useAssetClasses } from "./asset-classes";
 
 function money(amount: number) {
@@ -17,21 +17,20 @@ function money(amount: number) {
 }
 
 /**
- * Every stretch the client has spent on one plan, drawn as the share of their time it took.
+ * How each plan fared for this client: how far it ran from its targets, how often it broke them, and
+ * what the client was actually holding while they were on it.
  *
- * <p>A client moved from one model to another has two answers and not one, and the figures that follow
- * them say so nowhere else: the Return tab reads their whole history as a single run, so what the money
- * did while it was invested aggressively cannot be told from what it has done since it was moved to
- * something conservative.
+ * <p>The question a review asks of a client who has changed plan is not only what the money did. It is
+ * whether the plan held: a stretch that returned nine per cent while sitting past its band for most of
+ * it is a different answer from nine per cent inside the band throughout, and the firm cannot see that
+ * anywhere else. The Return tab reads the whole history as one run, and the drift screens read today.
  *
  * <p>A stretch rather than a model. A client who goes aggressive, conservative and aggressive again has
- * been on the aggressive plan twice, with a different portfolio and a different market each time; two
- * slices say that and one hides it.
+ * been on the aggressive plan twice, with a different portfolio and a different market each time.
  *
- * <p>The ring is time, because time is the only thing here that divides into a whole — a return cannot
- * be a slice of anything, least of all a negative one, so each plan's return is written beside its
- * slice instead. Picking one narrows this whole panel to the days it covers, which is the point of it:
- * the mix, the movement and the worth are then the ones the client had while held to that plan.
+ * <p>Judged against each plan AS IT STANDS TODAY, which is the only version of it on file — a model
+ * edited since is a model whose old targets nobody kept. Said on the card, because a figure measured
+ * against something other than what it says it was measured against is worse than no figure.
  */
 function OnEachPlan({ customerId, inForce, show, clear }: {
   customerId: string;
@@ -41,7 +40,7 @@ function OnEachPlan({ customerId, inForce, show, clear }: {
 }) {
   const history = useGetClientModelSpells<ModelHistory, ApiError>(customerId);
   // Only the plans. A stretch on no plan at all is time the firm was not measuring the client against
-  // anything, so it has no answer to give and is left out rather than drawn as a share of their time.
+  // anything, so there is nothing to say about how a plan fared.
   const spells = (history.data?.spells ?? []).filter((spell) => spell.modelPortfolioId !== null);
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
@@ -50,27 +49,17 @@ function OnEachPlan({ customerId, inForce, show, clear }: {
     return null;
   }
   const showing = (spell: ModelSpell) => inForce.from === spell.from && inForce.to === spell.to;
-  // A stretch of one day is still a stretch, and a ring drawn from days alone would lose it entirely.
-  const weight = (spell: ModelSpell) => Math.max(spell.days, 1);
-  const whole = spells.reduce((sum, spell) => sum + weight(spell), 0);
-  const starts = spells.reduce<number[]>((walked, spell) =>
-    [...walked, (walked[walked.length - 1] ?? 0) + (weight(spell) / whole) * 100], [0]);
-  // A colour a PLAN, not a slice. A client who went back to the plan they started on should see that in
-  // the ring: two stretches of one colour read as one plan twice, which is what happened, where two
-  // colours read as two plans. They can never sit side by side — consecutive days on one plan are one
-  // stretch — so nothing merges.
   const plans = [...new Set(spells.map((spell) => spell.modelPortfolioId))];
   const inkFor = (spell: ModelSpell) => INK[plans.indexOf(spell.modelPortfolioId) % INK.length]!;
-  const R = 15.9155;
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-base font-bold text-ink">On each plan</h3>
+          <h3 className="text-base font-bold text-ink">How each plan went</h3>
           <p className="mt-0.5 text-sm text-ink-muted">
-            How long the client was held to each, and what the money did over it. Time-weighted, so what
-            was paid in or taken out is not read as earnings.
+            What the money did while the client was held to it, how often it was past its bands, and what
+            they were holding.
           </p>
         </div>
         {spells.some(showing) && (
@@ -81,78 +70,125 @@ function OnEachPlan({ customerId, inForce, show, clear }: {
       {history.isPending ? (
         <p className="mt-4 text-sm text-ink-muted">Reading the plans…</p>
       ) : (
-        <div className="mt-4 flex flex-wrap items-center gap-x-10 gap-y-6">
-          <svg viewBox="0 0 42 42" className="size-60 shrink-0" role="img"
-            aria-label="How long the client was held to each plan">
-            <circle cx="21" cy="21" r={R} fill="none" stroke="currentColor" strokeWidth="5"
-              className="text-slate-100" />
-            {spells.map((spell, at) => {
-              const share = (weight(spell) / whole) * 100;
-              const lit = spells.some(showing) ? showing(spell) : true;
-              return (
-                <circle
-                  key={`${spell.from}-${spell.modelPortfolioId}`}
-                  cx="21" cy="21" r={R}
-                  fill="none"
-                  stroke={inkFor(spell)}
-                  strokeWidth={showing(spell) ? 7 : 5}
-                  strokeDasharray={`${share} ${100 - share}`}
-                  strokeDashoffset={25 - starts[at]!}
-                  opacity={lit ? 1 : 0.22}
-                  className="cursor-pointer transition-[opacity,stroke-width]"
-                  onClick={() => (showing(spell) ? clear() : show(spell))}
-                >
-                  <title>{spell.modelName}: {spell.days} days</title>
-                </circle>
-              );
-            })}
-            <text x="21" y="20.5" textAnchor="middle" className="fill-ink text-[5px] font-bold">
-              {whole}
-            </text>
-            <text x="21" y="25" textAnchor="middle" className="fill-ink-muted text-[3px]">
-              days on a plan
-            </text>
-          </svg>
-
-          <ul className="min-w-0 flex-1 space-y-2.5">
-            {spells.map((spell) => (
-              <li key={`${spell.from}-${spell.modelPortfolioId}`}>
+        <ul className="mt-4 space-y-3">
+          {spells.map((spell) => (
+            <li
+              key={`${spell.from}-${spell.modelPortfolioId}`}
+              className={cn("rounded-xl border p-4",
+                showing(spell) ? "border-primary-600 bg-primary-50/40" : "border-line")}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <span aria-hidden="true" className="mt-1.5 size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: inkFor(spell) }} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink">{spell.modelName}</p>
+                    <p className="text-xs text-ink-muted">
+                      {longDay(spell.from)} — {longDay(spell.to)} · {spell.days} days ·{" "}
+                      {spell.readings} written down
+                      {spell.paidIn > 0 && ` · ${money(spell.paidIn)} in`}
+                      {spell.takenOut > 0 && ` · ${money(spell.takenOut)} out`}
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => (showing(spell) ? clear() : show(spell))}
-                  className={cn("flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left",
-                    showing(spell) ? "bg-primary-50" : "hover:bg-slate-50")}
+                  className="shrink-0 text-xs font-semibold text-primary-700 hover:underline"
                 >
-                  <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: inkFor(spell) }} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-ink">{spell.modelName}</span>
-                    <span className="block text-xs text-ink-muted">
-                      {longDay(spell.from)} — {longDay(spell.to)} · {spell.days} days
-                      {spell.paidIn > 0 && ` · ${money(spell.paidIn)} in`}
-                      {spell.takenOut > 0 && ` · ${money(spell.takenOut)} out`}
-                    </span>
-                  </span>
-                  {/* Two days written down at the least, or there is no period to measure between. */}
-                  <span className={cn("shrink-0 text-sm font-semibold tabular-nums",
-                    spell.percent === null ? "text-ink-muted"
-                      : spell.percent < 0 ? "text-rose-700" : "text-emerald-700")}>
+                  {showing(spell) ? "Showing these days" : "Show these days"}
+                </button>
+              </div>
+
+              {/* The three answers a review wants, in the order it wants them: what it earned, whether it
+                  held, and how far it ran when it did not. */}
+              <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+                <Figure label="Return">
+                  <span className={cn(spell.percent === null ? "text-ink-muted"
+                    : spell.percent < 0 ? "text-rose-700" : "text-emerald-700")}>
                     {spell.percent === null ? "—"
                       : `${spell.percent > 0 ? "+" : spell.percent < 0 ? "−" : ""}${Math.abs(spell.percent).toFixed(1)}%`}
                   </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+                </Figure>
+                <Figure label="Past its bands">
+                  <span className={cn(spell.breachedOn === 0 ? "text-emerald-700" : "text-rose-700")}>
+                    {spell.breachedOn} of {spell.readings}
+                  </span>
+                  <span className="ml-1.5 text-xs font-normal text-ink-muted">
+                    {spell.readings === 1 ? "day" : "days"}
+                  </span>
+                </Figure>
+                <Figure label="Furthest from target">
+                  {spell.worstDrift === null || spell.worstDriftName === null ? (
+                    <span className="text-ink-muted">—</span>
+                  ) : (
+                    <>
+                      <span className={cn(Math.abs(spell.worstDrift) > 0 ? "text-ink" : "text-ink-muted")}>
+                        {spell.worstDrift > 0 ? "+" : spell.worstDrift < 0 ? "−" : ""}
+                        {Math.abs(spell.worstDrift).toFixed(1)}%
+                      </span>
+                      <span className="ml-1.5 text-xs font-normal text-ink-muted">
+                        {spell.worstDriftName}
+                      </span>
+                    </>
+                  )}
+                </Figure>
+              </dl>
+
+              {/* What they held on average against what the plan asked for. Held first, because the
+                  question is what the client had, and the target beside it is what it should have been. */}
+              {spell.mix.length > 0 && (
+                <table className="mt-3 w-full text-xs">
+                  <caption className="sr-only">Average mix under {spell.modelName}</caption>
+                  <tbody>
+                    {spell.mix.filter((row) => row.held > 0 || row.target > 0).map((row) => (
+                      <tr key={row.assetClass}>
+                        <td className="w-40 truncate py-1 pr-3 text-ink">{row.name}</td>
+                        <td className="py-1">
+                          {/* Held drawn against the plan's own mark, so a class running over its target
+                              is seen rather than worked out from two numbers. */}
+                          <span className="relative block h-2 rounded-full bg-slate-100">
+                            <span className="absolute inset-y-0 left-0 rounded-full"
+                              style={{ width: `${Math.min(row.held, 100)}%`, backgroundColor: inkFor(spell) }} />
+                            <span aria-hidden="true"
+                              className="absolute inset-y-[-2px] w-px bg-ink-soft"
+                              style={{ left: `${Math.min(row.target, 100)}%` }} />
+                          </span>
+                        </td>
+                        <td className="w-28 py-1 pl-3 text-right tabular-nums text-ink-soft">
+                          {row.held.toFixed(1)}% <span className="text-ink-muted">of {row.target.toFixed(0)}%</span>
+                        </td>
+                        <td className="w-20 py-1 pl-2 text-right tabular-nums">
+                          {row.breachedOn > 0
+                            ? <span className="text-rose-700">{row.breachedOn} past</span>
+                            : <span className="text-ink-muted">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
 
       <p className="mt-3 text-xs text-ink-muted">
-        Measured between the days written down while each plan was in force. The stretch between the last
-        day under one plan and the first under the next belongs to neither: half of it was invested under
-        each, and nothing on file says which half.
+        Read off the days written down while each plan was in force, and judged against that plan as it
+        stands today. The stretch between the last day under one plan and the first under the next belongs
+        to neither: half of it was invested under each, and nothing on file says which half.
       </p>
     </section>
+  );
+}
+
+/** One figure on a plan's card: what it is called, and what it came to. */
+function Figure({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="rounded-lg bg-slate-50 px-3 py-2">
+      <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
+      <dd className="mt-0.5 text-sm font-semibold text-ink">{children}</dd>
+    </div>
   );
 }
 
@@ -826,7 +862,7 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                         <td className="py-1.5 pl-4 text-right whitespace-nowrap tabular-nums">
                           <span className={cn("rounded-md px-1.5 py-0.5 text-xs",
                             far ? "bg-amber-50 font-semibold text-amber-800" : "text-ink-muted")}>
-                            {apart > 0 ? "+" : apart < 0 ? "\u2212" : ""}{Math.abs(apart).toFixed(1)} pp
+                            {apart > 0 ? "+" : apart < 0 ? "\u2212" : ""}{Math.abs(apart).toFixed(1)}%
                           </span>
                         </td>
                       </tr>
@@ -835,7 +871,7 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                 </tbody>
               </table>
               <p className="mt-2 pl-2 text-xs text-ink-muted">
-                Drift in percentage points, marked beyond {FAR_FROM_TARGET} pp either way. The bar runs
+                How far each class sits from its target, marked beyond {FAR_FROM_TARGET} either way. The bar runs
                 0–{scale}%, and the mark on it is what the plan asks for.
               </p>
             </div>

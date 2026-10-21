@@ -29,15 +29,30 @@ export const driftTones: Record<DriftStanding, string> = {
   BREACHED: "text-red-600",
 };
 
-/** Drift as the screens write it: "+6.4pp", "−6.0pp", and a true zero as "0.0pp". */
+/**
+ * Drift as the screens write it: "+6.4%", "−6.0%", and a true zero as "0.0%".
+ *
+ * <p>Percentage POINTS, written with a per-cent sign because that is how the firm reads them: a class
+ * asked for twenty and sitting at twenty-six is six away, not thirty per cent more. The sign carries
+ * which side of the target it has gone.
+ */
 export function driftLabel(drift: number) {
   const rounded = drift.toFixed(1);
-  if (Number(rounded) > 0) return `+${rounded}pp`;
-  if (Number(rounded) < 0) return `−${rounded.replace("-", "")}pp`;
-  return "0.0pp";
+  if (Number(rounded) > 0) return `+${rounded}%`;
+  if (Number(rounded) < 0) return `−${rounded.replace("-", "")}%`;
+  return "0.0%";
 }
 
-/** What a portfolio is worth, short enough for a column: "USD 42.6M". */
+/**
+ * What a portfolio is worth, in full: "USD 41,790".
+ *
+ * <p>For the places with room for it — the head of a client's own screen, where this is the figure
+ * somebody came to read. A column takes the short form below instead.
+ */
+export function worthLabel(amount: number, currency: string) {
+  return `${currency} ${amount.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
 export function underManagementLabel(amount: number, currency: string) {
   if (amount >= 1_000_000) return `${currency} ${(amount / 1_000_000).toFixed(1)}M`;
   if (amount >= 1_000) return `${currency} ${(amount / 1_000).toFixed(1)}K`;
@@ -59,9 +74,9 @@ export const modelStatusTones: Record<ModelStatus, "success" | "neutral" | "warn
   RETIRED: "neutral",
 };
 
-/** Average drift, which has no side to it: "2.6pp". */
+/** Average drift, which has no side to it: "2.6%". */
 export function averageDriftLabel(drift: number) {
-  return `${drift.toFixed(1)}pp`;
+  return `${drift.toFixed(1)}%`;
 }
 
 /**
