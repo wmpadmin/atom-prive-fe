@@ -129,10 +129,10 @@ export interface TradeOrderRow {
   limitsBroken: LimitBroken[];
 }
 
-export type DeclarationScheduleWantedCadence = typeof DeclarationScheduleWantedCadence[keyof typeof DeclarationScheduleWantedCadence];
+export type DeclarationCycleWantedCadence = typeof DeclarationCycleWantedCadence[keyof typeof DeclarationCycleWantedCadence];
 
 
-export const DeclarationScheduleWantedCadence = {
+export const DeclarationCycleWantedCadence = {
   WEEKLY: 'WEEKLY',
   MONTHLY: 'MONTHLY',
   QUARTERLY: 'QUARTERLY',
@@ -142,47 +142,24 @@ export const DeclarationScheduleWantedCadence = {
   ON_JOINING: 'ON_JOINING',
 } as const;
 
-export interface DeclarationScheduleWanted {
-  cadence: DeclarationScheduleWantedCadence;
+export interface DeclarationCycleWanted {
+  cadence: DeclarationCycleWantedCadence;
   /**
      * @minimum 1
      * @maximum 12
-     * @nullable
      */
-  dueMonth: number | null;
+  dueMonth: number;
   /**
      * @minimum 1
      * @maximum 31
-     * @nullable
      */
-  dueDay: number | null;
-  /**
-     * @minimum 1
-     * @maximum 7
-     * @nullable
-     */
-  dueWeekday: number | null;
+  dueDay: number;
 }
 
-export type DeclarationScheduleRowKind = typeof DeclarationScheduleRowKind[keyof typeof DeclarationScheduleRowKind];
+export type DeclarationCycleViewCadence = typeof DeclarationCycleViewCadence[keyof typeof DeclarationCycleViewCadence];
 
 
-export const DeclarationScheduleRowKind = {
-  CONFLICT_OF_INTEREST: 'CONFLICT_OF_INTEREST',
-  AML_PROCEDURES_CERTIFICATION: 'AML_PROCEDURES_CERTIFICATION',
-  AUTHORISED_INDIVIDUALS: 'AUTHORISED_INDIVIDUALS',
-  COMPLIANCE_MANUAL_CERTIFICATION: 'COMPLIANCE_MANUAL_CERTIFICATION',
-  OUTSIDE_INTERESTS: 'OUTSIDE_INTERESTS',
-  DFSA_CONDUCT_PRINCIPLES: 'DFSA_CONDUCT_PRINCIPLES',
-  DATA_CONSENT: 'DATA_CONSENT',
-  FIT_AND_PROPER: 'FIT_AND_PROPER',
-  PERSONAL_ACCOUNT_DEALING: 'PERSONAL_ACCOUNT_DEALING',
-} as const;
-
-export type DeclarationScheduleRowCadence = typeof DeclarationScheduleRowCadence[keyof typeof DeclarationScheduleRowCadence];
-
-
-export const DeclarationScheduleRowCadence = {
+export const DeclarationCycleViewCadence = {
   WEEKLY: 'WEEKLY',
   MONTHLY: 'MONTHLY',
   QUARTERLY: 'QUARTERLY',
@@ -192,28 +169,18 @@ export const DeclarationScheduleRowCadence = {
   ON_JOINING: 'ON_JOINING',
 } as const;
 
-export interface DeclarationScheduleRow {
-  kind: DeclarationScheduleRowKind;
-  title: string;
-  cadence: DeclarationScheduleRowCadence;
+export interface DeclarationCycleView {
+  cadence: DeclarationCycleViewCadence;
   cadenceLabel: string;
-  /** @nullable */
-  dueMonth: number | null;
-  /** @nullable */
-  dueDay: number | null;
-  /** @nullable */
-  dueWeekday: number | null;
-  schedule: string;
+  dueMonth: number;
+  dueDay: number;
+  said: string;
   setByTheFirm: boolean;
   asShipped: string;
   /** @nullable */
   changedByName: string | null;
   /** @nullable */
   changedAt: string | null;
-}
-
-export interface DeclarationSchedulePage {
-  items: DeclarationScheduleRow[];
 }
 
 export interface EntryRequest {
@@ -1612,13 +1579,12 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  number?: boolean;
   container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1631,6 +1597,7 @@ export interface JsonNode {
   boolean?: boolean;
   binary?: boolean;
   floatingPointNumber?: boolean;
+  number?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -6701,16 +6668,110 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getChangeTradeOrderMutationOptions(options), queryClient);
     }
 
-export const getSetScheduleUrl = (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',) => {
+export const getCycleUrl = () => {
 
 
 
 
-  return `/api/backoffice/staff-declarations/schedules/${kind}`
+  return `/api/backoffice/staff-declarations/cycle`
 }
 
-export const setSchedule = async (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',
-    declarationScheduleWanted: DeclarationScheduleWanted, options?: Parameters<typeof http>[1]): Promise<DeclarationSchedulePage> => {
+export const cycle = async ( options?: Parameters<typeof http>[1]): Promise<DeclarationCycleView> => {
+
+  return http<DeclarationCycleView>(getCycleUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCycleQueryKey = () => {
+    return [
+    `/api/backoffice/staff-declarations/cycle`
+    ] as const;
+    }
+
+
+export const getCycleQueryOptions = <TData = Awaited<ReturnType<typeof cycle>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof cycle>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCycleQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof cycle>>> = ({ signal }) => cycle({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof cycle>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type CycleQueryResult = NonNullable<Awaited<ReturnType<typeof cycle>>>
+export type CycleQueryError = unknown
+
+
+export function useCycle<TData = Awaited<ReturnType<typeof cycle>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof cycle>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof cycle>>,
+          TError,
+          Awaited<ReturnType<typeof cycle>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCycle<TData = Awaited<ReturnType<typeof cycle>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof cycle>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof cycle>>,
+          TError,
+          Awaited<ReturnType<typeof cycle>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCycle<TData = Awaited<ReturnType<typeof cycle>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof cycle>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useCycle<TData = Awaited<ReturnType<typeof cycle>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof cycle>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getCycleQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetCycleUrl = () => {
+
+
+
+
+  return `/api/backoffice/staff-declarations/cycle`
+}
+
+export const setCycle = async (declarationCycleWanted: DeclarationCycleWanted, options?: Parameters<typeof http>[1]): Promise<DeclarationCycleView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -6726,12 +6787,12 @@ export const setSchedule = async (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES
     }
     return headers;
   };
-return http<DeclarationSchedulePage>(getSetScheduleUrl(kind),
+return http<DeclarationCycleView>(getSetCycleUrl(),
   {
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(declarationScheduleWanted)
+    body: JSON.stringify(declarationCycleWanted)
   }
 );}
 
@@ -6739,13 +6800,13 @@ return http<DeclarationSchedulePage>(getSetScheduleUrl(kind),
 
 
 
-export const getSetScheduleMutationKey = () => ['setSchedule'] as const;
+export const getSetCycleMutationKey = () => ['setCycle'] as const;
 
-export const getSetScheduleMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setSchedule>>, TError,SetScheduleMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof setSchedule>>, TError,SetScheduleMutationVariables, TContext> => {
+export const getSetCycleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setCycle>>, TError,SetCycleMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof setCycle>>, TError,SetCycleMutationVariables, TContext> => {
 
-const mutationKey = getSetScheduleMutationKey();
+const mutationKey = getSetCycleMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -6755,10 +6816,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setSchedule>>, SetScheduleMutationVariables> = (props) => {
-          const {kind,data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setCycle>>, SetCycleMutationVariables> = (props) => {
+          const {data} = props ?? {};
 
-          return  setSchedule(kind,data,requestOptions)
+          return  setCycle(data,requestOptions)
         }
 
 
@@ -6768,33 +6829,33 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type SetScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof setSchedule>>>
-    export type SetScheduleMutationBody = DeclarationScheduleWanted
-    export type SetScheduleMutationError = unknown
-    export type SetScheduleMutationVariables = {kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING';data: DeclarationScheduleWanted}
+    export type SetCycleMutationResult = NonNullable<Awaited<ReturnType<typeof setCycle>>>
+    export type SetCycleMutationBody = DeclarationCycleWanted
+    export type SetCycleMutationError = unknown
+    export type SetCycleMutationVariables = {data: DeclarationCycleWanted}
 
-    export const useSetSchedule = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setSchedule>>, TError,SetScheduleMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+    export const useSetCycle = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setCycle>>, TError,SetCycleMutationVariables, TContext>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof setSchedule>>,
+        Awaited<ReturnType<typeof setCycle>>,
         TError,
-        SetScheduleMutationVariables,
+        SetCycleMutationVariables,
         TContext
       > => {
-      return useMutation(getSetScheduleMutationOptions(options), queryClient);
+      return useMutation(getSetCycleMutationOptions(options), queryClient);
     }
 
-export const getClearScheduleUrl = (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',) => {
+export const getPutTheCycleBackUrl = () => {
 
 
 
 
-  return `/api/backoffice/staff-declarations/schedules/${kind}`
+  return `/api/backoffice/staff-declarations/cycle`
 }
 
-export const clearSchedule = async (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING', options?: Parameters<typeof http>[1]): Promise<DeclarationSchedulePage> => {
+export const putTheCycleBack = async ( options?: Parameters<typeof http>[1]): Promise<DeclarationCycleView> => {
 
-  return http<DeclarationSchedulePage>(getClearScheduleUrl(kind),
+  return http<DeclarationCycleView>(getPutTheCycleBackUrl(),
   {
     ...options,
     method: 'DELETE'
@@ -6807,13 +6868,13 @@ export const clearSchedule = async (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDUR
 
 
 
-export const getClearScheduleMutationKey = () => ['clearSchedule'] as const;
+export const getPutTheCycleBackMutationKey = () => ['putTheCycleBack'] as const;
 
-export const getClearScheduleMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearSchedule>>, TError,ClearScheduleMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof clearSchedule>>, TError,ClearScheduleMutationVariables, TContext> => {
+export const getPutTheCycleBackMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putTheCycleBack>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof putTheCycleBack>>, TError,void, TContext> => {
 
-const mutationKey = getClearScheduleMutationKey();
+const mutationKey = getPutTheCycleBackMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -6823,10 +6884,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearSchedule>>, ClearScheduleMutationVariables> = (props) => {
-          const {kind} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof putTheCycleBack>>, void> = () => {
 
-          return  clearSchedule(kind,requestOptions)
+
+          return  putTheCycleBack(requestOptions)
         }
 
 
@@ -6836,20 +6897,20 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type ClearScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof clearSchedule>>>
+    export type PutTheCycleBackMutationResult = NonNullable<Awaited<ReturnType<typeof putTheCycleBack>>>
 
-    export type ClearScheduleMutationError = unknown
-    export type ClearScheduleMutationVariables = {kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING'}
+    export type PutTheCycleBackMutationError = unknown
 
-    export const useClearSchedule = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearSchedule>>, TError,ClearScheduleMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+
+    export const usePutTheCycleBack = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putTheCycleBack>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof clearSchedule>>,
+        Awaited<ReturnType<typeof putTheCycleBack>>,
         TError,
-        ClearScheduleMutationVariables,
+        void,
         TContext
       > => {
-      return useMutation(getClearScheduleMutationOptions(options), queryClient);
+      return useMutation(getPutTheCycleBackMutationOptions(options), queryClient);
     }
 
 export const getRenameEntryUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
@@ -22046,101 +22107,6 @@ export function useForStaff<TData = Awaited<ReturnType<typeof forStaff>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getForStaffQueryOptions(staffUserId,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getListSchedulesUrl = () => {
-
-
-
-
-  return `/api/backoffice/staff-declarations/schedules`
-}
-
-export const listSchedules = async ( options?: Parameters<typeof http>[1]): Promise<DeclarationSchedulePage> => {
-
-  return http<DeclarationSchedulePage>(getListSchedulesUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListSchedulesQueryKey = () => {
-    return [
-    `/api/backoffice/staff-declarations/schedules`
-    ] as const;
-    }
-
-
-export const getListSchedulesQueryOptions = <TData = Awaited<ReturnType<typeof listSchedules>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSchedules>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListSchedulesQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSchedules>>> = ({ signal }) => listSchedules({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSchedules>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListSchedulesQueryResult = NonNullable<Awaited<ReturnType<typeof listSchedules>>>
-export type ListSchedulesQueryError = unknown
-
-
-export function useListSchedules<TData = Awaited<ReturnType<typeof listSchedules>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSchedules>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listSchedules>>,
-          TError,
-          Awaited<ReturnType<typeof listSchedules>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListSchedules<TData = Awaited<ReturnType<typeof listSchedules>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSchedules>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listSchedules>>,
-          TError,
-          Awaited<ReturnType<typeof listSchedules>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListSchedules<TData = Awaited<ReturnType<typeof listSchedules>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSchedules>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useListSchedules<TData = Awaited<ReturnType<typeof listSchedules>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSchedules>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getListSchedulesQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
