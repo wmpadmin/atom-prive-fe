@@ -11,12 +11,12 @@ import {
 import { Alert, Avatar, Badge } from "@atomprive/ui";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { formatDateTime } from "../../lib/labels";
 import { exactly, named as whatItIsCalled } from "./money-words";
 import { AnswerDialog } from "./answer-dialog";
 import { QueueBar } from "./queue-bar";
-import { WaitingPlan } from "./moves-to-approve-page";
+import { WaitingPlan } from "./move-plan-rows";
 
 /**
  * One client's money moves, on a screen of their own.
@@ -28,8 +28,6 @@ import { WaitingPlan } from "./moves-to-approve-page";
  */
 export function ClientMovesPage() {
   const { customerId = "" } = useParams();
-  // Back to the queue as it was being read, not to whichever way it opens by default.
-  const cameBy = useSearchParams()[0].get("by");
   const client = useGetCustomer<CustomerDetail, ApiError>(customerId);
   const plans = useListClientMovePlans<MovePlanRow[], ApiError>(customerId, {
     query: { refetchOnWindowFocus: true },
@@ -62,8 +60,10 @@ export function ClientMovesPage() {
   }
 
   const every = plans.data ?? [];
-  const waiting = every.filter((one) => one.status === "PENDING");
-  const decided = every.filter((one) => one.status !== "PENDING");
+  // Sent back counts as still open: it is waiting on whoever wrote it down, not on a reader, and filing
+  // it under what was decided hid the one thing its author still has to do.
+  const waiting = every.filter((one) => one.status === "PENDING" || one.status === "RETURNED");
+  const decided = every.filter((one) => one.status !== "PENDING" && one.status !== "RETURNED");
   const named = client.data?.client.fullName ?? "";
   const dayOf = new Map((history.data?.points ?? []).map((one) => [one.revision, one.valuedOn]));
 
@@ -71,7 +71,7 @@ export function ClientMovesPage() {
     <div className="space-y-5">
       <div>
         <Link
-          to={cameBy === "client" ? "/approvals?queue=moves&by=client" : "/approvals?queue=moves"}
+          to="/approvals?queue=moved"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 underline-offset-2 hover:underline"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
