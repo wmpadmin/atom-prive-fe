@@ -31,6 +31,7 @@ import { ProposalLegEditor } from "./proposal-leg-editor";
 import { destinations, EMPTY_LEG, legsFrom, sources, typedFrom, type TypedLeg } from "./proposal-leg-values";
 import { ProposalLegs } from "./proposal-legs";
 import { ProposalTrail } from "./proposal-trail";
+import { somethingElseLandsHere, WhatItWouldLeave, wouldBreakAband } from "../portfolios/what-it-would-leave";
 import { APPROVES_PROPOSALS, clientFileHref, hasAnyAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
 import { answeredLabel, formatValue, proposalStatusLabels, proposalStatusTones, sentLabel, standingLabel } from "./proposal-labels";
@@ -202,6 +203,10 @@ export function ProposalPage() {
   // proposal, the one person who may never answer it, and would have drawn them for a manager the API
   // then refused. Being able to press a button that cannot work is worse than not having one.
   const toAnswer = !writing && (proposal?.summary.mayAnswer ?? false);
+  // What the legs would do to the lines they name, worked out by the server against the figures as they
+  // stand now — not here, where it would be a second reading of a band the platform already states.
+  const weighed = proposal?.weighed ?? [];
+  const pastAband = wouldBreakAband(weighed);
   // Why there is none, where there is none. A waiting proposal with an empty space where the buttons go
   // reads as a screen that has not finished loading, or one that is broken.
   const mine = !writing && proposal?.summary.advisorId === user.id;
@@ -316,7 +321,11 @@ export function ProposalPage() {
           {!writing && (
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <Badge tone={proposalStatusTones[status]}>{proposalStatusLabels[status]}</Badge>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {pastAband && <Badge tone="warning">Past a band</Badge>}
+                  {somethingElseLandsHere(weighed) && <Badge tone="warning">Another ask lands here</Badge>}
+                  <Badge tone={proposalStatusTones[status]}>{proposalStatusLabels[status]}</Badge>
+                </div>
                 <p className="mt-1 text-xs text-ink-muted">
                   {formatRelative(proposal!.summary.sentAt ?? proposal!.summary.createdAt)}
                 </p>
@@ -521,6 +530,15 @@ export function ProposalPage() {
           <div className="mt-3">
             <ProposalLegs legs={proposal!.lines} currency={proposal!.summary.valueCurrency} />
           </div>
+          {/* And what it would leave. Saying yes here moves the money, and until now the person saying it
+              was shown the legs and nothing else: not the most the line they are filling may hold, and not
+              that something else was waiting to fill the same line. The queue that answers a client's own
+              asking has shown both all along; advice showed neither. */}
+          {weighed.length > 0 && (
+            <div className="mt-5">
+              <WhatItWouldLeave legs={weighed} />
+            </div>
+          )}
         </section>
 
         <section>
@@ -599,6 +617,15 @@ export function ProposalPage() {
               ? "You are answering for this client, and saying yes moves the money. Nobody else is asked, and the answer is written once."
               : "Nothing changes for the client. Whoever wrote it sees what you write here."}
           </p>
+          {/* The one thing that cannot be said after the press. Going past a band is a decision the firm
+              makes rather than a mistake it blocks — so it is put in front of whoever is making it, in
+              the window where they make it. */}
+          {answering === "approve" && pastAband && (
+            <Alert tone="warning">
+              Saying yes leaves a line past the most it may hold. The table behind this window says which,
+              and by how much.
+            </Alert>
+          )}
           {errors.form && <Alert tone="danger">{errors.form}</Alert>}
           <Field
             id="answer-note"

@@ -311,6 +311,28 @@ export interface ProposalRequest {
   lines: MoveLegRequest[];
 }
 
+export interface PlannedLeg {
+  fromAssetClass: string;
+  /** @nullable */
+  fromSubClass: string | null;
+  /** @nullable */
+  fromSubSubClass: string | null;
+  toAssetClass: string;
+  /** @nullable */
+  toSubClass: string | null;
+  /** @nullable */
+  toSubSubClass: string | null;
+  amount: number;
+  /** @nullable */
+  heldWhenRaised: number | null;
+  heldNow: number;
+  figuresMoved: boolean;
+  landsOnHeldNow: number;
+  /** @nullable */
+  landsOnMayHold: number | null;
+  landsOnAskedByOthers: number;
+}
+
 export type ProposalRowStatus = typeof ProposalRowStatus[keyof typeof ProposalRowStatus];
 
 
@@ -364,6 +386,7 @@ export interface ProposalDetail {
   /** @nullable */
   objective: string | null;
   lines: MoveLegRequest[];
+  weighed: PlannedLeg[];
   /** @nullable */
   portfolioValue: number | null;
   /** @nullable */
@@ -545,28 +568,6 @@ export const MovePlanRowStatus = {
   REJECTED: 'REJECTED',
   WITHDRAWN: 'WITHDRAWN',
 } as const;
-
-export interface PlannedLeg {
-  fromAssetClass: string;
-  /** @nullable */
-  fromSubClass: string | null;
-  /** @nullable */
-  fromSubSubClass: string | null;
-  toAssetClass: string;
-  /** @nullable */
-  toSubClass: string | null;
-  /** @nullable */
-  toSubSubClass: string | null;
-  amount: number;
-  /** @nullable */
-  heldWhenRaised: number | null;
-  heldNow: number;
-  figuresMoved: boolean;
-  landsOnHeldNow: number;
-  /** @nullable */
-  landsOnMayHold: number | null;
-  landsOnAskedByOthers: number;
-}
 
 export interface MovePlanRow {
   id: string;
@@ -1613,11 +1614,11 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;

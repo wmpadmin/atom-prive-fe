@@ -2,6 +2,7 @@ import type { MovePlanRow } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, cn } from "@atomprive/ui";
 import { formatDateTime } from "../../lib/labels";
 import { exactly, figure, named, netted, overItsBand } from "./money-words";
+import { WhatItWouldLeave } from "./what-it-would-leave";
 
 /**
  * One plan waiting on an answer, with the buttons that answer it.
@@ -118,61 +119,7 @@ export function WaitingPlan({ row, showClient, answering, refusal, onApprove, on
             </tfoot>
           )}
         </table>
-        {/* The question an approver is actually answering is not what moves but what the client is left
-            holding, and until now that was arithmetic they did themselves — across legs the screen never
-            put side by side. */}
-        <table className="w-full table-fixed text-sm">
-          <caption className="border-b border-line pb-2 text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            What it would leave
-          </caption>
-          <colgroup>
-            <col className="w-[38%]" />
-            <col className="w-[31%]" />
-            <col className="w-[31%]" />
-          </colgroup>
-          <thead>
-            <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              <th scope="col" className="py-2 pr-3">Line</th>
-              <th scope="col" className="px-3 py-2 text-right">Holds now</th>
-              <th scope="col" className="py-2 pl-3 text-right">Would hold</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {leaves.map((line) => (
-              <tr key={line.name} className="align-top">
-                <th scope="row" className="py-2.5 pr-3 text-left font-medium break-words text-ink">
-                  {line.name}
-                  {/* Said against the line, because it is the line whose figure has moved. */}
-                  {line.heldWhenRaised !== null && (
-                    <span className="mt-0.5 block text-xs font-normal text-amber-700">
-                      held {figure(line.heldWhenRaised)} when this was asked for
-                    </span>
-                  )}
-                  {/* The half nothing on this screen could ask before: another plan is waiting to put
-                      money in here too. Each was weighed against the same figures and each sits inside
-                      the band on its own. */}
-                  {line.askedByOthers >= 1 && (
-                    <span className="mt-0.5 block text-xs font-normal text-amber-700">
-                      another waiting plan would add {figure(line.askedByOthers)} here too
-                    </span>
-                  )}
-                  {overItsBand(line) > 0 && (
-                    <span className="mt-0.5 block text-xs font-normal text-amber-700">
-                      {figure(overItsBand(line))} past the {figure(line.mayHold ?? 0)} allowed
-                    </span>
-                  )}
-                </th>
-                <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap text-ink-muted">
-                  {figure(line.holdsNow)}
-                </td>
-                <td className={cn("py-2.5 pl-3 text-right tabular-nums whitespace-nowrap",
-                  overItsBand(line) > 0 ? "font-semibold text-amber-700" : "text-ink")}>
-                  {figure(line.wouldHold)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <WhatItWouldLeave legs={row.legs} />
       </div>
       {/* An amount with no denominator beside it could be a rounding error or half the book. The
           currency is said here, once, rather than on every cell of two tables of it. */}
