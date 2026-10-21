@@ -31,7 +31,6 @@ export type ApprovalTab =
 type TabSpec = {
   id: ApprovalTab;
   label: string;
-  lead: string;
   /** What somebody must hold to be offered this one at all. */
   authority: Authority[];
   Panel: () => React.ReactElement;
@@ -54,17 +53,12 @@ const TABS: TabSpec[] = [
   {
     id: "proposals",
     label: "Proposals",
-    lead: "What a portfolio manager has suggested for a client's money, answered on that client's behalf "
-      + "by the relationship manager who looks after them. Saying yes moves it; no order is placed with a "
-      + "broker.",
     authority: READS_PROPOSALS,
     Panel: ProposalsPage,
   },
   {
     id: "client-requests",
     label: "Client requests",
-    lead: "What clients have asked for, written down by the person they asked. Nothing has moved: saying "
-      + "yes is what moves it.",
     // The money-move permission, because answering one of these moves the money. It is the queue beside it
     // read the other way round: the asking comes from outside the firm, and the same people answer it.
     authority: ANSWERS_MOVE_PLANS,
@@ -73,15 +67,12 @@ const TABS: TabSpec[] = [
   {
     id: "model-changes",
     label: "Model switch",
-    lead: "Asking for a client to be measured against a different plan. Saying yes is what moves them.",
     authority: READS_CLIENT_PORTFOLIOS,
     Panel: ModelChangesPage,
   },
   {
     id: "model-sign-off",
     label: "Model edits",
-    lead: "Changes to a plan clients are measured against. Nothing has changed: saying yes is what writes "
-      + "it, for every client on the plan at once.",
     // Not the money-move permission: a model is shared, so its edit is signed off by somebody who may
     // write the firm's advice rather than by whoever answers for one client.
     authority: ["SEND_PROPOSALS:CHANGE"],
@@ -200,9 +191,9 @@ export function ApprovalsPage() {
         ))}
       </div>
 
-      {/* What this queue is, under the tabs that choose it. Two lines of it on one tab and one on
-          another now change nothing above them. */}
-      <p className="max-w-prose text-sm text-ink-muted">{tab.lead}</p>
+      {/* A paragraph explaining each queue stood here. It said what the rows already say — who answers a
+          proposal is on the row, and what saying yes does is on the button — and it pushed the work itself
+          below the fold on a screen somebody opens to do that work. */}
 
       {/* Keyed by tab, so leaving one queue and coming back opens it afresh rather than on whatever was
           typed into the one before it. */}
