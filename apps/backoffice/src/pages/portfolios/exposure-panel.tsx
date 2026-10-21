@@ -23,12 +23,12 @@ function money(amount: number, currency: string) {
   return `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** "+4.0pp", "−4.0pp", and a true nothing as "0.0pp". */
+/** "+4.0%", "−4.0%", and a true nothing as "0.0%". Points, written the way the firm reads them. */
 function apart(deviation: number) {
   const rounded = deviation.toFixed(1);
-  if (Number(rounded) > 0) return `+${rounded}pp`;
-  if (Number(rounded) < 0) return `−${rounded.replace("-", "")}pp`;
-  return "0.0pp";
+  if (Number(rounded) > 0) return `+${rounded}%`;
+  if (Number(rounded) < 0) return `−${rounded.replace("-", "")}%`;
+  return "0.0%";
 }
 
 /**
