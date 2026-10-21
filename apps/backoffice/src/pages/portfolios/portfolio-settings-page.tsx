@@ -229,12 +229,11 @@ export function PortfolioSettingsPage() {
           )}
         </Panel>
 
-        {/* Said in what it actually does. "Alerts · Tell about a breach · Near the limit" named three
-            things and explained none of them: a reader could not tell what was looked at, when, who
-            heard, or by what. */}
+        {/* Two boxes of the same kind. A dropdown beside a tick-box read as two different sorts of
+            question when they are one: who is told, and from when. */}
         <Panel
           title="Breach alerts"
-          says="Every morning a sweep reads every client who is on a model and finds the classes past their band. Whoever is named below gets a bell in the portal — once for each class, and again only if it gets worse."
+          says="Looked for every morning, on every client who is on a model. Said once for each class, and again only if it worsens."
           takesEffect
         >
           <div className="grid gap-3 sm:grid-cols-2">
@@ -251,23 +250,21 @@ export function PortfolioSettingsPage() {
                 <option value="BOTH">Both</option>
               </SelectInput>
             </Field>
-            <Field id="set-near" label="Before it breaks">
-              <label className="flex items-center gap-2 py-2.5 text-sm">
-                <input
-                  id="set-near"
-                  type="checkbox"
-                  className="size-4 rounded border-line"
-                  checked={warnOnNearLimit}
-                  disabled={!mayChange}
-                  onChange={(event) => set({ warnOnNearLimit: event.target.checked })}
-                />
-                Say so at the edge too, not only once it has broken
-              </label>
+            <Field id="set-near" label="Said from">
+              <SelectInput
+                id="set-near"
+                value={warnOnNearLimit ? "EDGE" : "BREACH"}
+                disabled={!mayChange}
+                onChange={(event) => set({ warnOnNearLimit: event.target.value === "EDGE" })}
+              >
+                <option value="EDGE">The edge, before it breaks</option>
+                <option value="BREACH">Only once it has broken</option>
+              </SelectInput>
             </Field>
           </div>
           <p className="mt-2 text-xs text-ink-muted">
-            A client on their own allocation is left alone — nobody settled the targets it would be drifting
-            from. An email follows the bell once its wording is written on Email templates.
+            A bell in the portal, at 6:30 Dubai. A client on their own allocation is not watched. The email
+            waits for its wording on Email templates.
           </p>
         </Panel>
 
