@@ -25,7 +25,14 @@ type Notice = { tone: "success" | "danger"; message: string };
  * <p>Nothing is ever deleted here, only retired. A valuation written last year still names its class, and a
  * report that cannot say what a figure was counted under is not a report.
  */
-export function AssetClassesTab() {
+export function AssetClassesTab({ lean = false }: {
+  /**
+   * Stripped to what somebody setting a plan up needs: the names, a way to add one and a way to correct
+   * one. How many models and clients hold a class, when it last changed and whether it may be retired are
+   * the Admin's questions, asked on the Admin's own screen.
+   */
+  lean?: boolean;
+}) {
   const user = useStaffUser();
   // Read by anybody who may see a portfolio; changed by the desks the firm gave the classes to. The tab
   // used to sit only on the Admin's Config screen, where everybody who could open it could also change
@@ -68,10 +75,13 @@ export function AssetClassesTab() {
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <p className="max-w-2xl text-sm text-ink-muted">
-          What every model is spread across and every holding is counted under. A class is never deleted, only
-          retired: what was written under it keeps naming it, and nothing new is counted under it from then on.
-        </p>
+        {lean ? <span /> : (
+          <p className="max-w-2xl text-sm text-ink-muted">
+            What every model is spread across and every holding is counted under. A class is never deleted,
+            only retired: what was written under it keeps naming it, and nothing new is counted under it
+            from then on.
+          </p>
+        )}
         {mayChange && (
         <Button variant="secondary" onClick={() => { setAdding(true); setEditing(undefined); setNotice(undefined); }}>
           <Plus aria-hidden="true" />
@@ -97,21 +107,21 @@ export function AssetClassesTab() {
           <thead>
             <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               <th scope="col" className="py-3 pr-4 pl-5">Class</th>
-              <th scope="col" className="px-4 py-3">Short</th>
-              <th scope="col" className="px-4 py-3 text-right">Models</th>
-              <th scope="col" className="px-4 py-3 text-right">Clients</th>
-              <th scope="col" className="px-4 py-3">Last changed</th>
+              {!lean && <th scope="col" className="px-4 py-3">Short</th>}
+              {!lean && <th scope="col" className="px-4 py-3 text-right">Models</th>}
+              {!lean && <th scope="col" className="px-4 py-3 text-right">Clients</th>}
+              {!lean && <th scope="col" className="px-4 py-3">Last changed</th>}
               <th scope="col" className="py-3 pr-5 pl-4 text-right"><span className="sr-only">Change</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {listed.isPending && (
-              <tr><td colSpan={6} className="px-5 py-8 text-center text-ink-muted">Loading…</td></tr>
+              <tr><td colSpan={lean ? 2 : 6} className="px-5 py-8 text-center text-ink-muted">Loading…</td></tr>
             )}
             {rows.map((row) =>
               editing === row.code ? (
                 <tr key={row.code}>
-                  <td colSpan={6} className="px-5 py-4">
+                  <td colSpan={lean ? 2 : 6} className="px-5 py-4">
                     <ClassForm
                       title={`Rename ${row.name}`}
                       name={row.name}
@@ -130,13 +140,15 @@ export function AssetClassesTab() {
                     {/* The code is what every figure is stored under, so it is shown rather than hidden. */}
                     <span className="block font-mono text-xs text-ink-muted">{row.code}</span>
                   </td>
-                  <td className="px-4 py-3 text-ink-soft">{row.shortName}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-ink-soft">{row.models}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-ink-soft">{row.clients}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-xs text-ink-muted">
-                    {formatDateTime(row.updatedAt)}
-                    {row.updatedBy ? ` · ${row.updatedBy}` : ""}
-                  </td>
+                  {!lean && <td className="px-4 py-3 text-ink-soft">{row.shortName}</td>}
+                  {!lean && <td className="px-4 py-3 text-right tabular-nums text-ink-soft">{row.models}</td>}
+                  {!lean && <td className="px-4 py-3 text-right tabular-nums text-ink-soft">{row.clients}</td>}
+                  {!lean && (
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-ink-muted">
+                      {formatDateTime(row.updatedAt)}
+                      {row.updatedBy ? ` · ${row.updatedBy}` : ""}
+                    </td>
+                  )}
                   <td className="py-3 pr-5 pl-4 text-right whitespace-nowrap">
                     {mayChange && (<>
                     <Button
@@ -147,19 +159,21 @@ export function AssetClassesTab() {
                     >
                       Rename
                     </Button>{" "}
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={busy || !row.mayRetire}
-                      title={
-                        row.mayRetire
-                          ? undefined
-                          : "Still in use. Move what is counted under it to another class first."
-                      }
-                      onClick={() => retire.mutate({ code: row.code, data: { retired: !row.retiredAt } })}
-                    >
-                      {row.retiredAt ? "Put it back" : "Retire"}
-                    </Button>
+                    {!lean && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={busy || !row.mayRetire}
+                        title={
+                          row.mayRetire
+                            ? undefined
+                            : "Still in use. Move what is counted under it to another class first."
+                        }
+                        onClick={() => retire.mutate({ code: row.code, data: { retired: !row.retiredAt } })}
+                      >
+                        {row.retiredAt ? "Put it back" : "Retire"}
+                      </Button>
+                    )}
                     </>)}
                   </td>
                 </tr>
@@ -169,10 +183,13 @@ export function AssetClassesTab() {
         </table>
       </div>
 
-      <p className="text-xs text-ink-muted">
-        A class in use can't be retired — the models built on it would stop adding up to 100%, and the holdings
-        counted under it would have nowhere to sit. The Models and Clients columns say what is holding it.
-      </p>
+      {!lean && (
+        <p className="text-xs text-ink-muted">
+          A class in use can't be retired — the models built on it would stop adding up to 100%, and the
+          holdings counted under it would have nowhere to sit. The Models and Clients columns say what is
+          holding it.
+        </p>
+      )}
     </section>
   );
 }
