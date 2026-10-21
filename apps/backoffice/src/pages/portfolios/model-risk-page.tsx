@@ -10,8 +10,11 @@ import { underManagementLabel } from "./portfolio-labels";
  *
  * <p>The screen is two halves, and they are not equally well founded. Movement, the deepest drop and return
  * over risk need a price history; the platform holds the days somebody wrote the holdings down, not a daily
- * series, so each row says how many readings it had. Concentration and credit quality need no history at
- * all — they read straight off what the clients hold today.
+ * series, so each row says how many readings it had. Credit quality needs no history at all — it reads
+ * straight off what the clients hold today.
+ *
+ * <p>Largest issuer and largest country were columns here and are not any more: the firm took them off.
+ * Both are still worked out and served, so putting them back is a column, not a calculation.
  */
 export function ModelRiskPage() {
   const table = useGetModelRisk<ModelRiskTable, ApiError>();
@@ -64,20 +67,18 @@ export function ModelRiskPage() {
               <th scope="col" className="px-4 py-3 text-right" title="What has been lost on average on the readings past the 95% figure.">
                 Beyond it
               </th>
-              <th scope="col" className="px-4 py-3">Largest issuer</th>
-              <th scope="col" className="px-4 py-3">Largest country</th>
               <th scope="col" className="py-3 pr-5 pl-4">Credit quality</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {table.isPending && (
               <tr>
-                <td colSpan={11} className="px-5 py-10 text-center text-ink-muted">Working out the risk…</td>
+                <td colSpan={9} className="px-5 py-10 text-center text-ink-muted">Working out the risk…</td>
               </tr>
             )}
             {table.data && rows.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-5 py-10 text-center text-ink-muted">
+                <td colSpan={9} className="px-5 py-10 text-center text-ink-muted">
                   There are no model portfolios yet.
                 </td>
               </tr>
@@ -93,9 +94,6 @@ export function ModelRiskPage() {
 }
 
 function Row({ row, currency }: { row: ModelRiskRow; currency: string }) {
-  // A concentration read off a tenth of the money is not a concentration. The share that names an issuer at
-  // all is said beside it rather than left for the reader to assume it was everything.
-  const thin = row.largestIssuer !== null && row.placedByIssuer < 100;
   return (
     <tr className="hover:bg-slate-50/60">
       <td className="py-3 pr-4 pl-5">
@@ -122,28 +120,6 @@ function Row({ row, currency }: { row: ModelRiskRow; currency: string }) {
         suffix="%"
         tone={row.beyondRisk95 !== null && row.beyondRisk95 < 0 ? "bad" : undefined}
       />
-      <td className="px-4 py-3">
-        {row.largestIssuer === null ? (
-          <span className="text-ink-muted">—</span>
-        ) : (
-          <>
-            <span className="block truncate font-medium">{row.largestIssuer}</span>
-            <span className="block text-xs text-ink-muted tabular-nums">
-              {row.largestIssuerShare?.toFixed(1)}%
-              {thin && ` of the ${row.placedByIssuer.toFixed(0)}% that names one`}
-            </span>
-          </>
-        )}
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        {row.largestCountry === null ? (
-          <span className="text-ink-muted">—</span>
-        ) : (
-          <span className="tabular-nums">
-            {row.largestCountry} {row.largestCountryShare?.toFixed(0)}%
-          </span>
-        )}
-      </td>
       <td className="py-3 pr-5 pl-4 whitespace-nowrap">
         {row.creditQuality === null ? (
           // Fixed income only. A plan that lends nothing has no grade, which is not the same as a bad one.
