@@ -9,6 +9,8 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, Field, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
+import { useStaffUser } from "../../auth/session";
+import { hasAuthority } from "../../lib/permissions";
 import { Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../../lib/labels";
@@ -24,6 +26,11 @@ type Notice = { tone: "success" | "danger"; message: string };
  * report that cannot say what a figure was counted under is not a report.
  */
 export function AssetClassesTab() {
+  const user = useStaffUser();
+  // Read by anybody who may see a portfolio; changed by the desks the firm gave the classes to. The tab
+  // used to sit only on the Admin's Config screen, where everybody who could open it could also change
+  // it; on Portfolio settings that is no longer true.
+  const mayChange = hasAuthority(user, "MANAGE_ASSET_CLASSES:CHANGE");
   const queryClient = useQueryClient();
   const listed = useListAssetClasses<AssetClassRow[], ApiError>();
   const [notice, setNotice] = useState<Notice>();
@@ -65,10 +72,12 @@ export function AssetClassesTab() {
           What every model is spread across and every holding is counted under. A class is never deleted, only
           retired: what was written under it keeps naming it, and nothing new is counted under it from then on.
         </p>
+        {mayChange && (
         <Button variant="secondary" onClick={() => { setAdding(true); setEditing(undefined); setNotice(undefined); }}>
           <Plus aria-hidden="true" />
           Add a class
         </Button>
+        )}
       </div>
 
       {notice && <Alert tone={notice.tone}>{notice.message}</Alert>}
@@ -129,6 +138,7 @@ export function AssetClassesTab() {
                     {row.updatedBy ? ` · ${row.updatedBy}` : ""}
                   </td>
                   <td className="py-3 pr-5 pl-4 text-right whitespace-nowrap">
+                    {mayChange && (<>
                     <Button
                       variant="secondary"
                       size="sm"
@@ -150,6 +160,7 @@ export function AssetClassesTab() {
                     >
                       {row.retiredAt ? "Put it back" : "Retire"}
                     </Button>
+                    </>)}
                   </td>
                 </tr>
               ),

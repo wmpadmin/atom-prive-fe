@@ -12,6 +12,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { AssetClassesTab } from "../config/asset-classes-tab";
 import { BenchmarksPanel } from "./benchmarks-panel";
 import { PreTradeLimitsPanel } from "./pre-trade-limits-panel";
 import { useShowFirstError } from "../../lib/show-first-error";
@@ -250,27 +251,24 @@ export function PortfolioSettingsPage() {
         )}
       </form>
 
-      {/* Its own record and its own Save: the form above is one row of defaults, these are a row a class. */}
-      <PreTradeLimitsPanel mayChange={mayChange} />
-
       {/* The indices themselves, not a line of small print pointing at them. They were a screen of their
           own, reached from here and from nowhere else — so the thing that makes Model performance work
           was two screens away from the rules it belongs with. */}
       <BenchmarksPanel />
 
-      <section className="rounded-2xl border border-line bg-white p-5">
-        <h2 className="text-base font-bold">Where the rest of the rules live</h2>
-        <dl className="mt-3 space-y-3 text-sm">
-          <div>
-            <dt className="font-semibold">Asset class taxonomy</dt>
-            <dd className="text-ink-muted">
-              The six classes are fixed in the platform, in the order the firm's own portfolio review prints
-              them. Sub-classes are not a list to maintain: they are written on a model and on a holding as
-              the firm writes them, so a new one needs nothing set up here first.
-            </dd>
-          </div>
-        </dl>
+      {/* The classes themselves, on the screen where the plans that use them are set up. Adding one used
+          to be Admin work, because it sat behind managing configuration with the banks and the email
+          templates; it has a permission of its own now and the portfolio desk holds it. */}
+      <section aria-labelledby="panel-asset-classes" className="rounded-2xl border border-line bg-white p-5">
+        <h2 id="panel-asset-classes" className="text-sm font-bold">Asset classes</h2>
+        <div className="mt-3">
+          <AssetClassesTab />
+        </div>
       </section>
+
+      {/* Its own record and its own Save: the form above is one row of defaults, these are a row a class. */}
+      <PreTradeLimitsPanel mayChange={mayChange} />
+
     </div>
   );
 }
@@ -310,14 +308,19 @@ function Panel({
   takesEffect?: boolean;
   children: ReactNode;
 }) {
+  // A section with a heading rather than a fieldset with a legend. A legend is drawn ON the border it
+  // belongs to, so every title here sat half inside the box and half out of it, which the panels beside
+  // them — benchmarks, pre-trade limits — do not. Grouped for a screen reader by the heading it is
+  // labelled with, which is what those panels do too.
+  const titleId = `panel-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   return (
-    <fieldset className="rounded-2xl border border-line bg-white p-5">
-      <legend className="px-1.5 text-sm font-bold">{title}</legend>
-      <p className={cn("text-xs text-ink-muted", takesEffect && "flex items-center gap-1.5")}>
+    <section aria-labelledby={titleId} className="rounded-2xl border border-line bg-white p-5">
+      <h2 id={titleId} className="text-sm font-bold">{title}</h2>
+      <p className={cn("mt-1 text-xs text-ink-muted", takesEffect && "flex items-center gap-1.5")}>
         {takesEffect && <Check aria-hidden="true" className="size-3.5 shrink-0 text-emerald-600" />}
         {says}
       </p>
       <div className="mt-3">{children}</div>
-    </fieldset>
+    </section>
   );
 }
