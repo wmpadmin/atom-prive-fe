@@ -34,6 +34,20 @@ export function sentLabel(sentAt: string | null) {
 }
 
 /**
+ * Who answered it, and when.
+ *
+ * <p>Said whether or not they wrote a reason. An agreement needs none — only a refusal owes one — so on
+ * most approved proposals the only place a name appeared was a note that was never written, and the
+ * second relationship manager of a client would find the buttons gone with nothing saying who had been
+ * there first.
+ */
+export function answeredLabel(status: ProposalRowStatus, answeredByName: string | null, decidedAt: string | null) {
+  const said = status === "APPROVED" ? "Approved" : "Rejected";
+  const who = `${said} by ${answeredByName ?? "their relationship manager"}`;
+  return decidedAt ? `${who} on ${formatDate(decidedAt)}` : who;
+}
+
+/**
  * Where it stands in time: waiting, or what was decided and when.
  *
  * <p>It used to count down a fortnight, because the client had that long to answer. Nothing runs out now —
