@@ -33,7 +33,7 @@ import { ProposalLegs } from "./proposal-legs";
 import { ProposalTrail } from "./proposal-trail";
 import { APPROVES_PROPOSALS, clientFileHref, hasAnyAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
-import { formatValue, proposalStatusLabels, proposalStatusTones, sentLabel, standingLabel } from "./proposal-labels";
+import { answeredLabel, formatValue, proposalStatusLabels, proposalStatusTones, sentLabel, standingLabel } from "./proposal-labels";
 
 /** One of the four facts above a proposal: what it was advised against, and the dates it turns on. */
 function Fact({ label, children }: { label: string; children: ReactNode }) {
@@ -197,11 +197,19 @@ export function ProposalPage() {
   const editable = writing || (status === "DRAFT" && proposal?.summary.advisorId === user.id);
   const busy = create.isPending || update.isPending || submit.isPending;
   const deciding = answer.isPending;
-  // Waiting, and this reader is not the one who wrote it. Whoever wrote it does not see the buttons,
-  // because the API would refuse them anyway — and being able to press a button that cannot work is
-  // worse than not having one.
-  const toAnswer = !writing && status === "PENDING" && answersProposals
-    && proposal!.summary.advisorId !== user.id;
+  // Asked of the server rather than worked out here. This screen can see a permission; it cannot see who
+  // looks after the client, which is what the rule turns on — so it drew buttons for whoever wrote the
+  // proposal, the one person who may never answer it, and would have drawn them for a manager the API
+  // then refused. Being able to press a button that cannot work is worse than not having one.
+  const toAnswer = !writing && (proposal?.summary.mayAnswer ?? false);
+  // Why there is none, where there is none. A waiting proposal with an empty space where the buttons go
+  // reads as a screen that has not finished loading, or one that is broken.
+  const mine = !writing && proposal?.summary.advisorId === user.id;
+  const whyNotMine = (writing || status !== "PENDING" || toAnswer || !answersProposals) ? null
+    : mine
+      ? "You wrote this one, so it isn't yours to answer. It is waiting on the relationship manager who "
+        + "looks after this client."
+      : "This client's own relationship manager answers it. It comes to you only where they cannot.";
 
   /** Opens the answer dialog on an empty box, so neither way of answering inherits the other's note. */
   function asking(which: "approve" | "reject" | null) {
@@ -526,13 +534,20 @@ export function ProposalPage() {
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+          {/* Where it has got to, and — where there is nothing to press — why there is nothing to press. */}
+          <div className="max-w-2xl space-y-1">
           <p className="text-xs text-ink-muted">
             {writing
               ? "Saved as a draft first. It reaches nobody until you send it."
               : proposal!.summary.sentAt
-                ? `Sent ${formatDate(proposal!.summary.sentAt)} · ${standingLabel(status, proposal!.summary.sentAt, proposal!.summary.decidedAt)}`
+                ? `Sent ${formatDate(proposal!.summary.sentAt)} · ${
+                  status === "APPROVED" || status === "REJECTED"
+                    ? answeredLabel(status, proposal!.summary.answeredByName, proposal!.summary.decidedAt)
+                    : standingLabel(status, proposal!.summary.sentAt, proposal!.summary.decidedAt)}`
                 : `Draft, last saved ${formatDateTime(proposal!.summary.createdAt)}`}
           </p>
+          {whyNotMine && <p className="text-xs text-ink-muted">{whyNotMine}</p>}
+          </div>
           <div className="flex flex-wrap gap-3">
             {toAnswer && (
               <>

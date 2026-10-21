@@ -346,6 +346,7 @@ export interface ProposalRow {
   answeredByName: string | null;
   /** @nullable */
   answerNote: string | null;
+  mayAnswer: boolean;
 }
 
 export interface TrailEntry {
@@ -1611,12 +1612,13 @@ export const JsonNodeNodeType = {
 
 export interface JsonNode {
   number?: boolean;
+  valueNode?: boolean;
   container?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  valueNode?: boolean;
+  missingNode?: boolean;
+  floatingPointNumber?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1628,7 +1630,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;

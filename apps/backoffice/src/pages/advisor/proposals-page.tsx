@@ -21,7 +21,13 @@ import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { QueueBar } from "../portfolios/queue-bar";
 import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
 import { ProposalsHeader } from "./proposals-header";
-import { formatValue, proposalStatusLabels, proposalStatusTones, standingLabel } from "./proposal-labels";
+import {
+  answeredLabel,
+  formatValue,
+  proposalStatusLabels,
+  proposalStatusTones,
+  standingLabel,
+} from "./proposal-labels";
 
 /**
  * What the list can be narrowed to.
@@ -182,14 +188,29 @@ export function ProposalsPage() {
   const showAdvisor = everyAdvisors || onMe;
 
   /**
-   * Whether this row is waiting on the person reading it.
+   * What this reader's part in a row is: a button, or the reason there is none.
    *
-   * <p>Whoever wrote it is never asked — the API refuses them, and a button offered that cannot work is
-   * worse than no button at all. A relationship manager reads only their own clients' proposals here, so
-   * a proposal in front of them and waiting is one they may answer.
+   * <p>Whether they may answer it is the server's own answer, asked the way the answering itself asks it:
+   * this screen can see a permission, but not who looks after the client, which is what the rule turns on.
+   * Worked out here it offered a button to whoever wrote the proposal — the one person who may never
+   * answer it — and none to the client's second relationship manager, who may.
    */
-  function waitingOnThisReader(row: ProposalRow) {
-    return answers && row.status === "PENDING" && row.advisorId !== user.id;
+  function theirPart(row: ProposalRow) {
+    if (row.mayAnswer) {
+      return { review: true, said: null };
+    }
+    // What became of it, with the name of whoever answered: on a client with two relationship managers,
+    // the one who comes second finds the buttons gone and is owed the reason.
+    if (row.status === "APPROVED" || row.status === "REJECTED") {
+      return { review: false, said: answeredLabel(row.status, row.answeredByName, row.decidedAt) };
+    }
+    if (row.status !== "PENDING" || !answers) {
+      return { review: false, said: null };
+    }
+    return {
+      review: false,
+      said: row.advisorId === user.id ? "You wrote this one" : "Waiting on their relationship manager",
+    };
   }
   const shown: FilterOption<Tab>[] = TABS
     .filter((one) => one.id !== WAITING_ON_ME || answers)
@@ -380,17 +401,24 @@ export function ProposalsPage() {
                       do about it. The row and its name open the same screen; a reader who never discovers
                       that a row is clickable was being shown a queue with nothing to press. */}
                   <td className="py-3 pr-5 pl-4 text-right">
-                    {waitingOnThisReader(proposal) && (
-                      <Button
-                        size="sm"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void navigate(`/proposals/${proposal.id}${onMe ? "?from=review" : ""}`);
-                        }}
-                      >
-                        Review
-                      </Button>
-                    )}
+                    {(() => {
+                      const part = theirPart(proposal);
+                      return part.review
+                        ? (
+                            <Button
+                              size="sm"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void navigate(`/proposals/${proposal.id}${onMe ? "?from=review" : ""}`);
+                              }}
+                            >
+                              Review
+                            </Button>
+                          )
+                        : part.said && (
+                          <span className="text-xs whitespace-nowrap text-ink-muted">{part.said}</span>
+                        );
+                    })()}
                   </td>
                 </tr>
               ))}
