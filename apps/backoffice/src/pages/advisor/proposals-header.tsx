@@ -23,6 +23,7 @@ export function ProposalsHeader({
   exporting,
   canExport,
   cappedAt,
+  reading = false,
 }: {
   /** Whoever cannot write a proposal is not offered the button that starts one. */
   writes: boolean;
@@ -37,6 +38,15 @@ export function ProposalsHeader({
    * finds out what was missing from it there.
    */
   cappedAt: { carried: number; of: number } | null;
+  /**
+   * Whether a proposal is open below this.
+   *
+   * <p>The header sits above the list AND above one open proposal, which is what keeps the way back on
+   * the page. Above an open one it must not offer to start a new one: the reader is in the middle of
+   * reading something, and the button sent them somewhere else with no warning. What Export means changes
+   * with it — the list exports the list, and a proposal exports itself.
+   */
+  reading?: boolean;
 }) {
   // Whose proposals this list actually answers with. One reading of it, shared with the list below, which
   // asked the other question — may you write one — and so told somebody reading the whole firm's empty
@@ -55,9 +65,9 @@ export function ProposalsHeader({
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" disabled={exporting || !canExport} onClick={onExport}>
             <Download aria-hidden="true" />
-            {exporting ? "Exporting…" : "Export"}
+            {exporting ? (reading ? "Preparing…" : "Exporting…") : reading ? "Download PDF" : "Export"}
           </Button>
-          {writes && (
+          {writes && !reading && (
             <Link to="/proposals/new">
               <Button>
                 <Plus aria-hidden="true" />

@@ -5,6 +5,7 @@ import {
   useListProposalsAwaitingMyAnswer,
   type ListProposalsStatus,
   type ProposalPage,
+  type ProposalRow,
   type ProposalRowStatus,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, DateInput, FilterMenu, type FilterOption } from "@atomprive/ui";
@@ -98,14 +99,6 @@ export function ProposalsPage() {
     setPage(0);
   }
 
-  function clearFilters() {
-    setTyped("");
-    setSearch("");
-    setFrom("");
-    setTo("");
-    setPage(0);
-  }
-
   const asked = {
     status: chosen.status,
     query: search || undefined,
@@ -187,6 +180,17 @@ export function ProposalsPage() {
   // work by definition — a relationship manager answering for their own clients is always reading
   // something somebody else wrote.
   const showAdvisor = everyAdvisors || onMe;
+
+  /**
+   * Whether this row is waiting on the person reading it.
+   *
+   * <p>Whoever wrote it is never asked — the API refuses them, and a button offered that cannot work is
+   * worse than no button at all. A relationship manager reads only their own clients' proposals here, so
+   * a proposal in front of them and waiting is one they may answer.
+   */
+  function waitingOnThisReader(row: ProposalRow) {
+    return answers && row.status === "PENDING" && row.advisorId !== user.id;
+  }
   const shown: FilterOption<Tab>[] = TABS
     .filter((one) => one.id !== WAITING_ON_ME || answers)
     .map((one) => ({
@@ -278,11 +282,6 @@ export function ProposalsPage() {
                 </div>
               </>
             )}
-            {filtered && !onMe && (
-              <Button variant="secondary" onClick={clearFilters}>
-                Clear
-              </Button>
-            )}
           </div>
         </QueueBar>
         <div className="overflow-x-auto">
@@ -297,20 +296,21 @@ export function ProposalsPage() {
                 <th scope="col" className="px-4 py-3">Sent</th>
                 <th scope="col" className="px-4 py-3">Value</th>
                 <th scope="col" className="px-4 py-3">Standing</th>
-                <th scope="col" className="py-3 pr-5 pl-4">Status</th>
+                <th scope="col" className="px-4 py-3">Status</th>
+                <th scope="col" className="py-3 pr-5 pl-4 text-right"><span className="sr-only">Answer</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {!proposals.data && (
                 <tr>
-                  <td colSpan={showAdvisor ? 7 : 6} className="px-5 py-8 text-center text-ink-muted">
+                  <td colSpan={showAdvisor ? 8 : 7} className="px-5 py-8 text-center text-ink-muted">
                     Loading proposals…
                   </td>
                 </tr>
               )}
               {proposals.data?.items.length === 0 && (
                 <tr>
-                  <td colSpan={showAdvisor ? 7 : 6} className="px-5 py-10 text-center text-ink-muted">
+                  <td colSpan={showAdvisor ? 8 : 7} className="px-5 py-10 text-center text-ink-muted">
                     {onMe
                       ? "Nothing is waiting on you."
                       : filtered
@@ -366,10 +366,31 @@ export function ProposalsPage() {
                   <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
                     {standingLabel(proposal.status as ProposalRowStatus, proposal.sentAt, proposal.decidedAt)}
                   </td>
-                  <td className="py-3 pr-5 pl-4">
+                  <td className="px-4 py-3">
                     <Badge tone={proposalStatusTones[proposal.status as ProposalRowStatus]}>
                       {proposalStatusLabels[proposal.status as ProposalRowStatus]}
                     </Badge>
+                  </td>
+                  {/* The way in to answering it, and the only one: a proposal is answered on its own page,
+                      where the legs, the reason and the client's position against their plan are. Saying
+                      yes here moves the money, and a queue that took that answer off a row would be taking
+                      it without any of that in front of the person giving it.
+
+                      Said as a button because a row that is waiting on somebody should tell them what to
+                      do about it. The row and its name open the same screen; a reader who never discovers
+                      that a row is clickable was being shown a queue with nothing to press. */}
+                  <td className="py-3 pr-5 pl-4 text-right">
+                    {waitingOnThisReader(proposal) && (
+                      <Button
+                        size="sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void navigate(`/proposals/${proposal.id}${onMe ? "?from=review" : ""}`);
+                        }}
+                      >
+                        Review
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}
