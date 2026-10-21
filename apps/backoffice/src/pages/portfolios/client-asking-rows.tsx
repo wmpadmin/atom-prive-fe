@@ -115,22 +115,10 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
           off at the edge of the row it belonged to. */}
       {rows.map((row, at) => (
         <div key={at} className="rounded-xl border border-line bg-canvas/60 p-4">
-          <div className="flex items-center justify-between gap-3 pb-3">
-            <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              {rows.length === 1 ? "What moves" : `Line ${at + 1}`}
-            </span>
-            <Button
-              variant="secondary"
-              size="sm"
-              type="button"
-              disabled={disabled || rows.length === 1}
-              aria-label={`Remove line ${at + 1}`}
-              onClick={() => onChange(rows.filter((_, index) => index !== at))}
-            >
-              <X aria-hidden="true" />
-            </Button>
-          </div>
-          <div className="grid gap-4 md:grid-cols-[1fr_1fr_12rem]">
+          {/* Named for whoever is reading it aloud. On screen the blocks are told apart by being blocks,
+              and a heading over each one only repeats what the borders already say. */}
+          <h4 className="sr-only">{rows.length === 1 ? "What moves" : `Line ${at + 1}`}</h4>
+          <div className="grid gap-4 md:grid-cols-[1fr_1fr_10rem_auto]">
             <Field id={`out-of-${at}`} label="Out of">
               <div className="space-y-2">
                 <SelectInput
@@ -229,6 +217,27 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
                 onChange={(event) => change(at, { amount: asFigure(event.target.value, row.amount) })}
               />
             </Field>
+            {/* In the row rather than above it. Sat in a header of its own it came down directly over the
+                amount, and the whole column read as though it had been pushed out of line. The label here
+                is the other columns' label, taking up its height and saying nothing — which is what keeps
+                the button on the same line as the boxes it belongs to. */}
+            <div>
+              <span aria-hidden="true"
+                className="block text-2xs font-semibold tracking-wider text-transparent uppercase select-none">
+                Remove
+              </span>
+              <div className="mt-1.5">
+                <Button
+                  variant="secondary"
+                  type="button"
+                  disabled={disabled || rows.length === 1}
+                  aria-label={`Remove line ${at + 1}`}
+                  onClick={() => onChange(rows.filter((_, index) => index !== at))}
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       ))}
