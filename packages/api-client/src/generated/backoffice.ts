@@ -370,11 +370,11 @@ export const SettingsRequestBreachAlertTo = {
 
 export interface SettingsRequest {
   /** @minimum 0.01 */
-  defaultWatchAt: number;
+  classBreachAt: number;
   /** @minimum 0.01 */
-  defaultEdgeAt: number;
+  subAssetBreachAt: number;
   /** @minimum 0.01 */
-  defaultBreachAt: number;
+  insideSubAssetBreachAt: number;
   sellOrder: SettingsRequestSellOrder;
   /** @minimum 0 */
   minimumTrade: number;
@@ -402,9 +402,9 @@ export const SettingsViewBreachAlertTo = {
 } as const;
 
 export interface SettingsView {
-  defaultWatchAt: number;
-  defaultEdgeAt: number;
-  defaultBreachAt: number;
+  classBreachAt: number;
+  subAssetBreachAt: number;
+  insideSubAssetBreachAt: number;
   sellOrder: SettingsViewSellOrder;
   sellOrderActsYet: boolean;
   minimumTrade: number;
@@ -1569,11 +1569,11 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
