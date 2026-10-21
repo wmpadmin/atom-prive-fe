@@ -1,10 +1,10 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  getPrintProposalUrl,
   useCreateProposal,
   useGetProposal,
   useListClientHoldings,
   useListMovesCarryingOut,
-  listProposals,
   useListCurrencies,
   useListCustomers,
   useAnswerProposal,
@@ -24,14 +24,14 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
+import { saveApiFile } from "../../lib/download";
 import { asFigure } from "../../lib/figures";
-import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
 import { ProposalsHeader } from "./proposals-header";
 import { ProposalLegEditor } from "./proposal-leg-editor";
 import { destinations, EMPTY_LEG, legsFrom, sources, typedFrom, type TypedLeg } from "./proposal-leg-values";
 import { ProposalLegs } from "./proposal-legs";
 import { ProposalTrail } from "./proposal-trail";
-import { APPROVES_PROPOSALS, clientFileHref, hasAnyAuthority, readsEveryAdvisors, WRITES_PROPOSALS } from "../../lib/permissions";
+import { APPROVES_PROPOSALS, clientFileHref, hasAnyAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
 import { formatValue, proposalStatusLabels, proposalStatusTones, sentLabel, standingLabel } from "./proposal-labels";
 
@@ -88,20 +88,18 @@ export function ProposalPage() {
     void navigate(`/proposals?q=${encodeURIComponent(value)}`, { replace: true });
   }
 
-  /** What the last export left behind, where it left anything. */
-  const [cappedAt, setCapped] = useState<{ carried: number; of: number } | null>(null);
-
-  /** The same export the list offers, because the button means the same thing wherever it is pressed. */
-  async function exportEverything() {
+  /**
+   * What Export means above an open proposal: that proposal, on paper.
+   *
+   * <p>It used to mean the list's export — every proposal the firm holds, as a spreadsheet — which is a
+   * strange thing to be handed by a button sitting over one open document. Somebody reading PR-2026-0003
+   * and pressing Export wants PR-2026-0003.
+   */
+  async function printThisOne() {
+    if (proposalId === undefined || !detail.data) return;
     setExporting(true);
     try {
-      const all = await listProposals({  page: 0, size: EXPORT_LIMIT });
-      download(csvOf(all.items, readsEveryAdvisors(user)), `proposals-${new Date().toISOString().slice(0, 10)}.csv`);
-      // Said from what came back rather than from what the screen thinks it asked for, so the figures
-      // are the file's own.
-      setCapped(all.totalItems > all.items.length
-        ? { carried: all.items.length, of: all.totalItems }
-        : null);
+      await saveApiFile(getPrintProposalUrl(proposalId), `${detail.data.summary.reference}.pdf`);
     } finally {
       setExporting(false);
     }
@@ -121,7 +119,7 @@ export function ProposalPage() {
   // The whole book, because whoever writes a proposal reads the whole book. It used to depend on whether
   // the writer was held to a set of clients; nobody who is still writes one.
   const clients = useListCustomers<CustomerPage, ApiError>({ size: 100 }, { query: { enabled: writes } });
-  const noClients = clients.isSuccess && (clients.data?.items.length ?? 0) === 0;
+  const noClients = clients.isSuccess && (clients.data?.items?.length ?? 0) === 0;
 
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
   const create = useCreateProposal<ApiError>({
@@ -276,10 +274,11 @@ export function ProposalPage() {
           writes={writes}
           search={search}
           onSearch={searchTheList}
-          onExport={() => void exportEverything()}
+          onExport={() => void printThisOne()}
           exporting={exporting}
           canExport
-          cappedAt={cappedAt}
+          cappedAt={null}
+          reading
         />
       )}
 
