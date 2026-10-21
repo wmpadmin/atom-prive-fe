@@ -36,10 +36,10 @@ export function PortfolioSettingsPage() {
   const settings = useGetPortfolioSettings<SettingsView, ApiError>();
 
   const [edits, setEdits] = useState<Typed | null>(null);
-  const form = useRef<HTMLFormElement>(null);
+  const page = useRef<HTMLDivElement>(null);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   // A refusal takes the reader to it: the rules run a long way above the button that saves them.
-  useShowFirstError(errors, form);
+  useShowFirstError(errors, page);
   const [saved, setSaved] = useState(false);
 
   // The boxes start from what the firm has settled, and stay as they are typed from then on.
@@ -49,6 +49,11 @@ export function PortfolioSettingsPage() {
     breachAlertTo, warnOnNearLimit } =
     typed;
   const set = (part: Partial<Typed>) => setEdits({ ...typed, ...part });
+  // Nothing to save until something is different from what the firm has settled. Compared against the
+  // record rather than against "has anybody typed", so typing a figure and typing it back leaves the
+  // button where it was.
+  const changed = held != null
+    && (Object.keys(typed) as (keyof Typed)[]).some((field) => typed[field] !== asTyped(held)[field]);
 
   const change = useChangePortfolioSettings<ApiError>({
     mutation: {
@@ -71,8 +76,8 @@ export function PortfolioSettingsPage() {
   // is usually allowed further than the lines inside it, but that is the firm's judgement to make rather
   // than a rule to enforce.
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
+  function submit(event?: FormEvent) {
+    event?.preventDefault();
     change.mutate({
       data: {
         classBreachAt: Number(classBreachAt),
@@ -89,7 +94,7 @@ export function PortfolioSettingsPage() {
   if (settings.isError) return <Alert tone="danger">{settings.error.message}</Alert>;
 
   return (
-    <div className="space-y-6">
+    <div ref={page} className="space-y-6">
       <ListPageHeader title="Portfolio settings" lead="The rules every other portfolio screen obeys." />
 
       {held && (
@@ -107,7 +112,7 @@ export function PortfolioSettingsPage() {
         </Alert>
       )}
 
-      <form onSubmit={submit} className="space-y-5">
+      <div className="space-y-5">
         {/* One figure for each depth a plan is written at, which is the shape the firm plans in: a class,
             the lines inside it, and the lines inside those. What stood here was three figures for one
             depth — worth watching, at the edge, broken — and nothing read any of them: a model carried
@@ -152,14 +157,7 @@ export function PortfolioSettingsPage() {
           </div>
         </Panel>
 
-        {mayChange && (
-          <div className="flex items-center justify-end gap-3">
-            <Button type="submit" disabled={change.isPending || !readable}>
-              {change.isPending ? "Saving…" : "Save the rules"}
-            </Button>
-          </div>
-        )}
-      </form>
+      </div>
 
       {/* The indices themselves, not a line of small print pointing at them. They were a screen of their
           own, reached from here and from nowhere else — so the thing that makes Model performance work
@@ -179,7 +177,7 @@ export function PortfolioSettingsPage() {
       {/* A second form for the rules that are not about drift. One record behind both, so either Save
           writes the whole screen; they are apart because the plans' own furniture — the indices and the
           classes — belongs between them, and a form cannot hold a form. */}
-      <form ref={form} onSubmit={submit} className="space-y-5">
+      <div className="space-y-5">
         <Panel
           title="Rebalancing rules"
           says="Which holding to sell when a class is over-weight, and how small a trade is not worth raising."
@@ -231,13 +229,16 @@ export function PortfolioSettingsPage() {
           )}
         </Panel>
 
+        {/* Said in what it actually does. "Alerts · Tell about a breach · Near the limit" named three
+            things and explained none of them: a reader could not tell what was looked at, when, who
+            heard, or by what. */}
         <Panel
-          title="Alerts"
-          says="Who hears when a client's portfolio breaks its model. Looked for once a day; said once, and again only when a drift gets worse."
+          title="Breach alerts"
+          says="Every morning a sweep reads every client who is on a model and finds the classes past their band. Whoever is named below gets a bell in the portal — once for each class, and again only if it gets worse."
           takesEffect
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field id="set-alert" label="Tell about a breach" error={errors.fields.breachAlertTo}>
+            <Field id="set-alert" label="Who hears" error={errors.fields.breachAlertTo}>
               <SelectInput
                 id="set-alert"
                 value={breachAlertTo}
@@ -250,7 +251,7 @@ export function PortfolioSettingsPage() {
                 <option value="BOTH">Both</option>
               </SelectInput>
             </Field>
-            <Field id="set-near" label="Near the limit">
+            <Field id="set-near" label="Before it breaks">
               <label className="flex items-center gap-2 py-2.5 text-sm">
                 <input
                   id="set-near"
@@ -260,27 +261,31 @@ export function PortfolioSettingsPage() {
                   disabled={!mayChange}
                   onChange={(event) => set({ warnOnNearLimit: event.target.checked })}
                 />
-                Say so before it breaks, not only after
+                Say so at the edge too, not only once it has broken
               </label>
             </Field>
           </div>
           <p className="mt-2 text-xs text-ink-muted">
-            It reaches the bell inside the portal whatever the firm has worded. The breach email follows once
-            somebody writes it on Email templates.
+            A client on their own allocation is left alone — nobody settled the targets it would be drifting
+            from. An email follows the bell once its wording is written on Email templates.
           </p>
         </Panel>
 
-        {mayChange && (
-          <div className="flex items-center justify-end gap-3">
-            <Button type="submit" disabled={change.isPending || !readable}>
-              {change.isPending ? "Saving…" : "Save the rules"}
-            </Button>
-          </div>
-        )}
-      </form>
+      </div>
 
-      {/* Its own record and its own Save: the form above is one row of defaults, these are a row a class. */}
+      {/* Its own record and its own Save: the rules above are one row of defaults, these are a row a class. */}
       <PreTradeLimitsPanel mayChange={mayChange} />
+
+      {/* One Save for the rules, at the foot of the screen rather than in the middle of it, and off until
+          something is different from what the firm has settled. The ceilings below keep their own, because
+          they are their own record. */}
+      {mayChange && (
+        <div className="flex items-center justify-end gap-3">
+          <Button disabled={!changed || !readable || change.isPending} onClick={() => submit()}>
+            {change.isPending ? "Saving…" : "Save the rules"}
+          </Button>
+        </div>
+      )}
 
     </div>
   );
