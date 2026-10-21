@@ -107,7 +107,7 @@ export function PortfolioSettingsPage() {
         </Alert>
       )}
 
-      <form ref={form} onSubmit={submit} className="space-y-5">
+      <form onSubmit={submit} className="space-y-5">
         {/* One figure for each depth a plan is written at, which is the shape the firm plans in: a class,
             the lines inside it, and the lines inside those. What stood here was three figures for one
             depth — worth watching, at the edge, broken — and nothing read any of them: a model carried
@@ -152,6 +152,34 @@ export function PortfolioSettingsPage() {
           </div>
         </Panel>
 
+        {mayChange && (
+          <div className="flex items-center justify-end gap-3">
+            <Button type="submit" disabled={change.isPending || !readable}>
+              {change.isPending ? "Saving…" : "Save the rules"}
+            </Button>
+          </div>
+        )}
+      </form>
+
+      {/* The indices themselves, not a line of small print pointing at them. They were a screen of their
+          own, reached from here and from nowhere else — so the thing that makes Model performance work
+          was two screens away from the rules it belongs with. */}
+      <BenchmarksPanel />
+
+      {/* The classes themselves, on the screen where the plans that use them are set up. Adding one used
+          to be Admin work, because it sat behind managing configuration with the banks and the email
+          templates; it has a permission of its own now and the portfolio desk holds it. */}
+      <section aria-labelledby="panel-asset-classes" className="rounded-2xl border border-line bg-white p-5">
+        <h2 id="panel-asset-classes" className="text-base font-bold">Asset classes</h2>
+        <div className="mt-3">
+          <AssetClassesTab lean />
+        </div>
+      </section>
+
+      {/* A second form for the rules that are not about drift. One record behind both, so either Save
+          writes the whole screen; they are apart because the plans' own furniture — the indices and the
+          classes — belongs between them, and a form cannot hold a form. */}
+      <form ref={form} onSubmit={submit} className="space-y-5">
         <Panel
           title="Rebalancing rules"
           says="Which holding to sell when a class is over-weight, and how small a trade is not worth raising."
@@ -251,21 +279,6 @@ export function PortfolioSettingsPage() {
         )}
       </form>
 
-      {/* The indices themselves, not a line of small print pointing at them. They were a screen of their
-          own, reached from here and from nowhere else — so the thing that makes Model performance work
-          was two screens away from the rules it belongs with. */}
-      <BenchmarksPanel />
-
-      {/* The classes themselves, on the screen where the plans that use them are set up. Adding one used
-          to be Admin work, because it sat behind managing configuration with the banks and the email
-          templates; it has a permission of its own now and the portfolio desk holds it. */}
-      <section aria-labelledby="panel-asset-classes" className="rounded-2xl border border-line bg-white p-5">
-        <h2 id="panel-asset-classes" className="text-sm font-bold">Asset classes</h2>
-        <div className="mt-3">
-          <AssetClassesTab />
-        </div>
-      </section>
-
       {/* Its own record and its own Save: the form above is one row of defaults, these are a row a class. */}
       <PreTradeLimitsPanel mayChange={mayChange} />
 
@@ -315,7 +328,7 @@ function Panel({
   const titleId = `panel-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   return (
     <section aria-labelledby={titleId} className="rounded-2xl border border-line bg-white p-5">
-      <h2 id={titleId} className="text-sm font-bold">{title}</h2>
+      <h2 id={titleId} className="text-base font-bold">{title}</h2>
       <p className={cn("mt-1 text-xs text-ink-muted", takesEffect && "flex items-center gap-1.5")}>
         {takesEffect && <Check aria-hidden="true" className="size-3.5 shrink-0 text-emerald-600" />}
         {says}
