@@ -180,6 +180,26 @@ export const ANSWERS_MOVE_PLANS: Authority[] = [
   "APPROVE_PORTFOLIO_CHANGES:OWN_CLIENTS",
 ];
 
+/**
+ * Whoever writes down what a client asked for: the relationship manager, and nobody else.
+ *
+ * <p>The client speaks to one person at this firm and it is them. A portfolio manager who wrote these
+ * would be a portfolio manager the client had spoken to, which is the relationship the firm keeps apart.
+ */
+export const RAISES_CLIENT_REQUESTS: Authority[] = ["APPROVE_PORTFOLIO_CHANGES:OWN_CLIENTS"];
+
+/**
+ * Whoever answers one: the portfolio manager, and nobody else — not the Admin, and not the desk that
+ * wrote it down.
+ *
+ * <p>Its own permission rather than a level of the money-move one, because that one is the Admin's too
+ * and a control two people can pass is a control one person can pass.
+ */
+export const ANSWERS_CLIENT_REQUESTS: Authority[] = ["APPROVE_CLIENT_REQUESTS:CHANGE"];
+
+/** Everybody the client-request queue is for: the desk that writes them and the desk that answers them. */
+export const READS_CLIENT_REQUESTS: Authority[] = [...ANSWERS_CLIENT_REQUESTS, ...RAISES_CLIENT_REQUESTS];
+
 /** Reading how the firm invests, which follows reading a client's portfolio rather than writing proposals. */
 export const READS_CLIENT_PORTFOLIOS: Authority[] = [
   "VIEW_CUSTOMER_PROFILE:VIEW",
