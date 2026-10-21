@@ -69,8 +69,11 @@ export function BenchmarksPanel() {
 
   return (
     <section className="rounded-2xl border border-line bg-white p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+      {/* The way in stays at the top right, beside the heading, where the other panels keep theirs. It
+          wrapped underneath because the words beside it were allowed their natural width, which on a
+          wide screen is the whole row. */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
           <h2 className="text-base font-bold">Benchmarks</h2>
           <p className="mt-0.5 text-sm text-ink-muted">
             The indices the firm measures its plans against, and what each one stood at. Named with its

@@ -11,7 +11,7 @@ import { Alert, Button, Field, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStaffUser } from "../../auth/session";
 import { hasAuthority } from "../../lib/permissions";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../../lib/labels";
 
@@ -43,6 +43,8 @@ export function AssetClassesTab({ lean = false }: {
   const [notice, setNotice] = useState<Notice>();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string>();
+  /** The name being typed over, where a name is corrected in its own place on the list. */
+  const [typedName, setTypedName] = useState("");
 
   function afterChange(message: string) {
     setNotice({ tone: "success", message });
@@ -71,6 +73,20 @@ export function AssetClassesTab({ lean = false }: {
 
   const rows = listed.data ?? [];
   const busy = add.isPending || rename.isPending || retire.isPending;
+  // The one being renamed. The table puts the form in the row it belongs to; the lean list has no rows,
+  // so it shows the form above the names instead.
+  const beingRenamed = lean ? rows.find((row) => row.code === editing) : undefined;
+
+  /** Saves the name typed over the one on the list. The short name is left as it was: it is not shown here. */
+  function saveTheName() {
+    if (!beingRenamed || typedName.trim() === "") {
+      return;
+    }
+    rename.mutate({
+      code: beingRenamed.code,
+      data: { name: typedName.trim(), shortName: beingRenamed.shortName },
+    });
+  }
 
   return (
     <section className="space-y-4">
@@ -102,7 +118,77 @@ export function AssetClassesTab({ lean = false }: {
         />
       )}
 
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+      {/* Lean: the names in three columns, which is how a vocabulary is read. A table gave each word a
+          row of its own with a code under it and a button beside it — eight words down two feet of a
+          screen that is about the plans, not about the words they are written in. */}
+      {lean ? (
+        <div className="space-y-3">
+        <ul className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
+          {listed.isPending && <li className="text-sm text-ink-muted">Loading…</li>}
+          {rows.map((row) => (
+            <li
+              key={row.code}
+              className="flex items-center justify-between gap-2 border-b border-line py-1.5 text-sm"
+            >
+              {editing === row.code ? (
+                <TextInput
+                  autoFocus
+                  aria-label={`Name of ${row.name}`}
+                  className="h-8 min-w-0 flex-1 text-sm"
+                  value={typedName}
+                  disabled={busy}
+                  onChange={(event) => setTypedName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      saveTheName();
+                    }
+                    if (event.key === "Escape") {
+                      setEditing(undefined);
+                    }
+                  }}
+                />
+              ) : (
+                <>
+                  <span className={cn("truncate", row.retiredAt && "text-ink-muted")}>
+                    {row.name}
+                    {row.retiredAt && <span className="ml-1.5 text-2xs uppercase text-ink-muted">retired</span>}
+                  </span>
+                  {mayChange && (
+                    <button
+                      type="button"
+                      aria-label={`Rename ${row.name}`}
+                      title={`Rename ${row.name}`}
+                      disabled={busy}
+                      onClick={() => {
+                        setEditing(row.code);
+                        setTypedName(row.name);
+                        setAdding(false);
+                        setNotice(undefined);
+                      }}
+                      className="shrink-0 rounded p-1 text-ink-muted hover:bg-slate-100 hover:text-ink"
+                    >
+                      <Pencil aria-hidden="true" className="size-3.5" />
+                    </button>
+                  )}
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+        {beingRenamed && (
+          <div className="flex items-center gap-2">
+            <Button size="sm" disabled={busy || typedName.trim() === ""} onClick={saveTheName}>
+              {busy ? "Saving…" : "Save"}
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => setEditing(undefined)}>
+              Cancel
+            </Button>
+          </div>
+        )}
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-line bg-white">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -182,6 +268,7 @@ export function AssetClassesTab({ lean = false }: {
           </tbody>
         </table>
       </div>
+      )}
 
       {!lean && (
         <p className="text-xs text-ink-muted">
