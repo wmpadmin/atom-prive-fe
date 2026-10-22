@@ -10,10 +10,8 @@ import {
   type ClientNonFinancialAssets,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, cn } from "@atomprive/ui";
+import { workOutNetAum } from "./net-aum";
 import type { StepProps } from "./portfolio-setup-dialog";
-
-/** The class the firm keeps cash under. Cash is one of the six, so it is already inside the allocation. */
-const CASH = "CASH";
 
 /**
  * What the three lists come to, worked through to the Net AUM.
@@ -87,24 +85,10 @@ export function NetAumStep({ customerId, onDone, onBack }: StepProps) {
   }
 
   const currency = holdings.data?.currency ?? "";
-  // What the six classes come to, which is what the first step wrote down.
-  const allocation = holdings.data?.underManagement ?? 0;
-  const cash = (holdings.data?.classes ?? []).find((one) => one.assetClass === CASH)?.valueAmount ?? 0;
-  const nonFinancial = owned.data?.total ?? 0;
-  // Negative, as they are kept, so everything below adds them. Every loan, because nobody is asked yet
-  // what each is secured on: a mortgage on a flat does not belong in a Net AUM, but reading only the
-  // portfolio's would quietly drop any loan written down before the question is put, and none of them
-  // has been sorted. The split is there on the API for when it is.
-  const loans = owed.data?.total ?? 0;
-
-  const nav = allocation + nonFinancial;
-  // Everything owned, less the part of it nobody manages — which is the allocation again, by construction.
-  const investmentAum = nav - nonFinancial;
-  const grossAum = investmentAum;
-  const netCash = cash + loans;
-  const netAum = grossAum + loans;
-  // A share of nothing is not a number, so it is left unsaid rather than shown as nought.
-  const leverage = investmentAum === 0 ? null : (netCash / investmentAum) * 100;
+  // Worked out away from here, because the panel on the client's own screen sets out the same sums and
+  // two copies of one piece of arithmetic is how two screens come to disagree about one client.
+  const { allocation, nonFinancial, loans, cash, nav, investmentAum, grossAum, netCash, netAum, leverage }
+    = workOutNetAum(holdings.data, owned.data, owed.data);
 
   return (
     <div className="flex flex-1 flex-col space-y-6">
