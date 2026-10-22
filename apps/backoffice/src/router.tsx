@@ -328,7 +328,8 @@ export const router = createBrowserRouter([
               { path: "reports", element: <PortfolioReportsPage /> },
               { path: "mis", element: <ManagementInformationPage /> },
               { path: "portfolio-settings", element: <PortfolioSettingsPage /> },
-              // Benchmarks are a panel on Portfolio settings now, with the rest of the portfolio rules.
+              // The firm keeps no indices any more. A link in somebody's notes, or a tab they left open,
+              // lands on the portfolio rules rather than on nothing.
               { path: "benchmarks", element: <Navigate to="/portfolio-settings" replace /> },
               { path: "model-portfolios/:modelId", element: <ModelDetailPage /> },
             ],
