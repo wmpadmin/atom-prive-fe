@@ -34,17 +34,17 @@ export function ModelPerformancePage() {
         title="Model performance"
         lead={
           table.data
-            ? `Whether today's money is where each plan says it should be, and what it would take to put it there. In ${table.data.currency}, as at ${formatDate(table.data.asOf)}. The return is for the calendar year ${table.data.year}.`
+            ? `Whether today's money is where each plan says it should be. In ${table.data.currency}, as at ${formatDate(table.data.asOf)}. The return is for the calendar year ${table.data.year}.`
             : "Whether today's money is where each plan says it should be."
         }
       />
 
       {/* The firm's own note on this screen: a return has to be time-weighted or a deposit reads as skill. */}
       <Alert tone="info">
-        The first columns read today's book: what is on each plan now, how much of it has wandered past
-        what the plan allows, and what putting it back would take. They do not wait on anybody writing a
-        valuation down. The return does — it is time-weighted, so money paid in or taken out is not counted
-        as something the manager earned or lost, and it says the days it actually covers.
+        What is on each plan, and how much of it has wandered past what the plan allows, are read from
+        today's book and wait on nobody. The return does wait — it is time-weighted, so money paid in or
+        taken out is not counted as something the manager earned or lost, and it says the days it actually
+        covers. The trades that would put a plan back are on Bulk rebalancing, a plan at a time.
       </Alert>
 
       {rows.length > 0 && measured.length === 0 && (
@@ -66,37 +66,33 @@ export function ModelPerformancePage() {
                 is one character and a plan's name is not, and six equal sixths set every figure adrift in
                 the middle of a column of its own. */}
             <colgroup>
-              <col className="w-[22%]" />
-              <col className="w-[8%]" />
-              <col className="w-[13%]" />
-              <col className="w-[13%]" />
-              <col className="w-[14%]" />
-              <col className="w-[18%]" />
+              <col className="w-[32%]" />
               <col className="w-[12%]" />
+              <col className="w-[19%]" />
+              <col className="w-[19%]" />
+              <col className="w-[18%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">Model</th>
                 <th scope="col" className="px-4 py-3 text-right">Clients</th>
                 <th scope="col" className="px-4 py-3 text-right">On this plan</th>
-                {/* What the plan looks like today, which is the question a desk asks of it daily. These
-                    answer on today's money; the return at the end answers about a book that has changed
+                {/* What the plan looks like today, which is the question a desk asks of it daily. It
+                    answers on today's money; the return at the end answers about a book that has changed
                     every day since. */}
                 <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Outside band</th>
-                <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">To put right</th>
-                <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Worst gap</th>
                 <th scope="col" className="py-3 pr-5 pl-4 text-right">This year</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {table.isPending && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">Working out the returns…</td>
+                  <td colSpan={5} className="px-5 py-10 text-center text-ink-muted">Working out the returns…</td>
                 </tr>
               )}
               {table.data && rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">
+                  <td colSpan={5} className="px-5 py-10 text-center text-ink-muted">
                     There are no model portfolios yet.
                   </td>
                 </tr>
@@ -135,38 +131,6 @@ function Row({ row, currency }: { row: ModelPerformanceRow; currency: string }) 
           <span className="font-semibold text-emerald-700">All within band</span>
         ) : (
           <span className="font-semibold text-rose-700">{row.today.outsideBand} of {row.clients}</span>
-        )}
-      </td>
-      {/* What putting the whole book back would take. Said as two figures because they are two different
-          acts: selling raises the money and buying spends it, and a net figure would hide both. */}
-      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
-        {row.today.toBuy === 0 && row.today.toSell === 0 ? (
-          <span className="text-ink-muted">Nothing to do</span>
-        ) : (
-          <>
-            <span className="block">Buy {underManagementLabel(row.today.toBuy, currency)}</span>
-            <span className="block text-xs text-ink-muted">
-              Sell {underManagementLabel(row.today.toSell, currency)}
-            </span>
-          </>
-        )}
-      </td>
-      {/* The class the book is furthest from, and by how much. The furthest any one client is, not the
-          sum across them: a class three clients are each slightly off is not the problem one client badly
-          out is, and the second is what somebody opens the plan to deal with. */}
-      {/* Right, like every other column after the name. Left-aligned between two columns of figures it
-          sat against its own left edge while they sat against their right, and the width it did not use
-          opened a hole down the middle of the table. */}
-      <td className="px-4 py-3 text-right text-ink-soft">
-        {row.today.worstClass === null ? (
-          <span className="text-ink-muted">—</span>
-        ) : (
-          <>
-            <span className="block truncate">{row.today.worstClass}</span>
-            <span className="block text-xs tabular-nums text-ink-muted">
-              {row.today.worstGap === null ? "" : `${Math.abs(row.today.worstGap).toFixed(1)}% out`}
-            </span>
-          </>
         )}
       </td>
       <Percent value={row.thisYear.percent} period={row.thisYear} last />
