@@ -272,8 +272,10 @@ export function BulkRebalancingPage() {
                     </th>
                     <th scope="col" className="px-4 py-3">Client</th>
                     <th scope="col" className="px-4 py-3 text-right">AUM</th>
-                    <th scope="col" className="px-4 py-3 text-right">Drift</th>
-                    <th scope="col" className="px-4 py-3">Standing</th>
+                    {/* A figure read from the right meeting a badge read from the left: without a gutter
+                        of their own the two sat against each other and read as one column. */}
+                    <th scope="col" className="py-3 pr-6 pl-4 text-right">Drift</th>
+                    <th scope="col" className="py-3 pr-4 pl-6">Standing</th>
                     <th scope="col" className="px-4 py-3">Request</th>
                     <th scope="col" className="py-3 pr-5 pl-4 text-right">
                       <span className="sr-only">Trade list</span>
@@ -399,7 +401,7 @@ function Row({
         </td>
         <td
           className={cn(
-            "px-4 py-3 text-right font-semibold whitespace-nowrap",
+            "py-3 pr-6 pl-4 text-right font-semibold whitespace-nowrap",
             // Coloured by where the portfolio stands, not by the sign of the figure: drift is how far it
             // has wandered either way, so it is never negative and used to read green at its very worst.
             client.standing == null ? "text-ink-muted" : driftTones[client.standing],
@@ -407,7 +409,7 @@ function Row({
         >
           {client.drift == null ? "—" : driftLabel(client.drift)}
         </td>
-        <td className="px-4 py-3">
+        <td className="py-3 pr-4 pl-6">
           {client.standing ? (
             <Badge tone={standingTones[client.standing]}>{standingLabels[client.standing]}</Badge>
           ) : (
