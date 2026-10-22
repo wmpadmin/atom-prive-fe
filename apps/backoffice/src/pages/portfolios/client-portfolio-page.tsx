@@ -13,7 +13,7 @@ import {
   type PortfolioStanding,
   type RiskMatch,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Field, SelectInput, cn } from "@atomprive/ui";
+import { Alert, Badge, Button, Field, SelectInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { useState } from "react";
@@ -256,6 +256,13 @@ export function ClientPortfolioPage() {
               {standing.data.drift === null ? "" : ` · ${driftLabel(standing.data.drift)}`}
             </Badge>
           )}
+          {/* The way back into the calculator, beside the figure it works out. The clients list opens it
+              for a client nobody has written down yet and opens the portfolio once they have — so the
+              moment a client was set up, the one screen that shows the working became unreachable, and
+              the figure beside this button had no way of being read back to where it came from. */}
+          <Link to={`/portfolio-clients/${customerId}/net-aum`}>
+            <Button variant="secondary" size="sm">Net AUM calculator</Button>
+          </Link>
         </div>
       </header>
 

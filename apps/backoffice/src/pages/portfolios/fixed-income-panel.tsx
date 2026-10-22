@@ -1,7 +1,6 @@
 import { ApiError } from "@atomprive/api-client";
 import { useGetClientFixedIncome, type FixedIncome } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
-import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 
 function money(amount: number, currency: string) {
   return `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -53,10 +52,9 @@ function Weighted({
  */
 export function FixedIncomePanel({ customerId }: { customerId: string }) {
   const book = useGetClientFixedIncome<FixedIncome, ApiError>(customerId);
-  // Read before the two returns below, because usePagedRows is a hook and a hook cannot be called on only
-  // some of a component's renders — and this panel draws nothing at all for a portfolio holding no debt.
   const bands = book.data?.credit ?? [];
-  const paged = usePagedRows(bands);
+  // Every one of them, never a page: these are the parts of one portfolio, not a list somebody browses,
+  // and they are counted on to add up to it in front of whoever is reading.
 
   if (book.isError) {
     return book.error.status === 404 ? null : <Alert tone="danger">{book.error.message}</Alert>;
@@ -105,7 +103,7 @@ export function FixedIncomePanel({ customerId }: { customerId: string }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {paged.shown.map((band) => (
+                {bands.map((band) => (
                   <tr key={band.rating}>
                     <th scope="row" className="py-2 pr-4 text-left font-medium text-ink">{band.rating}</th>
                     <td className="px-4 py-2 text-right tabular-nums">{money(band.value, found.currency)}</td>
@@ -118,7 +116,6 @@ export function FixedIncomePanel({ customerId }: { customerId: string }) {
           {/* Outside the scrolling box, so the way through the list does not slide sideways with the
               columns. The unrated share below it is the server's own figure for the whole book and does
               not change with the page. */}
-          <PagedFooter paged={paged} noun={["band", "bands"]} />
           {found.rated < 100 && (
             <p className="mt-2 text-xs text-amber-700">
               {(100 - found.rated).toFixed(1)}% of the book carries no rating at all, so it appears in none of
