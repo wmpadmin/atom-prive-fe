@@ -1,5 +1,6 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  getGetClientAttributionQueryKey,
   getGetClientValuationsQueryKey,
   useGetClientPortfolio,
   useGetCustomer,
@@ -19,6 +20,8 @@ import { useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { AttributionPanel } from "./attribution-panel";
+import { FixedIncomePanel } from "./fixed-income-panel";
 import { useAssetClasses } from "./asset-classes";
 import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
@@ -158,6 +161,8 @@ export function ClientPortfolioPage() {
     void lines.refetch();
     // Saving the holdings is what writes a day of history.
     void queryClient.invalidateQueries({ queryKey: getGetClientValuationsQueryKey(customerId) });
+    // Attribution is read off those same days, so it goes stale on exactly the saves they do.
+    void queryClient.invalidateQueries({ queryKey: getGetClientAttributionQueryKey(customerId) });
   };
   const setModel = useSetClientModelPortfolio<ApiError>({ mutation: { onSuccess: kept, onError } });
   // Each control waits on its own work and nothing else's. One flag over the whole screen dimmed every
@@ -419,12 +424,20 @@ export function ClientPortfolioPage() {
 
       <ValuationHistoryPanel customerId={customerId} />
 
-      {/* What the bonds do, where the money sits and where the change came from used to follow. Each was
-          built for a feed the firm does not have yet: no holding carries a yield, a duration, a country or
-          a sector, and a day of history is only written when somebody saves — so the first two said "no
-          bond carries a yield yet" under every client, and the third measured one client's whole portfolio
-          as ninety-nine per cent down because the only other day it had was an old test figure. Three
-          panels that cannot answer are worse than three panels that are not there. */}
+      {/* These two were taken off with a third when none of them could answer: no holding carried a yield,
+          a duration, a country or a sector, so each said "no bond carries a yield yet" under every client
+          the firm had. A panel that cannot answer is worse than no panel, because it is read as the
+          answer. They are back because the holdings now carry what they read — every line names a country
+          and a sector, every bond a yield, a duration and a grade, and the lines add up to their classes
+          to the penny on every client, so both cover the whole book rather than a corner of it.
+
+          Where the money sits by country and by sector is still off, and for the reason that has NOT
+          expired: no model carries a country or a sector target, and the dialog that set them was taken
+          off the same day. Three of its six columns would be a dash under every client. */}
+      <FixedIncomePanel customerId={customerId} />
+
+      <AttributionPanel customerId={customerId} />
+
       {standing.data && (
         <WhatIfPanel customerId={customerId} standing={standing.data} editing />
       )}

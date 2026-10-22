@@ -8,12 +8,7 @@ import { underManagementLabel } from "./portfolio-labels";
 
 /**
  * How risky each plan is.
- *
- * <p>Mounted on nothing. The movement figures below are wrong — {@code ModelRisks.movement} counts the
- * balance a client arrives with as a return, which overstates how much a plan moves about by as much as
- * a factor of twenty-eight — so the route was pointed at model performance rather than here. The screen
- * is kept whole: the fix is in the figures it reads, not in anything on this page, and putting it back
- * is a line in the router.
+
  *
  * <p>The screen is two halves, and they are not equally well founded. Movement, the deepest drop and return
  * over risk need a price history; the platform holds the days somebody wrote the holdings down, not a daily
