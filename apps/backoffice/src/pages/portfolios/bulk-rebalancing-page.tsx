@@ -244,7 +244,19 @@ export function BulkRebalancingPage() {
             )}
 
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              {/* Laid out to a fixed grid. Sized to their contents, a list of one client crowded six
+                  columns into the left third of the card and parked the button a hand's width away from
+                  the row it belongs to. */}
+              <table className="w-full table-fixed text-sm">
+                <colgroup>
+                  <col className="w-12" />
+                  <col className="w-[26%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[16%]" />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                     <th scope="col" className="py-3 pr-3 pl-5">
