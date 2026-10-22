@@ -39,14 +39,6 @@ export function ModelPerformancePage() {
         }
       />
 
-      {/* The firm's own note on this screen: a return has to be time-weighted or a deposit reads as skill. */}
-      <Alert tone="info">
-        What is on each plan, and how much of it has wandered past what the plan allows, are read from
-        today's book and wait on nobody. The return does wait — it is time-weighted, so money paid in or
-        taken out is not counted as something the manager earned or lost, and it says the days it actually
-        covers. The trades that would put a plan back are on Bulk rebalancing, a plan at a time.
-      </Alert>
-
       {rows.length > 0 && measured.length === 0 && (
         <Alert tone="warning">
           No plan has a return yet. A return needs a portfolio written down on at least two days: the first
