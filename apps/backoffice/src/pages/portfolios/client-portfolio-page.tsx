@@ -280,8 +280,10 @@ export function ClientPortfolioPage() {
       {tab === "performance" && (<>
       {/* One column, read top to bottom. Side by side, two panels are never the same height, so whichever
           is shorter leaves a hole beside the other — and the hole moves about as the figures change. */}
-      {/* The plan and the asking to change it, two to a row. */}
-      <div className="grid items-start gap-6 lg:grid-cols-2">
+      {/* The plan and the asking to change it, two to a row and both to the height of the taller. Left to
+          their own heights the short one stopped halfway down the tall one, and the row read as one card
+          with something unfinished beside it. */}
+      <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-line bg-white px-6 py-5">
           {/* The plan on its own. The Net AUM used to sit beside it, typed into this screen — it is worked
               out by the calculator now, out of what the client holds, what they own that nobody manages and
