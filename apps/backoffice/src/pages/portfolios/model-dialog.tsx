@@ -585,15 +585,18 @@ export function ModelDialog({
               </SelectInput>
             </Field>
           </div>
-          <Field id="model-description" label="What it is for" error={errors.fields.description}>
-            <TextInput
-              id="model-description"
-              placeholder="Long-term growth with income, for clients who can hold through a fall."
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </Field>
+          {/* Two to a row, the same as the two above them. What it is for ran the whole width while the
+              status sat at half beside nothing, so the form read as three different column counts in four
+              fields. */}
           <div className="grid gap-3 sm:grid-cols-2">
+            <Field id="model-description" label="What it is for" error={errors.fields.description}>
+              <TextInput
+                id="model-description"
+                placeholder="Long-term growth with income, for clients who can hold through a fall."
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            </Field>
             <Field id="model-status" label="Status" required error={errors.fields.status}>
               <SelectInput
                 id="model-status"
@@ -1056,7 +1059,9 @@ function LineList({
                       .map((used) => (
                         <option key={used} value={used}>{used}</option>
                       ))}
-                    <option value={WRITE_ONE}>Something else…</option>
+                    {/* Named for what it does rather than for what it is not: the list is what the firm
+                        holds, and this is the way to put in a line it does not. */}
+                    <option value={WRITE_ONE}>Enter manually…</option>
                   </SelectInput>
                 )}
                 <div className="relative">
