@@ -84,14 +84,7 @@ export function ProposalPage() {
   // Which client the legs are picked from, held rather than read off the form at save time: the pickers
   // list that client's own allocation, so they have to change the moment the choice does.
   const [chosenClient, setChosenClient] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
-
-  /** Searching from here is searching the list, so it goes back to the list carrying what was typed. */
-  function searchTheList(value: string) {
-    setSearch(value);
-    void navigate(`/proposals?q=${encodeURIComponent(value)}`, { replace: true });
-  }
 
   /**
    * What Export means above an open proposal: that proposal, on paper.
@@ -279,6 +272,13 @@ export function ProposalPage() {
     }
   }
 
+  // Which screen this proposal is being read within, said at the top the way every other screen says its
+  // own name. Without it the page opened on a back link and a document, and the only words above them
+  // were the reader's own role — so somebody who had followed a row out of a queue had nothing on the
+  // page naming the queue they were still in. Taken from where they came from, which is the same answer
+  // the way back is worked out from: both are the question "which screen is this".
+  const within = cameFrom === "trade-logs" ? "Trade logs" : "Approvals";
+
   const back =
     cameFrom === "review"
       ? { to: "/approvals?queue=proposals&tab=waitingOnMe", label: "Back to what is waiting on you" }
@@ -293,11 +293,11 @@ export function ProposalPage() {
 
   return (
     <div className="space-y-6">
+      {!writing && <h1 className="text-[1.625rem] font-bold">{within}</h1>}
+
       {/* The screen is the list; a proposal is read within it, so the way back is never off the page. */}
       {!writing && (
         <ProposalsHeader
-            search={search}
-          onSearch={searchTheList}
           onExport={() => void printThisOne()}
           exporting={exporting}
           canExport
