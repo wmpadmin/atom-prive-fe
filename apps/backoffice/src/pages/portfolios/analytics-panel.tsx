@@ -189,7 +189,7 @@ function AverageMix({ mix, modelName, ink }: {
                   <span className="absolute inset-y-0 left-0 rounded-full"
                     style={{ width: `${Math.min(row.held, 100)}%`, backgroundColor: ink }} />
                   <span aria-hidden="true"
-                    className="absolute inset-y-[-2px] w-px bg-ink-soft"
+                    className="absolute inset-y-[-2px] w-px bg-red-600"
                     style={{ left: `${Math.min(row.target, 100)}%` }} />
                 </span>
               </td>
@@ -778,7 +778,7 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
               Held
             </span>
             <span className="flex items-center gap-1.5">
-              <span aria-hidden="true" className="h-3.5 w-0.5 rounded-full bg-ink" />
+              <span aria-hidden="true" className="h-3.5 w-0.5 rounded-full bg-red-600" />
               Target
             </span>
           </p>
@@ -872,13 +872,17 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                         <td className="py-1.5 pr-4">
                           {/* The bar is what is held; the mark on it is what the plan asks for. Both on
                               one line, so the gap between them is a distance a reader sees rather than a
-                              subtraction they do. */}
+                              subtraction they do.
+
+                              The mark is red because it is a line to be on, not a line to pass: drawn in
+                              the ink the rest of the table is written in, it read as part of the bar's
+                              own furniture, and a reader had to be told it meant something. */}
                           <div className="relative h-2.5 w-full min-w-24 rounded-full bg-slate-100">
                             <div className="h-full rounded-full"
                               style={{ width: `${Math.min(100, (actual / scale) * 100)}%`, background: ink }} />
                             <span
                               aria-hidden="true"
-                              className="absolute top-[-3px] h-[17px] w-0.5 rounded-full bg-ink"
+                              className="absolute top-[-3px] h-[17px] w-0.5 rounded-full bg-red-600"
                               style={{ left: `${Math.min(100, (target / scale) * 100)}%` }}
                             />
                           </div>
