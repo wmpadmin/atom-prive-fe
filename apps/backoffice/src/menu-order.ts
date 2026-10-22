@@ -16,19 +16,26 @@
  * worked, and could be reached by nothing but a typed address.
  */
 export const MENU_ORDER: string[] = [
-  // What the firm does with money already under management.
-  "/portfolio-clients", "/model-portfolios", "/drift", "/bulk-rebalancing",
+  // Money already under management, in the order the desk works it: who is on a plan, what the plans
+  // are, how they are doing, who has wandered off one, and putting them back.
+  "/portfolio-clients", "/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing",
+
+  // Then what is waiting on somebody.
+  "/approvals", "/trade-logs",
+
+  // Then what the reader owes the firm themselves, what the platform will print for them, and the rules
+  // every screen above is judged by — read occasionally rather than worked, so they sit under the work
+  // rather than in front of it.
+  "/my-declarations", "/reports", "/portfolio-settings",
 
   // What exists before any client does, and would still exist with none.
-  "/config", "/portfolio-settings", "/roles", "/users", "/settings",
+  "/config", "/roles", "/users", "/settings",
   "/ingestion", "/sync-errors", "/notifications",
-  "/my-declarations", "/staff-declarations", "/staff-tracker", "/audit-log",
+  "/staff-declarations", "/staff-tracker", "/audit-log",
 
   // Everything that begins with a client: one from an empty form pack to advice signed off and sent,
-  // then the orders that advice raises, and the reads that come back off all of it.
+  // and the reads that come back off all of it.
   "/forms", "/onboarding", "/clients", "/my-clients",
   "/to-sign", "/client-documents", "/kyc-documents", "/kyc", "/post-onboarding",
-  "/approvals", "/trade-logs",
-  "/model-performance", "/model-risk", "/reports", "/dashboard",
-  "/proposal-trail", "/family-access",
+  "/model-risk", "/dashboard", "/proposal-trail", "/family-access",
 ];

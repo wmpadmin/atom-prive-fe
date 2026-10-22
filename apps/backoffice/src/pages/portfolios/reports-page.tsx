@@ -137,14 +137,6 @@ export function PortfolioReportsPage() {
         lead="Make a spreadsheet or a PDF out of what the platform already holds. Each one is kept, so you can open it again later and see exactly what it said on the day."
       />
 
-      {/* The firm's own note: the portfolio review is produced in a template nobody has supplied yet. */}
-      <Alert tone="info">
-The firm's own portfolio review is not here yet. It is written in a template the firm already uses, and
-        that template decides its columns and its pages — anything made here would be a different document with
-        the same name on it. Everything else below you can get as a spreadsheet or as a PDF on the firm's
-        letterhead.
-      </Alert>
-
       {mayProduce && (
         <section className="rounded-2xl border border-line bg-white p-5">
           {/* The two panels are told apart by once against over and over, so each heading says which it is
