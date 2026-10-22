@@ -124,7 +124,11 @@ export function BulkRebalancingPage() {
               setRaised(null);
             }}
           >
-            <option value="">Choose a model</option>
+            {/* Drawn only while nothing is chosen: the moment before the list arrives, and the case
+                where no plan is live to open on. Once the screen has settled on a plan it is the one
+                control on the page that does nothing — choosing it empties the picker, and the screen
+                puts the same plan straight back. */}
+            {modelId === "" && <option value="">Choose a model</option>}
             {(models.data?.items ?? []).map((model) => (
               <option key={model.id} value={model.id}>
                 {model.name}
