@@ -66,13 +66,13 @@ export function ModelPerformancePage() {
                 is one character and a plan's name is not, and six equal sixths set every figure adrift in
                 the middle of a column of its own. */}
             <colgroup>
-              <col className="w-[20%]" />
+              <col className="w-[22%]" />
               <col className="w-[8%]" />
+              <col className="w-[13%]" />
+              <col className="w-[13%]" />
               <col className="w-[14%]" />
+              <col className="w-[18%]" />
               <col className="w-[12%]" />
-              <col className="w-[16%]" />
-              <col className="w-[16%]" />
-              <col className="w-[14%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -84,7 +84,7 @@ export function ModelPerformancePage() {
                     every day since. */}
                 <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Outside band</th>
                 <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">To put right</th>
-                <th scope="col" className="px-4 py-3 whitespace-nowrap">Worst gap</th>
+                <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Worst gap</th>
                 <th scope="col" className="py-3 pr-5 pl-4 text-right">This year</th>
               </tr>
             </thead>
@@ -154,7 +154,10 @@ function Row({ row, currency }: { row: ModelPerformanceRow; currency: string }) 
       {/* The class the book is furthest from, and by how much. The furthest any one client is, not the
           sum across them: a class three clients are each slightly off is not the problem one client badly
           out is, and the second is what somebody opens the plan to deal with. */}
-      <td className="px-4 py-3 text-ink-soft">
+      {/* Right, like every other column after the name. Left-aligned between two columns of figures it
+          sat against its own left edge while they sat against their right, and the width it did not use
+          opened a hole down the middle of the table. */}
+      <td className="px-4 py-3 text-right text-ink-soft">
         {row.today.worstClass === null ? (
           <span className="text-ink-muted">—</span>
         ) : (
