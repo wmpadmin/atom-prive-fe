@@ -280,75 +280,74 @@ export function ClientPortfolioPage() {
       {tab === "performance" && (<>
       {/* One column, read top to bottom. Side by side, two panels are never the same height, so whichever
           is shorter leaves a hole beside the other — and the hole moves about as the figures change. */}
-      {/* The plan and the asking to change it, two to a row and both to the height of the taller. Left to
-          their own heights the short one stopped halfway down the tall one, and the row read as one card
-          with something unfinished beside it. */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border border-line bg-white px-6 py-5">
-          {/* The plan on its own. The Net AUM used to sit beside it, typed into this screen — it is worked
-              out by the calculator now, out of what the client holds, what they own that nobody manages and
-              what they owe, and a box here that could be typed over was a second answer to a question that
-              already has one. */}
-          {/* Picked once. Moving a client from one model to another — or off every model — decides what
-              counts as a breach and what the firm will be told to buy and sell, and the platform has a queue
-              for it that somebody else answers. This dropdown wrote it outright, so the queue could be walked
-              straight past by anyone who could reach the portfolio. Taking a client off is the same kind of
-              act and is asked for too: measured against nothing, they have no drift and no band, so the
-              monitoring simply stops. The first assignment is the one thing left here, because until it is
-              done they are measured against nothing anyway. */}
-          <Field id="client-model" label="Measured against" className="min-w-0">
-                <SelectInput
-                  id="client-model"
-                  value={model}
-                  disabled={onAmodel || setModel.isPending}
-                  onChange={(event) => {
-                    // Written the moment it is picked. There is no Save to keep it, and the only time this
-                    // box is open at all is a client measured against nothing — where picking is the whole
-                    // act and there is nothing to overrule.
-                    setModel.mutate({ customerId, data: { modelPortfolioId: event.target.value || null } });
-                  }}
-                >
-                  <option value="">No model — nothing to drift from</option>
-                  {/* A draft is a model still being written, and the API refuses to measure anybody against
-                      one. Offering it as though it could be picked turned that refusal into a failed save. */}
-                  {(models.data?.items ?? []).map((model) => (
-                    <option key={model.id} value={model.id} disabled={model.status === "DRAFT"}>
-                      {model.name}
-                      {/* What each model is written for, so it can be picked by the client's risk rather than
-                          picked and then checked. */}
-                      {` — ${riskProfileLabel(model.riskProfile)}`}
-                      {model.status === "DRAFT" ? " · still a draft" : ""}
-                      {model.status === "RETIRED" ? " · retired" : ""}
-                    </option>
-                  ))}
-            </SelectInput>
-          </Field>
-          {/* Writing one here is gone. A plan is written in Model portfolios and then a client is put on
-              it, which is one order of events rather than two: a plan nobody else can see, written on the
-              screen that measures one client against it, was a second way of making one — and the way that
-              skipped every reader a plan is supposed to pass. What is left is the picker above, where the
-              first is chosen outright and a change is asked of whoever looks after them. */}
-          {standing.data?.customModel && (
-            <p className="mt-3 text-xs text-ink-muted">
-              This client is on an allocation written for them alone. It is not offered to anybody else, not
-              rebalanced with the firm's plans, and nobody is told overnight when it drifts.
-            </p>
-          )}
-          <RiskMatchNote match={standing.data?.riskMatch ?? null} />
-        </section>
-
-        {/* Asking is not moving. An advisor who thinks their client is on the wrong plan says so here, and
-            whoever may move them answers it. Beside the plan rather than down the page: the two are one
-            question — what this client is measured against, and what somebody wants it to be — and read a
-            screen apart, the request read as a queue entry belonging to nobody. */}
-        {standing.data && (
-          <AskToChangeTheModel
-            customerId={customerId}
-            onModelId={standing.data.modelPortfolioId ?? null}
-            onModelName={standing.data.modelName ?? "no model"}
-          />
+      {/* The plan, and then the asking to change it. Side by side the two were never the same height —
+          one is three lines and the other is however many requests a client has had — so whichever was
+          shorter carried a hand's depth of empty card. One after the other, each takes only the room it
+          needs, and they stay together, which is the part that mattered. */}
+      <section className="rounded-2xl border border-line bg-white px-6 py-5">
+        {/* The plan on its own. The Net AUM used to sit beside it, typed into this screen — it is worked
+            out by the calculator now, out of what the client holds, what they own that nobody manages and
+            what they owe, and a box here that could be typed over was a second answer to a question that
+            already has one. */}
+        {/* Picked once. Moving a client from one model to another — or off every model — decides what
+            counts as a breach and what the firm will be told to buy and sell, and the platform has a queue
+            for it that somebody else answers. This dropdown wrote it outright, so the queue could be walked
+            straight past by anyone who could reach the portfolio. Taking a client off is the same kind of
+            act and is asked for too: measured against nothing, they have no drift and no band, so the
+            monitoring simply stops. The first assignment is the one thing left here, because until it is
+            done they are measured against nothing anyway. */}
+        <Field id="client-model" label="Measured against" className="min-w-0">
+              <SelectInput
+                id="client-model"
+                value={model}
+                disabled={onAmodel || setModel.isPending}
+                onChange={(event) => {
+                  // Written the moment it is picked. There is no Save to keep it, and the only time this
+                  // box is open at all is a client measured against nothing — where picking is the whole
+                  // act and there is nothing to overrule.
+                  setModel.mutate({ customerId, data: { modelPortfolioId: event.target.value || null } });
+                }}
+              >
+                <option value="">No model — nothing to drift from</option>
+                {/* A draft is a model still being written, and the API refuses to measure anybody against
+                    one. Offering it as though it could be picked turned that refusal into a failed save. */}
+                {(models.data?.items ?? []).map((model) => (
+                  <option key={model.id} value={model.id} disabled={model.status === "DRAFT"}>
+                    {model.name}
+                    {/* What each model is written for, so it can be picked by the client's risk rather than
+                        picked and then checked. */}
+                    {` — ${riskProfileLabel(model.riskProfile)}`}
+                    {model.status === "DRAFT" ? " · still a draft" : ""}
+                    {model.status === "RETIRED" ? " · retired" : ""}
+                  </option>
+                ))}
+          </SelectInput>
+        </Field>
+        {/* Writing one here is gone. A plan is written in Model portfolios and then a client is put on
+            it, which is one order of events rather than two: a plan nobody else can see, written on the
+            screen that measures one client against it, was a second way of making one — and the way that
+            skipped every reader a plan is supposed to pass. What is left is the picker above, where the
+            first is chosen outright and a change is asked of whoever looks after them. */}
+        {standing.data?.customModel && (
+          <p className="mt-3 text-xs text-ink-muted">
+            This client is on an allocation written for them alone. It is not offered to anybody else, not
+            rebalanced with the firm's plans, and nobody is told overnight when it drifts.
+          </p>
         )}
-      </div>
+        <RiskMatchNote match={standing.data?.riskMatch ?? null} />
+      </section>
+
+      {/* Asking is not moving. An advisor who thinks their client is on the wrong plan says so here, and
+          whoever may move them answers it. Directly under the plan rather than further down the page: the
+          two are one question — what this client is measured against, and what somebody wants it to be —
+          and read a screen apart, a waiting request looked like a queue entry belonging to nobody. */}
+      {standing.data && (
+        <AskToChangeTheModel
+          customerId={customerId}
+          onModelId={standing.data.modelPortfolioId ?? null}
+          onModelName={standing.data.modelName ?? "no model"}
+        />
+      )}
 
 
       {standing.data && standing.data.classes.length > 0 && (
