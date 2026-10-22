@@ -277,8 +277,19 @@ export function PortfolioClientsPage() {
   }
 
   const advisors = useListCustomerAdvisors<StaffMember[], ApiError>();
+  /*
+   * Every holder of a joint account, in their own right.
+   *
+   * <p>This is a list of portfolios, not of people. A joint account is one household and two portfolios,
+   * each measured against its own plan and drifting from it on its own — so answered once per household
+   * the desk loses a portfolio it manages. It showed: the plans counted fourteen clients between them
+   * and this list showed eleven, with nothing on either screen to say where the other three went.
+   *
+   * <p>The servicing list still answers once per household, which is right for it: that one is a list of
+   * people, and the row names everyone who holds the account.
+   */
   const clients = useListCustomers<CustomerPage, ApiError>(
-    { query: query || undefined, advisorId: advisorId || undefined, page, size },
+    { query: query || undefined, advisorId: advisorId || undefined, everyHolder: true, page, size },
     { query: { placeholderData: keepPreviousData } },
   );
   const onThisPage = (clients.data?.items ?? []).map((client) => client.id);
@@ -318,7 +329,7 @@ export function PortfolioClientsPage() {
         search={
           <ClientSearch
             value={typed.search}
-            filters={{ advisorId: advisorId || undefined }}
+            filters={{ advisorId: advisorId || undefined, everyHolder: true }}
             onChange={typed.change}
             onSearch={typed.apply}
           />
