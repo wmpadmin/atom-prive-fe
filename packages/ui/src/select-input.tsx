@@ -82,6 +82,16 @@ export function SelectInput({
    * position on screen and nothing has to know what any ancestor has scrolled.
    */
   const [box, setBox] = useState<{ left: number; top: number; bottom: number; width: number } | null>(null);
+  /**
+   * What the list is drawn inside: the nearest dialog if the control is in one, and the body otherwise.
+   *
+   * <p>A modal dialog is drawn in the browser's top layer, which is above the page rather than part of
+   * it, so a list put on the body opens underneath the dialog and its backdrop — present, focusable, and
+   * invisible. Drawn inside the dialog it joins the top layer with it. The dialog clips its own overflow,
+   * which is why the list cannot simply sit where it stands, but a list fixed to the window is not
+   * clipped by an ancestor that scrolls — only by one that transforms, and this one does not.
+   */
+  const [host, setHost] = useState<HTMLElement | null>(null);
   /** Which row the keyboard is on, which is not the same as which is chosen until Enter. */
   const [at, setAt] = useState(0);
 
@@ -123,6 +133,7 @@ export function SelectInput({
     const needed = Math.min(choices.length, 7) * 36 + 16;
     setUnder(seen.bottom + needed <= window.innerHeight || seen.top < needed);
     setBox({ left: seen.left, top: seen.bottom, bottom: window.innerHeight - seen.top, width: seen.width });
+    setHost(trigger.current?.closest("dialog") ?? document.body);
   }, [choices.length]);
 
   useLayoutEffect(() => {
@@ -261,7 +272,7 @@ export function SelectInput({
         </span>
       </button>
 
-      {open && box !== null && createPortal(
+      {open && box !== null && host !== null && createPortal(
         <ul
           ref={list}
           id={listId}
@@ -294,7 +305,7 @@ export function SelectInput({
             </li>
           ))}
         </ul>,
-        document.body,
+        host,
       )}
     </span>
   );
