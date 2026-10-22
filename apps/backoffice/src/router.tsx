@@ -53,7 +53,6 @@ import { OnboardingCasePage } from "./pages/onboarding/onboarding-case-page";
 import { OnboardingListPage } from "./pages/onboarding/onboarding-list-page";
 import { PostOnboardingPage } from "./pages/onboarding/post-onboarding-page";
 import { ModelDetailPage } from "./pages/portfolios/model-detail-page";
-import { ModelRiskPage } from "./pages/portfolios/model-risk-page";
 import { ManagementInformationPage } from "./pages/portfolios/management-information-page";
 import { PortfolioReportsPage } from "./pages/portfolios/reports-page";
 import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-page";
@@ -324,7 +323,11 @@ export const router = createBrowserRouter([
               { path: "bulk-rebalancing", element: <BulkRebalancingPage /> },
               { path: "model-changes", element: <Navigate to="/approvals?queue=model-changes" replace /> },
               { path: "model-performance", element: <ModelPerformancePage /> },
-              { path: "model-risk", element: <ModelRiskPage /> },
+              // The risk screen is off. Its movement figures count a client's opening balance as a
+              // return, so a plan reads as far more volatile than it is — and the screen was in no
+              // menu, so the firm asked for the way in closed rather than the figure caveated. A link
+              // in somebody's notes, or a tab they left open, lands on how the plans are doing.
+              { path: "model-risk", element: <Navigate to="/model-performance" replace /> },
               { path: "reports", element: <PortfolioReportsPage /> },
               { path: "mis", element: <ManagementInformationPage /> },
               { path: "portfolio-settings", element: <PortfolioSettingsPage /> },
