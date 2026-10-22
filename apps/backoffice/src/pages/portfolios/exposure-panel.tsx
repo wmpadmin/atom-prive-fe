@@ -7,7 +7,7 @@ import {
 import { Alert, Badge, cn } from "@atomprive/ui";
 import { useState } from "react";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
-import { standingLabels, standingTones, type DriftStanding } from "./portfolio-labels";
+import { standingLabels, standingTones } from "./portfolio-labels";
 
 type Dimension = "geography" | "sector";
 
@@ -132,8 +132,8 @@ export function ExposurePanel({ customerId }: { customerId: string }) {
                       {one.standing === null ? (
                         <span className="text-xs text-ink-muted">Not asked for</span>
                       ) : (
-                        <Badge tone={standingTones[one.standing as DriftStanding]}>
-                          {standingLabels[one.standing as DriftStanding]}
+                        <Badge tone={standingTones[one.standing]}>
+                          {standingLabels[one.standing]}
                         </Badge>
                       )}
                     </td>
