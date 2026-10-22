@@ -200,10 +200,15 @@ function daysBetween(period?: PeriodReturn) {
   return `${(days / 365).toFixed(1)} years`;
 }
 
-/** "+8.2%", "−1.1%", and a true zero as "0.0%". */
+/**
+ * "+8.2%", "−1.1%", and anything that comes out as nought as "0.0%".
+ *
+ * <p>The sign is decided by what is drawn, not by what was worked out. A plan up a fiftieth of a percent
+ * read "+0.0%" beside a plan that had not moved at all reading "0.0%" — two figures the reader cannot
+ * tell apart, written differently, which reads as one of them being wrong.
+ */
 function percentLabel(percent: number) {
   const rounded = Math.abs(percent).toFixed(1);
-  if (percent > 0) return `+${rounded}%`;
-  if (percent < 0) return `−${rounded}%`;
-  return "0.0%";
+  if (rounded === "0.0") return "0.0%";
+  return percent > 0 ? `+${rounded}%` : `−${rounded}%`;
 }
