@@ -8,7 +8,12 @@ import { underManagementLabel } from "./portfolio-labels";
 
 /**
  * How risky each plan is.
-
+ *
+ * <p>Mounted on nothing: the firm does not want this screen. Not for want of right figures — the movement
+ * ones were wrong, counting the balance a client arrives with as something the plan earned, and that is
+ * fixed on the server and held there by a test. This is a decision about what the desk reads. The screen
+ * is kept whole because turning one back on here is a line in the router, and both of the last two that
+ * were turned off were wanted back.
  *
  * <p>The screen is two halves, and they are not equally well founded. Movement, the deepest drop and return
  * over risk need a price history; the platform holds the days somebody wrote the holdings down, not a daily
