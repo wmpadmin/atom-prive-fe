@@ -247,7 +247,7 @@ export function ClientPortfolioPage() {
               client was set up, the one screen that shows the working became unreachable. */}
           <div className="flex items-center gap-3">
             <Link to={`/portfolio-clients/${customerId}/net-aum`}>
-              <Button variant="secondary">Net AUM calculator</Button>
+              <Button size="lg">Net AUM calculator</Button>
             </Link>
             {standing.data && standing.data.underManagement > 0 && (
               <div className="text-right">
