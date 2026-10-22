@@ -1,6 +1,5 @@
 import type { PlannedLeg } from "@atomprive/api-client/backoffice";
 import { cn } from "@atomprive/ui";
-import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { figure, netted, overItsBand } from "./money-words";
 
 /**
@@ -16,9 +15,6 @@ import { figure, netted, overItsBand } from "./money-words";
  */
 export function WhatItWouldLeave({ legs }: { legs: PlannedLeg[] }) {
   const leaves = netted(legs);
-  // Taken above the empty check below, because a hook cannot be called after a return: the netting is
-  // already done by this point, so the page is settled whether or not there is anything to draw.
-  const paged = usePagedRows(leaves);
   if (leaves.length === 0) {
     return null;
   }
@@ -43,7 +39,7 @@ export function WhatItWouldLeave({ legs }: { legs: PlannedLeg[] }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
-          {paged.shown.map((line) => (
+          {leaves.map((line) => (
             <tr key={line.name} className="align-top">
               <th scope="row" className="py-2.5 pr-3 text-left font-medium break-words text-ink">
                 {line.name}
@@ -78,7 +74,6 @@ export function WhatItWouldLeave({ legs }: { legs: PlannedLeg[] }) {
           ))}
         </tbody>
       </table>
-      <PagedFooter paged={paged} noun={["line", "lines"]} />
     </div>
   );
 }

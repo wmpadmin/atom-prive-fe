@@ -297,12 +297,18 @@ function overIts(group: SubClassGroup): number | null {
  * is also what makes the deeper level correct for nothing: a nested line's target is a share of its parent
  * rather than of its class, so a screen doing its own arithmetic would have had to learn where it sat.
  */
-function SubAssetRow({ group, whole, currency, depth, onPlan }: {
+function SubAssetRow({ group, whole, currency, depth, readOnly, onPlan }: {
   group: SubClassGroup;
   /** Everything the client has, which is the one denominator every share on this table is out of. */
   whole: number;
   currency: string;
   depth: number;
+  /**
+   * Whether this reader only looks. The relationship manager reads this table to answer what a client
+   * asked for, and moving money out of a line is not theirs to start — so the suggestion is a figure
+   * rather than a way in, and the row it sits on does nothing when pressed.
+   */
+  readOnly: boolean;
   /**
    * Opens the plan for whichever line was pressed. Bound by the caller rather than built here from an
    * asset class passed down, so the identity of a line — its class, its sub-asset and itself — is
@@ -342,13 +348,16 @@ function SubAssetRow({ group, whole, currency, depth, onPlan }: {
   // line are refused, so the second could only fail. The list of somewhere-to-put-it says the same thing
   // from the other side: a broken-down line is not a destination either, only its parts are.
   const toShed = broken ? null : overIts(group);
+  // There is something to move, and this reader is one who may start it. Both have to hold: a figure
+  // nobody can act on should not be lit as though they could.
+  const canPlan = !readOnly && toShed !== null;
   const named = group.subSubClass ?? group.subClass ?? UNGROUPED;
 
   return (
     <>
       <tr
-        className={cn("align-middle", toShed !== null && "cursor-pointer hover:bg-primary-50/40")}
-        onClick={toShed === null ? undefined : () => onPlan(group)}
+        className={cn("align-middle", canPlan && "cursor-pointer hover:bg-primary-50/40")}
+        onClick={canPlan ? () => onPlan(group) : undefined}
       >
         {/* A row group is one sub-asset, so only the sub-asset heads one. A line inside it heads its own
             row and nothing below it, which is what scope="row" says. */}
@@ -419,7 +428,7 @@ function SubAssetRow({ group, whole, currency, depth, onPlan }: {
                 + "This line needs money put in."
               : undefined}
         >
-          {move == null ? "—" : toShed === null ? (
+          {move == null ? "—" : !canPlan ? (
             <>
               <span className="text-2xs font-semibold tracking-wider uppercase">
                 {move.word}
@@ -457,6 +466,7 @@ function SubAssetRow({ group, whole, currency, depth, onPlan }: {
           whole={whole}
           currency={currency}
           depth={depth + 1}
+          readOnly={readOnly}
           onPlan={onPlan}
         />
       ))}
@@ -1173,15 +1183,16 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
  * a line inside a sub-asset is part of it — and the class's own total is the server's figure, read on
  * the row above this table rather than added up from whichever rows are on screen.
  */
-function SubAssetTable({ klass, whole, currency, onPlan }: {
+function SubAssetTable({ klass, whole, currency, readOnly, onPlan }: {
   klass: ClassPositions;
   /** Everything the client has, which is the one denominator every share on this table is out of. */
   whole: number;
   currency: string;
+  /** Passed straight through: whether the reader may act on a line, or only read it. */
+  readOnly: boolean;
   /** Opens the plan for whichever line was pressed, bound by the caller as it always was. */
   onPlan: (group: SubClassGroup) => void;
 }) {
-  const paged = usePagedRows(klass.subClasses);
   return (
     <>
       <div className="overflow-x-auto border-t border-ink/15 bg-slate-50/40">
@@ -1234,7 +1245,7 @@ function SubAssetTable({ klass, whole, currency, onPlan }: {
           {/* One row group per sub-asset, whatever the plan breaks it into: a line inside
               one is still part of it, and ending the group at each line would make the rule
               those borders draw — one sub-asset, one block — stop meaning anything. */}
-          {paged.shown.map((group) => (
+          {klass.subClasses.map((group) => (
             <tbody
               key={theLine(group.subClass, group.subSubClass)}
               className="border-b border-ink/15 last:border-0"
@@ -1244,15 +1255,13 @@ function SubAssetTable({ klass, whole, currency, onPlan }: {
                 whole={whole}
                 currency={currency}
                 depth={0}
+                readOnly={readOnly}
                 onPlan={onPlan}
               />
             </tbody>
           ))}
         </table>
       </div>
-      {/* Outside the strip the table scrolls in and inside the card, which hides whatever runs past
-          its own edge: a count below the card would be a count nobody could see. */}
-      <PagedFooter paged={paged} noun={["sub-asset", "sub-assets"]} />
     </>
   );
 }
@@ -1739,6 +1748,7 @@ export function ClientHoldingsPanel({
                     klass={one}
                     whole={whole}
                     currency={currency}
+                    readOnly={readOnly}
                     onPlan={(which) => setPlanning({
                       changing: null,
                       assetClass: one.assetClass,
