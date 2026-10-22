@@ -142,6 +142,7 @@ function Percent({
   muted?: boolean;
   last?: boolean;
 }) {
+  const span = daysBetween(period);
   return (
     <td
       className={cn(
@@ -159,8 +160,44 @@ function Percent({
       }
     >
       {value === null ? <span className="text-ink-muted">—</span> : percentLabel(value)}
+      {/* What the figure actually covers, said under the figure rather than in a column of its own: the
+          two percentages are measured over different periods, and one column could only describe one of
+          them. Without it, four days of a portfolio being written down properly read as a year's
+          performance — "+4155.4%" under a heading that says "This year". */}
+      {value !== null && span !== null && (
+        <span className="mt-0.5 block text-xs font-normal text-ink-muted">over {span}</span>
+      )}
     </td>
   );
+}
+
+/**
+ * How long a figure was measured over, in the plainest unit that fits.
+ *
+ * <p>Counted between the first day written down and the last, which is the period the return actually
+ * covers — not the calendar period its heading names. A plan measured over four days of figures and a
+ * plan measured over a year both sit under "This year", and the percentage alone cannot tell them apart.
+ */
+function daysBetween(period?: PeriodReturn) {
+  if (!period?.from || !period.to) {
+    return null;
+  }
+  const days = Math.round(
+    (new Date(period.to).getTime() - new Date(period.from).getTime()) / 86_400_000,
+  );
+  if (days < 1) {
+    return "one day";
+  }
+  if (days < 14) {
+    return `${days} days`;
+  }
+  if (days < 60) {
+    return `${Math.round(days / 7)} weeks`;
+  }
+  if (days < 730) {
+    return `${Math.round(days / 30)} months`;
+  }
+  return `${(days / 365).toFixed(1)} years`;
 }
 
 /** "+8.2%", "−1.1%", and a true zero as "0.0%". */
