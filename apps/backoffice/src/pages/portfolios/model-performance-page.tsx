@@ -61,13 +61,16 @@ export function ModelPerformancePage() {
               size itself, the column of dates pushed to the far right of the table and left a hand's
               width of nothing between it and the figure it belongs beside. Six columns, one width. */}
           <table className="w-full table-fixed text-sm">
+            {/* Weighted to what each column holds rather than split six equal ways: a count of clients
+                is one character and a plan's name is not, and six equal sixths set every figure adrift in
+                the middle of a column of its own. */}
             <colgroup>
-              <col className="w-1/6" />
-              <col className="w-1/6" />
-              <col className="w-1/6" />
-              <col className="w-1/6" />
-              <col className="w-1/6" />
-              <col className="w-1/6" />
+              <col className="w-[24%]" />
+              <col className="w-[10%]" />
+              <col className="w-[18%]" />
+              <col className="w-[16%]" />
+              <col className="w-[16%]" />
+              <col className="w-[16%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -165,39 +168,39 @@ function Percent({
           them. Without it, four days of a portfolio being written down properly read as a year's
           performance — "+4155.4%" under a heading that says "This year". */}
       {value !== null && span !== null && (
-        <span className="mt-0.5 block text-xs font-normal text-ink-muted">over {span}</span>
+        <span className="mt-0.5 block text-xs font-normal text-ink-muted">{span}</span>
       )}
     </td>
   );
 }
 
 /**
- * How long a figure was measured over, in the plainest unit that fits.
+ * The days a figure actually covers, said as the two days themselves.
  *
- * <p>Counted between the first day written down and the last, which is the period the return actually
- * covers — not the calendar period its heading names. A plan measured over four days of figures and a
- * plan measured over a year both sit under "This year", and the percentage alone cannot tell them apart.
+ * <p>It was a count — "over 5 days" — and a count is read as the age of the thing beside it. A plan
+ * written on the 16th, read on the 22nd, whose last figure is the 21st, is six days old and measured over
+ * five, and nobody should have to work that out. The two days say it outright.
+ *
+ * <p>The first day is the first one written down inside the period, not the day the period opens: a plan
+ * written in March whose first portfolio was written down in June is measured from June, because a return
+ * needs a figure to start at.
  */
 function daysBetween(period?: PeriodReturn) {
   if (!period?.from || !period.to) {
     return null;
   }
-  const days = Math.round(
-    (new Date(period.to).getTime() - new Date(period.from).getTime()) / 86_400_000,
-  );
-  if (days < 1) {
-    return "one day";
+  const from = new Date(period.from);
+  const to = new Date(period.to);
+  const day = (when: Date) => when.getDate();
+  const month = (when: Date) => when.toLocaleDateString("en-GB", { month: "short" });
+  const year = (when: Date) => when.getFullYear();
+  if (year(from) !== year(to)) {
+    return `${day(from)} ${month(from)} ${year(from)} – ${day(to)} ${month(to)} ${year(to)}`;
   }
-  if (days < 14) {
-    return `${days} days`;
-  }
-  if (days < 60) {
-    return `${Math.round(days / 7)} weeks`;
-  }
-  if (days < 730) {
-    return `${Math.round(days / 30)} months`;
-  }
-  return `${(days / 365).toFixed(1)} years`;
+  // Within one month the month is said once: "16–21 Oct" rather than "16 Oct – 21 Oct".
+  return month(from) === month(to)
+    ? `${day(from)}–${day(to)} ${month(to)}`
+    : `${day(from)} ${month(from)} – ${day(to)} ${month(to)}`;
 }
 
 /**
