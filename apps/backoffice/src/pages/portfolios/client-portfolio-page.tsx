@@ -22,7 +22,6 @@ import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { AttributionPanel } from "./attribution-panel";
 import { NetAumPanel } from "./net-aum-panel";
-import { FixedIncomePanel } from "./fixed-income-panel";
 import { useAssetClasses } from "./asset-classes";
 import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
@@ -244,7 +243,10 @@ export function ClientPortfolioPage() {
             down yet and opens the portfolio once they have — so the moment a client was set up, the one
             screen that shows the working became unreachable. */}
         <div className="flex items-center gap-3">
-          <Link to={`/portfolio-clients/${customerId}/net-aum`}>
+          {/* Said where it was opened from. The calculator is a dialog over the clients list, so closing
+              it puts somebody back on that list unless the address says otherwise — and a reader who
+              opened it from a client's own screen had the screen they were working on taken away. */}
+          <Link to={`/portfolio-clients/${customerId}/net-aum?from=portfolio`}>
             <Button size="lg">Net AUM calculator</Button>
           </Link>
           {/* What it is worth and how it stands, read down: the money first, the verdict about it under.
@@ -443,18 +445,16 @@ export function ClientPortfolioPage() {
           top of the screen under a second name. */}
       <NetAumPanel customerId={customerId} />
 
-      {/* These two were taken off with a third when none of them could answer: no holding carried a yield,
-          a duration, a country or a sector, so each said "no bond carries a yield yet" under every client
-          the firm had. A panel that cannot answer is worse than no panel, because it is read as the
-          answer. They are back because the holdings now carry what they read — every line names a country
-          and a sector, every bond a yield, a duration and a grade, and the lines add up to their classes
-          to the penny on every client, so both cover the whole book rather than a corner of it.
+      {/* Where the change came from was taken off in October with two others when none of them could
+          answer, and is back because the holdings now carry what it reads: every line names a country and
+          a sector, and the lines add up to their classes to the penny on every client.
 
-          Where the money sits by country and by sector is still off, and for the reason that has NOT
-          expired: no model carries a country or a sector target, and the dialog that set them was taken
-          off the same day. Three of its six columns would be a dash under every client. */}
-      <FixedIncomePanel customerId={customerId} />
-
+          The other two stay off. What the bonds do — the yield, the duration and what it lends to — the
+          firm does not want on this screen. Where the money sits by country and by sector could not
+          answer anyway: no model carries a country or a sector target, and the dialog that set them was
+          taken off the same day, so three of its six columns would be a dash under every client. Both are
+          left on disk unreferenced, which is how a screen turned off here is kept — twice now one has
+          been wanted back. */}
       <AttributionPanel customerId={customerId} />
 
       {standing.data && (
