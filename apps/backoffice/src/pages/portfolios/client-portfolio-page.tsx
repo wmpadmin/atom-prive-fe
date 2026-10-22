@@ -240,29 +240,32 @@ export function ClientPortfolioPage() {
         {/* The figure on its own line and the verdict under it. Side by side the badge sat level with
             the caption and read as a label on the money, when it is a verdict about the portfolio. */}
         <div className="flex flex-col items-end gap-2">
-          {standing.data && standing.data.underManagement > 0 && (
-            <div className="text-right">
-              <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                Under management
-              </p>
-              <p className="text-xl font-bold whitespace-nowrap text-ink tabular-nums">
-                {worthLabel(standing.data.underManagement, standing.data.currency)}
-              </p>
-            </div>
-          )}
+          {/* The way back into the calculator, on the line of the figure it works out rather than under
+              it: stacked below the verdict it read as a third thing about the portfolio, when it is the
+              way into how the figure above it is reached. The clients list opens the calculator for a
+              client nobody has written down yet and opens the portfolio once they have — so the moment a
+              client was set up, the one screen that shows the working became unreachable. */}
+          <div className="flex items-center gap-3">
+            <Link to={`/portfolio-clients/${customerId}/net-aum`}>
+              <Button variant="secondary">Net AUM calculator</Button>
+            </Link>
+            {standing.data && standing.data.underManagement > 0 && (
+              <div className="text-right">
+                <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  Under management
+                </p>
+                <p className="text-xl font-bold whitespace-nowrap text-ink tabular-nums">
+                  {worthLabel(standing.data.underManagement, standing.data.currency)}
+                </p>
+              </div>
+            )}
+          </div>
           {standing.data?.standing && (
             <Badge tone={standingTones[standing.data.standing]}>
               {standingLabels[standing.data.standing]}
               {standing.data.drift === null ? "" : ` · ${driftLabel(standing.data.drift)}`}
             </Badge>
           )}
-          {/* The way back into the calculator, beside the figure it works out. The clients list opens it
-              for a client nobody has written down yet and opens the portfolio once they have — so the
-              moment a client was set up, the one screen that shows the working became unreachable, and
-              the figure beside this button had no way of being read back to where it came from. */}
-          <Link to={`/portfolio-clients/${customerId}/net-aum`}>
-            <Button variant="secondary">Net AUM calculator</Button>
-          </Link>
         </div>
       </header>
 
