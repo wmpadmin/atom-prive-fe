@@ -10,8 +10,11 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
+import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { ColumnPicker } from "../../components/column-picker";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
+import { useTableView } from "../../lib/table-view";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { formatDate } from "../../lib/labels";
@@ -87,6 +90,155 @@ function Earned({ percent, days, flows }: { percent: number; days: number; flows
  * dated. Until somebody has done that for a client, their columns are empty, and they say so rather than
  * reading as a portfolio worth nothing.
  */
+/** One client's row, gathered once so every column is written against the same reading of them. */
+type Row = {
+  client: CustomerRow;
+  standing: PortfolioStanding | undefined;
+  /** Where the row goes when it is opened, which two columns both link to. */
+  opens: string;
+  done: boolean;
+};
+
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>Written as a list rather than as nine pairs of tags because a reader can now reorder them: a
+ * heading and the cells under it have to travel together, and the only way to be sure they do is for
+ * each column to be one thing that knows both.
+ *
+ * <p>The client is not here, and neither is the way in at the end. A row with no client on it cannot be
+ * told from any other row, and an action with no heading cannot be dragged or found in a list — so
+ * those two are drawn where they are, and everything between them is the reader's to arrange.
+ */
+const MOVABLE: {
+  id: string;
+  label: string;
+  align: "left" | "right";
+  cell: (row: Row) => ReactNode;
+}[] = [
+  {
+    id: "advisor",
+    label: "Advisor",
+    align: "left",
+    cell: ({ client }) => <AdvisorStack advisors={client.advisors} />,
+  },
+  {
+    id: "risk",
+    label: "Risk profile",
+    align: "left",
+    cell: ({ standing }) => standing?.modelName ?? <span className="text-ink-muted">{NOTHING_YET}</span>,
+  },
+  {
+    id: "return",
+    label: "Return",
+    align: "right",
+    /*
+     * One column, two figures stacked. Side by side they were two columns of a table already eleven
+     * wide, under a heading that had to break over two lines to fit — and a reader looking for the one
+     * figure they came for had to find which of two "Return" columns it was in. The whole of it reads
+     * first; the rate per year sits under it in small, which is the order somebody asks them in.
+     *
+     * Nothing is not nought. A client whose holdings were written down once has one photograph and no
+     * period at all, and a nought beside their name would read as a year of going nowhere rather than
+     * as a question nobody can answer yet. Under a year there is no yearly rate to put underneath
+     * either: eleven days of three per cent annualises to something near a hundred and seventy, which
+     * is not wrong so much as it is not an answer.
+     *
+     * Nothing either for a client on no model. A return is worked out from what somebody wrote down, so
+     * a figure here beside an empty Risk profile reads as performance against a plan that does not
+     * exist.
+     */
+    cell: ({ standing }) => (standing?.earned && standing.modelName ? (
+      <>
+        <Earned percent={standing.earned.sinceInception} days={standing.earned.days}
+          flows={standing.earned.flows} />
+        {standing.earned.perYear != null && (
+          <span className="mt-0.5 block text-2xs text-ink-muted">
+            {standing.earned.perYear > 0 ? "+" : ""}
+            {standing.earned.perYear.toFixed(2)}% a year
+          </span>
+        )}
+      </>
+    ) : (
+      <span className="text-ink-muted">{NOTHING_YET}</span>
+    )),
+  },
+  {
+    id: "aum",
+    label: "AUM",
+    align: "right",
+    cell: ({ standing }) => (standing && standing.underManagement > 0 ? (
+      <span className="font-semibold text-ink">
+        {underManagementLabel(standing.underManagement, standing.currency)}
+      </span>
+    ) : (
+      <span className="text-ink-muted">{NOTHING_YET}</span>
+    )),
+  },
+  {
+    id: "drift",
+    label: "Drift",
+    align: "right",
+    /*
+     * The same gap twice, stacked rather than side by side. Money is what has to change hands and reads
+     * first; points are what the band is written in and what the verdict beside it is read off, so they
+     * sit under in small. The sign is the same on both: drift is what is held less what is asked for,
+     * so a plus is money the class holds over its target and a minus is money it is short of.
+     *
+     * Nothing is signed where there is nothing to sign. A class exactly on its target is not nought
+     * over and not nought short, and "−USD 0" is a minus sign doing no work.
+     */
+    cell: ({ standing }) => (standing?.drift == null ? (
+      <span className="text-ink-muted">{NOTHING_YET}</span>
+    ) : (
+      <span title={standing.driftValue == null ? undefined
+        : "The class furthest from its target is "
+          + `${underManagementLabel(Math.abs(standing.driftValue), standing.currency)} `
+          + (standing.driftValue > 0 ? "over" : "short of") + " what the model asks of it."}>
+        {standing.driftValue == null ? NOTHING_YET : (
+          <>
+            {standing.driftValue > 0 ? "+" : standing.driftValue < 0 ? "−" : ""}
+            {underManagementLabel(Math.abs(standing.driftValue), standing.currency)}
+          </>
+        )}
+        <span className="mt-0.5 block text-2xs font-normal opacity-75">
+          {driftLabel(standing.drift)}
+        </span>
+      </span>
+    )),
+  },
+  {
+    id: "status",
+    label: "Status",
+    align: "left",
+    cell: ({ standing }) => (standing?.standing ? (
+      <Badge tone={standingTones[standing.standing]}>{standingLabels[standing.standing]}</Badge>
+    ) : (
+      <span className="text-ink-muted">{NOTHING_YET}</span>
+    )),
+  },
+  {
+    id: "registered",
+    label: "Registered",
+    align: "left",
+    /*
+     * When they became a client, which is the moment the firm has a record of. It comes with the row
+     * rather than with the standing: a client who has had nothing written down yet still has a day they
+     * arrived.
+     *
+     * "Registered", the same word the servicing clients list uses for the same field. Two screens naming
+     * one date two ways makes a reader wonder which one they are looking at.
+     */
+    cell: ({ client }) => formatDate(client.registeredAt),
+  },
+];
+
+/** What the drift column paints its figure in, which depends on the verdict rather than the sign. */
+function toneOf(id: string, standing: PortfolioStanding | undefined) {
+  if (id !== "drift") return undefined;
+  return standing?.standing == null ? "text-ink-muted" : driftTones[standing.standing];
+}
+
 export function PortfolioClientsPage() {
   const navigate = useNavigate();
   const { params, update } = useListAddress();
@@ -108,6 +260,14 @@ export function PortfolioClientsPage() {
   const size = Number(params.get("size")) || PAGE_SIZES[0]!;
   const typed = useTypedSearch(query, update);
   const filtered = query !== "" || advisorId !== "";
+
+  // How this reader has arranged the table, read back out of their own browser. Nobody else sees it and
+  // nothing about a client depends on it, which is why it is kept there rather than against the account.
+  const view = useTableView("portfolio-clients", MOVABLE.map((one) => one.id));
+  // Which heading is being dragged, so the one under the cursor can say it will take the drop.
+  const [dragging, setDragging] = useState<string | null>(null);
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   function clearFilters() {
     typed.clear();
@@ -169,38 +329,71 @@ export function PortfolioClientsPage() {
               </SelectInput>
             </label>
 
+            {/* Beside the filters, because arranging the table is the same kind of act as narrowing it:
+                both are about what this reader wants in front of them rather than about any client. */}
+            <ColumnPicker
+              columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+              shown={new Set(view.shown)}
+              order={view.order}
+              arranged={view.arranged}
+              onChange={(next) => {
+                for (const one of MOVABLE) {
+                  if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+                }
+              }}
+              onMove={view.move}
+              onReset={view.reset}
+            />
           </>
         }
         filtered={filtered}
         onClear={clearFilters}
         head={
           <>
+            {/* The client stays where it is. A row with no client on it cannot be told from any other
+                row, so this one is not offered to be moved or taken off. */}
             <th scope="col" className="px-5 py-3 text-left font-semibold">Client</th>
-            <th scope="col" className="px-4 py-3 text-left font-semibold">Advisor</th>
-            <th scope="col" className="px-4 py-3 text-left font-semibold">Risk profile</th>
-            {/* One column, two figures stacked. Side by side they were two columns of a table already
-                eleven wide, under a heading that had to break over two lines to fit — and a reader
-                looking for the one figure they came for had to find which of two "Return" columns it
-                was in. The whole of it reads first; the rate per year sits under it in small, which is
-                the order somebody asks them in. */}
-            <th scope="col" className="px-4 py-3 text-right font-semibold">Return</th>
-            <th scope="col" className="px-4 py-3 text-right font-semibold">AUM</th>
-            {/* The same gap twice, stacked rather than side by side. Money is what has to change hands
-                and reads first; points are what the band is written in and what the verdict beside it is
-                read off, so they sit under in small. */}
-            <th scope="col" className="px-4 py-3 text-right font-semibold">Drift</th>
-            <th scope="col" className="px-4 py-3 text-left font-semibold">Status</th>
-            {/* The two dates together, because they are read as a pair: how long the firm has had them,
-                and how long since anybody touched it. */}
-            {/* "Registered", the same word the servicing clients list uses for the same field. Two
-                screens naming one date two ways makes a reader wonder which one they are looking at. */}
-            <th scope="col" className="px-4 py-3 text-left font-semibold">Registered</th>
+            {shownColumns.map((column, at) => (
+              <th
+                key={column.id}
+                scope="col"
+                draggable
+                onDragStart={(event) => {
+                  setDragging(column.id);
+                  event.dataTransfer.effectAllowed = "move";
+                  // Firefox starts no drag at all without something on the transfer.
+                  event.dataTransfer.setData("text/plain", column.id);
+                }}
+                onDragEnd={() => setDragging(null)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const moved = dragging ?? event.dataTransfer.getData("text/plain");
+                  // Where it was dropped, read against the whole order rather than against the columns
+                  // on screen: a column dropped past a hidden one must not jump over it.
+                  if (moved && moved !== column.id) view.move(moved, view.order.indexOf(column.id));
+                  setDragging(null);
+                }}
+                className={cn(
+                  "cursor-grab px-4 py-3 font-semibold select-none active:cursor-grabbing",
+                  column.align === "right" ? "text-right" : "text-left",
+                  dragging === column.id && "opacity-40",
+                  dragging !== null && dragging !== column.id && "bg-primary-50/60",
+                )}
+                title={`Drag to move ${column.label}`}
+              >
+                {column.label}
+                <span className="sr-only">
+                  , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                </span>
+              </th>
+            ))}
             <th scope="col" className="px-4 py-3 text-right font-semibold">
               <span className="sr-only">Open</span>
             </th>
           </>
         }
-        columns={10}
+        columns={shownColumns.length + 2}
         loading={clients.isLoading}
         stale={clients.isPlaceholderData}
         empty={
@@ -253,95 +446,21 @@ export function PortfolioClientsPage() {
                   </div>
                 </div>
               </td>
-              <td className="px-4 py-3">
-                <AdvisorStack advisors={client.advisors} />
-              </td>
-              <td className="px-4 py-3">
-                {standing?.modelName ?? <span className="text-ink-muted">{NOTHING_YET}</span>}
-              </td>
-              {/* Nothing is not nought. A client whose holdings were written down once has one
-                  photograph and no period at all, and a nought beside their name would read as a year of
-                  going nowhere rather than as a question nobody can answer yet.
-
-                  Under a year there is no yearly rate to put underneath: eleven days of three per cent
-                  annualises to something near a hundred and seventy, which is not wrong so much as it is
-                  not an answer. The line simply is not drawn, and the hover says why. */}
-              <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
-                {/* Nothing for a client on no model. The firm asked for it left empty until one is
-                    assigned: a return is worked out from what somebody wrote down, so a client who is
-                    not being measured against anything yet has one the moment two figures exist — and a
-                    figure in this column beside an empty Model column reads as performance against a
-                    plan that does not exist. */}
-                {standing?.earned && standing.modelName ? (
-                  <>
-                    <Earned percent={standing.earned.sinceInception} days={standing.earned.days}
-                      flows={standing.earned.flows} />
-                    {standing.earned.perYear != null && (
-                      <span className="mt-0.5 block text-2xs text-ink-muted">
-                        {standing.earned.perYear > 0 ? "+" : ""}
-                        {standing.earned.perYear.toFixed(2)}% a year
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-ink-muted">{NOTHING_YET}</span>
-                )}
-              </td>
-              <td className="px-4 py-3 text-right whitespace-nowrap">
-                {standing && standing.underManagement > 0 ? (
-                  <span className="font-semibold text-ink">
-                    {underManagementLabel(standing.underManagement, standing.currency)}
-                  </span>
-                ) : (
-                  <span className="text-ink-muted">{NOTHING_YET}</span>
-                )}
-              </td>
-              {/* The money first, because that is the figure somebody acts on, and the points under it
-                  because that is what the band is written in and what the verdict beside it is read off.
-                  The sign is the same on both: drift is what is held less what is asked for, so a plus is
-                  money the class holds over its target and a minus is money it is short of.
-
-                  Nothing is signed where there is nothing to sign. A class exactly on its target is not
-                  nought over and not nought short, and "−USD 0" is a minus sign doing no work. */}
-              <td
-                className={cn(
-                  "px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums",
-                  standing?.standing == null ? "text-ink-muted" : driftTones[standing.standing],
-                )}
-              >
-                {standing?.drift == null ? (
-                  <span className="text-ink-muted">{NOTHING_YET}</span>
-                ) : (
-                  <span title={standing.driftValue == null ? undefined
-                    : "The class furthest from its target is "
-                      + `${underManagementLabel(Math.abs(standing.driftValue), standing.currency)} `
-                      + (standing.driftValue > 0 ? "over" : "short of") + " what the model asks of it."}>
-                    {standing.driftValue == null ? NOTHING_YET : (
-                      <>
-                        {standing.driftValue > 0 ? "+" : standing.driftValue < 0 ? "−" : ""}
-                        {underManagementLabel(Math.abs(standing.driftValue), standing.currency)}
-                      </>
-                    )}
-                    <span className="mt-0.5 block text-2xs font-normal opacity-75">
-                      {driftLabel(standing.drift)}
-                    </span>
-                  </span>
-                )}
-              </td>
-              <td className="px-4 py-3">
-                {standing?.standing ? (
-                  <Badge tone={standingTones[standing.standing]}>{standingLabels[standing.standing]}</Badge>
-                ) : (
-                  <span className="text-ink-muted">{NOTHING_YET}</span>
-                )}
-
-              </td>
-              {/* When they became a client, which is the moment the firm has a record of. It comes with
-                  the row rather than with the standing: a client who has had nothing written down yet
-                  still has a day they arrived. */}
-              <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                {formatDate(client.registeredAt)}
-              </td>
+              {/* The cells in the order the headings are in, out of the one list that holds both: a
+                  heading and what sits under it cannot drift apart if neither is written twice. */}
+              {shownColumns.map((column) => (
+                <td
+                  key={column.id}
+                  className={cn(
+                    "px-4 py-3",
+                    column.align === "right" && "text-right whitespace-nowrap tabular-nums",
+                    column.id === "drift" && "font-semibold",
+                    toneOf(column.id, standing),
+                  )}
+                >
+                  {column.cell({ client, standing, opens, done })}
+                </td>
+              ))}
               <td className="px-4 py-3 text-right">
                 <Link
                   to={opens}
