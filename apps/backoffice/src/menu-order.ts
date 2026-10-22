@@ -10,6 +10,11 @@
  * managing money against a plan, then the firm's own setup and the people who run it, then everything
  * that begins with a client and reads forward from one.
  *
+ * <p>A name here that no menu entry answers to orders nothing, and is worth deleting rather than
+ * leaving: read on its own, this file is the only place that says what the menu holds, and a name it
+ * keeps after the entry has gone says the screen is still in the menu when it is reachable by nothing
+ * but a typed address. Model risk sat here like that.
+ *
  * <p>A screen left out of this list is not hidden. It is drawn after the ones named here, in whatever
  * order it was declared — because a menu built only from a hand-written list loses a screen the day
  * somebody adds one and forgets this file, which has happened here before: two approval queues existed,
@@ -37,5 +42,5 @@ export const MENU_ORDER: string[] = [
   // and the reads that come back off all of it.
   "/forms", "/onboarding", "/clients", "/my-clients",
   "/to-sign", "/client-documents", "/kyc-documents", "/kyc", "/post-onboarding",
-  "/model-risk", "/dashboard", "/proposal-trail", "/family-access",
+  "/dashboard", "/proposal-trail", "/family-access",
 ];
