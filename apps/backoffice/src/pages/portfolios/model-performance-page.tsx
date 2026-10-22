@@ -34,16 +34,17 @@ export function ModelPerformancePage() {
         title="Model performance"
         lead={
           table.data
-            ? `How the plans themselves are doing. Calendar year ${table.data.year}, in ${table.data.currency}, as at ${formatDate(table.data.asOf)}.`
-            : "How the plans themselves are doing."
+            ? `Whether today's money is where each plan says it should be, and what it would take to put it there. In ${table.data.currency}, as at ${formatDate(table.data.asOf)}. The two returns are for the calendar year ${table.data.year} and since each plan was written.`
+            : "Whether today's money is where each plan says it should be."
         }
       />
 
       {/* The firm's own note on this screen: a return has to be time-weighted or a deposit reads as skill. */}
       <Alert tone="info">
-        Every return here is time-weighted — the period is split at each movement of money and the pieces
-        linked — so money paid in or taken out is not counted as something the manager earned or lost. A figure
-        is left blank where there is not enough written down to work one out.
+        The first four columns read today's book: what is on each plan now, how much of it has wandered
+        past what the plan allows, and what putting it back would take. They do not wait on anybody writing
+        a valuation down. The two returns do — each is time-weighted, so money paid in or taken out is not
+        counted as something the manager earned or lost, and each says the days it actually covers.
       </Alert>
 
       {rows.length > 0 && measured.length === 0 && (
@@ -65,34 +66,39 @@ export function ModelPerformancePage() {
                 is one character and a plan's name is not, and six equal sixths set every figure adrift in
                 the middle of a column of its own. */}
             <colgroup>
-              <col className="w-[24%]" />
-              <col className="w-[10%]" />
               <col className="w-[18%]" />
-              <col className="w-[16%]" />
-              <col className="w-[16%]" />
-              <col className="w-[16%]" />
+              <col className="w-[7%]" />
+              <col className="w-[13%]" />
+              <col className="w-[11%]" />
+              <col className="w-[15%]" />
+              <col className="w-[14%]" />
+              <col className="w-[11%]" />
+              <col className="w-[11%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">Model</th>
                 <th scope="col" className="px-4 py-3 text-right">Clients</th>
-                <th scope="col" className="px-4 py-3 text-right">Assets</th>
+                <th scope="col" className="px-4 py-3 text-right">On this plan</th>
+                {/* What the plan looks like today, which is the question a desk asks of it daily. These
+                    come first because they answer on today's money: the two returns at the end answer
+                    about a book that has changed every day since. */}
+                <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Outside band</th>
+                <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">To put right</th>
+                <th scope="col" className="px-4 py-3 whitespace-nowrap">Worst gap</th>
                 <th scope="col" className="px-4 py-3 text-right">This year</th>
-                <th scope="col" className="px-4 py-3 text-right">Since start</th>
-              {/* The day "since start" counts from. Two plans both reading "+69.3% since start" are not
-                  the same answer when one was written a month ago and the other four years ago. */}
-              <th scope="col" className="py-3 pr-5 pl-4 text-right whitespace-nowrap">Started</th>
+                <th scope="col" className="py-3 pr-5 pl-4 text-right">Since start</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {table.isPending && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-ink-muted">Working out the returns…</td>
+                  <td colSpan={8} className="px-5 py-10 text-center text-ink-muted">Working out the returns…</td>
                 </tr>
               )}
               {table.data && rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-ink-muted">
+                  <td colSpan={8} className="px-5 py-10 text-center text-ink-muted">
                     There are no model portfolios yet.
                   </td>
                 </tr>
@@ -121,14 +127,49 @@ function Row({ row, currency }: { row: ModelPerformanceRow; currency: string }) 
       <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
         {row.assets > 0 ? underManagementLabel(row.assets, currency) : <span className="text-ink-muted">—</span>}
       </td>
-      <Percent value={row.thisYear.percent} period={row.thisYear} />
-      <Percent value={row.sinceStart.percent} period={row.sinceStart} />
-      {/* The day the plan itself was written, which is what the figure beside it is now counted from.
-          Always known — a plan that has never been given a client still has a day it was made, so this
-          column answers on the rows where every other one reads "—". */}
-      <td className="py-3 pr-5 pl-4 text-right whitespace-nowrap text-ink-soft">
-        {formatDate(row.createdAt)}
+      {/* How much of this plan's book is past what the plan allows, counted out of the clients on it —
+          "2 of 3" is a different fact from "2", and the plan with one client is not in more trouble than
+          the plan with twenty. */}
+      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+        {row.clients === 0 ? (
+          <span className="text-ink-muted">—</span>
+        ) : row.today.outsideBand === 0 ? (
+          <span className="font-semibold text-emerald-700">All within band</span>
+        ) : (
+          <span className="font-semibold text-rose-700">{row.today.outsideBand} of {row.clients}</span>
+        )}
       </td>
+      {/* What putting the whole book back would take. Said as two figures because they are two different
+          acts: selling raises the money and buying spends it, and a net figure would hide both. */}
+      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+        {row.today.toBuy === 0 && row.today.toSell === 0 ? (
+          <span className="text-ink-muted">Nothing to do</span>
+        ) : (
+          <>
+            <span className="block">Buy {underManagementLabel(row.today.toBuy, currency)}</span>
+            <span className="block text-xs text-ink-muted">
+              Sell {underManagementLabel(row.today.toSell, currency)}
+            </span>
+          </>
+        )}
+      </td>
+      {/* The class the book is furthest from, and by how much. The furthest any one client is, not the
+          sum across them: a class three clients are each slightly off is not the problem one client badly
+          out is, and the second is what somebody opens the plan to deal with. */}
+      <td className="px-4 py-3 text-ink-soft">
+        {row.today.worstClass === null ? (
+          <span className="text-ink-muted">—</span>
+        ) : (
+          <>
+            <span className="block truncate">{row.today.worstClass}</span>
+            <span className="block text-xs tabular-nums text-ink-muted">
+              {row.today.worstGap === null ? "" : `${Math.abs(row.today.worstGap).toFixed(1)}% out`}
+            </span>
+          </>
+        )}
+      </td>
+      <Percent value={row.thisYear.percent} period={row.thisYear} />
+      <Percent value={row.sinceStart.percent} period={row.sinceStart} last />
     </tr>
   );
 }
