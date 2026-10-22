@@ -6092,6 +6092,7 @@ kycStatus?: ListCustomersKycStatus;
 advisorId?: string;
 registeredFrom?: string;
 registeredTo?: string;
+everyHolder?: boolean;
 page?: number;
 size?: number;
 };
