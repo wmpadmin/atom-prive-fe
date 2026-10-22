@@ -1,6 +1,7 @@
 import {
   Children,
   isValidElement,
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -9,6 +10,7 @@ import {
   type ReactNode,
   type SelectHTMLAttributes,
 } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "./cn";
 import { controlClasses } from "./form";
 
@@ -67,6 +69,19 @@ export function SelectInput({
   const list = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useState(false);
   const [under, setUnder] = useState(true);
+  /**
+   * Where on the window the list is drawn, which is how it is drawn at all.
+   *
+   * <p>It used to be positioned against this control and drawn inside it, and an ancestor that scrolls
+   * clips what its children draw outside it — which, on a table in a strip that scrolls sideways, is the
+   * whole list. Twenty screens put a picker in such a strip, and on every one of them the choices were
+   * cut off at the table's edge. A browser's own dropdown is not drawn on the page at all and so cannot
+   * be clipped by one; this is drawn on the body, which is as close as a list made of elements gets.
+   *
+   * <p>Fixed to the window rather than placed on the document, so the figure here is the box's own
+   * position on screen and nothing has to know what any ancestor has scrolled.
+   */
+  const [box, setBox] = useState<{ left: number; top: number; bottom: number; width: number } | null>(null);
   /** Which row the keyboard is on, which is not the same as which is chosen until Enter. */
   const [at, setAt] = useState(0);
 
@@ -102,13 +117,32 @@ export function SelectInput({
 
   // Below where there is room for it, above where there is not: a list that runs off the bottom of a
   // dialog is a list with its last choices in it.
+  const place = useCallback(() => {
+    const seen = trigger.current?.getBoundingClientRect();
+    if (!seen) return;
+    const needed = Math.min(choices.length, 7) * 36 + 16;
+    setUnder(seen.bottom + needed <= window.innerHeight || seen.top < needed);
+    setBox({ left: seen.left, top: seen.bottom, bottom: window.innerHeight - seen.top, width: seen.width });
+  }, [choices.length]);
+
   useLayoutEffect(() => {
     if (!open) return;
-    const box = trigger.current?.getBoundingClientRect();
-    if (!box) return;
-    const needed = Math.min(choices.length, 7) * 36 + 16;
-    setUnder(box.bottom + needed <= window.innerHeight || box.top < needed);
-  }, [open, choices.length]);
+    place();
+  }, [open, place]);
+
+  // The control moves when anything under the pointer scrolls, and a list fixed to the window does not
+  // follow it on its own. Listened for on the way down so a strip scrolling inside the page is heard as
+  // well as the page itself.
+  useEffect(() => {
+    if (!open) return;
+    const again = () => place();
+    window.addEventListener("scroll", again, true);
+    window.addEventListener("resize", again);
+    return () => {
+      window.removeEventListener("scroll", again, true);
+      window.removeEventListener("resize", again);
+    };
+  }, [open, place]);
 
   useEffect(() => {
     if (!open) return;
@@ -227,17 +261,19 @@ export function SelectInput({
         </span>
       </button>
 
-      {open && (
+      {open && box !== null && createPortal(
         <ul
           ref={list}
           id={listId}
           role="listbox"
           tabIndex={-1}
           aria-activedescendant={`${listId}-${at}`}
-          className={cn(
-            "absolute z-50 max-h-64 w-full overflow-auto rounded-lg border border-line bg-white py-1 shadow-lg",
-            under ? "top-full mt-1" : "bottom-full mb-1",
-          )}
+          style={{
+            left: box.left,
+            width: box.width,
+            ...(under ? { top: box.top + 4 } : { bottom: box.bottom + 4 }),
+          }}
+          className="fixed z-50 max-h-64 overflow-auto rounded-lg border border-line bg-white py-1 shadow-lg"
         >
           {choices.map((choice, which) => (
             <li
@@ -257,7 +293,8 @@ export function SelectInput({
               {choice.label}
             </li>
           ))}
-        </ul>
+        </ul>,
+        document.body,
       )}
     </span>
   );
