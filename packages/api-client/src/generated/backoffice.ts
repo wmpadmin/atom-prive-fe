@@ -1394,14 +1394,14 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
   nodeType?: JsonNodeNodeType;
-  valueNode?: boolean;
-  missingNode?: boolean;
   string?: boolean;
   integralNumber?: boolean;
+  floatingPointNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -4526,6 +4526,9 @@ export interface ModelPerformanceRow {
   /** @nullable */
   benchmarkCurrency: string | null;
   createdAt: string;
+  /** @nullable */
+  writtenBy: string | null;
+  revision: number;
   today: PlanToday;
   thisYear: PeriodReturn;
   threeYears: PeriodReturn;
