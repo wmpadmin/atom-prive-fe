@@ -6,7 +6,6 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { useState } from "react";
-import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { ClientCashflowsPanel } from "./client-cashflows-panel";
 import { ClientJoinedPanel } from "./client-joined-panel";
 import { exactly } from "./money-words";
@@ -17,6 +16,10 @@ import { exactly } from "./money-words";
  * <p>What it made in money first, because it is the only one of the four that is a fact rather than a
  * reading of one — the three rates under it are all that same gain divided by something, and a reader who
  * disagrees with a rate can check it against nothing else.
+ *
+ * <p>Five rows and no pager. These are not a list somebody browses — they are five readings of one
+ * number, and the whole point of setting them together is that a reader can check one against another.
+ * A control offering to show the first ten of five said nothing and hid nothing.
  *
  * <p>Then what the client's money earned, which is the question asked on the telephone. Then what the
  * plan did, which is the firm's question. The yearly rate last: it is the absolute figure above
@@ -55,10 +58,6 @@ function said(value: number | null | undefined, money: boolean, currency: string
 export function ClientReturnPanel({ customerId }: { customerId: string }) {
   const read = useListClientReturns<ReturnsByPeriod, ApiError>(customerId);
   const [at, setAt] = useState(5);
-  // Above the refusal below, because taking the page is a hook: one skipped on the way out of an early
-  // return is a hook React counts as missing on the render after it. Copied out of the frozen list rather
-  // than handed over as it stands, since what the page is taken over is an ordinary array of rows.
-  const paged = usePagedRows([...ROWS]);
 
   if (read.isError) {
     return <Alert tone="danger">{read.error.message}</Alert>;
@@ -120,7 +119,7 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {paged.shown.map((row) => {
+                  {ROWS.map((row) => {
                     const value = row.id === "gained" ? shown.gained
                       : row.id === "absolute" ? shown.absolute
                         : row.id === "moneyWeighted" ? shown.moneyWeighted
@@ -150,7 +149,6 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
 
             {/* Outside the strip the table scrolls in and above the working, which belongs to the window
                 rather than to the page of rows. */}
-            <PagedFooter paged={paged} noun={["metric", "metrics"]} />
 
             <div className="border-t border-line px-5 py-3 text-xs text-ink-muted">
               {/* Said in words, not left to be worked out of two dates: a client six days old reads "a
