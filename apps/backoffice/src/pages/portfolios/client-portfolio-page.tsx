@@ -21,6 +21,7 @@ import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { AttributionPanel } from "./attribution-panel";
+import { NetAumPanel } from "./net-aum-panel";
 import { FixedIncomePanel } from "./fixed-income-panel";
 import { useAssetClasses } from "./asset-classes";
 import { ClassStandingTable } from "./class-standing-table";
@@ -423,6 +424,12 @@ export function ClientPortfolioPage() {
       </section>
 
       <ValuationHistoryPanel customerId={customerId} />
+
+      {/* Under the figures it is worked out from, and above what the bonds do: a reader who has just read
+          the classes is the reader this answers. It draws nothing at all for a client who owes nothing
+          and owns nothing outside their portfolio, because for them it would restate the figure at the
+          top of the screen under a second name. */}
+      <NetAumPanel customerId={customerId} />
 
       {/* These two were taken off with a third when none of them could answer: no holding carried a yield,
           a duration, a country or a sector, so each said "no bond carries a yield yet" under every client
