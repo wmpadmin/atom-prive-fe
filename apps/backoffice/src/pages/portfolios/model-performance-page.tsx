@@ -58,28 +58,28 @@ export function ModelPerformancePage() {
                 more — given a quarter of the table it held its words at the left and pushed the count of
                 clients a hand's width away from them, which is a gap nothing is in. */}
             <colgroup>
-              <col className="w-[17%]" />
-              <col className="w-[8%]" />
               <col className="w-[16%]" />
+              <col className="w-[7%]" />
+              <col className="w-[13%]" />
+              <col className="w-[13%]" />
+              <col className="w-[26%]" />
               <col className="w-[15%]" />
-              <col className="w-[15%]" />
-              <col className="w-[19%]" />
               <col className="w-[10%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                <th scope="col" className="py-3 pr-4 pl-5">Model</th>
-                <th scope="col" className="px-4 py-3 text-right">Clients</th>
-                <th scope="col" className="px-4 py-3 text-right">On this plan</th>
+                <th scope="col" className="py-3 pr-3 pl-5">Model</th>
+                <th scope="col" className="px-3 py-3 text-right">Clients</th>
+                <th scope="col" className="px-3 py-3 text-right">On this plan</th>
                 {/* What the plan looks like today, which is the question a desk asks of it daily. It
                     answers on today's money; the return at the end answers about a book that has changed
                     every day since. */}
-                <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Outside band</th>
-                <th scope="col" className="px-4 py-3 text-right">This year</th>
+                <th scope="col" className="px-3 py-3 text-right whitespace-nowrap">Outside band</th>
+                <th scope="col" className="px-3 py-3 text-right">This year</th>
                 {/* Both read from the right, like everything after the name: one column reading the
                     other way is the hole that opens down the middle of a fixed table. */}
-                <th scope="col" className="px-4 py-3 text-right">Written by</th>
-                <th scope="col" className="py-3 pr-5 pl-4 text-right">Version</th>
+                <th scope="col" className="px-3 py-3 text-right">Written by</th>
+                <th scope="col" className="py-3 pr-5 pl-3 text-right">Version</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -112,17 +112,17 @@ export function ModelPerformancePage() {
 function Row({ row, currency }: { row: ModelPerformanceRow; currency: string }) {
   return (
     <tr className="hover:bg-slate-50/60">
-      <td className="py-3 pr-4 pl-5">
+      <td className="py-3 pr-3 pl-5">
         <span className="block font-semibold">{row.modelName}</span>
       </td>
-      <td className="px-4 py-3 text-right tabular-nums text-ink-soft">{row.clients}</td>
-      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+      <td className="px-3 py-3 text-right tabular-nums text-ink-soft">{row.clients}</td>
+      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
         {row.assets > 0 ? underManagementLabel(row.assets, currency) : <span className="text-ink-muted">—</span>}
       </td>
       {/* How much of this plan's book is past what the plan allows, counted out of the clients on it —
           "2 of 3" is a different fact from "2", and the plan with one client is not in more trouble than
           the plan with twenty. */}
-      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
         {row.clients === 0 ? (
           <span className="text-ink-muted">—</span>
         ) : row.today.outsideBand === 0 ? (
@@ -134,14 +134,14 @@ function Row({ row, currency }: { row: ModelPerformanceRow; currency: string }) 
       <Percent value={row.thisYear.percent} period={row.thisYear} />
       {/* "Nobody recorded" where nobody is. Naming whoever happens to be an administrator today would be
           inventing an author for a plan nobody wrote. */}
-      <td className="px-4 py-3 text-right text-ink-soft">
+      <td className="px-3 py-3 text-right text-ink-soft">
         <span className="block truncate">
           {row.writtenBy ?? <span className="text-ink-muted">Nobody recorded</span>}
         </span>
       </td>
       {/* Its own column rather than a line under the author: the two answer different questions, and a
           version read as a caption to a name looks like part of the name. */}
-      <td className="py-3 pr-5 pl-4 text-right tabular-nums text-ink-soft">v{row.revision}</td>
+      <td className="py-3 pr-5 pl-3 text-right tabular-nums text-ink-soft">v{row.revision}</td>
     </tr>
   );
 }
@@ -162,7 +162,7 @@ function Percent({
   return (
     <td
       className={cn(
-        "px-4 py-3 text-right whitespace-nowrap tabular-nums",
+        "px-3 py-3 text-right whitespace-nowrap tabular-nums",
         last && "pr-5",
         muted && "text-ink-soft",
         !muted && value !== null && (value < 0 ? "font-semibold text-rose-700" : "font-semibold text-emerald-700"),
@@ -175,14 +175,19 @@ function Percent({
           : undefined
       }
     >
-      {value === null ? <span className="text-ink-muted">—</span> : percentLabel(value)}
-      {/* What the figure actually covers, said under the figure rather than in a column of its own: the
-          two percentages are measured over different periods, and one column could only describe one of
-          them. Without it, four days of a portfolio being written down properly read as a year's
-          performance — "+4155.4%" under a heading that says "This year". */}
+      {/* What the figure actually covers, beside the figure rather than in a column of its own: the two
+          percentages are measured over different periods, and one column could only describe one of them.
+          Without it, four days of a portfolio being written down properly read as a year's performance —
+          "+4155.4%" under a heading that says "This year".
+
+          Beside it and not under it, because under it this was the only cell on the row standing two
+          lines tall: every body row ran half as tall again as the header above them, and a table whose
+          heading row is a different size from its rows reads as two tables. Left of the figure, so the
+          percentages still line up down the column with everything else read from the right. */}
       {value !== null && span !== null && (
-        <span className="mt-0.5 block text-xs font-normal text-ink-muted">{span}</span>
+        <span className="mr-1.5 text-[11px] font-normal text-ink-muted">{span}</span>
       )}
+      {value === null ? <span className="text-ink-muted">—</span> : percentLabel(value)}
     </td>
   );
 }
