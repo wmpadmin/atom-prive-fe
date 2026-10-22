@@ -1394,11 +1394,10 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   number?: boolean;
   container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
@@ -1413,6 +1412,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -3216,6 +3216,7 @@ export interface ClientRebalance {
   customerId: string;
   clientName: string;
   clientCode: string;
+  advisors: StaffMember[];
   currency: string;
   underManagement: number;
   /** @nullable */

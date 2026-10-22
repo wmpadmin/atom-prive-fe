@@ -20,6 +20,7 @@ import { formatDate } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { ClassStandingTable } from "./class-standing-table";
 import { driftLabel, driftTones, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
+import { AdvisorStack } from "../clients/advisor-stack";
 
 /** Today, as the calendar writes it, so a rebalance can be dated today but no later. */
 function today() {
@@ -250,12 +251,13 @@ export function BulkRebalancingPage() {
               <table className="w-full table-fixed text-sm">
                 <colgroup>
                   <col className="w-12" />
-                  <col className="w-[26%]" />
-                  <col className="w-[14%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[14%]" />
+                  <col className="w-[22%]" />
                   <col className="w-[18%]" />
-                  <col className="w-[16%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[12%]" />
                 </colgroup>
                 <thead>
                   <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -271,6 +273,10 @@ export function BulkRebalancingPage() {
                       />
                     </th>
                     <th scope="col" className="px-4 py-3">Client</th>
+                    {/* Who is about to be asked. Raising a rebalance sends each of these clients to their
+                        own manager to answer, and a list with no sign of who that is hides what the
+                        press does. */}
+                    <th scope="col" className="px-4 py-3">Advisors</th>
                     <th scope="col" className="px-4 py-3 text-right">AUM</th>
                     {/* A figure read from the right meeting a badge read from the left: without a gutter
                         of their own the two sat against each other and read as one column. */}
@@ -390,11 +396,16 @@ function Row({
         <td className="px-4 py-3">
           <div className="flex items-center gap-3">
             <Avatar name={client.clientName} />
-            <div>
-              <span className="block font-medium">{client.clientName}</span>
+            <div className="min-w-0">
+              <span className="block truncate font-medium">{client.clientName}</span>
               <span className="block font-mono text-xs text-ink-muted">{client.clientCode}</span>
             </div>
           </div>
+        </td>
+        {/* The same faces and the same one name the clients list draws, so a reader who has learnt one
+            has learnt the other. */}
+        <td className="px-4 py-3">
+          <AdvisorStack advisors={client.advisors} />
         </td>
         <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
           {underManagementLabel(client.underManagement, client.currency)}
