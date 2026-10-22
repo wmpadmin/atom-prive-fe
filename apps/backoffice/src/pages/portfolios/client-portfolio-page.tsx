@@ -261,7 +261,7 @@ export function ClientPortfolioPage() {
               moment a client was set up, the one screen that shows the working became unreachable, and
               the figure beside this button had no way of being read back to where it came from. */}
           <Link to={`/portfolio-clients/${customerId}/net-aum`}>
-            <Button variant="secondary" size="sm">Net AUM calculator</Button>
+            <Button variant="secondary">Net AUM calculator</Button>
           </Link>
         </div>
       </header>
