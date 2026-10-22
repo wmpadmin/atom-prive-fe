@@ -239,16 +239,18 @@ export function ClientPortfolioPage() {
             room for the thousands, and 41.8K is a column's answer to a question nobody asked here. */}
         {/* The figure on its own line and the verdict under it. Side by side the badge sat level with
             the caption and read as a label on the money, when it is a verdict about the portfolio. */}
-        <div className="flex flex-col items-end gap-2">
-          {/* The way back into the calculator, on the line of the figure it works out rather than under
-              it: stacked below the verdict it read as a third thing about the portfolio, when it is the
-              way into how the figure above it is reached. The clients list opens the calculator for a
-              client nobody has written down yet and opens the portfolio once they have — so the moment a
-              client was set up, the one screen that shows the working became unreachable. */}
-          <div className="flex items-center gap-3">
-            <Link to={`/portfolio-clients/${customerId}/net-aum`}>
-              <Button size="lg">Net AUM calculator</Button>
-            </Link>
+        {/* The way back into the calculator, level with the whole of what it works out rather than with
+            the first line of it. The clients list opens the calculator for a client nobody has written
+            down yet and opens the portfolio once they have — so the moment a client was set up, the one
+            screen that shows the working became unreachable. */}
+        <div className="flex items-center gap-3">
+          <Link to={`/portfolio-clients/${customerId}/net-aum`}>
+            <Button size="lg">Net AUM calculator</Button>
+          </Link>
+          {/* What it is worth and how it stands, read down: the money first, the verdict about it under.
+              Side by side the badge sat level with the caption and read as a label on the money, when it
+              is a verdict about the portfolio. */}
+          <div className="flex flex-col items-end gap-2">
             {standing.data && standing.data.underManagement > 0 && (
               <div className="text-right">
                 <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -259,13 +261,13 @@ export function ClientPortfolioPage() {
                 </p>
               </div>
             )}
+            {standing.data?.standing && (
+              <Badge tone={standingTones[standing.data.standing]}>
+                {standingLabels[standing.data.standing]}
+                {standing.data.drift === null ? "" : ` · ${driftLabel(standing.data.drift)}`}
+              </Badge>
+            )}
           </div>
-          {standing.data?.standing && (
-            <Badge tone={standingTones[standing.data.standing]}>
-              {standingLabels[standing.data.standing]}
-              {standing.data.drift === null ? "" : ` · ${driftLabel(standing.data.drift)}`}
-            </Badge>
-          )}
         </div>
       </header>
 
