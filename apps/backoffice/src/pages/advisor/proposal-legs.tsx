@@ -1,6 +1,5 @@
 import type { MoveLegRequest, PlannedLeg } from "@atomprive/api-client/backoffice";
 import { cn } from "@atomprive/ui";
-import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { figure, named, netted, overItsBand } from "../portfolios/money-words";
 
 function money(amount: number, currency: string | null) {
@@ -15,9 +14,9 @@ function money(amount: number, currency: string | null) {
  * answering one is answering these rows and nothing else.
  */
 export function ProposalLegs({ legs, currency }: { legs: MoveLegRequest[]; currency: string | null }) {
-  // Asked for above the empty case below, because which page a reader is on is held in a hook, and a hook
-  // reached on one render and skipped on the next loses track of which state is its own.
-  const paged = usePagedRows(legs);
+  // The legs are not a list somebody browses — they are the parts of one instruction, read together or
+  // not at all: what leaves, what it lands in, and what each line is left holding have to add up in front
+  // of whoever approves them. A page break through the middle of that hides half the sum.
   if (legs.length === 0) {
     return (
       <p className="text-sm text-ink-muted">
@@ -48,7 +47,7 @@ export function ProposalLegs({ legs, currency }: { legs: MoveLegRequest[]; curre
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {paged.shown.map((leg, at) => (
+            {legs.map((leg, at) => (
               <tr key={at}>
                 <th scope="row" className="py-3 pr-4 text-left font-medium text-ink">
                   {named(leg.fromSubClass ?? null, leg.fromAssetClass, leg.fromSubSubClass)}
@@ -75,8 +74,6 @@ export function ProposalLegs({ legs, currency }: { legs: MoveLegRequest[]; curre
           )}
         </table>
       </div>
-      {/* Outside the box the table scrolls in, so the pager stays where it is put while the columns slide. */}
-      <PagedFooter paged={paged} noun={["leg", "legs"]} />
     </>
   );
 }
@@ -116,7 +113,6 @@ export function ProposalMoves({ legs, currency }: { legs: PlannedLeg[]; currency
   const leaves = netted(legs);
   const byName = new Map(leaves.map((line) => [line.name, line]));
   const total = legs.reduce((sum, leg) => sum + leg.amount, 0);
-  const paged = usePagedRows(legs);
   return (
     <>
       <div className="overflow-x-auto">
@@ -135,7 +131,7 @@ export function ProposalMoves({ legs, currency }: { legs: PlannedLeg[]; currency
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {paged.shown.map((leg, at) => {
+            {legs.map((leg, at) => {
               const from = named(leg.fromSubClass, leg.fromAssetClass, leg.fromSubSubClass);
               const source = byName.get(from);
               const into = byName.get(named(leg.toSubClass, leg.toAssetClass, leg.toSubSubClass));
@@ -199,8 +195,6 @@ export function ProposalMoves({ legs, currency }: { legs: PlannedLeg[]; currency
           )}
         </table>
       </div>
-      {/* Outside the box the table scrolls in, and only where there is something to count. */}
-      {legs.length > 0 && <PagedFooter paged={paged} noun={["leg", "legs"]} />}
     </>
   );
 }
