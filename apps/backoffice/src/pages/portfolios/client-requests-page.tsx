@@ -21,6 +21,7 @@ import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { hasAnyAuthority, RAISES_CLIENT_REQUESTS } from "../../lib/permissions";
 import { ClientAskingRows, EMPTY_ROW, isAsked, legsFromRows, type AskedRow } from "./client-asking-rows";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
+import { QueueActions } from "../../components/queue-actions";
 import { QueueFilters } from "./queue-filters";
 import { AnswerDialog } from "./answer-dialog";
 import { exactly, figure, named } from "./money-words";
@@ -627,6 +628,15 @@ export function ClientRequestsPage() {
 
   return (
     <div className="space-y-5">
+      {/* Up on the line the tabs are on, at the right, which is where this screen's other queues put
+          what they do. In the filter row it sat among the things that narrow the list — a button that
+          writes something, lined up with four controls that only read. */}
+      {writes && (
+        <QueueActions className="flex flex-wrap items-center justify-end gap-2">
+          <Button onClick={() => setChoosing(true)}>Create client request</Button>
+        </QueueActions>
+      )}
+
       <QueueFilters
         search={search}
         onSearch={(next) => {
@@ -654,13 +664,7 @@ export function ClientRequestsPage() {
         }}
         newestFirst={newestFirst}
         onNewestFirst={setNewestFirst}
-      >
-        {writes && (
-          <Button size="sm" onClick={() => setChoosing(true)}>
-            Create client request
-          </Button>
-        )}
-      </QueueFilters>
+      />
       <section className="rounded-2xl border border-line bg-white">
         <QueueBar name="Client requests" />
 
