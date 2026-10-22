@@ -20,6 +20,7 @@ import { hasAuthority } from "../../lib/permissions";
 
 type SellOrder = SettingsView["sellOrder"];
 type AlertTo = SettingsView["breachAlertTo"];
+type AlertEvery = SettingsView["breachAlertEvery"];
 
 /**
  * The rules the firm sets once and every other portfolio screen obeys.
@@ -44,7 +45,7 @@ export function PortfolioSettingsPage() {
   const held = settings.data;
   const typed = edits ?? asTyped(held);
   const { classBreachAt, subAssetBreachAt, insideSubAssetBreachAt, sellOrder, minimumTrade,
-    breachAlertTo } =
+    breachAlertTo, breachAlertEvery } =
     typed;
   const set = (part: Partial<Typed>) => setEdits({ ...typed, ...part });
   // Nothing to save until something is different from what the firm has settled. Compared against the
@@ -84,6 +85,7 @@ export function PortfolioSettingsPage() {
         sellOrder,
         minimumTrade: Number(minimumTrade),
         breachAlertTo,
+        breachAlertEvery,
       },
     });
   }
@@ -170,11 +172,10 @@ export function PortfolioSettingsPage() {
           writes the whole screen; they are apart because the classes the plans are built from belong
           between them, and a form cannot hold a form. */}
       <div className="space-y-5">
-        {/* Two boxes of the same kind. A dropdown beside a tick-box read as two different sorts of
-            question when they are one: who is told, and from when. */}
+        {/* Two halves of one question: who is told, and how often. */}
         <Panel
           title="Breach alerts"
-          says="Looked for every morning, on every client who is on a model. Said once for each class, and again only if it worsens."
+          says="Looked for every morning, on every client who is on a model. Said once for each class, and not again until it comes back inside its range and goes out afresh."
           takesEffect
         >
           <div className="grid gap-3 sm:grid-cols-2">
@@ -189,6 +190,23 @@ export function PortfolioSettingsPage() {
                 <option value="PORTFOLIO_MANAGER">The portfolio manager</option>
                 <option value="ADVISOR">The client's advisor</option>
                 <option value="BOTH">Both</option>
+              </SelectInput>
+            </Field>
+            {/* How often it is said, not how often it is looked for. The looking is every morning
+                whatever this says, so choosing a longer step delays an alert rather than losing it: a
+                breach found on a Wednesday by a firm that hears weekly is still unsaid on the Monday,
+                and is said then. */}
+            <Field id="set-every" label="How often" error={errors.fields.breachAlertEvery}>
+              <SelectInput
+                id="set-every"
+                value={breachAlertEvery}
+                disabled={!mayChange}
+                onChange={(event) => set({ breachAlertEvery: event.target.value as AlertEvery })}
+              >
+                <option value="DAY">Every morning</option>
+                <option value="WEEKDAY">Weekday mornings</option>
+                <option value="WEEK">Monday mornings</option>
+                <option value="MONTH">The first of the month</option>
               </SelectInput>
             </Field>
           </div>
@@ -222,6 +240,7 @@ interface Typed {
   sellOrder: SellOrder;
   minimumTrade: string;
   breachAlertTo: AlertTo;
+  breachAlertEvery: AlertEvery;
 }
 
 /** What the firm has settled, as boxes. Blank until it has been read, rather than a guess at the defaults. */
@@ -233,6 +252,7 @@ function asTyped(held: SettingsView | undefined): Typed {
     sellOrder: held?.sellOrder ?? "ASK",
     minimumTrade: held ? String(held.minimumTrade) : "",
     breachAlertTo: held?.breachAlertTo ?? "PORTFOLIO_MANAGER",
+    breachAlertEvery: held?.breachAlertEvery ?? "DAY",
   };
 }
 
