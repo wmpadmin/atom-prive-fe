@@ -1,6 +1,5 @@
 import { Alert, Button, TextInput } from "@atomprive/ui";
-import { Download, Plus, Search } from "lucide-react";
-import { Link } from "react-router";
+import { Download, Search } from "lucide-react";
 import { QueueActions } from "../../components/queue-actions";
 
 /**
@@ -18,7 +17,6 @@ import { QueueActions } from "../../components/queue-actions";
  * everything else — the screen is the list, and a proposal is read within it.
  */
 export function ProposalsHeader({
-  writes,
   search,
   onSearch,
   onExport,
@@ -27,8 +25,6 @@ export function ProposalsHeader({
   cappedAt,
   reading = false,
 }: {
-  /** Whoever cannot write a proposal is not offered the button that starts one. */
-  writes: boolean;
   /**
    * The box that searches the list, where this header stands above an open proposal rather than above the
    * list itself.
@@ -52,9 +48,8 @@ export function ProposalsHeader({
    * Whether a proposal is open below this.
    *
    * <p>The header sits above the list AND above one open proposal, which is what keeps the way back on
-   * the page. Above an open one it must not offer to start a new one: the reader is in the middle of
-   * reading something, and the button sent them somewhere else with no warning. What Export means changes
-   * with it — the list exports the list, and a proposal exports itself.
+   * the page. What Export means changes with it — the list exports the list, and a proposal exports
+   * itself.
    */
   reading?: boolean;
 }) {
@@ -63,20 +58,17 @@ export function ProposalsHeader({
     // for them, and what is left here is the alert and the search — each spaced by whatever holds them.
     <>
       {/* Only what can be done, at the end of the row. There is nothing on the left of it to justify
-          against any more, so the row ends at the right edge rather than spanning a width of nothing. */}
+          against any more, so the row ends at the right edge rather than spanning a width of nothing.
+
+          Export alone. This header stands above the approvals queue and above Trade logs, and on neither
+          of them does starting a fresh piece of advice belong: one is a queue of what is waiting on
+          somebody, the other the record of rebalances already asked for. A button that took the reader
+          off both screens sat on both. */}
       <QueueActions className="flex flex-wrap items-center justify-end gap-2">
         <Button variant="secondary" disabled={exporting || !canExport} onClick={onExport}>
           <Download aria-hidden="true" />
           {exporting ? (reading ? "Preparing…" : "Exporting…") : reading ? "Download PDF" : "Export"}
         </Button>
-        {writes && !reading && (
-          <Link to="/proposals/new">
-            <Button>
-              <Plus aria-hidden="true" />
-              New proposal
-            </Button>
-          </Link>
-        )}
       </QueueActions>
 
       {cappedAt && (

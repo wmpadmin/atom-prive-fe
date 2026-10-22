@@ -296,8 +296,7 @@ export function ProposalPage() {
       {/* The screen is the list; a proposal is read within it, so the way back is never off the page. */}
       {!writing && (
         <ProposalsHeader
-          writes={writes}
-          search={search}
+            search={search}
           onSearch={searchTheList}
           onExport={() => void printThisOne()}
           exporting={exporting}

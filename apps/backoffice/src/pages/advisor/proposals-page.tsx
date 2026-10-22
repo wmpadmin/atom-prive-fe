@@ -15,7 +15,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { APPROVES_PROPOSALS, hasAnyAuthority, readsEveryAdvisors, WRITES_PROPOSALS } from "../../lib/permissions";
+import { APPROVES_PROPOSALS, hasAnyAuthority, readsEveryAdvisors } from "../../lib/permissions";
 import { formatDate } from "../../lib/labels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { QueueBar } from "../portfolios/queue-bar";
@@ -63,10 +63,7 @@ const TABS: { id: Tab; label: string; status?: ListProposalsStatus }[] = [
  */
 export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
   const navigate = useNavigate();
-  // Whoever oversees the firm's advice reads every proposal without writing any, so the screen is the same
-  // list with nothing on it to write with.
   const user = useStaffUser();
-  const writes = hasAnyAuthority(user, ...WRITES_PROPOSALS);
   // Whoever answers gets the one view that is theirs to act on. To everybody else it is not a filter that
   // comes back empty — it is not offered at all, because an empty queue of other people's work reads as a
   // queue you are failing to clear.
@@ -241,7 +238,6 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
   return (
     <div className="space-y-6">
       <ProposalsHeader
-        writes={writes}
         onExport={() => void exportFiltered()}
         exporting={exporting}
         canExport={total > 0}
