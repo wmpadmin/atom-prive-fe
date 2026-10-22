@@ -4,7 +4,7 @@ import { Alert, Badge, Button, TextInput, cn } from "@atomprive/ui";
 import { useState } from "react";
 import { asFigure } from "../../lib/figures";
 import { useAssetClasses } from "./asset-classes";
-import { standingLabels, standingTones, type DriftStanding } from "./portfolio-labels";
+import { standingLabels, standingTones } from "./portfolio-labels";
 
 /** A move as it is typed: a figure, and which way it goes. */
 type Move = { way: "buy" | "sell"; amount: string };
@@ -60,8 +60,8 @@ export function WhatIfPanel({
 
   const moves = asMoves(typed);
   const anything = Object.keys(moves).length > 0;
-  const was = standing.standing as DriftStanding | null;
-  const would = (asked?.after.standing ?? null) as DriftStanding | null;
+  const was = standing.standing;
+  const would = asked?.after.standing ?? null;
   // Taken here and not down beside the table it pages, because the table is only drawn once something has
   // been asked and a hook cannot be called inside that branch. Nothing asked yet is an empty page.
 
@@ -217,7 +217,7 @@ export function WhatIfPanel({
               <tbody className="divide-y divide-line">
                 {(asked?.after.classes ?? []).map((one) => {
                   const before = asked.before.classes.find((was) => was.assetClass === one.assetClass);
-                  const standsAs = one.standing as DriftStanding | null;
+                  const standsAs = one.standing;
                   // What the reader actually typed against this class, brought back onto the row. It was
                   // nowhere on the answer: somebody reading a table of percentages had no way to check it
                   // against the figure they had just entered.

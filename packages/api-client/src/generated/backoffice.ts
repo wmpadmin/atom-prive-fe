@@ -276,7 +276,6 @@ export interface SettingsRequest {
   /** @minimum 0 */
   minimumTrade: number;
   breachAlertTo: SettingsRequestBreachAlertTo;
-  warnOnNearLimit: boolean;
 }
 
 export type SettingsViewSellOrder = typeof SettingsViewSellOrder[keyof typeof SettingsViewSellOrder];
@@ -306,7 +305,6 @@ export interface SettingsView {
   sellOrderActsYet: boolean;
   minimumTrade: number;
   breachAlertTo: SettingsViewBreachAlertTo;
-  warnOnNearLimit: boolean;
   updatedAt: string;
   /** @nullable */
   updatedBy: string | null;
@@ -472,26 +470,7 @@ export interface BandRequest {
   /** @nullable */
   basis: BandRequestBasis;
   /** @minimum 0.01 */
-  watchAt: number;
-  /** @minimum 0.01 */
-  edgeAt: number;
-  /** @minimum 0.01 */
   breachAt: number;
-  /**
-     * @minimum 0.01
-     * @nullable
-     */
-  watchBelow: number | null;
-  /**
-     * @minimum 0.01
-     * @nullable
-     */
-  edgeBelow: number | null;
-  /**
-     * @minimum 0.01
-     * @nullable
-     */
-  breachBelow: number | null;
 }
 
 /**
@@ -572,10 +551,6 @@ export interface ModelRequest {
   status: ModelRequestStatus;
   targets: ModelRequestTargets;
   /** @minimum 0.01 */
-  watchAt: number;
-  /** @minimum 0.01 */
-  edgeAt: number;
-  /** @minimum 0.01 */
   breachAt: number;
   /** @nullable */
   bands: ModelRequestBands;
@@ -637,8 +612,6 @@ export interface ModelRow {
   riskProfile: ModelRowRiskProfile;
   status: ModelRowStatus;
   targets: ModelRowTargets;
-  watchAt: number;
-  edgeAt: number;
   breachAt: number;
   bands: ModelRowBands;
   subAllocations: ModelRowSubAllocations;
@@ -695,8 +668,6 @@ export type ClassStandingStanding = typeof ClassStandingStanding[keyof typeof Cl
 
 export const ClassStandingStanding = {
   WITHIN_BAND: 'WITHIN_BAND',
-  WATCH: 'WATCH',
-  AT_EDGE: 'AT_EDGE',
   BREACHED: 'BREACHED',
 } as const;
 
@@ -741,8 +712,6 @@ export type PortfolioStandingStanding = typeof PortfolioStandingStanding[keyof t
 
 export const PortfolioStandingStanding = {
   WITHIN_BAND: 'WITHIN_BAND',
-  WATCH: 'WATCH',
-  AT_EDGE: 'AT_EDGE',
   BREACHED: 'BREACHED',
 } as const;
 
@@ -908,16 +877,6 @@ export interface PositionRequest {
      * @minimum 0
      * @nullable
      */
-  watchPp: number | null;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  edgePp: number | null;
-  /**
-     * @minimum 0
-     * @nullable
-     */
   breachPp: number | null;
 }
 
@@ -948,10 +907,6 @@ export interface PositionRow {
   shareOfClass: number;
   shareOfPortfolio: number;
   /** @nullable */
-  watchPp: number | null;
-  /** @nullable */
-  edgePp: number | null;
-  /** @nullable */
   breachPp: number | null;
 }
 
@@ -971,16 +926,6 @@ export interface Redenomination {
 }
 
 export interface ToleranceRequest {
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  watchPp: number | null;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  edgePp: number | null;
   /**
      * @minimum 0
      * @nullable
@@ -1394,14 +1339,14 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  floatingPointNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -3198,8 +3143,6 @@ export type ClientRebalanceStanding = typeof ClientRebalanceStanding[keyof typeo
 
 export const ClientRebalanceStanding = {
   WITHIN_BAND: 'WITHIN_BAND',
-  WATCH: 'WATCH',
-  AT_EDGE: 'AT_EDGE',
   BREACHED: 'BREACHED',
 } as const;
 
@@ -3399,8 +3342,6 @@ export type ClassPositionsStanding = typeof ClassPositionsStanding[keyof typeof 
 
 export const ClassPositionsStanding = {
   WITHIN_BAND: 'WITHIN_BAND',
-  WATCH: 'WATCH',
-  AT_EDGE: 'AT_EDGE',
   BREACHED: 'BREACHED',
 } as const;
 
@@ -3412,8 +3353,6 @@ export type SubClassGroupStanding = typeof SubClassGroupStanding[keyof typeof Su
 
 export const SubClassGroupStanding = {
   WITHIN_BAND: 'WITHIN_BAND',
-  WATCH: 'WATCH',
-  AT_EDGE: 'AT_EDGE',
   BREACHED: 'BREACHED',
 } as const;
 
@@ -3459,10 +3398,6 @@ export interface ClassPositions {
   /** @nullable */
   suggestion: number | null;
   /** @nullable */
-  watchAt: number | null;
-  /** @nullable */
-  edgeAt: number | null;
-  /** @nullable */
   breachAt: number | null;
   ownTolerance: boolean;
   /** @nullable */
@@ -3475,8 +3410,6 @@ export interface ModelLine {
   name: string;
   shareOfClass: number;
   shareOfPortfolio: number;
-  watchAt: number;
-  edgeAt: number;
   breachAt: number;
 }
 
@@ -4554,8 +4487,6 @@ export type AllocationRowStanding = typeof AllocationRowStanding[keyof typeof Al
 
 export const AllocationRowStanding = {
   WITHIN_BAND: 'WITHIN_BAND',
-  WATCH: 'WATCH',
-  AT_EDGE: 'AT_EDGE',
   BREACHED: 'BREACHED',
 } as const;
 
@@ -4638,8 +4569,6 @@ export type DriftRowStanding = typeof DriftRowStanding[keyof typeof DriftRowStan
 
 export const DriftRowStanding = {
   WITHIN_BAND: 'WITHIN_BAND',
-  WATCH: 'WATCH',
-  AT_EDGE: 'AT_EDGE',
   BREACHED: 'BREACHED',
 } as const;
 
@@ -4845,8 +4774,6 @@ export type ExposureStanding = typeof ExposureStanding[keyof typeof ExposureStan
 
 export const ExposureStanding = {
   WITHIN_BAND: 'WITHIN_BAND',
-  WATCH: 'WATCH',
-  AT_EDGE: 'AT_EDGE',
   BREACHED: 'BREACHED',
 } as const;
 
@@ -5993,8 +5920,6 @@ export type ListDriftStandingItem = typeof ListDriftStandingItem[keyof typeof Li
 
 export const ListDriftStandingItem = {
   WITHIN_BAND: 'WITHIN_BAND',
-  WATCH: 'WATCH',
-  AT_EDGE: 'AT_EDGE',
   BREACHED: 'BREACHED',
 } as const;
 

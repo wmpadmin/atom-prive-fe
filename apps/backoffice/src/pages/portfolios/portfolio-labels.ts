@@ -1,19 +1,15 @@
-/** How far a portfolio has wandered from its model, as the API names it. */
-export type DriftStanding = "WITHIN_BAND" | "WATCH" | "AT_EDGE" | "BREACHED";
+/** Whether a portfolio is inside the range its model allows, or outside it, as the API names it. */
+export type DriftStanding = "WITHIN_BAND" | "BREACHED";
 
 
 
 export const standingLabels: Record<DriftStanding, string> = {
   WITHIN_BAND: "Within band",
-  WATCH: "Watch",
-  AT_EDGE: "At edge",
   BREACHED: "Breached",
 };
 
-export const standingTones: Record<DriftStanding, "success" | "neutral" | "warning" | "danger"> = {
+export const standingTones: Record<DriftStanding, "success" | "danger"> = {
   WITHIN_BAND: "success",
-  WATCH: "neutral",
-  AT_EDGE: "warning",
   BREACHED: "danger",
 };
 
@@ -24,8 +20,6 @@ export const standingTones: Record<DriftStanding, "success" | "neutral" | "warni
  */
 export const driftTones: Record<DriftStanding, string> = {
   WITHIN_BAND: "text-emerald-700",
-  WATCH: "text-ink",
-  AT_EDGE: "text-amber-700",
   BREACHED: "text-red-600",
 };
 

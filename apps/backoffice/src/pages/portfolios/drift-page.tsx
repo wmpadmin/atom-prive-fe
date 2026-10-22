@@ -1,9 +1,9 @@
 import { ApiError } from "@atomprive/api-client";
 import { useListDrift, type DriftPage } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, SelectInput, cn } from "@atomprive/ui";
+import { Alert, Avatar, Badge, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router";
-import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
+import { ListPageHeader, RecordList } from "../../components/record-list";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress } from "../../lib/use-list-address";
 import {
@@ -15,8 +15,8 @@ import {
   type DriftStanding,
 } from "./portfolio-labels";
 
-/** The standings worth queueing: a portfolio where the model wants it is not a thing to do. */
-const WANDERED: DriftStanding[] = ["BREACHED", "AT_EDGE", "WATCH"];
+/** The one standing worth queueing: a portfolio where the model wants it is not a thing to do. */
+const WANDERED: DriftStanding[] = ["BREACHED"];
 
 /**
  * The queue a portfolio manager works down: every client whose portfolio has wandered from its model, the
@@ -30,13 +30,13 @@ export function DriftBreachesPage() {
   // The queue as it is being read, so Back from a portfolio comes to the same page of the same filter.
   const asLeft = encodeURIComponent(useLocation().search);
   const { params, update } = useListAddress();
-  const standing = params.get("standing") ?? "";
+
   const page = Number(params.get("page")) || 0;
   const size = Number(params.get("size")) || PAGE_SIZES[0]!;
-  const filtered = standing !== "";
+
 
   const queue = useListDrift<DriftPage, ApiError>(
-    { standing: filtered ? [standing as DriftStanding] : WANDERED, page, size },
+    { standing: WANDERED, page, size },
     { query: { placeholderData: keepPreviousData } },
   );
 
@@ -66,26 +66,6 @@ export function DriftBreachesPage() {
       <RecordList
         caption="Drift & breaches"
         subtitle="Worst first"
-        filters={
-          <label>
-            <span className="sr-only">How far it has wandered</span>
-            <SelectInput
-              id="drift-standing"
-              value={standing}
-              onChange={(event) => update({ standing: event.target.value || null, page: "0" })}
-              className="w-auto"
-            >
-              <option value="">Everything that has wandered</option>
-              {WANDERED.map((one) => (
-                <option key={one} value={one}>
-                  {standingLabels[one]}
-                </option>
-              ))}
-            </SelectInput>
-          </label>
-        }
-        filtered={filtered}
-        onClear={() => update({ standing: null, page: "0" })}
         head={
           <>
             <th scope="col" className="px-5 py-3 text-left font-semibold">
@@ -111,15 +91,7 @@ export function DriftBreachesPage() {
         columns={6}
         loading={queue.isLoading}
         stale={queue.isPlaceholderData}
-        empty={
-          rows.length > 0 ? undefined : filtered ? (
-            <ClearFiltersLink onClear={() => update({ standing: null, page: "0" })}>
-              No portfolio has wandered that far.
-            </ClearFiltersLink>
-          ) : (
-            "Every portfolio is where its model wants it."
-          )
-        }
+        empty={rows.length > 0 ? undefined : "Every portfolio is where its model wants it."}
         page={page}
         size={size}
         total={queue.data?.totalItems ?? 0}

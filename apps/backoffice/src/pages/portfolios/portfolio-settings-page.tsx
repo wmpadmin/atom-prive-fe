@@ -44,7 +44,7 @@ export function PortfolioSettingsPage() {
   const held = settings.data;
   const typed = edits ?? asTyped(held);
   const { classBreachAt, subAssetBreachAt, insideSubAssetBreachAt, sellOrder, minimumTrade,
-    breachAlertTo, warnOnNearLimit } =
+    breachAlertTo } =
     typed;
   const set = (part: Partial<Typed>) => setEdits({ ...typed, ...part });
   // Nothing to save until something is different from what the firm has settled. Compared against the
@@ -84,7 +84,6 @@ export function PortfolioSettingsPage() {
         sellOrder,
         minimumTrade: Number(minimumTrade),
         breachAlertTo,
-        warnOnNearLimit,
       },
     });
   }
@@ -192,17 +191,6 @@ export function PortfolioSettingsPage() {
                 <option value="BOTH">Both</option>
               </SelectInput>
             </Field>
-            <Field id="set-near" label="Said from">
-              <SelectInput
-                id="set-near"
-                value={warnOnNearLimit ? "EDGE" : "BREACH"}
-                disabled={!mayChange}
-                onChange={(event) => set({ warnOnNearLimit: event.target.value === "EDGE" })}
-              >
-                <option value="EDGE">The edge, before it breaks</option>
-                <option value="BREACH">Only once it has broken</option>
-              </SelectInput>
-            </Field>
           </div>
           <p className="mt-2 text-xs text-ink-muted">
             A bell in the portal, at 6:30 Dubai. A client on their own allocation is not watched. The email
@@ -234,7 +222,6 @@ interface Typed {
   sellOrder: SellOrder;
   minimumTrade: string;
   breachAlertTo: AlertTo;
-  warnOnNearLimit: boolean;
 }
 
 /** What the firm has settled, as boxes. Blank until it has been read, rather than a guess at the defaults. */
@@ -246,7 +233,6 @@ function asTyped(held: SettingsView | undefined): Typed {
     sellOrder: held?.sellOrder ?? "ASK",
     minimumTrade: held ? String(held.minimumTrade) : "",
     breachAlertTo: held?.breachAlertTo ?? "PORTFOLIO_MANAGER",
-    warnOnNearLimit: held?.warnOnNearLimit ?? true,
   };
 }
 
