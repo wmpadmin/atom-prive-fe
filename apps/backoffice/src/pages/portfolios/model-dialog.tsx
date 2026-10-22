@@ -1,9 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useGetPortfolioSettings,
-  useListBenchmarks,
   useListModelPortfolios,
-  type BenchmarkRow,
   type ModelsPage,
   type ModelRequest,
   type ModelRequestRiskProfile,
@@ -403,9 +401,6 @@ export function ModelDialog({
     ? perClass
     : Object.fromEntries(codes.map((assetClass) =>
         [assetClass, (isNumber(targets[assetClass]) && Number(targets[assetClass]) > 0) ? classBand : ""]));
-  const [benchmarkId, setBenchmarkId] = useState(model?.benchmarkId ?? "");
-  // Which indices the firm holds. Without one named here, Model performance has nothing to compare against.
-  const benchmarks = useListBenchmarks<BenchmarkRow[], ApiError>();
   // Already in hand on the screen this dialog opens from, so asking again costs nothing and the names are
   // there on the first render rather than a moment later.
   const everyModel = useListModelPortfolios<ModelsPage, ApiError>();
@@ -524,7 +519,10 @@ export function ModelDialog({
       edgeAt,
       breachAt,
       bands: perClass,
-      benchmarkId: benchmarkId || null,
+      // Whatever the plan already carries. The firm keeps no indices any more — there is no screen left
+      // that can name one — so the form does not ask, and a plan written before that stays as it was
+      // rather than having its index taken away by somebody opening the editor and saving.
+      benchmarkId: model?.benchmarkId ?? null,
       geographyTargets: asTargets(countries),
       sectorTargets: asTargets(sectors),
       // Only the classes somebody has actually broken down; the rest stay a single target.
@@ -605,25 +603,6 @@ export function ModelDialog({
                 <option value="DRAFT">Draft — nobody is measured against it</option>
                 <option value="LIVE">Live — in use</option>
                 <option value="RETIRED">Retired — nobody new goes on it</option>
-              </SelectInput>
-            </Field>
-            <Field
-              id="model-benchmark"
-              label="Benchmark"
-              hint="Without one, Model performance has nothing to compare it with."
-              error={errors.fields.benchmarkId}
-            >
-              <SelectInput
-                id="model-benchmark"
-                value={benchmarkId}
-                onChange={(event) => setBenchmarkId(event.target.value)}
-              >
-                <option value="">No benchmark</option>
-                {(benchmarks.data ?? []).map((one) => (
-                  <option key={one.id} value={one.id}>
-                    {one.name} · {one.currency}
-                  </option>
-                ))}
               </SelectInput>
             </Field>
           </div>
