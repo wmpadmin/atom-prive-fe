@@ -1,7 +1,6 @@
 import type { MovePlanRow } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, cn } from "@atomprive/ui";
 import { formatDateTime } from "../../lib/labels";
-import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { exactly, figure, named, netted, overItsBand } from "./money-words";
 import { WhatItWouldLeave } from "./what-it-would-leave";
 
@@ -23,9 +22,8 @@ export function WaitingPlan({ row, showClient, answering, refusal, onApprove, on
 }) {
   const moved = row.legs.some((leg) => leg.figuresMoved);
   const leaves = netted(row.legs);
-  // Both lines above read every leg and not the page: what has moved and what the plan would leave are
-  // facts about the whole plan, which is applied whole or not at all.
-  const paged = usePagedRows(row.legs);
+  // Every leg, never a page of them: what has moved and what the plan would leave are facts about the
+  // whole plan, which is applied whole or not at all — so the table under them shows the whole of it too.
   return (
     <>
       {/* Who and why across the top, the buttons at the far end of that same line, and the figures given
@@ -100,7 +98,7 @@ export function WaitingPlan({ row, showClient, answering, refusal, onApprove, on
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {paged.shown.map((leg, at) => (
+              {row.legs.map((leg, at) => (
                 <tr key={`${leg.fromSubClass ?? ""}-${leg.toSubClass ?? ""}-${at}`} className="align-top">
                   <th scope="row" className="py-2.5 pr-3 text-left font-medium break-words text-ink">
                     {named(leg.fromSubClass, leg.fromAssetClass, leg.fromSubSubClass)}
@@ -128,7 +126,6 @@ export function WaitingPlan({ row, showClient, answering, refusal, onApprove, on
               </tfoot>
             )}
           </table>
-          <PagedFooter paged={paged} noun={["line", "lines"]} />
         </div>
         <WhatItWouldLeave legs={row.legs} />
       </div>
