@@ -27,14 +27,6 @@ export function usePagedRows<T>(rows: readonly T[], startingSize: number = DEFAU
     /** Just this page's worth, which is what the table draws. */
     shown: rows.slice(on * size, on * size + size),
     total: rows.length,
-    /**
-     * Which page the row at this place in the whole list falls on.
-     *
-     * <p>For a table somebody adds to. A new row goes on the end, which on a long list is a page nobody
-     * is looking at — so the row appears not to have been added at all, and the next press adds another.
-     * Whoever adds a row follows it.
-     */
-    pageOf: (at: number) => Math.floor(at / size),
     onPage: setPage,
     onSize(next: number) {
       setSize(next);
