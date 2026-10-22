@@ -6,6 +6,13 @@ import { advisesClients, hasAuthority } from "../lib/permissions";
 
 export function HomePage() {
   const user = useStaffUser();
+  // The portfolio desk opens on its own book. Asked of the role somebody is working in rather than of
+  // what they may reach: an administrator can reach these screens too, and sending them here would take
+  // them off their own first screen. Somebody signing in as a portfolio manager came to read clients
+  // against their plans.
+  if (user.activeRole === "PORTFOLIO_MANAGER") {
+    return <Navigate to="/portfolio-clients" replace />;
+  }
   if (hasAuthority(user, "MANAGE_USERS_AND_ROLES:VIEW")) {
     return <Navigate to="/users" replace />;
   }
