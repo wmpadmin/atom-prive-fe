@@ -13,6 +13,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ColumnPicker } from "../../components/column-picker";
+import { ViewPicker } from "../../components/view-picker";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
 import { useTableView } from "../../lib/table-view";
 import { PAGE_SIZES } from "../../lib/page-sizes";
@@ -342,6 +343,16 @@ export function PortfolioClientsPage() {
 
             {/* Beside the filters, because arranging the table is the same kind of act as narrowing it:
                 both are about what this reader wants in front of them rather than about any client. */}
+            {/* Which arrangement, then what is in it: a reader picks the job they are doing before they
+                fiddle with the columns of it. */}
+            <ViewPicker
+              views={view.views}
+              current={view.current}
+              changed={view.changed}
+              onApply={view.apply}
+              onSave={view.saveAs}
+              onDelete={view.remove}
+            />
             <ColumnPicker
               columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
               shown={new Set(view.shown)}
