@@ -66,12 +66,13 @@ export function ModelPerformancePage() {
                 more — given a quarter of the table it held its words at the left and pushed the count of
                 clients a hand's width away from them, which is a gap nothing is in. */}
             <colgroup>
-              <col className="w-[18%]" />
-              <col className="w-[9%]" />
-              <col className="w-[18%]" />
               <col className="w-[17%]" />
+              <col className="w-[8%]" />
               <col className="w-[16%]" />
-              <col className="w-[22%]" />
+              <col className="w-[15%]" />
+              <col className="w-[15%]" />
+              <col className="w-[19%]" />
+              <col className="w-[10%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -83,22 +84,21 @@ export function ModelPerformancePage() {
                     every day since. */}
                 <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Outside band</th>
                 <th scope="col" className="px-4 py-3 text-right">This year</th>
-                {/* Last, and read from the right like everything after the name. Left-aligned at the end
-                    of the row its words sat against the column's left edge while every figure before them
-                    sat against its right, which is the hole that opens whenever one column reads the
-                    other way. */}
-                <th scope="col" className="py-3 pr-5 pl-4 text-right">Written by</th>
+                {/* Both read from the right, like everything after the name: one column reading the
+                    other way is the hole that opens down the middle of a fixed table. */}
+                <th scope="col" className="px-4 py-3 text-right">Written by</th>
+                <th scope="col" className="py-3 pr-5 pl-4 text-right">Version</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {table.isPending && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-ink-muted">Working out the returns…</td>
+                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">Working out the returns…</td>
                 </tr>
               )}
               {table.data && rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-ink-muted">
+                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">
                     There are no model portfolios yet.
                   </td>
                 </tr>
@@ -140,14 +140,16 @@ function Row({ row, currency }: { row: ModelPerformanceRow; currency: string }) 
         )}
       </td>
       <Percent value={row.thisYear.percent} period={row.thisYear} />
-      {/* "Nobody recorded" where nobody is, which is the plans the platform was seeded with. Naming
-          whoever happens to be an administrator today would be inventing an author for them. */}
-      <td className="py-3 pr-5 pl-4 text-right text-ink-soft">
+      {/* "Nobody recorded" where nobody is. Naming whoever happens to be an administrator today would be
+          inventing an author for a plan nobody wrote. */}
+      <td className="px-4 py-3 text-right text-ink-soft">
         <span className="block truncate">
           {row.writtenBy ?? <span className="text-ink-muted">Nobody recorded</span>}
         </span>
-        <span className="block text-xs text-ink-muted">v{row.revision}</span>
       </td>
+      {/* Its own column rather than a line under the author: the two answer different questions, and a
+          version read as a caption to a name looks like part of the name. */}
+      <td className="py-3 pr-5 pl-4 text-right tabular-nums text-ink-soft">v{row.revision}</td>
     </tr>
   );
 }
