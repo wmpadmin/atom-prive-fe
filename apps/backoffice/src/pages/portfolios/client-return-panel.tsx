@@ -19,7 +19,7 @@ import { exactly } from "./money-words";
  * disagrees with a rate can check it against nothing else.
  *
  * <p>Then what the client's money earned, which is the question asked on the telephone. Then what the
- * plan did, which is the firm's question and the figure a benchmark sits beside. The growth rate last: it
+ * plan did, which is the firm's question. The growth rate last: it
  * is the simplest to say and the easiest to mislead with, since it takes no account of money moving.
  */
 const ROWS = [
