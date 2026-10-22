@@ -10,11 +10,12 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { useRef, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
+import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
@@ -266,18 +267,7 @@ export function PortfolioClientsPage() {
   // nothing about a client depends on it, which is why it is kept there rather than against the account.
   const view = useTableView("portfolio-clients", MOVABLE.map((one) => one.id));
   // Which heading is being dragged, so the one under the cursor can say it will take the drop.
-  const [dragging, setDragging] = useState<string | null>(null);
-  // Which heading the pointer is over, so the one that would take the drop says so.
-  const [over, setOver] = useState<string | null>(null);
-  /*
-   * What was picked up and where, held outside React's state.
-   *
-   * <p>A press is not yet a drag: it becomes one a few pixels later, and until then nothing has to be
-   * drawn differently. Kept in state it would redraw the table on every press of a heading, and
-   * redrawing the heading somebody has just taken hold of is what broke this when it was written with
-   * the browser's own drag — Chrome abandons a drag whose node changes in the tick it begins in.
-   */
-  const took = useRef<{ id: string; from: number } | null>(null);
+  const drag = useColumnDrag(view);
   const byId = new Map(MOVABLE.map((one) => [one.id, one]));
   const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
@@ -380,47 +370,12 @@ export function PortfolioClientsPage() {
               <th
                 key={column.id}
                 scope="col"
-                data-column={column.id}
-                onPointerDown={(event) => {
-                  // The left button only, and never a drag that starts on something inside the heading
-                  // that does its own thing with a press.
-                  if (event.button !== 0) return;
-                  event.preventDefault();
-                  took.current = { id: column.id, from: event.clientX };
-                }}
-                onPointerMove={(event) => {
-                  const holding = took.current;
-                  if (!holding) return;
-                  // A few pixels before it counts as a drag, so a press that wanders by one does not
-                  // rearrange the table under somebody who meant to click.
-                  if (dragging === null && Math.abs(event.clientX - holding.from) < 4) return;
-                  if (dragging === null) setDragging(holding.id);
-                  const under = document.elementFromPoint(event.clientX, event.clientY);
-                  const heading = under?.closest("th[data-column]")?.getAttribute("data-column") ?? null;
-                  setOver(heading === holding.id ? null : heading);
-                }}
-                onPointerUp={() => {
-                  const holding = took.current;
-                  took.current = null;
-                  // Dropped where it was picked up, or outside every heading: nothing has been asked for.
-                  if (holding && dragging !== null && over !== null && over !== holding.id) {
-                    // Read against the whole order rather than against what is on screen, so a column
-                    // dropped past a hidden one does not jump over it.
-                    view.move(holding.id, view.order.indexOf(over));
-                  }
-                  setDragging(null);
-                  setOver(null);
-                }}
-                onPointerCancel={() => {
-                  took.current = null;
-                  setDragging(null);
-                  setOver(null);
-                }}
+                {...drag.headingProps(column.id)}
                 className={cn(
                   "cursor-grab touch-none px-4 py-3 font-semibold select-none",
                   column.align === "right" ? "text-right" : "text-left",
-                  dragging === column.id && "cursor-grabbing opacity-40",
-                  over === column.id && "bg-primary-50",
+                  drag.dragging === column.id && "cursor-grabbing opacity-40",
+                  drag.over === column.id && "bg-primary-50",
                 )}
                 title={`Drag to move ${column.label}`}
               >
