@@ -265,6 +265,16 @@ export const SettingsRequestBreachAlertTo = {
   BOTH: 'BOTH',
 } as const;
 
+export type SettingsRequestBreachAlertEvery = typeof SettingsRequestBreachAlertEvery[keyof typeof SettingsRequestBreachAlertEvery];
+
+
+export const SettingsRequestBreachAlertEvery = {
+  DAY: 'DAY',
+  WEEKDAY: 'WEEKDAY',
+  WEEK: 'WEEK',
+  MONTH: 'MONTH',
+} as const;
+
 export interface SettingsRequest {
   /** @minimum 0.01 */
   classBreachAt: number;
@@ -276,6 +286,7 @@ export interface SettingsRequest {
   /** @minimum 0 */
   minimumTrade: number;
   breachAlertTo: SettingsRequestBreachAlertTo;
+  breachAlertEvery: SettingsRequestBreachAlertEvery;
 }
 
 export type SettingsViewSellOrder = typeof SettingsViewSellOrder[keyof typeof SettingsViewSellOrder];
@@ -297,6 +308,16 @@ export const SettingsViewBreachAlertTo = {
   BOTH: 'BOTH',
 } as const;
 
+export type SettingsViewBreachAlertEvery = typeof SettingsViewBreachAlertEvery[keyof typeof SettingsViewBreachAlertEvery];
+
+
+export const SettingsViewBreachAlertEvery = {
+  DAY: 'DAY',
+  WEEKDAY: 'WEEKDAY',
+  WEEK: 'WEEK',
+  MONTH: 'MONTH',
+} as const;
+
 export interface SettingsView {
   classBreachAt: number;
   subAssetBreachAt: number;
@@ -305,6 +326,7 @@ export interface SettingsView {
   sellOrderActsYet: boolean;
   minimumTrade: number;
   breachAlertTo: SettingsViewBreachAlertTo;
+  breachAlertEvery: SettingsViewBreachAlertEvery;
   updatedAt: string;
   /** @nullable */
   updatedBy: string | null;
