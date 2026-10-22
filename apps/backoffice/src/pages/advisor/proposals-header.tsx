@@ -1,5 +1,5 @@
-import { Alert, Button, TextInput } from "@atomprive/ui";
-import { Download, Search } from "lucide-react";
+import { Alert, Button } from "@atomprive/ui";
+import { Download } from "lucide-react";
 import { QueueActions } from "../../components/queue-actions";
 
 /**
@@ -13,28 +13,20 @@ import { QueueActions } from "../../components/queue-actions";
  * that opened it is named, the card below is named, and every row carries the advisor who wrote it — so
  * the sentence was a third naming, set above the filter row it had nothing to do with.
  *
+ * <p>No search of its own either. Above the list the search sits in the filter row with everything else
+ * that narrows it, and above an open proposal there is nothing on the page for a search to narrow —
+ * typing in it sent the reader off the document they had just opened.
+ *
  * <p>It sits above an open proposal as well as above the list, so opening one never loses the way back to
  * everything else — the screen is the list, and a proposal is read within it.
  */
 export function ProposalsHeader({
-  search,
-  onSearch,
   onExport,
   exporting,
   canExport,
   cappedAt,
   reading = false,
 }: {
-  /**
-   * The box that searches the list, where this header stands above an open proposal rather than above the
-   * list itself.
-   *
-   * <p>Left out above the list, where the search sits in the filter row with everything else that narrows
-   * it — one row, the same row every other queue draws, rather than a box of its own floating a strip of
-   * page above the controls it belongs with.
-   */
-  search?: string;
-  onSearch?: (value: string) => void;
   onExport: () => void;
   exporting: boolean;
   canExport: boolean;
@@ -77,22 +69,6 @@ export function ProposalsHeader({
           {cappedAt.of.toLocaleString()} proposals — {(cappedAt.of - cappedAt.carried).toLocaleString()}{" "}
           are not in it. Narrow it by tab, by date or by search and export again to carry the rest.
         </Alert>
-      )}
-
-      {onSearch && (
-        <label className="relative block max-w-md">
-          <span className="sr-only">Search proposals</span>
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
-          />
-          <TextInput
-            value={search ?? ""}
-            placeholder="Search by proposal, reference or client"
-            className="pl-9"
-            onChange={(event) => onSearch(event.target.value)}
-          />
-        </label>
       )}
     </>
   );
