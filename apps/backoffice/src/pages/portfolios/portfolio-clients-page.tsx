@@ -10,7 +10,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ColumnPicker } from "../../components/column-picker";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
@@ -266,6 +266,17 @@ export function PortfolioClientsPage() {
   const view = useTableView("portfolio-clients", MOVABLE.map((one) => one.id));
   // Which heading is being dragged, so the one under the cursor can say it will take the drop.
   const [dragging, setDragging] = useState<string | null>(null);
+  // Which heading the pointer is over, so the one that would take the drop says so.
+  const [over, setOver] = useState<string | null>(null);
+  /*
+   * What was picked up and where, held outside React's state.
+   *
+   * <p>A press is not yet a drag: it becomes one a few pixels later, and until then nothing has to be
+   * drawn differently. Kept in state it would redraw the table on every press of a heading, and
+   * redrawing the heading somebody has just taken hold of is what broke this when it was written with
+   * the browser's own drag — Chrome abandons a drag whose node changes in the tick it begins in.
+   */
+  const took = useRef<{ id: string; from: number } | null>(null);
   const byId = new Map(MOVABLE.map((one) => [one.id, one]));
   const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
@@ -357,28 +368,47 @@ export function PortfolioClientsPage() {
               <th
                 key={column.id}
                 scope="col"
-                draggable
-                onDragStart={(event) => {
-                  setDragging(column.id);
-                  event.dataTransfer.effectAllowed = "move";
-                  // Firefox starts no drag at all without something on the transfer.
-                  event.dataTransfer.setData("text/plain", column.id);
-                }}
-                onDragEnd={() => setDragging(null)}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
+                data-column={column.id}
+                onPointerDown={(event) => {
+                  // The left button only, and never a drag that starts on something inside the heading
+                  // that does its own thing with a press.
+                  if (event.button !== 0) return;
                   event.preventDefault();
-                  const moved = dragging ?? event.dataTransfer.getData("text/plain");
-                  // Where it was dropped, read against the whole order rather than against the columns
-                  // on screen: a column dropped past a hidden one must not jump over it.
-                  if (moved && moved !== column.id) view.move(moved, view.order.indexOf(column.id));
+                  took.current = { id: column.id, from: event.clientX };
+                }}
+                onPointerMove={(event) => {
+                  const holding = took.current;
+                  if (!holding) return;
+                  // A few pixels before it counts as a drag, so a press that wanders by one does not
+                  // rearrange the table under somebody who meant to click.
+                  if (dragging === null && Math.abs(event.clientX - holding.from) < 4) return;
+                  if (dragging === null) setDragging(holding.id);
+                  const under = document.elementFromPoint(event.clientX, event.clientY);
+                  const heading = under?.closest("th[data-column]")?.getAttribute("data-column") ?? null;
+                  setOver(heading === holding.id ? null : heading);
+                }}
+                onPointerUp={() => {
+                  const holding = took.current;
+                  took.current = null;
+                  // Dropped where it was picked up, or outside every heading: nothing has been asked for.
+                  if (holding && dragging !== null && over !== null && over !== holding.id) {
+                    // Read against the whole order rather than against what is on screen, so a column
+                    // dropped past a hidden one does not jump over it.
+                    view.move(holding.id, view.order.indexOf(over));
+                  }
                   setDragging(null);
+                  setOver(null);
+                }}
+                onPointerCancel={() => {
+                  took.current = null;
+                  setDragging(null);
+                  setOver(null);
                 }}
                 className={cn(
-                  "cursor-grab px-4 py-3 font-semibold select-none active:cursor-grabbing",
+                  "cursor-grab touch-none px-4 py-3 font-semibold select-none",
                   column.align === "right" ? "text-right" : "text-left",
-                  dragging === column.id && "opacity-40",
-                  dragging !== null && dragging !== column.id && "bg-primary-50/60",
+                  dragging === column.id && "cursor-grabbing opacity-40",
+                  over === column.id && "bg-primary-50",
                 )}
                 title={`Drag to move ${column.label}`}
               >
