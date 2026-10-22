@@ -10,7 +10,6 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, DateInput, Field, FilterMenu, cn } from "@atomprive/ui";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { INK, inkFor, nameOf, useAssetClasses } from "./asset-classes";
 
 function money(amount: number) {
@@ -172,14 +171,15 @@ function AverageMix({ mix, modelName, ink }: {
   // A class the client held nothing in and the plan asked nothing of is not a row: a line of noughts is a
   // line to read past.
   const rows = mix.filter((row) => row.held > 0 || row.target > 0);
-  const paged = usePagedRows(rows);
+  // Every one of them, never a page: these are the parts of one portfolio, not a list somebody browses,
+  // and they are counted on to add up to it in front of whoever is reading.
 
   return (
     <>
       <table className="mt-3 w-full text-xs">
         <caption className="sr-only">Average mix under {modelName}</caption>
         <tbody>
-          {paged.shown.map((row) => (
+          {rows.map((row) => (
             <tr key={row.assetClass}>
               <td className="w-40 truncate py-1 pr-3 text-ink">{row.name}</td>
               <td className="py-1">
@@ -205,7 +205,6 @@ function AverageMix({ mix, modelName, ink }: {
           ))}
         </tbody>
       </table>
-      {rows.length > 0 && <PagedFooter paged={paged} noun={["asset class", "asset classes"]} />}
     </>
   );
 }
@@ -755,7 +754,6 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
   // Every class the client holds or the plan asks for. A class with neither is not a row: the firm has
   // nothing there and asks for nothing there, and a line of noughts is a line to read past.
   const shown = byClass.filter((row) => row.actualValue > 0 || row.targetShare > 0);
-  const paged = usePagedRows(shown);
   // What the bars are drawn against. Taken from the figures rather than fixed, so a client with eighty
   // per cent in one class has a bar that fits instead of one pinned at the end telling nobody how far
   // past it they are. Rounded up to the next five so the scale is a figure a reader can hold.
@@ -846,7 +844,7 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
                   </tr>
                 </thead>
                 <tbody>
-                  {paged.shown.map((row) => {
+                  {shown.map((row) => {
                     const actual = whole === 0 ? 0 : (row.actualValue / whole) * 100;
                     const target = row.targetShare;
                     const apart = actual - target;
@@ -904,7 +902,6 @@ function MadeOf({ byClass, order, names, currency, asAt, narrowed, only, setOnly
               </table>
               {/* The ring beside this table is the whole portfolio whichever page is open: it is drawn from
                   everything held, not from the rows on show. */}
-              {shown.length > 0 && <PagedFooter paged={paged} noun={["asset class", "asset classes"]} />}
               <p className="mt-2 pl-2 text-xs text-ink-muted">
                 How far each class sits from its target, marked beyond {FAR_FROM_TARGET} either way. The bar runs
                 0–{scale}%, and the mark on it is what the plan asks for.
