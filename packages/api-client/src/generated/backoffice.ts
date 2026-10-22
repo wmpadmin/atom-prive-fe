@@ -4580,6 +4580,8 @@ export interface DriftRow {
   currency: string;
   underManagement: number;
   drift: number;
+  /** @nullable */
+  allowed: number | null;
   standing: DriftRowStanding;
   /** @nullable */
   lastRebalancedOn: string | null;

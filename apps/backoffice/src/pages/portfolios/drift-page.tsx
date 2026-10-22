@@ -77,6 +77,12 @@ export function DriftBreachesPage() {
             <th scope="col" className="px-4 py-3 text-right font-semibold">
               AUM
             </th>
+            {/* What that drift is to be read against, in money rather than in points. A drift of twelve
+                points says nothing by itself; twelve points of a portfolio against the two and a half
+                million it was allowed to wander is a sentence somebody can act on. */}
+            <th scope="col" className="px-4 py-3 text-right font-semibold whitespace-nowrap">
+              Allowed
+            </th>
             <th scope="col" className="px-4 py-3 text-right font-semibold">
               Drift
             </th>
@@ -88,7 +94,7 @@ export function DriftBreachesPage() {
             </th>
           </>
         }
-        columns={6}
+        columns={7}
         loading={queue.isLoading}
         stale={queue.isPlaceholderData}
         empty={rows.length > 0 ? undefined : "Every portfolio is where its model wants it."}
@@ -124,6 +130,23 @@ export function DriftBreachesPage() {
             <td className="px-4 py-3">{row.modelName}</td>
             <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
               {underManagementLabel(row.underManagement, row.currency)}
+            </td>
+            <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums text-ink-soft">
+              {row.allowed === null ? (
+                <span className="text-ink-muted">—</span>
+              ) : (
+                <>
+                  {/* The range turned into money against this portfolio: a drift is in points of the
+                      whole, so the points the plan allows are that share of the whole. */}
+                  <span className="block">
+                    ±{underManagementLabel(
+                      (row.underManagement * Number(row.allowed)) / 100, row.currency)}
+                  </span>
+                  <span className="block text-xs text-ink-muted">
+                    ±{Number(row.allowed).toFixed(1)}% of the portfolio
+                  </span>
+                </>
+              )}
             </td>
             {/* Which side of the target it has gone is kept in the sign — "+6.4pp" against "−6.4pp" — but
                 the ink follows the standing. Coloured by side, a breach the wrong way read as good news. */}

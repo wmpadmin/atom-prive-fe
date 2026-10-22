@@ -11,7 +11,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, DateInput, Dialog, SelectInput, cn } from "@atomprive/ui";
 import { Receipt } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { ListPageHeader } from "../../components/record-list";
@@ -50,6 +50,17 @@ export function BulkRebalancingPage() {
   const [recording, setRecording] = useState(false);
 
   const models = useListModelPortfolios<ModelsPage, ApiError>();
+  // The screen opens on a plan rather than on an empty picker. Nobody arrives here to choose nothing, and
+  // a page whose every figure reads "—" until a dropdown is touched looks broken rather than unanswered.
+  // The first live plan, in the order the list already sorts them; a draft takes no clients, so a screen
+  // opening on one would be a screen opening on nobody.
+  const live = (models.data?.items ?? []).filter((one) => one.status === "LIVE");
+  const opensOn = live[0]?.id ?? "";
+  useEffect(() => {
+    if (modelId === "" && opensOn !== "") {
+      setModelId(opensOn);
+    }
+  }, [modelId, opensOn]);
   const rebalancing = useListRebalancing<BulkRebalancing, ApiError>(modelId, {
     query: { enabled: modelId !== "" },
   });
