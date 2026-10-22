@@ -102,7 +102,10 @@ export function BulkRebalancingPage() {
           <SelectInput
             id="bulk-model"
             value={modelId}
-            className="w-auto"
+            // One width, whatever is chosen. Sized to its contents it was narrower than the word above
+            // it, and it changed width every time the model changed — the one control on the screen, and
+            // it moved as you used it.
+            className="w-64"
             onChange={(event) => {
               setModelId(event.target.value);
               setChosen(new Set());
