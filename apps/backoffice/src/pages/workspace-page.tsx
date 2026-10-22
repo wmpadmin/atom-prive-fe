@@ -112,7 +112,16 @@ export function WorkspacePage() {
                     <span className="min-w-0 flex-1">
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="text-lg font-semibold">{workspace.name}</span>
-                        {user.activeRole === role && <Badge tone="info">Current</Badge>}
+                        {/* The gap between these two is drawn by the layout, which a reader listening to
+                            the page does not get: flex items with no whitespace between them are read as
+                            one word, so this button announced itself as "Product Portfolio ManagerCurrent".
+                            The comma is said and not shown. */}
+                        {user.activeRole === role && (
+                          <>
+                            <span className="sr-only">, </span>
+                            <Badge tone="info">Current</Badge>
+                          </>
+                        )}
                       </span>
                       <span className="mt-0.5 block text-sm text-ink-muted">{workspace.description}</span>
                       <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-600">
