@@ -231,7 +231,9 @@ export function ClientPortfolioPage() {
         {/* The figure somebody opened this screen to read, written as a figure rather than tucked into
             the line of small print beside the client's name. Said in full: a client's own screen has
             room for the thousands, and 41.8K is a column's answer to a question nobody asked here. */}
-        <div className="flex items-start gap-4">
+        {/* The figure on its own line and the verdict under it. Side by side the badge sat level with
+            the caption and read as a label on the money, when it is a verdict about the portfolio. */}
+        <div className="flex flex-col items-end gap-2">
           {standing.data && standing.data.underManagement > 0 && (
             <div className="text-right">
               <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
