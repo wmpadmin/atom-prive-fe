@@ -180,7 +180,18 @@ export function ClassStandingTable({
                         <span className="sr-only">A sub-asset inside this class has broken its band</span>
                       </span>
                     ) : (
-                      <span className="text-ink-muted" aria-hidden="true">—</span>
+                      /* A dash is not an answer on its own, and this one was hidden from a screen reader
+                         besides, so that reader was told nothing at all. It is the commonest cell in the
+                         column and it means something worth saying: a class can be well over its own
+                         target while every line inside it sits where the plan asks, which is the case
+                         this column exists to tell apart from the other one. */
+                      <span
+                        className="text-ink-muted"
+                        title="Nothing inside this class has broken its band."
+                      >
+                        <span aria-hidden="true">—</span>
+                        <span className="sr-only">Nothing inside this class has broken its band</span>
+                      </span>
                     )}
                   </td>
                   {suggestions && (

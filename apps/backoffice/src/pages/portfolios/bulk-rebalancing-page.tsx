@@ -306,7 +306,7 @@ export function BulkRebalancingPage() {
                 <tbody className="divide-y divide-line">
                   {clients.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">
+                      <td colSpan={8} className="px-5 py-10 text-center text-ink-muted">
                         Nobody is measured against this model yet.
                       </td>
                     </tr>
@@ -462,7 +462,7 @@ function Row({
       </tr>
       {open && (
         <tr>
-          <td colSpan={7} className="bg-canvas px-5 py-4">
+          <td colSpan={8} className="bg-canvas px-5 py-4">
             <ClassStandingTable
               classes={client.classes}
               currency={client.currency}
