@@ -1394,11 +1394,12 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
+  nodeType?: JsonNodeNodeType;
   valueNode?: boolean;
   missingNode?: boolean;
-  nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
   pojo?: boolean;
@@ -1412,7 +1413,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -4492,6 +4492,16 @@ export interface SchedulesPage {
   items: ScheduleRow[];
 }
 
+export interface PlanToday {
+  outsideBand: number;
+  toBuy: number;
+  toSell: number;
+  /** @nullable */
+  worstClass: string | null;
+  /** @nullable */
+  worstGap: number | null;
+}
+
 export interface PeriodReturn {
   /** @nullable */
   percent: number | null;
@@ -4516,6 +4526,7 @@ export interface ModelPerformanceRow {
   /** @nullable */
   benchmarkCurrency: string | null;
   createdAt: string;
+  today: PlanToday;
   thisYear: PeriodReturn;
   threeYears: PeriodReturn;
   sinceStart: PeriodReturn;
