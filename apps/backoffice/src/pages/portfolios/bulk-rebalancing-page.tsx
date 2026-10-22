@@ -1,5 +1,6 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  useGetClientPortfolio,
   useListModelPortfolios,
   useListRebalancing,
   useRaiseProposalsFromRebalancing,
@@ -8,6 +9,7 @@ import {
   type BulkRebalancing,
   type ClientRebalance,
   type ModelsPage,
+  type PortfolioStanding,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, DateInput, Dialog, SelectInput, cn } from "@atomprive/ui";
 import { Receipt } from "lucide-react";
@@ -391,6 +393,23 @@ function Row({
   onToggle: () => void;
   onOpen: () => void;
 }) {
+  /*
+   * The client's own standing, read only once their row is open.
+   *
+   * <p>The list this row came from is measured without looking inside any class: working out whether a
+   * line within a class has broken its own band means reading every line of every class of every client
+   * on the plan, and that is a price the list cannot pay to answer a question only an opened row asks.
+   * So the list arrives with that column unanswered, and the table drew a dash on every row — the same
+   * dash it draws for "nothing inside here is out", which is a different thing and the one thing this
+   * column exists to tell apart.
+   *
+   * <p>Asked here instead, of the one client whose row is open, from the screen's own source: this is
+   * the figure the client's portfolio shows, because it is the same read.
+   */
+  const inside = useGetClientPortfolio<PortfolioStanding, ApiError>(client.customerId, {
+    query: { enabled: open },
+  });
+
   // A portfolio where its model wants it has nothing to put back, so it cannot be chosen.
   const settled = client.standing === null || client.standing === "WITHIN_BAND";
   // Nor one already asked about. The money has not moved yet, so they still read as breached with the
@@ -463,10 +482,13 @@ function Row({
       {open && (
         <tr>
           <td colSpan={8} className="bg-canvas px-5 py-4">
+            {/* Its own reading where it has arrived, and the list's until it does. The two agree on every
+                figure — they are the same measurement — so the table does not change under the reader as
+                the answer lands; the column that was blank fills in. */}
             <ClassStandingTable
-              classes={client.classes}
-              currency={client.currency}
-              underManagement={client.underManagement}
+              classes={inside.data?.classes ?? client.classes}
+              currency={inside.data?.currency ?? client.currency}
+              underManagement={inside.data?.underManagement ?? client.underManagement}
             />
           </td>
         </tr>
