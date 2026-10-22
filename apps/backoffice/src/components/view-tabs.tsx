@@ -70,6 +70,7 @@ export function ViewTabs({
   onPick,
   onSave,
   onDelete,
+  firstLabel = "All clients",
 }: {
   views: { name: string }[];
   /** The saved view on screen, or nothing where it is the firm's own. */
@@ -80,6 +81,8 @@ export function ViewTabs({
   onPick: (name: string | null) => void;
   onSave: (name: string) => void;
   onDelete: (name: string) => void;
+  /** What the table as the firm wrote it is called on this screen. */
+  firstLabel?: string;
 }) {
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
@@ -112,7 +115,7 @@ export function ViewTabs({
 
   return (
     <div ref={box} className="relative flex flex-wrap items-center gap-1">
-      <Tab of={null} label="All clients"
+      <Tab of={null} label={firstLabel}
         current={current} edited={edited} onPick={onPick} onDelete={onDelete} />
       {views.map((view) => (
         <Tab key={view.name} of={view.name} label={view.name}

@@ -6,6 +6,11 @@ import {
   type PeriodReturn,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
+import { type ReactNode } from "react";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { ListPageHeader } from "../../components/record-list";
 import { formatDate } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
@@ -16,6 +21,104 @@ import { underManagementLabel } from "./portfolio-labels";
  * worse than Growth: they joined at a different time and drifted differently, and a plan's figure deliberately
  * averages that out. A client's own performance belongs on the client's own screen.
  */
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>The plan's own name is not here: a row with no plan on it cannot be told from any other row.
+ *
+ * <p>Each carries the width it is given, because this table is laid out to a fixed grid — move a column
+ * and its width has to move with it, or the table rearranges into the wrong shape.
+ */
+const MOVABLE: {
+  id: string;
+  label: string;
+  width: string;
+  nowrap?: boolean;
+  cell: (row: ModelPerformanceRow, currency: string) => ReactNode;
+  tone?: (row: ModelPerformanceRow) => string | undefined;
+  /*
+   * A period measured in one piece has had any movement inside it treated as happening at the end, so
+   * the screen admits how coarse the answer is rather than printing two decimals as though they were
+   * earned.
+   */
+  title?: (row: ModelPerformanceRow) => string | undefined;
+}[] = [
+  {
+    id: "clients",
+    label: "Clients",
+    width: "w-[7%]",
+    cell: (row) => <span className="text-ink-soft">{row.clients}</span>,
+  },
+  {
+    id: "assets",
+    label: "On this plan",
+    width: "w-[13%]",
+    nowrap: true,
+    cell: (row, currency) => (row.assets > 0
+      ? underManagementLabel(row.assets, currency)
+      : <span className="text-ink-muted">—</span>),
+  },
+  {
+    id: "outside",
+    label: "Outside band",
+    width: "w-[13%]",
+    nowrap: true,
+    /*
+     * What the plan looks like today, which is the question a desk asks of it daily. It answers on
+     * today's money; the return beside it answers about a book that has changed every day since.
+     *
+     * How much of this plan's book is past what the plan allows, counted out of the clients on it —
+     * "2 of 3" is a different fact from "2", and the plan with one client is not in more trouble than
+     * the plan with twenty.
+     */
+    cell: (row) => (row.clients === 0 ? (
+      <span className="text-ink-muted">—</span>
+    ) : row.today.outsideBand === 0 ? (
+      <span className="font-semibold text-emerald-700">All within band</span>
+    ) : (
+      <span className="font-semibold text-rose-700">{row.today.outsideBand} of {row.clients}</span>
+    )),
+  },
+  {
+    id: "thisYear",
+    label: "This year",
+    width: "w-[26%]",
+    cell: (row) => <Percent value={row.thisYear.percent} period={row.thisYear} />,
+    // Painted by whether the money went up or down, which is a thing about the figure rather than about
+    // the column it happens to sit in.
+    tone: (row) => (row.thisYear.percent === null ? undefined
+      : row.thisYear.percent < 0 ? "font-semibold text-rose-700" : "font-semibold text-emerald-700"),
+    title: (row) => (row.thisYear.from && row.thisYear.to
+      ? `${formatDate(row.thisYear.from)} to ${formatDate(row.thisYear.to)}, in ${row.thisYear.split} `
+        + `${row.thisYear.split === 1 ? "piece" : "pieces"}`
+      : undefined),
+  },
+  {
+    id: "writtenBy",
+    label: "Written by",
+    width: "w-[15%]",
+    /*
+     * "Nobody recorded" where nobody is. Naming whoever happens to be an administrator today would be
+     * inventing an author for a plan nobody wrote.
+     */
+    cell: (row) => (
+      <span className="block truncate text-ink-soft">
+        {row.writtenBy ?? <span className="text-ink-muted">Nobody recorded</span>}
+      </span>
+    ),
+  },
+  {
+    id: "revision",
+    label: "Version",
+    width: "w-[10%]",
+    /*
+     * Its own column rather than a line under the author: the two answer different questions, and a
+     * version read as a caption to a name looks like part of the name.
+     */
+    cell: (row) => <span className="text-ink-soft">v{row.revision}</span>,
+  },
+];
+
 export function ModelPerformancePage() {
   const table = useGetModelPerformance<ModelPerformanceTable, ApiError>();
   // Read before the refusal below, because usePagedRows is a hook and a hook cannot be called on only some
@@ -23,6 +126,10 @@ export function ModelPerformancePage() {
   const rows = table.data?.items ?? [];
   const measured = rows.filter((row) => row.thisYear.percent !== null);
   const paged = usePagedRows(rows);
+  const view = useTableView("model-performance", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   if (table.isError) {
     return <Alert tone="danger">{table.error.message}</Alert>;
@@ -46,6 +153,33 @@ export function ModelPerformancePage() {
         </Alert>
       )}
 
+      {/* Which arrangement, then what is in it: above the table, because it decides what the table is
+          showing. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ViewTabs
+          views={view.views}
+          current={view.current}
+          edited={view.current === null ? view.arranged : view.changed}
+          onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+          onSave={view.saveAs}
+          onDelete={view.remove}
+          firstLabel="All plans"
+        />
+        <ColumnPicker
+          columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+          shown={new Set(view.shown)}
+          order={view.order}
+          arranged={view.arranged}
+          onChange={(next) => {
+            for (const one of MOVABLE) {
+              if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+            }
+          }}
+          onMove={view.move}
+          onReset={view.reset}
+        />
+      </div>
+
       {/* The scrolling is the table's own rather than the card's, so the footer below sits still while the
           columns slide under it. */}
       <section className="rounded-2xl border border-line bg-white">
@@ -57,46 +191,53 @@ export function ModelPerformancePage() {
             {/* Weighted to what each column holds. The name needs room for "Copy of Conservative" and no
                 more — given a quarter of the table it held its words at the left and pushed the count of
                 clients a hand's width away from them, which is a gap nothing is in. */}
+            {/* The widths travel with their columns: a fixed table whose widths stay put while its
+                columns move is a table rearranged into the wrong shape. */}
             <colgroup>
               <col className="w-[16%]" />
-              <col className="w-[7%]" />
-              <col className="w-[13%]" />
-              <col className="w-[13%]" />
-              <col className="w-[26%]" />
-              <col className="w-[15%]" />
-              <col className="w-[10%]" />
+              {shownColumns.map((column) => <col key={column.id} className={column.width} />)}
             </colgroup>
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-3 pl-5">Model</th>
-                <th scope="col" className="px-3 py-3 text-right">Clients</th>
-                <th scope="col" className="px-3 py-3 text-right">On this plan</th>
-                {/* What the plan looks like today, which is the question a desk asks of it daily. It
-                    answers on today's money; the return at the end answers about a book that has changed
-                    every day since. */}
-                <th scope="col" className="px-3 py-3 text-right whitespace-nowrap">Outside band</th>
-                <th scope="col" className="px-3 py-3 text-right">This year</th>
-                {/* Both read from the right, like everything after the name: one column reading the
-                    other way is the hole that opens down the middle of a fixed table. */}
-                <th scope="col" className="px-3 py-3 text-right">Written by</th>
-                <th scope="col" className="py-3 pr-5 pl-3 text-right">Version</th>
+                {/* Everything after the name reads from the right: one column reading the other way is
+                    the hole that opens down the middle of a fixed table. */}
+                {shownColumns.map((column, at) => (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    {...drag.headingProps(column.id)}
+                    className={cn(
+                      "cursor-grab touch-none px-3 py-3 text-right select-none",
+                      column.nowrap && "whitespace-nowrap",
+                      drag.dragging === column.id && "cursor-grabbing opacity-40",
+                      drag.over === column.id && "bg-primary-50",
+                    )}
+                    title={`Drag to move ${column.label}`}
+                  >
+                    {column.label}
+                    <span className="sr-only">
+                      , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                    </span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {table.isPending && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">Working out the returns…</td>
+                  <td colSpan={shownColumns.length + 1} className="px-5 py-10 text-center text-ink-muted">Working out the returns…</td>
                 </tr>
               )}
               {table.data && rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">
+                  <td colSpan={shownColumns.length + 1} className="px-5 py-10 text-center text-ink-muted">
                     There are no model portfolios yet.
                   </td>
                 </tr>
               )}
               {paged.shown.map((row) => (
-                <Row key={row.id} row={row} currency={table.data!.currency} />
+                <Row key={row.id} row={row} currency={table.data!.currency} columns={shownColumns} />
               ))}
             </tbody>
           </table>
@@ -109,72 +250,38 @@ export function ModelPerformancePage() {
   );
 }
 
-function Row({ row, currency }: { row: ModelPerformanceRow; currency: string }) {
+function Row({ row, currency, columns }: {
+  row: ModelPerformanceRow;
+  currency: string;
+  columns: typeof MOVABLE;
+}) {
   return (
     <tr className="hover:bg-slate-50/60">
       <td className="py-3 pr-3 pl-5">
         <span className="block font-semibold">{row.modelName}</span>
       </td>
-      <td className="px-3 py-3 text-right tabular-nums text-ink-soft">{row.clients}</td>
-      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
-        {row.assets > 0 ? underManagementLabel(row.assets, currency) : <span className="text-ink-muted">—</span>}
-      </td>
-      {/* How much of this plan's book is past what the plan allows, counted out of the clients on it —
-          "2 of 3" is a different fact from "2", and the plan with one client is not in more trouble than
-          the plan with twenty. */}
-      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
-        {row.clients === 0 ? (
-          <span className="text-ink-muted">—</span>
-        ) : row.today.outsideBand === 0 ? (
-          <span className="font-semibold text-emerald-700">All within band</span>
-        ) : (
-          <span className="font-semibold text-rose-700">{row.today.outsideBand} of {row.clients}</span>
-        )}
-      </td>
-      <Percent value={row.thisYear.percent} period={row.thisYear} />
-      {/* "Nobody recorded" where nobody is. Naming whoever happens to be an administrator today would be
-          inventing an author for a plan nobody wrote. */}
-      <td className="px-3 py-3 text-right text-ink-soft">
-        <span className="block truncate">
-          {row.writtenBy ?? <span className="text-ink-muted">Nobody recorded</span>}
-        </span>
-      </td>
-      {/* Its own column rather than a line under the author: the two answer different questions, and a
-          version read as a caption to a name looks like part of the name. */}
-      <td className="py-3 pr-5 pl-3 text-right tabular-nums text-ink-soft">v{row.revision}</td>
+      {columns.map((column) => (
+        <td
+          key={column.id}
+          title={column.title?.(row)}
+          className={cn(
+            "px-3 py-3 text-right tabular-nums",
+            column.nowrap && "whitespace-nowrap",
+            column.tone?.(row),
+          )}
+        >
+          {column.cell(row, currency)}
+        </td>
+      ))}
     </tr>
   );
 }
 
 /** A return. Absent rather than estimated, so a blank is an answer: nobody has written down enough yet. */
-function Percent({
-  value,
-  period,
-  muted = false,
-  last = false,
-}: {
-  value: number | null;
-  period?: PeriodReturn;
-  muted?: boolean;
-  last?: boolean;
-}) {
+function Percent({ value, period }: { value: number | null; period?: PeriodReturn }) {
   const span = daysBetween(period);
   return (
-    <td
-      className={cn(
-        "px-3 py-3 text-right whitespace-nowrap tabular-nums",
-        last && "pr-5",
-        muted && "text-ink-soft",
-        !muted && value !== null && (value < 0 ? "font-semibold text-rose-700" : "font-semibold text-emerald-700"),
-      )}
-      // A period measured in one piece has had any movement inside it treated as happening at the end, so the
-      // screen admits how coarse the answer is rather than printing two decimals as though they were earned.
-      title={
-        period?.from && period.to
-          ? `${formatDate(period.from)} to ${formatDate(period.to)}, in ${period.split} ${period.split === 1 ? "piece" : "pieces"}`
-          : undefined
-      }
-    >
+    <>
       {/* What the figure actually covers, beside the figure rather than in a column of its own: the two
           percentages are measured over different periods, and one column could only describe one of them.
           Without it, four days of a portfolio being written down properly read as a year's performance —
@@ -188,7 +295,7 @@ function Percent({
         <span className="mr-1.5 text-[11px] font-normal text-ink-muted">{span}</span>
       )}
       {value === null ? <span className="text-ink-muted">—</span> : percentLabel(value)}
-    </td>
+    </>
   );
 }
 
