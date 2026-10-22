@@ -21,7 +21,7 @@ export function ModelPerformancePage() {
   // Read before the refusal below, because usePagedRows is a hook and a hook cannot be called on only some
   // of a component's renders. Both lines already carried their own optional chaining, so they are safe here.
   const rows = table.data?.items ?? [];
-  const measured = rows.filter((row) => row.sinceStart.percent !== null);
+  const measured = rows.filter((row) => row.thisYear.percent !== null);
   const paged = usePagedRows(rows);
 
   if (table.isError) {
@@ -34,17 +34,17 @@ export function ModelPerformancePage() {
         title="Model performance"
         lead={
           table.data
-            ? `Whether today's money is where each plan says it should be, and what it would take to put it there. In ${table.data.currency}, as at ${formatDate(table.data.asOf)}. The two returns are for the calendar year ${table.data.year} and since each plan was written.`
+            ? `Whether today's money is where each plan says it should be, and what it would take to put it there. In ${table.data.currency}, as at ${formatDate(table.data.asOf)}. The return is for the calendar year ${table.data.year}.`
             : "Whether today's money is where each plan says it should be."
         }
       />
 
       {/* The firm's own note on this screen: a return has to be time-weighted or a deposit reads as skill. */}
       <Alert tone="info">
-        The first four columns read today's book: what is on each plan now, how much of it has wandered
-        past what the plan allows, and what putting it back would take. They do not wait on anybody writing
-        a valuation down. The two returns do — each is time-weighted, so money paid in or taken out is not
-        counted as something the manager earned or lost, and each says the days it actually covers.
+        The first columns read today's book: what is on each plan now, how much of it has wandered past
+        what the plan allows, and what putting it back would take. They do not wait on anybody writing a
+        valuation down. The return does — it is time-weighted, so money paid in or taken out is not counted
+        as something the manager earned or lost, and it says the days it actually covers.
       </Alert>
 
       {rows.length > 0 && measured.length === 0 && (
@@ -66,14 +66,13 @@ export function ModelPerformancePage() {
                 is one character and a plan's name is not, and six equal sixths set every figure adrift in
                 the middle of a column of its own. */}
             <colgroup>
-              <col className="w-[18%]" />
-              <col className="w-[7%]" />
-              <col className="w-[13%]" />
-              <col className="w-[11%]" />
-              <col className="w-[15%]" />
+              <col className="w-[20%]" />
+              <col className="w-[8%]" />
               <col className="w-[14%]" />
-              <col className="w-[11%]" />
-              <col className="w-[11%]" />
+              <col className="w-[12%]" />
+              <col className="w-[16%]" />
+              <col className="w-[16%]" />
+              <col className="w-[14%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -81,24 +80,23 @@ export function ModelPerformancePage() {
                 <th scope="col" className="px-4 py-3 text-right">Clients</th>
                 <th scope="col" className="px-4 py-3 text-right">On this plan</th>
                 {/* What the plan looks like today, which is the question a desk asks of it daily. These
-                    come first because they answer on today's money: the two returns at the end answer
-                    about a book that has changed every day since. */}
+                    answer on today's money; the return at the end answers about a book that has changed
+                    every day since. */}
                 <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Outside band</th>
                 <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">To put right</th>
                 <th scope="col" className="px-4 py-3 whitespace-nowrap">Worst gap</th>
-                <th scope="col" className="px-4 py-3 text-right">This year</th>
-                <th scope="col" className="py-3 pr-5 pl-4 text-right">Since start</th>
+                <th scope="col" className="py-3 pr-5 pl-4 text-right">This year</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {table.isPending && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-10 text-center text-ink-muted">Working out the returns…</td>
+                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">Working out the returns…</td>
                 </tr>
               )}
               {table.data && rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-10 text-center text-ink-muted">
+                  <td colSpan={7} className="px-5 py-10 text-center text-ink-muted">
                     There are no model portfolios yet.
                   </td>
                 </tr>
@@ -168,8 +166,7 @@ function Row({ row, currency }: { row: ModelPerformanceRow; currency: string }) 
           </>
         )}
       </td>
-      <Percent value={row.thisYear.percent} period={row.thisYear} />
-      <Percent value={row.sinceStart.percent} period={row.sinceStart} last />
+      <Percent value={row.thisYear.percent} period={row.thisYear} last />
     </tr>
   );
 }
