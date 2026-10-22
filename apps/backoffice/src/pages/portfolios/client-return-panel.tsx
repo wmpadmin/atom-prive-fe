@@ -19,8 +19,9 @@ import { exactly } from "./money-words";
  * disagrees with a rate can check it against nothing else.
  *
  * <p>Then what the client's money earned, which is the question asked on the telephone. Then what the
- * plan did, which is the firm's question. The growth rate last: it
- * is the simplest to say and the easiest to mislead with, since it takes no account of money moving.
+ * plan did, which is the firm's question. The yearly rate last: it is the absolute figure above
+ * compounded, so it says nothing new over a short window and is read only where the window is a year or
+ * more.
  */
 const ROWS = [
   { id: "gained", metric: "Gained", money: true },
@@ -166,12 +167,14 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
                 {" "}Figures are the asset classes added up, which is what a day keeps — a day holds no
                 loan and nothing owned outright, so there is no past Net AUM to read.
               </p>
-              {/* Under a year the two rates are the window's own rather than per year, which is the only
-                  honest reading: annualising six days raises the whole period to the power of sixty. */}
+              {/* Under a year the money's own rate is the window's own rather than per year, and the
+                  compound yearly rate is not read at all: over a short window it is the absolute figure
+                  above to the penny, and annualising six days raises the period to the power of sixty. */}
               {!shown.ayearOrMore && (
                 <p className="mt-1.5">
-                  XIRR and CAGR are over these {shown.days} days rather than per year. A yearly rate needs
-                  a year of it, and annualising a short window runs to figures nobody can act on.
+                  XIRR is over these {shown.days} days rather than per year, and CAGR is not read at all. A
+                  yearly rate needs a year of it; over {shown.days} days what the money compounded to is
+                  Absolute above.
                 </p>
               )}
               {shown.flows === 0 ? (
@@ -184,7 +187,7 @@ export function ClientReturnPanel({ customerId }: { customerId: string }) {
                 <p className="mt-1.5">
                   {shown.flows === 1 ? "One movement" : `${shown.flows} movements`} of money in or out are
                   written down over this window: {exactly(shown.paidIn, currency)} in and{" "}
-                  {exactly(shown.takenOut, currency)} out, taken back out of every figure above except CAGR.
+                  {exactly(shown.takenOut, currency)} out, taken back out of every figure above.
                 </p>
               )}
             </div>
