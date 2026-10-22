@@ -24,7 +24,7 @@ import {
 } from "./portfolio-labels";
 
 /** Everything off plan: within band is not work, and nothing written down is not an answer. */
-const WANDERED: DriftStanding[] = ["BREACHED", "AT_EDGE", "WATCH"];
+const WANDERED: DriftStanding[] = ["BREACHED"];
 
 /**
  * Enough of the queue to see the shape of the day without turning the dashboard into the queue itself.

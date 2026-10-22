@@ -190,13 +190,13 @@ export function ModelPortfoliosPage() {
                 // Past what is allowed, not level with it — the rule everywhere else. At exactly the
                 // breach figure a model was drawn in red while every screen that asked the API called the
                 // same drift sound.
+                // Two readings, because the plan has two: an average past the range it allows, and one
+                // inside it. There is no third colour to earn now that there is no third standing.
                 model.averageDrift == null
                   ? "text-ink-muted"
                   : model.averageDrift > model.breachAt
                     ? "text-red-600"
-                    : model.averageDrift > model.watchAt
-                      ? "text-amber-700"
-                      : "text-emerald-700",
+                    : "text-emerald-700",
               )}
             >
               {model.averageDrift == null ? "—" : averageDriftLabel(model.averageDrift)}

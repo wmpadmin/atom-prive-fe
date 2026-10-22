@@ -146,7 +146,7 @@ export function ClassStandingTable({
                     {row.standing && row.standing !== "WITHIN_BAND" && (
                       <span
                         className="mt-1 block font-normal"
-                        title={`${driftLabel(row.drift)} from target. Watched from ${row.band.watchAt}, at the edge from ${row.band.edgeAt}, breached from ${row.band.breachAt}.`}
+                        title={`${driftLabel(row.drift)} from target. Allowed \u00b1${row.band.breachAt} either way.`}
                       >
                         <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>
                       </span>

@@ -356,11 +356,8 @@ export function ModelDialog({
   // turns up afterwards is folded in here, because reading one the state has never heard of is a crash.
   const [typedTargets, setTargets] = useState<Targets>(model ? targetsOf(model, codes) : noTargets(codes));
   const targets: Targets = { ...(model ? targetsOf(model, codes) : noTargets(codes)), ...typedTargets };
-  // The model's own figure, which answers only for a class the firm has not given one — today none of
-  // them, tomorrow whichever one somebody adds. Flat across the three levels, like every class's, so a
-  // class nobody has reached yet is judged the same way as the ones beside it.
-  const watchAt = model?.watchAt ?? 5;
-  const edgeAt = model?.edgeAt ?? 5;
+  // The model's own range, which answers only for a class the firm has not given one — today none of
+  // them, tomorrow whichever one somebody adds.
   const breachAt = model?.breachAt ?? 5;
   // Seeded like the targets beside them, and for the same reason: the firm's classes may arrive a render
   // after this one.
@@ -470,12 +467,7 @@ export function ModelDialog({
       band: isNumber(band) && Number(band) > 0
         ? {
             basis: "ABSOLUTE" as const,
-            watchAt: Number(band),
-            edgeAt: Number(band),
             breachAt: Number(band),
-            watchBelow: null,
-            edgeBelow: null,
-            breachBelow: null,
           }
         : null,
       lines: line.lines.length > 0 ? line.lines.map((one) => asked(one, depth + 1)) : null,
@@ -498,15 +490,7 @@ export function ModelDialog({
     for (const assetClass of codes) {
       const said = breaches[assetClass];
       if (isNumber(said) && Number(said) > 0) {
-        perClass[assetClass] = {
-          basis: "ABSOLUTE",
-          watchAt: Number(said),
-          edgeAt: Number(said),
-          breachAt: Number(said),
-          watchBelow: null,
-          edgeBelow: null,
-          breachBelow: null,
-        };
+        perClass[assetClass] = { basis: "ABSOLUTE", breachAt: Number(said) };
       }
     }
     onSave({
@@ -515,8 +499,6 @@ export function ModelDialog({
       riskProfile,
       status,
       targets: wanted,
-      watchAt,
-      edgeAt,
       breachAt,
       bands: perClass,
       // Whatever the plan already carries. The firm keeps no indices any more — there is no screen left
