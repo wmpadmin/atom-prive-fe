@@ -82,10 +82,11 @@ function Earned({ percent, days, flows }: { percent: number; days: number; flows
 /**
  * The book, read for portfolio work: every client the firm has, whoever advises them.
  *
- * <p>The columns to the right of the advisor are what managing a portfolio is done from — what the client
- * holds, what it is worth, how far it has drifted from its model and when it was last put back. All of it is
- * worked out from what has been written down: a model carries its targets and its tolerance bands, and the
- * standing against them is the platform's own answer rather than a figure typed on this screen.
+ * <p>The columns to the right of the relationship manager are what managing a portfolio is done from — what
+ * the client holds, what it is worth, how far it has drifted from its model and when it was last put back.
+ * All of it is worked out from what has been written down: a model carries its targets and its tolerance
+ * bands, and the standing against them is the platform's own answer rather than a figure typed on this
+ * screen.
  *
  * <p>What is written down still arrives by hand. No custodian feed delivers holdings, so a client's are
  * recorded here: the dialog this list opens is where they are entered, the model chosen and a rebalance
@@ -120,9 +121,9 @@ const MOVABLE: {
 }[] = [
   {
     id: "advisor",
-    label: "Advisor",
+    label: "Relationship manager",
     align: "left",
-    cell: ({ client }) => <StaffStack people={client.advisors} desk="advisors" />,
+    cell: ({ client }) => <StaffStack people={client.advisors} desk="relationship managers" />,
   },
   {
     id: "risk",
@@ -337,14 +338,14 @@ export function PortfolioClientsPage() {
         filters={
           <>
             <label>
-              <span className="sr-only">Advisor</span>
+              <span className="sr-only">Relationship manager</span>
               <SelectInput
                 id="portfolio-client-advisor"
                 value={advisorId}
                 onChange={(event) => update({ advisor: event.target.value })}
                 className="w-auto"
               >
-                <option value="">All advisors</option>
+                <option value="">All relationship managers</option>
                 {(advisors.data ?? []).map((advisor) => (
                   <option key={advisor.id} value={advisor.id}>
                     {advisor.fullName}

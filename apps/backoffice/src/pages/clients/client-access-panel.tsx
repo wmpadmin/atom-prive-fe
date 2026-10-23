@@ -65,7 +65,7 @@ export function ClientAccessPanel({ clientId }: { clientId: string }) {
         <h2 className="text-base font-bold">Who can see this client</h2>
         <p className="mt-0.5 text-xs text-ink-muted">
           Their documents follow this: whoever can see the client can read their papers. You and the client's own
-          advisor always can.
+          relationship manager always can.
         </p>
       </div>
 

@@ -16,7 +16,7 @@ interface AssignedStaffPanelProps {
   title: string;
   lead: string;
   people: AssignedStaff[];
-  /** The words under each name, such as "Advisor since" or "Managing since". */
+  /** The words under each name, such as "Relationship manager since" or "Managing since". */
   sinceLabel: string;
   /** What the panel says where the client has nobody from this desk. */
   empty: string;
@@ -32,9 +32,9 @@ interface AssignedStaffPanelProps {
 /**
  * A desk's people on one client, with the assigning and the taking off.
  *
- * <p>Written once for both desks. The advisors had the only panel of this shape, and the portfolio
- * managers' is that panel with other words in it: who is on the client, since when, and the two
- * buttons. Each desk keeps its own panel on the screen — they are two jobs and the firm has not
+ * <p>Written once for both desks. The relationship managers had the only panel of this shape, and the
+ * portfolio managers' is that panel with other words in it: who is on the client, since when, and the
+ * two buttons. Each desk keeps its own panel on the screen — they are two jobs and the firm has not
  * merged them — but there is one of these, so the second desk cannot quietly end up with a worse
  * copy of the first.
  */

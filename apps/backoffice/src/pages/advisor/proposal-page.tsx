@@ -61,9 +61,10 @@ export function ProposalPage() {
   const writing = proposalId === undefined;
   const form = useRef<HTMLFormElement>(null);
   // Where this proposal was opened from. It is read from three screens and is the same screen from all of
-  // them: a manager who came from their sign-off queue, and an advisor who came from the client's own file,
-  // were both being sent on to the proposals list, which is neither the list they were working nor one they had
-  // been on. The client's file needs no id in the address — the proposal names its own client.
+  // them: a manager who came from their sign-off queue, and a relationship manager who came from the
+  // client's own file, were both being sent on to the proposals list, which is neither the list they were
+  // working nor one they had been on. The client's file needs no id in the address — the proposal names its
+  // own client.
   const cameFrom = useSearchParams()[0].get("from");
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   // A refusal takes the reader to it: on a form this long the first bad field is a screen above Send.

@@ -76,8 +76,8 @@ type Column = {
  * <p>Two columns are not here. The client is the row — a line with no client on it names nothing — and
  * the answer at the end has no heading, so there is nothing to drag and nothing to find in a list.
  *
- * <p>Whether the advisor is among them is the firm's rule and not the reader's: on a list that is all
- * your own work, a column repeating your name down every row says nothing, so it is not offered. A
+ * <p>Whether the relationship manager is among them is the firm's rule and not the reader's: on a list that
+ * is all your own work, a column repeating your name down every row says nothing, so it is not offered. A
  * reader who later gains somebody else's clients finds it back where the firm put it.
  */
 function movableFor({ showAdvisor, openedFrom, onMe, reader, theirPart }: {
@@ -112,8 +112,11 @@ function movableFor({ showAdvisor, openedFrom, onMe, reader, theirPart }: {
     ...(showAdvisor
       ? [{
           id: "advisor",
-          label: "Advisor",
-          width: "w-[12%]",
+          label: "Relationship manager",
+          // Wider than the name under it needs, and held to one line: the heading is now the longest
+          // thing in the column, and at 12% it wrapped and took the whole header row down with it.
+          width: "w-[16%]",
+          nowrap: true,
           tone: "text-ink-soft",
           cell: (proposal: ProposalRow) => (
             <>
@@ -235,8 +238,8 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
     fromRebalance,
   };
   // Whose desk it is on is a different question from what state it is in, so it is a different endpoint:
-  // the queue already knows which proposals may be answered by whoever is reading, and works that out
-  // from the client's advisors rather than from a status anybody could filter to.
+  // the queue already knows which proposals may be answered by whoever is reading, and works that out from
+  // the client's relationship managers rather than from a status anybody could filter to.
   // Held to whoever answers, because the address can be typed. Without this, somebody who answers nothing
   // would ask for a queue the server will not give them and sit on "Loading proposals…" for ever.
   const onMe = tab === WAITING_ON_ME && answers;

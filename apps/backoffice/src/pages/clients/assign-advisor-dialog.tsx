@@ -16,8 +16,8 @@ import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
  * A client either assignment dialog can be handed: who they are, and who is on them already.
  *
  * <p>Both desks are named on it because both dialogs read it, and each reads only its own field. The
- * two lists are never folded into one — the API keeps advisors and portfolio managers apart, and a name
- * in one is not a name in the other.
+ * two lists are never folded into one — the API keeps relationship managers and portfolio managers apart,
+ * and a name in one is not a name in the other.
  */
 export interface ClientToAssign {
   id: string;
@@ -33,11 +33,11 @@ interface AssignAdvisorDialogProps {
   onAssigned: (result: AdvisorAssignment) => void;
 }
 
-/** Gives one or more clients to an advisor. */
+/** Gives one or more clients to a relationship manager. */
 export function AssignAdvisorDialog({ open, clients, onClose, onAssigned }: AssignAdvisorDialogProps) {
-  const title = clients.length === 1 ? `Assign an advisor to ${clients[0]?.fullName}` : `Assign an advisor to ${clients.length} clients`;
+  const title = clients.length === 1 ? `Assign a relationship manager to ${clients[0]?.fullName}` : `Assign a relationship manager to ${clients.length} clients`;
   return (
-    <Dialog open={open} onClose={onClose} title={title} description="The advisor is emailed about their new clients. Anyone already looking after them stays; take an advisor off from the client's page.">
+    <Dialog open={open} onClose={onClose} title={title} description="The relationship manager is emailed about their new clients. Anyone already looking after them stays; take a relationship manager off from the client's page.">
       {/* Mounted only while open, so every opening starts afresh. */}
       {open && <AssignAdvisorForm clients={clients} onCancel={onClose} onAssigned={onAssigned} />}
     </Dialog>
@@ -82,17 +82,17 @@ function AssignAdvisorForm({ clients, onCancel, onAssigned }: { clients: ClientT
             <li key={client.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
               <span className="truncate font-medium">{client.fullName}</span>
               <span className="shrink-0 text-xs text-ink-muted">
-                {client.advisors.length > 0 ? `Now with ${client.advisors.map((advisor) => advisor.fullName).join(", ")}` : "No advisor yet"}
+                {client.advisors.length > 0 ? `Now with ${client.advisors.map((advisor) => advisor.fullName).join(", ")}` : "No relationship manager yet"}
               </span>
             </li>
           ))}
         </ul>
       </div>
 
-      <Field id="assign-advisor" label="Advisor" required error={error} hint={alreadyTheirs ? `${clients.length === 1 ? "This client already has" : "These clients already have"} this advisor.` : undefined}>
+      <Field id="assign-advisor" label="Relationship manager" required error={error} hint={alreadyTheirs ? `${clients.length === 1 ? "This client already has" : "These clients already have"} this relationship manager.` : undefined}>
         <SelectInput {...describedBy("assign-advisor", error)} value={advisorId} onChange={(event) => setAdvisorId(event.target.value)} required>
           <option value="" disabled>
-            {advisors.data ? "Choose an advisor" : "Loading advisors…"}
+            {advisors.data ? "Choose a relationship manager" : "Loading relationship managers…"}
           </option>
           {(advisors.data ?? []).map((advisor) => (
             <option key={advisor.id} value={advisor.id}>
@@ -107,7 +107,7 @@ function AssignAdvisorForm({ clients, onCancel, onAssigned }: { clients: ClientT
           Cancel
         </Button>
         <Button type="submit" disabled={advisorId === "" || alreadyTheirs || assign.isPending}>
-          {assign.isPending ? "Assigning…" : "Assign advisor"}
+          {assign.isPending ? "Assigning…" : "Assign relationship manager"}
         </Button>
       </div>
     </form>

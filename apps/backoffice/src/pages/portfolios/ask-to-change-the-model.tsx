@@ -23,9 +23,9 @@ const TONES: Record<string, "neutral" | "success" | "danger" | "warning"> = {
 /**
  * Asking for this client to be put on another model, and what has been asked before.
  *
- * <p>An advisor who thinks a client is on the wrong plan had nowhere to say so: a proposal is written for
- * the client and changes nothing here. Asking is not moving — somebody who may move them answers it, and
- * their yes is the move.
+ * <p>A relationship manager who thinks a client is on the wrong plan had nowhere to say so: a proposal is
+ * written for the client and changes nothing here. Asking is not moving — somebody who may move them
+ * answers it, and their yes is the move.
  */
 export function AskToChangeTheModel({
   customerId,

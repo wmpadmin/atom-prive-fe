@@ -6,7 +6,7 @@ export type StaffStatus = StaffUserSummaryStatus;
 // Matches the staff_role table; the Permission matrix screen reads names from the API instead.
 export const roleLabels: Record<StaffRole, string> = {
   ADMIN: "Admin",
-  ADVISOR: "Advisor",
+  ADVISOR: "Relationship Manager",
   COMPLIANCE: "Compliance",
   OPERATIONS: "Operations",
   PORTFOLIO_MANAGER: "Portfolio Manager",
@@ -14,7 +14,7 @@ export const roleLabels: Record<StaffRole, string> = {
 
 export const roles = Object.keys(roleLabels) as StaffRole[];
 
-/** Every role someone holds, e.g. "Advisor, Compliance". */
+/** Every role someone holds, e.g. "Relationship Manager, Compliance". */
 export function roleList(held: StaffRole[]) {
   return held.map((role) => roleLabels[role]).join(", ");
 }

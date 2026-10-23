@@ -31,7 +31,7 @@ import { standingLabels, standings, standingTones } from "./kyc-labels-review";
  * already settled.
  *
  * <p>The papers themselves are decided on one by one on KYC document review; a form is read rather than decided
- * on here, since a filled-in form goes to the client's advisor to be signed.
+ * on here, since a filled-in form goes to the client's relationship manager to be signed.
  */
 /** One column of the queue a reader may move: its heading, and what it draws on a row. */
 type Column = {

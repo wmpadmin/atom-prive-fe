@@ -61,7 +61,7 @@ export function SignFormDialog({
     sign.mutate(
       // The capacity the paper asks for: "if you are not the Account Holder, indicate the capacity in which
       // you sign". This signature finishes the form on the client's behalf, so that question is a real one
-      // and the answer is kept with the signature. Left blank it is simply the relationship advisor.
+      // and the answer is kept with the signature. Left blank it is simply the relationship manager.
       {
         packId,
         formId: form.formId,
@@ -82,7 +82,7 @@ export function SignFormDialog({
       <div className="space-y-4">
         <p className="text-sm text-ink-muted">
           You are signing <span className="font-semibold text-ink">{form?.formTitle}</span> ({form?.reference}) as
-          the client's relationship advisor.
+          the client's relationship manager.
         </p>
 
         {/* The paper rules a printed name and a date beside every signature. Neither is typed: the name is
@@ -124,12 +124,12 @@ export function SignFormDialog({
         <Field
           id="signing-capacity"
           label="The capacity you sign in"
-          hint="Leave blank if you are signing as the client's relationship advisor. Otherwise say what authority you sign under — power of attorney, authorised signatory, and so on."
+          hint="Leave blank if you are signing as the client's relationship manager. Otherwise say what authority you sign under — power of attorney, authorised signatory, and so on."
         >
           <TextInput
             id="signing-capacity"
             value={capacity}
-            placeholder="Relationship advisor"
+            placeholder="Relationship manager"
             onChange={(event) => setCapacity(event.target.value)}
           />
         </Field>

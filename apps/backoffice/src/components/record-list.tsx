@@ -35,7 +35,7 @@ interface RecordListProps {
    */
   search?: ReactNode;
   /**
-   * What narrows the list once it is on screen: an advisor, a status, a date range.
+   * What narrows the list once it is on screen: a relationship manager, a status, a date range.
    *
    * <p>On the card's own heading line, at the right-hand end, the same line the queues on the approvals
    * screens draw. These belong to the list rather than to the question — floated above the card a lone

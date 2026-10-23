@@ -671,7 +671,7 @@ export function ComplianceReviewStep({
 
       {/* The paper form asks each approver to put their name, the date and their signature to it, and the
           form is not approved without them. These were taken out when the firm's signatures moved to the
-          signing pack, but that pack signs as the client or the advisor — it has no MLRO and no SEO — so
+          signing pack, but that pack signs as the client or the relationship manager — it has no MLRO and no SEO — so
           the lines went nowhere and the part could never be finished. They are asked for here until there
           is somewhere better to take them. */}
       <div className="space-y-4">

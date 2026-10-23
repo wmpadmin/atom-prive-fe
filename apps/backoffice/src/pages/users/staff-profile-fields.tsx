@@ -79,7 +79,7 @@ export function StaffProfileFields({
 
       <Section title="Employment">
         <Field id="designation" label="Designation" required error={fields.designation}>
-          <TextInput {...describedBy("designation", fields.designation)} name="designation" placeholder="Senior Relationship Advisor" defaultValue={user?.designation ?? ""} required />
+          <TextInput {...describedBy("designation", fields.designation)} name="designation" placeholder="Senior Relationship Manager" defaultValue={user?.designation ?? ""} required />
         </Field>
         <Field id="employmentStart" label="Employment start" required error={fields.employmentStart}>
           <DateInput

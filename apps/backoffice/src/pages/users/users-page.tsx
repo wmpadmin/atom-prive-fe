@@ -58,7 +58,7 @@ const MOVABLE: {
     label: "Assigned customers",
     align: "left",
     tone: "text-ink-muted",
-    note: "Filled in once advisor-to-customer assignment (#80) is built",
+    note: "Filled in once relationship-manager-to-customer assignment (#80) is built",
     cell: () => "—",
   },
   {

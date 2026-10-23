@@ -246,8 +246,9 @@ export function FamilyPanel({ client, family }: { client: CustomerDetail["client
   const user = useStaffUser();
   const location = useLocation();
   const backTo = clientsHref(location.state);
-  // A client is read under whichever list they were reached from: an advisor has My clients and no sight of
-  // every client, so sending them to the whole book's address would only turn them round at the door.
+  // A client is read under whichever list they were reached from: a relationship manager has My clients
+  // and no sight of every client, so sending them to the whole book's address would only turn them round
+  // at the door.
   const mine = location.pathname.startsWith("/my-clients");
   // A client who came in alone is exactly the one who gains a spouse later, so the way to add somebody is
   // offered whether or not there is a group yet.
@@ -341,7 +342,7 @@ export function ActivityPanel({ activity }: { activity: ClientEvent[] }) {
   if (activity.length === 0) {
     return (
       <WaitingPanel icon={<ScrollText />} title="Nothing recorded yet">
-        Registration, advisor changes and every time someone opens this file are recorded here.
+        Registration, relationship manager changes and every time someone opens this file are recorded here.
       </WaitingPanel>
     );
   }

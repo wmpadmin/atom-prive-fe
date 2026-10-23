@@ -188,7 +188,7 @@ export function PortfolioSettingsPage() {
               >
                 <option value="NOBODY">Nobody — the drift queue is read, not sent</option>
                 <option value="PORTFOLIO_MANAGER">The portfolio manager</option>
-                <option value="ADVISOR">The client's advisor</option>
+                <option value="ADVISOR">The client's relationship manager</option>
                 <option value="BOTH">Both</option>
               </SelectInput>
             </Field>

@@ -22,11 +22,11 @@ export function signedByTheFirm(who: string | undefined) {
 /**
  * Whether a signature may be put down here, by the person working now.
  *
- * <p>Signing is the advisor's and nobody else's — the firm's own lines as much as the client's. They are the
- * one who sits with the client, and what they put down is recorded as theirs. Operations prepare the paper
- * and send it out to be signed; they never sign it, and neither does an Admin who is not working as an
- * advisor. Somebody who holds both roles signs by switching to the advisor's workspace, which is a deliberate
- * act rather than a button that happens to be there.
+ * <p>Signing is the relationship manager's and nobody else's — the firm's own lines as much as the client's. They are
+ * the one who sits with the client, and what they put down is recorded as theirs. Operations prepare the paper and
+ * send it out to be signed; they never sign it, and neither does an Admin who is not working as a relationship
+ * manager. Somebody who holds both roles signs by switching to the relationship manager's workspace, which is a
+ * deliberate act rather than a button that happens to be there.
  */
 
 /** Reads a signature back out of the answers. Anything else written there is not one, and is left alone. */

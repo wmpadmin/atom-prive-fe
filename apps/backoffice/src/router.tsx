@@ -121,7 +121,7 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            // The whole book, read as a directory. An advisor works from it to onboard but is not given a
+            // The whole book, read as a directory. A relationship manager works from it to onboard but is not given a
             // screen onto every client's file: theirs are under My clients, and the API answers the same way.
             //
             // A portfolio manager is kept off it for a different reason: servicing a client — their papers,
@@ -156,7 +156,7 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            // A client's papers are opened both by Compliance, who decide on them, and by the advisor who
+            // A client's papers are opened both by Compliance, who decide on them, and by the relationship manager who
             // puts them on file.
             element: <RequireAuthority authority={OPENS_CLIENT_DOCUMENTS} />,
             children: [
@@ -172,8 +172,9 @@ export const router = createBrowserRouter([
             children: [{ path: "client-documents", element: <ClientDocumentsPage /> }],
           },
           {
-            // Looking after clients of your own is not the same as seeing every client: an advisor has only the
-            // first, so these can't sit under VIEW_ALL_CLIENTS or every advisor screen bounces back home.
+            // Looking after clients of your own is not the same as seeing every client: a relationship manager has
+            // only the first, so these can't sit under VIEW_ALL_CLIENTS or every relationship manager screen
+            // bounces back home.
             element: <RequireAuthority authority={OPENS_CLIENT_FILES} />,
             children: [
               { path: "my-clients", element: <MyClientsPage /> },
@@ -282,7 +283,7 @@ export const router = createBrowserRouter([
           },
           {
             // One client's form, reached from the client. Wider than the queue above, and deliberately the
-            // same list the API guards it with: an advisor opens their own clients' forms and Compliance read
+            // same list the API guards it with: a relationship manager opens their own clients' forms and Compliance read
             // any of them. What each of them may change is decided on the screen, not here.
             element: <RequireAuthority authority={READS_CLIENT_FORMS} />,
             children: [
@@ -348,7 +349,7 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            // Signing is the advisor's half of a pack; Operations follow the same packs from a client's file.
+            // Signing is the relationship manager's half of a pack; Operations follow the same packs from a client's file.
             element: <RequireAuthority authority={ONBOARDS_CLIENTS} />,
             children: [
               { path: "to-sign", element: <ToSignPage /> },
@@ -357,13 +358,14 @@ export const router = createBrowserRouter([
           },
           {
             // What every signed-off client is owed. It is the whole book's, so it stays with Operations
-            // rather than following an advisor who onboards their own clients.
+            // rather than following a relationship manager who onboards their own clients.
             element: <RequireAuthority authority={ONBOARDS_EVERY_CLIENT} />,
             children: [{ path: "post-onboarding", element: <PostOnboardingPage /> }],
           },
           {
-            // Onboarding is Operations' and the advisor's alike; the advisor is held to their own clients
-            // by the API, which answers another advisor's case as though it were not there.
+            // Onboarding is Operations' and the relationship manager's alike; the relationship manager is held to
+            // their own clients by the API, which answers another relationship manager's case as though it
+            // were not there.
             element: <RequireAuthority authority={ONBOARDS_CLIENTS} />,
             children: [
               { path: "onboarding", element: <OnboardingListPage /> },

@@ -9,7 +9,7 @@ export function AuthLayout({ heading, children }: { heading: string; children: R
         <div className="space-y-3">
           <p className="text-xs font-semibold tracking-widest text-slate-300 uppercase">Back-office</p>
           <h1 className="text-4xl font-bold">{heading}</h1>
-          <p className="max-w-sm text-slate-300">For every back-office team: Admin, Advisors, Compliance, Operations and Portfolio Managers.</p>
+          <p className="max-w-sm text-slate-300">For every back-office team: Admin, Relationship Managers, Compliance, Operations and Portfolio Managers.</p>
         </div>
         <p className="text-xs text-slate-400">Every sign-in is recorded in the audit trail.</p>
       </div>

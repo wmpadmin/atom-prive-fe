@@ -10,9 +10,9 @@ import { SignFormDialog } from "./sign-form-dialog";
 import { packTones } from "./to-sign-labels";
 
 /**
- * One pack of forms sent out to be signed. The advisor signs each one on the client's behalf, which is
- * what finishes it — there is no second signature to wait for. Every form is read and
- * signed on its own, because each of them is its own document.
+ * One pack of forms sent out to be signed. The relationship manager signs each one on the client's behalf, which is
+ * what finishes it — there is no second signature to wait for. Every form is read and signed on its own, because each
+ * of them is its own document.
  */
 export function SignaturePackPage() {
   const { packId = "" } = useParams();
@@ -43,7 +43,7 @@ export function SignaturePackPage() {
         <div>
           <h1 className="text-[1.625rem] font-bold">{summary.clientName}</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {/* The client's own code rather than the signing record's reference: an advisor knows their
+            {/* The client's own code rather than the signing record's reference: a relationship manager knows their
                 clients by one and has never had to know the other. */}
             {summary.clientCode} · ready to sign since {formatDate(summary.sentAt)}
             {summary.dueOn ? ` · due ${formatDate(summary.dueOn)}` : ""}
@@ -115,7 +115,7 @@ export function SignaturePackPage() {
               </Badge>
             )}
 
-            {/* The client's own route. /forms/:id is Operations' queue, which an advisor may not open, so
+            {/* The client's own route. /forms/:id is Operations' queue, which a relationship manager may not open, so
                 reading a form from here used to bounce them to the dashboard. An agreement or a mandate is
                 never filled in, so it is read as its own wording: sending one to the form wizard showed the
                 account-opening summary with every line empty, that being the form it fell back to. */}

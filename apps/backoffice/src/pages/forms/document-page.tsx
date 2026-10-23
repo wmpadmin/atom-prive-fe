@@ -48,9 +48,9 @@ function yearsFromToday(years: number) {
   return new Date(now.getFullYear() + years, now.getMonth(), now.getDate());
 }
 
-const SEND: RailStep = { id: "send", group: "—", label: "Send to the advisor", complete: false };
+const SEND: RailStep = { id: "send", group: "—", label: "Send to the relationship manager", complete: false };
 
-const READ_IT_OVER = "Check the details it needs, then send it to the advisor to sign.";
+const READ_IT_OVER = "Check the details it needs, then send it to the relationship manager to sign.";
 
 /**
  * What a part of the document is called, with the gaps its name leaves filled in as the wording itself fills
@@ -78,8 +78,8 @@ export function DocumentPage() {
   const fromClient = Boolean(clientId);
   const user = useStaffUser();
   // Operations fill these in and sign them; whoever onboards the client may too.
-  // The same set that may fill a client's forms. An advisor holds these at own clients rather than at change,
-  // so asking only for change left every gap on the document inert for them.
+  // The same set that may fill a client's forms. A relationship manager holds these at own clients rather than
+  // at change, so asking only for change left every gap on the document inert for them.
   const canChange = hasAnyAuthority(user, ...FILLS_CLIENT_FORMS, ...ONBOARDS_CLIENTS_CHANGE);
   const queryClient = useQueryClient();
   const [edits, setEdits] = useState<Record<string, string>>({});
@@ -115,7 +115,7 @@ export function DocumentPage() {
   // A client's own copy has no case behind it, so what is written on it is kept against the form itself.
   const open = useStartForm<ApiError>();
   const keep = useSaveFormDraft<ApiError>();
-  // Finished, a document goes straight out to the client's advisor to be signed.
+  // Finished, a document goes straight out to the client's relationship manager to be signed.
   const send = useSendFormsForSignature<ApiError>();
 
   // What the record already knows, with anything typed here on top.
@@ -154,11 +154,11 @@ export function DocumentPage() {
   // from the notice that the client is owed it, and that is where going back belongs.
   const owedNotice = kind === "NOTICE_OF_TREATMENT";
   // Back to wherever this was opened from. Reading one to sign it starts at the client's pack in To sign, so
-  // that is where Back belongs: sending the advisor on to the client's file puts them somewhere they have
-  // never been, with the document they were about to sign no longer in front of them.
+  // that is where Back belongs: sending the relationship manager on to the client's file puts them somewhere
+  // they have never been, with the document they were about to sign no longer in front of them.
   //
-  // Otherwise the client's file, by the route this person may open: an advisor's clients are under My
-  // clients, and a link that always said /clients would bounce them away from their own client.
+  // Otherwise the client's file, by the route this person may open: a relationship manager's clients are under
+  // My clients, and a link that always said /clients would bounce them away from their own client.
   const backTo = readFromPack
     ? `/to-sign/${readFromPack}`
     : owedNotice
@@ -193,9 +193,9 @@ export function DocumentPage() {
   const being = row?.status ?? "NOT_STARTED";
   const sent = !stillBeingFilledIn(being);
   const signed = being === "SUBMITTED";
-  // With the advisor to sign. It is nobody's to edit then — not the advisor reading it in To sign, and not
-  // whoever wrote it up. They sign it or send it back saying what is wrong, and sending it back is what opens
-  // it again; an Edit here would let either side change the document out from under the other's signature.
+  // With the relationship manager to sign. It is nobody's to edit then — not the relationship manager reading it in
+  // To sign, and not whoever wrote it up. They sign it or send it back saying what is wrong, and sending it back is
+  // what opens it again; an Edit here would let either side change the document out from under the other's signature.
   const withTheAdvisor = being === "AWAITING_SIGNATURE";
   const missing = wording.data.gaps.filter((gap) => !details[gap.key]?.trim());
   const writable = canChange && !sent;
@@ -258,8 +258,8 @@ export function DocumentPage() {
   }
 
   /**
-   * Keeps what has been written on the document, and where it is being sent, sends it to the client's advisor
-   * to be signed. Nothing goes through Compliance on the way: they read the firm's papers, they do not hold
+   * Keeps what has been written on the document, and where it is being sent, sends it to the client's relationship
+   * manager to be signed. Nothing goes through Compliance on the way: they read the firm's papers, they do not hold
    * them up.
    */
   function save(alsoSend: boolean, dueOn?: string) {
@@ -336,11 +336,11 @@ export function DocumentPage() {
           {row?.submittedAt ? ` — their signed copy came in on ${formatDate(row.submittedAt)}` : ""}.
         </Alert>
       )}
-      {/* Who is actually holding it. These used to read the same, so a document waiting on the advisor said
-          it had gone to the client — with the badge beside it saying the opposite. */}
+      {/* Who is actually holding it. These used to read the same, so a document waiting on the relationship
+          manager said it had gone to the client — with the badge beside it saying the opposite. */}
       {withTheAdvisor && (
         <Alert tone="info">
-          {`This has gone to ${client?.fullName ?? "the client"}'s advisor to sign. Nobody changes it while it is with them — the advisor signs it, sends it back saying what is wrong, or leaves a comment below asking for a change.`}
+          {`This has gone to ${client?.fullName ?? "the client"}'s relationship manager to sign. Nobody changes it while it is with them — the relationship manager signs it, sends it back saying what is wrong, or leaves a comment below asking for a change.`}
         </Alert>
       )}
       {sent && !signed && !withTheAdvisor && (
@@ -502,7 +502,7 @@ export function DocumentPage() {
               {!writable
                 ? "This is the document as it went out."
                 : missing.length === 0
-                  ? "Every detail it asks for is in. It is ready to go to the advisor to sign."
+                  ? "Every detail it asks for is in. It is ready to go to the relationship manager to sign."
                   : `${missing.length} detail${missing.length === 1 ? "" : "s"} still to fill in, over ${asked} part${asked === 1 ? "" : "s"}${answered > 0 ? ` (${answered} done)` : ""}.`}
             </p>
             <div className="flex gap-2">
@@ -632,7 +632,7 @@ function SendPart({
               the copy the client signs. */}
           <Button disabled={!dueOn || busy || missing.length > 0} onClick={() => onSend(dueOn)}>
             <Send aria-hidden="true" />
-            {sent ? "Send to the advisor again" : "Send to the advisor to sign"}
+            {sent ? "Send to the relationship manager again" : "Send to the relationship manager to sign"}
           </Button>
           {missing.length > 0 && (
             <p className="text-sm text-ink-muted">
@@ -641,10 +641,10 @@ function SendPart({
           )}
         </div>
       )}
-      {/* It goes to the client's advisor, not to the client: theirs is the signature that finishes one of
-          these, the same as a form that sends itself when it is finished. */}
+      {/* It goes to the client's relationship manager, not to the client: theirs is the signature that finishes
+          one of these, the same as a form that sends itself when it is finished. */}
       <p className="text-xs text-ink-muted">
-        It goes to the client's relationship advisor, who signs it in To sign. The date above is when the
+        It goes to the client's relationship manager, who signs it in To sign. The date above is when the
         signed copy is wanted back.
       </p>
     </div>

@@ -14,7 +14,7 @@ import { PortfolioManagerDashboard } from "../portfolios/portfolio-manager-dashb
  * The dashboard belonging to whoever asked for it. The firm-wide figures are the Admin's — the API answers
  * nobody else for them — so everybody else is shown their own day instead of a screen that would refuse them.
  * A portfolio manager's day is their models and what has wandered off them, which is a different question
- * from an advisor's clients and advice.
+ * from a relationship manager's clients and advice.
  */
 export function DashboardPage() {
   const user = useStaffUser();

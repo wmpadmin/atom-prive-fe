@@ -88,8 +88,8 @@ function movableFor({ canFill, caseId, onDate }: {
  */
 export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] }) {
   const user = useStaffUser();
-  // Operations and Admin type on any client's form; an advisor types on their own clients'. The API scopes
-  // an advisor to their own, so this only has to decide whether to offer it at all.
+  // Operations and Admin type on any client's form; a relationship manager types on their own clients'. The
+  // API scopes a relationship manager to their own, so this only has to decide whether to offer it at all.
   const canFill = hasAnyAuthority(user, ...FILLS_CLIENT_FORMS);
   // Exactly what the screens behind these rows are guarded by, and nothing wider: a row this list invites
   // somebody to click who may not open what is behind it is a dead click.
@@ -278,8 +278,9 @@ export function ClientFormsPanel({ client }: { client: CustomerDetail["client"] 
                       // Signed and approved. There is nothing left to do, and nobody sets this by hand.
                       <span className="text-sm font-semibold text-emerald-700">Done</span>
                     ) : !openRow ? (
-                      // Whoever may follow the pack without opening it — an advisor, Compliance — sees what
-                      // the row holds without being offered it, rather than a blank at the end of the line.
+                      // Whoever may follow the pack without opening it — a relationship manager,
+                      // Compliance — sees what the row holds without being offered it, rather than a
+                      // blank at the end of the line.
                       <span className="text-sm font-semibold text-ink-muted">View</span>
                     ) : (
                       // The same thing the row itself does, said in a word, and the way a keyboard reaches it.

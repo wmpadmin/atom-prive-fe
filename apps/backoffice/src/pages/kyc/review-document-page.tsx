@@ -37,8 +37,8 @@ export function ReviewDocumentPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const me = useStaffUser();
-  // Deciding on a paper is Compliance's. An advisor opens the same file to put papers on it, and sees what has
-  // been decided, but is not offered the decision.
+  // Deciding on a paper is Compliance's. A relationship manager opens the same file to put papers on it, and sees
+  // what has been decided, but is not offered the decision.
   const decides = hasAuthority(me, "APPROVE_ONBOARDING:CHANGE");
 
   const file = useGetClientKycFile<ClientKycFile, ApiError>(customerId, {
