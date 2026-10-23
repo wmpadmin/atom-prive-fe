@@ -125,7 +125,7 @@ const MOVABLE: {
     align: "left",
     /*
      * Where their request has got to. Said on the row because the row is where somebody decides whether
-     * to tick them, and a client whose manager has already agreed still reads as breached with the same
+     * to tick them, and a client whose manager has already agreed still reads as deviating with the same
      * trades beside them — the money does not move until the desk places it.
      */
     cell: (client) => (client.requestStanding === "BEING_PLACED" ? (
@@ -284,7 +284,7 @@ export function BulkRebalancingPage() {
             <Fact label="To buy">
               {underManagementLabel(rebalancing.data.toBuy, rebalancing.data.currency)}
             </Fact>
-            <Fact label="Breached" tone={rebalancing.data.breached > 0 ? "danger" : undefined}>
+            <Fact label="Deviations" tone={rebalancing.data.breached > 0 ? "danger" : undefined}>
               {rebalancing.data.breached}
             </Fact>
           </dl>
@@ -553,7 +553,7 @@ function Row({
 
   // A portfolio where its model wants it has nothing to put back, so it cannot be chosen.
   const settled = client.standing === null || client.standing === "WITHIN_BAND";
-  // Nor one already asked about. The money has not moved yet, so they still read as breached with the
+  // Nor one already asked about. The money has not moved yet, so they still read as deviating with the
   // same trades beside them — and without this the screen offers a press the server then refuses.
   const asked = client.requestStanding !== "NONE";
   return (

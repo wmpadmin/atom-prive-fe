@@ -1,5 +1,6 @@
-import { ApiError } from "@atomprive/api-client";
+import { ApiError, openEventStream } from "@atomprive/api-client";
 import {
+  getListMyNotificationsQueryKey,
   useListMyNotifications,
   useReadEveryNotification,
   useReadNotification,
@@ -13,8 +14,17 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { formatRelative } from "../lib/labels";
 
-/** How often the bell looks for anything new. The scope asks for a live channel; this is the plain version. */
-const LOOK_AGAIN_EVERY = 60_000;
+/**
+ * How often the bell asks anyway, with the live channel open.
+ *
+ * <p>Long, because it is no longer how anything arrives — it is what catches a nudge that was missed while
+ * the connection was down, between the server dropping it and the browser opening another. Left out
+ * entirely, a reader whose connection failed quietly would hear nothing until they reloaded.
+ */
+const ASK_ANYWAY_EVERY = 300_000;
+
+/** How long to wait before opening the connection again after it drops. */
+const BEFORE_RECONNECTING = 5_000;
 
 /**
  * The bell (#R84): what this member of staff has been told, newest first, with the unread count on it.
@@ -31,8 +41,41 @@ export function NotificationBell() {
 
   const bell = useListMyNotifications<BellPage, ApiError>(
     { unreadOnly: false },
-    { query: { refetchInterval: LOOK_AGAIN_EVERY, refetchOnWindowFocus: true } },
+    { query: { refetchInterval: ASK_ANYWAY_EVERY, refetchOnWindowFocus: true } },
   );
+
+  // Told the moment something arrives, rather than finding out on the next ask. What comes down the wire is
+  // a nudge and not the notification itself, so the list is still read the one way it has always been read
+  // — which keeps who may see what in a single place.
+  useEffect(() => {
+    const stopped = new AbortController();
+    let reopen: ReturnType<typeof setTimeout> | undefined;
+    let listening = true;
+
+    const listen = () => {
+      openEventStream("/api/backoffice/bell/stream", (event) => {
+        if (event === "bell") {
+          void queryClient.invalidateQueries({ queryKey: getListMyNotificationsQueryKey({ unreadOnly: false }) });
+        }
+      }, stopped.signal)
+        .catch(() => {
+          // A dropped connection is ordinary: a laptop closing, a proxy timing out, the server restarting.
+        })
+        .finally(() => {
+          // Opened again on a timer rather than at once, so a server that is down is not asked in a loop.
+          if (listening) {
+            reopen = setTimeout(listen, BEFORE_RECONNECTING);
+          }
+        });
+    };
+    listen();
+
+    return () => {
+      listening = false;
+      clearTimeout(reopen);
+      stopped.abort();
+    };
+  }, [queryClient]);
   const kept = (page: BellPage) => queryClient.setQueryData(bell.queryKey ?? [], page);
   const read = useReadNotification<ApiError>({ mutation: { onSuccess: kept } });
   const readEverything = useReadEveryNotification<ApiError>({ mutation: { onSuccess: kept } });

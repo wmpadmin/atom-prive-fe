@@ -106,7 +106,7 @@ export function PortfolioManagerDashboard() {
           urgent={(queue.data?.totalItems ?? 0) > 0}
         />
         <Tile
-          label="Breached"
+          label="Deviations"
           value={queue.data ? String(queue.data.breached) : undefined}
           failed={queue.isError}
           to="/drift"
@@ -128,7 +128,7 @@ export function PortfolioManagerDashboard() {
             to="/drift"
             className="shrink-0 text-sm font-semibold whitespace-nowrap text-primary-600 hover:text-primary-700"
           >
-            Drift &amp; breaches
+            Drift &amp; deviations
           </Link>
         </div>
 

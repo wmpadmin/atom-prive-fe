@@ -47,7 +47,7 @@ export function ManagementInformationPage() {
       {withoutAPlan > 0 && (
         <Alert tone="warning">
           {withoutAPlan === 1 ? "One client sits" : `${withoutAPlan} clients sit`} on no model. Nothing can
-          drift and nothing can breach for them, so they are invisible to every other screen here. That gap is
+          drift and nothing can deviate for them, so they are invisible to every other screen here. That gap is
           a management question, not a technical one.
         </Alert>
       )}
