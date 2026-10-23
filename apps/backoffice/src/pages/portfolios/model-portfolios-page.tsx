@@ -95,7 +95,7 @@ const MOVABLE: {
     label: "Avg drift",
     align: "right",
     /*
-     * Past what is allowed, not level with it — the rule everywhere else. At exactly the breach figure a
+     * Past what is allowed, not level with it — the rule everywhere else. At exactly the deviation figure a
      * model was drawn in red while every screen that asked the API called the same drift sound.
      *
      * Two readings, because the plan has two: an average past the range it allows, and one inside it.

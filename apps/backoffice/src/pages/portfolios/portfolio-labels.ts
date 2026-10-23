@@ -5,7 +5,7 @@ export type DriftStanding = "WITHIN_BAND" | "BREACHED";
 
 export const standingLabels: Record<DriftStanding, string> = {
   WITHIN_BAND: "Within band",
-  BREACHED: "Breached",
+  BREACHED: "Deviation",
 };
 
 export const standingTones: Record<DriftStanding, "success" | "danger"> = {
@@ -16,7 +16,7 @@ export const standingTones: Record<DriftStanding, "success" | "danger"> = {
 /**
  * The ink a drift figure is written in. It follows the standing beside it rather than the sign of the
  * number: a client's drift adds up how far every class has wandered either way, so it is never negative,
- * and colouring it by sign painted the worst breach on the page a healthy green.
+ * and colouring it by sign painted the worst deviation on the page a healthy green.
  */
 export const driftTones: Record<DriftStanding, string> = {
   WITHIN_BAND: "text-emerald-700",

@@ -196,7 +196,7 @@ const allNavigation: {
   },
   {
     to: "/drift",
-    label: "Drift & breaches",
+    label: "Drift & deviations",
     at: (path, search) => path === "/drift" || ownsSharedScreen(path, search, A_PORTFOLIO, "drift"),
     icon: TriangleAlert,
     authority: READS_CLIENT_PORTFOLIOS,

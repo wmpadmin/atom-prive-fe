@@ -350,7 +350,7 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
       filled: row.targetShare === 0 ? null : (actualShare / row.targetShare) * 100,
       suggestion: (row.targetShare / 100) * whole - worth,
       drift: actualShare - row.targetShare,
-      // No verdict, and nothing on this panel asks for one now. Whether a class has breached is the
+      // No verdict, and nothing on this panel asks for one now. Whether a class has deviated is the
       // platform's reading, taken from a band that may be written wider one side than the other and
       // deliberately withheld where there is nothing yet to judge — none of it recoverable from a
       // day's holdings and a target. It is read on the portfolio screen, from the server, once.
@@ -726,7 +726,7 @@ function WorthOverTime({ points, everyCount, currency, pending, picked, setPicke
 /**
  * How far from its target a class has to be before the figure is marked rather than merely printed.
  *
- * <p>Not a band: the firm sets its own watch, edge and breach per model and those are what a verdict is
+ * <p>Not a band: the firm sets its own watch, edge and deviation per model and those are what a verdict is
  * read from. This is only the point at which a reader's eye should be caught, so one figure for every
  * client is enough.
  */
