@@ -15,6 +15,19 @@ export const proposalStatusLabels: Record<ProposalRowStatus, string> = {
   REJECTED: "Rejected",
 };
 
+/**
+ * The same label, naming the person it waits on where the server could say who.
+ *
+ * <p>"Waiting on the relationship manager" told a reader the desk but not the door. A client may have
+ * two, and the manager who raised it is not one of them — so the name has to come from the proposal
+ * rather than from the name beside it on the row, which is whoever wrote it.
+ */
+export function proposalStanding(status: ProposalRowStatus, waitingOn: string | null | undefined) {
+  return status === "PENDING" && waitingOn
+    ? `Waiting on ${waitingOn}`
+    : proposalStatusLabels[status];
+}
+
 export const proposalStatusTones: Record<ProposalRowStatus, "neutral" | "info" | "warning" | "success" | "danger"> = {
   DRAFT: "neutral",
   PENDING: "info",

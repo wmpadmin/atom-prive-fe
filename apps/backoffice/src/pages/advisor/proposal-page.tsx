@@ -36,7 +36,7 @@ import { somethingElseLandsHere, wouldBreakAband } from "../portfolios/what-it-w
 import { APPROVES_PROPOSALS, clientFileHref, hasAnyAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
 import { figure, named } from "../portfolios/money-words";
-import { answeredLabel, formatValue, proposalStatusLabels, proposalStatusTones, sentLabel, standingLabel } from "./proposal-labels";
+import { answeredLabel, formatValue, proposalStanding, proposalStatusTones, sentLabel, standingLabel } from "./proposal-labels";
 
 /** One of the four facts above a proposal: what it was advised against, and the dates it turns on. */
 function Fact({ label, children }: { label: string; children: ReactNode }) {
@@ -349,7 +349,7 @@ export function ProposalPage() {
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {pastAband && <Badge tone="warning">Past a band</Badge>}
                   {somethingElseLandsHere(weighed) && <Badge tone="warning">Another ask lands here</Badge>}
-                  <Badge tone={proposalStatusTones[status]}>{proposalStatusLabels[status]}</Badge>
+                  <Badge tone={proposalStatusTones[status]}>{proposalStanding(status, proposal!.summary.waitingOn)}</Badge>
                 </div>
                 <p className="mt-1 text-xs text-ink-muted">
                   {formatRelative(proposal!.summary.sentAt ?? proposal!.summary.createdAt)}
