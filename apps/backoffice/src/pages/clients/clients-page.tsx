@@ -14,11 +14,14 @@ import {
 import { Alert, Avatar, Badge, Button, cn, DateInput, SelectInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Download, UserRoundCog } from "lucide-react";
-import { useMemo, useState, type MouseEvent } from "react";
+import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { ColumnPicker } from "../../components/column-picker";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { formatDate, formatRelative } from "../../lib/labels";
 import { downloadTextFile } from "../../lib/download";
 import { hasAuthority } from "../../lib/permissions";
@@ -65,51 +68,118 @@ const LINKED_BANKS_LATER = "Filled in once bank linking is built";
 
 const PORTFOLIO_LATER = "Available once bank data is connected";
 
-/** The columns beside the client's name, which always shows. */
-const COLUMNS = [
-  { id: "code", label: "Client code" },
-  { id: "clientType", label: "Client type" },
-  { id: "registered", label: "Registered" },
-  { id: "banks", label: "Linked banks" },
-  { id: "advisors", label: "Advisors" },
-  { id: "proposal", label: "Proposal" },
-  { id: "lastLogin", label: "Last login" },
-  { id: "action", label: "Action" },
-  { id: "portfolio", label: "Portfolio" },
-] as const;
-
-type ColumnId = (typeof COLUMNS)[number]["id"];
+/** One column beside the client's name: its heading, and what it draws on a row. */
+type Column = {
+  id: string;
+  label: string;
+  nowrap?: boolean;
+  tone?: string;
+  /** Why the column is empty, where it waits on something the firm has not built yet. */
+  note?: string;
+  cell: (customer: CustomerRow) => ReactNode;
+};
 
 /**
- * What this person turned off, kept in their own browser. Turned-off columns are remembered rather than turned-on
- * ones, so a column added to the list later is shown to everybody instead of staying hidden behind an old choice.
+ * The columns beside the client's name, in the order the firm wrote them.
+ *
+ * <p>Built rather than written out, because two of these cells need what only the screen knows: the
+ * proposals read for this reader, and the dialog the assign button opens.
+ *
+ * <p>Two columns are not here. The client is the row — a line with no client on it names nothing — and
+ * the tick box has no heading, so there is nothing to drag and nothing to find in a list.
+ *
+ * <p>Which columns there are at all is the firm's rule and not the reader's, so the ones this reader
+ * does not get are left out rather than listed and turned off. Assigning is the only action there is,
+ * so nobody who cannot assign is offered that column; and the proposal a client is considering is their
+ * advisor's business, which the firm-wide list has its own screen for.
  */
-const HIDDEN_COLUMNS = "atomprive.clients.hiddenColumns";
-
-/** What earlier versions saved: the columns that were on. Read once, then replaced by the list above. */
-const COLUMN_CHOICE = "atomprive.clients.columns";
-
-function readColumns(): ReadonlySet<ColumnId> {
-  const all = COLUMNS.map((column) => column.id);
-  try {
-    const hidden: unknown = JSON.parse(localStorage.getItem(HIDDEN_COLUMNS) ?? "null");
-    if (Array.isArray(hidden)) {
-      return new Set(all.filter((id) => !hidden.includes(id)));
-    }
-    // Nothing saved in the new shape: anyone upgrading starts with every column, including any just added.
-    localStorage.removeItem(COLUMN_CHOICE);
-  } catch {
-    // A browser that blocks storage just gets every column.
-  }
-  return new Set(all);
-}
-
-function rememberColumns(shown: ReadonlySet<string>) {
-  try {
-    localStorage.setItem(HIDDEN_COLUMNS, JSON.stringify(COLUMNS.map((column) => column.id).filter((id) => !shown.has(id))));
-  } catch {
-    // Nothing to do: the choice then lasts for this visit only.
-  }
+function movableFor({ canAssign, mine, newestProposal, onAssign }: {
+  canAssign: boolean;
+  mine: boolean;
+  newestProposal: Map<string, ProposalRow>;
+  onAssign: (customer: CustomerRow) => void;
+}): Column[] {
+  return [
+    {
+      id: "code",
+      label: "Client code",
+      nowrap: true,
+      tone: "font-mono text-xs text-ink-soft",
+      cell: (customer) => customer.code,
+    },
+    {
+      id: "clientType",
+      label: "Client type",
+      nowrap: true,
+      tone: "text-ink-soft",
+      cell: (customer) => clientKindLabels[customer.clientType],
+    },
+    {
+      id: "registered",
+      label: "Registered",
+      nowrap: true,
+      tone: "text-ink-soft",
+      cell: (customer) => formatDate(customer.registeredAt),
+    },
+    {
+      id: "banks",
+      label: "Linked banks",
+      note: LINKED_BANKS_LATER,
+      tone: "text-ink-muted",
+      // The reason is carried by the dash itself, because the cell around it is drawn from the one list
+      // every column is drawn from and has no room for a column's own hover.
+      cell: () => <span title={LINKED_BANKS_LATER}>—</span>,
+    },
+    {
+      id: "advisors",
+      label: "Advisors",
+      // The row is the account, so it shows whoever advises anybody holding it.
+      cell: (customer) => <AdvisorChips advisors={advisorsOn(customer)} />,
+    },
+    ...(mine
+      ? [{
+          id: "proposal",
+          label: "Proposal",
+          cell: (customer: CustomerRow) => <LatestProposal proposal={newestProposal.get(customer.id)} />,
+        }]
+      : []),
+    {
+      id: "lastLogin",
+      label: "Last login",
+      nowrap: true,
+      tone: "text-ink-soft",
+      cell: (customer) => formatRelative(customer.lastLoginAt, "Never"),
+    },
+    ...(canAssign
+      ? [{
+          id: "action",
+          label: "Action",
+          cell: (customer: CustomerRow) => (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={(event) => { event.stopPropagation(); onAssign(customer); }}
+            >
+              <UserRoundCog aria-hidden="true" />
+              Assign advisor
+            </Button>
+          ),
+        }]
+      : []),
+    {
+      id: "portfolio",
+      label: "Portfolio",
+      note: PORTFOLIO_LATER,
+      cell: () => (
+        <span title={PORTFOLIO_LATER}>
+          <Button size="sm" disabled>
+            <Download aria-hidden="true" />
+            Download
+          </Button>
+        </span>
+      ),
+    },
+  ];
 }
 
 interface Filters {
@@ -172,7 +242,6 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   }
   const [assigning, setAssigning] = useState<ClientToAssign[] | null>(null);
   const [notice, setNotice] = useState<string>();
-  const [columns, setColumns] = useState<ReadonlySet<string>>(readColumns);
 
   const filters = {
     advisorId: advisorId || undefined,
@@ -241,12 +310,22 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
     }
   }
   const today = new Date();
-  // Assigning is the only action there is, so people who can't assign aren't offered that column.
-  // The proposal a client is considering is their advisor's business; the firm-wide list has its own screen for it.
-  const offeredHere = (id: ColumnId) => (id === "action" ? canAssign : id === "proposal" ? mine : true);
-  const offered = COLUMNS.filter((column) => offeredHere(column.id));
-  const shows = (id: ColumnId) => columns.has(id) && offeredHere(id);
-  const columnCount = 1 + (canAssign ? 1 : 0) + offered.filter((column) => columns.has(column.id)).length;
+  const movable = movableFor({
+    canAssign,
+    mine,
+    newestProposal,
+    onAssign: (customer) => setAssigning(everyHolderOf(customer)),
+  });
+  // Read before the page can send itself anywhere else: how this reader has arranged the table is a thing
+  // about them and not about which page they landed on, and a hook that is skipped on one render is a hook
+  // React cannot keep in order. Kept apart for the two screens this component is, because they are not
+  // offered the same columns and one arrangement saved over both would fit neither.
+  const view = useTableView(mine ? "my-clients" : "all-clients", movable.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(movable.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
+  // The tick box and the client's name are drawn either side of the movable ones, and neither moves.
+  const columnCount = shownColumns.length + 1 + (canAssign ? 1 : 0);
 
   // A page that no longer exists shows the last page instead.
   if (customers.data && !customers.isPlaceholderData && page > lastPage) {
@@ -268,12 +347,17 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
       >
         <div className="flex flex-wrap items-center gap-2">
           <ColumnPicker
-            columns={offered.map((column) => ({ id: column.id, label: column.label }))}
-            shown={new Set(offered.filter((column) => columns.has(column.id)).map((column) => column.id))}
-            onChange={(shown) => {
-              setColumns(shown);
-              rememberColumns(shown);
+            columns={movable.map((one) => ({ id: one.id, label: one.label }))}
+            shown={new Set(view.shown)}
+            order={view.order}
+            arranged={view.arranged}
+            onChange={(next) => {
+              for (const one of movable) {
+                if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+              }
             }}
+            onMove={view.move}
+            onReset={view.reset}
           />
           {/* Carrying the list out of the building is its own permission, so the button follows it. */}
           {canExport && (
@@ -288,6 +372,17 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
       {notice && <Alert tone="success">{notice}</Alert>}
       {exportFailed && <Alert tone="danger">{exportFailed}</Alert>}
       {customers.isError && <Alert tone="danger">{customers.error.message}</Alert>}
+
+      {/* Above the table: which of their arrangements a reader is in is read before anything in it. */}
+      <ViewTabs
+        views={view.views}
+        current={view.current}
+        edited={view.current === null ? view.arranged : view.changed}
+        onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+        onSave={view.saveAs}
+        onDelete={view.remove}
+        firstLabel={mine ? "Everyone of mine" : "Every client"}
+      />
 
       <RecordList
         caption="Clients"
@@ -381,23 +476,30 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                   </th>
                 )}
                 <th scope="col" className={cn("py-3 pr-4", canAssign ? "pl-3" : "pl-5")}>Client</th>
-                {shows("code") && <th scope="col" className="px-4 py-3">Client code</th>}
-                {shows("clientType") && <th scope="col" className="px-4 py-3">Client type</th>}
-                {shows("registered") && <th scope="col" className="px-4 py-3">Registered</th>}
-                {shows("banks") && (
-                  <th scope="col" className="px-4 py-3" title={LINKED_BANKS_LATER}>
-                    Linked banks
+                {/* A column still waiting on something the firm has not built yet keeps saying so here.
+                    The note was all this heading hovered before it could be dragged, and an empty column
+                    with no reason given is the one thing a reader cannot work out for themselves. */}
+                {shownColumns.map((column, at) => (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    {...drag.headingProps(column.id)}
+                    className={cn(
+                      "cursor-grab touch-none px-4 py-3 select-none",
+                      column.nowrap && "whitespace-nowrap",
+                      drag.dragging === column.id && "cursor-grabbing opacity-40",
+                      drag.over === column.id && "bg-primary-50",
+                    )}
+                    title={column.note
+                      ? `${column.note}. Drag to move ${column.label}.`
+                      : `Drag to move ${column.label}`}
+                  >
+                    {column.label}
+                    <span className="sr-only">
+                      , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                    </span>
                   </th>
-                )}
-                {shows("advisors") && <th scope="col" className="px-4 py-3">Advisors</th>}
-                {shows("proposal") && <th scope="col" className="px-4 py-3">Proposal</th>}
-                {shows("lastLogin") && <th scope="col" className="px-4 py-3">Last login</th>}
-                {shows("action") && <th scope="col" className="px-4 py-3">Action</th>}
-                {shows("portfolio") && (
-                  <th scope="col" className="px-4 py-3" title={PORTFOLIO_LATER}>
-                    Portfolio
-                  </th>
-                )}
+                ))}
           </>
         }
         columns={columnCount}
@@ -463,48 +565,15 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                       </div>
                     </div>
                   </td>
-                  {shows("code") && (
-                    <td className="px-4 py-3 font-mono text-xs whitespace-nowrap text-ink-soft">{customer.code}</td>
-                  )}
-                  {shows("clientType") && (
-                    <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{clientKindLabels[customer.clientType]}</td>
-                  )}
-                  {shows("registered") && <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatDate(customer.registeredAt)}</td>}
-                  {shows("banks") && (
-                    <td className="px-4 py-3 text-ink-muted" title={LINKED_BANKS_LATER}>
-                      —
+                  {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                  {shownColumns.map((column) => (
+                    <td
+                      key={column.id}
+                      className={cn("px-4 py-3", column.nowrap && "whitespace-nowrap", column.tone)}
+                    >
+                      {column.cell(customer)}
                     </td>
-                  )}
-                  {shows("advisors") && (
-                    <td className="px-4 py-3">
-                      {/* The row is the account, so it shows whoever advises anybody holding it. */}
-                      <AdvisorChips advisors={advisorsOn(customer)} />
-                    </td>
-                  )}
-                  {shows("proposal") && (
-                    <td className="px-4 py-3">
-                      <LatestProposal proposal={newestProposal.get(customer.id)} />
-                    </td>
-                  )}
-                  {shows("lastLogin") && <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(customer.lastLoginAt, "Never")}</td>}
-                  {shows("action") && (
-                    <td className="px-4 py-3">
-                      <Button variant="secondary" size="sm" onClick={(event) => { event.stopPropagation(); setAssigning(everyHolderOf(customer)); }}>
-                        <UserRoundCog aria-hidden="true" />
-                        Assign advisor
-                      </Button>
-                    </td>
-                  )}
-                  {shows("portfolio") && (
-                    <td className="px-4 py-3">
-                      <span title={PORTFOLIO_LATER}>
-                        <Button size="sm" disabled>
-                          <Download aria-hidden="true" />
-                          Download
-                        </Button>
-                      </span>
-                    </td>
-                  )}
+                  ))}
                 </tr>
               ))}
       </RecordList>

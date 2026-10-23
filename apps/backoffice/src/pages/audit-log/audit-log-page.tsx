@@ -8,13 +8,17 @@ import {
   type ListAuditEventsOutcome,
   type ListAuditEventsParams,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, Pagination, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, cn, Pagination, SelectInput, TextInput } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { Download, Search } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
 import { downloadTextFile } from "../../lib/download";
 import { formatDateTime, formatRelative, roleLabel, roleLabels, roles, type StaffRole } from "../../lib/labels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
+import { useTableView } from "../../lib/table-view";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
 
 
@@ -32,6 +36,69 @@ const periods: Record<Period, { label: string; hours?: number; summary?: string 
 const outcomeLabels: Record<ListAuditEventsOutcome, string> = { SUCCESS: "Success", FAILURE: "Failed" };
 
 const dateOnly = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" });
+
+interface MovableColumn {
+  id: string;
+  label: string;
+  align: "left" | "right";
+  nowrap?: boolean;
+  /** Ink the column always has, so a cell reads the same wherever a reader puts it. */
+  tone?: string;
+  cell: (event: AuditLogEntry) => ReactNode;
+}
+
+/**
+ * The columns a reader may move or take off, in the order the firm wrote them.
+ *
+ * The actor stays where it is: a recorded event with nobody on it names no one, and there is no second
+ * column that says who did it. The ids are what a saved arrangement is written down as, so they stay.
+ */
+const MOVABLE: MovableColumn[] = [
+  {
+    id: "action",
+    label: "Action",
+    align: "left",
+    tone: "text-ink-soft",
+    cell: (event) => event.actionLabel,
+  },
+  {
+    id: "target",
+    label: "Target",
+    align: "left",
+    tone: "text-ink-soft",
+    cell: (event) => (
+      <>
+        {event.targetLabel ?? "—"}
+        {event.onBehalfOf && (
+          <span className="block text-xs text-ink-muted">on behalf of {event.onBehalfOf}</span>
+        )}
+      </>
+    ),
+  },
+  {
+    id: "time",
+    label: "Time",
+    align: "left",
+    nowrap: true,
+    tone: "text-ink-soft",
+    cell: (event) => {
+      const when = formatDateTime(event.occurredAt);
+      return (
+        <time dateTime={event.occurredAt} title={event.ipAddress ? `${when} from ${event.ipAddress}` : when}>
+          {formatRelative(event.occurredAt)}
+        </time>
+      );
+    },
+  },
+  {
+    id: "outcome",
+    label: "Result",
+    align: "left",
+    cell: (event) => (
+      <Badge tone={event.outcome === "SUCCESS" ? "success" : "danger"}>{outcomeLabels[event.outcome]}</Badge>
+    ),
+  },
+];
 
 /** Who logged in, what changed and what was exported (#82). Admin and Compliance by default. */
 interface AuditLogPageProps {
@@ -81,6 +148,13 @@ export function AuditLogPage({
     { ...filters, page, size: pageSize },
     { query: { placeholderData: keepPreviousData } },
   );
+
+  // One arrangement for all three trails: the family access and proposal screens are this same log
+  // narrowed to their own actions, so a column somebody moved here is the one they meant to move there.
+  const view = useTableView("audit-log", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   function changeFilter(apply: () => void) {
     apply();
@@ -213,15 +287,43 @@ export function AuditLogPage({
       </div>
 
       <section aria-labelledby="audit-events-title" className="rounded-2xl border border-line bg-white">
-        <div className="px-5 pt-5 pb-4">
-          <h2 id="audit-events-title" className="text-base font-bold">
-            Recent events
-          </h2>
-          <p className="text-xs text-ink-muted">
-            {events.data
-              ? `${total.toLocaleString("en-GB")} ${total === 1 ? "event" : "events"} ${periodSummary(period, fromDate, toDate)}`
-              : "Loading…"}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5 pb-4">
+          <div>
+            <h2 id="audit-events-title" className="text-base font-bold">
+              Recent events
+            </h2>
+            <p className="text-xs text-ink-muted">
+              {events.data
+                ? `${total.toLocaleString("en-GB")} ${total === 1 ? "event" : "events"} ${periodSummary(period, fromDate, toDate)}`
+                : "Loading…"}
+            </p>
+          </div>
+          {/* Beside the count rather than up with the filters: the filters say which events are listed,
+              these say how the ones on screen are read. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <ViewTabs
+              views={view.views}
+              current={view.current}
+              edited={view.current === null ? view.arranged : view.changed}
+              onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+              onSave={view.saveAs}
+              onDelete={view.remove}
+              firstLabel="Everything recorded"
+            />
+            <ColumnPicker
+              columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+              shown={new Set(view.shown)}
+              order={view.order}
+              arranged={view.arranged}
+              onChange={(next) => {
+                for (const one of MOVABLE) {
+                  if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+                }
+              }}
+              onMove={view.move}
+              onReset={view.reset}
+            />
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -229,27 +331,43 @@ export function AuditLogPage({
             <thead>
               <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">Actor</th>
-                <th scope="col" className="px-4 py-3">Action</th>
-                <th scope="col" className="px-4 py-3">Target</th>
-                <th scope="col" className="px-4 py-3">Time</th>
-                <th scope="col" className="py-3 pr-5 pl-4">Result</th>
+                {shownColumns.map((column, at) => (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    {...drag.headingProps(column.id)}
+                    className={cn(
+                      "cursor-grab touch-none px-4 py-3 select-none",
+                      column.align === "right" ? "text-right" : "text-left",
+                      at === shownColumns.length - 1 && "pr-5",
+                      drag.dragging === column.id && "cursor-grabbing opacity-40",
+                      drag.over === column.id && "bg-primary-50",
+                    )}
+                    title={`Drag to move ${column.label}`}
+                  >
+                    {column.label}
+                    <span className="sr-only">
+                      , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                    </span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {events.isPending && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-8 text-center text-ink-muted">Loading events…</td>
+                  <td colSpan={shownColumns.length + 1} className="px-5 py-8 text-center text-ink-muted">Loading events…</td>
                 </tr>
               )}
               {!events.isPending && rows.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-8 text-center text-ink-muted">
+                  <td colSpan={shownColumns.length + 1} className="px-5 py-8 text-center text-ink-muted">
                     {filtered ? "No events match these filters." : "Nothing was recorded in this period."}
                   </td>
                 </tr>
               )}
               {rows.map((event) => (
-                <EventRow key={event.id} event={event} />
+                <EventRow key={event.id} event={event} columns={shownColumns} />
               ))}
             </tbody>
           </table>
@@ -273,9 +391,8 @@ export function AuditLogPage({
   );
 }
 
-function EventRow({ event }: { event: AuditLogEntry }) {
+function EventRow({ event, columns }: { event: AuditLogEntry; columns: MovableColumn[] }) {
   const actor = event.actorName ?? "Unknown";
-  const when = formatDateTime(event.occurredAt);
   return (
     <tr className="hover:bg-slate-50/60">
       <td className="py-3 pr-4 pl-5">
@@ -287,21 +404,21 @@ function EventRow({ event }: { event: AuditLogEntry }) {
           </div>
         </div>
       </td>
-      <td className="px-4 py-3 text-ink-soft">{event.actionLabel}</td>
-      <td className="px-4 py-3 text-ink-soft">
-        {event.targetLabel ?? "—"}
-        {event.onBehalfOf && (
-          <span className="block text-xs text-ink-muted">on behalf of {event.onBehalfOf}</span>
-        )}
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-        <time dateTime={event.occurredAt} title={event.ipAddress ? `${when} from ${event.ipAddress}` : when}>
-          {formatRelative(event.occurredAt)}
-        </time>
-      </td>
-      <td className="py-3 pr-5 pl-4">
-        <Badge tone={event.outcome === "SUCCESS" ? "success" : "danger"}>{outcomeLabels[event.outcome]}</Badge>
-      </td>
+      {/* The cells out of the same list the headings came from, so the two cannot drift apart. */}
+      {columns.map((column, at) => (
+        <td
+          key={column.id}
+          className={cn(
+            "px-4 py-3",
+            column.align === "right" && "text-right",
+            column.nowrap && "whitespace-nowrap",
+            at === columns.length - 1 && "pr-5",
+            column.tone,
+          )}
+        >
+          {column.cell(event)}
+        </td>
+      ))}
     </tr>
   );
 }

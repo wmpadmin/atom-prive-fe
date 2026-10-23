@@ -4,12 +4,16 @@ import {
   type ReviewQueue,
   type ReviewRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { ChevronRight, Search } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { formatRelative } from "../../lib/labels";
 import { DEFAULT_PAGE_SIZE } from "../../lib/page-sizes";
 import { PagedFooter } from "../../lib/paged-rows";
@@ -29,6 +33,62 @@ import { standingLabels, standings, standingTones } from "./kyc-labels-review";
  * <p>The papers themselves are decided on one by one on KYC document review; a form is read rather than decided
  * on here, since a filled-in form goes to the client's advisor to be signed.
  */
+/** One column of the queue a reader may move: its heading, and what it draws on a row. */
+type Column = {
+  id: string;
+  label: string;
+  nowrap?: boolean;
+  tone?: string;
+  cell: (row: ReviewRow) => ReactNode;
+};
+
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>The client is not among them, and neither is the way in at the end: a row with no client on it does
+ * not say whose KYC is waiting, and an action with no heading cannot be dragged or found in a list.
+ */
+const MOVABLE: Column[] = [
+  // The first two are different questions, and a row that answered only one of them read as though a
+  // client who had sent something had sent nothing. What is here to be looked at, and what is still to
+  // come — so either may be taken off, but neither stands for the other.
+  {
+    id: "waitingOn",
+    label: "Waiting on Compliance",
+    cell: (row) => (row.waitingOn.length > 0 ? (
+      <ul className="space-y-0.5">
+        {row.waitingOn.map((paper) => (
+          <li key={paper} className="font-semibold whitespace-nowrap text-ink-soft">{paper}</li>
+        ))}
+      </ul>
+    ) : (
+      <span className="text-ink-muted">Nothing to look at</span>
+    )),
+  },
+  {
+    id: "stillNeeded",
+    label: "Still needed",
+    nowrap: true,
+    cell: (row) => (row.stillNeeded ? (
+      <span className="text-ink-soft">{row.stillNeeded}</span>
+    ) : (
+      <span className="text-ink-muted">Nothing — every paper is in</span>
+    )),
+  },
+  {
+    id: "standing",
+    label: "Status",
+    cell: (row) => <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>,
+  },
+  {
+    id: "updated",
+    label: "Updated",
+    nowrap: true,
+    tone: "text-ink-soft",
+    cell: (row) => formatRelative(row.updatedAt),
+  },
+];
+
 export function KycReviewQueuePage() {
   // Operations follow the same queue to see where a client has got to; the decision is Compliance's.
   const decides = hasAuthority(useStaffUser(), "APPROVE_ONBOARDING:CHANGE");
@@ -46,6 +106,10 @@ export function KycReviewQueuePage() {
   );
   const rows = queue.data?.items ?? [];
   const found = queue.data?.totalItems ?? 0;
+  const view = useTableView("kyc-queue", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   return (
     <div className="space-y-6">
@@ -108,23 +172,66 @@ export function KycReviewQueuePage() {
       </div>
 
       <section className="rounded-2xl border border-line bg-white">
-        <div className="px-5 pt-5">
-          <h2 className="text-base font-bold">Clients in review</h2>
-          <p className="mt-0.5 text-xs text-ink-muted">
-            {queue.data
-              ? `${queue.data.totalItems} client${queue.data.totalItems === 1 ? "" : "s"} pending. A client is ready to decide on once every paper on their checklist is in and approved.`
-              : "A client is ready to decide on once every paper on their checklist is in and approved."}
-          </p>
+        {/* Which of their arrangements a reader is in sits on the card's own line, above the table it
+            describes and beside the name of it. */}
+        <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5">
+          <div>
+            <h2 className="text-base font-bold">Clients in review</h2>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              {queue.data
+                ? `${queue.data.totalItems} client${queue.data.totalItems === 1 ? "" : "s"} pending. A client is ready to decide on once every paper on their checklist is in and approved.`
+                : "A client is ready to decide on once every paper on their checklist is in and approved."}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <ViewTabs
+              views={view.views}
+              current={view.current}
+              edited={view.current === null ? view.arranged : view.changed}
+              onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+              onSave={view.saveAs}
+              onDelete={view.remove}
+              firstLabel="Everyone in review"
+            />
+            <ColumnPicker
+              columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+              shown={new Set(view.shown)}
+              order={view.order}
+              arranged={view.arranged}
+              onChange={(next) => {
+                for (const one of MOVABLE) {
+                  if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+                }
+              }}
+              onMove={view.move}
+              onReset={view.reset}
+            />
+          </div>
         </div>
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">Client</th>
-                <th scope="col" className="px-4 py-3">Waiting on Compliance</th>
-                <th scope="col" className="px-4 py-3">Still needed</th>
-                <th scope="col" className="px-4 py-3">Status</th>
-                <th scope="col" className="px-4 py-3">Updated</th>
+                {shownColumns.map((column, at) => (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    {...drag.headingProps(column.id)}
+                    className={cn(
+                      "cursor-grab touch-none px-4 py-3 select-none",
+                      column.nowrap && "whitespace-nowrap",
+                      drag.dragging === column.id && "cursor-grabbing opacity-40",
+                      drag.over === column.id && "bg-primary-50",
+                    )}
+                    title={`Drag to move ${column.label}`}
+                  >
+                    {column.label}
+                    <span className="sr-only">
+                      , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                    </span>
+                  </th>
+                ))}
                 <th scope="col" className="py-3 pr-5 pl-4">
                   <span className="sr-only">Open</span>
                 </th>
@@ -133,12 +240,12 @@ export function KycReviewQueuePage() {
             <tbody className="divide-y divide-line">
               {queue.isPending && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-ink-muted">Loading the queue…</td>
+                  <td colSpan={shownColumns.length + 2} className="px-5 py-10 text-center text-ink-muted">Loading the queue…</td>
                 </tr>
               )}
               {queue.data && rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-ink-muted">
+                  <td colSpan={shownColumns.length + 2} className="px-5 py-10 text-center text-ink-muted">
                     {query || standing
                       ? "No client matches that."
                       : "No client's KYC is pending. They arrive here once something has been sent in for the firm to decide on."}
@@ -146,7 +253,7 @@ export function KycReviewQueuePage() {
                 </tr>
               )}
               {rows.map((row) => (
-                <Row key={row.customerId} row={row} decides={decides} />
+                <Row key={row.customerId} row={row} columns={shownColumns} decides={decides} />
               ))}
             </tbody>
           </table>
@@ -184,7 +291,7 @@ function Tile({ label, count, hint }: { label: string; count?: number; hint: str
   );
 }
 
-function Row({ row, decides }: { row: ReviewRow; decides: boolean }) {
+function Row({ row, columns, decides }: { row: ReviewRow; columns: Column[]; decides: boolean }) {
   const navigate = useNavigate();
   return (
     <tr
@@ -205,30 +312,15 @@ function Row({ row, decides }: { row: ReviewRow; decides: boolean }) {
           </div>
         </div>
       </td>
-      {/* Two different questions, and a row that answered only one of them read as though a client who had
-          sent something had sent nothing. What is here to be looked at, and what is still to come. */}
-      <td className="px-4 py-3">
-        {row.waitingOn.length > 0 ? (
-          <ul className="space-y-0.5">
-            {row.waitingOn.map((paper) => (
-              <li key={paper} className="font-semibold whitespace-nowrap text-ink-soft">{paper}</li>
-            ))}
-          </ul>
-        ) : (
-          <span className="text-ink-muted">Nothing to look at</span>
-        )}
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        {row.stillNeeded ? (
-          <span className="text-ink-soft">{row.stillNeeded}</span>
-        ) : (
-          <span className="text-ink-muted">Nothing — every paper is in</span>
-        )}
-      </td>
-      <td className="px-4 py-3">
-        <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(row.updatedAt)}</td>
+      {/* The cells in the order the headings are in, out of the one list that holds both. */}
+      {columns.map((column) => (
+        <td
+          key={column.id}
+          className={cn("px-4 py-3", column.nowrap && "whitespace-nowrap", column.tone)}
+        >
+          {column.cell(row)}
+        </td>
+      ))}
       <td className="py-3 pr-5 pl-4 text-right">
         <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700">
           {decides && row.standing === "READY" ? "Decide" : "Open"}

@@ -12,9 +12,98 @@ import { Check } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
 import { formatDate } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { hasAnyAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
+import { useTableView } from "../../lib/table-view";
+
+/** One column of the queue: its heading, and what it draws on a row. */
+type Column = {
+  id: string;
+  label: string;
+  align: "left" | "right";
+  nowrap?: boolean;
+  tone?: string;
+  cell: (notice: NoticeRow) => ReactNode;
+};
+
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>Built rather than written out, because two of these cells need what only the screen knows: which of
+ * the two lists is being read, and whether this reader may say a pack has gone.
+ *
+ * <p>The client is not among them. A row with no name on it is a pair of dates nobody can act on.
+ */
+function movableFor({ sent, canSend, onSend }: {
+  sent: boolean;
+  canSend: boolean;
+  onSend: (notice: NoticeRow) => void;
+}): Column[] {
+  return [
+    {
+      id: "approved",
+      label: "Approved",
+      align: "left",
+      nowrap: true,
+      tone: "text-ink-soft",
+      cell: (notice) => formatDate(notice.approvedAt),
+    },
+    {
+      id: "due",
+      label: "Due",
+      align: "left",
+      nowrap: true,
+      tone: "text-ink-soft",
+      cell: (notice) => formatDate(notice.dueOn),
+    },
+    {
+      id: "standing",
+      label: "Status",
+      align: "left",
+      cell: (notice) => (sent ? (
+        <div>
+          <Badge tone={notice.sentAt && notice.sentAt.slice(0, 10) > notice.dueOn ? "warning" : "success"}>
+            {notice.sentAt ? `Sent ${formatDate(notice.sentAt)}` : "Sent"}
+          </Badge>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            {notice.sentByName ? `by ${notice.sentByName}` : ""}
+            {notice.note ? ` · ${notice.note}` : ""}
+          </p>
+        </div>
+      ) : (
+        <Standing notice={notice} />
+      )),
+    },
+    {
+      id: "action",
+      label: "Action",
+      align: "right",
+      nowrap: true,
+      cell: (notice) => (
+        <>
+          {notice.customerId && (
+            <Link
+              to={`/clients/${notice.customerId}/documents/NOTICE_OF_TREATMENT`}
+              className="text-sm font-medium text-primary-700 hover:underline"
+            >
+              {sent ? "View the letter" : "Preview"}
+            </Link>
+          )}
+          {!sent && canSend && (
+            <Button variant="ghost" size="sm" className="ml-2" onClick={() => onSend(notice)}>
+              <Check aria-hidden="true" />
+              Mark as sent
+            </Button>
+          )}
+        </>
+      ),
+    },
+  ];
+}
 
 /**
  * What every signed-off client is owed. Compliance sign a client off; the firm then has seven days to
@@ -32,6 +121,13 @@ export function PostOnboardingPage() {
   // of a component's renders. The server sends this queue whole, so the page is taken here.
   const rows = notices.data?.items ?? [];
   const paged = usePagedRows(rows);
+  // Read above the refusal for the same reason: how this reader has arranged the queue is a thing about
+  // them rather than about whether the fetch came back.
+  const movable = movableFor({ sent, canSend, onSend: (notice) => setSending(notice) });
+  const view = useTableView("post-onboarding-notices", movable.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(movable.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   if (notices.isError) {
     return <Alert tone="danger">{notices.error.message}</Alert>;
@@ -77,20 +173,46 @@ export function PostOnboardingPage() {
             <h2 className="text-base font-bold">{sent ? "Sent" : "Notice queue"}</h2>
             <p className="mt-0.5 text-xs text-ink-muted">Due date = the day they were signed off, plus seven.</p>
           </div>
-          <div className="flex gap-1">
-            {([[false, "Owed"], [true, "Sent"]] as [boolean, string][]).map(([which, label]) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setSent(which)}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-                  sent === which ? "bg-primary-100 text-ink" : "text-ink-muted hover:bg-canvas",
-                )}
-              >
-                {label}
-              </button>
-            ))}
+          {/* Which list, then how it is arranged: the two Owed and Sent buttons say what is in front of
+              the reader, and the arrangement beside them says how they are reading it. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-1">
+              {([[false, "Owed"], [true, "Sent"]] as [boolean, string][]).map(([which, label]) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setSent(which)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                    sent === which ? "bg-primary-100 text-ink" : "text-ink-muted hover:bg-canvas",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <ViewTabs
+              views={view.views}
+              current={view.current}
+              edited={view.current === null ? view.arranged : view.changed}
+              onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+              onSave={view.saveAs}
+              onDelete={view.remove}
+              firstLabel="Every notice"
+            />
+            <ColumnPicker
+              columns={movable.map((one) => ({ id: one.id, label: one.label }))}
+              shown={new Set(view.shown)}
+              order={view.order}
+              arranged={view.arranged}
+              onChange={(next) => {
+                for (const one of movable) {
+                  if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+                }
+              }}
+              onMove={view.move}
+              onReset={view.reset}
+            />
           </div>
         </div>
 
@@ -99,21 +221,37 @@ export function PostOnboardingPage() {
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">Client</th>
-                <th scope="col" className="px-4 py-3">Approved</th>
-                <th scope="col" className="px-4 py-3">Due</th>
-                <th scope="col" className="px-4 py-3">Status</th>
-                <th scope="col" className="py-3 pr-5 pl-4 text-right">Action</th>
+                {shownColumns.map((column, at) => (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    {...drag.headingProps(column.id)}
+                    className={cn(
+                      "cursor-grab touch-none px-4 py-3 select-none",
+                      column.align === "right" ? "text-right" : "text-left",
+                      at === shownColumns.length - 1 && "pr-5",
+                      drag.dragging === column.id && "cursor-grabbing opacity-40",
+                      drag.over === column.id && "bg-primary-50",
+                    )}
+                    title={`Drag to move ${column.label}`}
+                  >
+                    {column.label}
+                    <span className="sr-only">
+                      , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                    </span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {!notices.data && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-8 text-center text-ink-muted">Loading…</td>
+                  <td colSpan={shownColumns.length + 1} className="px-5 py-8 text-center text-ink-muted">Loading…</td>
                 </tr>
               )}
               {notices.data && rows.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-10 text-center text-ink-muted">
+                  <td colSpan={shownColumns.length + 1} className="px-5 py-10 text-center text-ink-muted">
                     {sent
                       ? "No pack has gone out yet."
                       : "Nothing is owed. A client appears here the moment Compliance sign them off."}
@@ -130,39 +268,21 @@ export function PostOnboardingPage() {
                       {notice.relationshipManager ?? "No relationship manager"}
                     </p>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatDate(notice.approvedAt)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatDate(notice.dueOn)}</td>
-                  <td className="px-4 py-3">
-                    {sent ? (
-                      <div>
-                        <Badge tone={notice.sentAt && notice.sentAt.slice(0, 10) > notice.dueOn ? "warning" : "success"}>
-                          {notice.sentAt ? `Sent ${formatDate(notice.sentAt)}` : "Sent"}
-                        </Badge>
-                        <p className="mt-0.5 text-xs text-ink-muted">
-                          {notice.sentByName ? `by ${notice.sentByName}` : ""}
-                          {notice.note ? ` · ${notice.note}` : ""}
-                        </p>
-                      </div>
-                    ) : (
-                      <Standing notice={notice} />
-                    )}
-                  </td>
-                  <td className="py-3 pr-5 pl-4 text-right whitespace-nowrap">
-                    {notice.customerId && (
-                      <Link
-                        to={`/clients/${notice.customerId}/documents/NOTICE_OF_TREATMENT`}
-                        className="text-sm font-medium text-primary-700 hover:underline"
-                      >
-                        {sent ? "View the letter" : "Preview"}
-                      </Link>
-                    )}
-                    {!sent && canSend && (
-                      <Button variant="ghost" size="sm" className="ml-2" onClick={() => setSending(notice)}>
-                        <Check aria-hidden="true" />
-                        Mark as sent
-                      </Button>
-                    )}
-                  </td>
+                  {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                  {shownColumns.map((column, at) => (
+                    <td
+                      key={column.id}
+                      className={cn(
+                        "px-4 py-3",
+                        column.align === "right" && "text-right",
+                        column.nowrap && "whitespace-nowrap",
+                        at === shownColumns.length - 1 && "pr-5",
+                        column.tone,
+                      )}
+                    >
+                      {column.cell(notice)}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>

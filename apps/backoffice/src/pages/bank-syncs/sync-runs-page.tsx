@@ -9,14 +9,18 @@ import {
   type SyncRunPage,
   type SyncRunRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, Pagination, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Badge, Button, cn, Pagination, SelectInput, TextInput } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { Play, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useStaffUser } from "../../auth/session";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
 import { hasAuthority } from "../../lib/permissions";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { formatDateTime } from "../../lib/labels";
+import { useTableView } from "../../lib/table-view";
 
 const outcomeLabels: Record<ListSyncRunsOutcome, string> = {
   RUNNING: "Running",
@@ -29,6 +33,84 @@ const outcomeTones: Record<ListSyncRunsOutcome, "info" | "success" | "danger"> =
   SUCCEEDED: "success",
   FAILED: "danger",
 };
+
+/** One column of the log: its heading, and what it draws on a run. */
+type Column = {
+  id: string;
+  label: string;
+  align: "left" | "right";
+  nowrap?: boolean;
+  tone?: (run: SyncRunRow) => string | undefined;
+  cell: (run: SyncRunRow) => ReactNode;
+};
+
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>The bank is not among them: a run with no bank on it is four figures nobody can place. Neither is
+ * trying it again, which has no heading to take hold of.
+ *
+ * <p>The four counts stay next to one another where the firm put them, but a reader watching one feed
+ * can now bring the one they are counting to the front of the row.
+ */
+const MOVABLE: Column[] = [
+  {
+    id: "account",
+    label: "Account",
+    align: "left",
+    tone: () => "text-ink-soft",
+    cell: (run) => run.accountLabel,
+  },
+  {
+    id: "started",
+    label: "Started",
+    align: "left",
+    nowrap: true,
+    tone: () => "text-ink-soft tabular-nums",
+    cell: (run) => formatDateTime(run.startedAt),
+  },
+  {
+    id: "finished",
+    label: "Finished",
+    align: "left",
+    nowrap: true,
+    tone: () => "text-ink-soft tabular-nums",
+    cell: (run) => (run.finishedAt ? formatDateTime(run.finishedAt) : "—"),
+  },
+  {
+    id: "fetched",
+    label: "Fetched",
+    align: "right",
+    cell: (run) => run.fetched,
+  },
+  {
+    id: "inserted",
+    label: "Inserted",
+    align: "right",
+    cell: (run) => run.inserted,
+  },
+  {
+    id: "skipped",
+    label: "Skipped",
+    align: "right",
+    cell: (run) => run.skipped,
+  },
+  {
+    id: "errors",
+    label: "Errors",
+    align: "right",
+    // A run that refused something is the one a reader is looking for, so the figure says so itself
+    // rather than leaving the result at the end of the row to say it.
+    tone: (run) => (run.validationErrors > 0 ? "font-semibold text-red-600" : undefined),
+    cell: (run) => run.validationErrors,
+  },
+  {
+    id: "outcome",
+    label: "Result",
+    align: "left",
+    cell: (run) => <Badge tone={outcomeTones[run.outcome]}>{outcomeLabels[run.outcome]}</Badge>,
+  },
+];
 
 /**
  * Sync monitoring and the ingestion log on one screen (#50, #79, #81): how the feeds are doing across the top, then
@@ -62,10 +144,17 @@ export function SyncRunsPage() {
   const start = useStartSyncNow<ApiError>({ mutation: { onSuccess: again } });
   const retry = useRetrySyncRun<ApiError>({ mutation: { onSuccess: again } });
   const asking = start.isPending || retry.isPending;
+  // Above the refusal below, because how this reader has arranged the log is a thing about them rather
+  // than about what came back, and a hook React sees on one render and not the next is a hook it cannot
+  // keep in order.
+  const view = useTableView("sync-runs", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
 
   if (runs.isError) {
     return <Alert tone="danger">{runs.error.message}</Alert>;
   }
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
   const counts = runs.data?.counts;
   const refused = start.error ?? retry.error;
   const failing = runs.data?.failing ?? [];
@@ -118,6 +207,17 @@ export function SyncRunsPage() {
         <Count label="Banks connected" value={counts?.banksConnected} />
       </div>
 
+      {/* Above the table: which of their arrangements a reader is in is read before anything in it. */}
+      <ViewTabs
+        views={view.views}
+        current={view.current}
+        edited={view.current === null ? view.arranged : view.changed}
+        onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+        onSave={view.saveAs}
+        onDelete={view.remove}
+        firstLabel="Every run"
+      />
+
       <section className="rounded-2xl border border-line bg-white">
         <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-4">
           <label className="flex items-center gap-2 text-xs text-ink-muted">
@@ -160,6 +260,21 @@ export function SyncRunsPage() {
               ))}
             </SelectInput>
           </label>
+          <div className="ml-auto">
+            <ColumnPicker
+              columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+              shown={new Set(view.shown)}
+              order={view.order}
+              arranged={view.arranged}
+              onChange={(next) => {
+                for (const one of MOVABLE) {
+                  if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+                }
+              }}
+              onMove={view.move}
+              onReset={view.reset}
+            />
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -167,14 +282,26 @@ export function SyncRunsPage() {
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">Bank</th>
-                <th scope="col" className="px-4 py-3">Account</th>
-                <th scope="col" className="px-4 py-3">Started</th>
-                <th scope="col" className="px-4 py-3">Finished</th>
-                <th scope="col" className="px-4 py-3 text-right">Fetched</th>
-                <th scope="col" className="px-4 py-3 text-right">Inserted</th>
-                <th scope="col" className="px-4 py-3 text-right">Skipped</th>
-                <th scope="col" className="px-4 py-3 text-right">Errors</th>
-                <th scope="col" className="px-4 py-3">Result</th>
+                {shownColumns.map((column, at) => (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    {...drag.headingProps(column.id)}
+                    className={cn(
+                      "cursor-grab touch-none px-4 py-3 select-none",
+                      column.align === "right" ? "text-right" : "text-left",
+                      column.nowrap && "whitespace-nowrap",
+                      drag.dragging === column.id && "cursor-grabbing opacity-40",
+                      drag.over === column.id && "bg-primary-50",
+                    )}
+                    title={`Drag to move ${column.label}`}
+                  >
+                    {column.label}
+                    <span className="sr-only">
+                      , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                    </span>
+                  </th>
+                ))}
                 <th scope="col" className="py-3 pr-5 pl-4">
                   <span className="sr-only">Try again</span>
                 </th>
@@ -183,12 +310,12 @@ export function SyncRunsPage() {
             <tbody className="divide-y divide-line">
               {!runs.data && (
                 <tr>
-                  <td colSpan={10} className="px-5 py-8 text-center text-ink-muted">Loading runs…</td>
+                  <td colSpan={shownColumns.length + 2} className="px-5 py-8 text-center text-ink-muted">Loading runs…</td>
                 </tr>
               )}
               {runs.data?.items.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-5 py-10 text-center text-ink-muted">
+                  <td colSpan={shownColumns.length + 2} className="px-5 py-10 text-center text-ink-muted">
                     No sync runs yet. They appear here as the schedule comes round, or as somebody asks for one.
                   </td>
                 </tr>
@@ -197,6 +324,7 @@ export function SyncRunsPage() {
                 <Row
                   key={run.id}
                   run={run}
+                  columns={shownColumns}
                   canRetry={canRun}
                   busy={asking}
                   onRetry={() => retry.mutate({ runId: run.id })}
@@ -226,11 +354,14 @@ export function SyncRunsPage() {
 
 function Row({
   run,
+  columns,
   canRetry,
   busy,
   onRetry,
 }: {
   run: SyncRunRow;
+  /** The columns as this reader has them, so the cells line up with the headings above. */
+  columns: Column[];
   canRetry: boolean;
   busy: boolean;
   onRetry: () => void;
@@ -239,20 +370,20 @@ function Row({
     <>
       <tr>
         <td className="py-3 pr-4 pl-5 font-medium">{run.bankName}</td>
-        <td className="px-4 py-3 text-ink-soft">{run.accountLabel}</td>
-        <td className="px-4 py-3 whitespace-nowrap text-ink-soft tabular-nums">{formatDateTime(run.startedAt)}</td>
-        <td className="px-4 py-3 whitespace-nowrap text-ink-soft tabular-nums">
-          {run.finishedAt ? formatDateTime(run.finishedAt) : "—"}
-        </td>
-        <td className="px-4 py-3 text-right tabular-nums">{run.fetched}</td>
-        <td className="px-4 py-3 text-right tabular-nums">{run.inserted}</td>
-        <td className="px-4 py-3 text-right tabular-nums">{run.skipped}</td>
-        <td className={`px-4 py-3 text-right tabular-nums ${run.validationErrors > 0 ? "font-semibold text-red-600" : ""}`}>
-          {run.validationErrors}
-        </td>
-        <td className="px-4 py-3">
-          <Badge tone={outcomeTones[run.outcome]}>{outcomeLabels[run.outcome]}</Badge>
-        </td>
+        {/* The cells in the order the headings are in, out of the one list that holds both. */}
+        {columns.map((column) => (
+          <td
+            key={column.id}
+            className={cn(
+              "px-4 py-3",
+              column.align === "right" && "text-right tabular-nums",
+              column.nowrap && "whitespace-nowrap",
+              column.tone?.(run),
+            )}
+          >
+            {column.cell(run)}
+          </td>
+        ))}
         <td className="py-3 pr-5 pl-4 text-right">
           {/* Only a run that failed is worth trying again; the rest have nothing to put right. */}
           {canRetry && run.outcome === "FAILED" && (
@@ -265,7 +396,9 @@ function Row({
       </tr>
       {run.errorDetail && (
         <tr>
-          <td colSpan={10} className="bg-red-50/60 px-5 py-2 text-xs text-red-800">
+          {/* Across the whole row as this reader has it, bank and retry included, so what the bank said
+              stays under the run it belongs to however the columns have been arranged. */}
+          <td colSpan={columns.length + 2} className="bg-red-50/60 px-5 py-2 text-xs text-red-800">
             {run.errorDetail}
           </td>
         </tr>

@@ -10,11 +10,15 @@ import {
 import { Alert, Badge, Button, Dialog, Field, TextArea, cn } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { UserX } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
 import { formatDate, formatDateTime } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
+import { useTableView } from "../../lib/table-view";
 
 const statusLabels: Record<DeactivationRow["status"], string> = {
   ASKED: "Asked",
@@ -27,6 +31,72 @@ const statusTones: Record<DeactivationRow["status"], "warning" | "danger" | "neu
   APPROVED: "danger",
   WITHDRAWN: "neutral",
 };
+
+type Column = {
+  id: string;
+  label: string;
+  nowrap?: boolean;
+  /** The ink the cell is written in, where it is quieter than the client's own name. */
+  tone?: string;
+  cell: (row: DeactivationRow) => ReactNode;
+};
+
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>Built rather than written out, because one heading changes with the list underneath it: a request
+ * still waiting is read for the day the client keeps the account until, and a decided one for the day it
+ * was answered.
+ *
+ * <p>The client is not among them, and neither is the pair of buttons at the end. A row with no client
+ * named on it closes nobody's account, and the buttons are what this screen is for.
+ */
+function movableFor({ decided }: { decided: boolean }): Column[] {
+  return [
+    {
+      id: "asked",
+      label: "Asked",
+      nowrap: true,
+      tone: "text-ink-soft",
+      cell: (row) => (
+        <>
+          {formatDate(row.askedAt)}
+          {row.askedByName && <span className="block text-xs">written down by {row.askedByName}</span>}
+        </>
+      ),
+    },
+    {
+      id: "until",
+      label: decided ? "Decided" : "They keep it until",
+      nowrap: true,
+      tone: "text-ink-soft",
+      cell: (row) => (decided
+        ? row.decidedAt
+          ? formatDateTime(row.decidedAt)
+          : "—"
+        : formatDate(row.graceEndsOn)),
+    },
+    {
+      id: "standing",
+      label: "Standing",
+      cell: (row) => (
+        <>
+          <Badge tone={statusTones[row.status]}>{statusLabels[row.status]}</Badge>
+          {row.status === "ASKED" && (
+            <p className="mt-0.5 text-xs text-ink-muted">
+              {row.graceHasPassed
+                ? "The thirty days are up."
+                : row.daysLeft === 1
+                  ? "1 day left"
+                  : `${row.daysLeft} days left`}
+            </p>
+          )}
+          {row.decidedByName && <p className="mt-0.5 text-xs text-ink-muted">by {row.decidedByName}</p>}
+        </>
+      ),
+    },
+  ];
+}
 
 /**
  * Customer deactivation and data deletion approvals (#20, R20). A client asks for their account to go; they
@@ -59,6 +129,11 @@ export function OffboardingTab() {
 
   const rows = queue.data?.items ?? [];
   const awaiting = queue.data?.awaiting ?? 0;
+  const movable = movableFor({ decided });
+  const view = useTableView("offboarding", movable.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(movable.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   return (
     <section aria-labelledby="offboarding-title" className="rounded-2xl border border-line bg-white">
@@ -117,87 +192,117 @@ export function OffboardingTab() {
       )}
 
       {rows.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                <th scope="col" className="py-3 pr-4 pl-5">Client</th>
-                <th scope="col" className="px-4 py-3">Asked</th>
-                <th scope="col" className="px-4 py-3">{decided ? "Decided" : "They keep it until"}</th>
-                <th scope="col" className="px-4 py-3">Standing</th>
-                <th scope="col" className="py-3 pr-5 pl-4 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td className="py-3 pr-4 pl-5">
-                    <Link to={`/clients/${row.customerId}`} className="font-semibold hover:text-primary-600">
-                      {row.clientName}
-                    </Link>
-                    <p className="text-xs text-ink-muted">
-                      {row.clientCode}
-                      {row.reason ? ` · ${row.reason}` : ""}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                    {formatDate(row.askedAt)}
-                    {row.askedByName && <span className="block text-xs">written down by {row.askedByName}</span>}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                    {decided
-                      ? row.decidedAt
-                        ? formatDateTime(row.decidedAt)
-                        : "—"
-                      : formatDate(row.graceEndsOn)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={statusTones[row.status]}>{statusLabels[row.status]}</Badge>
-                    {row.status === "ASKED" && (
-                      <p className="mt-0.5 text-xs text-ink-muted">
-                        {row.graceHasPassed
-                          ? "The thirty days are up."
-                          : row.daysLeft === 1
-                            ? "1 day left"
-                            : `${row.daysLeft} days left`}
-                      </p>
-                    )}
-                    {row.decidedByName && <p className="mt-0.5 text-xs text-ink-muted">by {row.decidedByName}</p>}
-                  </td>
-                  <td className="py-3 pr-5 pl-4 text-right whitespace-nowrap">
-                    {row.status === "ASKED" && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => withdraw.mutate({ customerId: row.customerId })}
-                        >
-                          They changed their mind
-                        </Button>
-                        {canDecide && (
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            className="ml-2"
-                            disabled={busy || !row.graceHasPassed}
-                            title={row.graceHasPassed ? undefined : "The client keeps the account until the thirty days are up."}
-                            onClick={() => {
-                              setWrong(undefined);
-                              setApproving(row);
-                            }}
-                          >
-                            Close the account
-                          </Button>
-                        )}
-                      </>
-                    )}
-                  </td>
+        <>
+          {/* Above the table, and only where there is one: which of their arrangements a reader is in,
+              and the way to change it. */}
+          <div className="flex flex-wrap items-start justify-between gap-2 px-5 pt-4">
+            <ViewTabs
+              views={view.views}
+              current={view.current}
+              edited={view.current === null ? view.arranged : view.changed}
+              onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+              onSave={view.saveAs}
+              onDelete={view.remove}
+              firstLabel="Every request to close"
+            />
+            <ColumnPicker
+              columns={movable.map((one) => ({ id: one.id, label: one.label }))}
+              shown={new Set(view.shown)}
+              order={view.order}
+              arranged={view.arranged}
+              onChange={(next) => {
+                for (const one of movable) {
+                  if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+                }
+              }}
+              onMove={view.move}
+              onReset={view.reset}
+            />
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                  <th scope="col" className="py-3 pr-4 pl-5">Client</th>
+                  {shownColumns.map((column, at) => (
+                    <th
+                      key={column.id}
+                      scope="col"
+                      {...drag.headingProps(column.id)}
+                      className={cn(
+                        "cursor-grab touch-none px-4 py-3 select-none",
+                        column.nowrap && "whitespace-nowrap",
+                        drag.dragging === column.id && "cursor-grabbing opacity-40",
+                        drag.over === column.id && "bg-primary-50",
+                      )}
+                      title={`Drag to move ${column.label}`}
+                    >
+                      {column.label}
+                      <span className="sr-only">
+                        , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                      </span>
+                    </th>
+                  ))}
+                  <th scope="col" className="py-3 pr-5 pl-4 text-right">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <td className="py-3 pr-4 pl-5">
+                      <Link to={`/clients/${row.customerId}`} className="font-semibold hover:text-primary-600">
+                        {row.clientName}
+                      </Link>
+                      <p className="text-xs text-ink-muted">
+                        {row.clientCode}
+                        {row.reason ? ` · ${row.reason}` : ""}
+                      </p>
+                    </td>
+                    {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                    {shownColumns.map((column) => (
+                      <td
+                        key={column.id}
+                        className={cn("px-4 py-3", column.nowrap && "whitespace-nowrap", column.tone)}
+                      >
+                        {column.cell(row)}
+                      </td>
+                    ))}
+                    <td className="py-3 pr-5 pl-4 text-right whitespace-nowrap">
+                      {row.status === "ASKED" && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => withdraw.mutate({ customerId: row.customerId })}
+                          >
+                            They changed their mind
+                          </Button>
+                          {canDecide && (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              className="ml-2"
+                              disabled={busy || !row.graceHasPassed}
+                              title={row.graceHasPassed ? undefined : "The client keeps the account until the thirty days are up."}
+                              onClick={() => {
+                                setWrong(undefined);
+                                setApproving(row);
+                              }}
+                            >
+                              Close the account
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <Dialog

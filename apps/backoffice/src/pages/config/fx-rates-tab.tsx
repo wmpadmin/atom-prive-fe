@@ -9,16 +9,21 @@ import {
   useUpdateFxRate,
   type FeedPull,
   type FxRateHistory,
+  type FxRateHistoryRow,
   type FxRateRow,
   type FxRateTable,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, describedBy, Dialog, Field, Pagination, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Badge, Button, cn, describedBy, Dialog, Field, Pagination, SelectInput, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
+import { useColumnDrag } from "../../lib/column-drag";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { usePagedRows } from "../../lib/paged-rows";
+import { useTableView } from "../../lib/table-view";
 import { formatUtc } from "./config-labels";
 
 type Notice = { tone: "success" | "info" | "danger"; message: string };
@@ -53,6 +58,88 @@ function pulled(result: FeedPull, feedName: string): Notice {
 
 const currencyNames = new Intl.DisplayNames(["en-GB"], { type: "currency" });
 
+type RateColumn = {
+  id: string;
+  label: string;
+  nowrap?: boolean;
+  cell: (rate: FxRateRow) => ReactNode;
+};
+
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>Built rather than written out, because Source says what the feed did not cover, and which feed that
+ * is belongs to the screen rather than to the row.
+ *
+ * <p>The currency is not among them, and neither is the button at the end. A rate with no currency named
+ * on it converts nothing, and the button has no heading to drag or to find in a list.
+ */
+function movableRatesFor({ feedName, feedPublishedOn }: {
+  feedName: string | null;
+  feedPublishedOn: string | null;
+}): RateColumn[] {
+  return [
+    {
+      id: "rate",
+      label: "Rate",
+      cell: (rate) => (rate.unitsPerUsd === null ? (
+        <span className="text-ink-muted">Not set</span>
+      ) : (
+        <>
+          <p className="font-semibold tabular-nums">{formatRate(rate.unitsPerUsd)}</p>
+          <p className="text-2xs text-ink-muted">{rate.code} per USD</p>
+        </>
+      )),
+    },
+    {
+      id: "converted",
+      label: "Converted · 1 unit in USD",
+      cell: (rate) => (rate.usdPerUnit === null ? (
+        <span className="text-ink-muted">—</span>
+      ) : (
+        <>
+          <p className="font-semibold text-primary-600 tabular-nums">{formatConverted(rate.usdPerUnit)}</p>
+          <p className="text-2xs text-ink-muted">USD per {rate.code}</p>
+        </>
+      )),
+    },
+    {
+      id: "source",
+      label: "Source",
+      cell: (rate) => (
+        <>
+          {rate.source === null ? (
+            <span className="text-ink-muted">—</span>
+          ) : (
+            <Badge tone={rate.source === "FEED" ? "info" : "neutral"}>
+              {rate.source === "FEED" ? "Rate feed" : "Entered by hand"}
+            </Badge>
+          )}
+          {/* Said once the feed has run: before that, nothing is known about what it covers. */}
+          {feedPublishedOn && !rate.publishedByFeed && (
+            <p className="mt-1 text-2xs text-ink-muted">Not published by {feedName} · kept by hand</p>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "asOf",
+      label: "As of",
+      nowrap: true,
+      cell: (rate) => (rate.asOf === null ? (
+        <span className="text-ink-muted">—</span>
+      ) : (
+        <>
+          <p className="text-ink-soft tabular-nums">
+            {rate.source === "FEED" ? formatDay(rate.asOf.slice(0, 10)) : formatUtc(rate.asOf)}
+          </p>
+          {rate.recordedBy && <p className="text-2xs text-ink-muted">by {rate.recordedBy}</p>}
+        </>
+      )),
+    },
+  ];
+}
+
 /** Currencies and their rates against USD, the reporting currency (#100, #102). Entered by hand until a feed exists. */
 export function FxRatesTab() {
   const queryClient = useQueryClient();
@@ -82,6 +169,14 @@ export function FxRatesTab() {
 
   const table = rates.data;
   const paged = usePagedRows(table?.rates ?? [], 10);
+  const movable = movableRatesFor({
+    feedName: table?.feedName ?? null,
+    feedPublishedOn: table?.feedPublishedOn ?? null,
+  });
+  const view = useTableView("fx-rates", movable.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(movable.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
   return (
     <section aria-labelledby="fx-title" className="rounded-2xl border border-line bg-white p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -130,15 +225,57 @@ export function FxRatesTab() {
         </div>
       )}
 
+      {/* Above the table, the two together: which of their arrangements a reader is in, and the way to
+          change it. */}
+      <div className="mt-4 flex flex-wrap items-start justify-between gap-2">
+        <ViewTabs
+          views={view.views}
+          current={view.current}
+          edited={view.current === null ? view.arranged : view.changed}
+          onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+          onSave={view.saveAs}
+          onDelete={view.remove}
+          firstLabel="Every currency"
+        />
+        <ColumnPicker
+          columns={movable.map((one) => ({ id: one.id, label: one.label }))}
+          shown={new Set(view.shown)}
+          order={view.order}
+          arranged={view.arranged}
+          onChange={(next) => {
+            for (const one of movable) {
+              if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+            }
+          }}
+          onMove={view.move}
+          onReset={view.reset}
+        />
+      </div>
+
       <div className="-mx-5 mt-4 overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               <th scope="col" className="py-3 pr-4 pl-5">Currency</th>
-              <th scope="col" className="px-4 py-3">Rate</th>
-              <th scope="col" className="px-4 py-3">Converted · 1 unit in USD</th>
-              <th scope="col" className="px-4 py-3">Source</th>
-              <th scope="col" className="px-4 py-3">As of</th>
+              {shownColumns.map((column, at) => (
+                <th
+                  key={column.id}
+                  scope="col"
+                  {...drag.headingProps(column.id)}
+                  className={cn(
+                    "cursor-grab touch-none px-4 py-3 select-none",
+                    column.nowrap && "whitespace-nowrap",
+                    drag.dragging === column.id && "cursor-grabbing opacity-40",
+                    drag.over === column.id && "bg-primary-50",
+                  )}
+                  title={`Drag to move ${column.label}`}
+                >
+                  {column.label}
+                  <span className="sr-only">
+                    , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                  </span>
+                </th>
+              ))}
               <th scope="col" className="py-3 pr-5 pl-4">
                 <span className="sr-only">Action</span>
               </th>
@@ -147,7 +284,7 @@ export function FxRatesTab() {
           <tbody className="divide-y divide-line">
             {rates.isPending && (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-ink-muted">Loading rates…</td>
+                <td colSpan={shownColumns.length + 2} className="px-5 py-8 text-center text-ink-muted">Loading rates…</td>
               </tr>
             )}
             {paged.shown.map((rate) => (
@@ -160,51 +297,12 @@ export function FxRatesTab() {
                     <span className="font-semibold">{rate.name}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3">
-                  {rate.unitsPerUsd === null ? (
-                    <span className="text-ink-muted">Not set</span>
-                  ) : (
-                    <>
-                      <p className="font-semibold tabular-nums">{formatRate(rate.unitsPerUsd)}</p>
-                      <p className="text-2xs text-ink-muted">{rate.code} per USD</p>
-                    </>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  {rate.usdPerUnit === null ? (
-                    <span className="text-ink-muted">—</span>
-                  ) : (
-                    <>
-                      <p className="font-semibold text-primary-600 tabular-nums">{formatConverted(rate.usdPerUnit)}</p>
-                      <p className="text-2xs text-ink-muted">USD per {rate.code}</p>
-                    </>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  {rate.source === null ? (
-                    <span className="text-ink-muted">—</span>
-                  ) : (
-                    <Badge tone={rate.source === "FEED" ? "info" : "neutral"}>
-                      {rate.source === "FEED" ? "Rate feed" : "Entered by hand"}
-                    </Badge>
-                  )}
-                  {/* Said once the feed has run: before that, nothing is known about what it covers. */}
-                  {table?.feedPublishedOn && !rate.publishedByFeed && (
-                    <p className="mt-1 text-2xs text-ink-muted">Not published by {table.feedName} · kept by hand</p>
-                  )}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  {rate.asOf === null ? (
-                    <span className="text-ink-muted">—</span>
-                  ) : (
-                    <>
-                      <p className="text-ink-soft tabular-nums">
-                        {rate.source === "FEED" ? formatDay(rate.asOf.slice(0, 10)) : formatUtc(rate.asOf)}
-                      </p>
-                      {rate.recordedBy && <p className="text-2xs text-ink-muted">by {rate.recordedBy}</p>}
-                    </>
-                  )}
-                </td>
+                {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                {shownColumns.map((column) => (
+                  <td key={column.id} className={cn("px-4 py-3", column.nowrap && "whitespace-nowrap")}>
+                    {column.cell(rate)}
+                  </td>
+                ))}
                 <td className="py-3 pr-5 pl-4 text-right">
                   <Button size="sm" variant="ghost" className="bg-primary-50 text-primary-600 hover:bg-primary-100" onClick={() => setUpdating(rate)}>
                     {rate.unitsPerUsd === null ? "Set rate" : "Update rate"}
@@ -376,6 +474,54 @@ function AddCurrencyForm({ existing, onCancel, onAdded }: { existing: string[]; 
   );
 }
 
+/**
+ * The columns of the stored rates a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>Neither the day nor the currency is among them. A stored rate is named by the pair of them — this
+ * list runs across every currency unless one is chosen — so a row missing either names nothing.
+ */
+const MOVABLE_STORED: {
+  id: string;
+  label: string;
+  nowrap?: boolean;
+  /** The ink the cell is written in, where it is quieter than the day it belongs to. */
+  tone?: string;
+  cell: (row: FxRateHistoryRow) => ReactNode;
+}[] = [
+  {
+    id: "rate",
+    label: "Rate",
+    tone: "tabular-nums",
+    cell: (row) => formatRate(row.unitsPerUsd),
+  },
+  {
+    id: "converted",
+    label: "1 unit in USD",
+    tone: "text-primary-600 tabular-nums",
+    cell: (row) => formatConverted(row.usdPerUnit),
+  },
+  {
+    id: "source",
+    label: "Source",
+    cell: (row) => (
+      <Badge tone={row.source === "FEED" ? "info" : "neutral"}>
+        {row.source === "FEED" ? "Rate feed" : "Entered by hand"}
+      </Badge>
+    ),
+  },
+  {
+    id: "recorded",
+    label: "Recorded",
+    nowrap: true,
+    cell: (row) => (
+      <>
+        <p className="text-ink-soft tabular-nums">{formatUtc(row.recordedAt)}</p>
+        {row.recordedBy && <p className="text-2xs text-ink-muted">by {row.recordedBy}</p>}
+      </>
+    ),
+  },
+];
+
 /** Rates as quoted: 1.3142 SGD per USD, 147.26 JPY per USD. */
 /**
  * Every rate the platform has stored, newest day first, with where each came from. Rates are never overwritten,
@@ -386,6 +532,10 @@ function RateHistory({ codes }: { codes: string[] }) {
   const history = useListFxRateHistory<FxRateHistory, ApiError>(code ? { code } : undefined);
   const rows = history.data?.rates ?? [];
   const paged = usePagedRows(rows, 10);
+  const view = useTableView("fx-rate-history", MOVABLE_STORED.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(MOVABLE_STORED.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   return (
     <div className="mt-4">
@@ -416,22 +566,65 @@ function RateHistory({ codes }: { codes: string[] }) {
         </div>
       )}
 
+      {/* This list has its own arrangement: the rates on record are read for a different reason from the
+          rates in force, and one saved view over both would be a view of neither. */}
+      <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
+        <ViewTabs
+          views={view.views}
+          current={view.current}
+          edited={view.current === null ? view.arranged : view.changed}
+          onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+          onSave={view.saveAs}
+          onDelete={view.remove}
+          firstLabel="Every stored rate"
+        />
+        <ColumnPicker
+          columns={MOVABLE_STORED.map((one) => ({ id: one.id, label: one.label }))}
+          shown={new Set(view.shown)}
+          order={view.order}
+          arranged={view.arranged}
+          onChange={(next) => {
+            for (const one of MOVABLE_STORED) {
+              if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+            }
+          }}
+          onMove={view.move}
+          onReset={view.reset}
+        />
+      </div>
+
       <div className="-mx-5 mt-3 overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               <th scope="col" className="py-2.5 pr-4 pl-5">Date</th>
               <th scope="col" className="px-4 py-2.5">Currency</th>
-              <th scope="col" className="px-4 py-2.5">Rate</th>
-              <th scope="col" className="px-4 py-2.5">1 unit in USD</th>
-              <th scope="col" className="px-4 py-2.5">Source</th>
-              <th scope="col" className="py-2.5 pr-5 pl-4">Recorded</th>
+              {shownColumns.map((column, at) => (
+                <th
+                  key={column.id}
+                  scope="col"
+                  {...drag.headingProps(column.id)}
+                  className={cn(
+                    "cursor-grab touch-none px-4 py-2.5 select-none",
+                    at === shownColumns.length - 1 && "pr-5",
+                    column.nowrap && "whitespace-nowrap",
+                    drag.dragging === column.id && "cursor-grabbing opacity-40",
+                    drag.over === column.id && "bg-primary-50",
+                  )}
+                  title={`Drag to move ${column.label}`}
+                >
+                  {column.label}
+                  <span className="sr-only">
+                    , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                  </span>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {rows.length === 0 && !history.isPending && (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-ink-muted">
+                <td colSpan={shownColumns.length + 2} className="px-5 py-8 text-center text-ink-muted">
                   No rates stored yet. Refresh the rates, or set one by hand.
                 </td>
               </tr>
@@ -443,17 +636,20 @@ function RateHistory({ codes }: { codes: string[] }) {
                   <span className="font-semibold">{row.code}</span>
                   <span className="ml-2 text-2xs text-ink-muted">{row.name}</span>
                 </td>
-                <td className="px-4 py-2.5 tabular-nums">{formatRate(row.unitsPerUsd)}</td>
-                <td className="px-4 py-2.5 text-primary-600 tabular-nums">{formatConverted(row.usdPerUnit)}</td>
-                <td className="px-4 py-2.5">
-                  <Badge tone={row.source === "FEED" ? "info" : "neutral"}>
-                    {row.source === "FEED" ? "Rate feed" : "Entered by hand"}
-                  </Badge>
-                </td>
-                <td className="py-2.5 pr-5 pl-4 whitespace-nowrap">
-                  <p className="text-ink-soft tabular-nums">{formatUtc(row.recordedAt)}</p>
-                  {row.recordedBy && <p className="text-2xs text-ink-muted">by {row.recordedBy}</p>}
-                </td>
+                {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                {shownColumns.map((column, at) => (
+                  <td
+                    key={column.id}
+                    className={cn(
+                      "px-4 py-2.5",
+                      at === shownColumns.length - 1 && "pr-5",
+                      column.nowrap && "whitespace-nowrap",
+                      column.tone,
+                    )}
+                  >
+                    {column.cell(row)}
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
