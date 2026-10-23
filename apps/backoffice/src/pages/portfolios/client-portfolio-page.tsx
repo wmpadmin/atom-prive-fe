@@ -212,6 +212,31 @@ export function ClientPortfolioPage() {
     return <Navigate to={`/portfolio-clients/${customerId}/net-aum`} replace />;
   }
 
+  // A client this reader does not hold, said once and on its own. The desk is held to the clients it was
+  // assigned, and the server answers a client who is not theirs the way it answers one who does not exist.
+  // Drawn as an error inside the screen, the whole portfolio still built around it — the tabs, the
+  // calculator, the empty allocation — and the page read as broken rather than as not this reader's.
+  if (client.isError && client.error.status === 404) {
+    return (
+      <div className="mx-auto w-full max-w-[100rem] space-y-6">
+        <Link
+          to={back.to}
+          className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700"
+        >
+          <ChevronLeft aria-hidden="true" className="size-4" />
+          {back.label}
+        </Link>
+        <section className="grid place-items-center rounded-2xl border border-line bg-white px-6 py-16 text-center">
+          <h1 className="text-lg font-bold text-ink">This client isn&apos;t on your books</h1>
+          <p className="mt-1 max-w-md text-sm text-ink-muted">
+            You manage the portfolios of the clients you have been assigned. Ask Operations to put you on
+            this one if it should be yours.
+          </p>
+        </section>
+      </div>
+    );
+  }
+
   return (
     /* Capped, but wide enough for the widest thing on it. Uncapped, every box stretched to fill the
        window and left a date sitting in the corner of an acre of white; at the old cap the sub-asset
