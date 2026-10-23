@@ -85,10 +85,20 @@ const MOVABLE: {
  * Every bank feed on one screen (#50, #79, #81): what each one is for, how it is set to run, and where it has
  * got to. The run-by-run log is Ingestion log; this is the feeds themselves.
  */
+/** How often the screen reads again while somebody is watching it. */
+const EVERY_MINUTE = 60_000;
+
 export function IngestionMonitoringPage() {
   const [only, setOnly] = useState<Only>("all");
-  const feeds = useListBankFeeds<BankFeed[], ApiError>({ query: { placeholderData: keepPreviousData } });
-  const summary = useSummariseFeeds<FeedSummary, ApiError>({ query: { placeholderData: keepPreviousData } });
+  // Read again on its own, because this screen is watched rather than visited: somebody who presses Run now
+  // waits on it, and an Operations reader leaves it open to see a feed turn. Kept previous data while it
+  // refetches, so the numbers do not blink to nothing every minute.
+  const feeds = useListBankFeeds<BankFeed[], ApiError>({
+    query: { placeholderData: keepPreviousData, refetchInterval: EVERY_MINUTE, refetchOnWindowFocus: true },
+  });
+  const summary = useSummariseFeeds<FeedSummary, ApiError>({
+    query: { placeholderData: keepPreviousData, refetchInterval: EVERY_MINUTE, refetchOnWindowFocus: true },
+  });
   const user = useStaffUser();
   const canRun = hasAuthority(user, "MANAGE_BANK_FEEDS:CHANGE");
   const queryClient = useQueryClient();

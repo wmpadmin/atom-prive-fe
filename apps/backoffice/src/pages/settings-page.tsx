@@ -1,9 +1,10 @@
 import { Button } from "@atomprive/ui";
-import { KeyRound, UserRound, Users } from "lucide-react";
+import { KeyRound, Laptop, UserRound, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { useSession, useStaffUser } from "../auth/session";
 import { roleLabels, roleList } from "../lib/labels";
+import { SignedInDevices } from "./signed-in-devices";
 
 /**
  * Everything somebody can change about their own account, in one place: who the platform has them down as,
@@ -58,6 +59,10 @@ export function SettingsPage() {
           </Link>
         </Panel>
       )}
+
+      <Panel icon={<Laptop aria-hidden="true" className="size-4" />} title="Where you are signed in">
+        <SignedInDevices />
+      </Panel>
 
       <Panel title="Signing out">
         <p className="text-sm text-ink-muted">Ends this session on this device. Every sign-in is recorded.</p>

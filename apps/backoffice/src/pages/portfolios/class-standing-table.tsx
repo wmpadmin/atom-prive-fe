@@ -47,7 +47,7 @@ export function ClassStandingTable({
 }: {
   classes: ClassStanding[];
   /**
-   * Where to go to read a class line by line. Given, every row leads there: a class marked breached is the
+   * Where to go to read a class line by line. Given, every row leads there: a class marked as deviating is the
    * one somebody wants to see the inside of, and the table said what was wrong without a way through to
    * what it was made of.
    */
@@ -103,7 +103,7 @@ export function ClassStandingTable({
               </th>
               {/* Its own column rather than a second line under the class's name. Said there, it sat
                   beneath the class's own verdict and read as more of the same sentence — and on a class
-                  carrying both, the name cell said "Breached" and "Breached inside" one under the other. */}
+                  carrying both, the name cell said "Deviation" and "Deviation inside" one under the other. */}
               <th scope="col" className="px-4 py-3 text-center">
                 <abbr title="Sub-asset status" className="no-underline">SA status</abbr>
               </th>

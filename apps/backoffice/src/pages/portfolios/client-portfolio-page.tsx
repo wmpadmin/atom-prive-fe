@@ -48,7 +48,7 @@ import { WhatIfPanel } from "./what-if-panel";
  * they were half way through no longer in front of them.
  */
 const CAME_FROM: Record<string, { to: string; label: string }> = {
-  drift: { to: "/drift", label: "Back to drift & breaches" },
+  drift: { to: "/drift", label: "Back to drift & deviations" },
   dashboard: { to: "/dashboard", label: "Back to the dashboard" },
   // The approval queue somebody came from. Opening a client to read their figures before answering is
   // the middle of answering, and sending them to the client list made them find the queue again.
@@ -341,7 +341,7 @@ export function ClientPortfolioPage() {
             what they owe, and a box here that could be typed over was a second answer to a question that
             already has one. */}
         {/* Picked once. Moving a client from one model to another — or off every model — decides what
-            counts as a breach and what the firm will be told to buy and sell, and the platform has a queue
+            counts as a deviation and what the firm will be told to buy and sell, and the platform has a queue
             for it that somebody else answers. This dropdown wrote it outright, so the queue could be walked
             straight past by anyone who could reach the portfolio. Taking a client off is the same kind of
             act and is asked for too: measured against nothing, they have no drift and no band, so the

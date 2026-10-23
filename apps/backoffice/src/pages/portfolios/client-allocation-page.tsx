@@ -448,7 +448,7 @@ export function AllocationStep({ customerId, onDone, draft, onDraft }: StepProps
                 
                 What goes in here is this client's, named and taken off on this screen. The plan says
                 nothing about it, which is read as the plan asking for none of it — so money sitting in
-                one is a breach, said plainly, rather than a line with no answer beside it. */}
+                one is a deviation, said plainly, rather than a line with no answer beside it. */}
             <div className="border-t border-ink/15 px-4 py-1.5">
               <button
                 type="button"

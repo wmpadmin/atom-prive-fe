@@ -105,3 +105,55 @@ export async function httpFile(url: string): Promise<Blob> {
   }
   return response.blob();
 }
+
+/**
+ * Holds a server-sent-event stream open and calls back as each event arrives.
+ *
+ * <p>Fetch rather than EventSource, which cannot carry a header: the only way to authenticate an
+ * EventSource is to put the token in the address, and a token in a URL ends up in browser history, in
+ * proxy logs and in any screenshot of the address bar. The session's own header is used instead, through
+ * the same refresh-once rule every other request follows.
+ *
+ * <p>Resolves when the stream ends, by the server closing it or by the caller aborting. It does not retry:
+ * reconnecting is the caller's business, because only the caller knows whether it still wants to listen.
+ */
+export async function openEventStream(
+  url: string,
+  onEvent: (event: string) => void,
+  signal: AbortSignal,
+): Promise<void> {
+  let response = await send(url, { signal, headers: { Accept: "text/event-stream" } });
+  if (response.status === 401 && (await auth.refreshAccessToken())) {
+    response = await send(url, { signal, headers: { Accept: "text/event-stream" } });
+  }
+  if (!response.ok || !response.body) {
+    throw new ApiError(response.status, await readProblem(response));
+  }
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  // Events arrive as blank-line-separated blocks and a block can be split across reads, so what is left
+  // over is kept until the rest of it turns up.
+  let pending = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        return;
+      }
+      pending += value;
+      let split = pending.indexOf("\n\n");
+      while (split !== -1) {
+        const block = pending.slice(0, split);
+        pending = pending.slice(split + 2);
+        const name = /^event:\s*(.+)$/m.exec(block)?.[1]?.trim();
+        if (name) {
+          onEvent(name);
+        }
+        split = pending.indexOf("\n\n");
+      }
+    }
+  } finally {
+    reader.cancel().catch(() => {
+      // Already closed, which is the ordinary way this ends.
+    });
+  }
+}

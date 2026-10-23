@@ -117,7 +117,7 @@ export function PortfolioSettingsPage() {
             depth — worth watching, at the edge, broken — and nothing read any of them: a model carried
             its own numbers in the code, so the screen promised a rule it never applied. */}
         <Panel
-          title="How far a plan may drift before it has breached"
+          title="How far a plan may drift before it has deviated"
           says="Percentage points from target, at each depth. Carried into a new model, which may write its own; a model already written is left as it was settled."
           takesEffect
         >
@@ -174,7 +174,7 @@ export function PortfolioSettingsPage() {
       <div className="space-y-5">
         {/* Two halves of one question: who is told, and how often. */}
         <Panel
-          title="Breach alerts"
+          title="Deviation alerts"
           says="Looked for every morning, on every client who is on a model. Said once for each class, and not again until it comes back inside its range and goes out afresh."
           takesEffect
         >
@@ -194,7 +194,7 @@ export function PortfolioSettingsPage() {
             </Field>
             {/* How often it is said, not how often it is looked for. The looking is every morning
                 whatever this says, so choosing a longer step delays an alert rather than losing it: a
-                breach found on a Wednesday by a firm that hears weekly is still unsaid on the Monday,
+                deviation found on a Wednesday by a firm that hears weekly is still unsaid on the Monday,
                 and is said then. */}
             <Field id="set-every" label="How often" error={errors.fields.breachAlertEvery}>
               <SelectInput

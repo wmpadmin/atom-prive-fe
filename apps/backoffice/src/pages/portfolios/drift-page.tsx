@@ -25,9 +25,9 @@ const WANDERED: DriftStanding[] = ["BREACHED"];
 
 /**
  * The queue a portfolio manager works down: every client whose portfolio has wandered from its model, the
- * worst breach first.
+ * worst deviation first.
  *
- * <p>A breach is not a warning — it is past what the model allows, and the portfolio has to be put back. The
+ * <p>A deviation is not a warning — it is past what the model allows, and the portfolio has to be put back. The
  * count of them is of the whole book, so narrowing the list to one standing never hides how many there are.
  */
 /**
@@ -90,7 +90,7 @@ const MOVABLE: {
     nowrap: true,
     /*
      * Which side of the target it has gone is kept in the sign — "+6.4pp" against "−6.4pp" — but the ink
-     * follows the standing. Coloured by side, a breach the wrong way read as good news.
+     * follows the standing. Coloured by side, a deviation the wrong way read as good news.
      */
     tone: (row) => driftTones[row.standing],
     cell: (row) => <span className="font-semibold">{driftLabel(row.drift)}</span>,
@@ -135,7 +135,7 @@ export function DriftBreachesPage() {
   return (
     <div className="space-y-6">
       <ListPageHeader
-        title="Drift & breaches"
+        title="Drift & deviations"
         lead="Clients whose portfolio has wandered from its model, the worst first."
       />
 
@@ -161,7 +161,7 @@ export function DriftBreachesPage() {
       />
 
       <RecordList
-        caption="Drift & breaches"
+        caption="Drift & deviations"
         subtitle="Worst first"
         filters={
           <ColumnPicker

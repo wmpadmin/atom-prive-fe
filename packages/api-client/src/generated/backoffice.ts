@@ -5515,6 +5515,16 @@ export interface SignInOptions {
   passwordReset: boolean;
 }
 
+export interface SignedInDevice {
+  id: string;
+  device: string;
+  /** @nullable */
+  ipAddress: string | null;
+  signedInAt: string;
+  lastActiveAt: string;
+  thisDevice: boolean;
+}
+
 export type AuditLogEntryActorType = typeof AuditLogEntryActorType[keyof typeof AuditLogEntryActorType];
 
 
@@ -6252,6 +6262,8 @@ export const ExportStaffUsersStatus = {
   ACTIVE: 'ACTIVE',
   DEACTIVATED: 'DEACTIVATED',
 } as const;
+
+export type EndSession200 = { [key: string]: unknown };
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
@@ -27519,6 +27531,101 @@ export function useGetSignInOptions<TData = Awaited<ReturnType<typeof getSignInO
 
 
 
+export const getMySessionsUrl = () => {
+
+
+
+
+  return `/api/backoffice/auth/sessions`
+}
+
+export const mySessions = async ( options?: Parameters<typeof http>[1]): Promise<SignedInDevice[]> => {
+
+  return http<SignedInDevice[]>(getMySessionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMySessionsQueryKey = () => {
+    return [
+    `/api/backoffice/auth/sessions`
+    ] as const;
+    }
+
+
+export const getMySessionsQueryOptions = <TData = Awaited<ReturnType<typeof mySessions>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof mySessions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMySessionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof mySessions>>> = ({ signal }) => mySessions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof mySessions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MySessionsQueryResult = NonNullable<Awaited<ReturnType<typeof mySessions>>>
+export type MySessionsQueryError = unknown
+
+
+export function useMySessions<TData = Awaited<ReturnType<typeof mySessions>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof mySessions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof mySessions>>,
+          TError,
+          Awaited<ReturnType<typeof mySessions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMySessions<TData = Awaited<ReturnType<typeof mySessions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof mySessions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof mySessions>>,
+          TError,
+          Awaited<ReturnType<typeof mySessions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMySessions<TData = Awaited<ReturnType<typeof mySessions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof mySessions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMySessions<TData = Awaited<ReturnType<typeof mySessions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof mySessions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMySessionsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetCurrentStaffUrl = () => {
 
 
@@ -28870,4 +28977,72 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRemoveIncomingFieldMutationOptions(options), queryClient);
+    }
+
+export const getEndSessionUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/auth/sessions/${id}`
+}
+
+export const endSession = async (id: string, options?: Parameters<typeof http>[1]): Promise<EndSession200> => {
+
+  return http<EndSession200>(getEndSessionUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getEndSessionMutationKey = () => ['endSession'] as const;
+
+export const getEndSessionMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endSession>>, TError,EndSessionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof endSession>>, TError,EndSessionMutationVariables, TContext> => {
+
+const mutationKey = getEndSessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof endSession>>, EndSessionMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  endSession(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EndSessionMutationResult = NonNullable<Awaited<ReturnType<typeof endSession>>>
+
+    export type EndSessionMutationError = unknown
+    export type EndSessionMutationVariables = {id: string}
+
+    export const useEndSession = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endSession>>, TError,EndSessionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof endSession>>,
+        TError,
+        EndSessionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEndSessionMutationOptions(options), queryClient);
     }
