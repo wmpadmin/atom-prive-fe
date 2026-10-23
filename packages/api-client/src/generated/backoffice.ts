@@ -219,6 +219,8 @@ export interface ProposalRow {
   /** @nullable */
   answerNote: string | null;
   mayAnswer: boolean;
+  /** @nullable */
+  waitingOn: string | null;
   fromRebalance: boolean;
   openForPlacing: boolean;
 }

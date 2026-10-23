@@ -29,7 +29,7 @@ import { ProposalsHeader } from "./proposals-header";
 import {
   answeredLabel,
   formatValue,
-  proposalStatusLabels,
+  proposalStanding,
   proposalStatusTones,
   standingLabel,
 } from "./proposal-labels";
@@ -112,7 +112,10 @@ function movableFor({ showAdvisor, openedFrom, onMe, reader, theirPart }: {
     ...(showAdvisor
       ? [{
           id: "advisor",
-          label: "Relationship manager",
+          // Who wrote it, which on the portfolio desk's work is the manager who raised it. It was called
+          // the relationship manager and is not: that is whoever the row says it is waiting on, and they
+          // are the one person who may never have written it.
+          label: "Written by",
           // Wider than the name under it needs, and held to one line: the heading is now the longest
           // thing in the column, and at 12% it wrapped and took the whole header row down with it.
           width: "w-[16%]",
@@ -159,7 +162,7 @@ function movableFor({ showAdvisor, openedFrom, onMe, reader, theirPart }: {
         return (
           <>
             <Badge tone={proposalStatusTones[proposal.status as ProposalRowStatus]}>
-              {proposalStatusLabels[proposal.status as ProposalRowStatus]}
+              {proposalStanding(proposal.status as ProposalRowStatus, proposal.waitingOn)}
             </Badge>
             {/* Who answered it sits under the answer, where it belongs. It used to sit in the last
                 column — the one the Review button is in — so on an answered row it was a sentence
