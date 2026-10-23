@@ -1,4 +1,4 @@
-import type { AdvisorAssignment, CustomerRow } from "@atomprive/api-client/backoffice";
+import type { AdvisorAssignment, CustomerRow, PortfolioManagerAssignment } from "@atomprive/api-client/backoffice";
 import { countryName } from "../../lib/countries";
 
 export type KycStatus = CustomerRow["kycStatus"];
@@ -42,9 +42,12 @@ export function clientsHref(state: unknown) {
   return typeof search === "string" && search.startsWith("?") ? `/clients${search}` : "/clients";
 }
 
+function clients(count: number) {
+  return count === 1 ? "1 client" : `${count} clients`;
+}
+
 /** What an assignment did, such as "Karan Shah was added to 3 clients. Karan Shah has been emailed." */
 export function assignmentNotice({ advisor, assigned, unchanged, email }: AdvisorAssignment) {
-  const clients = (count: number) => (count === 1 ? "1 client" : `${count} clients`);
   const parts: string[] = [];
   if (assigned > 0) parts.push(`${advisor.fullName} was added to ${clients(assigned)}.`);
   if (unchanged > 0) parts.push(`${clients(unchanged)} already had ${advisor.fullName} as an advisor.`);
@@ -53,6 +56,20 @@ export function assignmentNotice({ advisor, assigned, unchanged, email }: Adviso
     parts.push(`${advisor.fullName} wasn't emailed, because the “Clients assigned to you” email has no wording yet. Add it under Config data, Email templates.`);
   }
   if (email === "FAILED") parts.push(`The email to ${advisor.fullName} couldn't be sent.`);
+  return parts.join(" ");
+}
+
+/**
+ * The same, for a portfolio manager: "Anna Shaw was added to 3 clients."
+ *
+ * <p>It has no email line and no room for one. An advisor is told they have been given a client because
+ * the client is then theirs to speak to; recording who manages a portfolio tells nobody anything yet, so
+ * there is nothing to send and the notice does not pretend otherwise.
+ */
+export function managerAssignmentNotice({ manager, assigned, unchanged }: PortfolioManagerAssignment) {
+  const parts: string[] = [];
+  if (assigned > 0) parts.push(`${manager.fullName} was added to ${clients(assigned)}.`);
+  if (unchanged > 0) parts.push(`${clients(unchanged)} already had ${manager.fullName} as a portfolio manager.`);
   return parts.join(" ");
 }
 
