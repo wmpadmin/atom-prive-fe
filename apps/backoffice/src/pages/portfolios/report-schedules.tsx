@@ -36,9 +36,9 @@ const CADENCES: Record<Cadence, string> = {
 
 const SEND_TO: Record<SendTo, string> = {
   NOBODY: "Nobody — just save it",
-  ADVISOR: "The client's advisor",
+  ADVISOR: "The client's relationship manager",
   CLIENT: "The client",
-  BOTH: "Advisor and client",
+  BOTH: "Relationship manager and client",
 };
 
 /**
@@ -78,7 +78,7 @@ export function ReportSchedules({
   });
   const switched = useSwitchReportSchedule<ApiError>({ mutation: { onSuccess: kept } });
 
-  // Only a report about one client has an advisor and a client to tell; anything wider is filed.
+  // Only a report about one client has a relationship manager and a client to tell; anything wider is filed.
   const canTellSomebody = scope === "CLIENT";
 
   function submit(event: FormEvent) {

@@ -12,9 +12,9 @@ import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 
 /**
- * Where an advisor's own day stands: their clients, what is with a client, what is running out, and what is
- * waiting on their signature. Every figure is counted from what is recorded against them — there is nothing
- * here about the firm as a whole, which is not theirs to see.
+ * Where a relationship manager's own day stands: their clients, what is with a client, what is running out,
+ * and what is waiting on their signature. Every figure is counted from what is recorded against them —
+ * there is nothing here about the firm as a whole, which is not theirs to see.
  */
 export function AdvisorDashboard() {
   const user = useStaffUser();

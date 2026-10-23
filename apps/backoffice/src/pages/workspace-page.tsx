@@ -12,7 +12,7 @@ import type { StaffRole } from "../lib/labels";
 const workspaces: Record<StaffRole, { name: string; description: string; icon: LucideIcon }> = {
   ADMIN: { name: "Admin", description: "Users, roles & permissions, and platform configuration.", icon: ShieldCheck },
   ADVISOR: {
-    name: "Relationship Advisor",
+    name: "Relationship Manager",
     description: "Client portfolios, aggregation, analytics and advisory proposals.",
     icon: ChartLine,
   },

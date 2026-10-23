@@ -32,8 +32,8 @@ const TONES: Record<ModelChangeRowStatus, "neutral" | "success" | "danger" | "wa
 /**
  * Requests to put a client on a different model, and the answers.
  *
- * <p>An advisor who thinks a client is on the wrong plan asks here, and whoever may move them answers.
- * Saying yes is what moves the client — there is no second step afterwards to forget.
+ * <p>A relationship manager who thinks a client is on the wrong plan asks here, and whoever may move them
+ * answers. Saying yes is what moves the client — there is no second step afterwards to forget.
  */
 export function ModelChangesPage() {
   const [tab, setTab] = useState<ModelChangeRowStatus | "all">("PENDING");
@@ -187,10 +187,10 @@ export function ModelChangesPage() {
                   <td className="py-3 pr-5 pl-4 text-right">
                     {/* Offered on the server's own answer rather than on a permission read here. The
                         screen used to look up one authority and draw buttons for whoever held it — so a
-                        client's own advisor, who may answer this, got no buttons, and the row sat there
-                        with nothing on it and nothing said. mayAnswer is worked out with the same rule the
-                        answering itself uses, so a button is never offered that would then be refused and
-                        a row is never silent about why it has none. */}
+                        client's own relationship manager, who may answer this, got no buttons, and the
+                        row sat there with nothing on it and nothing said. mayAnswer is worked out with
+                        the same rule the answering itself uses, so a button is never offered that would
+                        then be refused and a row is never silent about why it has none. */}
                     {row.status === "PENDING" && row.mayAnswer && (
                       <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                         <Button

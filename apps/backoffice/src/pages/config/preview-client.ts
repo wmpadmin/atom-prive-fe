@@ -5,7 +5,7 @@ export interface PreviewClient {
   id: string;
   code: string;
   fullName: string;
-  /** The first advisor looking after them, if any. */
+  /** The first relationship manager looking after them, if any. */
   advisorName: string | null;
 }
 
@@ -37,8 +37,8 @@ export function rememberPreviewClient(client: PreviewClient | null) {
 }
 
 /**
- * What a real client fills in. Everything else — the advisor's address, proposal details — has nowhere to come from
- * yet, so those placeholders keep their sample values.
+ * What a real client fills in. Everything else — the relationship manager's address, proposal details — has nowhere
+ * to come from yet, so those placeholders keep their sample values.
  */
 export function placeholderValues(client: PreviewClient | null): Record<string, string> | null {
   if (!client) return null;

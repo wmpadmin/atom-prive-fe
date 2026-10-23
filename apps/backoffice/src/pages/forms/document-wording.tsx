@@ -243,8 +243,9 @@ function useFilledIn() {
         else {
           dayTaken = false;
         }
-        // A line in the client's own block goes with their signature: the advisor fills it in sitting with
-        // them, and for anybody else it is printed as the rule the paper draws and left for the client.
+        // A line in the client's own block goes with their signature: the relationship manager fills it in
+        // sitting with them, and for anybody else it is printed as the rule the paper draws and left for the
+        // client.
         said.push(
           onFill && (whose !== "the client" || signsForTheClient) ? (
             <Blank key={`${part}.${which}`} name={`${where}.${part}.${which}`} idle={idle} day={asksForADay} />

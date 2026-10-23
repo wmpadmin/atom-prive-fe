@@ -39,7 +39,7 @@ import {
 const REVIEW: ReviewStep = { id: "review", group: "Finish", label: "Review & submit", complete: false };
 
 const descriptions: Record<string, string> = {
-  client: "Is the client a person or an organisation, and which advisor will look after them?",
+  client: "Is the client a person or an organisation, and which relationship manager will look after them?",
   personal: "Who the account holder is, and the document that proves it.",
   occupation: "What they do, and who they work for.",
   contact: "How to reach them, and where they live.",

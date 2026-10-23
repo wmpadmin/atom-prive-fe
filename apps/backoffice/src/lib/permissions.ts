@@ -15,14 +15,14 @@ export function hasAnyAuthority(user: StaffProfile, ...authorities: Authority[])
   return authorities.some((authority) => hasAuthority(user, authority));
 }
 
-/** Whoever looks after clients of their own: an advisor, or anyone given the same level. */
+/** Whoever looks after clients of their own: a relationship manager, or anyone given the same level. */
 export function advisesClients(user: StaffProfile) {
   return hasAnyAuthority(user, "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS", "VIEW_CUSTOMER_PROFILE:ASSIGNED");
 }
 
 /**
- * Enough to open a client's file, the same set CustomerController lets through: their own advisor, someone
- * assigned to them, or anyone who reads every client.
+ * Enough to open a client's file, the same set CustomerController lets through: their own relationship
+ * manager, someone assigned to them, or anyone who reads every client.
  */
 export const OPENS_CLIENT_FILES: Authority[] = [
   "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS",
@@ -33,13 +33,13 @@ export const OPENS_CLIENT_FILES: Authority[] = [
 
 /**
  * Enough to follow onboarding cases, the same set ClientOnboardingController lets through: Operations, who
- * follow every case, and an advisor, who follows the clients they look after themselves.
+ * follow every case, and a relationship manager, who follows the clients they look after themselves.
  */
 export const ONBOARDS_CLIENTS: Authority[] = ["ONBOARD_CLIENTS:VIEW", "ONBOARD_CLIENTS:OWN_CLIENTS"];
 
 /**
- * Enough to enter and submit a client's details. Operations do it for every client; an advisor does it for
- * the clients they look after themselves. Filling in the client's forms is Operations' alone — that stays
+ * Enough to enter and submit a client's details. Operations do it for every client; a relationship manager
+ * does it for the clients they look after themselves. Filling in the client's forms is Operations' alone — that stays
  * ONBOARD_CLIENTS:CHANGE.
  */
 export const ONBOARDS_CLIENTS_CHANGE: Authority[] = ["ONBOARD_CLIENTS:CHANGE", "ONBOARD_CLIENTS:OWN_CLIENTS"];
@@ -55,15 +55,16 @@ export const ONBOARDS_CLIENTS_CHANGE: Authority[] = ["ONBOARD_CLIENTS:CHANGE", "
 export const SIGNS_CLIENT_FORMS: Authority[] = ["ONBOARD_CLIENTS:OWN_CLIENTS"];
 
 /**
- * Onboarding across the whole book rather than an advisor's own clients. The post-onboarding notice is every
- * client's pack, so it belongs to whoever follows all of them and not to an advisor who onboards their own.
+ * Onboarding across the whole book rather than a relationship manager's own clients. The post-onboarding
+ * notice is every client's pack, so it belongs to whoever follows all of them and not to a relationship
+ * manager who onboards their own.
  */
 export const ONBOARDS_EVERY_CLIENT: Authority[] = ["ONBOARD_CLIENTS:VIEW", "ONBOARD_CLIENTS:CHANGE"];
 
 /**
- * Enough to put somebody else down as the client's relationship manager, the same set
- * ClientOnboardingController works a case for. An advisor without one of these onboards their own clients
- * and has to name themselves, so offering them the whole list is offering a choice that is then refused.
+ * Enough to put somebody else down as the client's relationship manager, the same set ClientOnboardingController
+ * works a case for. A relationship manager without one of these onboards their own clients and has to name
+ * themselves, so offering them the whole list is offering a choice that is then refused.
  */
 export const NAMES_ANY_RELATIONSHIP_MANAGER: Authority[] = [
   ...ONBOARDS_EVERY_CLIENT,
@@ -71,7 +72,7 @@ export const NAMES_ANY_RELATIONSHIP_MANAGER: Authority[] = [
   "APPROVE_ONBOARDING:CHANGE",
 ];
 
-/** Enough to put a client's papers on file: Compliance for any client, an advisor for their own. */
+/** Enough to put a client's papers on file: Compliance for any client, a relationship manager for their own. */
 export const UPLOADS_CLIENT_DOCUMENTS: Authority[] = [
   "UPLOAD_CLIENT_DOCUMENTS:CHANGE",
   "UPLOAD_CLIENT_DOCUMENTS:OWN_CLIENTS",
@@ -83,8 +84,8 @@ export const OPENS_CLIENT_DOCUMENTS: Authority[] = ["APPROVE_ONBOARDING:VIEW", .
 /** Enough to write proposals, the same set ProposalController lets through. */
 /**
  * Who may open a client's form or the wording of a document. The same list the API guards those screens with:
- * Operations and Admin fill them, an advisor works on their own clients' and signs them, and Compliance read
- * them without touching them. Anybody this does not name is not offered the click in the first place.
+ * Operations and Admin fill them, a relationship manager works on their own clients' and signs them, and Compliance
+ * read them without touching them. Anybody this does not name is not offered the click in the first place.
  */
 export const READS_CLIENT_FORMS: Authority[] = [
   "FILL_CLIENT_FORMS:VIEW",
@@ -97,7 +98,7 @@ export const READS_CLIENT_FORMS: Authority[] = [
   "APPROVE_ONBOARDING:CHANGE",
 ];
 
-/** Who may type on one: Operations and Admin on any, an advisor on their own clients'. */
+/** Who may type on one: Operations and Admin on any, a relationship manager on their own clients'. */
 export const FILLS_CLIENT_FORMS: Authority[] = ["FILL_CLIENT_FORMS:CHANGE", "FILL_CLIENT_FORMS:OWN_CLIENTS"];
 
 /**
@@ -164,9 +165,9 @@ export const APPROVES_PROPOSALS: Authority[] = ["APPROVE_PROPOSALS:CHANGE", "APP
 /**
  * Whoever answers a plan to move a client's money.
  *
- * <p>Both authorities, always, and the same constant in the route, the menu and the page. An advisor holds
- * only the own-clients one — which is exactly who the queue narrows itself for — so gating any of the three
- * on the firm-wide string alone hides the screen from the one person it is built for.
+ * <p>Both authorities, always, and the same constant in the route, the menu and the page. A relationship manager
+ * holds only the own-clients one — which is exactly who the queue narrows itself for — so gating any of the three on
+ * the firm-wide string alone hides the screen from the one person it is built for.
  */
 export const ANSWERS_MOVE_PLANS: Authority[] = [
   "APPROVE_PORTFOLIO_CHANGES:CHANGE",
@@ -208,10 +209,10 @@ export function writesProposals(user: StaffProfile) {
 /**
  * Where a client lives for whoever is looking, which is not the same screen for everybody.
  *
- * <p>An advisor is kept off the directory of every client — theirs are under My clients — so a link that
- * always said /clients would bounce them away from their own client's file. A portfolio manager is kept off
- * it too, and does not have a servicing file to be sent to at all: their work on a client is the portfolio,
- * so that is the client as they know one.
+ * <p>A relationship manager is kept off the directory of every client — theirs are under My clients — so a link that
+ * always said /clients would bounce them away from their own client's file. A portfolio manager is kept off it too,
+ * and does not have a servicing file to be sent to at all: their work on a client is the portfolio, so that is the
+ * client as they know one.
  */
 export function clientFileHref(user: { activeRole?: string | null }, clientId: string) {
   if (user.activeRole === "ADVISOR") return `/my-clients/${clientId}`;

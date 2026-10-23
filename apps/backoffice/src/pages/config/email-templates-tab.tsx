@@ -248,8 +248,8 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
             <p className="truncate text-sm font-semibold">{previewClient?.fullName ?? "Vikram Mehta"}</p>
             <p className="truncate text-xs text-ink-muted">
               {previewClient
-                ? `${previewClient.code} · Previewing as this client · ${previewClient.advisorName ? `Advisor ${previewClient.advisorName}` : "No advisor yet"}`
-                : "Sample client C1420 · Advisor Priya Nair"}
+                ? `${previewClient.code} · Previewing as this client · ${previewClient.advisorName ? `Relationship manager ${previewClient.advisorName}` : "No relationship manager yet"}`
+                : "Sample client C1420 · Relationship manager Priya Nair"}
             </p>
           </div>
         </div>

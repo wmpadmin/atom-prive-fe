@@ -116,7 +116,7 @@ export function ClientKycPage() {
   const from = search.get("from");
   const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
-  // Putting a paper on file is Compliance's for any client and an advisor's for their own.
+  // Putting a paper on file is Compliance's for any client and a relationship manager's for their own.
   const mayAdd = hasAnyAuthority(useStaffUser(), ...UPLOADS_CLIENT_DOCUMENTS);
 
   const documents = file.data?.documents ?? [];
@@ -149,7 +149,7 @@ export function ClientKycPage() {
             <h1 className="text-[1.625rem] font-bold">{file.data.clientName}</h1>
             <p className="mt-0.5 text-xs text-ink-muted">
               {clientLine(file.data.clientType, file.data.clientCode)}
-              {file.data.advisorName ? ` · advisor ${file.data.advisorName}` : ""}
+              {file.data.advisorName ? ` · relationship manager ${file.data.advisorName}` : ""}
             </p>
           </div>
         </div>
@@ -305,7 +305,7 @@ export function ClientKycPage() {
 
 
 
-/** Back where they came from: Compliance from the review queue, an advisor from their own clients. */
+/** Back where they came from: Compliance from the review queue, a relationship manager from their own clients. */
 /**
  * What this client's KYC waits on, and where each of it has got to.
  *

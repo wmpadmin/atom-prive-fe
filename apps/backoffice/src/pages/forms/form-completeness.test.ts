@@ -19,7 +19,7 @@ import {
  * What counts as a finished part of a form, checked against the one place it is written down.
  *
  * <p>These rules exist twice: here, where they tick the rail as somebody types, and on the server, where they
- * decide whether a form is finished and goes to the advisor to be signed. Neither can be deleted — one is
+ * decide whether a form is finished and goes to the relationship manager to be signed. Neither can be deleted — one is
  * live and the other is authoritative — so form-completeness.json is the specification both follow, and each
  * side has a test holding it to it. A rule changed on one side and not the other used to be found by
  * somebody filling a form in and watching it refuse to go green.

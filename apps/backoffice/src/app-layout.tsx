@@ -117,9 +117,9 @@ const A_CLIENT_KYC = /^\/kyc\/[^/]+(\/documents\/[^/]+)?$/;
 const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   { to: "/dashboard" },
   { to: "/users" },
-  // The client directory, which is where an advisor is put on a client. An Admin is given it for that job
-  // and the menu says so: the screen is the same one Operations and Compliance read.
-  { to: "/clients", label: "Assign advisors" },
+  // The client directory, which is where a relationship manager is put on a client. An Admin is given it for
+  // that job and the menu says so: the screen is the same one Operations and Compliance read.
+  { to: "/clients", label: "Assign relationship managers" },
   { to: "/kyc-documents" },
   { to: "/staff-tracker" },
   // The declarations register is reached from under the tracker rather than from the menu's top level: it is
@@ -171,8 +171,8 @@ const allNavigation: {
     label: "All clients",
     icon: Contact,
     authority: "VIEW_ALL_CLIENTS:VIEW",
-    // An advisor onboards from the whole book, but reads in full only the clients assigned to them, which is
-    // My clients. A second screen onto every client would say otherwise.
+    // A relationship manager onboards from the whole book, but reads in full only the clients assigned to
+    // them, which is My clients. A second screen onto every client would say otherwise.
     notFor: ["ADMIN", "ADVISOR", "PORTFOLIO_MANAGER"],
     at: (path) => (path === "/clients" || path.startsWith("/clients/")) && !NOTICE_OF_TREATMENT.test(path),
   },
@@ -256,8 +256,8 @@ const allNavigation: {
     to: "/post-onboarding",
     label: "Post onboarding notice",
     icon: BellRing,
-    // Every client's pack, so it stays with Operations. An advisor onboarding their own clients does not
-    // thereby follow what every other client is owed.
+    // Every client's pack, so it stays with Operations. A relationship manager onboarding their own clients
+    // does not thereby follow what every other client is owed.
     authority: ONBOARDS_EVERY_CLIENT,
     notFor: ["ADMIN"],
     at: (path) => path === "/post-onboarding" || NOTICE_OF_TREATMENT.test(path),
@@ -336,7 +336,7 @@ const allNavigation: {
   { to: "/family-access", label: "Family access trail", icon: UsersRound, authority: "VIEW_AUDIT_LOG:VIEW" },
   { to: "/proposal-trail", label: "Proposal trail", icon: FileSignature, authority: "VIEW_AUDIT_LOG:VIEW" },
   { to: "/my-declarations", label: "My declarations", icon: FileCheck, authority: null },
-  // The clients assigned to this advisor: the whole book is not theirs, and this is the part that is.
+  // The clients assigned to this relationship manager: the whole book is not theirs, and this is the part that is.
   {
     to: "/my-clients",
     label: "Assigned customers",

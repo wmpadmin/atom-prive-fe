@@ -20,7 +20,7 @@ function yearsFromToday(years: number) {
 
 /**
  * Sending a client's forms out to be signed — one, or several together as one pack. They go to the client and
- * to the advisor who looks after them; the advisor signs their half in the portal.
+ * to the relationship manager who looks after them; the relationship manager signs their half in the portal.
  */
 export function SendToSignBar({
   caseId,
@@ -115,7 +115,8 @@ export function SendToSignBar({
           </Field>
 
           <p className="text-xs text-ink-muted">
-            They go to the client and to the advisor who looks after them. The advisor signs their half here.
+            They go to the client and to the relationship manager who looks after them. The relationship
+            manager signs their half here.
           </p>
 
           <div className="flex justify-end gap-2">

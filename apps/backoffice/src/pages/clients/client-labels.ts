@@ -50,7 +50,7 @@ function clients(count: number) {
 export function assignmentNotice({ advisor, assigned, unchanged, email }: AdvisorAssignment) {
   const parts: string[] = [];
   if (assigned > 0) parts.push(`${advisor.fullName} was added to ${clients(assigned)}.`);
-  if (unchanged > 0) parts.push(`${clients(unchanged)} already had ${advisor.fullName} as an advisor.`);
+  if (unchanged > 0) parts.push(`${clients(unchanged)} already had ${advisor.fullName} as a relationship manager.`);
   if (email === "SENT") parts.push(`${advisor.fullName} has been emailed.`);
   if (email === "NO_WORDING") {
     parts.push(`${advisor.fullName} wasn't emailed, because the “Clients assigned to you” email has no wording yet. Add it under Config data, Email templates.`);
@@ -62,9 +62,9 @@ export function assignmentNotice({ advisor, assigned, unchanged, email }: Adviso
 /**
  * The same, for a portfolio manager: "Anna Shaw was added to 3 clients."
  *
- * <p>It has no email line and no room for one. An advisor is told they have been given a client because
- * the client is then theirs to speak to; recording who manages a portfolio tells nobody anything yet, so
- * there is nothing to send and the notice does not pretend otherwise.
+ * <p>It has no email line and no room for one. A relationship manager is told they have been given a
+ * client because the client is then theirs to speak to; recording who manages a portfolio tells nobody
+ * anything yet, so there is nothing to send and the notice does not pretend otherwise.
  */
 export function managerAssignmentNotice({ manager, assigned, unchanged }: PortfolioManagerAssignment) {
   const parts: string[] = [];

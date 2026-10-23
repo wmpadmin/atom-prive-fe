@@ -23,7 +23,7 @@ export interface CommentablePart {
 /**
  * The comments two members of staff leave each other on a form.
  *
- * <p>An advisor reading a form to sign it had two answers: sign it, which says it is right, or send the whole
+ * <p>A relationship manager reading a form to sign it had two answers: sign it, which says it is right, or send the whole
  * thing back, which takes a finished form to the beginning again. Most of what they find is smaller than
  * either — a line that reads wrong, a date worth checking — so a comment says what has to change, against the
  * part it is about, and names whoever is being asked to deal with it. The form does not move.

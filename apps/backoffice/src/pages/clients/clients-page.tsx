@@ -46,9 +46,9 @@ function heldWith(customer: CustomerRow): CustomerRow["heldWith"] {
 }
 
 /**
- * Everyone on the account this row is for. A joint account is one row, so giving that row an advisor means
- * giving the account one — the holder it happens to open on is not the only person on it. The same holds for
- * a portfolio manager: it is the account's portfolio, not one holder's.
+ * Everyone on the account this row is for. A joint account is one row, so giving that row a relationship
+ * manager means giving the account one — the holder it happens to open on is not the only person on it. The
+ * same holds for a portfolio manager: it is the account's portfolio, not one holder's.
  */
 function everyHolderOf(customer: CustomerRow): ClientToAssign[] {
   return [
@@ -102,12 +102,12 @@ type Column = {
  *
  * <p>Which columns there are at all is the firm's rule and not the reader's, so the ones this reader does
  * not get are left out rather than listed and turned off: the proposal a client is considering is their
- * advisor's business, which the firm-wide list has its own screen for.
+ * relationship manager's business, which the firm-wide list has its own screen for.
  *
- * <p>Assigning is not among them. Putting an advisor or a manager on a client is done on the client's own
- * page, where the people already there are listed with the date each was given them — a row in a list has
- * room for the button but not for what the button is about, and two buttons on every row of ten made the
- * widest column on the screen the one nobody reads down.
+ * <p>Assigning is not among them. Putting a relationship manager or a portfolio manager on a client is
+ * done on the client's own page, where the people already there are listed with the date each was given
+ * them — a row in a list has room for the button but not for what the button is about, and two buttons on
+ * every row of ten made the widest column on the screen the one nobody reads down.
  */
 function movableFor({ mine, newestProposal }: {
   mine: boolean;
@@ -146,16 +146,16 @@ function movableFor({ mine, newestProposal }: {
     },
     {
       id: "advisors",
-      label: "Advisors",
+      label: "Relationship managers",
       // The row is the account, so it shows whoever advises anybody holding it.
-      cell: (customer) => <StaffStack people={advisorsOn(customer)} desk="advisors" />,
+      cell: (customer) => <StaffStack people={advisorsOn(customer)} desk="relationship managers" />,
     },
     {
       id: "portfolioManagers",
       label: "Portfolio managers",
-      // Beside the advisors and never folded in with them: they are two desks doing two jobs, and a name
-      // in one column is not a name in the other. Everyone sees the column, because recording who manages
-      // a client narrows nothing — it is only the assigning that Operations hold.
+      // Beside the relationship managers and never folded in with them: they are two desks doing two
+      // jobs, and a name in one column is not a name in the other. Everyone sees the column, because
+      // recording who manages a client narrows nothing — it is only the assigning that Operations hold.
       cell: (customer) => <StaffStack people={managersOn(customer)} desk="portfolio managers" />,
     },
     ...(mine
@@ -211,21 +211,21 @@ function localDay(day: string, addDays = 0) {
 }
 
 /**
- * The client list. Admins and Compliance see every client registered with the firm; an advisor sees the same
- * list, showing only the clients assigned to them. It is one screen either way: the same columns, the same
- * search and the same filters, so nobody has to learn two of them.
+ * The client list. Admins and Compliance see every client registered with the firm; a relationship manager
+ * sees the same list, showing only the clients assigned to them. It is one screen either way: the same
+ * columns, the same search and the same filters, so nobody has to learn two of them.
  */
 export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const user = useStaffUser();
   const canAssignAdvisors = !mine && hasAuthority(user, "ASSIGN_ADVISORS:CHANGE");
-  // Asked separately, because it is its own permission and not a level of the advisor one. The same people
-  // hold both today; reading one off the other would mean that the day they stop, this screen is wrong in a
-  // way nobody changed.
+  // Asked separately, because it is its own permission and not a level of the relationship manager one.
+  // The same people hold both today; reading one off the other would mean that the day they stop, this
+  // screen is wrong in a way nobody changed.
   const canAssignManagers = !mine && hasAuthority(user, "ASSIGN_PORTFOLIO_MANAGERS:CHANGE");
   // The tick boxes and the bar above the table are for whichever of the two assignings the reader does, so
   // either one keeps them.
   const canSelect = canAssignAdvisors || canAssignManagers;
-  // An advisor's list is their own, so a client of theirs opens under their own part of the app.
+  // A relationship manager's list is their own, so a client of theirs opens under their own part of the app.
   const opensAt = mine ? "/my-clients" : "/clients";
   const location = useLocation();
   const navigate = useNavigate();
@@ -233,8 +233,8 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const { query, advisorId, from, to, size, page } = readFilters(params);
   const typed = useTypedSearch(query, update);
 
-  // Clients ticked for assigning an advisor or a portfolio manager, on the page shown; changing the page or a
-  // filter starts afresh.
+  // Clients ticked for assigning a relationship manager or a portfolio manager, on the page shown;
+  // changing the page or a filter starts afresh.
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [selectionFor, setSelectionFor] = useState(params.toString());
   if (selectionFor !== params.toString()) {
@@ -242,7 +242,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
     setSelected(new Set());
   }
   const [assigning, setAssigning] = useState<ClientToAssign[] | null>(null);
-  // Kept apart from the advisor one, so neither dialog can be opened holding the other's answer.
+  // Kept apart from the relationship manager one, so neither dialog can be opened holding the other's answer.
   const [assigningManager, setAssigningManager] = useState<ClientToAssign[] | null>(null);
   const [notice, setNotice] = useState<string>();
 
@@ -255,20 +255,21 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
     { ...filters, query: query || undefined, page, size },
     { query: { enabled: !mine, placeholderData: keepPreviousData } },
   );
-  // The advisor's own list is the same list, narrowed by the API to the clients assigned to them.
+  // The relationship manager's own list is the same list, narrowed by the API to the clients assigned to them.
   const myClients = useListMyClients<CustomerPage, ApiError>(
     { registeredFrom: filters.registeredFrom, registeredTo: filters.registeredTo,
       query: query || undefined, page, size },
     { query: { enabled: mine, placeholderData: keepPreviousData } },
   );
   const customers = mine ? myClients : everyClient;
-  // Filtering by advisor is for somebody choosing between advisors; an advisor's own list has only them.
+  // Filtering by relationship manager is for somebody choosing between them; a relationship manager's own
+  // list has only themselves.
   const advisors = useListCustomerAdvisors<StaffMember[], ApiError>({
     query: { enabled: !mine, staleTime: 5 * 60_000 },
   });
-  // Where each of their clients' advice stands. An advisor's own proposals, newest first, so the first one for
-  // a client is where that client has got to. Proposals and clients are separate parts of the platform and
-  // neither owns the other's list, so they are put together here rather than in the API.
+  // Where each of their clients' advice stands. A relationship manager's own proposals, newest first, so
+  // the first one for a client is where that client has got to. Proposals and clients are separate parts of
+  // the platform and neither owns the other's list, so they are put together here rather than in the API.
   const proposals = useListProposals<ProposalPage, ApiError>(
     { page: 0, size: 200 },
     { query: { enabled: mine, staleTime: 60_000 } },
@@ -339,8 +340,8 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         title={mine ? "My clients" : "All clients"}
         lead={
           mine
-            ? "The clients assigned to you, with their code, advisors and last login."
-            : "Every client registered with the firm, with their code, advisors and last login."
+            ? "The clients assigned to you, with their code, relationship managers and last login."
+            : "Every client registered with the firm, with their code, relationship managers and last login."
         }
       >
         <div className="flex flex-wrap items-center gap-2">
@@ -391,9 +392,9 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
           <>
             {!mine && (
               <label>
-                <span className="sr-only">Advisor</span>
+                <span className="sr-only">Relationship manager</span>
                 <SelectInput id="client-advisor" value={advisorId} onChange={(event) => update({ advisor: event.target.value })} className="w-auto">
-                  <option value="">All advisors</option>
+                  <option value="">All relationship managers</option>
                   {(advisors.data ?? []).map((advisor) => (
                     <option key={advisor.id} value={advisor.id}>
                       {advisor.fullName}
@@ -454,7 +455,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                 {canAssignAdvisors && (
                   <Button size="sm" onClick={() => setAssigning(rows.filter((row) => selected.has(row.id)).flatMap(everyHolderOf))}>
                     <UserRoundCog aria-hidden="true" />
-                    Assign advisor
+                    Assign relationship manager
                   </Button>
                 )}
                 {canAssignManagers && (
@@ -637,7 +638,7 @@ function Checkbox({ label, checked, indeterminate = false, disabled, onChange, o
   );
 }
 
-/** Where a client's advice stands: the newest proposal their advisor has put to them. */
+/** Where a client's advice stands: the newest proposal their relationship manager has put to them. */
 function LatestProposal({ proposal }: { proposal: ProposalRow | undefined }) {
   if (!proposal) return <span className="text-ink-muted">None yet</span>;
   return (
