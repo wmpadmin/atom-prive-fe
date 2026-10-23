@@ -13,7 +13,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, cn, DateInput, SelectInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { Download, UserRoundCog } from "lucide-react";
+import { Briefcase, Download, UserRoundCog } from "lucide-react";
 import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -28,10 +28,11 @@ import { hasAuthority } from "../../lib/permissions";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
-import { AdvisorChips } from "./advisor-chips";
 import { AssignAdvisorDialog, type ClientToAssign } from "./assign-advisor-dialog";
-import { assignmentNotice, clientKindLabels, clientTypeLabels } from "./client-labels";
+import { AssignPortfolioManagerDialog } from "./assign-portfolio-manager-dialog";
+import { assignmentNotice, clientKindLabels, clientTypeLabels, managerAssignmentNotice } from "./client-labels";
 import { ClientSearch } from "./client-search";
+import { StaffChips } from "./staff-chips";
 
 
 const EARLIEST_REGISTRATION = new Date(2000, 0, 1);
@@ -46,12 +47,15 @@ function heldWith(customer: CustomerRow): CustomerRow["heldWith"] {
 
 /**
  * Everyone on the account this row is for. A joint account is one row, so giving that row an advisor means
- * giving the account one — the holder it happens to open on is not the only person on it.
+ * giving the account one — the holder it happens to open on is not the only person on it. The same holds for
+ * a portfolio manager: it is the account's portfolio, not one holder's.
  */
 function everyHolderOf(customer: CustomerRow): ClientToAssign[] {
   return [
-    { id: customer.id, fullName: customer.fullName, advisors: customer.advisors },
-    ...heldWith(customer).map((held) => ({ id: held.id, fullName: held.fullName, advisors: held.advisors })),
+    { id: customer.id, fullName: customer.fullName, advisors: customer.advisors,
+      portfolioManagers: customer.portfolioManagers },
+    ...heldWith(customer).map((held) => ({ id: held.id, fullName: held.fullName, advisors: held.advisors,
+      portfolioManagers: held.portfolioManagers })),
   ];
 }
 
@@ -60,6 +64,15 @@ function advisorsOn(customer: CustomerRow): StaffMember[] {
   const byId = new Map(customer.advisors.map((advisor) => [advisor.id, advisor]));
   for (const held of heldWith(customer)) {
     for (const advisor of held.advisors ?? []) byId.set(advisor.id, advisor);
+  }
+  return [...byId.values()].sort((one, other) => one.fullName.localeCompare(other.fullName));
+}
+
+/** The same reading of the account for the other desk: whoever manages anybody holding it, named once. */
+function managersOn(customer: CustomerRow): StaffMember[] {
+  const byId = new Map(customer.portfolioManagers.map((manager) => [manager.id, manager]));
+  for (const held of heldWith(customer)) {
+    for (const manager of held.portfolioManagers ?? []) byId.set(manager.id, manager);
   }
   return [...byId.values()].sort((one, other) => one.fullName.localeCompare(other.fullName));
 }
@@ -89,15 +102,18 @@ type Column = {
  * the tick box has no heading, so there is nothing to drag and nothing to find in a list.
  *
  * <p>Which columns there are at all is the firm's rule and not the reader's, so the ones this reader
- * does not get are left out rather than listed and turned off. Assigning is the only action there is,
- * so nobody who cannot assign is offered that column; and the proposal a client is considering is their
- * advisor's business, which the firm-wide list has its own screen for.
+ * does not get are left out rather than listed and turned off. Assigning is the only kind of action there
+ * is, so a reader who can do neither assigning is not offered that column at all, and whoever can do one
+ * of them is offered that one button in it; and the proposal a client is considering is their advisor's
+ * business, which the firm-wide list has its own screen for.
  */
-function movableFor({ canAssign, mine, newestProposal, onAssign }: {
-  canAssign: boolean;
+function movableFor({ canAssignAdvisors, canAssignManagers, mine, newestProposal, onAssign, onAssignManager }: {
+  canAssignAdvisors: boolean;
+  canAssignManagers: boolean;
   mine: boolean;
   newestProposal: Map<string, ProposalRow>;
   onAssign: (customer: CustomerRow) => void;
+  onAssignManager: (customer: CustomerRow) => void;
 }): Column[] {
   return [
     {
@@ -134,7 +150,17 @@ function movableFor({ canAssign, mine, newestProposal, onAssign }: {
       id: "advisors",
       label: "Advisors",
       // The row is the account, so it shows whoever advises anybody holding it.
-      cell: (customer) => <AdvisorChips advisors={advisorsOn(customer)} />,
+      cell: (customer) => <StaffChips people={advisorsOn(customer)} nobody="Default" nobodyTitle="No advisor yet" />,
+    },
+    {
+      id: "portfolioManagers",
+      label: "Portfolio managers",
+      // Beside the advisors and never folded in with them: they are two desks doing two jobs, and a name
+      // in one column is not a name in the other. Everyone sees the column, because recording who manages
+      // a client narrows nothing — it is only the assigning that Operations hold.
+      cell: (customer) => (
+        <StaffChips people={managersOn(customer)} nobody="None yet" nobodyTitle="No portfolio manager yet" />
+      ),
     },
     ...(mine
       ? [{
@@ -150,19 +176,35 @@ function movableFor({ canAssign, mine, newestProposal, onAssign }: {
       tone: "text-ink-soft",
       cell: (customer) => formatRelative(customer.lastLoginAt, "Never"),
     },
-    ...(canAssign
+    ...(canAssignAdvisors || canAssignManagers
       ? [{
           id: "action",
           label: "Action",
+          // One column holding whichever assignings this reader does, rather than a column each: they are
+          // the same thing done to the same row, and a second heading called Action names nothing.
           cell: (customer: CustomerRow) => (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(event) => { event.stopPropagation(); onAssign(customer); }}
-            >
-              <UserRoundCog aria-hidden="true" />
-              Assign advisor
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {canAssignAdvisors && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={(event) => { event.stopPropagation(); onAssign(customer); }}
+                >
+                  <UserRoundCog aria-hidden="true" />
+                  Assign advisor
+                </Button>
+              )}
+              {canAssignManagers && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={(event) => { event.stopPropagation(); onAssignManager(customer); }}
+                >
+                  <Briefcase aria-hidden="true" />
+                  Assign portfolio manager
+                </Button>
+              )}
+            </div>
           ),
         }]
       : []),
@@ -224,7 +266,14 @@ function localDay(day: string, addDays = 0) {
  */
 export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const user = useStaffUser();
-  const canAssign = !mine && hasAuthority(user, "ASSIGN_ADVISORS:CHANGE");
+  const canAssignAdvisors = !mine && hasAuthority(user, "ASSIGN_ADVISORS:CHANGE");
+  // Asked separately, because it is its own permission and not a level of the advisor one. The same people
+  // hold both today; reading one off the other would mean that the day they stop, this screen is wrong in a
+  // way nobody changed.
+  const canAssignManagers = !mine && hasAuthority(user, "ASSIGN_PORTFOLIO_MANAGERS:CHANGE");
+  // The tick boxes and the bar above the table are for whichever of the two assignings the reader does, so
+  // either one keeps them.
+  const canSelect = canAssignAdvisors || canAssignManagers;
   // An advisor's list is their own, so a client of theirs opens under their own part of the app.
   const opensAt = mine ? "/my-clients" : "/clients";
   const location = useLocation();
@@ -233,7 +282,8 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const { query, advisorId, from, to, size, page } = readFilters(params);
   const typed = useTypedSearch(query, update);
 
-  // Clients ticked for assigning an advisor, on the page shown; changing the page or a filter starts afresh.
+  // Clients ticked for assigning an advisor or a portfolio manager, on the page shown; changing the page or a
+  // filter starts afresh.
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [selectionFor, setSelectionFor] = useState(params.toString());
   if (selectionFor !== params.toString()) {
@@ -241,6 +291,8 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
     setSelected(new Set());
   }
   const [assigning, setAssigning] = useState<ClientToAssign[] | null>(null);
+  // Kept apart from the advisor one, so neither dialog can be opened holding the other's answer.
+  const [assigningManager, setAssigningManager] = useState<ClientToAssign[] | null>(null);
   const [notice, setNotice] = useState<string>();
 
   const filters = {
@@ -311,10 +363,12 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   }
   const today = new Date();
   const movable = movableFor({
-    canAssign,
+    canAssignAdvisors,
+    canAssignManagers,
     mine,
     newestProposal,
     onAssign: (customer) => setAssigning(everyHolderOf(customer)),
+    onAssignManager: (customer) => setAssigningManager(everyHolderOf(customer)),
   });
   // Read before the page can send itself anywhere else: how this reader has arranged the table is a thing
   // about them and not about which page they landed on, and a hook that is skipped on one render is a hook
@@ -325,7 +379,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const byId = new Map(movable.map((one) => [one.id, one]));
   const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
   // The tick box and the client's name are drawn either side of the movable ones, and neither moves.
-  const columnCount = shownColumns.length + 1 + (canAssign ? 1 : 0);
+  const columnCount = shownColumns.length + 1 + (canSelect ? 1 : 0);
 
   // A page that no longer exists shows the last page instead.
   if (customers.data && !customers.isPlaceholderData && page > lastPage) {
@@ -444,19 +498,27 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
             </div>
           </>
         }
-        banner={canAssign && selected.size > 0 && (
+        banner={canSelect && selected.size > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary-100 bg-primary-50 px-4 py-2.5">
               <p className="text-sm font-semibold text-primary-700" role="status">
                 {selected.size === 1 ? "1 client selected" : `${selected.size} clients selected`}
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
                   Clear selection
                 </Button>
-                <Button size="sm" onClick={() => setAssigning(rows.filter((row) => selected.has(row.id)).flatMap(everyHolderOf))}>
-                  <UserRoundCog aria-hidden="true" />
-                  Assign advisor
-                </Button>
+                {canAssignAdvisors && (
+                  <Button size="sm" onClick={() => setAssigning(rows.filter((row) => selected.has(row.id)).flatMap(everyHolderOf))}>
+                    <UserRoundCog aria-hidden="true" />
+                    Assign advisor
+                  </Button>
+                )}
+                {canAssignManagers && (
+                  <Button size="sm" onClick={() => setAssigningManager(rows.filter((row) => selected.has(row.id)).flatMap(everyHolderOf))}>
+                    <Briefcase aria-hidden="true" />
+                    Assign portfolio manager
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -464,7 +526,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         onClear={clearFilters}
         head={
           <>
-                {canAssign && (
+                {canSelect && (
                   <th scope="col" className="w-10 py-3 pl-5">
                     <Checkbox
                       label="Select every client on this page"
@@ -475,7 +537,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                     />
                   </th>
                 )}
-                <th scope="col" className={cn("py-3 pr-4", canAssign ? "pl-3" : "pl-5")}>Client</th>
+                <th scope="col" className={cn("py-3 pr-4", canSelect ? "pl-3" : "pl-5")}>Client</th>
                 {/* A column still waiting on something the firm has not built yet keeps saying so here.
                     The note was all this heading hovered before it could be dragged, and an empty column
                     with no reason given is the one thing a reader cannot work out for themselves. */}
@@ -531,7 +593,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                     selected.has(customer.id) && "bg-primary-50/40",
                   )}
                 >
-                  {canAssign && (
+                  {canSelect && (
                     <td className="w-10 py-3 pl-5">
                       <Checkbox
                         onClick={(event) => event.stopPropagation()}
@@ -548,7 +610,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                       />
                     </td>
                   )}
-                  <td className={cn("py-3 pr-4", canAssign ? "pl-3" : "pl-5")}>
+                  <td className={cn("py-3 pr-4", canSelect ? "pl-3" : "pl-5")}>
                     <div className="flex items-center gap-3">
                       <Avatar name={customer.fullName} className="size-10" />
                       <div className="min-w-0">
@@ -586,6 +648,17 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
           setAssigning(null);
           setSelected(new Set());
           setNotice(assignmentNotice(result));
+        }}
+      />
+
+      <AssignPortfolioManagerDialog
+        open={assigningManager !== null}
+        clients={assigningManager ?? []}
+        onClose={() => setAssigningManager(null)}
+        onAssigned={(result) => {
+          setAssigningManager(null);
+          setSelected(new Set());
+          setNotice(managerAssignmentNotice(result));
         }}
       />
     </div>

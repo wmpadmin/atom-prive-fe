@@ -5,13 +5,14 @@ import {
   getListCustomersQueryKey,
   useGetCustomer,
   useRemoveAdvisor,
+  useRemovePortfolioManager,
   type ClientOnboardingStage,
   type CustomerDetail,
   type StaffMember,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, Dialog, Field, IconButton, TextArea, cn } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, Dialog, Field, TextArea, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, PencilLine, UserRoundCog, UserX, X } from "lucide-react";
+import { Briefcase, ChevronLeft, PencilLine, UserRoundCog, UserX } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -24,6 +25,8 @@ import { ApplicationSummary } from "../onboarding/application-summary";
 import { ProgressMeter } from "../onboarding/case-parts";
 import { BankAccountsPanel } from "./bank-accounts-panel";
 import { AssignAdvisorDialog } from "./assign-advisor-dialog";
+import { AssignPortfolioManagerDialog } from "./assign-portfolio-manager-dialog";
+import { AssignedStaffPanel } from "./assigned-staff-panel";
 import { EditClientDialog } from "./edit-client-dialog";
 import {
   ActivityPanel,
@@ -32,17 +35,20 @@ import {
   ProposalsPanel,
   TransactionsPanel,
 } from "./client-file-panels";
-import { assignmentNotice, clientsHref, clientTypeLabels, kycStatusLabels, kycStatusTones, oneLine } from "./client-labels";
+import { assignmentNotice, clientsHref, clientTypeLabels, kycStatusLabels, kycStatusTones, managerAssignmentNotice, oneLine } from "./client-labels";
 import { ClientAccessPanel } from "./client-access-panel";
 import { ClientFormsPanel } from "./client-forms-panel";
 
-type Tab = "overview" | "family" | "advisors" | "banks" | "holdings" | "transactions" | "proposals" | "documents" | "activity";
+type Tab = "overview" | "family" | "advisors" | "portfolioManagers" | "banks" | "holdings" | "transactions" | "proposals" | "documents" | "activity";
 
 /** @param needs what the reader has to hold for this tab to be theirs; left out, the tab is everyone's */
 const TABS: { id: Tab; label: string; needs?: Authority[] }[] = [
   { id: "overview", label: "Overview" },
   { id: "family", label: "Family group" },
   { id: "advisors", label: "Advisors" },
+  // Its own tab beside the advisors' rather than two lists under one heading called Advisors. Who manages
+  // the portfolio and who the client speaks to are two desks, and the file says so.
+  { id: "portfolioManagers", label: "Portfolio managers" },
   { id: "banks", label: "Bank accounts" },
   { id: "holdings", label: "Holdings" },
   { id: "transactions", label: "Transactions" },
@@ -57,6 +63,9 @@ export function ClientPage() {
   const { clientId = "" } = useParams();
   const user = useStaffUser();
   const canAssign = hasAuthority(user, "ASSIGN_ADVISORS:CHANGE");
+  // Its own permission, asked on its own. Operations hold both today, and the day that changes this screen
+  // should follow the firm rather than carry on guessing from the advisor one.
+  const canAssignManagers = hasAuthority(user, "ASSIGN_PORTFOLIO_MANAGERS:CHANGE");
   // Whoever runs a team decides who on it sees this client, and so who reads their documents.
   const setsAccess = hasAuthority(user, "ASSIGN_WORK:CHANGE");
   // Everyone with access reads the file; only Operations correct it, because Operations entered it. Compliance
@@ -109,6 +118,20 @@ export function ClientPage() {
       },
     },
   });
+  const [assigningManager, setAssigningManager] = useState(false);
+  const [removingManager, setRemovingManager] = useState<StaffMember | null>(null);
+  const removeManager = useRemovePortfolioManager<ApiError>({
+    mutation: {
+      onSuccess: (updated) => {
+        queryClient.setQueryData(getGetCustomerQueryKey(clientId), updated);
+        void queryClient.invalidateQueries({ queryKey: getListCustomersQueryKey() });
+        // "No longer manages", not "no longer sees": taking a manager off writes off a line in a table, and
+        // what they may open is not decided here.
+        setNotice(`${removingManager?.fullName ?? "The portfolio manager"} no longer manages ${updated.client.fullName}.`);
+        setRemovingManager(null);
+      },
+    },
+  });
 
   if (!detail.data) {
     return (
@@ -123,7 +146,7 @@ export function ClientPage() {
     );
   }
 
-  const { client, advisors, family, activity, application, onboarding } = detail.data;
+  const { client, advisors, portfolioManagers, family, activity, application, onboarding } = detail.data;
   return (
     <div className="space-y-6">
       <header className="space-y-3">
@@ -246,51 +269,38 @@ export function ClientPage() {
 
       {tab === "family" && <FamilyPanel client={client} family={family} />}
       {tab === "advisors" && (
-        <section aria-labelledby="advisors-title" className="rounded-2xl border border-line bg-white">
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-6 py-5">
-            <div>
-              <h2 id="advisors-title" className="text-base font-bold">
-                Advisors
-              </h2>
-              <p className="mt-0.5 text-xs text-ink-muted">
-                A client can have several advisors. Only they, and staff who see every client, can open this client.
-              </p>
-            </div>
-            {canAssign && (
-              <Button variant="secondary" size="sm" onClick={() => setAssigning(true)}>
-                <UserRoundCog aria-hidden="true" />
-                Assign advisor
-              </Button>
-            )}
-          </div>
-          {advisors.length === 0 ? (
-            <p className="px-6 py-5 text-sm text-ink-muted">No advisor yet.</p>
-          ) : (
-            <ul className="divide-y divide-line">
-              {advisors.map(({ advisor, since }) => (
-                <li key={advisor.id} className="flex items-center justify-between gap-3 px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={advisor.fullName} className="size-10" />
-                    <div>
-                      <p className="text-sm font-semibold">{advisor.fullName}</p>
-                      <p className="text-xs text-ink-muted">Advisor since {formatDate(since)}</p>
-                    </div>
-                  </div>
-                  {canAssign && (
-                    <IconButton
-                      label={`Take ${advisor.fullName} off this client`}
-                      tone="danger"
-                      disabled={removeAdvisor.isPending}
-                      onClick={() => setRemoving(advisor)}
-                    >
-                      <X />
-                    </IconButton>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <AssignedStaffPanel
+          id="advisors"
+          title="Advisors"
+          lead="A client can have several advisors. Only they, and staff who see every client, can open this client."
+          people={advisors.map(({ advisor, since }) => ({ person: advisor, since }))}
+          sinceLabel="Advisor since"
+          empty="No advisor yet."
+          assignLabel="Assign advisor"
+          assignIcon={<UserRoundCog aria-hidden="true" />}
+          canAssign={canAssign}
+          onAssign={() => setAssigning(true)}
+          onRemove={setRemoving}
+          busy={removeAdvisor.isPending}
+        />
+      )}
+      {tab === "portfolioManagers" && (
+        <AssignedStaffPanel
+          id="portfolio-managers"
+          title="Portfolio managers"
+          // Said plainly, because it is the question the panel raises: this is a record of who manages the
+          // portfolio. Nobody's sight of the client, and nothing they may approve, is decided by it yet.
+          lead="A client can have several portfolio managers. This records who manages their portfolio; it does not change who can open this client or what anybody may approve."
+          people={portfolioManagers.map(({ manager, since }) => ({ person: manager, since }))}
+          sinceLabel="Managing since"
+          empty="No portfolio manager yet."
+          assignLabel="Assign portfolio manager"
+          assignIcon={<Briefcase aria-hidden="true" />}
+          canAssign={canAssignManagers}
+          onAssign={() => setAssigningManager(true)}
+          onRemove={setRemovingManager}
+          busy={removeManager.isPending}
+        />
       )}
       {tab === "banks" && <BankAccountsPanel client={client} />}
       {tab === "holdings" && <HoldingsPanel clientId={client.id} />}
@@ -366,6 +376,27 @@ export function ClientPage() {
         busy={removeAdvisor.isPending}
         onConfirm={() => removing && removeAdvisor.mutate({ id: client.id, advisorId: removing.id })}
         onClose={() => setRemoving(null)}
+      />
+      <AssignPortfolioManagerDialog
+        open={assigningManager}
+        clients={[client]}
+        onClose={() => setAssigningManager(false)}
+        onAssigned={(result) => {
+          setAssigningManager(false);
+          setNotice(managerAssignmentNotice(result));
+        }}
+      />
+      <ConfirmDialog
+        open={removingManager !== null}
+        title={`Take ${removingManager?.fullName ?? "this portfolio manager"} off ${client.fullName}?`}
+        // Not "they stop seeing this client": nothing they can see or approve is settled here yet. What
+        // changes is the record of who manages the portfolio.
+        description="They stop being recorded as managing this client. Whoever else manages them is left alone, and you can give the client back to them later."
+        confirmLabel="Take them off"
+        tone="danger"
+        busy={removeManager.isPending}
+        onConfirm={() => removingManager && removeManager.mutate({ id: client.id, managerId: removingManager.id })}
+        onClose={() => setRemovingManager(null)}
       />
     </div>
   );

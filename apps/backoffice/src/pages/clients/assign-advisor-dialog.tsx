@@ -12,10 +12,18 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 
+/**
+ * A client either assignment dialog can be handed: who they are, and who is on them already.
+ *
+ * <p>Both desks are named on it because both dialogs read it, and each reads only its own field. The
+ * two lists are never folded into one — the API keeps advisors and portfolio managers apart, and a name
+ * in one is not a name in the other.
+ */
 export interface ClientToAssign {
   id: string;
   fullName: string;
   advisors: StaffMember[];
+  portfolioManagers: StaffMember[];
 }
 
 interface AssignAdvisorDialogProps {

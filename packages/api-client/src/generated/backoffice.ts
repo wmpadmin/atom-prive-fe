@@ -1727,6 +1727,11 @@ export interface AssignedAdvisor {
   since: string;
 }
 
+export interface AssignedPortfolioManager {
+  manager: StaffMember;
+  since: string;
+}
+
 export interface ClientAddress {
   /** @nullable */
   line1: string | null;
@@ -1815,6 +1820,7 @@ export interface JointHolder {
   fullName: string;
   kycStatus: JointHolderKycStatus;
   advisors: StaffMember[];
+  portfolioManagers: StaffMember[];
 }
 
 export interface CustomerRow {
@@ -1831,6 +1837,7 @@ export interface CustomerRow {
   registeredAt: string;
   kycStatus: CustomerRowKycStatus;
   advisors: StaffMember[];
+  portfolioManagers: StaffMember[];
   /** @nullable */
   lastLoginAt: string | null;
   heldWith: JointHolder[];
@@ -1861,6 +1868,7 @@ export interface FamilyMember {
 export interface CustomerDetail {
   client: CustomerRow;
   advisors: AssignedAdvisor[];
+  portfolioManagers: AssignedPortfolioManager[];
   family: FamilyMember[];
   activity: ClientEvent[];
   application: OnboardingApplication | null;
@@ -2631,6 +2639,7 @@ export const PermissionGrantPermission = {
   SEND_PROPOSALS: 'SEND_PROPOSALS',
   VIEW_ALL_CLIENTS: 'VIEW_ALL_CLIENTS',
   ASSIGN_ADVISORS: 'ASSIGN_ADVISORS',
+  ASSIGN_PORTFOLIO_MANAGERS: 'ASSIGN_PORTFOLIO_MANAGERS',
   ONBOARD_CLIENTS: 'ONBOARD_CLIENTS',
   APPROVE_ONBOARDING: 'APPROVE_ONBOARDING',
   FILL_CLIENT_FORMS: 'FILL_CLIENT_FORMS',
@@ -3760,6 +3769,21 @@ export interface LinkAccountRequest {
      * @nullable
      */
   nickname: string | null;
+}
+
+export interface AssignPortfolioManagerRequest {
+  /**
+     * @minItems 0
+     * @maxItems 100
+     */
+  customerIds: string[];
+  managerId: string;
+}
+
+export interface PortfolioManagerAssignment {
+  manager: StaffMember;
+  assigned: number;
+  unchanged: number;
 }
 
 export interface AssignAdvisorRequest {
@@ -5648,6 +5672,7 @@ export const PermissionOptionPermission = {
   SEND_PROPOSALS: 'SEND_PROPOSALS',
   VIEW_ALL_CLIENTS: 'VIEW_ALL_CLIENTS',
   ASSIGN_ADVISORS: 'ASSIGN_ADVISORS',
+  ASSIGN_PORTFOLIO_MANAGERS: 'ASSIGN_PORTFOLIO_MANAGERS',
   ONBOARD_CLIENTS: 'ONBOARD_CLIENTS',
   APPROVE_ONBOARDING: 'APPROVE_ONBOARDING',
   FILL_CLIENT_FORMS: 'FILL_CLIENT_FORMS',
@@ -10754,7 +10779,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     }
 
 export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',) => {
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',) => {
 
 
 
@@ -10763,7 +10788,7 @@ export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIAN
 }
 
 export const updateRolePermission = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',
     updateRolePermissionRequest: UpdateRolePermissionRequest, options?: Parameters<typeof http>[1]): Promise<RoleAccessView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -10825,7 +10850,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateRolePermissionMutationResult = NonNullable<Awaited<ReturnType<typeof updateRolePermission>>>
     export type UpdateRolePermissionMutationBody = UpdateRolePermissionRequest
     export type UpdateRolePermissionMutationError = unknown
-    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
+    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
 
     export const useUpdateRolePermission = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRolePermission>>, TError,UpdateRolePermissionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -16831,6 +16856,88 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeactivateClientBankAccountMutationOptions(options), queryClient);
+    }
+
+export const getAssignPortfolioManagerUrl = () => {
+
+
+
+
+  return `/api/backoffice/customers/portfolio-manager-assignments`
+}
+
+export const assignPortfolioManager = async (assignPortfolioManagerRequest: AssignPortfolioManagerRequest, options?: Parameters<typeof http>[1]): Promise<PortfolioManagerAssignment> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<PortfolioManagerAssignment>(getAssignPortfolioManagerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(assignPortfolioManagerRequest)
+  }
+);}
+
+
+
+
+
+export const getAssignPortfolioManagerMutationKey = () => ['assignPortfolioManager'] as const;
+
+export const getAssignPortfolioManagerMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignPortfolioManager>>, TError,AssignPortfolioManagerMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof assignPortfolioManager>>, TError,AssignPortfolioManagerMutationVariables, TContext> => {
+
+const mutationKey = getAssignPortfolioManagerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assignPortfolioManager>>, AssignPortfolioManagerMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  assignPortfolioManager(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssignPortfolioManagerMutationResult = NonNullable<Awaited<ReturnType<typeof assignPortfolioManager>>>
+    export type AssignPortfolioManagerMutationBody = AssignPortfolioManagerRequest
+    export type AssignPortfolioManagerMutationError = unknown
+    export type AssignPortfolioManagerMutationVariables = {data: AssignPortfolioManagerRequest}
+
+    export const useAssignPortfolioManager = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignPortfolioManager>>, TError,AssignPortfolioManagerMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof assignPortfolioManager>>,
+        TError,
+        AssignPortfolioManagerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAssignPortfolioManagerMutationOptions(options), queryClient);
     }
 
 export const getAssignAdvisorUrl = () => {
@@ -25760,6 +25867,101 @@ export function useListCustomers<TData = Awaited<ReturnType<typeof listCustomers
 
 
 
+export const getListPortfolioManagersUrl = () => {
+
+
+
+
+  return `/api/backoffice/customers/portfolio-managers`
+}
+
+export const listPortfolioManagers = async ( options?: Parameters<typeof http>[1]): Promise<StaffMember[]> => {
+
+  return http<StaffMember[]>(getListPortfolioManagersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPortfolioManagersQueryKey = () => {
+    return [
+    `/api/backoffice/customers/portfolio-managers`
+    ] as const;
+    }
+
+
+export const getListPortfolioManagersQueryOptions = <TData = Awaited<ReturnType<typeof listPortfolioManagers>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPortfolioManagers>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPortfolioManagersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPortfolioManagers>>> = ({ signal }) => listPortfolioManagers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPortfolioManagers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPortfolioManagersQueryResult = NonNullable<Awaited<ReturnType<typeof listPortfolioManagers>>>
+export type ListPortfolioManagersQueryError = unknown
+
+
+export function useListPortfolioManagers<TData = Awaited<ReturnType<typeof listPortfolioManagers>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPortfolioManagers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPortfolioManagers>>,
+          TError,
+          Awaited<ReturnType<typeof listPortfolioManagers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPortfolioManagers<TData = Awaited<ReturnType<typeof listPortfolioManagers>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPortfolioManagers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPortfolioManagers>>,
+          TError,
+          Awaited<ReturnType<typeof listPortfolioManagers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPortfolioManagers<TData = Awaited<ReturnType<typeof listPortfolioManagers>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPortfolioManagers>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListPortfolioManagers<TData = Awaited<ReturnType<typeof listPortfolioManagers>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPortfolioManagers>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListPortfolioManagersQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListMyClientsUrl = (params?: ListMyClientsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -28456,6 +28658,76 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRemoveClientCashflowMutationOptions(options), queryClient);
+    }
+
+export const getRemovePortfolioManagerUrl = (id: string,
+    managerId: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${id}/portfolio-managers/${managerId}`
+}
+
+export const removePortfolioManager = async (id: string,
+    managerId: string, options?: Parameters<typeof http>[1]): Promise<CustomerDetail> => {
+
+  return http<CustomerDetail>(getRemovePortfolioManagerUrl(id,managerId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemovePortfolioManagerMutationKey = () => ['removePortfolioManager'] as const;
+
+export const getRemovePortfolioManagerMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removePortfolioManager>>, TError,RemovePortfolioManagerMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof removePortfolioManager>>, TError,RemovePortfolioManagerMutationVariables, TContext> => {
+
+const mutationKey = getRemovePortfolioManagerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removePortfolioManager>>, RemovePortfolioManagerMutationVariables> = (props) => {
+          const {id,managerId} = props ?? {};
+
+          return  removePortfolioManager(id,managerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemovePortfolioManagerMutationResult = NonNullable<Awaited<ReturnType<typeof removePortfolioManager>>>
+
+    export type RemovePortfolioManagerMutationError = unknown
+    export type RemovePortfolioManagerMutationVariables = {id: string;managerId: string}
+
+    export const useRemovePortfolioManager = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removePortfolioManager>>, TError,RemovePortfolioManagerMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removePortfolioManager>>,
+        TError,
+        RemovePortfolioManagerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemovePortfolioManagerMutationOptions(options), queryClient);
     }
 
 export const getRemoveAdvisorUrl = (id: string,
