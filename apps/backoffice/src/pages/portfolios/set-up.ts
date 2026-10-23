@@ -2,6 +2,24 @@ import type { PortfolioStanding, StaffProfile } from "@atomprive/api-client/back
 import { hasAuthority } from "../../lib/permissions";
 
 /**
+ * Whether the Net AUM calculator is offered at all.
+ *
+ * <p>Off, because the firm types no figure into this platform: what a client is worth comes from the
+ * daily file the firm already produces, and a figure somebody typed beside one that was uploaded is two
+ * answers to one question with nothing to say which is right.
+ *
+ * <p>Hidden rather than taken out. The screen, its four steps and everything that reads them are left
+ * exactly where they are, because the upload that replaces it does not exist yet — and until it does,
+ * this is the only thing that knows how to write a client down. Turning this back on is the whole of
+ * putting it back.
+ *
+ * <p>Three doors, and all three read this: the button on a client's portfolio, the redirect that used to
+ * carry an unwritten client into it, and the clients list, whose unfinished rows opened it instead of the
+ * portfolio.
+ */
+export const THE_CALCULATOR_IS_OFFERED = false;
+
+/**
  * Whether the Net AUM calculator has been worked through to the end for this client.
  *
  * <p>Two things, because two of the four steps ask for something that can be missing. Step 1 is the
