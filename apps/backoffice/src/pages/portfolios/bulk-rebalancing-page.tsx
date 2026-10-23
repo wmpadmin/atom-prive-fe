@@ -26,7 +26,7 @@ import { formatDate } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { ClassStandingTable } from "./class-standing-table";
 import { driftLabel, driftTones, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
-import { AdvisorStack } from "../clients/advisor-stack";
+import { StaffStack } from "../clients/staff-stack";
 
 /** Today, as the calendar writes it, so a rebalance can be dated today but no later. */
 function today() {
@@ -79,7 +79,7 @@ const MOVABLE: {
      * Who is about to be asked. Raising a rebalance sends each of these clients to their own manager to
      * answer, and a list with no sign of who that is hides what the press does.
      */
-    cell: (client) => <AdvisorStack advisors={client.advisors} />,
+    cell: (client) => <StaffStack people={client.advisors} />,
   },
   {
     id: "aum",
