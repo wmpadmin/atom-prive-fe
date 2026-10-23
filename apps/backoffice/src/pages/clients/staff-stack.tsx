@@ -3,7 +3,7 @@ import { Avatar, cn } from "@atomprive/ui";
 import { useEffect, useId, useRef, useState } from "react";
 
 /** How many faces the stack draws before it starts counting instead. */
-const FACES = 3;
+const FACES = 2;
 
 /**
  * A client's people from one desk in one column's width: a few faces, one name, and the rest a press away.
@@ -16,11 +16,15 @@ const FACES = 3;
  * to the width of whoever had the most, so a column somebody reads down for one name was the widest thing
  * on the screen. This holds the same width whatever the count.
  *
- * <p>The name beside the faces is whoever has had the client longest, which is the order the list arrives
- * in. It is not a title — the firm has not named anybody primary — it is the one name worth putting in a
- * row that has room for one, and whoever wants the rest presses the faces.
+ * @param desk what these people are to the client, for a reader who cannot see the faces — "advisors",
+ * "portfolio managers". Without it the managers' column announced itself as advisors.
+ *
+ * <p>Faces only, and no name. A name beside them read as a title the firm has not given anybody — the
+ * list arrives longest-held first, which is an order, not a rank — and it set the column's width to
+ * whoever happened to be first in it. Two faces and a count hold the same width whatever the number, and
+ * every name is a press away.
  */
-export function StaffStack({ people: advisors }: { people: StaffMember[] }) {
+export function StaffStack({ people: advisors, desk = "people" }: { people: StaffMember[]; desk?: string }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -57,7 +61,6 @@ export function StaffStack({ people: advisors }: { people: StaffMember[] }) {
     );
   }
 
-  const named = advisors[0]!;
   const faces = advisors.slice(0, FACES);
   const counted = advisors.length - faces.length;
   // One advisor is the whole answer already, so there is nothing to open and nothing to press.
@@ -89,7 +92,7 @@ export function StaffStack({ people: advisors }: { people: StaffMember[] }) {
           id={`${id}-button`}
           aria-haspopup="true"
           aria-expanded={open}
-          aria-label={`${advisors.length} advisors: ${advisors.map((one) => one.fullName).join(", ")}`}
+          aria-label={`${advisors.length} ${desk}: ${advisors.map((one) => one.fullName).join(", ")}`}
           // The row underneath opens the client. Pressing the faces is asking who they are, not asking
           // to go there, so this press stops here — and only this one: with a single advisor there is
           // nothing to open, and the cell stays part of the row the way every other cell is.
@@ -98,19 +101,16 @@ export function StaffStack({ people: advisors }: { people: StaffMember[] }) {
             setOpen((was) => !was);
           }}
           className={cn(
-            "flex max-w-full items-center gap-2 rounded-full py-0.5 pr-2 text-left",
+            "flex items-center rounded-full py-0.5 text-left",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
           )}
         >
           {stack}
-          <span className="max-w-36 truncate text-sm text-ink-soft">{named.fullName}</span>
         </button>
       ) : (
-        <span className="flex max-w-full items-center gap-2 py-0.5">
+        // One person is the whole answer: their face, titled with their name, and nothing to open.
+        <span title={faces[0]!.fullName} className="flex items-center py-0.5">
           {stack}
-          {/* Capped, so the column holds its width against a long name as well as against a long list —
-              which was the point of folding the names away. The whole list is in the popover. */}
-          <span className="max-w-36 truncate text-sm text-ink-soft">{named.fullName}</span>
         </span>
       )}
 
