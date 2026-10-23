@@ -15,12 +15,60 @@ import {
 import { Alert, Badge, Button, Dialog, Field, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Banknote, Plus } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useStaffUser } from "../../auth/session";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
 import { formatRelative } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { hasAuthority } from "../../lib/permissions";
+import { useTableView } from "../../lib/table-view";
 import { accountTypeLabels, accountTypes, bankAccountStatus } from "./bank-account-labels";
+
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>Neither half of the account's own name is among them. A client with two accounts at one bank is told
+ * apart by the last four digits, and four digits under no bank belong to nobody — the pair is what names
+ * the row, so neither half can be moved away from the front of it or taken off. Nor is the button at the
+ * end: it is what a reader came to the panel to press, and it is only there at all for whoever may.
+ */
+const MOVABLE: {
+  id: string;
+  label: string;
+  nowrap?: boolean;
+  tone?: string;
+  cell: (account: BankAccountRow) => ReactNode;
+}[] = [
+  {
+    id: "heldBy",
+    label: "Held by",
+    cell: (account) => account.holderName,
+  },
+  {
+    id: "type",
+    label: "Type",
+    nowrap: true,
+    tone: "text-ink-soft",
+    cell: (account) => `${accountTypeLabels[account.accountType]} · ${account.currency}`,
+  },
+  {
+    id: "status",
+    label: "Status",
+    cell: (account) => {
+      const status = bankAccountStatus(account.status);
+      return <Badge tone={status.tone}>{status.label}</Badge>;
+    },
+  },
+  {
+    id: "lastSynced",
+    label: "Last synced",
+    nowrap: true,
+    tone: "text-ink-soft",
+    cell: (account) => formatRelative(account.lastSyncedAt, "Never"),
+  },
+];
 
 /**
  * The accounts a client holds at their banks. The firm links them on the client's behalf, keeps the details
@@ -41,6 +89,12 @@ export function BankAccountsPanel({ client }: { client: CustomerDetail["client"]
   const rows = accounts.data ?? [];
   const busy = deactivate.isPending || reactivate.isPending;
   const paged = usePagedRows(rows);
+  // How this reader has arranged the panel is a thing about them rather than about what came back, so it is
+  // read whichever way the fetch went and whether or not there is anything to draw.
+  const view = useTableView("client-bank-accounts", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   return (
     <section className="rounded-2xl border border-line bg-white">
@@ -51,12 +105,42 @@ export function BankAccountsPanel({ client }: { client: CustomerDetail["client"]
             The accounts this client holds at their banks, and what each one is doing.
           </p>
         </div>
-        {canManage && (
-          <Button variant="secondary" size="sm" onClick={() => setLinking(true)}>
-            <Plus aria-hidden="true" />
-            Link an account
-          </Button>
-        )}
+        {/* On the card's own line, beside the one thing this card does. Offered only once there is a table
+            to arrange: a panel with no accounts linked has no columns worth moving. */}
+        <div className="flex flex-wrap items-end justify-end gap-3">
+          {rows.length > 0 && (
+            <>
+              <ViewTabs
+                views={view.views}
+                current={view.current}
+                edited={view.current === null ? view.arranged : view.changed}
+                onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+                onSave={view.saveAs}
+                onDelete={view.remove}
+                firstLabel="Every account"
+              />
+              <ColumnPicker
+                columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+                shown={new Set(view.shown)}
+                order={view.order}
+                arranged={view.arranged}
+                onChange={(next) => {
+                  for (const one of MOVABLE) {
+                    if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+                  }
+                }}
+                onMove={view.move}
+                onReset={view.reset}
+              />
+            </>
+          )}
+          {canManage && (
+            <Button variant="secondary" size="sm" onClick={() => setLinking(true)}>
+              <Plus aria-hidden="true" />
+              Link an account
+            </Button>
+          )}
+        </div>
       </div>
 
       {(accounts.isError || deactivate.isError || reactivate.isError) && (
@@ -88,16 +172,29 @@ export function BankAccountsPanel({ client }: { client: CustomerDetail["client"]
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-6">Bank</th>
                 <th scope="col" className="px-4 py-3">Account</th>
-                <th scope="col" className="px-4 py-3">Held by</th>
-                <th scope="col" className="px-4 py-3">Type</th>
-                <th scope="col" className="px-4 py-3">Status</th>
-                <th scope="col" className="px-4 py-3">Last synced</th>
+                {shownColumns.map((column, at) => (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    {...drag.headingProps(column.id)}
+                    className={cn(
+                      "cursor-grab touch-none px-4 py-3 select-none",
+                      drag.dragging === column.id && "cursor-grabbing opacity-40",
+                      drag.over === column.id && "bg-primary-50",
+                    )}
+                    title={`Drag to move ${column.label}`}
+                  >
+                    {column.label}
+                    <span className="sr-only">
+                      , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                    </span>
+                  </th>
+                ))}
                 {canManage && <th scope="col" className="py-3 pr-6 pl-4 text-right">Action</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {paged.shown.map((account) => {
-                const status = bankAccountStatus(account.status);
                 const off = account.status === "DEACTIVATED";
                 return (
                   <tr key={account.id} className={cn(off && "opacity-60")}>
@@ -108,16 +205,15 @@ export function BankAccountsPanel({ client }: { client: CustomerDetail["client"]
                         <span className="block text-xs text-ink-muted">{account.nickname}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">{account.holderName}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                      {accountTypeLabels[account.accountType]} · {account.currency}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge tone={status.tone}>{status.label}</Badge>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                      {formatRelative(account.lastSyncedAt, "Never")}
-                    </td>
+                    {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                    {shownColumns.map((column) => (
+                      <td
+                        key={column.id}
+                        className={cn("px-4 py-3", column.nowrap && "whitespace-nowrap", column.tone)}
+                      >
+                        {column.cell(account)}
+                      </td>
+                    ))}
                     {canManage && (
                       <td className="py-3 pr-6 pl-4 text-right whitespace-nowrap">
                         {off ? (

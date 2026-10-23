@@ -2,15 +2,20 @@ import { ApiError } from "@atomprive/api-client";
 import {
   getReadKycDocumentUrl,
   useListKycDocuments,
+  type KycDocumentRow,
   type KycDocumentRowReviewState,
   type KycQueue,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Pagination, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { ChevronRight, Download, Plus, Search } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { TextInput } from "@atomprive/ui";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { downloadTextFile, openApiFile } from "../../lib/download";
 import { formatRelative } from "../../lib/labels";
 import { PAGE_SIZES } from "../../lib/page-sizes";
@@ -22,6 +27,66 @@ import { PickClientDialog } from "./pick-client-dialog";
  * Every KYC document waiting on Compliance, with the client it belongs to. Opening one goes to that client's
  * whole pack, since a paper is judged against the rest of what they have handed over, not on its own (#83).
  */
+/** One column of the queue a reader may move: its heading, and what it draws on a row. */
+type Column = {
+  id: string;
+  label: string;
+  nowrap?: boolean;
+  tone?: string;
+  cell: (row: KycDocumentRow) => ReactNode;
+};
+
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>The client stays where it is and so does the way through to their pack: a paper with no client beside
+ * it is a file name nobody can act on, and the button at the end has no heading to drag or to list.
+ */
+const MOVABLE: Column[] = [
+  {
+    id: "document",
+    label: "Document",
+    cell: (row) => (
+      <div className="flex items-center gap-3">
+        <span className="grid h-8 w-10 shrink-0 place-items-center rounded-md border border-line bg-slate-50 text-2xs font-bold text-ink-soft">
+          {fileMark(row.contentType)}
+        </span>
+        <div className="min-w-0">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              void openApiFile(fileHref(row.id), row.fileName);
+            }}
+            className="block max-w-full truncate text-left font-semibold hover:text-primary-600"
+          >
+            {row.fileName}
+          </button>
+          <span className="block truncate text-xs text-ink-muted">{row.kindTitle}</span>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "uploaded",
+    label: "Uploaded",
+    tone: "text-ink-soft",
+    cell: (row) => <PutOnFileBy at={row.uploadedAt} by={row.uploadedByName} />,
+  },
+  {
+    id: "pages",
+    label: "Pages",
+    nowrap: true,
+    tone: "text-ink-soft tabular-nums",
+    cell: (row) => pageCount(row.pages),
+  },
+  {
+    id: "status",
+    label: "Status",
+    cell: (row) => <Badge tone={reviewStateTones[row.reviewState]}>{reviewStateLabels[row.reviewState]}</Badge>,
+  },
+];
+
 export function KycDocumentReviewPage() {
   const navigate = useNavigate();
   const [state, setState] = useState<KycDocumentRowReviewState>("AWAITING_REVIEW");
@@ -50,6 +115,10 @@ export function KycDocumentReviewPage() {
 
   /** The one that has waited longest, which is where Compliance should start. */
   const oldest = (queue.data?.items ?? [])[0];
+  const view = useTableView("kyc-documents", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   function exportQueue() {
     const header = ["Document", "Type", "Client", "Client code", "Pages", "Uploaded", "Status"];
@@ -151,15 +220,41 @@ export function KycDocumentReviewPage() {
             <h2 className="text-base font-bold">{reviewStateLabels[state]}</h2>
             <p className="mt-0.5 text-xs text-ink-muted">Click a document to read it. Review opens the client's pack, where the decision is recorded.</p>
           </div>
-          <div className="relative w-72 max-w-full">
-            <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted" />
-            <TextInput
-              aria-label="Search document, client or type"
-              placeholder="Search document, client or type…"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="pl-9"
+          {/* The arrangements beside the search rather than above the card: both are ways of reading this
+              one table, and a reader looking for either looks on this line. */}
+          <div className="flex flex-wrap items-center gap-3">
+            <ViewTabs
+              views={view.views}
+              current={view.current}
+              edited={view.current === null ? view.arranged : view.changed}
+              onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+              onSave={view.saveAs}
+              onDelete={view.remove}
+              firstLabel="Every document"
             />
+            <ColumnPicker
+              columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+              shown={new Set(view.shown)}
+              order={view.order}
+              arranged={view.arranged}
+              onChange={(next) => {
+                for (const one of MOVABLE) {
+                  if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+                }
+              }}
+              onMove={view.move}
+              onReset={view.reset}
+            />
+            <div className="relative w-72 max-w-full">
+              <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted" />
+              <TextInput
+                aria-label="Search document, client or type"
+                placeholder="Search document, client or type…"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="pl-9"
+              />
+            </div>
           </div>
         </div>
 
@@ -168,10 +263,25 @@ export function KycDocumentReviewPage() {
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">Client</th>
-                <th scope="col" className="px-4 py-3">Document</th>
-                <th scope="col" className="px-4 py-3">Uploaded</th>
-                <th scope="col" className="px-4 py-3">Pages</th>
-                <th scope="col" className="px-4 py-3">Status</th>
+                {shownColumns.map((column, at) => (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    {...drag.headingProps(column.id)}
+                    className={cn(
+                      "cursor-grab touch-none px-4 py-3 select-none",
+                      column.nowrap && "whitespace-nowrap",
+                      drag.dragging === column.id && "cursor-grabbing opacity-40",
+                      drag.over === column.id && "bg-primary-50",
+                    )}
+                    title={`Drag to move ${column.label}`}
+                  >
+                    {column.label}
+                    <span className="sr-only">
+                      , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                    </span>
+                  </th>
+                ))}
                 <th scope="col" className="py-3 pr-5 pl-4">
                   <span className="sr-only">Review</span>
                 </th>
@@ -180,12 +290,12 @@ export function KycDocumentReviewPage() {
             <tbody className="divide-y divide-line">
               {queue.isPending && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-ink-muted">Loading the queue…</td>
+                  <td colSpan={shownColumns.length + 2} className="px-5 py-10 text-center text-ink-muted">Loading the queue…</td>
                 </tr>
               )}
               {queue.data && shown.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-ink-muted">
+                  <td colSpan={shownColumns.length + 2} className="px-5 py-10 text-center text-ink-muted">
                     {words ? "No document matches that." : `Nothing ${reviewStateLabels[state].toLowerCase()}.`}
                   </td>
                 </tr>
@@ -207,33 +317,15 @@ export function KycDocumentReviewPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-8 w-10 shrink-0 place-items-center rounded-md border border-line bg-slate-50 text-2xs font-bold text-ink-soft">
-                        {fileMark(row.contentType)}
-                      </span>
-                      <div className="min-w-0">
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void openApiFile(fileHref(row.id), row.fileName);
-                          }}
-                          className="block max-w-full truncate text-left font-semibold hover:text-primary-600"
-                        >
-                          {row.fileName}
-                        </button>
-                        <span className="block truncate text-xs text-ink-muted">{row.kindTitle}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-ink-soft">
-                    <PutOnFileBy at={row.uploadedAt} by={row.uploadedByName} />
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft tabular-nums">{pageCount(row.pages)}</td>
-                  <td className="px-4 py-3">
-                    <Badge tone={reviewStateTones[row.reviewState]}>{reviewStateLabels[row.reviewState]}</Badge>
-                  </td>
+                  {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                  {shownColumns.map((column) => (
+                    <td
+                      key={column.id}
+                      className={cn("px-4 py-3", column.nowrap && "whitespace-nowrap", column.tone)}
+                    >
+                      {column.cell(row)}
+                    </td>
+                  ))}
                   <td className="py-3 pr-5 pl-4 text-right">
                     <button
                       type="button"
