@@ -23,7 +23,7 @@ import { formatDate } from "../../lib/labels";
 import { StaffStack } from "../clients/staff-stack";
 import { ClientSearch } from "../clients/client-search";
 import { PortfolioSetupDialog } from "./portfolio-setup-dialog";
-import { isSetUp } from "./set-up";
+import { isSetUp, THE_CALCULATOR_IS_OFFERED } from "./set-up";
 import {
   driftLabel,
   driftTones,
@@ -426,7 +426,7 @@ export function PortfolioClientsPage() {
           const done = isSetUp(standing);
           // Finished opens at the portfolio, which is what there is to read. Unfinished goes back into the
           // calculator, at whichever step the writing stopped.
-          const opens = done
+          const opens = done || !THE_CALCULATOR_IS_OFFERED
             ? `/portfolio-clients/${client.id}`
             : `/portfolio-clients/${client.id}/net-aum`;
           // What a client holds is drawn as a share of what is written down. There is more to come that
