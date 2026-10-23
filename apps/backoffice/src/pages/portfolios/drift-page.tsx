@@ -1,9 +1,14 @@
 import { ApiError } from "@atomprive/api-client";
-import { useListDrift, type DriftPage } from "@atomprive/api-client/backoffice";
+import { useListDrift, type DriftPage, type DriftRow } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router";
+import { type ReactNode } from "react";
+import { ColumnPicker } from "../../components/column-picker";
 import { ListPageHeader, RecordList } from "../../components/record-list";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress } from "../../lib/use-list-address";
 import {
@@ -25,6 +30,79 @@ const WANDERED: DriftStanding[] = ["BREACHED"];
  * <p>A breach is not a warning — it is past what the model allows, and the portfolio has to be put back. The
  * count of them is of the whole book, so narrowing the list to one standing never hides how many there are.
  */
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>The client is not here and neither is the way in at the end: a row with no client on it cannot be
+ * told from any other row, and an action with no heading cannot be dragged or found in a list.
+ */
+const MOVABLE: {
+  id: string;
+  label: string;
+  align: "left" | "right";
+  nowrap?: boolean;
+  cell: (row: DriftRow) => ReactNode;
+  tone?: (row: DriftRow) => string | undefined;
+}[] = [
+  {
+    id: "model",
+    label: "Measured against",
+    align: "left",
+    cell: (row) => row.modelName,
+  },
+  {
+    id: "aum",
+    label: "AUM",
+    align: "right",
+    nowrap: true,
+    cell: (row) => <span className="font-semibold">{underManagementLabel(row.underManagement, row.currency)}</span>,
+  },
+  {
+    id: "allowed",
+    label: "Allowed",
+    align: "right",
+    nowrap: true,
+    /*
+     * What that drift is to be read against, in money rather than in points. A drift of twelve points
+     * says nothing by itself; twelve points of a portfolio against the two and a half million it was
+     * allowed to wander is a sentence somebody can act on.
+     */
+    cell: (row) => (row.allowed === null ? (
+      <span className="text-ink-muted">—</span>
+    ) : (
+      <>
+        {/* The range turned into money against this portfolio: a drift is in points of the whole, so the
+            points the plan allows are that share of the whole. */}
+        <span className="block">
+          ±{underManagementLabel((row.underManagement * Number(row.allowed)) / 100, row.currency)}
+        </span>
+        <span className="block text-xs text-ink-muted">
+          ±{Number(row.allowed).toFixed(1)}% of the portfolio
+        </span>
+      </>
+    )),
+    tone: () => "text-ink-soft",
+  },
+  {
+    id: "drift",
+    label: "Drift",
+    align: "right",
+    nowrap: true,
+    /*
+     * Which side of the target it has gone is kept in the sign — "+6.4pp" against "−6.4pp" — but the ink
+     * follows the standing. Coloured by side, a breach the wrong way read as good news.
+     */
+    tone: (row) => driftTones[row.standing],
+    cell: (row) => <span className="font-semibold">{driftLabel(row.drift)}</span>,
+  },
+  {
+    id: "standing",
+    label: "Standing",
+    align: "left",
+    cell: (row) => <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>,
+  },
+];
+
 export function DriftBreachesPage() {
   const navigate = useNavigate();
   // The queue as it is being read, so Back from a portfolio comes to the same page of the same filter.
@@ -40,10 +118,18 @@ export function DriftBreachesPage() {
     { query: { placeholderData: keepPreviousData } },
   );
 
+  // Before the queue is read at all: how this reader has arranged the table is a thing about them, not
+  // about whether the fetch came back, and a hook that is skipped on the error render is a hook React
+  // cannot keep in order.
+  const view = useTableView("drift", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
+
   if (queue.isError) {
     return <Alert tone="danger">{queue.error.message}</Alert>;
   }
   const rows = queue.data?.items ?? [];
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
   const breached = queue.data?.breached ?? 0;
 
   return (
@@ -63,38 +149,66 @@ export function DriftBreachesPage() {
         </Alert>
       )}
 
+      {/* Above the table: which of their arrangements a reader is in is read before anything in it. */}
+      <ViewTabs
+        views={view.views}
+        current={view.current}
+        edited={view.current === null ? view.arranged : view.changed}
+        onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+        onSave={view.saveAs}
+        onDelete={view.remove}
+        firstLabel="Everything adrift"
+      />
+
       <RecordList
         caption="Drift & breaches"
         subtitle="Worst first"
+        filters={
+          <ColumnPicker
+            columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+            shown={new Set(view.shown)}
+            order={view.order}
+            arranged={view.arranged}
+            onChange={(next) => {
+              for (const one of MOVABLE) {
+                if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+              }
+            }}
+            onMove={view.move}
+            onReset={view.reset}
+          />
+        }
         head={
           <>
             <th scope="col" className="px-5 py-3 text-left font-semibold">
               Client
             </th>
-            <th scope="col" className="px-4 py-3 text-left font-semibold">
-              Measured against
-            </th>
-            <th scope="col" className="px-4 py-3 text-right font-semibold">
-              AUM
-            </th>
-            {/* What that drift is to be read against, in money rather than in points. A drift of twelve
-                points says nothing by itself; twelve points of a portfolio against the two and a half
-                million it was allowed to wander is a sentence somebody can act on. */}
-            <th scope="col" className="px-4 py-3 text-right font-semibold whitespace-nowrap">
-              Allowed
-            </th>
-            <th scope="col" className="px-4 py-3 text-right font-semibold">
-              Drift
-            </th>
-            <th scope="col" className="px-4 py-3 text-left font-semibold">
-              Standing
-            </th>
+            {shownColumns.map((column, at) => (
+              <th
+                key={column.id}
+                scope="col"
+                {...drag.headingProps(column.id)}
+                className={cn(
+                  "cursor-grab touch-none px-4 py-3 font-semibold select-none",
+                  column.align === "right" ? "text-right" : "text-left",
+                  column.nowrap && "whitespace-nowrap",
+                  drag.dragging === column.id && "cursor-grabbing opacity-40",
+                  drag.over === column.id && "bg-primary-50",
+                )}
+                title={`Drag to move ${column.label}`}
+              >
+                {column.label}
+                <span className="sr-only">
+                  , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                </span>
+              </th>
+            ))}
             <th scope="col" className="px-4 py-3 text-right font-semibold">
               <span className="sr-only">Open</span>
             </th>
           </>
         }
-        columns={7}
+        columns={shownColumns.length + 2}
         loading={queue.isLoading}
         stale={queue.isPlaceholderData}
         empty={rows.length > 0 ? undefined : "Every portfolio is where its model wants it."}
@@ -127,40 +241,20 @@ export function DriftBreachesPage() {
                 </div>
               </div>
             </td>
-            <td className="px-4 py-3">{row.modelName}</td>
-            <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
-              {underManagementLabel(row.underManagement, row.currency)}
-            </td>
-            <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums text-ink-soft">
-              {row.allowed === null ? (
-                <span className="text-ink-muted">—</span>
-              ) : (
-                <>
-                  {/* The range turned into money against this portfolio: a drift is in points of the
-                      whole, so the points the plan allows are that share of the whole. */}
-                  <span className="block">
-                    ±{underManagementLabel(
-                      (row.underManagement * Number(row.allowed)) / 100, row.currency)}
-                  </span>
-                  <span className="block text-xs text-ink-muted">
-                    ±{Number(row.allowed).toFixed(1)}% of the portfolio
-                  </span>
-                </>
-              )}
-            </td>
-            {/* Which side of the target it has gone is kept in the sign — "+6.4pp" against "−6.4pp" — but
-                the ink follows the standing. Coloured by side, a breach the wrong way read as good news. */}
-            <td
-              className={cn(
-                "px-4 py-3 text-right font-semibold whitespace-nowrap",
-                driftTones[row.standing],
-              )}
-            >
-              {driftLabel(row.drift)}
-            </td>
-            <td className="px-4 py-3">
-              <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>
-            </td>
+            {/* The cells in the order the headings are in, out of the one list that holds both. */}
+            {shownColumns.map((column) => (
+              <td
+                key={column.id}
+                className={cn(
+                  "px-4 py-3",
+                  column.align === "right" && "text-right tabular-nums",
+                  column.nowrap && "whitespace-nowrap",
+                  column.tone?.(row),
+                )}
+              >
+                {column.cell(row)}
+              </td>
+            ))}
             <td className="px-4 py-3 text-right">
               <Link
                 to={`/portfolio-clients/${row.customerId}?from=drift&back=${asLeft}`}

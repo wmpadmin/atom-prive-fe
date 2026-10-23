@@ -11,9 +11,9 @@ import {
   type MovePlanQueue,
   type MovePlanRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, Dialog, Field, TextArea, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, cn, Dialog, Field, TextArea, TextInput } from "@atomprive/ui";
 import { ChevronLeft } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { useStaffUser } from "../../auth/session";
 import { formatDateTime } from "../../lib/labels";
@@ -21,7 +21,11 @@ import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { hasAnyAuthority, RAISES_CLIENT_REQUESTS } from "../../lib/permissions";
 import { ClientAskingRows, EMPTY_ROW, isAsked, legsFromRows, type AskedRow } from "./client-asking-rows";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
+import { ColumnPicker } from "../../components/column-picker";
 import { QueueActions } from "../../components/queue-actions";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { QueueFilters } from "./queue-filters";
 import { AnswerDialog } from "./answer-dialog";
 import { exactly, figure, named } from "./money-words";
@@ -508,6 +512,65 @@ function WritingForAclient({ client, onDone, onClose }: {
   );
 }
 
+/**
+ * The columns of the queue a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>The client is not among them. A request is read as "what this client asked for", and a row with no
+ * client on it is a figure nobody can act on — there is no second column that says whose request it is.
+ */
+const MOVABLE: {
+  id: string;
+  label: string;
+  align: "left" | "right";
+  /** What share of the table it is given, so taking one off widens the rest rather than leaving a gap. */
+  width: string;
+  cell: (row: MovePlanRow) => ReactNode;
+}[] = [
+  {
+    id: "asked",
+    label: "What they asked for",
+    align: "left",
+    width: "w-[30%]",
+    cell: (row) => (
+      <>
+        <span className="block truncate">{row.why}</span>
+        <span className="block truncate text-xs text-ink-muted">
+          {row.legs.length === 1
+            ? `Out of ${named(row.legs[0].fromSubClass, row.legs[0].fromAssetClass,
+                row.legs[0].fromSubSubClass)}`
+            : `${row.legs.length} lines`}
+        </span>
+      </>
+    ),
+  },
+  {
+    id: "amount",
+    label: "Amount",
+    align: "right",
+    width: "w-[14%]",
+    cell: (row) => <span className="tabular-nums whitespace-nowrap">{row.currency} {figure(row.amount)}</span>,
+  },
+  {
+    id: "raisedBy",
+    label: "Asked by",
+    align: "left",
+    width: "w-[18%]",
+    cell: (row) => (
+      <>
+        <span className="block truncate">{row.raisedByName}</span>
+        <span className="block text-xs text-ink-muted">{formatDateTime(row.raisedAt)}</span>
+      </>
+    ),
+  },
+  {
+    id: "status",
+    label: "Status",
+    align: "left",
+    width: "w-[16%]",
+    cell: (row) => <Badge tone={TONES[row.status]}>{row.statusSaid}</Badge>,
+  },
+];
+
 export function ClientRequestsPage() {
   // To tell a row this reader wrote down from one somebody else did, which is the difference between
   // "somebody else answers it" and "this is not yours to answer".
@@ -591,6 +654,13 @@ export function ClientRequestsPage() {
   // Read a page at a time, the same as the queue beside it. The server sends this one whole — it is two
   // short lists, not a cursor — so the page is taken here rather than asked for.
   const paged = usePagedRows(shown);
+  // Read before anything can return early. How this reader has arranged the queue is a thing about them
+  // rather than about what came back, and a hook React sees on one render and not the next is a hook it
+  // cannot keep in order.
+  const view = useTableView("client-requests", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   if (queue.isError) {
     return <Alert tone="danger">{queue.error.message}</Alert>;
@@ -666,7 +736,37 @@ export function ClientRequestsPage() {
         onNewestFirst={setNewestFirst}
       />
       <section className="rounded-2xl border border-line bg-white">
-        <QueueBar name="Client requests" />
+        {/* The arrangement sits on the card's own line, and only while the list is what is being read: a
+            reader who has opened one request is reading that request, and the columns of the list behind
+            it are not theirs to move from here. */}
+        <QueueBar name="Client requests">
+          {reading === null && shown.length > 0 && (
+            <>
+              <ViewTabs
+                views={view.views}
+                current={view.current}
+                edited={view.current === null ? view.arranged : view.changed}
+                onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+                onSave={view.saveAs}
+                onDelete={view.remove}
+                firstLabel="Every request"
+              />
+              <ColumnPicker
+                columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+                shown={new Set(view.shown)}
+                order={view.order}
+                arranged={view.arranged}
+                onChange={(next) => {
+                  for (const one of MOVABLE) {
+                    if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+                  }
+                }}
+                onMove={view.move}
+                onReset={view.reset}
+              />
+            </>
+          )}
+        </QueueBar>
 
         {queue.isPending ? (
           <p className="px-5 py-8 text-sm text-ink-muted">Reading the requests…</p>
@@ -703,18 +803,31 @@ export function ClientRequestsPage() {
             <table className="w-full table-fixed text-sm">
               <colgroup>
                 <col className="w-[22%]" />
-                <col className="w-[30%]" />
-                <col className="w-[14%]" />
-                <col className="w-[18%]" />
-                <col className="w-[16%]" />
+                {shownColumns.map((column) => <col key={column.id} className={column.width} />)}
               </colgroup>
               <thead>
                 <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                   <th scope="col" className="py-3 pr-4 pl-5">Client</th>
-                  <th scope="col" className="px-4 py-3">What they asked for</th>
-                  <th scope="col" className="px-4 py-3 text-right">Amount</th>
-                  <th scope="col" className="px-4 py-3">Asked by</th>
-                  <th scope="col" className="py-3 pr-5 pl-4">Status</th>
+                  {shownColumns.map((column, at) => (
+                    <th
+                      key={column.id}
+                      scope="col"
+                      {...drag.headingProps(column.id)}
+                      className={cn(
+                        "cursor-grab touch-none px-4 py-3 select-none",
+                        column.align === "right" ? "text-right" : "text-left",
+                        at === shownColumns.length - 1 && "pr-5",
+                        drag.dragging === column.id && "cursor-grabbing opacity-40",
+                        drag.over === column.id && "bg-primary-50",
+                      )}
+                      title={`Drag to move ${column.label}`}
+                    >
+                      {column.label}
+                      <span className="sr-only">
+                        , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                      </span>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -733,25 +846,18 @@ export function ClientRequestsPage() {
                         </div>
                       </div>
                     </th>
-                    <td className="px-4 py-3">
-                      <span className="block truncate">{row.why}</span>
-                      <span className="block truncate text-xs text-ink-muted">
-                        {row.legs.length === 1
-                          ? `Out of ${named(row.legs[0].fromSubClass, row.legs[0].fromAssetClass,
-                              row.legs[0].fromSubSubClass)}`
-                          : `${row.legs.length} lines`}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
-                      {row.currency} {figure(row.amount)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="block truncate">{row.raisedByName}</span>
-                      <span className="block text-xs text-ink-muted">{formatDateTime(row.raisedAt)}</span>
-                    </td>
-                    <td className="py-3 pr-5 pl-4">
-                      <Badge tone={TONES[row.status]}>{row.statusSaid}</Badge>
-                    </td>
+                    {shownColumns.map((column, at) => (
+                      <td
+                        key={column.id}
+                        className={cn(
+                          "px-4 py-3",
+                          column.align === "right" && "text-right",
+                          at === shownColumns.length - 1 && "pr-5",
+                        )}
+                      >
+                        {column.cell(row)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
