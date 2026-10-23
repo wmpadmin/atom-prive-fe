@@ -3,12 +3,17 @@ import {
   getReadKycDocumentUrl,
   useGetClientKycFile,
   type ClientKycFile,
+  type KycDocumentRow,
   type KycRequirement,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, cn } from "@atomprive/ui";
 import { Check, ChevronLeft, ExternalLink, Plus } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { openApiFile } from "../../lib/download";
 import { formatDate } from "../../lib/labels";
 import { kycStatusLabels, kycStatusTones } from "../clients/client-labels";
@@ -32,6 +37,74 @@ const CAME_FROM: Record<string, { to: string; label: string }> = {
  * over, so the whole file is here; the decision applies to the one document chosen, and the reason given is
  * shown to the client when it is turned down (#83).
  */
+/** One column of the pack a reader may move: its heading, and what it draws on a row. */
+type Column = {
+  id: string;
+  label: string;
+  nowrap?: boolean;
+  tone?: string;
+  cell: (row: KycDocumentRow) => ReactNode;
+};
+
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>The document itself is not among them: every row here is one paper of this one client's, so a row
+ * that does not name the paper names nothing. The way through to reading it is, because it has a heading
+ * of its own — and a reader who takes it off still opens any paper by clicking its row.
+ */
+const MOVABLE: Column[] = [
+  {
+    id: "uploaded",
+    label: "Uploaded",
+    tone: "text-ink-soft",
+    cell: (row) => <PutOnFileBy at={row.uploadedAt} by={row.uploadedByName} />,
+  },
+  {
+    id: "status",
+    label: "Status",
+    cell: (row) => (
+      <>
+        <Badge tone={reviewStateTones[row.reviewState]}>{reviewStateLabels[row.reviewState]}</Badge>
+        <p className="mt-1 max-w-sm text-2xs leading-relaxed text-ink-muted">
+          <DecidedBy
+            by={row.decidedByName}
+            at={row.decidedAt}
+            reason={row.decisionReason}
+          >
+            Nobody has decided on it yet
+          </DecidedBy>
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "expires",
+    label: "Expires",
+    nowrap: true,
+    tone: "text-ink-soft",
+    cell: (row) => (row.expiresOn ? formatDate(row.expiresOn) : "—"),
+  },
+  {
+    id: "action",
+    label: "Action",
+    cell: (row) => (
+      // Served through the API so that every look is recorded against the client.
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          void openApiFile(`/api${getReadKycDocumentUrl(row.id).replace("/api", "")}`, row.fileName);
+        }}
+        className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline"
+      >
+        Open in a tab
+        <ExternalLink aria-hidden="true" className="size-3.5" />
+      </button>
+    ),
+  },
+];
+
 export function ClientKycPage() {
   const { customerId = "" } = useParams();
   const file = useGetClientKycFile<ClientKycFile, ApiError>(customerId, {
@@ -48,6 +121,13 @@ export function ClientKycPage() {
 
   const documents = file.data?.documents ?? [];
   const waiting = documents.filter((one) => one.reviewState === "AWAITING_REVIEW");
+  // Read before the pack has arrived, because how this reader has arranged it is a thing about them and
+  // not about the fetch — a hook React sees on one render and not the next is a hook it cannot keep in
+  // order.
+  const view = useTableView("client-kyc-documents", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   if (!file.data) {
     return (
@@ -109,27 +189,69 @@ export function ClientKycPage() {
       {file.data.checklist.length > 0 && <Checklist checklist={file.data.checklist} />}
 
       <section className="rounded-2xl border border-line bg-white">
-        <div className="px-6 pt-5">
-          <h2 className="text-base font-bold">Documents on file</h2>
-          <p className="mt-0.5 text-xs text-ink-muted">
-            Choose a document to decide on · {waiting.length} awaiting review
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3 px-6 pt-5">
+          <div>
+            <h2 className="text-base font-bold">Documents on file</h2>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              Choose a document to decide on · {waiting.length} awaiting review
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <ViewTabs
+              views={view.views}
+              current={view.current}
+              edited={view.current === null ? view.arranged : view.changed}
+              onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+              onSave={view.saveAs}
+              onDelete={view.remove}
+              firstLabel="Everything on file"
+            />
+            <ColumnPicker
+              columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+              shown={new Set(view.shown)}
+              order={view.order}
+              arranged={view.arranged}
+              onChange={(next) => {
+                for (const one of MOVABLE) {
+                  if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+                }
+              }}
+              onMove={view.move}
+              onReset={view.reset}
+            />
+          </div>
         </div>
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-6">Document</th>
-                <th scope="col" className="px-4 py-3">Uploaded</th>
-                <th scope="col" className="px-4 py-3">Status</th>
-                <th scope="col" className="px-4 py-3">Expires</th>
-                <th scope="col" className="py-3 pr-6 pl-4">Action</th>
+                {shownColumns.map((column, at) => (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    {...drag.headingProps(column.id)}
+                    className={cn(
+                      "cursor-grab touch-none px-4 py-3 select-none",
+                      column.nowrap && "whitespace-nowrap",
+                      at === shownColumns.length - 1 && "pr-6",
+                      drag.dragging === column.id && "cursor-grabbing opacity-40",
+                      drag.over === column.id && "bg-primary-50",
+                    )}
+                    title={`Drag to move ${column.label}`}
+                  >
+                    {column.label}
+                    <span className="sr-only">
+                      , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                    </span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {documents.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-ink-muted">
+                  <td colSpan={shownColumns.length + 1} className="px-6 py-10 text-center text-ink-muted">
                     Nothing on file for this client yet.
                   </td>
                 </tr>
@@ -156,38 +278,20 @@ export function ClientKycPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-ink-soft">
-                    <PutOnFileBy at={row.uploadedAt} by={row.uploadedByName} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={reviewStateTones[row.reviewState]}>{reviewStateLabels[row.reviewState]}</Badge>
-                    <p className="mt-1 max-w-sm text-2xs leading-relaxed text-ink-muted">
-                      <DecidedBy
-                        by={row.decidedByName}
-                        at={row.decidedAt}
-                        reason={row.decisionReason}
-                      >
-                        Nobody has decided on it yet
-                      </DecidedBy>
-                    </p>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                    {row.expiresOn ? formatDate(row.expiresOn) : "—"}
-                  </td>
-                  <td className="py-3 pr-6 pl-4">
-                    {/* Served through the API so that every look is recorded against the client. */}
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void openApiFile(`/api${getReadKycDocumentUrl(row.id).replace("/api", "")}`, row.fileName);
-                      }}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline"
+                  {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                  {shownColumns.map((column, at) => (
+                    <td
+                      key={column.id}
+                      className={cn(
+                        "px-4 py-3",
+                        column.nowrap && "whitespace-nowrap",
+                        at === shownColumns.length - 1 && "pr-6",
+                        column.tone,
+                      )}
                     >
-                      Open in a tab
-                      <ExternalLink aria-hidden="true" className="size-3.5" />
-                    </button>
-                  </td>
+                      {column.cell(row)}
+                    </td>
+                  ))}
                 </tr>
                 </Fragment>
               ))}

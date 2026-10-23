@@ -8,10 +8,14 @@ import {
   type BankList,
   type BankView,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, Pagination, SelectInput } from "@atomprive/ui";
+import { Alert, Badge, Button, cn, Pagination, SelectInput } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { countryName } from "../../lib/countries";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { usePagedRows } from "../../lib/paged-rows";
@@ -22,6 +26,70 @@ import { ConfirmDialog } from "./confirm-dialog";
 
 type Filter = "" | "live" | "disabled";
 type Notice = { tone: "success" | "danger"; message: string };
+
+/**
+ * The columns of the bank list a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>The bank itself is not among them, and neither is the Disable and Edit pair at the end. A row with
+ * no bank named on it says nothing about any bank, and the buttons are what this screen is for.
+ */
+const MOVABLE: {
+  id: string;
+  label: string;
+  align: "left" | "right";
+  nowrap?: boolean;
+  /** The ink the cell is written in, where it is quieter than the bank's own name. */
+  tone?: string;
+  cell: (bank: BankView) => ReactNode;
+}[] = [
+  {
+    id: "country",
+    label: "Country",
+    align: "left",
+    tone: "text-ink-soft",
+    cell: (bank) => countryName(bank.countryCode),
+  },
+  {
+    id: "connection",
+    label: "Connection",
+    align: "left",
+    cell: (bank) => (
+      <>
+        <p className="font-medium">{connectionLabels[bank.connectionType]}</p>
+        <p className="max-w-56 truncate font-mono text-2xs text-ink-muted" title={bank.endpoint ?? undefined}>
+          {bank.endpoint ?? "Operations upload files"}
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "schedule",
+    label: "Schedule",
+    align: "left",
+    tone: "text-ink-soft",
+    cell: (bank) => scheduleLabels[bank.schedule],
+  },
+  {
+    id: "accounts",
+    label: "Accounts",
+    align: "right",
+    cell: (bank) => <span className="font-semibold tabular-nums">{bank.linkedAccounts}</span>,
+  },
+  {
+    id: "status",
+    label: "Status",
+    align: "left",
+    cell: (bank) => <Badge tone={bank.enabled ? "success" : "neutral"}>{bank.enabled ? "Live" : "Disabled"}</Badge>,
+  },
+  {
+    id: "lastSync",
+    label: "Last sync",
+    align: "left",
+    nowrap: true,
+    tone: "text-ink-soft",
+    cell: (bank) => formatRelative(bank.lastSyncAt),
+  },
+];
 
 /** The banks the platform takes data from (#101). */
 export function BanksTab() {
@@ -67,6 +135,10 @@ export function BanksTab() {
   const counts = banks.data?.counts;
   const rows = banks.data?.items ?? [];
   const paged = usePagedRows(rows, 10);
+  const view = useTableView("config-banks", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   return (
     <section aria-labelledby="banks-title" className="rounded-2xl border border-line bg-white p-5">
@@ -127,29 +199,69 @@ export function BanksTab() {
         </Stat>
       </div>
 
+      {/* Above the table, the two together: which of their arrangements a reader is in, and the way to
+          change it. */}
+      <div className="mt-4 flex flex-wrap items-start justify-between gap-2">
+        <ViewTabs
+          views={view.views}
+          current={view.current}
+          edited={view.current === null ? view.arranged : view.changed}
+          onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+          onSave={view.saveAs}
+          onDelete={view.remove}
+          firstLabel="Every bank"
+        />
+        <ColumnPicker
+          columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+          shown={new Set(view.shown)}
+          order={view.order}
+          arranged={view.arranged}
+          onChange={(next) => {
+            for (const one of MOVABLE) {
+              if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+            }
+          }}
+          onMove={view.move}
+          onReset={view.reset}
+        />
+      </div>
+
       <div className="-mx-5 mt-4 overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
               <th scope="col" className="py-3 pr-4 pl-5">Bank</th>
-              <th scope="col" className="px-4 py-3">Country</th>
-              <th scope="col" className="px-4 py-3">Connection</th>
-              <th scope="col" className="px-4 py-3">Schedule</th>
-              <th scope="col" className="px-4 py-3 text-right">Accounts</th>
-              <th scope="col" className="px-4 py-3">Status</th>
-              <th scope="col" className="px-4 py-3">Last sync</th>
+              {shownColumns.map((column, at) => (
+                <th
+                  key={column.id}
+                  scope="col"
+                  {...drag.headingProps(column.id)}
+                  className={cn(
+                    "cursor-grab touch-none px-4 py-3 select-none",
+                    column.align === "right" ? "text-right" : "text-left",
+                    drag.dragging === column.id && "cursor-grabbing opacity-40",
+                    drag.over === column.id && "bg-primary-50",
+                  )}
+                  title={`Drag to move ${column.label}`}
+                >
+                  {column.label}
+                  <span className="sr-only">
+                    , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                  </span>
+                </th>
+              ))}
               <th scope="col" className="py-3 pr-5 pl-4 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {banks.isPending && (
               <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-ink-muted">Loading banks…</td>
+                <td colSpan={shownColumns.length + 2} className="px-5 py-8 text-center text-ink-muted">Loading banks…</td>
               </tr>
             )}
             {!banks.isPending && rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-ink-muted">
+                <td colSpan={shownColumns.length + 2} className="px-5 py-8 text-center text-ink-muted">
                   {filter ? "No banks match this filter." : "No banks yet. Add the first one with Add bank."}
                 </td>
               </tr>
@@ -167,19 +279,20 @@ export function BanksTab() {
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-ink-soft">{countryName(bank.countryCode)}</td>
-                <td className="px-4 py-3">
-                  <p className="font-medium">{connectionLabels[bank.connectionType]}</p>
-                  <p className="max-w-56 truncate font-mono text-2xs text-ink-muted" title={bank.endpoint ?? undefined}>
-                    {bank.endpoint ?? "Operations upload files"}
-                  </p>
-                </td>
-                <td className="px-4 py-3 text-ink-soft">{scheduleLabels[bank.schedule]}</td>
-                <td className="px-4 py-3 text-right font-semibold tabular-nums">{bank.linkedAccounts}</td>
-                <td className="px-4 py-3">
-                  <Badge tone={bank.enabled ? "success" : "neutral"}>{bank.enabled ? "Live" : "Disabled"}</Badge>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(bank.lastSyncAt)}</td>
+                {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                {shownColumns.map((column) => (
+                  <td
+                    key={column.id}
+                    className={cn(
+                      "px-4 py-3",
+                      column.align === "right" && "text-right",
+                      column.nowrap && "whitespace-nowrap",
+                      column.tone,
+                    )}
+                  >
+                    {column.cell(bank)}
+                  </td>
+                ))}
                 <td className="py-3 pr-5 pl-4">
                   <div className="flex justify-end gap-2">
                     {bank.enabled ? (

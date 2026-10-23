@@ -16,8 +16,12 @@ import {
 import { Alert, Badge, Button, cn, IconButton, Pagination, SelectInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, TriangleAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { countryName } from "../../lib/countries";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { usePagedRows } from "../../lib/paged-rows";
@@ -107,6 +111,102 @@ export function FieldMappingTab() {
 
 type Draft = Record<string, FieldChoice>;
 
+/** A row as the table draws it: the field the bank sends, and what has been chosen for it so far. */
+type FieldRow = { field: MappedField; choice: FieldChoice; unmapped: boolean };
+
+type Column = {
+  id: string;
+  label: string;
+  /** The ink the cell is written in, where it is quieter than the field's own name. */
+  tone?: string;
+  cell: (row: FieldRow) => ReactNode;
+};
+
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>Built rather than written out, because two of these cells are controls rather than figures: they
+ * need the fields the portal offers and the draft this editor is holding.
+ *
+ * <p>The incoming field is not among them, and neither is Remove at the end. A row with no bank field
+ * named on it maps nothing, and the remove button has no heading to drag or to find in a list.
+ */
+function movableFor({ options, onChoose }: {
+  options: MappingOptions;
+  onChoose: (field: MappedField, change: Partial<FieldChoice>) => void;
+}): Column[] {
+  return [
+    {
+      id: "sample",
+      label: "Sample value",
+      tone: "font-mono text-xs text-ink-muted",
+      cell: ({ field }) => field.sampleValue ?? "—",
+    },
+    {
+      id: "standard",
+      label: "Portal standard field",
+      cell: ({ field, choice, unmapped }) => (
+        <label>
+          <span className="sr-only">Portal field for {field.incomingField}</span>
+          <SelectInput
+            id={`standard-${field.id}`}
+            value={choice.ignored ? "__ignored" : (choice.standardField ?? "")}
+            onChange={(event) => {
+              const value = event.target.value;
+              onChoose(field, {
+                ignored: value === "__ignored",
+                standardField: value === "__ignored" || value === "" ? null : (value as FieldChoice["standardField"]),
+              });
+            }}
+            className={cn("h-9 w-60 bg-slate-50 text-xs font-semibold", unmapped && "border-red-400 bg-white")}
+          >
+            <option value="">— not mapped —</option>
+            {options.standardFields.map((option) => (
+              <option key={option.field} value={option.field}>
+                {option.label}
+              </option>
+            ))}
+            <option value="__ignored">Ignore this field</option>
+          </SelectInput>
+        </label>
+      ),
+    },
+    {
+      id: "transform",
+      label: "Transform",
+      cell: ({ field, choice }) => (
+        <label>
+          <span className="sr-only">Transform for {field.incomingField}</span>
+          <SelectInput
+            id={`transform-${field.id}`}
+            value={choice.transform}
+            disabled={!choice.standardField || choice.ignored}
+            onChange={(event) => onChoose(field, { transform: event.target.value as FieldChoice["transform"] })}
+            className="h-9 w-auto text-xs"
+          >
+            {options.transforms.map((option) => (
+              <option key={option.transform} value={option.transform}>
+                {option.label}
+              </option>
+            ))}
+          </SelectInput>
+        </label>
+      ),
+    },
+    {
+      id: "state",
+      label: "State",
+      cell: ({ choice, unmapped }) => (choice.ignored ? (
+        <Badge>Ignored</Badge>
+      ) : unmapped ? (
+        <Badge tone="danger">Unmapped</Badge>
+      ) : (
+        <Badge tone="success">Mapped</Badge>
+      )),
+    },
+  ];
+}
+
 function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string; options: MappingOptions; onDirtyChange: (dirty: boolean) => void }) {
   const queryClient = useQueryClient();
   const mapping = useGetBankFieldMapping<BankMapping, ApiError>(bankId);
@@ -148,6 +248,24 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
 
   const paged = usePagedRows(mapping.data?.fields ?? [], 15);
 
+  function choose(field: MappedField, change: Partial<FieldChoice>) {
+    setNotice(undefined);
+    setDraft((current) => {
+      const next = { ...(current[field.id] ?? choiceOf(field)), ...change };
+      const { [field.id]: _previous, ...others } = current;
+      return sameChoice(next, choiceOf(field)) ? others : { ...others, [field.id]: next };
+    });
+  }
+
+  // Read before the mapping can return early. How this reader has arranged the table is a thing about
+  // them rather than about what came back, and a hook React sees on one render and not the next is a
+  // hook it cannot keep in order.
+  const movable = movableFor({ options, onChoose: choose });
+  const view = useTableView("field-mapping", movable.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(movable.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
+
   if (mapping.isPending) return <p className="mt-6 text-sm text-ink-muted">Loading mapping…</p>;
   if (mapping.isError) {
     return (
@@ -165,15 +283,6 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
     ignored: choices.filter((choice) => choice.ignored).length,
   };
   const alert = alertOnChange ?? bank.alertOnFormatChange;
-
-  function choose(field: MappedField, change: Partial<FieldChoice>) {
-    setNotice(undefined);
-    setDraft((current) => {
-      const next = { ...(current[field.id] ?? choiceOf(field)), ...change };
-      const { [field.id]: _previous, ...others } = current;
-      return sameChoice(next, choiceOf(field)) ? others : { ...others, [field.id]: next };
-    });
-  }
 
   function focusFirstUnmapped() {
     const first = bank.fields.find((_field, index) => !choices[index].ignored && !choices[index].standardField);
@@ -205,11 +314,37 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
         )}
       </div>
 
-      <div className="mt-3 flex justify-end">
-        <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
-          <Plus aria-hidden="true" />
-          Add incoming field
-        </Button>
+      {/* Above the table, the two together: which of their arrangements a reader is in, and the way to
+          change it. */}
+      <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
+        <ViewTabs
+          views={view.views}
+          current={view.current}
+          edited={view.current === null ? view.arranged : view.changed}
+          onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+          onSave={view.saveAs}
+          onDelete={view.remove}
+          firstLabel="Every incoming field"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <ColumnPicker
+            columns={movable.map((one) => ({ id: one.id, label: one.label }))}
+            shown={new Set(view.shown)}
+            order={view.order}
+            arranged={view.arranged}
+            onChange={(next) => {
+              for (const one of movable) {
+                if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+              }
+            }}
+            onMove={view.move}
+            onReset={view.reset}
+          />
+          <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
+            <Plus aria-hidden="true" />
+            Add incoming field
+          </Button>
+        </div>
       </div>
 
       <div className="-mx-5 mt-2 overflow-x-auto">
@@ -217,10 +352,24 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
           <thead>
             <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               <th scope="col" className="py-3 pr-4 pl-5">Incoming field (bank)</th>
-              <th scope="col" className="px-4 py-3">Sample value</th>
-              <th scope="col" className="px-4 py-3">Portal standard field</th>
-              <th scope="col" className="px-4 py-3">Transform</th>
-              <th scope="col" className="px-4 py-3">State</th>
+              {shownColumns.map((column, at) => (
+                <th
+                  key={column.id}
+                  scope="col"
+                  {...drag.headingProps(column.id)}
+                  className={cn(
+                    "cursor-grab touch-none px-4 py-3 select-none",
+                    drag.dragging === column.id && "cursor-grabbing opacity-40",
+                    drag.over === column.id && "bg-primary-50",
+                  )}
+                  title={`Drag to move ${column.label}`}
+                >
+                  {column.label}
+                  <span className="sr-only">
+                    , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                  </span>
+                </th>
+              ))}
               <th scope="col" className="py-3 pr-5 pl-4">
                 <span className="sr-only">Remove</span>
               </th>
@@ -229,7 +378,7 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
           <tbody className="divide-y divide-line">
             {bank.fields.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-ink-muted">
+                <td colSpan={shownColumns.length + 2} className="px-5 py-8 text-center text-ink-muted">
                   No incoming fields yet. They're added automatically when {bank.bankName}'s first file arrives, or you can
                   add them now from the bank's file specification.
                 </td>
@@ -240,63 +389,15 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
               const index = paged.page * paged.size + indexOnPage;
               const choice = choices[index];
               const unmapped = !choice.ignored && !choice.standardField;
-              const selectValue = choice.ignored ? "__ignored" : (choice.standardField ?? "");
               return (
                 <tr key={field.id} className={cn(unmapped && "bg-red-50/60")}>
                   <td className="py-2.5 pr-4 pl-5 font-mono text-xs font-semibold">{field.incomingField}</td>
-                  <td className="px-4 py-2.5 font-mono text-xs text-ink-muted">{field.sampleValue ?? "—"}</td>
-                  <td className="px-4 py-2.5">
-                    <label>
-                      <span className="sr-only">Portal field for {field.incomingField}</span>
-                      <SelectInput
-                        id={`standard-${field.id}`}
-                        value={selectValue}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          choose(field, {
-                            ignored: value === "__ignored",
-                            standardField: value === "__ignored" || value === "" ? null : (value as FieldChoice["standardField"]),
-                          });
-                        }}
-                        className={cn("h-9 w-60 bg-slate-50 text-xs font-semibold", unmapped && "border-red-400 bg-white")}
-                      >
-                        <option value="">— not mapped —</option>
-                        {options.standardFields.map((option) => (
-                          <option key={option.field} value={option.field}>
-                            {option.label}
-                          </option>
-                        ))}
-                        <option value="__ignored">Ignore this field</option>
-                      </SelectInput>
-                    </label>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <label>
-                      <span className="sr-only">Transform for {field.incomingField}</span>
-                      <SelectInput
-                        id={`transform-${field.id}`}
-                        value={choice.transform}
-                        disabled={!choice.standardField || choice.ignored}
-                        onChange={(event) => choose(field, { transform: event.target.value as FieldChoice["transform"] })}
-                        className="h-9 w-auto text-xs"
-                      >
-                        {options.transforms.map((option) => (
-                          <option key={option.transform} value={option.transform}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </SelectInput>
-                    </label>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {choice.ignored ? (
-                      <Badge>Ignored</Badge>
-                    ) : unmapped ? (
-                      <Badge tone="danger">Unmapped</Badge>
-                    ) : (
-                      <Badge tone="success">Mapped</Badge>
-                    )}
-                  </td>
+                  {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                  {shownColumns.map((column) => (
+                    <td key={column.id} className={cn("px-4 py-2.5", column.tone)}>
+                      {column.cell({ field, choice, unmapped })}
+                    </td>
+                  ))}
                   <td className="py-2.5 pr-5 pl-4 text-right">
                     <IconButton
                       label={`Remove ${field.incomingField}`}

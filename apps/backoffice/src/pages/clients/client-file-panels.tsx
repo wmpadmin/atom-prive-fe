@@ -5,6 +5,7 @@ import {
   type CustomerDetail,
   type FamilyMember,
   type ProposalPage,
+  type ProposalRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
@@ -12,8 +13,12 @@ import { FileSignature, ReceiptText, ScrollText, UserRoundPlus, Wallet } from "l
 import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
 import { formatDateTime } from "../../lib/labels";
 import { hasAnyAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
+import { useTableView } from "../../lib/table-view";
 import { ClientHoldingsPanel } from "../portfolios/client-holdings-panel";
 import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
 import { clientsHref, kycStatusLabels, kycStatusTones } from "./client-labels";
@@ -73,13 +78,63 @@ export function TransactionsPanel() {
   );
 }
 
+/**
+ * The columns of the proposals table a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>The proposal itself is not among them. It is both what names the row and the way through to it, and a
+ * line carrying only a reference and a date would be the record of something nobody could open.
+ */
+const MOVABLE: {
+  id: string;
+  label: string;
+  nowrap?: boolean;
+  tone?: string;
+  cell: (proposal: ProposalRow) => ReactNode;
+}[] = [
+  {
+    id: "reference",
+    label: "Reference",
+    nowrap: true,
+    tone: "font-mono text-xs text-ink-soft",
+    cell: (proposal) => proposal.reference,
+  },
+  {
+    id: "status",
+    label: "Status",
+    cell: (proposal) => (
+      <Badge tone={proposalStatusTones[proposal.status]}>{proposalStatusLabels[proposal.status]}</Badge>
+    ),
+  },
+  {
+    id: "sent",
+    label: "Sent",
+    nowrap: true,
+    tone: "text-ink-soft",
+    cell: (proposal) => (proposal.sentAt ? formatDateTime(proposal.sentAt) : "Not sent"),
+  },
+  {
+    id: "answeredBy",
+    label: "Answered by",
+    nowrap: true,
+    tone: "text-ink-soft",
+    cell: (proposal) => proposal.answeredByName ?? "—",
+  },
+];
+
 /** Every proposal written for this client, newest first: what was sent, where it got to, and who answered. */
 export function ProposalsPanel({ clientId }: { clientId: string }) {
   const proposals = useListProposals<ProposalPage, ApiError>(
     { customerId: clientId, size: 50 },
     { query: { placeholderData: keepPreviousData } },
   );
+  // Read above both ways out of this panel. How somebody has arranged the table is a thing about them
+  // rather than about what came back, and a hook React sees on one render and not the next is a hook it
+  // cannot keep in order.
+  const view = useTableView("client-proposals", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
   const rows = proposals.data?.items ?? [];
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   if (proposals.isError) {
     return <Alert tone="danger">{proposals.error.message}</Alert>;
@@ -93,21 +148,65 @@ export function ProposalsPanel({ clientId }: { clientId: string }) {
   }
   return (
     <section className="rounded-2xl border border-line bg-white">
+      {/* On the card's own line above the table, the way the bank accounts panel beside it carries its
+          own. The tab already names this list, so the line holds the arrangement and nothing else. */}
+      <div className="flex flex-wrap items-end justify-end gap-3 border-b border-line px-5 py-3">
+        <ViewTabs
+          views={view.views}
+          current={view.current}
+          edited={view.current === null ? view.arranged : view.changed}
+          onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+          onSave={view.saveAs}
+          onDelete={view.remove}
+          firstLabel="Every proposal"
+        />
+        <ColumnPicker
+          columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+          shown={new Set(view.shown)}
+          order={view.order}
+          arranged={view.arranged}
+          onChange={(next) => {
+            for (const one of MOVABLE) {
+              if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+            }
+          }}
+          onMove={view.move}
+          onReset={view.reset}
+        />
+      </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               <th scope="col" className="py-3 pr-4 pl-5">Proposal</th>
-              <th scope="col" className="px-4 py-3">Reference</th>
-              <th scope="col" className="px-4 py-3">Status</th>
-              <th scope="col" className="px-4 py-3">Sent</th>
-              <th scope="col" className="py-3 pr-5 pl-4">Answered by</th>
+              {shownColumns.map((column, at) => (
+                <th
+                  key={column.id}
+                  scope="col"
+                  {...drag.headingProps(column.id)}
+                  className={cn(
+                    "cursor-grab touch-none px-4 py-3 select-none",
+                    column.nowrap && "whitespace-nowrap",
+                    at === shownColumns.length - 1 && "pr-5",
+                    drag.dragging === column.id && "cursor-grabbing opacity-40",
+                    drag.over === column.id && "bg-primary-50",
+                  )}
+                  title={`Drag to move ${column.label}`}
+                >
+                  {column.label}
+                  <span className="sr-only">
+                    , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                  </span>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {!proposals.data && (
               <tr>
-                <td colSpan={5} className="px-5 py-8 text-center text-ink-muted">Loading proposals…</td>
+                <td colSpan={shownColumns.length + 1} className="px-5 py-8 text-center text-ink-muted">
+                  Loading proposals…
+                </td>
               </tr>
             )}
             {rows.map((proposal) => (
@@ -118,16 +217,20 @@ export function ProposalsPanel({ clientId }: { clientId: string }) {
                   </Link>
                   {proposal.summary && <p className="truncate text-xs text-ink-muted">{proposal.summary}</p>}
                 </td>
-                <td className="px-4 py-3 font-mono text-xs whitespace-nowrap text-ink-soft">{proposal.reference}</td>
-                <td className="px-4 py-3">
-                  <Badge tone={proposalStatusTones[proposal.status]}>{proposalStatusLabels[proposal.status]}</Badge>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                  {proposal.sentAt ? formatDateTime(proposal.sentAt) : "Not sent"}
-                </td>
-                <td className="py-3 pr-5 pl-4 whitespace-nowrap text-ink-soft">
-                  {proposal.answeredByName ?? "—"}
-                </td>
+                {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                {shownColumns.map((column, at) => (
+                  <td
+                    key={column.id}
+                    className={cn(
+                      "px-4 py-3",
+                      column.nowrap && "whitespace-nowrap",
+                      column.tone,
+                      at === shownColumns.length - 1 && "pr-5",
+                    )}
+                  >
+                    {column.cell(proposal)}
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>

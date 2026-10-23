@@ -10,12 +10,66 @@ import {
 import { Alert, Button, Field, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStaffUser } from "../../auth/session";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { hasAuthority } from "../../lib/permissions";
 import { Pencil, Plus } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { formatDateTime } from "../../lib/labels";
 
 type Notice = { tone: "success" | "danger"; message: string };
+
+/**
+ * The columns of the full list a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>The class is not among them: it carries the code every figure is stored under, and a row that does
+ * not say which class it is cannot be renamed or retired from. Neither is the pair of buttons at the end,
+ * which has no heading to take hold of.
+ *
+ * <p>Only the full list has columns at all. The lean one is a vocabulary read in three columns of names,
+ * so there is nothing in it to arrange.
+ */
+const MOVABLE: {
+  id: string;
+  label: string;
+  align: "left" | "right";
+  /** The ink the cell is written in, where it is quieter than the name of the class. */
+  tone?: string;
+  nowrap?: boolean;
+  cell: (row: AssetClassRow) => ReactNode;
+}[] = [
+  {
+    id: "short",
+    label: "Short",
+    align: "left",
+    tone: "text-ink-soft",
+    cell: (row) => row.shortName,
+  },
+  {
+    id: "models",
+    label: "Models",
+    align: "right",
+    tone: "text-ink-soft",
+    cell: (row) => row.models,
+  },
+  {
+    id: "clients",
+    label: "Clients",
+    align: "right",
+    tone: "text-ink-soft",
+    cell: (row) => row.clients,
+  },
+  {
+    id: "lastChanged",
+    label: "Last changed",
+    align: "left",
+    tone: "text-xs text-ink-muted",
+    nowrap: true,
+    cell: (row) => `${formatDateTime(row.updatedAt)}${row.updatedBy ? ` · ${row.updatedBy}` : ""}`,
+  },
+];
 
 /**
  * The firm's own list of asset classes (A3.5 #6, R102). Every model, holding and valuation is counted under
@@ -70,6 +124,11 @@ export function AssetClassesTab({ lean = false }: {
       onError: refused,
     },
   });
+
+  const view = useTableView("config-asset-classes", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   const rows = listed.data ?? [];
   const busy = add.isPending || rename.isPending || retire.isPending;
@@ -188,26 +247,68 @@ export function AssetClassesTab({ lean = false }: {
         )}
         </div>
       ) : (
+        <div className="space-y-3">
+        {/* Above the table, the two together: which of their arrangements a reader is in, and the way to
+            change it. */}
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <ViewTabs
+            views={view.views}
+            current={view.current}
+            edited={view.current === null ? view.arranged : view.changed}
+            onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+            onSave={view.saveAs}
+            onDelete={view.remove}
+            firstLabel="Every class"
+          />
+          <ColumnPicker
+            columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+            shown={new Set(view.shown)}
+            order={view.order}
+            arranged={view.arranged}
+            onChange={(next) => {
+              for (const one of MOVABLE) {
+                if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+              }
+            }}
+            onMove={view.move}
+            onReset={view.reset}
+          />
+        </div>
         <div className="overflow-x-auto rounded-2xl border border-line bg-white">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               <th scope="col" className="py-3 pr-4 pl-5">Class</th>
-              {!lean && <th scope="col" className="px-4 py-3">Short</th>}
-              {!lean && <th scope="col" className="px-4 py-3 text-right">Models</th>}
-              {!lean && <th scope="col" className="px-4 py-3 text-right">Clients</th>}
-              {!lean && <th scope="col" className="px-4 py-3">Last changed</th>}
+              {shownColumns.map((column, at) => (
+                <th
+                  key={column.id}
+                  scope="col"
+                  {...drag.headingProps(column.id)}
+                  className={cn(
+                    "cursor-grab touch-none px-4 py-3 select-none",
+                    column.align === "right" ? "text-right" : "text-left",
+                    drag.dragging === column.id && "cursor-grabbing opacity-40",
+                    drag.over === column.id && "bg-primary-50",
+                  )}
+                  title={`Drag to move ${column.label}`}
+                >
+                  {column.label}
+                  <span className="sr-only">
+                    , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                  </span>
+                </th>
+              ))}
               <th scope="col" className="py-3 pr-5 pl-4 text-right"><span className="sr-only">Change</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {listed.isPending && (
-              <tr><td colSpan={lean ? 2 : 6} className="px-5 py-8 text-center text-ink-muted">Loading…</td></tr>
+              <tr><td colSpan={shownColumns.length + 2} className="px-5 py-8 text-center text-ink-muted">Loading…</td></tr>
             )}
             {rows.map((row) =>
               editing === row.code ? (
                 <tr key={row.code}>
-                  <td colSpan={lean ? 2 : 6} className="px-5 py-4">
+                  <td colSpan={shownColumns.length + 2} className="px-5 py-4">
                     <ClassForm
                       title={`Rename ${row.name}`}
                       name={row.name}
@@ -226,15 +327,20 @@ export function AssetClassesTab({ lean = false }: {
                     {/* The code is what every figure is stored under, so it is shown rather than hidden. */}
                     <span className="block font-mono text-xs text-ink-muted">{row.code}</span>
                   </td>
-                  {!lean && <td className="px-4 py-3 text-ink-soft">{row.shortName}</td>}
-                  {!lean && <td className="px-4 py-3 text-right tabular-nums text-ink-soft">{row.models}</td>}
-                  {!lean && <td className="px-4 py-3 text-right tabular-nums text-ink-soft">{row.clients}</td>}
-                  {!lean && (
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-ink-muted">
-                      {formatDateTime(row.updatedAt)}
-                      {row.updatedBy ? ` · ${row.updatedBy}` : ""}
+                  {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                  {shownColumns.map((column) => (
+                    <td
+                      key={column.id}
+                      className={cn(
+                        "px-4 py-3",
+                        column.align === "right" && "text-right tabular-nums",
+                        column.nowrap && "whitespace-nowrap",
+                        column.tone,
+                      )}
+                    >
+                      {column.cell(row)}
                     </td>
-                  )}
+                  ))}
                   <td className="py-3 pr-5 pl-4 text-right whitespace-nowrap">
                     {mayChange && (<>
                     <Button
@@ -268,6 +374,7 @@ export function AssetClassesTab({ lean = false }: {
           </tbody>
         </table>
       </div>
+        </div>
       )}
 
       {!lean && (

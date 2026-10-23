@@ -1,4 +1,16 @@
-import { useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
+
+/**
+ * What a heading says, without the part only a screen reader hears.
+ *
+ * <p>Every heading carries a note after its name — "column 2 of 5, use the Columns button" — which is
+ * there for somebody who cannot see the table. Read whole, the label being carried would say it too.
+ */
+function labelOf(heading: HTMLElement) {
+  const copy = heading.cloneNode(true) as HTMLElement;
+  for (const heard of copy.querySelectorAll(".sr-only")) heard.remove();
+  return copy.textContent?.trim() ?? "";
+}
 
 /**
  * Taking hold of a column heading and putting it down somewhere else.
@@ -27,10 +39,63 @@ export function useColumnDrag(view: { order: string[]; move: (id: string, to: nu
    */
   const took = useRef<{ id: string; from: number } | null>(null);
 
+  /*
+   * The label travelling with the pointer.
+   *
+   * <p>Built by hand and put on the page rather than drawn by React, so that every table gets it from
+   * this one file. Rendered the usual way it would have to be mounted by each table in turn, which is
+   * nine more places to forget it — and a drag that looks different on one screen than on the next is
+   * nobody's decision.
+   *
+   * <p>Without it, the only sign a column was in hand was the heading going pale and the one under the
+   * pointer tinting. A reader watching their own pointer saw neither.
+   */
+  const carried = useRef<HTMLDivElement | null>(null);
+  /** What that label says, read off the heading at the moment it was pressed. */
+  const label = useRef("");
+
+  function pickUp(label: string, x: number, y: number) {
+    if (carried.current) return;
+    const node = document.createElement("div");
+    // Must not take the pointer: what is under it is how the heading to drop on is worked out, and a
+    // label sitting under the cursor would be the only thing ever found there.
+    node.className = "pointer-events-none fixed z-50 rounded-lg border border-line bg-white "
+      + "px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-ink shadow-lg";
+    node.textContent = label;
+    document.body.append(node);
+    carried.current = node;
+    carryTo(x, y);
+    // The cursor keeps its grip the whole way across, including over the gaps between headings, and
+    // nothing highlights as blue text while the pointer sweeps the table.
+    document.body.style.cursor = "grabbing";
+    document.body.style.userSelect = "none";
+  }
+
+  function carryTo(x: number, y: number) {
+    const node = carried.current;
+    if (!node) return;
+    node.style.left = `${x}px`;
+    node.style.top = `${y}px`;
+    // Beside the pointer rather than under it, so the label never hides the heading being aimed at.
+    node.style.transform = "translate(14px, -50%)";
+  }
+
+  function putDown() {
+    carried.current?.remove();
+    carried.current = null;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }
+
+  // A drag that ends because the screen went away still has to let go of the page: the label is on the
+  // body, which outlives this table.
+  useEffect(() => putDown, []);
+
   function clear() {
     took.current = null;
     setDragging(null);
     setOver(null);
+    putDown();
   }
 
   /** Everything a heading needs to be draggable, bound to the column it is the heading of. */
@@ -42,6 +107,9 @@ export function useColumnDrag(view: { order: string[]; move: (id: string, to: nu
         if (event.button !== 0) return;
         event.preventDefault();
         took.current = { id, from: event.clientX };
+        // Taken now, while the heading is certainly still the one pressed. Read later it would be read
+        // off whatever the pointer had since moved over.
+        label.current = labelOf(event.currentTarget);
       },
       onPointerMove: (event: PointerEvent<HTMLElement>) => {
         const holding = took.current;
@@ -49,7 +117,11 @@ export function useColumnDrag(view: { order: string[]; move: (id: string, to: nu
         // A few pixels before it counts as a drag, so a press that wanders by one does not rearrange
         // the table under somebody who meant to click.
         if (dragging === null && Math.abs(event.clientX - holding.from) < 4) return;
-        if (dragging === null) setDragging(holding.id);
+        if (dragging === null) {
+          setDragging(holding.id);
+          pickUp(label.current, event.clientX, event.clientY);
+        }
+        carryTo(event.clientX, event.clientY);
         const under = document.elementFromPoint(event.clientX, event.clientY);
         const heading = under?.closest("[data-column]")?.getAttribute("data-column") ?? null;
         setOver(heading === holding.id ? null : heading);

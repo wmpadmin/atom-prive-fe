@@ -1,10 +1,14 @@
 import { ApiError } from "@atomprive/api-client";
-import { exportStaffUsers, useListStaffUsers, type StaffUserPage } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Button, IconButton, Pagination, SelectInput, StatCard, TextInput } from "@atomprive/ui";
+import { exportStaffUsers, useListStaffUsers, type StaffUserPage, type StaffUserSummary } from "@atomprive/api-client/backoffice";
+import { Alert, Avatar, Button, cn, IconButton, Pagination, SelectInput, StatCard, TextInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Ban, CircleCheck, Download, Mail, Pencil, Plus, Power, Search, Users } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { useStaffUser } from "../../auth/session";
 import { downloadTextFile } from "../../lib/download";
@@ -15,6 +19,71 @@ import { AddUserDialog } from "./add-user-dialog";
 import { DeactivateUserDialog } from "./deactivate-user-dialog";
 import { StatusBadge } from "./status-badge";
 
+
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>The staff member themselves is not among them, and neither is the pair of buttons at the end. A row
+ * with nobody named on it is a telephone number belonging to no one; and the pencil and the power switch
+ * are the only way to edit or deactivate anybody from this screen, so a column that could be taken off
+ * would be a way of losing them.
+ */
+const MOVABLE: {
+  id: string;
+  label: string;
+  align: "left" | "right";
+  nowrap?: boolean;
+  tone?: string;
+  /** What a column is waiting on, where the firm has not built the thing that fills it yet. */
+  note?: string;
+  cell: (user: StaffUserSummary) => ReactNode;
+}[] = [
+  {
+    id: "phone",
+    label: "Phone",
+    align: "left",
+    nowrap: true,
+    tone: "text-ink-soft",
+    cell: (user) => formatMobileNumber(user.phone) ?? "—",
+  },
+  {
+    id: "role",
+    label: "Role",
+    align: "left",
+    tone: "text-ink-soft",
+    cell: (user) => roleList(user.roles),
+  },
+  {
+    id: "assignedCustomers",
+    label: "Assigned customers",
+    align: "left",
+    tone: "text-ink-muted",
+    note: "Filled in once advisor-to-customer assignment (#80) is built",
+    cell: () => "—",
+  },
+  {
+    id: "status",
+    label: "Status",
+    align: "left",
+    cell: (user) => <StatusBadge status={user.status} />,
+  },
+  {
+    id: "declarations",
+    label: "Declarations",
+    align: "left",
+    tone: "text-ink-muted",
+    note: "Filled in once staff declarations are built",
+    cell: () => "—",
+  },
+  {
+    id: "lastActive",
+    label: "Last active",
+    align: "left",
+    nowrap: true,
+    tone: "text-ink-soft",
+    cell: (user) => formatRelative(user.lastActiveAt),
+  },
+];
 
 export function UsersPage() {
   const currentUser = useStaffUser();
@@ -42,6 +111,11 @@ export function UsersPage() {
   const [deactivating, setDeactivating] = useState<{ id: string; fullName: string } | null>(null);
   const [notice, setNotice] = useState<{ tone: "success" | "danger"; message: string }>();
   const [exporting, setExporting] = useState(false);
+  // How this reader has arranged the table, read with the rest of the state and above anything that could
+  // return early: it is a thing about their own screen rather than about the staff, and a hook React sees
+  // on one render and not the next is a hook it cannot keep in order.
+  const view = useTableView("staff-users", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
 
   function changeFilter(apply: () => void) {
     apply();
@@ -64,6 +138,8 @@ export function UsersPage() {
   const counts = staff.data?.counts;
   const rows = staff.data?.items ?? [];
   const total = staff.data?.totalItems ?? 0;
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
   return (
     <div className="space-y-6">
@@ -95,6 +171,17 @@ export function UsersPage() {
         <StatCard icon={<Mail />} value={counts?.invited ?? "–"} label="Invited" />
         <StatCard icon={<Ban />} value={counts?.deactivated ?? "–"} label="Deactivated" />
       </div>
+
+      {/* Above the table: which of their arrangements a reader is in is read before anything in it. */}
+      <ViewTabs
+        views={view.views}
+        current={view.current}
+        edited={view.current === null ? view.arranged : view.changed}
+        onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+        onSave={view.saveAs}
+        onDelete={view.remove}
+        firstLabel="Everyone on staff"
+      />
 
       <section className="rounded-2xl border border-line bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-4">
@@ -137,6 +224,19 @@ export function UsersPage() {
                 ))}
               </SelectInput>
             </label>
+            <ColumnPicker
+              columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+              shown={new Set(view.shown)}
+              order={view.order}
+              arranged={view.arranged}
+              onChange={(next) => {
+                for (const one of MOVABLE) {
+                  if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+                }
+              }}
+              onMove={view.move}
+              onReset={view.reset}
+            />
           </div>
         </div>
 
@@ -145,28 +245,42 @@ export function UsersPage() {
             <thead>
               <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">User</th>
-                <th scope="col" className="px-4 py-3">Phone</th>
-                <th scope="col" className="px-4 py-3">Role</th>
-                <th scope="col" className="px-4 py-3" title="Filled in once advisor-to-customer assignment (#80) is built">
-                  Assigned customers
-                </th>
-                <th scope="col" className="px-4 py-3">Status</th>
-                <th scope="col" className="px-4 py-3" title="Filled in once staff declarations are built">
-                  Declarations
-                </th>
-                <th scope="col" className="px-4 py-3">Last active</th>
+                {shownColumns.map((column, at) => (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    {...drag.headingProps(column.id)}
+                    className={cn(
+                      "cursor-grab touch-none px-4 py-3 select-none",
+                      column.align === "right" ? "text-right" : "text-left",
+                      column.nowrap && "whitespace-nowrap",
+                      drag.dragging === column.id && "cursor-grabbing opacity-40",
+                      drag.over === column.id && "bg-primary-50",
+                    )}
+                    // Two of these columns are empty until the firm builds what fills them, and the
+                    // heading is the only place that says so — kept in front of how to move it.
+                    title={column.note === undefined
+                      ? `Drag to move ${column.label}`
+                      : `${column.note} · Drag to move ${column.label}`}
+                  >
+                    {column.label}
+                    <span className="sr-only">
+                      , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                    </span>
+                  </th>
+                ))}
                 <th scope="col" className="py-3 pr-5 pl-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {staff.isPending && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-ink-muted">Loading staff…</td>
+                  <td colSpan={shownColumns.length + 2} className="px-5 py-8 text-center text-ink-muted">Loading staff…</td>
                 </tr>
               )}
               {!staff.isPending && rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-ink-muted">
+                  <td colSpan={shownColumns.length + 2} className="px-5 py-8 text-center text-ink-muted">
                     {query || role || status ? "No staff match these filters." : "No staff yet. Add the first one with New user."}
                   </td>
                 </tr>
@@ -189,14 +303,20 @@ export function UsersPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatMobileNumber(user.phone) ?? "—"}</td>
-                  <td className="px-4 py-3 text-ink-soft">{roleList(user.roles)}</td>
-                  <td className="px-4 py-3 text-ink-muted">—</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={user.status} />
-                  </td>
-                  <td className="px-4 py-3 text-ink-muted">—</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{formatRelative(user.lastActiveAt)}</td>
+                  {/* The cells in the order the headings are in, out of the one list that holds both. */}
+                  {shownColumns.map((column) => (
+                    <td
+                      key={column.id}
+                      className={cn(
+                        "px-4 py-3",
+                        column.align === "right" && "text-right tabular-nums",
+                        column.nowrap && "whitespace-nowrap",
+                        column.tone,
+                      )}
+                    >
+                      {column.cell(user)}
+                    </td>
+                  ))}
                   <td className="py-3 pr-5 pl-4">
                     <div className="flex justify-end gap-2">
                       <IconButton label={`Edit ${user.fullName}`} onClick={(event) => { event.stopPropagation(); void navigate(`/users/${user.id}`); }}>
