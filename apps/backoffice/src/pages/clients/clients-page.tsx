@@ -32,7 +32,7 @@ import { AssignAdvisorDialog, type ClientToAssign } from "./assign-advisor-dialo
 import { AssignPortfolioManagerDialog } from "./assign-portfolio-manager-dialog";
 import { assignmentNotice, clientKindLabels, clientTypeLabels, managerAssignmentNotice } from "./client-labels";
 import { ClientSearch } from "./client-search";
-import { StaffChips } from "./staff-chips";
+import { StaffStack } from "./staff-stack";
 
 
 const EARLIEST_REGISTRATION = new Date(2000, 0, 1);
@@ -95,25 +95,24 @@ type Column = {
 /**
  * The columns beside the client's name, in the order the firm wrote them.
  *
- * <p>Built rather than written out, because two of these cells need what only the screen knows: the
- * proposals read for this reader, and the dialog the assign button opens.
+ * <p>Built rather than written out, because one of these cells needs what only the screen knows: the
+ * proposals read for this reader.
  *
  * <p>Two columns are not here. The client is the row — a line with no client on it names nothing — and
  * the tick box has no heading, so there is nothing to drag and nothing to find in a list.
  *
- * <p>Which columns there are at all is the firm's rule and not the reader's, so the ones this reader
- * does not get are left out rather than listed and turned off. Assigning is the only kind of action there
- * is, so a reader who can do neither assigning is not offered that column at all, and whoever can do one
- * of them is offered that one button in it; and the proposal a client is considering is their advisor's
- * business, which the firm-wide list has its own screen for.
+ * <p>Which columns there are at all is the firm's rule and not the reader's, so the ones this reader does
+ * not get are left out rather than listed and turned off: the proposal a client is considering is their
+ * advisor's business, which the firm-wide list has its own screen for.
+ *
+ * <p>Assigning is not among them. Putting an advisor or a manager on a client is done on the client's own
+ * page, where the people already there are listed with the date each was given them — a row in a list has
+ * room for the button but not for what the button is about, and two buttons on every row of ten made the
+ * widest column on the screen the one nobody reads down.
  */
-function movableFor({ canAssignAdvisors, canAssignManagers, mine, newestProposal, onAssign, onAssignManager }: {
-  canAssignAdvisors: boolean;
-  canAssignManagers: boolean;
+function movableFor({ mine, newestProposal }: {
   mine: boolean;
   newestProposal: Map<string, ProposalRow>;
-  onAssign: (customer: CustomerRow) => void;
-  onAssignManager: (customer: CustomerRow) => void;
 }): Column[] {
   return [
     {
@@ -150,7 +149,7 @@ function movableFor({ canAssignAdvisors, canAssignManagers, mine, newestProposal
       id: "advisors",
       label: "Advisors",
       // The row is the account, so it shows whoever advises anybody holding it.
-      cell: (customer) => <StaffChips people={advisorsOn(customer)} nobody="Default" nobodyTitle="No advisor yet" />,
+      cell: (customer) => <StaffStack people={advisorsOn(customer)} />,
     },
     {
       id: "portfolioManagers",
@@ -158,9 +157,7 @@ function movableFor({ canAssignAdvisors, canAssignManagers, mine, newestProposal
       // Beside the advisors and never folded in with them: they are two desks doing two jobs, and a name
       // in one column is not a name in the other. Everyone sees the column, because recording who manages
       // a client narrows nothing — it is only the assigning that Operations hold.
-      cell: (customer) => (
-        <StaffChips people={managersOn(customer)} nobody="None yet" nobodyTitle="No portfolio manager yet" />
-      ),
+      cell: (customer) => <StaffStack people={managersOn(customer)} />,
     },
     ...(mine
       ? [{
@@ -176,38 +173,6 @@ function movableFor({ canAssignAdvisors, canAssignManagers, mine, newestProposal
       tone: "text-ink-soft",
       cell: (customer) => formatRelative(customer.lastLoginAt, "Never"),
     },
-    ...(canAssignAdvisors || canAssignManagers
-      ? [{
-          id: "action",
-          label: "Action",
-          // One column holding whichever assignings this reader does, rather than a column each: they are
-          // the same thing done to the same row, and a second heading called Action names nothing.
-          cell: (customer: CustomerRow) => (
-            <div className="flex flex-wrap gap-2">
-              {canAssignAdvisors && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={(event) => { event.stopPropagation(); onAssign(customer); }}
-                >
-                  <UserRoundCog aria-hidden="true" />
-                  Assign advisor
-                </Button>
-              )}
-              {canAssignManagers && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={(event) => { event.stopPropagation(); onAssignManager(customer); }}
-                >
-                  <Briefcase aria-hidden="true" />
-                  Assign portfolio manager
-                </Button>
-              )}
-            </div>
-          ),
-        }]
-      : []),
     {
       id: "portfolio",
       label: "Portfolio",
@@ -362,14 +327,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
     }
   }
   const today = new Date();
-  const movable = movableFor({
-    canAssignAdvisors,
-    canAssignManagers,
-    mine,
-    newestProposal,
-    onAssign: (customer) => setAssigning(everyHolderOf(customer)),
-    onAssignManager: (customer) => setAssigningManager(everyHolderOf(customer)),
-  });
+  const movable = movableFor({ mine, newestProposal });
   // Read before the page can send itself anywhere else: how this reader has arranged the table is a thing
   // about them and not about which page they landed on, and a hook that is skipped on one render is a hook
   // React cannot keep in order. Kept apart for the two screens this component is, because they are not

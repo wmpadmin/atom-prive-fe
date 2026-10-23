@@ -6,17 +6,21 @@ import { useEffect, useId, useRef, useState } from "react";
 const FACES = 3;
 
 /**
- * A client's advisors in one column's width: a few faces, one name, and the rest a press away.
+ * A client's people from one desk in one column's width: a few faces, one name, and the rest a press away.
+ *
+ * <p>One component for advisors and for portfolio managers both. They are two desks and two columns, but
+ * a row of people in a column's width is the same problem twice, and the second copy is the one that
+ * drifts.
  *
  * <p>Named chips wrapped. A client with five advisors took three lines of the row and set the whole table
  * to the width of whoever had the most, so a column somebody reads down for one name was the widest thing
  * on the screen. This holds the same width whatever the count.
  *
- * <p>The name beside the faces is the advisor who has had the client longest, which is the order the list
- * arrives in. It is not a title — the firm has not named anybody primary — it is the one name worth
- * putting in a row that has room for one, and whoever wants the rest presses the faces.
+ * <p>The name beside the faces is whoever has had the client longest, which is the order the list arrives
+ * in. It is not a title — the firm has not named anybody primary — it is the one name worth putting in a
+ * row that has room for one, and whoever wants the rest presses the faces.
  */
-export function AdvisorStack({ advisors }: { advisors: StaffMember[] }) {
+export function StaffStack({ people: advisors }: { people: StaffMember[] }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const id = useId();

@@ -20,7 +20,7 @@ import { useTableView } from "../../lib/table-view";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { formatDate } from "../../lib/labels";
-import { AdvisorStack } from "../clients/advisor-stack";
+import { StaffStack } from "../clients/staff-stack";
 import { ClientSearch } from "../clients/client-search";
 import { PortfolioSetupDialog } from "./portfolio-setup-dialog";
 import { isSetUp } from "./set-up";
@@ -122,7 +122,7 @@ const MOVABLE: {
     id: "advisor",
     label: "Advisor",
     align: "left",
-    cell: ({ client }) => <AdvisorStack advisors={client.advisors} />,
+    cell: ({ client }) => <StaffStack people={client.advisors} />,
   },
   {
     id: "risk",
