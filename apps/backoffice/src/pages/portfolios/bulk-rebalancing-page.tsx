@@ -13,10 +13,14 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, DateInput, Dialog, SelectInput, cn } from "@atomprive/ui";
 import { Receipt } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { ColumnPicker } from "../../components/column-picker";
 import { ListPageHeader } from "../../components/record-list";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { hasAnyAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
@@ -43,10 +47,105 @@ function yearsAgo(years: number) {
  * is a different cheque for a client with ten million and one with one. The list is worked down client by
  * client, and what is recorded is that each was put back — the platform never places the trade.
  */
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>The tick box and the client stay where they are, and so does the way into the trade list at the
+ * end: a row that cannot be identified cannot be ticked for anything, and an action with no heading
+ * cannot be dragged or found in a list.
+ */
+/** What share of the table each column is given, kept beside the list it belongs to. */
+const WIDTHS: Record<string, string> = {
+  advisors: "w-[18%]",
+  aum: "w-[12%]",
+  drift: "w-[10%]",
+  standing: "w-[13%]",
+  request: "w-[13%]",
+};
+
+const MOVABLE: {
+  id: string;
+  label: string;
+  align: "left" | "right";
+  pad?: string;
+  cell: (client: ClientRebalance) => ReactNode;
+  tone?: (client: ClientRebalance) => string | undefined;
+}[] = [
+  {
+    id: "advisors",
+    label: "Advisors",
+    align: "left",
+    /*
+     * Who is about to be asked. Raising a rebalance sends each of these clients to their own manager to
+     * answer, and a list with no sign of who that is hides what the press does.
+     */
+    cell: (client) => <AdvisorStack advisors={client.advisors} />,
+  },
+  {
+    id: "aum",
+    label: "AUM",
+    align: "right",
+    cell: (client) => (
+      <span className="font-semibold">
+        {underManagementLabel(client.underManagement, client.currency)}
+      </span>
+    ),
+  },
+  {
+    id: "drift",
+    label: "Drift",
+    align: "right",
+    /*
+     * A figure read from the right meeting a badge read from the left: without a gutter of their own
+     * the two sat against each other and read as one column.
+     *
+     * Coloured by where the portfolio stands, not by the sign of the figure: drift is how far it has
+     * wandered either way, so it is never negative and used to read green at its very worst.
+     */
+    pad: "pr-6 pl-4",
+    tone: (client) => (client.standing == null ? "text-ink-muted" : driftTones[client.standing]),
+    cell: (client) => (
+      <span className="font-semibold">{client.drift == null ? "—" : driftLabel(client.drift)}</span>
+    ),
+  },
+  {
+    id: "standing",
+    label: "Standing",
+    align: "left",
+    pad: "pr-4 pl-6",
+    cell: (client) => (client.standing ? (
+      <Badge tone={standingTones[client.standing]}>{standingLabels[client.standing]}</Badge>
+    ) : (
+      <span className="text-ink-muted">Nothing written down</span>
+    )),
+  },
+  {
+    id: "request",
+    label: "Request",
+    align: "left",
+    /*
+     * Where their request has got to. Said on the row because the row is where somebody decides whether
+     * to tick them, and a client whose manager has already agreed still reads as breached with the same
+     * trades beside them — the money does not move until the desk places it.
+     */
+    cell: (client) => (client.requestStanding === "BEING_PLACED" ? (
+      <Badge tone="success">Agreed · being placed</Badge>
+    ) : client.requestStanding === "WAITING" ? (
+      <Badge tone="info">Waiting on their manager</Badge>
+    ) : (
+      <span className="text-ink-muted">—</span>
+    )),
+  },
+];
+
 export function BulkRebalancingPage() {
   const [modelId, setModelId] = useState("");
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [openClient, setOpenClient] = useState<string | null>(null);
+  const view = useTableView("bulk-rebalancing", MOVABLE.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(MOVABLE.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
   const [on, setOn] = useState<string>(new Date().toISOString().slice(0, 10));
   /** Whether the dialog that asks for the date, and writes it, is open. */
   const [recording, setRecording] = useState(false);
@@ -138,6 +237,33 @@ export function BulkRebalancingPage() {
             ))}
           </SelectInput>
         </label>
+
+        {/* Beside the plan being worked, because arranging the table is the same kind of act as choosing
+            what is in front of you. */}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <ViewTabs
+            views={view.views}
+            current={view.current}
+            edited={view.current === null ? view.arranged : view.changed}
+            onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+            onSave={view.saveAs}
+            onDelete={view.remove}
+            firstLabel="Everyone on the plan"
+          />
+          <ColumnPicker
+            columns={MOVABLE.map((one) => ({ id: one.id, label: one.label }))}
+            shown={new Set(view.shown)}
+            order={view.order}
+            arranged={view.arranged}
+            onChange={(next) => {
+              for (const one of MOVABLE) {
+                if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+              }
+            }}
+            onMove={view.move}
+            onReset={view.reset}
+          />
+        </div>
       </div>
 
       {modelId === "" && (
@@ -266,14 +392,12 @@ export function BulkRebalancingPage() {
                   columns into the left third of the card and parked the button a hand's width away from
                   the row it belongs to. */}
               <table className="w-full table-fixed text-sm">
+                {/* The widths travel with their columns: a fixed table whose widths stay put while its
+                    columns move is a table rearranged into the wrong shape. */}
                 <colgroup>
                   <col className="w-12" />
                   <col className="w-[22%]" />
-                  <col className="w-[18%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[10%]" />
-                  <col className="w-[13%]" />
-                  <col className="w-[13%]" />
+                  {shownColumns.map((column) => <col key={column.id} className={WIDTHS[column.id]} />)}
                   <col className="w-[12%]" />
                 </colgroup>
                 <thead>
@@ -293,13 +417,26 @@ export function BulkRebalancingPage() {
                     {/* Who is about to be asked. Raising a rebalance sends each of these clients to their
                         own manager to answer, and a list with no sign of who that is hides what the
                         press does. */}
-                    <th scope="col" className="px-4 py-3">Advisors</th>
-                    <th scope="col" className="px-4 py-3 text-right">AUM</th>
-                    {/* A figure read from the right meeting a badge read from the left: without a gutter
-                        of their own the two sat against each other and read as one column. */}
-                    <th scope="col" className="py-3 pr-6 pl-4 text-right">Drift</th>
-                    <th scope="col" className="py-3 pr-4 pl-6">Standing</th>
-                    <th scope="col" className="px-4 py-3">Request</th>
+                    {shownColumns.map((column, at) => (
+                      <th
+                        key={column.id}
+                        scope="col"
+                        {...drag.headingProps(column.id)}
+                        className={cn(
+                          "cursor-grab touch-none py-3 select-none",
+                          column.pad ?? "px-4",
+                          column.align === "right" ? "text-right" : "text-left",
+                          drag.dragging === column.id && "cursor-grabbing opacity-40",
+                          drag.over === column.id && "bg-primary-50",
+                        )}
+                        title={`Drag to move ${column.label}`}
+                      >
+                        {column.label}
+                        <span className="sr-only">
+                          , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                        </span>
+                      </th>
+                    ))}
                     <th scope="col" className="py-3 pr-5 pl-4 text-right">
                       <span className="sr-only">Trade list</span>
                     </th>
@@ -308,7 +445,7 @@ export function BulkRebalancingPage() {
                 <tbody className="divide-y divide-line">
                   {clients.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-5 py-10 text-center text-ink-muted">
+                      <td colSpan={shownColumns.length + 3} className="px-5 py-10 text-center text-ink-muted">
                         Nobody is measured against this model yet.
                       </td>
                     </tr>
@@ -317,6 +454,7 @@ export function BulkRebalancingPage() {
                     <Row
                       key={client.customerId}
                       client={client}
+                      columns={shownColumns}
                       chosen={chosen.has(client.customerId)}
                       open={openClient === client.customerId}
                       onToggle={() => toggle(client.customerId)}
@@ -384,12 +522,15 @@ function Row({
   client,
   chosen,
   open,
+  columns,
   onToggle,
   onOpen,
 }: {
   client: ClientRebalance;
   chosen: boolean;
   open: boolean;
+  /** The columns to draw, in the reader's own order, passed down so head and body cannot disagree. */
+  columns: typeof MOVABLE;
   onToggle: () => void;
   onOpen: () => void;
 }) {
@@ -438,41 +579,21 @@ function Row({
         </td>
         {/* The same faces and the same one name the clients list draws, so a reader who has learnt one
             has learnt the other. */}
-        <td className="px-4 py-3">
-          <AdvisorStack advisors={client.advisors} />
-        </td>
-        <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
-          {underManagementLabel(client.underManagement, client.currency)}
-        </td>
-        <td
-          className={cn(
-            "py-3 pr-6 pl-4 text-right font-semibold whitespace-nowrap",
-            // Coloured by where the portfolio stands, not by the sign of the figure: drift is how far it
-            // has wandered either way, so it is never negative and used to read green at its very worst.
-            client.standing == null ? "text-ink-muted" : driftTones[client.standing],
-          )}
-        >
-          {client.drift == null ? "—" : driftLabel(client.drift)}
-        </td>
-        <td className="py-3 pr-4 pl-6">
-          {client.standing ? (
-            <Badge tone={standingTones[client.standing]}>{standingLabels[client.standing]}</Badge>
-          ) : (
-            <span className="text-ink-muted">Nothing written down</span>
-          )}
-        </td>
-        {/* Where their request has got to. Said on the row because the row is where somebody decides
-            whether to tick them, and a client whose manager has already agreed still reads as breached
-            with the same trades beside them — the money does not move until the desk places it. */}
-        <td className="px-4 py-3 whitespace-nowrap">
-          {client.requestStanding === "BEING_PLACED" ? (
-            <Badge tone="success">Agreed · being placed</Badge>
-          ) : client.requestStanding === "WAITING" ? (
-            <Badge tone="info">Waiting on their manager</Badge>
-          ) : (
-            <span className="text-ink-muted">—</span>
-          )}
-        </td>
+        {/* The cells in the order the headings are in, out of the one list that holds both. */}
+        {columns.map((column) => (
+          <td
+            key={column.id}
+            className={cn(
+              "py-3",
+              column.pad ?? "px-4",
+              column.align === "right" && "text-right whitespace-nowrap",
+              column.id === "request" && "whitespace-nowrap",
+              column.tone?.(client),
+            )}
+          >
+            {column.cell(client)}
+          </td>
+        ))}
         <td className="py-3 pr-5 pl-4 text-right">
           <Button variant="secondary" size="sm" onClick={onOpen}>
             {open ? "Hide" : "Trade list"}
@@ -481,7 +602,7 @@ function Row({
       </tr>
       {open && (
         <tr>
-          <td colSpan={8} className="bg-canvas px-5 py-4">
+          <td colSpan={columns.length + 3} className="bg-canvas px-5 py-4">
             {/* Its own reading where it has arrived, and the list's until it does. The two agree on every
                 figure — they are the same measurement — so the table does not change under the reader as
                 the answer lands; the column that was blank fills in. */}
