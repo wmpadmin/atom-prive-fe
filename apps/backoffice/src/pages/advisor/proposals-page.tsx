@@ -8,13 +8,17 @@ import {
   type ProposalRow,
   type ProposalRowStatus,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, type FilterOption } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, cn, type FilterOption } from "@atomprive/ui";
 import { Pagination } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { ColumnPicker } from "../../components/column-picker";
+import { ViewTabs } from "../../components/view-tabs";
+import { useColumnDrag } from "../../lib/column-drag";
+import { useTableView } from "../../lib/table-view";
 import { APPROVES_PROPOSALS, hasAnyAuthority, readsEveryAdvisors } from "../../lib/permissions";
 import { formatDate } from "../../lib/labels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
@@ -51,6 +55,120 @@ const TABS: { id: Tab; label: string; status?: ListProposalsStatus }[] = [
   { id: "approved", label: "Approved", status: "APPROVED" },
   { id: "rejected", label: "Rejected", status: "REJECTED" },
 ];
+
+/** One column of the queue: its heading, and what it draws on a row. */
+type Column = {
+  id: string;
+  label: string;
+  /** What share of the table it is given, where the longest cell should not decide. */
+  width?: string;
+  nowrap?: boolean;
+  tone?: string;
+  cell: (proposal: ProposalRow) => ReactNode;
+};
+
+/**
+ * The columns a reader may move and take off, in the order the firm wrote them.
+ *
+ * <p>Built rather than written out, because three of these cells need what only the screen knows: which
+ * door a row was opened from, who is reading, and what their part in the row is.
+ *
+ * <p>Two columns are not here. The client is the row — a line with no client on it names nothing — and
+ * the answer at the end has no heading, so there is nothing to drag and nothing to find in a list.
+ *
+ * <p>Whether the advisor is among them is the firm's rule and not the reader's: on a list that is all
+ * your own work, a column repeating your name down every row says nothing, so it is not offered. A
+ * reader who later gains somebody else's clients finds it back where the firm put it.
+ */
+function movableFor({ showAdvisor, openedFrom, onMe, reader, theirPart }: {
+  showAdvisor: boolean;
+  openedFrom: string;
+  onMe: boolean;
+  reader: string;
+  theirPart: (row: ProposalRow) => { review: boolean; said: string | null };
+}): Column[] {
+  return [
+    {
+      id: "proposal",
+      label: "Proposal",
+      width: "w-[30%]",
+      cell: (proposal) => (
+        <>
+          <Link
+            to={`/proposals/${proposal.id}${openedFrom}`}
+            onClick={(event) => event.stopPropagation()}
+            className="font-semibold hover:text-primary-600"
+          >
+            {proposal.title}
+          </Link>
+          {/* The reference and nothing else. The summary sat here too and said the title again in other
+              words, which took a second line of every row to repeat what the first had said. It is on the
+              proposal itself. The reference stays: it is what somebody searches by, and the row says it
+              nowhere else. */}
+          <span className="block text-xs text-ink-muted">{proposal.reference}</span>
+        </>
+      ),
+    },
+    ...(showAdvisor
+      ? [{
+          id: "advisor",
+          label: "Advisor",
+          width: "w-[12%]",
+          tone: "text-ink-soft",
+          cell: (proposal: ProposalRow) => (
+            <>
+              {proposal.advisorName}
+              {/* Said on the row rather than left out of the queue: a queue that quietly dropped your own
+                  work would have you hunting for a proposal that never arrived. */}
+              {onMe && proposal.advisorId === reader && <Badge tone="neutral">Yours</Badge>}
+            </>
+          ),
+        }]
+      : []),
+    {
+      id: "sent",
+      label: "Sent",
+      nowrap: true,
+      tone: "text-ink-soft",
+      cell: (proposal) => (proposal.sentAt ? formatDate(proposal.sentAt) : "—"),
+    },
+    {
+      id: "value",
+      label: "Value",
+      nowrap: true,
+      tone: "tabular-nums",
+      cell: (proposal) => formatValue(proposal.valueAmount, proposal.valueCurrency),
+    },
+    {
+      id: "standing",
+      label: "Standing",
+      nowrap: true,
+      tone: "text-ink-soft",
+      cell: (proposal) => standingLabel(proposal.status as ProposalRowStatus, proposal.sentAt,
+        proposal.decidedAt, proposal.fromRebalance, proposal.openForPlacing),
+    },
+    {
+      id: "status",
+      label: "Status",
+      nowrap: true,
+      cell: (proposal) => {
+        const part = theirPart(proposal);
+        return (
+          <>
+            <Badge tone={proposalStatusTones[proposal.status as ProposalRowStatus]}>
+              {proposalStatusLabels[proposal.status as ProposalRowStatus]}
+            </Badge>
+            {/* Who answered it sits under the answer, where it belongs. It used to sit in the last
+                column — the one the Review button is in — so on an answered row it was a sentence
+                floating at the far right of the table under no heading at all. */}
+            {!part.review && part.said
+              && <span className="mt-1 block text-xs text-ink-muted">{part.said}</span>}
+          </>
+        );
+      },
+    },
+  ];
+}
 
 /**
  * Every proposal of one kind, with the same table and the same screen behind each row.
@@ -165,6 +283,19 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
     }
   }
 
+  // Whose work it is matters on any list holding more than one person's, and the queue is other people's
+  // work by definition — a relationship manager answering for their own clients is always reading
+  // something somebody else wrote.
+  const showAdvisor = everyAdvisors || onMe;
+  const movable = movableFor({ showAdvisor, openedFrom, onMe, reader: user.id, theirPart });
+  // Read before anything can return early, and kept apart for the two screens this component is: the
+  // proposals a reader arranges are not the bulk rebalances, and one saved view over both would be a
+  // view of whichever list they last touched.
+  const view = useTableView(fromRebalance ? "trade-logs" : "proposals", movable.map((one) => one.id));
+  const drag = useColumnDrag(view);
+  const byId = new Map(movable.map((one) => [one.id, one]));
+  const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
+
   if (proposals.isError) {
     return <Alert tone="danger">{proposals.error.message}</Alert>;
   }
@@ -188,11 +319,6 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
    * from the queue itself rather than from the status counts — "waiting on the relationship manager" is
    * every client's, and "waiting on me" is the part of it this person may answer.
    */
-  // Whose work it is matters on any list holding more than one person's, and the queue is other people's
-  // work by definition — a relationship manager answering for their own clients is always reading
-  // something somebody else wrote.
-  const showAdvisor = everyAdvisors || onMe;
-
   /**
    * What this reader's part in a row is: a button, or the reason there is none.
    *
@@ -276,7 +402,30 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
       />
 
       <section className="rounded-2xl border border-line bg-white">
-        <QueueBar name={fromRebalance ? "Bulk rebalancing" : "Proposals"} />
+        <QueueBar name={fromRebalance ? "Bulk rebalancing" : "Proposals"}>
+          <ViewTabs
+            views={view.views}
+            current={view.current}
+            edited={view.current === null ? view.arranged : view.changed}
+            onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+            onSave={view.saveAs}
+            onDelete={view.remove}
+            firstLabel={fromRebalance ? "Every rebalance" : "Every proposal"}
+          />
+          <ColumnPicker
+            columns={movable.map((one) => ({ id: one.id, label: one.label }))}
+            shown={new Set(view.shown)}
+            order={view.order}
+            arranged={view.arranged}
+            onChange={(next) => {
+              for (const one of movable) {
+                if (next.has(one.id) === view.hidden.includes(one.id)) view.toggle(one.id);
+              }
+            }}
+            onMove={view.move}
+            onReset={view.reset}
+          />
+        </QueueBar>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -287,28 +436,40 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
                   is; everything that is a date, a figure or a word stays on one line. */}
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="w-[16%] py-3 pr-4 pl-5">Client</th>
-                <th scope="col" className="w-[30%] px-4 py-3">Proposal</th>
-                {/* Only where the list holds more than one advisor's work. On a list that is all your
-                    own, a column repeating your name down every row says nothing. */}
-                {showAdvisor && <th scope="col" className="w-[12%] px-4 py-3">Advisor</th>}
-                <th scope="col" className="px-4 py-3 whitespace-nowrap">Sent</th>
-                <th scope="col" className="px-4 py-3 whitespace-nowrap">Value</th>
-                <th scope="col" className="px-4 py-3 whitespace-nowrap">Standing</th>
-                <th scope="col" className="px-4 py-3 whitespace-nowrap">Status</th>
+                {shownColumns.map((column, at) => (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    {...drag.headingProps(column.id)}
+                    className={cn(
+                      "cursor-grab touch-none px-4 py-3 select-none",
+                      column.width,
+                      column.nowrap && "whitespace-nowrap",
+                      drag.dragging === column.id && "cursor-grabbing opacity-40",
+                      drag.over === column.id && "bg-primary-50",
+                    )}
+                    title={`Drag to move ${column.label}`}
+                  >
+                    {column.label}
+                    <span className="sr-only">
+                      , column {at + 1} of {shownColumns.length}. Use the Columns button to move or hide it.
+                    </span>
+                  </th>
+                ))}
                 <th scope="col" className="py-3 pr-5 pl-4 text-right"><span className="sr-only">Answer</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {!proposals.data && (
                 <tr>
-                  <td colSpan={showAdvisor ? 8 : 7} className="px-5 py-8 text-center text-ink-muted">
+                  <td colSpan={shownColumns.length + 2} className="px-5 py-8 text-center text-ink-muted">
                     Loading proposals…
                   </td>
                 </tr>
               )}
               {proposals.data?.items.length === 0 && (
                 <tr>
-                  <td colSpan={showAdvisor ? 8 : 7} className="px-5 py-10 text-center text-ink-muted">
+                  <td colSpan={shownColumns.length + 2} className="px-5 py-10 text-center text-ink-muted">
                     {onMe
                       ? "Nothing is waiting on you."
                       : filtered
@@ -340,51 +501,14 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <Link to={`/proposals/${proposal.id}${openedFrom}`} onClick={(event) => event.stopPropagation()} className="font-semibold hover:text-primary-600">
-                      {proposal.title}
-                    </Link>
-                    {/* The reference and nothing else. The summary sat here too and said the title again
-                        in other words — "Out of Yield Enhancement Strategies, into 3 lines" under "Move
-                        USD 2,895 out of Yield Enhancement Strategies" — which took a second line of every
-                        row to repeat what the first had said. It is on the proposal itself, where the
-                        legs it describes are. The reference stays: it is what somebody searches by, and
-                        the row says it nowhere else. */}
-                    <span className="block text-xs text-ink-muted">{proposal.reference}</span>
-                  </td>
-                  {showAdvisor && (
-                    <td className="px-4 py-3 text-ink-soft">
-                      {proposal.advisorName}
-                      {/* Said on the row rather than left out of the queue: a queue that quietly dropped
-                          your own work would have you hunting for a proposal that never arrived. */}
-                      {onMe && proposal.advisorId === user.id && <Badge tone="neutral">Yours</Badge>}
+                  {shownColumns.map((column) => (
+                    <td
+                      key={column.id}
+                      className={cn("px-4 py-3", column.nowrap && "whitespace-nowrap", column.tone)}
+                    >
+                      {column.cell(proposal)}
                     </td>
-                  )}
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                    {proposal.sentAt ? formatDate(proposal.sentAt) : "—"}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap tabular-nums">
-                    {formatValue(proposal.valueAmount, proposal.valueCurrency)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                    {standingLabel(proposal.status as ProposalRowStatus, proposal.sentAt, proposal.decidedAt,
-                      proposal.fromRebalance, proposal.openForPlacing)}
-                  </td>
-                  {/* Who answered it sits under the answer, where it belongs. It used to sit in the last
-                      column — the one the Review button is in — so on an answered row it was a sentence
-                      floating at the far right of the table under no heading at all, a hand's width from
-                      the badge it was about. */}
-                  <td className="px-4 py-3">
-                    <Badge tone={proposalStatusTones[proposal.status as ProposalRowStatus]}>
-                      {proposalStatusLabels[proposal.status as ProposalRowStatus]}
-                    </Badge>
-                    {(() => {
-                      const part = theirPart(proposal);
-                      return !part.review && part.said
-                        ? <span className="mt-1 block text-xs text-ink-muted">{part.said}</span>
-                        : null;
-                    })()}
-                  </td>
+                  ))}
                   {/* The way in to answering it, and the only one: a proposal is answered on its own page,
                       where the legs, the reason and the client's position against their plan are. Saying
                       yes here moves the money, and a queue that took that answer off a row would be taking
