@@ -37,7 +37,7 @@ import {
   standingTones,
   worthLabel,
 } from "./portfolio-labels";
-import { isSetUp, mayFinishSettingUp } from "./set-up";
+import { isSetUp, mayFinishSettingUp, THE_CALCULATOR_IS_OFFERED } from "./set-up";
 import { ValuationHistoryPanel } from "./valuation-history-panel";
 import { WhatIfPanel } from "./what-if-panel";
 
@@ -208,7 +208,8 @@ export function ClientPortfolioPage() {
   // written before the holdings are: the refetch that follows it would turn this on and unmount the page
   // with the holdings still in flight — quietly, because the warning about unsaved work is mounted below
   // this line and would go with it.
-  if (standing.isSuccess && !isSetUp(standing.data) && mayFinishSettingUp(user) && !saving) {
+  if (THE_CALCULATOR_IS_OFFERED && standing.isSuccess && !isSetUp(standing.data)
+      && mayFinishSettingUp(user) && !saving) {
     return <Navigate to={`/portfolio-clients/${customerId}/net-aum`} replace />;
   }
 
@@ -272,9 +273,11 @@ export function ClientPortfolioPage() {
           {/* Said where it was opened from. The calculator is a dialog over the clients list, so closing
               it puts somebody back on that list unless the address says otherwise — and a reader who
               opened it from a client's own screen had the screen they were working on taken away. */}
-          <Link to={`/portfolio-clients/${customerId}/net-aum?from=portfolio`}>
-            <Button size="lg">Net AUM calculator</Button>
-          </Link>
+          {THE_CALCULATOR_IS_OFFERED && (
+            <Link to={`/portfolio-clients/${customerId}/net-aum?from=portfolio`}>
+              <Button size="lg">Net AUM calculator</Button>
+            </Link>
+          )}
           {/* What it is worth and how it stands, read down: the money first, the verdict about it under.
               Side by side the badge sat level with the caption and read as a label on the money, when it
               is a verdict about the portfolio. */}
