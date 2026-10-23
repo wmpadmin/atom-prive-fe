@@ -5,13 +5,13 @@ import { QueueActions } from "../../components/queue-actions";
 /**
  * The top of the proposals screen: what it is and what can be done from it.
  *
- * <p>Named for the thing and not for a direction. "Sent" was true for an advisor, who sends what is on
- * this list, and false for whoever reads every advisor's — and flatly confusing for somebody holding
- * both roles, who sends some of these and oversees the rest.
+ * <p>Named for the thing and not for a direction. "Sent" was true for a relationship manager, who sends
+ * what is on this list, and false for whoever reads every relationship manager's — and flatly confusing for
+ * somebody holding both roles, who sends some of these and oversees the rest.
  *
  * <p>No line of its own saying whose proposals these are. It said what the screen already says: the tab
- * that opened it is named, the card below is named, and every row carries the advisor who wrote it — so
- * the sentence was a third naming, set above the filter row it had nothing to do with.
+ * that opened it is named, the card below is named, and every row carries the relationship manager who
+ * wrote it — so the sentence was a third naming, set above the filter row it had nothing to do with.
  *
  * <p>No search of its own either. Above the list the search sits in the filter row with everything else
  * that narrows it, and above an open proposal there is nothing on the page for a search to narrow —

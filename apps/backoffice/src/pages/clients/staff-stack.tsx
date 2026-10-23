@@ -8,16 +8,17 @@ const FACES = 2;
 /**
  * A client's people from one desk in one column's width: a few faces, one name, and the rest a press away.
  *
- * <p>One component for advisors and for portfolio managers both. They are two desks and two columns, but
- * a row of people in a column's width is the same problem twice, and the second copy is the one that
- * drifts.
+ * <p>One component for relationship managers and for portfolio managers both. They are two desks and
+ * two columns, but a row of people in a column's width is the same problem twice, and the second copy
+ * is the one that drifts.
  *
- * <p>Named chips wrapped. A client with five advisors took three lines of the row and set the whole table
- * to the width of whoever had the most, so a column somebody reads down for one name was the widest thing
- * on the screen. This holds the same width whatever the count.
+ * <p>Named chips wrapped. A client with five relationship managers took three lines of the row and set
+ * the whole table to the width of whoever had the most, so a column somebody reads down for one name was
+ * the widest thing on the screen. This holds the same width whatever the count.
  *
- * @param desk what these people are to the client, for a reader who cannot see the faces — "advisors",
- * "portfolio managers". Without it the managers' column announced itself as advisors.
+ * @param desk what these people are to the client, for a reader who cannot see the faces — "relationship
+ * managers", "portfolio managers". Without it the portfolio managers' column announced itself as
+ * relationship managers.
  *
  * <p>Faces only, and no name. A name beside them read as a title the firm has not given anybody — the
  * list arrives longest-held first, which is an order, not a rank — and it set the column's width to
@@ -55,7 +56,7 @@ export function StaffStack({ people: advisors, desk = "people" }: { people: Staf
 
   if (advisors.length === 0) {
     return (
-      <span title="No advisor yet" className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-ink-muted">
+      <span title="No relationship manager yet" className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-ink-muted">
         Default
       </span>
     );
@@ -63,7 +64,7 @@ export function StaffStack({ people: advisors, desk = "people" }: { people: Staf
 
   const faces = advisors.slice(0, FACES);
   const counted = advisors.length - faces.length;
-  // One advisor is the whole answer already, so there is nothing to open and nothing to press.
+  // One relationship manager is the whole answer already, so there is nothing to open and nothing to press.
   const more = advisors.length > 1;
 
   const stack = (
@@ -94,8 +95,9 @@ export function StaffStack({ people: advisors, desk = "people" }: { people: Staf
           aria-expanded={open}
           aria-label={`${advisors.length} ${desk}: ${advisors.map((one) => one.fullName).join(", ")}`}
           // The row underneath opens the client. Pressing the faces is asking who they are, not asking
-          // to go there, so this press stops here — and only this one: with a single advisor there is
-          // nothing to open, and the cell stays part of the row the way every other cell is.
+          // to go there, so this press stops here — and only this one: with a single relationship
+          // manager there is nothing to open, and the cell stays part of the row the way every other
+          // cell is.
           onClick={(event) => {
             event.stopPropagation();
             setOpen((was) => !was);
@@ -123,7 +125,7 @@ export function StaffStack({ people: advisors, desk = "people" }: { people: Staf
           className="absolute top-full left-0 z-20 mt-1 min-w-64 rounded-xl border border-line bg-white py-2 shadow-lg"
         >
           <p className="px-3 pb-1 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            {advisors.length} advisors
+            {advisors.length} {desk}
           </p>
           <ul>
             {advisors.map((advisor) => (

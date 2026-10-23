@@ -45,9 +45,10 @@ type Tab = "overview" | "family" | "advisors" | "portfolioManagers" | "banks" | 
 const TABS: { id: Tab; label: string; needs?: Authority[] }[] = [
   { id: "overview", label: "Overview" },
   { id: "family", label: "Family group" },
-  { id: "advisors", label: "Advisors" },
-  // Its own tab beside the advisors' rather than two lists under one heading called Advisors. Who manages
-  // the portfolio and who the client speaks to are two desks, and the file says so.
+  { id: "advisors", label: "Relationship managers" },
+  // Its own tab beside the relationship managers' rather than two lists under one heading called
+  // Relationship managers. Who manages the portfolio and who the client speaks to are two desks, and the
+  // file says so.
   { id: "portfolioManagers", label: "Portfolio managers" },
   { id: "banks", label: "Bank accounts" },
   { id: "holdings", label: "Holdings" },
@@ -58,13 +59,16 @@ const TABS: { id: Tab; label: string; needs?: Authority[] }[] = [
   { id: "activity", label: "Activity" },
 ];
 
-/** A client's whole file: who they are, their family group, their advisors and what has happened to them (#78). */
+/**
+ * A client's whole file: who they are, their family group, their relationship managers and what has
+ * happened to them (#78).
+ */
 export function ClientPage() {
   const { clientId = "" } = useParams();
   const user = useStaffUser();
   const canAssign = hasAuthority(user, "ASSIGN_ADVISORS:CHANGE");
   // Its own permission, asked on its own. Operations hold both today, and the day that changes this screen
-  // should follow the firm rather than carry on guessing from the advisor one.
+  // should follow the firm rather than carry on guessing from the relationship manager one.
   const canAssignManagers = hasAuthority(user, "ASSIGN_PORTFOLIO_MANAGERS:CHANGE");
   // Whoever runs a team decides who on it sees this client, and so who reads their documents.
   const setsAccess = hasAuthority(user, "ASSIGN_WORK:CHANGE");
@@ -73,8 +77,8 @@ export function ClientPage() {
   // over the details. An Admin has it because an Admin holds every permission there is.
   const canEdit = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE");
   const location = useLocation();
-  // The same file opens from All clients and from My clients. Back goes where they came from: an advisor has no
-  // All clients screen to return to.
+  // The same file opens from All clients and from My clients. Back goes where they came from: a relationship
+  // manager has no All clients screen to return to.
   const mine = location.pathname.startsWith("/my-clients");
   const backTo = mine ? "/my-clients" : clientsHref(location.state);
   const backLabel = mine ? "My clients" : "All clients";
@@ -113,7 +117,7 @@ export function ClientPage() {
       onSuccess: (updated) => {
         queryClient.setQueryData(getGetCustomerQueryKey(clientId), updated);
         void queryClient.invalidateQueries({ queryKey: getListCustomersQueryKey() });
-        setNotice(`${removing?.fullName ?? "The advisor"} no longer looks after ${updated.client.fullName}.`);
+        setNotice(`${removing?.fullName ?? "The relationship manager"} no longer looks after ${updated.client.fullName}.`);
         setRemoving(null);
       },
     },
@@ -271,12 +275,12 @@ export function ClientPage() {
       {tab === "advisors" && (
         <AssignedStaffPanel
           id="advisors"
-          title="Advisors"
-          lead="A client can have several advisors. Only they, and staff who see every client, can open this client."
+          title="Relationship managers"
+          lead="A client can have several relationship managers. Only they, and staff who see every client, can open this client."
           people={advisors.map(({ advisor, since }) => ({ person: advisor, since }))}
-          sinceLabel="Advisor since"
-          empty="No advisor yet."
-          assignLabel="Assign advisor"
+          sinceLabel="Relationship manager since"
+          empty="No relationship manager yet."
+          assignLabel="Assign relationship manager"
           assignIcon={<UserRoundCog aria-hidden="true" />}
           canAssign={canAssign}
           onAssign={() => setAssigning(true)}
@@ -369,7 +373,7 @@ export function ClientPage() {
       />
       <ConfirmDialog
         open={removing !== null}
-        title={`Take ${removing?.fullName ?? "this advisor"} off ${client.fullName}?`}
+        title={`Take ${removing?.fullName ?? "this relationship manager"} off ${client.fullName}?`}
         description="They stop seeing this client straight away. You can give the client back to them later."
         confirmLabel="Take them off"
         tone="danger"

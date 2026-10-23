@@ -29,7 +29,7 @@ export function SelectClientDialog({ open, onClose, onChoose }: SelectClientDial
       open={open}
       onClose={onClose}
       title="Preview against a client"
-      description="Their name and advisor fill the placeholders in the preview and test email. Nothing is sent to them."
+      description="Their name and relationship manager fill the placeholders in the preview and test email. Nothing is sent to them."
     >
       {open && (
         <div className="space-y-4">

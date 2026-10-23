@@ -23,10 +23,10 @@ interface AssignPortfolioManagerDialogProps {
 /**
  * Records one or more clients against a portfolio manager.
  *
- * <p>Its own dialog rather than the advisor one with a word changed. The two share a shape and nothing
- * else: this one asks a different list who they are, sends a different body, and has nothing to say
- * about an email, because nothing is sent. Folding them together would have meant a component whose
- * every line was a prop, and the next reader would still have had to open both.
+ * <p>Its own dialog rather than the relationship manager one with a word changed. The two share a shape
+ * and nothing else: this one asks a different list who they are, sends a different body, and has nothing
+ * to say about an email, because nothing is sent. Folding them together would have meant a component
+ * whose every line was a prop, and the next reader would still have had to open both.
  */
 export function AssignPortfolioManagerDialog({ open, clients, onClose, onAssigned }: AssignPortfolioManagerDialogProps) {
   const title = clients.length === 1
@@ -49,9 +49,10 @@ export function AssignPortfolioManagerDialog({ open, clients, onClose, onAssigne
 
 function AssignPortfolioManagerForm({ clients, onCancel, onAssigned }: { clients: ClientToAssign[]; onCancel: () => void; onAssigned: (result: PortfolioManagerAssignment) => void }) {
   const queryClient = useQueryClient();
-  // The list the advisors' dialog has as GET /customers/advisors, for the other desk. The backend has no
-  // /customers/portfolio-managers yet, so this hook appears only once that one method is added and the client
-  // is generated again; written here under the name generation will give it rather than stubbed locally.
+  // The list the relationship managers' dialog has as GET /customers/advisors, for the other desk. The
+  // backend has no /customers/portfolio-managers yet, so this hook appears only once that one method is
+  // added and the client is generated again; written here under the name generation will give it rather
+  // than stubbed locally.
   const managers = useListPortfolioManagers<StaffMember[], ApiError>({ query: { staleTime: 5 * 60_000 } });
   const [managerId, setManagerId] = useState("");
   const [errors, setErrors] = useState<FormErrors>(noErrors);

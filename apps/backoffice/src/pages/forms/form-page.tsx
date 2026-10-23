@@ -140,8 +140,8 @@ function FilledForm<T>({
   const user = useStaffUser();
   const signed = detail.summary.status === "SUBMITTED";
   const withTheAdvisor = detail.summary.status === "AWAITING_SIGNATURE";
-  // Once it has left whoever was writing it up — gone to the advisor to sign, out with the client, or signed
-  // — it is a record of what was sent, and reads as one until it is filled in again.
+  // Once it has left whoever was writing it up — gone to the relationship manager to sign, out with the client, or
+  // signed — it is a record of what was sent, and reads as one until it is filled in again.
   const locked = signed || withTheAdvisor || detail.summary.status === "WAITING_ON_CLIENT";
   const [value, setValue] = useState<T>(() => kit.toValue(detail.answers));
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(kit.toValue(detail.answers)));
@@ -201,13 +201,13 @@ function FilledForm<T>({
   // Opened from To sign, which is what a comment left here is recorded against: the pack is where the form
   // was being read when somebody asked for the change.
   const readFromPack = useSearchParams()[0].get("pack") ?? undefined;
-  // Whoever may fill a client's forms in may also ask for a change to one. An advisor holds that over their
-  // own clients rather than at change, so asking only for change left them reading with nothing to say.
+  // Whoever may fill a client's forms in may also ask for a change to one. A relationship manager holds that over
+  // their own clients rather than at change, so asking only for change left them reading with nothing to say.
   // Compliance read every form and hold neither, so they read the comments without adding to them.
   const canChange = !fromKyc && hasAnyAuthority(user, ...FILLS_CLIENT_FORMS, ...ONBOARDS_CLIENTS_CHANGE);
 
   const reopen = useChangeCaseForm<ApiError>();
-  // Taking a form back from the advisor is its own thing, and not what the others do. The client's copy or a
+  // Taking a form back from the relationship manager is its own thing, and not what the others do. The client's copy or a
   // signed one is unpicked by clearing the form and filling it in afresh; this one keeps every answer and
   // only undoes its being finished, because nobody outside the firm has seen it yet.
   const takeBack = useTakeFormBack<ApiError>();
@@ -215,16 +215,16 @@ function FilledForm<T>({
   const [takingBack, setTakingBack] = useState(false);
   const mayFillItIn = hasAnyAuthority(user, ...FILLS_CLIENT_FORMS);
   const onCase = detail.summary.onboardingCaseId;
-  // A form with the advisor is nobody's to edit — not the advisor reading it in To sign, and not whoever
-  // wrote it up. They sign it or send it back saying what is wrong, and sending it back is what opens it
-  // again. An Edit here would let either side change a form out from under the other one's signature.
+  // A form with the relationship manager is nobody's to edit — not the relationship manager reading it in To sign,
+  // and not whoever wrote it up. They sign it or send it back saying what is wrong, and sending it back is what opens
+  // it again. An Edit here would let either side change a form out from under the other one's signature.
   const canWorkOnIt = Boolean(onCase) && !withTheAdvisor;
-  // A form with the advisor is taken back by whoever may write it up. The advisor reading it in To sign is
-  // not offered it: theirs is to sign or to send back, and a form changed under its own signature is no
-  // record of anything.
+  // A form with the relationship manager is taken back by whoever may write it up. The relationship manager reading
+  // it in To sign is not offered it: theirs is to sign or to send back, and a form changed under its own signature is
+  // no record of anything.
   const canTakeItBack = withTheAdvisor && mayFillItIn && !fromKyc;
 
-  /** Takes the form back from the advisor, with every answer left in it. */
+  /** Takes the form back from the relationship manager, with every answer left in it. */
   function takeItBack() {
     takeBack.mutate(
       { id: detail.summary.id },
@@ -274,7 +274,7 @@ function FilledForm<T>({
   }
 
   const save = useSaveFormDraft<ApiError>();
-  // A finished form goes to the client's advisor to be signed; nothing holds it up on the way.
+  // A finished form goes to the client's relationship manager to be signed; nothing holds it up on the way.
   const busy = save.isPending;
 
   // An attached document is kept straight away: it is the client's paper, not a draft answer.
@@ -377,7 +377,7 @@ function FilledForm<T>({
     );
   }
 
-  /** Written up and sent to the client's advisor to be signed. */
+  /** Written up and sent to the client's relationship manager to be signed. */
 
   const header = (
     <header className="space-y-3">
@@ -438,11 +438,11 @@ function FilledForm<T>({
           </Alert>
         ) : withTheAdvisor ? (
           <Alert tone="info">
-            Every part is answered, so this has gone to {detail.summary.clientName}'s advisor to sign. Nobody
-            sent it: finishing it is what sends it.{" "}
+            Every part is answered, so this has gone to {detail.summary.clientName}'s relationship manager to
+            sign. Nobody sent it: finishing it is what sends it.{" "}
             {canTakeItBack
-              ? "The advisor signs it, sends it back saying what is wrong, or leaves a comment below asking for a change. To put something right yourself, Edit takes it back — every answer stays in it, and it goes again when you say so."
-              : "Nobody changes it while it is with them either — the advisor signs it, sends it back saying what is wrong, or leaves a comment below asking for a change."}
+              ? "The relationship manager signs it, sends it back saying what is wrong, or leaves a comment below asking for a change. To put something right yourself, Edit takes it back — every answer stays in it, and it goes again when you say so."
+              : "Nobody changes it while it is with them either — the relationship manager signs it, sends it back saying what is wrong, or leaves a comment below asking for a change."}
           </Alert>
         ) : (
           <Alert tone="info">
@@ -467,7 +467,7 @@ function FilledForm<T>({
           title="Take this form back?"
           // Nothing is cleared and nobody outside the firm has seen it, so this says what actually happens
           // rather than borrowing the warning the other two need.
-          description={`This is with ${detail.summary.clientName}'s advisor to sign. Taking it back leaves every answer in it, but the form is no longer finished: go through it again and send it when you are done, and it will need signing afresh. Do you want to continue?`}
+          description={`This is with ${detail.summary.clientName}'s relationship manager to sign. Taking it back leaves every answer in it, but the form is no longer finished: go through it again and send it when you are done, and it will need signing afresh. Do you want to continue?`}
           confirmLabel="Yes, take it back"
           busy={takeBack.isPending}
           onConfirm={() => takeItBack()}
@@ -500,9 +500,9 @@ function FilledForm<T>({
           difference between a form waiting on somebody and one everybody thinks has gone. */}
       {detail.summary.takenBack && (
         <Alert tone="info">
-          You took this back from {detail.summary.clientName}'s advisor, and every answer is still in it. Go
-          through it, put right what is wrong, and press Send for signature when you are done — it will need
-          signing afresh. Until then nobody is waiting on it.
+          You took this back from {detail.summary.clientName}'s relationship manager, and every answer is
+          still in it. Go through it, put right what is wrong, and press Send for signature when you are done
+          — it will need signing afresh. Until then nobody is waiting on it.
         </Alert>
       )}
       {sendAgain.isError && <Alert tone="danger">{sendAgain.error.message}</Alert>}
@@ -616,7 +616,7 @@ function FilledForm<T>({
         </section>
       </div>
 
-      {/* Whatever the advisor asked for, while it is being put right. A form sent back carries its comments
+      {/* Whatever the relationship manager asked for, while it is being put right. A form sent back carries its comments
           over, so the change is read where it is made rather than in a message somewhere else. */}
       <FormComments
         formId={detail.summary.id}
@@ -692,9 +692,10 @@ function BackLink({
 }) {
   const user = useStaffUser();
   // Back goes where the form was opened from: the pack it is being signed in, the case, the client's file,
-  // the KYC queue, or the forms list. The pack comes first — an advisor reading a form to sign it was never
-  // on the client's file, and sending them there leaves the form they were about to sign behind.
-  // The client's file by the route this person may open — an advisor's clients are under My clients.
+  // the KYC queue, or the forms list. The pack comes first — a relationship manager reading a form to sign it
+  // was never on the client's file, and sending them there leaves the form they were about to sign behind.
+  // The client's file by the route this person may open — a relationship manager's clients are under My
+  // clients.
   const to = fromPack
     ? `/to-sign/${fromPack}`
     : caseId

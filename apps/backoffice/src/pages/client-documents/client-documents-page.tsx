@@ -15,7 +15,7 @@ import { formatDate } from "../../lib/labels";
  * keeping against the client it belongs to.
  *
  * <p>Whose clients depends on whose job it is. Compliance own KYC for the whole firm, so they see every
- * client; an advisor is held to their own. This listed only the signed-in person's own clients whoever
+ * client; a relationship manager is held to their own. This listed only the signed-in person's own clients whoever
  * they were, which left Compliance looking at "no clients are assigned to you yet" and no way to reach
  * anybody — on the one screen their job is done from.
  */
@@ -25,8 +25,8 @@ export function ClientDocumentsPage() {
   // Offered rather than fixed, so this footer reads like every other one in the portal.
   const [size, setSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const user = useStaffUser();
-  // Three different jobs on one screen: Compliance add and decide, an advisor adds for their own clients,
-  // Operations read every client's to service them and add to none.
+  // Three different jobs on one screen: Compliance add and decide, a relationship manager adds for their own
+  // clients, Operations read every client's to service them and add to none.
   const mayAdd = hasAnyAuthority(user, ...UPLOADS_CLIENT_DOCUMENTS);
   const everyClient = hasAuthority(user, "UPLOAD_CLIENT_DOCUMENTS:CHANGE") || !mayAdd;
   // One list, scoped by the API the same way putting a paper on a file is scoped — so a client somebody

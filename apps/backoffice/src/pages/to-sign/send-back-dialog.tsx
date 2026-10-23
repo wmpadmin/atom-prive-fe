@@ -10,9 +10,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 /**
- * Sending a form back instead of signing it. It goes to whoever filled it in — Operations or an advisor —
- * with what has to be put right, and leaves the pack, so what is left there is what still waits on a
- * signature.
+ * Sending a form back instead of signing it. It goes to whoever filled it in — Operations or a relationship manager —
+ * with what has to be put right, and leaves the pack, so what is left there is what still waits on a signature.
  *
  * <p>The reason is required. A form that comes back with nothing said about it is a form that moved, and
  * whoever wrote it would have to guess what was wrong with it.

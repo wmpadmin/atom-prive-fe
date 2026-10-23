@@ -2,9 +2,10 @@ import type { CaseFormRow, CatalogueEntryCategoriesItem, FormRowStatus } from "@
 import { formatDate } from "../../lib/labels";
 
 /**
- * Where a form has got to. Nobody sets this by hand. Operations or the client's own advisor fill it in, and
- * the last answer is what sends it: it goes to that client's advisor to sign, and their signature finishes it.
- * An advisor who finds something wrong sends it back to whoever wrote it, saying what has to be put right.
+ * Where a form has got to. Nobody sets this by hand. Operations or the client's own relationship manager fill
+ * it in, and the last answer is what sends it: it goes to that client's relationship manager to sign, and their
+ * signature finishes it. A relationship manager who finds something wrong sends it back to whoever wrote it,
+ * saying what has to be put right.
  */
 export function formStatus(
   status: FormRowStatus | "NOT_STARTED",
@@ -12,7 +13,7 @@ export function formStatus(
 ): { label: string; tone: "neutral" | "warning" | "danger" | "success" } {
   if (status === "SUBMITTED") return { label: "Complete", tone: "success" };
   if (status === "SENT_BACK") return { label: "Sent back", tone: "danger" };
-  if (status === "AWAITING_SIGNATURE") return { label: "With the advisor", tone: "warning" };
+  if (status === "AWAITING_SIGNATURE") return { label: "With the relationship manager", tone: "warning" };
   if (status !== "WAITING_ON_CLIENT") return { label: "Pending", tone: "neutral" };
   // Due at the end of the day it was asked for.
   const overdue = dueOn !== null && new Date(`${dueOn}T23:59:59`) < new Date();
@@ -20,8 +21,8 @@ export function formStatus(
 }
 
 /**
- * Whether anybody still types on this form. One with the advisor, one out with the client and one already
- * finished are all read: what is on them is what went out, and changing that quietly would make the copy
+ * Whether anybody still types on this form. One with the relationship manager, one out with the client and one
+ * already finished are all read: what is on them is what went out, and changing that quietly would make the copy
  * somebody else is holding a different document.
  */
 export function stillBeingFilledIn(status: CaseFormRow["status"]) {
@@ -52,7 +53,7 @@ export function progressLine(form: CaseFormRow) {
     return `Sent back${by}${when}${form.sentBackReason ? ` · ${form.sentBackReason}` : ""}`;
   }
   if (form.status === "AWAITING_SIGNATURE") {
-    return `With the advisor to sign${form.writtenBy ? ` · filled in by ${form.writtenBy}` : ""}`;
+    return `With the relationship manager to sign${form.writtenBy ? ` · filled in by ${form.writtenBy}` : ""}`;
   }
   const requested = form.requestedOn ? ` · Requested ${formatDate(form.requestedOn)}` : "";
   if (form.status === "WAITING_ON_CLIENT") return `Awaiting client signature${requested}`;

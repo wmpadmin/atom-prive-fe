@@ -227,8 +227,8 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
   const changing = !holdings.isPending && !owned.isPending && !owed.isPending
     && saysSomethingNew(whole, onFile);
   /*
-   * Figures already written are no longer this screen's to change. The calculator writes a client's
-   * figures the first time, when there is nothing to overrule — no figures an advisor could be
+   * Figures already written are no longer this screen's to change. The calculator writes a client's figures
+   * the first time, when there is nothing to overrule — no figures a relationship manager could be
    * protecting, no drift to change, no day to re-close. After that what a client holds is moved between
    * lines by a money move, or comes from the daily file; it is not retyped here.
    *

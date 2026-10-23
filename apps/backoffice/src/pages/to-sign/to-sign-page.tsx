@@ -9,8 +9,9 @@ import { formatDate } from "../../lib/labels";
 import { packTones, whatIsLeft } from "./to-sign-labels";
 
 /**
- * The advisor's clients, and the forms of theirs waiting on a signature. A client is the row because that is
- * how an advisor holds them in mind; what is underneath is the forms, each signed or sent back on its own.
+ * The relationship manager's clients, and the forms of theirs waiting on a signature. A client is the row because
+ * that is how a relationship manager holds them in mind; what is underneath is the forms, each signed or sent back on
+ * its own.
  */
 export function ToSignPage() {
   const [waiting, setWaiting] = useState(true);

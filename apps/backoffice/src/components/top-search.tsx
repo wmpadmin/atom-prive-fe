@@ -30,8 +30,8 @@ export function TopSearch() {
 
   function open(clientId: string) {
     setTypedValue("");
-    // By the route this person may open: an advisor's clients are under My clients, and the directory of
-    // every client is not theirs to see.
+    // By the route this person may open: a relationship manager's clients are under My clients, and the
+    // directory of every client is not theirs to see.
     void navigate(clientFileHref(user, clientId));
   }
 

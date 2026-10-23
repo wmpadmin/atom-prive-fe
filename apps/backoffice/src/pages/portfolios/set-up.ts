@@ -30,10 +30,10 @@ export function isSetUp(standing: PortfolioStanding | undefined): boolean {
  * Whether this reader could finish setting a client up if they were sent to do it.
  *
  * <p>Every one of the dialog's writes is held to SEND_PROPOSALS:CHANGE, which only a portfolio manager and
- * an administrator hold. Reading a client's portfolio is held to something far wider — an advisor,
- * compliance and operations all have it — so sending those three into the calculator would be sending them
- * to a form whose Next is refused, with the screen they could read until a moment ago now shut behind it.
- * They are left on the portfolio, which is what they came to do and all they can do.
+ * an administrator hold. Reading a client's portfolio is held to something far wider — a relationship
+ * manager, compliance and operations all have it — so sending those three into the calculator would be
+ * sending them to a form whose Next is refused, with the screen they could read until a moment ago now shut
+ * behind it. They are left on the portfolio, which is what they came to do and all they can do.
  */
 export function mayFinishSettingUp(user: StaffProfile): boolean {
   return hasAuthority(user, "SEND_PROPOSALS:CHANGE");

@@ -199,9 +199,10 @@ export function ClientPortfolioPage() {
   // it would throw every reader out of the page for the length of a request — and a refused request would
   // turn them out for good.
   //
-  // Only somebody who could finish it. The calculator's every write is a portfolio manager's; an advisor,
-  // compliance and operations may all read this screen and none of them may save a step of it, so sending
-  // them there is sending them to a form that refuses them, having shut the one they could read.
+  // Only somebody who could finish it. The calculator's every write is a portfolio manager's; a
+  // relationship manager, compliance and operations may all read this screen and none of them may save a
+  // step of it, so sending them there is sending them to a form that refuses them, having shut the one they
+  // could read.
   //
   // Never out of a save. Taking a client off their model is done on this very screen, and the model is
   // written before the holdings are: the refetch that follows it would turn this on and unmount the page
@@ -359,10 +360,10 @@ export function ClientPortfolioPage() {
         <RiskMatchNote match={standing.data?.riskMatch ?? null} />
       </section>
 
-      {/* Asking is not moving. An advisor who thinks their client is on the wrong plan says so here, and
-          whoever may move them answers it. Directly under the plan rather than further down the page: the
-          two are one question — what this client is measured against, and what somebody wants it to be —
-          and read a screen apart, a waiting request looked like a queue entry belonging to nobody. */}
+      {/* Asking is not moving. A relationship manager who thinks their client is on the wrong plan says so
+          here, and whoever may move them answers it. Directly under the plan rather than further down the
+          page: the two are one question — what this client is measured against, and what somebody wants it
+          to be — and read a screen apart, a waiting request looked like a queue entry belonging to nobody. */}
       {standing.data && (
         <AskToChangeTheModel
           customerId={customerId}

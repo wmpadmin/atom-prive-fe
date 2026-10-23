@@ -28,10 +28,11 @@ export function OnboardingCasePage() {
   const { caseId = "new" } = useParams();
   const isNew = caseId === "new";
   const user = useStaffUser();
-  // Entering the client's details is the advisor's too, for their own clients; filling in the client's forms
-  // stays Operations' work, so the two are asked separately.
-  // An advisor reads every case now, but works only on the ones they manage. A case of somebody else's is
-  // read here and edited nowhere: the API refuses it, so the screen does not offer it either.
+  // Entering the client's details is the relationship manager's too, for their own clients; filling in
+  // the client's forms stays Operations' work, so the two are asked separately.
+  // A relationship manager reads every case now, but works only on the ones they manage. A case of
+  // somebody else's is read here and edited nowhere: the API refuses it, so the screen does not offer it
+  // either.
   const mayWorkOnAnyCase = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE");
   const canOnboard = hasAnyAuthority(user, ...ONBOARDS_CLIENTS_CHANGE);
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ export function OnboardingCasePage() {
   const mine = mayWorkOnAnyCase || isNew || detail?.summary.relationshipManager?.id === user.id;
   const editing = canOnboard && mine && (isNew || detail?.summary.submitted === false);
   const managers = useListRelationshipManagers<StaffMember[], ApiError>({ query: { enabled: editing } });
-  // An advisor onboards their own clients, so the only relationship manager they may name is themselves —
+  // A relationship manager onboards their own clients, so the only one they may name is themselves —
   // the API refuses anyone else. Offering the whole list let them choose a colleague and be turned back at
   // submit, so the list holds whoever they are actually allowed to name.
   const namesAnyone = hasAnyAuthority(user, ...NAMES_ANY_RELATIONSHIP_MANAGER);

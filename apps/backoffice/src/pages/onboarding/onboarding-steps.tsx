@@ -62,7 +62,7 @@ export function ClientTypeStep({
         label="Relationship manager"
         required
         error={manager.error}
-        hint={managers?.length === 0 ? "There are no advisors yet. An Admin can add staff with the Advisor role." : "The advisor who will look after this client."}
+        hint={managers?.length === 0 ? "There are no relationship managers yet. An Admin can add staff with the Relationship manager role." : "The relationship manager who will look after this client."}
         className="sm:max-w-sm"
       >
         <SelectInput
@@ -73,7 +73,7 @@ export function ClientTypeStep({
           required
         >
           <option value="" disabled>
-            {managers ? "Choose a relationship manager" : "Loading advisors…"}
+            {managers ? "Choose a relationship manager" : "Loading relationship managers…"}
           </option>
           {(managers ?? []).map((person) => (
             <option key={person.id} value={person.id}>
