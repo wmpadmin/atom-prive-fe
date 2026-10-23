@@ -79,7 +79,7 @@ const MOVABLE: {
      * Who is about to be asked. Raising a rebalance sends each of these clients to their own manager to
      * answer, and a list with no sign of who that is hides what the press does.
      */
-    cell: (client) => <StaffStack people={client.advisors} />,
+    cell: (client) => <StaffStack people={client.advisors} desk="advisors" />,
   },
   {
     id: "aum",

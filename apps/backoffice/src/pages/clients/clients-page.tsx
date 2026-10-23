@@ -79,7 +79,6 @@ function managersOn(customer: CustomerRow): StaffMember[] {
 
 const LINKED_BANKS_LATER = "Filled in once bank linking is built";
 
-const PORTFOLIO_LATER = "Available once bank data is connected";
 
 /** One column beside the client's name: its heading, and what it draws on a row. */
 type Column = {
@@ -149,7 +148,7 @@ function movableFor({ mine, newestProposal }: {
       id: "advisors",
       label: "Advisors",
       // The row is the account, so it shows whoever advises anybody holding it.
-      cell: (customer) => <StaffStack people={advisorsOn(customer)} />,
+      cell: (customer) => <StaffStack people={advisorsOn(customer)} desk="advisors" />,
     },
     {
       id: "portfolioManagers",
@@ -157,7 +156,7 @@ function movableFor({ mine, newestProposal }: {
       // Beside the advisors and never folded in with them: they are two desks doing two jobs, and a name
       // in one column is not a name in the other. Everyone sees the column, because recording who manages
       // a client narrows nothing — it is only the assigning that Operations hold.
-      cell: (customer) => <StaffStack people={managersOn(customer)} />,
+      cell: (customer) => <StaffStack people={managersOn(customer)} desk="portfolio managers" />,
     },
     ...(mine
       ? [{
@@ -172,19 +171,6 @@ function movableFor({ mine, newestProposal }: {
       nowrap: true,
       tone: "text-ink-soft",
       cell: (customer) => formatRelative(customer.lastLoginAt, "Never"),
-    },
-    {
-      id: "portfolio",
-      label: "Portfolio",
-      note: PORTFOLIO_LATER,
-      cell: () => (
-        <span title={PORTFOLIO_LATER}>
-          <Button size="sm" disabled>
-            <Download aria-hidden="true" />
-            Download
-          </Button>
-        </span>
-      ),
     },
   ];
 }

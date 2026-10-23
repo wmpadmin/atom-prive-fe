@@ -122,7 +122,7 @@ const MOVABLE: {
     id: "advisor",
     label: "Advisor",
     align: "left",
-    cell: ({ client }) => <StaffStack people={client.advisors} />,
+    cell: ({ client }) => <StaffStack people={client.advisors} desk="advisors" />,
   },
   {
     id: "risk",
