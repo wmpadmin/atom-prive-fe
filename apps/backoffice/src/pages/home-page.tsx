@@ -16,8 +16,22 @@ export function HomePage() {
   if (hasAuthority(user, "MANAGE_USERS_AND_ROLES:VIEW")) {
     return <Navigate to="/users" replace />;
   }
+  // Whoever onboards clients opens on the clients list, which is where onboarding is now read and
+  // started from. It used to be a list of cases of its own; that list is gone.
   if (hasAuthority(user, "ONBOARD_CLIENTS:VIEW")) {
-    return <Navigate to="/onboarding" replace />;
+    return <Navigate to="/clients" replace />;
+  }
+  // Compliance open on the queue their day is worked from. They used to land on the audit log, because
+  // holding VIEW_AUDIT_LOG was the first thing below that matched them — a true answer to "what may they
+  // read" and the wrong answer to "what did they come here to do". The audit log is read when a question
+  // is asked of it; the KYC queue is read every morning.
+  //
+  // Asked of the role being worked in, like the portfolio desk above, and of the authority that opens the
+  // screen as well: an Admin may take APPROVE_ONBOARDING away from the role, and a first screen that
+  // refuses the person it was chosen for is worse than the plain one below. Without it they fall through
+  // to the audit log exactly as before.
+  if (user.activeRole === "COMPLIANCE" && hasAuthority(user, "APPROVE_ONBOARDING:CHANGE")) {
+    return <Navigate to="/kyc" replace />;
   }
   if (hasAuthority(user, "VIEW_AUDIT_LOG:VIEW")) {
     return <Navigate to="/audit-log" replace />;
