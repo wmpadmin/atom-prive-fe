@@ -60,6 +60,8 @@ export function ModelDetailPage() {
       onError: (caught) => setErrors(toFormErrors(caught)),
     },
   });
+  /** Whether the last press raised an ask rather than writing, so the page can say so. */
+  /** Why it should change, which only a live plan needs and only a live plan shows a box for. */
   const busy = update.isPending || remove.isPending;
   if (detail.isError) return <Alert tone="danger">{detail.error.message}</Alert>;
   if (!detail.data) {
@@ -206,9 +208,8 @@ export function ModelDetailPage() {
             setEditing(false);
             setErrors(noErrors);
           }}
-          // Written outright, live or not. It went through a sign-off for a while; the firm decided
-          // otherwise, on the ground that both the asking and the answering sat with the portfolio desk
-          // and a control both halves of which are one team's is not a control.
+          // Live or draft, the plan is written. A live one was raised as a change and signed off by a
+          // second pair of hands; the desk keeps its own plans now and the trail records the edit.
           onSave={(data) => update.mutate({ id: modelId, data })}
         />
       )}

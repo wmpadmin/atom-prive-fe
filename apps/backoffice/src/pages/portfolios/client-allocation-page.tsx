@@ -8,7 +8,7 @@ import {
   type ClientLoans,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, SelectInput, TextInput, cn } from "@atomprive/ui";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { barFor, useAssetClasses } from "./asset-classes";
 import { BOX, type StepProps } from "./portfolio-setup-dialog";
@@ -456,7 +456,6 @@ export function AllocationStep({ customerId, onDone, draft, onDraft }: StepProps
                   { id: null, under: "", name: "", amount: "", theFirms: false }])}
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
               >
-                <Plus aria-hidden="true" className="size-3.5" />
                 Add a sub-asset to {one.name}
               </button>
             </div>

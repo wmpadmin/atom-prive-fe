@@ -1,4 +1,5 @@
 import { ApiError } from "@atomprive/api-client";
+import { ArchivedMark } from "../../components/archived-client";
 import {
   useAnswerModelChange,
   useListModelChanges,
@@ -153,10 +154,11 @@ export function ModelChangesPage() {
                 <tr key={row.id}>
                   <td className="py-3 pr-4 pl-5">
                     <div className="flex items-center gap-3">
-                      <Avatar name={row.clientName} />
+                      <Avatar name={row.clientName} photo={row.clientPhoto} />
                       <div>
                         <span className="block font-semibold">{row.clientName}</span>
                         <span className="block font-mono text-xs text-ink-muted">{row.clientCode}</span>
+                        {row.clientArchived && <ArchivedMark />}
                       </div>
                     </div>
                   </td>

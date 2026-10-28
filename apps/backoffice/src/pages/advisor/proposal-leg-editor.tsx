@@ -1,5 +1,5 @@
 import { Button, SelectInput, TextInput } from "@atomprive/ui";
-import { Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import { asFigure } from "../../lib/figures";
 import { figure } from "../portfolios/money-words";
 import { EMPTY_LEG, type Choice, type TypedLeg } from "./proposal-leg-values";
@@ -129,7 +129,6 @@ export function ProposalLegEditor({
         disabled={disabled}
         onClick={() => onChange([...legs, { ...EMPTY_LEG }])}
       >
-        <Plus aria-hidden="true" />
         Add a leg
       </Button>
     </div>

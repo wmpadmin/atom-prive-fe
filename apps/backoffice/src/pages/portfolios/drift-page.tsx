@@ -229,7 +229,7 @@ export function DriftBreachesPage() {
           >
             <td className="px-5 py-3">
               <div className="flex items-center gap-3">
-                <Avatar name={row.clientName} />
+                <Avatar name={row.clientName} photo={row.clientPhoto} />
                 <div>
                   <Link
                     to={`/portfolio-clients/${row.customerId}?from=drift&back=${asLeft}`}

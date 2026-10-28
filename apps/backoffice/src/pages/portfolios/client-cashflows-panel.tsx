@@ -10,7 +10,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, DateInput, IconButton, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { formatDateTime } from "../../lib/labels";
@@ -118,7 +118,6 @@ export function ClientCashflowsPanel({ customerId, currency }: {
         </div>
         {!adding && (
           <Button size="sm" variant="secondary" onClick={() => { setErrors(noErrors); setAdding(true); }}>
-            <Plus aria-hidden="true" />
             Write one down
           </Button>
         )}

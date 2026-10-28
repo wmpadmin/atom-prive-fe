@@ -167,7 +167,7 @@ export function PortfolioManagerDashboard() {
                   >
                     <td className="py-3 pr-4 pl-6">
                       <div className="flex items-center gap-3">
-                        <Avatar name={row.clientName} />
+                        <Avatar name={row.clientName} photo={row.clientPhoto} />
                         <div className="min-w-0">
                           <span className="block truncate font-semibold">{row.clientName}</span>
                           <span className="block truncate text-xs text-ink-muted">{row.clientCode}</span>

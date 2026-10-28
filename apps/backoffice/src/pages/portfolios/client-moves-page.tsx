@@ -85,7 +85,7 @@ export function ClientMovesPage() {
         </Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <Avatar name={named} />
+            <Avatar name={named} photo={client.data?.client.photo} />
             <div className="min-w-0">
               <h1 className="text-[1.625rem] font-bold">{named}</h1>
               <p className="font-mono text-xs text-ink-muted">{client.data?.client.code}</p>

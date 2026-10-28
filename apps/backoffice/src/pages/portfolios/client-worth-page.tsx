@@ -17,7 +17,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, SelectInput, TextArea, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { BOX, type StepProps } from "./portfolio-setup-dialog";
@@ -404,7 +404,6 @@ export function WorthStep({ customerId, onDone, onBack, draft, onDraft }: StepPr
             onClick={() => setOwned([...ownedRows, NOTHING_YET])}
             className="flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
           >
-            <Plus aria-hidden="true" className="size-3.5" />
             Add another
           </button>
         </div>

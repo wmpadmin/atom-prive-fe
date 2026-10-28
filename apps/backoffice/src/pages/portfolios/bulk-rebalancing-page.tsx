@@ -570,7 +570,7 @@ function Row({
         </td>
         <td className="px-4 py-3">
           <div className="flex items-center gap-3">
-            <Avatar name={client.clientName} />
+            <Avatar name={client.clientName} photo={client.clientPhoto} />
             <div className="min-w-0">
               <span className="block truncate font-medium">{client.clientName}</span>
               <span className="block font-mono text-xs text-ink-muted">{client.clientCode}</span>

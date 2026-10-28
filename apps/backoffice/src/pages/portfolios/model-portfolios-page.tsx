@@ -10,7 +10,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, IconButton, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Copy, Plus } from "lucide-react";
+import { Copy } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { ColumnPicker } from "../../components/column-picker";
@@ -234,7 +234,6 @@ export function ModelPortfoliosPage() {
                   setWriting(true);
                 }}
               >
-                <Plus aria-hidden="true" />
                 New model
               </Button>
             )}
