@@ -35,6 +35,14 @@ interface RecordListProps {
    */
   search?: ReactNode;
   /**
+   * The one thing this screen is for doing, on the search box's own line and at the far end of it.
+   *
+   * <p>Not in the page heading with the column picker and the export. Those are about how the list is
+   * read; this is the work the list exists to start, and it belongs beside the box somebody types in
+   * rather than above the sentence describing the screen.
+   */
+  action?: ReactNode;
+  /**
    * What narrows the list once it is on screen: a relationship manager, a status, a date range.
    *
    * <p>On the card's own heading line, at the right-hand end, the same line the queues on the approvals
@@ -76,6 +84,7 @@ export function RecordList({
   caption,
   subtitle = "Newest first",
   search,
+  action,
   filters,
   banner,
   filtered,
@@ -100,7 +109,12 @@ export function RecordList({
       {/* Top-aligned rather than centred. The one action a list screen offers is a taller control than
           the search box beside it, and centred it hung below the box's own line; aligned at the top the
           two read as one line. A row holding only a search box looks the same either way. */}
-      {search && <div className="flex flex-wrap items-start gap-3">{search}</div>}
+      {(search || action) && (
+        <div className="flex flex-wrap items-start gap-3">
+          {search}
+          {action && <div className="ml-auto">{action}</div>}
+        </div>
+      )}
 
       <section className="rounded-2xl border border-line bg-white">
         <div className="space-y-4 px-5 pt-5 pb-4">
