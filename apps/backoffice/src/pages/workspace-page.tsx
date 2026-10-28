@@ -102,7 +102,11 @@ export function WorkspacePage() {
                     disabled={enter.isPending}
                     onClick={() => {
                       setError(undefined);
-                      enter.mutate({ data: { role } });
+                      // Sticks the first time, and only the first time. Somebody nobody has decided for
+                      // should be asked once, not at every sign-in; somebody moving desks for an hour has
+                      // already been decided for, and this should not quietly overrule it. Their own
+                      // Settings is where that is changed on purpose.
+                      enter.mutate({ data: { role, fromNowOn: user.opensIn === null } });
                     }}
                     className="group flex w-full items-start gap-4 rounded-2xl border border-line bg-white px-6 py-5 text-left transition hover:border-primary-600 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:cursor-wait"
                   >
