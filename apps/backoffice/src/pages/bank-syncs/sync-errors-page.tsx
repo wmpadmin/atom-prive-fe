@@ -15,7 +15,7 @@ import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
 import { formatDateTime } from "../../lib/labels";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
+import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { hasAuthority } from "../../lib/permissions";
 import { useTableView } from "../../lib/table-view";
 
@@ -65,7 +65,7 @@ const MOVABLE: {
 export function SyncErrorsPage() {
   const [bankId, setBankId] = useState("");
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<number>(defaultPageSize);
 
   const runs = useListSyncRuns<SyncRunPage, ApiError>(
     { bankId: bankId || undefined, outcome: "FAILED", page, size: pageSize },

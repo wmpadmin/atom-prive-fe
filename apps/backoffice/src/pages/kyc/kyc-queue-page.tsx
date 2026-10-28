@@ -17,7 +17,7 @@ import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
 import { formatRelative } from "../../lib/labels";
-import { DEFAULT_PAGE_SIZE } from "../../lib/page-sizes";
+import { defaultPageSize } from "../../lib/page-sizes";
 import { PagedFooter } from "../../lib/paged-rows";
 import { hasAuthority } from "../../lib/permissions";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
@@ -161,7 +161,7 @@ export function KycReviewQueuePage() {
   // fifty in one go and then drew no footer at all, so a fifty-first client in review was off the end of a
   // table that said nothing about having an end. The reader's own page is asked for instead.
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState<number>(defaultPageSize);
   const queue = useListClientsForReview<ReviewQueue, ApiError>(
     { query: query || undefined, standing: (standing || undefined) as never, page, size },
     { query: { placeholderData: keepPreviousData } },

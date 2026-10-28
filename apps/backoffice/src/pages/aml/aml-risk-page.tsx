@@ -15,7 +15,7 @@ import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
 import { formatDate } from "../../lib/labels";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
+import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { bandTone } from "./aml-labels";
 
 /**
@@ -103,7 +103,7 @@ export function AmlRiskPage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<number>(defaultPageSize);
 
   const clients = useListAmlRatedClients<RatedClientsPage, ApiError>(
     { query: query.trim() || undefined, page, size: pageSize },

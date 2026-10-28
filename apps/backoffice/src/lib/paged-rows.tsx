@@ -1,6 +1,6 @@
 import { Pagination } from "@atomprive/ui";
 import { useState } from "react";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "./page-sizes";
+import { PAGE_SIZES, defaultPageSize } from "./page-sizes";
 
 /**
  * A page of rows the browser already holds, and the controls to move through them.
@@ -13,7 +13,7 @@ import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "./page-sizes";
  *
  * <p>So the rows are sliced here, and the footer below looks and reads the same either way.
  */
-export function usePagedRows<T>(rows: readonly T[], startingSize: number = DEFAULT_PAGE_SIZE) {
+export function usePagedRows<T>(rows: readonly T[], startingSize: number = defaultPageSize()) {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState<number>(startingSize);
   // Narrowing a list can leave the reader standing past the end of it — four pages of requests, filtered

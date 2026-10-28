@@ -1,4 +1,5 @@
 import type { StaffUserSummaryRolesItem, StaffUserSummaryStatus } from "@atomprive/api-client/backoffice";
+import { preference, type DateFormat } from "./preferences";
 
 export type StaffRole = StaffUserSummaryRolesItem;
 export type StaffStatus = StaffUserSummaryStatus;
@@ -32,12 +33,45 @@ export function roleLabel(code: string) {
   return roleLabels[code as StaffRole] ?? code.charAt(0) + code.slice(1).toLowerCase().replaceAll("_", " ");
 }
 
-const dateTime = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" });
-const day = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
-const dateOnly = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" });
+/*
+ * How a date reads is the reader's own setting, so the formatters are built from it rather than fixed.
+ *
+ * <p>Built once per shape and kept, because an Intl formatter is expensive to make and these are called
+ * on every row of every table. The preference is read at the moment it is needed rather than subscribed
+ * to: a reader who changes it sees it as they move around the platform, which is what somebody changing
+ * it once expects, and it costs nothing to the fifteen tables that would otherwise have to listen.
+ */
+const DATE_SHAPES: Record<DateFormat, Intl.DateTimeFormatOptions> = {
+  medium: { day: "numeric", month: "short", year: "numeric" },
+  dmy: { day: "2-digit", month: "2-digit", year: "numeric" },
+  mdy: { month: "2-digit", day: "2-digit", year: "numeric" },
+  iso: { year: "numeric", month: "2-digit", day: "2-digit" },
+};
+
+const kept = new Map<string, Intl.DateTimeFormat>();
+
+function formatter(key: string, options: Intl.DateTimeFormatOptions, locale = "en-GB") {
+  const held = kept.get(key);
+  if (held) return held;
+  const made = new Intl.DateTimeFormat(locale, options);
+  kept.set(key, made);
+  return made;
+}
+
+function dayFormatter() {
+  const shape = preference("dateFormat");
+  // ISO is the one shape no locale gives on its own: en-CA happens to write exactly 2026-10-28.
+  return formatter(`day.${shape}`, DATE_SHAPES[shape], shape === "iso" ? "en-CA" : "en-GB");
+}
+
+function dateTimeFormatter() {
+  const shape = preference("dateFormat");
+  const clock = preference("timeFormat");
+  return formatter(`dateTime.${shape}.${clock}`, { ...DATE_SHAPES[shape], hour: "2-digit", minute: "2-digit", hour12: clock === "12" }, shape === "iso" ? "en-CA" : "en-GB");
+}
 
 export function formatDateTime(value: string | null | undefined, fallback = "Never") {
-  return value ? dateTime.format(new Date(value)) : fallback;
+  return value ? dateTimeFormatter().format(new Date(value)) : fallback;
 }
 
 /** "Just now", "12 min ago", "3 hr ago", "2 days ago", then the date. */
@@ -50,12 +84,12 @@ export function formatRelative(value: string | null | undefined, fallback = "Nev
   if (hours < 24) return `${hours} hr ago`;
   const days = Math.floor(hours / 24);
   if (days < 7) return days === 1 ? "Yesterday" : `${days} days ago`;
-  return dateOnly.format(new Date(value));
+  return dayFormatter().format(new Date(value));
 }
 
 /** "17 Sept 2026". */
 export function formatDate(value: string) {
-  return day.format(new Date(value));
+  return dayFormatter().format(new Date(value));
 }
 
 /** A file size as people read it, for a document attached to a form. */

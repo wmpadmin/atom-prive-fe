@@ -3,7 +3,7 @@ import { useListClientFiles, type CustomerPage } from "@atomprive/api-client/bac
 import { Alert, Badge, Pagination, TextInput } from "@atomprive/ui";
 import { ChevronRight, Search } from "lucide-react";
 import { useState } from "react";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
+import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { hasAuthority } from "../../lib/permissions";
@@ -26,7 +26,7 @@ export function ClientDocumentsPage() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   // Offered rather than fixed, so this footer reads like every other one in the portal.
-  const [size, setSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState<number>(defaultPageSize);
   const user = useStaffUser();
   // Two jobs on one screen, and the menu entry admits nobody else: Operations put papers on file for every
   // client, a relationship manager for their own. Neither decides on what they put there.

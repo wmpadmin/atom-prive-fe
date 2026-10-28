@@ -13,7 +13,7 @@ import { QueueBar } from "./queue-bar";
 import { QueueFilters } from "./queue-filters";
 import { useState } from "react";
 import { formatDateTime } from "../../lib/labels";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
+import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 
 const TABS: { id: ModelChangeRowStatus | "all"; label: string }[] = [
   { id: "PENDING", label: "Waiting for approval" },
@@ -41,7 +41,7 @@ export function ModelChangesPage() {
   const [page, setPage] = useState(0);
   // Chosen rather than fixed, the same as every other queue. Twenty-five was written into the request and
   // nowhere offered, so the footer counted the rows but gave nobody a way to change how many there were.
-  const [size, setSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState<number>(defaultPageSize);
   /** Narrowed the same way the proposals beside this are: by client, by date, and read either way up. */
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");

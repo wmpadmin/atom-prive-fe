@@ -21,7 +21,7 @@ import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
 import { APPROVES_PROPOSALS, hasAnyAuthority, readsEveryAdvisors } from "../../lib/permissions";
 import { formatDate } from "../../lib/labels";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
+import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { QueueBar } from "../portfolios/queue-bar";
 import { QueueFilters } from "../portfolios/queue-filters";
 import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
@@ -197,7 +197,7 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
   // its own and an empty list is not "you haven't written one yet".
   const everyAdvisors = readsEveryAdvisors(user);
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<number>(defaultPageSize);
   // Seeded from the address, so searching from an open proposal lands here already filtered.
   const [params] = useSearchParams();
   const fromAddress = params.get("q") ?? "";

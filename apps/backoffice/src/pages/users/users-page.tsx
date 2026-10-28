@@ -9,7 +9,7 @@ import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
+import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { useStaffUser } from "../../auth/session";
 import { downloadTextFile } from "../../lib/download";
 import { roleLabels, roleList, roles, statusLabels, statuses, type StaffRole, type StaffStatus } from "../../lib/labels";
@@ -112,7 +112,7 @@ export function UsersPage() {
   const [role, setRole] = useState<StaffRole | "">("");
   const [status, setStatus] = useState<StaffStatus | "">("");
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<number>(defaultPageSize);
 
   // A different page size starts again at the first page, so the rows on screen always match the summary.
   function changePageSize(size: number) {
