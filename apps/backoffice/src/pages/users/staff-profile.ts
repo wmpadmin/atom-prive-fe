@@ -26,7 +26,15 @@ const requiredMessages = {
 type ProfileField = keyof typeof requiredMessages;
 
 /** Reads the staff form, with a message for every field that's empty or, for the mobile number, breaks the rules. */
-export function readStaffProfile(form: HTMLFormElement, roles: StaffRole[], reportsToId: string) {
+export function readStaffProfile(
+  form: HTMLFormElement,
+  roles: StaffRole[],
+  reportsToId: string,
+  /** The role they open in. Null where they hold one, or where nobody has chosen for them. */
+  defaultRole: StaffRole | null,
+  /** A photograph just chosen, as a squared data URI; null leaves whatever is on the record. */
+  photo: string | null,
+) {
   const values = new FormData(form);
   const text = (name: string) => String(values.get(name) ?? "").trim();
   const country = mobileCountry(text("phoneCountry")).code;
@@ -36,6 +44,9 @@ export function readStaffProfile(form: HTMLFormElement, roles: StaffRole[], repo
     email: text("email"),
     phone: mobile.number ?? "",
     roles,
+    defaultRole: roles.length > 1 ? defaultRole : null,
+    // Null says nothing about the photograph rather than removing it; only a freshly chosen one is sent.
+    photo,
     nationality: text("nationality"),
     residentialAddress: text("residentialAddress"),
     designation: text("designation"),
@@ -87,7 +98,7 @@ export function focusFirstError(form: HTMLFormElement | null, errors: Record<str
  * What the Add and Edit staff forms share: field errors, and which required fields are still to complete, so the
  * save button can stay off until nothing is.
  */
-export function useStaffProfileForm(roles: StaffRole[], reportsToId: string) {
+export function useStaffProfileForm(roles: StaffRole[], reportsToId: string, defaultRole: StaffRole | null) {
   const formRef = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [edits, setEdits] = useState(0);
@@ -97,9 +108,9 @@ export function useStaffProfileForm(roles: StaffRole[], reportsToId: string) {
   // number, for example, are refused).
   useEffect(() => {
     if (formRef.current) {
-      setIncomplete(readStaffProfile(formRef.current, roles, reportsToId).missing);
+      setIncomplete(readStaffProfile(formRef.current, roles, reportsToId, defaultRole, null).missing);
     }
-  }, [edits, roles, reportsToId]);
+  }, [edits, roles, reportsToId, defaultRole]);
 
   function setFieldError(field: string, message: string | undefined) {
     setErrors((current) => {

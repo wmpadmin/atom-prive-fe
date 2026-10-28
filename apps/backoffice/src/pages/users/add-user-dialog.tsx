@@ -64,8 +64,12 @@ export function AddUserDialog({ open, onClose, onAdded }: AddUserDialogProps) {
 function AddUserForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: (created: StaffUserCreated) => void }) {
   const queryClient = useQueryClient();
   const [roles, setRoles] = useState<StaffRole[]>(["ADVISOR"]);
+  // Where they land at sign-in. Only asked of somebody holding several roles; the rest have one answer.
+  // A photograph just chosen, held until the form is sent: there is no account yet to upload one against.
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [defaultRole, setDefaultRole] = useState<StaffRole | null>(null);
   const [reportsToId, setReportsToId] = useState("");
-  const { formRef, errors, setErrors, setFieldError, fieldChanged, incomplete, handleChange, showIncomplete } = useStaffProfileForm(roles, reportsToId);
+  const { formRef, errors, setErrors, setFieldError, fieldChanged, incomplete, handleChange, showIncomplete } = useStaffProfileForm(roles, reportsToId, defaultRole);
   const directory = useListStaffDirectory<StaffReference[], ApiError>();
 
   const createUser = useCreateStaffUser<ApiError>({
@@ -84,7 +88,7 @@ function AddUserForm({ onCancel, onCreated }: { onCancel: () => void; onCreated:
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const { data, missing } = readStaffProfile(event.currentTarget, roles, reportsToId);
+    const { data, missing } = readStaffProfile(event.currentTarget, roles, reportsToId, defaultRole, photo);
     if (Object.keys(missing).length > 0) {
       showIncomplete();
       return;
@@ -107,7 +111,16 @@ function AddUserForm({ onCancel, onCreated }: { onCancel: () => void; onCreated:
         onFieldError={setFieldError}
         onFieldChange={fieldChanged}
         roles={roles}
-        onRolesChange={setRoles}
+        onRolesChange={(next) => {
+          setRoles(next);
+          // A workspace they no longer hold is no workspace. Cleared as the tick comes off rather than
+          // left to be refused on save, so the box never offers a role that is not on the list above it.
+          if (defaultRole && !next.includes(defaultRole)) setDefaultRole(null);
+        }}
+        defaultRole={defaultRole}
+        onDefaultRoleChange={setDefaultRole}
+        photo={photo}
+        onPhotoChange={setPhoto}
         reportsToId={reportsToId}
         onReportsToChange={setReportsToId}
         managers={directory.data ?? []}

@@ -11,7 +11,7 @@ import {
   type RegisterRowStanding,
   type StaffDeclarations,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, TextInput, cn } from "@atomprive/ui";
+import { Alert, Badge, Button, StaffAvatar, TextInput, cn } from "@atomprive/ui";
 import { CalendarCog, Download, Mail, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { downloadTextFile } from "../../lib/download";
@@ -217,9 +217,7 @@ export function StaffDeclarationsPage() {
                     row.id === selectedId ? "bg-primary-50" : "hover:bg-canvas",
                   )}
                 >
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary-600 text-2xs font-semibold text-on-accent">
-                    {initialsOf(row.fullName)}
-                  </span>
+                  <StaffAvatar name={row.fullName} photo={row.photo} className="text-2xs font-semibold" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-ink">{row.fullName}</span>
                     <span className="block truncate text-xs text-ink-muted">{roleLine(row)}</span>
@@ -269,9 +267,13 @@ function StaffPanel({ held, onTold, onRefused }: {
       <section className="rounded-2xl border border-line bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary-600 text-sm font-semibold text-on-accent">
-              {initialsOf(employee.fullName)}
-            </span>
+            {/* The square is kept: this mark names the person whose file is open, and the shape is how
+                this panel has always said so. Only the face inside it is new. */}
+            <StaffAvatar
+              name={employee.fullName}
+              photo={employee.photo}
+              className="size-11 rounded-xl text-sm font-semibold"
+            />
             <div>
               <h2 className="text-lg font-bold text-ink">{employee.fullName}</h2>
               <p className="mt-0.5 text-xs text-ink-muted">
@@ -326,7 +328,3 @@ function StaffPanel({ held, onTold, onRefused }: {
   );
 }
 
-function initialsOf(name: string) {
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts.at(-1)?.[0] ?? "") : "")).toUpperCase();
-}

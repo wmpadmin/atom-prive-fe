@@ -8,7 +8,7 @@ import {
   type StaffDeclarations,
   type StaffUserDetail,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, cn, Pagination } from "@atomprive/ui";
+import { Alert, Badge, Button, cn, Pagination, StaffAvatar } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Download, FileText, PencilLine, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -26,14 +26,19 @@ import { DeclarationsProgress, DeclarationsTable } from "../staff-declarations/d
 import { DeactivateUserDialog } from "./deactivate-user-dialog";
 import { EditStaffDialog } from "./edit-staff-dialog";
 import { ResetPasswordDialog } from "./reset-password-dialog";
+import { StaffSessions } from "./staff-sessions";
 
 type Notice = { tone: "success" | "danger"; message: string };
-type Tab = "overview" | "declarations" | "documents" | "activity";
+type Tab = "overview" | "declarations" | "documents" | "security" | "sessions" | "activity";
 
 const tabs: { id: Tab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "declarations", label: "Declarations" },
   { id: "documents", label: "Documents" },
+  // Beside Sessions, because the three answer one question between them: who can get into this account,
+  // and from where.
+  { id: "security", label: "Security" },
+  { id: "sessions", label: "Sessions" },
   { id: "activity", label: "Activity" },
 ];
 
@@ -101,7 +106,7 @@ export function UserDetailPage() {
 
       <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-white px-6 py-5">
         <div className="flex min-w-0 items-center gap-4">
-          <Avatar name={user.fullName} className="size-16 rounded-2xl text-xl" />
+          <StaffAvatar name={user.fullName} photo={user.photo} className="size-16 rounded-2xl text-xl" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-[1.625rem] font-bold">{user.fullName}</h1>
@@ -204,20 +209,6 @@ export function UserDetailPage() {
                 />
                 <Info label="PAN ID / EID" value={user.nationalId} />
                 <Info label="Passport number" value={user.passportNumber} />
-                {!isSelf && !deactivated && (
-                  <div className="flex flex-wrap gap-x-5 gap-y-1">
-                    <button type="button" onClick={() => setDialog("reset")} className="text-sm font-semibold text-primary-600 hover:text-primary-700">
-                      Reset password
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDialog("reset-authenticator")}
-                      className="text-sm font-semibold text-primary-600 hover:text-primary-700"
-                    >
-                      Reset authenticator
-                    </button>
-                  </div>
-                )}
               </InfoCard>
             </div>
             <AssignedClients />
@@ -229,6 +220,43 @@ export function UserDetailPage() {
             Documents kept for this person, such as their licence and ID copies, will appear here.
           </EmptyPanel>
         )}
+        {tab === "security" && (
+          <section className="rounded-2xl border border-line bg-white">
+            <div className="border-b border-line px-5 py-4">
+              <h2 className="text-base font-bold">Getting back in</h2>
+              <p className="mt-0.5 text-xs text-ink-muted">
+                What an Admin does for somebody who is locked out. Both are written to the audit trail with
+                your name.
+              </p>
+            </div>
+            {isSelf ? (
+              <p className="px-5 py-8 text-sm text-ink-muted">
+                This is your own account. Change your own password from Settings; nobody resets their own
+                authenticator, which is the point of it.
+              </p>
+            ) : deactivated ? (
+              <p className="px-5 py-8 text-sm text-ink-muted">
+                This account is deactivated. Nothing can be reset until somebody puts it back.
+              </p>
+            ) : (
+              <div className="divide-y divide-line">
+                <WayBackIn
+                  title="Reset password"
+                  what="Issues a temporary password to pass on. They must replace it the next time they sign in, and every other session of theirs ends."
+                  action="Reset password"
+                  onChoose={() => setDialog("reset")}
+                />
+                <WayBackIn
+                  title="Reset authenticator"
+                  what="For a lost or replaced phone. They scan a new QR code the next time they sign in, and any hour-long lock is lifted."
+                  action="Reset authenticator"
+                  onChoose={() => setDialog("reset-authenticator")}
+                />
+              </div>
+            )}
+          </section>
+        )}
+        {tab === "sessions" && <StaffSessions userId={user.id} name={user.fullName} />}
         {tab === "activity" && <RecentActivity user={user} />}
       </div>
 
@@ -307,6 +335,28 @@ function InfoCard({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="text-xs font-semibold tracking-wider text-primary-600 uppercase">{title}</h2>
       {children}
     </section>
+  );
+}
+
+/** One way of putting somebody back into their account: what it does, and the button that does it. */
+function WayBackIn({ title, what, action, onChoose }: {
+  title: string;
+  what: string;
+  action: string;
+  onChoose: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-4">
+      <div className="min-w-0 max-w-prose">
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="mt-0.5 text-xs text-ink-muted">{what}</p>
+      </div>
+      {/* One width for both. Side by side down a column, two buttons sized to their own words put their
+          right-hand edges a word apart, which reads as a mistake rather than as two lengths of label. */}
+      <Button variant="secondary" size="sm" className="w-48 shrink-0 justify-center" onClick={onChoose}>
+        {action}
+      </Button>
+    </div>
   );
 }
 

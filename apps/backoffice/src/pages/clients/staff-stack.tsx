@@ -1,5 +1,5 @@
 import type { StaffMember } from "@atomprive/api-client/backoffice";
-import { Avatar, cn } from "@atomprive/ui";
+import { cn, StaffAvatar } from "@atomprive/ui";
 import { useEffect, useId, useRef, useState } from "react";
 
 /** How many faces the stack draws before it starts counting instead. */
@@ -72,7 +72,7 @@ export function StaffStack({ people: advisors, desk = "people" }: { people: Staf
       {faces.map((advisor) => (
         // Ringed in the surface colour so overlapping faces read as separate people rather than as one
         // smudged shape.
-        <Avatar key={advisor.id} name={advisor.fullName} className="size-7 text-2xs ring-2 ring-white" />
+        <StaffAvatar key={advisor.id} name={advisor.fullName} photo={advisor.photo} className="size-7 text-2xs ring-2 ring-white" />
       ))}
       {counted > 0 && (
         <span
@@ -130,7 +130,7 @@ export function StaffStack({ people: advisors, desk = "people" }: { people: Staf
           <ul>
             {advisors.map((advisor) => (
               <li key={advisor.id} className="flex items-center gap-2 px-3 py-1.5">
-                <Avatar name={advisor.fullName} className="size-7 text-2xs" />
+                <StaffAvatar name={advisor.fullName} photo={advisor.photo} className="size-7 text-2xs" />
                 <span className="text-sm whitespace-nowrap text-ink">{advisor.fullName}</span>
               </li>
             ))}
