@@ -2,8 +2,9 @@ import { ApiError } from "@atomprive/api-client";
 import {
   getGetClientKycFileQueryKey,
   getListKycDocumentsQueryKey,
+  useListKycPapers,
   useUploadKycDocument,
-  type KycDocumentRowKind,
+  type PaperRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, DateInput, Dialog, Field, SelectInput, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,19 +15,9 @@ import { useRef, useState, type FormEvent } from "react";
  * Every kind is offered whoever the client is, because the firm's checklist asks an individual for a trade
  * licence and audited accounts too where they own a business.
  */
-const KINDS: { value: KycDocumentRowKind; label: string }[] = [
-  { value: "PASSPORT", label: "Passport" },
-  { value: "NATIONAL_ID", label: "National ID" },
-  { value: "PROOF_OF_ADDRESS", label: "Proof of address" },
-  { value: "SOURCE_OF_FUNDS", label: "Source of funds" },
-  { value: "SOURCE_OF_WEALTH", label: "Source of wealth" },
-  { value: "TRADE_LICENCE", label: "Trade licence" },
-  { value: "CERTIFICATE_OF_INCUMBENCY", label: "Certificate of incumbency" },
-  { value: "BOARD_RESOLUTION", label: "Board resolution" },
-  { value: "AUDITED_ACCOUNTS", label: "Audited accounts" },
-  { value: "SHAREHOLDER_REGISTER", label: "Shareholder register" },
-  { value: "OTHER", label: "Other" },
-];
+
+/** The one choice that is not a paper: it is how a paper the firm has never filed before gets named. */
+const SOMETHING_ELSE = "something-else";
 
 function yearsFromToday(years: number) {
   const now = new Date();
@@ -51,7 +42,13 @@ export function UploadKycDialog({
   const queryClient = useQueryClient();
   const upload = useUploadKycDocument<ApiError>();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [kind, setKind] = useState<KycDocumentRowKind>("PASSPORT");
+  const papers = useListKycPapers<PaperRow[], ApiError>({ query: { staleTime: 60_000 } });
+  /**
+   * Which paper is chosen, by its id — or SOMETHING_ELSE, which is how a paper the firm has never filed
+   * before gets named.
+   */
+  const [chosen, setChosen] = useState("");
+  const [otherName, setOtherName] = useState("");
   const [reference, setReference] = useState("");
   const [expiresOn, setExpiresOn] = useState("");
   const [problem, setProblem] = useState<string>();
@@ -64,12 +61,26 @@ export function UploadKycDialog({
       setProblem("Choose the file to put on file.");
       return;
     }
+    const paper = (papers.data ?? []).find((one) => one.id === chosen);
+    const naming = chosen === SOMETHING_ELSE;
+    if (naming && otherName.trim() === "") {
+      setProblem("Say what the document is called.");
+      return;
+    }
+    if (!naming && !paper) {
+      setProblem("Choose what the document is.");
+      return;
+    }
+    // A built-in paper goes under its own kind. One the firm named — whether picked from the list or being
+    // named now — goes under OTHER, carrying the name, and the name joins the list for next time.
     upload.mutate(
       {
         customerId,
         data: { file },
         params: {
-          kind,
+          kind: (!naming && paper?.kind) ? paper.kind : "OTHER",
+          ...(naming ? { otherName: otherName.trim() } : {}),
+          ...(!naming && paper && !paper.kind ? { otherName: paper.name } : {}),
           ...(reference.trim() ? { reference: reference.trim() } : {}),
           ...(expiresOn ? { expiresOn } : {}),
         },
@@ -80,6 +91,7 @@ export function UploadKycDialog({
           void queryClient.invalidateQueries({ queryKey: getListKycDocumentsQueryKey() });
           setReference("");
           setExpiresOn("");
+          setOtherName("");
           if (fileRef.current) fileRef.current.value = "";
           onClose();
         },
@@ -89,23 +101,48 @@ export function UploadKycDialog({
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title={`Add a document for ${clientName}`}>
+    <Dialog open={open} size="lg" onClose={onClose} title={`Add a document for ${clientName}`}>
       <form onSubmit={send} className="space-y-4">
         {problem && <Alert tone="danger">{problem}</Alert>}
 
         <Field id="kyc-kind" label="What it is" required>
           <SelectInput
             id="kyc-kind"
-            value={kind}
-            onChange={(event) => setKind(event.target.value as KycDocumentRowKind)}
+            value={chosen}
+            onChange={(event) => setChosen(event.target.value)}
           >
-            {KINDS.map((one) => (
-              <option key={one.value} value={one.value}>
-                {one.label}
+            <option value="" disabled>
+              {papers.isPending ? "Reading the list…" : "Choose what it is"}
+            </option>
+            {(papers.data ?? []).map((one) => (
+              <option key={one.id} value={one.id}>
+                {one.name}
               </option>
             ))}
+            {/* Last, because it is the way out of the list rather than one of its entries. */}
+            <option value={SOMETHING_ELSE}>Something else…</option>
           </SelectInput>
         </Field>
+
+        {/* Asked for only where the list has nothing that fits. What is typed here becomes one of the
+            firm's own papers, so the next client who sends the same thing is filed under these words
+            rather than a second spelling of them. */}
+        {chosen === SOMETHING_ELSE && (
+          <Field
+            id="kyc-other"
+            label="What is it called?"
+            required
+            hint="It joins the list above, so it can be chosen directly next time."
+          >
+            <TextInput
+              id="kyc-other"
+              value={otherName}
+              onChange={(event) => setOtherName(event.target.value)}
+              placeholder="Title deed"
+              maxLength={120}
+            />
+          </Field>
+        )}
 
         <Field id="kyc-reference" label="Reference" hint="The number the document itself carries, where it has one.">
           <TextInput

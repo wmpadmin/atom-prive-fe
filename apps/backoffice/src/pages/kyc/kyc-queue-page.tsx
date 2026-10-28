@@ -1,6 +1,8 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useListClientsForReview,
+  useListOnboardingCases,
+  type CasePage,
   type ReviewQueue,
   type ReviewRow,
 } from "@atomprive/api-client/backoffice";
@@ -8,7 +10,7 @@ import { Alert, Avatar, Badge, SelectInput, TextInput, cn } from "@atomprive/ui"
 import { keepPreviousData } from "@tanstack/react-query";
 import { ChevronRight, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
@@ -21,7 +23,8 @@ import { hasAuthority } from "../../lib/permissions";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
 import { clientTypeLabels } from "../clients/client-labels";
 import { countryName } from "../../lib/countries";
-import { standingLabels, standings, standingTones } from "./kyc-labels-review";
+import { standingLabels, standings } from "./kyc-labels-review";
+import { reviewStateLabels, reviewStateTones } from "./kyc-labels";
 
 /**
  * The queue Compliance work through: the clients whose KYC is pending.
@@ -52,13 +55,40 @@ const MOVABLE: Column[] = [
   // The first two are different questions, and a row that answered only one of them read as though a
   // client who had sent something had sent nothing. What is here to be looked at, and what is still to
   // come — so either may be taken off, but neither stands for the other.
+  // Three columns read across one another — "Uploaded" and "This paper" here, "Put on file" at the end
+  // of the row — each drawing one line per paper in the same order, so a row says what arrived, what
+  // became of it, and when. Three rather than one because they are three questions, a reader wants to
+  // run their eye down any one of them, and the firm can take off the ones it does not use. The dates
+  // sit last at the firm's asking: what a paper is and where it has got to are what the queue is worked
+  // on, and the day it landed is read once those two have been.
   {
-    id: "waitingOn",
-    label: "Waiting on Compliance",
-    cell: (row) => (row.waitingOn.length > 0 ? (
+    id: "uploaded",
+    label: "Uploaded",
+    cell: (row) => (row.papers.length > 0 ? (
       <ul className="space-y-0.5">
-        {row.waitingOn.map((paper) => (
-          <li key={paper} className="font-semibold whitespace-nowrap text-ink-soft">{paper}</li>
+        {row.papers.map((paper, at) => (
+          <li key={`${paper.kindTitle}-${at}`} className="font-semibold whitespace-nowrap text-ink-soft">
+            {paper.kindTitle}
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <span className="text-ink-muted">Nothing sent yet</span>
+    )),
+  },
+  {
+    id: "review",
+    // Named for what it is about rather than for what it is. Headed "Review" it sat two columns from
+    // "Status" and the two read as one fact told twice: a reader cannot see from the words that one is
+    // this paper and the other is the client. Most of the time they agree, which is what made it look
+    // like a repeat; the times they do not are the times somebody needs the row.
+    label: "This paper",
+    cell: (row) => (row.papers.length > 0 ? (
+      <ul className="space-y-0.5">
+        {row.papers.map((paper, at) => (
+          <li key={`${paper.kindTitle}-${at}`}>
+            <Badge tone={reviewStateTones[paper.reviewState]}>{reviewStateLabels[paper.reviewState]}</Badge>
+          </li>
         ))}
       </ul>
     ) : (
@@ -76,16 +106,48 @@ const MOVABLE: Column[] = [
     )),
   },
   {
-    id: "standing",
-    label: "Status",
-    cell: (row) => <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>,
+    // How far off the client is, beside what they owe next. One paper named says nothing about whether it
+    // is the last of three or the first of six, and reading that off the row is the whole reason somebody
+    // opens a client they then have nothing to do on.
+    id: "checklist",
+    label: "Papers in",
+    nowrap: true,
+    cell: (row) => {
+      const done = row.papersRequired > 0 && row.papersIn === row.papersRequired;
+      return (
+        <span className="flex items-center gap-2 whitespace-nowrap">
+          <span className={cn("font-semibold tabular-nums", done ? "text-emerald-700" : "text-ink-soft")}>
+            {row.papersIn} of {row.papersRequired}
+          </span>
+          {/* Said as a bar as well as a figure, because a queue is scanned rather than read: three rows
+              at "1 of 3" and one at "3 of 3" is a shape before it is a number. */}
+          <span aria-hidden="true" className="flex gap-0.5">
+            {Array.from({ length: row.papersRequired }, (_, at) => (
+              <span
+                key={at}
+                className={cn("h-1.5 w-3 rounded-full", at < row.papersIn ? "bg-emerald-500" : "bg-slate-200")}
+              />
+            ))}
+          </span>
+        </span>
+      );
+    },
   },
   {
-    id: "updated",
-    label: "Updated",
+    id: "putOnFile",
+    label: "Put on file",
     nowrap: true,
-    tone: "text-ink-soft",
-    cell: (row) => formatRelative(row.updatedAt),
+    cell: (row) => (row.papers.length > 0 ? (
+      <ul className="space-y-0.5">
+        {row.papers.map((paper, at) => (
+          <li key={`${paper.kindTitle}-${at}`} className="whitespace-nowrap text-ink-soft tabular-nums">
+            {formatRelative(paper.uploadedAt)}
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <span className="text-ink-muted">—</span>
+    )),
   },
 ];
 
@@ -104,6 +166,16 @@ export function KycReviewQueuePage() {
     { query: query || undefined, standing: (standing || undefined) as never, page, size },
     { query: { placeholderData: keepPreviousData } },
   );
+  // The cases whose papers are all in and which are waiting on the signature that activates the client.
+  // A different question from the queue above, and a different table: that one is papers being reviewed,
+  // this one is clients already reviewed and waiting on somebody. Asked only of whoever may sign, since
+  // nobody else can act on it.
+  const signing = useListOnboardingCases<CasePage, ApiError>(
+    { signOff: "AWAITING", page: 0, size: 50 },
+    { query: { enabled: decides, placeholderData: keepPreviousData } },
+  );
+  const awaiting = signing.data?.items ?? [];
+
   const rows = queue.data?.items ?? [];
   const found = queue.data?.totalItems ?? 0;
   const view = useTableView("kyc-queue", MOVABLE.map((one) => one.id));
@@ -159,7 +231,7 @@ export function KycReviewQueuePage() {
             setStanding(event.target.value);
             setPage(0);
           }}
-          aria-label="Filter by where the review has got to"
+          aria-label="Filter by where the client stands"
           className="w-56"
         >
           <option value="">Every client</option>
@@ -170,6 +242,47 @@ export function KycReviewQueuePage() {
           ))}
         </SelectInput>
       </div>
+
+      {/* The sign-off had no door. Approving a client's papers is on this screen and reachable; signing
+          their KYC off — the act that activates them — lived on a case screen with no menu entry, no link
+          and no button anywhere, reached only by a bell notification somebody happened to get or by
+          typing an address with a case id they had no way to look up. It is the end of the job this queue
+          is the start of, so it belongs at the top of it. */}
+      {decides && awaiting.length > 0 && (
+        <section className="rounded-2xl border border-amber-300 bg-amber-50/60">
+          <div className="px-5 pt-5">
+            <h2 className="text-base font-bold">Awaiting your sign-off</h2>
+            <p className="mt-0.5 text-xs text-ink-soft">
+              {awaiting.length === 1
+                ? "One client has every paper in and approved, and is waiting on the signature that activates them."
+                : `${awaiting.length} clients have every paper in and approved, and are waiting on the signature that activates them.`}
+            </p>
+          </div>
+          <ul className="mt-3 divide-y divide-amber-200/70">
+            {awaiting.map((one) => (
+              <li key={one.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar name={one.clientName} photo={one.clientPhoto} />
+                  <div className="min-w-0">
+                    <span className="block font-semibold">{one.clientName}</span>
+                    <span className="block text-xs text-ink-muted">
+                      {clientTypeLabels[one.clientType]}
+                      {one.relationshipManager && ` · ${one.relationshipManager.fullName}`}
+                      {` · updated ${formatRelative(one.updatedAt)}`}
+                    </span>
+                  </div>
+                </div>
+                <Link
+                  to={`/kyc/cases/${one.id}`}
+                  className="text-sm font-semibold text-primary-700 hover:underline"
+                >
+                  Open and sign off
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="rounded-2xl border border-line bg-white">
         {/* Which of their arrangements a reader is in sits on the card's own line, above the table it
@@ -302,7 +415,7 @@ function Row({ row, columns, decides }: { row: ReviewRow; columns: Column[]; dec
     >
       <td className="py-3 pr-4 pl-5">
         <div className="flex items-center gap-3">
-          <Avatar name={row.clientName} />
+          <Avatar name={row.clientName} photo={row.clientPhoto} />
           <div className="min-w-0">
             <span className="block truncate font-semibold">{row.clientName}</span>
             <span className="block truncate text-xs text-ink-muted">

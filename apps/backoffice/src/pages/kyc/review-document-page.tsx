@@ -5,10 +5,12 @@ import {
   getReadKycDocumentUrl,
   useAskForReUpload,
   useDecideKycDocument,
+  useSetKycDocumentExpiry,
+  type KycDocumentRow,
   useGetClientKycFile,
   type ClientKycFile,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, Field, TextArea, cn } from "@atomprive/ui";
+import { Alert, Badge, Button, DateInput, Field, TextArea, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ExternalLink } from "lucide-react";
 import { useState } from "react";
@@ -132,8 +134,12 @@ export function ReviewDocumentPage() {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <DocumentReader key={paper.id} documentId={paper.id} contentType={paper.contentType} />
 
-        {decides && paper.reviewState === "AWAITING_REVIEW" ? (
-          <section className="space-y-4 rounded-2xl border border-line bg-white px-5 py-5 lg:sticky lg:top-5">
+        {/* Both panels in one column of the grid. Left as two children they were two grid cells, and the
+            second landed under the document rather than beside it — out of sight past twenty-eight pages
+            of PDF. The column sticks as a whole, so it stays put while the paper is read. */}
+        <div className="space-y-5 lg:sticky lg:top-5">
+          {decides && paper.reviewState === "AWAITING_REVIEW" ? (
+          <section className="space-y-4 rounded-2xl border border-line bg-white px-5 py-5">
             <div>
               <h2 className="text-base font-bold">KYC decision</h2>
               <p className="mt-0.5 text-xs text-ink-muted">A typed reason is required either way.</p>
@@ -205,7 +211,7 @@ export function ReviewDocumentPage() {
             </div>
           </section>
         ) : (
-          <section className="rounded-2xl border border-line bg-white px-5 py-5 lg:sticky lg:top-5">
+          <section className="rounded-2xl border border-line bg-white px-5 py-5">
             <h2 className="text-base font-bold">{reviewStateLabels[paper.reviewState]}</h2>
             <p className="mt-1 space-y-0.5 text-xs text-ink-muted">
               <DecidedBy by={paper.decidedByName} at={paper.decidedAt} reason={paper.decisionReason}>
@@ -215,9 +221,127 @@ export function ReviewDocumentPage() {
               </DecidedBy>
             </p>
           </section>
-        )}
+          )}
+
+          {/* Offered whatever has been decided. A date is a fact about the paper rather than a judgement
+              on it, and the paper that most needs one is usually the one already approved: an undated
+              passport counts for ever and the reminders that chase a lapsing paper never run for it.
+              Under the decision rather than inside it, so recording a date is never mistaken for
+              deciding again. */}
+          {decides && <WhenItRunsOut paper={paper} onSaved={() => void queryClient.invalidateQueries()} />}
+        </div>
       </div>
     </div>
+  );
+}
+
+function yearsFromToday(years: number) {
+  const now = new Date();
+  return new Date(now.getFullYear() + years, now.getMonth(), now.getDate());
+}
+
+/** Setting, changing or taking off the day a paper runs out. */
+function WhenItRunsOut({ paper, onSaved }: { paper: KycDocumentRow; onSaved: () => void }) {
+  /**
+   * Whether the box is open.
+   *
+   * <p>A paper that already carries a date is answered, and an answered question asked again every time
+   * somebody opens the paper reads as work still to do. So the date is stated, and changing it is asked
+   * for. A paper with no date has nothing to state, and the box is what there is to do about it.
+   */
+  const [changing, setChanging] = useState(false);
+  const [day, setDay] = useState(paper.expiresOn ?? "");
+  const date = useSetKycDocumentExpiry<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        setChanging(false);
+        onSaved();
+      },
+    },
+  });
+  const changed = (day || null) !== (paper.expiresOn ?? null);
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (paper.expiresOn && !changing) {
+    const gone = paper.expiresOn <= today;
+    return (
+      <section className="rounded-2xl border border-line bg-white px-5 py-5">
+        <h2 className="text-base font-bold">When it runs out</h2>
+        <p className="mt-1 text-sm">
+          <span className={cn("font-semibold", gone && "text-amber-700")}>
+            {formatDate(paper.expiresOn)}
+          </span>
+          <span className="text-ink-muted">
+            {gone
+              ? " · that day has passed, so this paper no longer counts towards the checklist"
+              : " · chased 30, 14 and 7 days before"}
+          </span>
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setDay(paper.expiresOn ?? "");
+            setChanging(true);
+          }}
+          className="mt-3 text-xs font-semibold text-primary-700 hover:underline"
+        >
+          Change the date
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-line bg-white px-5 py-5">
+      <h2 className="text-base font-bold">When it runs out</h2>
+      <p className="mt-0.5 text-xs text-ink-muted">
+        A dated paper is chased 30, 14 and 7 days before it lapses, and stops counting towards the client's
+        checklist once it has. One with no date counts for ever.
+      </p>
+      {date.isError && <div className="mt-3"><Alert tone="danger">{date.error.message}</Alert></div>}
+      <div className="mt-3 space-y-2">
+        <Field id="paper-expires" label="Expires" hint="Leave blank where the document doesn't run out.">
+          {/* Reaching back as well as forward, unlike the upload box: the paper that most needs a date
+              put on it is one that ran out while nobody had recorded when it would. */}
+          <DateInput
+            id="paper-expires"
+            name="expiresOn"
+            value={day}
+            clearable
+            min={yearsFromToday(-30)}
+            max={yearsFromToday(20)}
+            onChange={setDay}
+          />
+        </Field>
+        <Button
+          className="w-full"
+          disabled={date.isPending || !changed}
+          onClick={() => date.mutate({ documentId: paper.id, data: { expiresOn: day === "" ? null : day } })}
+        >
+          {date.isPending ? "Saving…" : paper.expiresOn && day === "" ? "Take the date off" : "Save the date"}
+        </Button>
+        {/* Only where there was a date to go back to. Nothing is lost by closing a box that never held one. */}
+        {changing && (
+          <Button
+            className="w-full"
+            variant="secondary"
+            disabled={date.isPending}
+            onClick={() => {
+              setDay(paper.expiresOn ?? "");
+              setChanging(false);
+            }}
+          >
+            Cancel
+          </Button>
+        )}
+        {/* Said plainly, because it is the one thing here that changes what the firm may act on. */}
+        {changed && day !== "" && day < today && (
+          <p className="text-2xs text-amber-700">
+            That day has passed, so this paper stops counting as soon as you save it.
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 

@@ -50,7 +50,7 @@ export function PickClientDialog({
                 }}
                 className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
               >
-                <Avatar name={client.fullName} />
+                <Avatar name={client.fullName} photo={client.photo} />
                 <span className="min-w-0">
                   <span className="block truncate font-semibold">{client.fullName}</span>
                   <span className="block truncate font-mono text-2xs text-ink-muted">{client.code}</span>
