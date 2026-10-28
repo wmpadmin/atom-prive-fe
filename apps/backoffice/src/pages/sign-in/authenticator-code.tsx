@@ -82,6 +82,20 @@ export function AuthenticatorCode({
       <Button type="submit" className="w-full" disabled={submitting || code.length < 6}>
         {submitting ? "Checking…" : "Sign in"}
       </Button>
+      {/* The way back, and it has to be here rather than only on a 409.
+          Somebody who pressed Next past the QR code without scanning it has an app with nothing in it
+          and a screen asking for a code only that app could give — a dead end with no way out but an
+          Admin. Asking for the QR again is safe: it hands back the SAME secret rather than a new one,
+          so a code already on somebody's phone is never silently invalidated. */}
+      {justSetUp && (
+        <button
+          type="button"
+          onClick={onSetUpNeeded}
+          className="w-full text-center text-sm font-semibold text-primary-700 underline underline-offset-2 hover:text-primary-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+        >
+          Show the QR code again
+        </button>
+      )}
     </form>
   );
 }

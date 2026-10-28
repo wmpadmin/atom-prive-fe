@@ -20,7 +20,6 @@ import { ThemeToggle } from "./components/theme-toggle";
 import { TopSearch } from "./components/top-search";
 import { NotificationBell } from "./components/notification-bell";
 import {
-  ArrowLeftRight,
   ChevronDown,
   KeyRound,
   LogOut,
@@ -398,17 +397,6 @@ function UserMenu() {
       </button>
       {open && (
         <div role="menu" className="absolute right-0 z-10 mt-2 w-52 rounded-xl border border-line bg-white p-1.5 shadow-lg">
-          {user.roles.length > 1 && (
-            <Link
-              role="menuitem"
-              to="/workspace"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink-soft hover:bg-slate-50"
-            >
-              <ArrowLeftRight className="size-4" aria-hidden="true" />
-              Switch role
-            </Link>
-          )}
           <Link
             role="menuitem"
             to="/change-password"
