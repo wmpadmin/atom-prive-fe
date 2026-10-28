@@ -1,5 +1,6 @@
 import { Navigate, createBrowserRouter } from "react-router";
 import { AppLayout } from "./app-layout";
+import { Landing } from "./pages/landing";
 import { RequireAuthority, RequireSignIn } from "./auth/guards";
 import { MyClientsPage } from "./pages/advisor/my-clients-page";
 import { ProposalPage } from "./pages/advisor/proposal-page";
@@ -32,7 +33,6 @@ import { MyDeclarationPage } from "./pages/my-declarations/my-declaration-page";
 import { MyDeclarationsPage } from "./pages/my-declarations/my-declarations-page";
 import { StaffDeclarationsPage } from "./pages/staff-declarations/staff-declarations-page";
 import { StaffTrackerPage } from "./pages/staff-tracker/staff-tracker-page";
-import { HomePage } from "./pages/home-page";
 import { SettingsPage } from "./pages/settings-page";
 import {
   ONBOARDS_CLIENTS,
@@ -90,7 +90,7 @@ export const router = createBrowserRouter([
         path: "/",
         element: <AppLayout />,
         children: [
-          { index: true, element: <HomePage /> },
+          { index: true, element: <Landing /> },
           // Everyone at the firm signs the same nine, so their own need no permission beyond being signed in.
           { path: "my-declarations", element: <MyDeclarationsPage /> },
           { path: "my-declarations/:kind", element: <MyDeclarationPage /> },
