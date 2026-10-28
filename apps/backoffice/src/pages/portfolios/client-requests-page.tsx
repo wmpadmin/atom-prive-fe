@@ -1,4 +1,5 @@
 import { ApiError } from "@atomprive/api-client";
+import { ArchivedMark } from "../../components/archived-client";
 import {
   useAnswerTheMovePlan,
   useAskOnBehalfOfTheClient,
@@ -119,10 +120,13 @@ function ClientRequest({ row, answering, refusal, onAnswer, mine }: {
     <>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
-          <Avatar name={row.clientName} />
+          <Avatar name={row.clientName} photo={row.clientPhoto} />
           <div className="min-w-0">
             <p className="font-semibold">{row.clientName}</p>
             <p className="font-mono text-xs text-ink-muted">{row.clientCode}</p>
+            {/* The request stays answerable — money the client asked to move is the firm's business
+                whatever became of them — but whoever reads it is told the client has gone. */}
+            {row.clientArchived && <ArchivedMark />}
             {/* The reason first, because here it is the client's own asking, written down by whoever took
                 the call. The figures are below it and they can be read. */}
             <p className="mt-1 text-sm">{row.why}</p>
@@ -324,7 +328,7 @@ function WhichClient({ onPick, onClose }: {
                   onClick={() => onPick({ id: client.id, name: client.fullName, code: client.code })}
                   className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-slate-50/60"
                 >
-                  <Avatar name={client.fullName} />
+                  <Avatar name={client.fullName} photo={client.photo} />
                   <span>
                     <span className="block font-semibold">{client.fullName}</span>
                     <span className="block font-mono text-xs text-ink-muted">{client.code}</span>
@@ -839,10 +843,11 @@ export function ClientRequestsPage() {
                   >
                     <th scope="row" className="py-3 pr-4 pl-5 text-left font-normal">
                       <div className="flex items-center gap-3">
-                        <Avatar name={row.clientName} />
+                        <Avatar name={row.clientName} photo={row.clientPhoto} />
                         <div className="min-w-0">
                           <span className="block truncate font-medium">{row.clientName}</span>
                           <span className="block font-mono text-xs text-ink-muted">{row.clientCode}</span>
+                          {row.clientArchived && <ArchivedMark />}
                         </div>
                       </div>
                     </th>
