@@ -1,5 +1,5 @@
 import { Alert, Button, IconButton } from "@atomprive/ui";
-import { Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import { ClientSignsThis } from "../../components/client-signs-this";
 import { Documents, type FormDocuments } from "../../components/form-documents";
@@ -227,7 +227,6 @@ export function ResidenceStep({
             disabled={rows.length >= MAX_ROWS}
             onClick={() => onChange({ jurisdictions: [...rows, emptyJurisdiction()] })}
           >
-            <Plus aria-hidden="true" />
             Add a country
           </Button>
         </div>

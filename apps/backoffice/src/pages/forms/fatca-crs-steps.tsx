@@ -1,6 +1,6 @@
 import { useFirmName } from "./firm-name";
 import { Alert, Button, IconButton, RequiredMark, cn } from "@atomprive/ui";
-import { CircleCheck, Plus, X } from "lucide-react";
+import { CircleCheck, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Boxes, Tick, type Blank } from "../../components/form-boxes";
 import { Documents, type FormDocuments } from "../../components/form-documents";
@@ -267,7 +267,6 @@ export function ResidenceStep({
       <section className="space-y-4">
           <div className="flex justify-end">
             <Button variant="secondary" size="sm" disabled={rows.length >= MAX_ROWS} onClick={() => onChange({ jurisdictions: [...rows, emptyTaxResidence()] })}>
-              <Plus aria-hidden="true" />
               Add a country
             </Button>
           </div>
@@ -516,7 +515,6 @@ export function ControllingPersonsStep({
         title="1. Controlling Person Details"
         action={
           <Button variant="secondary" size="sm" disabled={people.length >= MAX_ROWS} onClick={() => onChange({ controllingPersons: [...people, emptyControllingPerson()] })}>
-            <Plus aria-hidden="true" />
             Add a Controlling Person
           </Button>
         }
@@ -545,7 +543,6 @@ export function ControllingPersonsStep({
                   disabled={person.taxResidences.length >= MAX_ROWS}
                   onClick={() => change(at, { taxResidences: [...person.taxResidences, emptyTaxResidence()] })}
                 >
-                  <Plus aria-hidden="true" />
                   Add a country
                 </Button>
               </div>
