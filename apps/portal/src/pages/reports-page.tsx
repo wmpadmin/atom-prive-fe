@@ -258,8 +258,16 @@ export function ReportsPage() {
       <aside className="space-y-4">
         <Aside title="What is on this report">
           <p>
-            Every request, every answer, every revocation, and every day a shared account was read. It is
-            the firm&rsquo;s own audit trail, narrowed to you.
+            Every request, every answer, every revocation, and every day a shared account was read &mdash;
+            between you and the people in your family group.
+          </p>
+          {/* Said outright. "The firm's own audit trail, narrowed to you" was true of where the rows come
+              from and wrong about what they cover, and a client reading it would reasonably take this for
+              the record of who at the firm has opened their file. That record is kept, and it is not this
+              screen. Promising it here and not showing it is worse than not promising it. */}
+          <p className="border-t border-slate-100 pt-3">
+            It does not show when the firm&rsquo;s own staff opened your file. That is recorded separately.
+            Ask your relationship manager for it.
           </p>
           <p className="border-t border-slate-100 pt-3">
             A read is recorded once a day for each person who reads an account, rather than once a page.
