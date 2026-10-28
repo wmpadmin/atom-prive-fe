@@ -13,6 +13,7 @@ import { useState, type ReactNode } from "react";
 import { useStaffUser } from "../../auth/session";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
+import { RejectedRecords } from "./rejected-records";
 import { useColumnDrag } from "../../lib/column-drag";
 import { formatDateTime } from "../../lib/labels";
 import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
@@ -258,6 +259,10 @@ export function SyncErrorsPage() {
           </div>
         )}
       </section>
+
+      {/* A different problem from the failures above, and usually a different person's: those are feeds
+          that would not answer, these are runs that worked and brought back something unusable. */}
+      <RejectedRecords />
     </div>
   );
 }
