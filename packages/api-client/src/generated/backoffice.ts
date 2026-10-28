@@ -1379,7 +1379,6 @@ export const JsonNodeNodeType = {
 
 export interface JsonNode {
   number?: boolean;
-  bigInteger?: boolean;
   container?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
@@ -1392,6 +1391,7 @@ export interface JsonNode {
   long?: boolean;
   double?: boolean;
   bigDecimal?: boolean;
+  bigInteger?: boolean;
   /** @deprecated */
   textual?: boolean;
   boolean?: boolean;
@@ -4854,6 +4854,19 @@ export interface ClientWhoSignedIn {
   latest: Session | null;
 }
 
+export interface RejectedRecordRow {
+  id: string;
+  /** @nullable */
+  syncRunId: string | null;
+  /** @nullable */
+  accountNumber: string | null;
+  reason: string;
+  reasonSaid: string;
+  detail: string;
+  raw: string;
+  rejectedAt: string;
+}
+
 export interface ProposalCounts {
   all: number;
   draft: number;
@@ -6506,6 +6519,10 @@ export type ListPacksToSignParams = {
 waiting?: boolean;
 page?: number;
 size?: number;
+};
+
+export type RejectedRecordsParams = {
+limit?: number;
 };
 
 export type ListProposalsAwaitingMyAnswerParams = {
@@ -23330,6 +23347,108 @@ export function useClientSessionHistory<TData = Awaited<ReturnType<typeof client
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getClientSessionHistoryQueryOptions(clientLoginId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRejectedRecordsUrl = (params?: RejectedRecordsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/rejected-records?${stringifiedParams}` : `/api/backoffice/rejected-records`
+}
+
+export const rejectedRecords = async (params?: RejectedRecordsParams, options?: Parameters<typeof http>[1]): Promise<RejectedRecordRow[]> => {
+
+  return http<RejectedRecordRow[]>(getRejectedRecordsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getRejectedRecordsQueryKey = (params?: RejectedRecordsParams,) => {
+    return [
+    `/api/backoffice/rejected-records`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getRejectedRecordsQueryOptions = <TData = Awaited<ReturnType<typeof rejectedRecords>>, TError = unknown>(params?: RejectedRecordsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof rejectedRecords>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getRejectedRecordsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof rejectedRecords>>> = ({ signal }) => rejectedRecords(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof rejectedRecords>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type RejectedRecordsQueryResult = NonNullable<Awaited<ReturnType<typeof rejectedRecords>>>
+export type RejectedRecordsQueryError = unknown
+
+
+export function useRejectedRecords<TData = Awaited<ReturnType<typeof rejectedRecords>>, TError = unknown>(
+ params: undefined |  RejectedRecordsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof rejectedRecords>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof rejectedRecords>>,
+          TError,
+          Awaited<ReturnType<typeof rejectedRecords>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRejectedRecords<TData = Awaited<ReturnType<typeof rejectedRecords>>, TError = unknown>(
+ params?: RejectedRecordsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof rejectedRecords>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof rejectedRecords>>,
+          TError,
+          Awaited<ReturnType<typeof rejectedRecords>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRejectedRecords<TData = Awaited<ReturnType<typeof rejectedRecords>>, TError = unknown>(
+ params?: RejectedRecordsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof rejectedRecords>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useRejectedRecords<TData = Awaited<ReturnType<typeof rejectedRecords>>, TError = unknown>(
+ params?: RejectedRecordsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof rejectedRecords>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getRejectedRecordsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
