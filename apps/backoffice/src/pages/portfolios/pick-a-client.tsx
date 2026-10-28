@@ -22,8 +22,8 @@ export function PickAClient({ id, label, picked, onPick, className }: {
   /** What the box is for, read out where the little caption above it is not read. */
   label: string;
   /** Who is chosen, or null for everybody. The name is kept so the chip can say it. */
-  picked: { customerId: string; name: string } | null;
-  onPick: (who: { customerId: string; name: string } | null) => void;
+  picked: { customerId: string; name: string; photo?: string | null } | null;
+  onPick: (who: { customerId: string; name: string; photo?: string | null } | null) => void;
   className?: string;
 }) {
   // The box debounces whatever is held here; the text itself is this component's, so that choosing
@@ -40,7 +40,7 @@ export function PickAClient({ id, label, picked, onPick, className }: {
     return (
       <span className={cn("flex items-end gap-1.5", className)}>
         <span className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm">
-          <Avatar name={picked.name} className="size-5 text-[0.5rem]" />
+          <Avatar name={picked.name} photo={picked.photo} className="size-5 text-[0.5rem]" />
           <span className="max-w-40 truncate font-medium text-ink">{picked.name}</span>
         </span>
         <Button variant="secondary" size="sm" onClick={() => onPick(null)}>
@@ -56,12 +56,12 @@ export function PickAClient({ id, label, picked, onPick, className }: {
     key: customer.id,
     group: "Clients",
     onChoose: () => {
-      onPick({ customerId: customer.id, name: customer.fullName });
+      onPick({ customerId: customer.id, name: customer.fullName, photo: customer.photo });
       setText("");
     },
     content: (
       <>
-        <Avatar name={customer.fullName} className="size-8 text-2xs" />
+        <Avatar name={customer.fullName} photo={customer.photo} className="size-8 text-2xs" />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold text-ink">
             <Highlight text={customer.fullName} query={typed} />

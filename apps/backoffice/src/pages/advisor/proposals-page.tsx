@@ -498,7 +498,7 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
                 >
                   <td className="py-3 pr-4 pl-5">
                     <div className="flex items-center gap-3">
-                      <Avatar name={proposal.customerName} />
+                      <Avatar name={proposal.customerName} photo={proposal.customerPhoto} />
                       {/* A name is read as one thing, so it is kept on one line and cut where it will not
                           fit — broken across two it reads as two people. */}
                       <div className="min-w-0">

@@ -327,12 +327,18 @@ export function ModelDialog({
   model,
   errors,
   busy,
+  signOff,
   onClose,
   onSave,
 }: {
   model: ModelRow | null;
   errors: FormErrors;
   busy: boolean;
+  /**
+   * Where this edit has to be signed off rather than written: a live plan, which every client on it is
+   * judged by. Absent for a draft, which nobody is measured against.
+   */
+  signOff?: { why: string; onWhy: (why: string) => void; holders: number };
   onClose: () => void;
   onSave: (data: ModelRequest) => void;
   /**
@@ -912,6 +918,32 @@ export function ModelDialog({
           {errors.fields.targets && <p className="mt-1 text-xs text-red-600">{errors.fields.targets}</p>}
         </fieldset>
 
+        {/* Asked for, where there is something to overrule. The reason is what whoever signs it off is
+            really being asked about: a page of targets with no sentence beside it asks somebody to agree
+            to arithmetic. */}
+        {signOff && (
+          <div className="mt-4 rounded-xl border border-line bg-slate-50/60 px-4 py-3">
+            <label htmlFor="model-why"
+              className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              Why it should change
+            </label>
+            <TextInput
+              id="model-why"
+              className="mt-1.5"
+              value={signOff.why}
+              placeholder="The committee moved the equity weight at the October review."
+              onChange={(event) => signOff.onWhy(event.target.value)}
+            />
+            <p className="mt-2 text-xs text-ink-muted">
+              This plan is live, so {signOff.holders === 0
+                ? "any client put on it"
+                : signOff.holders === 1 ? "the client on it" : `all ${signOff.holders} clients on it`}{" "}
+              {signOff.holders === 1 ? "is" : "are"} judged by it. Somebody other than you signs this off,
+              and nothing changes until they do.
+            </p>
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
           {/* Said beside the button as well as against the field. Somebody who presses Save at the foot of a
               long form has to be told here that it was refused, not only where the fault is. */}
@@ -923,8 +955,11 @@ export function ModelDialog({
           <Button variant="secondary" type="button" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={busy || !readable || !addsUp}>
-            {busy ? "Saving…" : model ? "Save the model" : "Create the model"}
+          <Button type="submit"
+            disabled={busy || !readable || !addsUp || (signOff !== undefined && signOff.why.trim() === "")}>
+            {busy
+              ? (signOff ? "Asking…" : "Saving…")
+              : signOff ? "Ask for this change" : model ? "Save the model" : "Create the model"}
           </Button>
         </div>
       </form>

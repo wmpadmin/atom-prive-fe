@@ -12,10 +12,15 @@ import { useSearchParams } from "react-router";
 import { QueueActionsBox, QueueActionsFrame } from "../../components/queue-actions";
 import { useStaffUser } from "../../auth/session";
 import {
+  ANSWERS_CLIENT_REQUESTS,
+  ANSWERS_MOVE_PLANS,
+  APPROVES_PROPOSALS,
   READS_CLIENT_PORTFOLIOS,
   READS_CLIENT_REQUESTS,
   hasAnyAuthority,
+  hasAuthority,
   READS_PROPOSALS,
+  WRITES_PROPOSALS,
   type Authority,
 } from "../../lib/permissions";
 import { ProposalsPage } from "../advisor/proposals-page";
@@ -24,7 +29,7 @@ import { ModelChangesPage } from "./model-changes-page";
 
 /** Which queue is being read. The value is in the address, so a link can point at one. */
 export type ApprovalTab =
-  | "proposals" | "client-requests" | "model-changes" | "model-sign-off";
+  | "proposals" | "client-requests" | "model-changes";
 
 type TabSpec = {
   id: ApprovalTab;
@@ -87,9 +92,16 @@ const TABS: TabSpec[] = [
  * nothing.
  */
 function useHowManyAreWaiting(mine: TabSpec[]) {
+  const user = useStaffUser();
   const offered = (id: ApprovalTab) => mine.some((one) => one.id === id);
+  // Asked of whoever may actually answer one, not of whoever may see the tab. Seeing proposals and
+  // answering them are two permissions, and compliance hold the first and not the second: gated on the
+  // tab, this asked a route that refuses them on every visit to the screen. Nothing showed, because a
+  // refusal reads back as no rows — but a question whose answer is known is not worth asking, and the
+  // count for somebody who answers none is nought without asking anybody.
+  const answersAny = hasAnyAuthority(user, ...APPROVES_PROPOSALS);
   const proposals = useListProposalsAwaitingMyAnswer<ProposalPage, ApiError>({ page: 0, size: 1 },
-    { query: { enabled: offered("proposals"), refetchOnWindowFocus: true } });
+    { query: { enabled: offered("proposals") && answersAny, refetchOnWindowFocus: true } });
   const clientRequests = useListClientRequests<MovePlanQueue, ApiError>(
     { query: { enabled: offered("client-requests"), refetchOnWindowFocus: true } });
   const modelChanges = useListModelChanges<ModelChangePage, ApiError>({ status: "PENDING", page: 0, size: 1 },
@@ -101,6 +113,8 @@ function useHowManyAreWaiting(mine: TabSpec[]) {
     // their scope reached, including ones somebody else answers — so a tab read "1" over a row the
     // reader had no button on.
     "model-changes": modelChanges.data?.waitingOnYou ?? 0,
+    // What this reader may actually answer, not what is waiting: the desk that raises these reads its own
+    // asks here, and a tab counting those would send somebody to a row with no button on it.
   } as Record<ApprovalTab, number>;
 }
 
@@ -130,6 +144,12 @@ export function ApprovalsPage() {
 
   const asked = params.get("queue");
   const tab = mine.find((one) => one.id === asked) ?? mine[0];
+  // Whether this reader may answer anything at all on this screen, across all four queues — not whether
+  // they may answer the one that happens to be open.
+  const reader = useStaffUser();
+  const answersAnything = hasAnyAuthority(reader, ...APPROVES_PROPOSALS, ...ANSWERS_MOVE_PLANS,
+    ...ANSWERS_CLIENT_REQUESTS, ...WRITES_PROPOSALS);
+  const readsTheTrail = hasAuthority(reader, "VIEW_AUDIT_LOG:VIEW");
 
   function choose(id: ApprovalTab) {
     // Replaced rather than pushed: the tabs are one screen read six ways, and Back should leave the
@@ -150,6 +170,20 @@ export function ApprovalsPage() {
     <QueueActionsFrame>
       <div className="space-y-5">
         <h1 className="text-[1.625rem] font-bold">Approvals</h1>
+        {/* Said once, to the people the heading is wrong for.
+
+            Every queue here is answered by somebody who holds the answering permission, and Compliance
+            hold none of them: they read all of this and can press nothing on any row. Under a heading
+            that names the act, that reads as work waiting on them, and the first thing they do is look
+            for the button. The screen is the same screen; this says whose it is. */}
+        {!answersAnything && (
+          <p className="-mt-3 max-w-[78ch] text-sm text-ink-muted">
+            You can read these, and answer none of them — the client's relationship manager does that.
+            {/* Operations reach this screen too, through reading a client's profile, and hold no sight of
+                the audit log — so for them there is no Trail tab to point at. */}
+            {readsTheTrail && " What has already been answered is on Trails."}
+          </p>
+        )}
 
         {/* The tabs and the open queue's own buttons on one line, with the rule under both.
 
@@ -160,7 +194,7 @@ export function ApprovalsPage() {
 
             The tabs scroll rather than wrap: a second row of them would break the line they sit on. */}
         <div className="flex flex-wrap items-end gap-4 border-b border-line">
-          <div role="tablist" aria-label="What is waiting" className="flex min-w-0 gap-1 overflow-x-auto">
+          <div role="tablist" aria-label="What is waiting" className="flex min-w-0 gap-1 scroll-x-quietly">
             {mine.map((one) => (
               <button
                 key={one.id}
