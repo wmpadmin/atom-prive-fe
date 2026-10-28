@@ -8,22 +8,31 @@ import { useStaffUser } from "../../auth/session";
 import { formatDateTime, formatRelative, roleLabel } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
 import { AdvisorDashboard } from "../advisor/advisor-dashboard";
+import { ComplianceDashboard } from "../compliance/compliance-dashboard";
 import { PortfolioManagerDashboard } from "../portfolios/portfolio-manager-dashboard";
 
 /**
  * The dashboard belonging to whoever asked for it. The firm-wide figures are the Admin's — the API answers
  * nobody else for them — so everybody else is shown their own day instead of a screen that would refuse them.
  * A portfolio manager's day is their models and what has wandered off them, which is a different question
- * from a relationship manager's clients and advice.
+ * from a relationship manager's clients and advice, and both are different again from a compliance
+ * officer's, who looks after no clients and writes no advice but owns the firm's KYC and its AML scoring.
  */
 export function DashboardPage() {
   const user = useStaffUser();
   const runsThePlatform = hasAuthority(user, "MANAGE_USERS_AND_ROLES:VIEW");
   const managesPortfolios = user.roles.includes("PORTFOLIO_MANAGER");
+  // Read off the role being worked in, like the portfolio desk below. Compliance fell through to the
+  // relationship manager's screen, which is written about clients somebody looks after and advice they
+  // wrote — a compliance officer has neither, so three of its six figures could never say anything.
+  const checksTheFirm = user.activeRole === "COMPLIANCE";
   const dashboard = useGetDashboard<Dashboard, ApiError>({
     query: { refetchInterval: 60_000, enabled: runsThePlatform },
   });
 
+  if (checksTheFirm) {
+    return <ComplianceDashboard />;
+  }
   if (managesPortfolios) {
     return <PortfolioManagerDashboard />;
   }

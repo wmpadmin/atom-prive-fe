@@ -4,4 +4,2904 @@
  * Atom Privé API
  * OpenAPI spec version: v1
  */
+import {
+  useMutation,
+  useQuery
+} from '@tanstack/react-query';
+import type {
+  DataTag,
+  DefinedInitialDataOptions,
+  DefinedUseQueryResult,
+  MutationFunction,
+  QueryClient,
+  QueryFunction,
+  QueryKey,
+  UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
+  UseQueryOptions,
+  UseQueryResult
+} from '@tanstack/react-query';
 
+import { http } from '../http';
+export interface AskRequest {
+  ownerId: string;
+  bankId: string;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  message: string | null;
+}
+
+export interface AccountRow {
+  id: string;
+  bankName: string;
+  accountType: string;
+  lastFour: string;
+  /** @nullable */
+  nickname: string | null;
+  currency: string;
+  balance: number;
+  mine: boolean;
+  /** @nullable */
+  sharedBy: string | null;
+  /** @nullable */
+  sharedByRelationship: string | null;
+  /** @nullable */
+  sharedByPhoto: string | null;
+  /** @nullable */
+  until: string | null;
+  /** @nullable */
+  lastUpdated: string | null;
+}
+
+export type RequestRowStatus = typeof RequestRowStatus[keyof typeof RequestRowStatus];
+
+
+export const RequestRowStatus = {
+  ASKED: 'ASKED',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export interface RequestRow {
+  id: string;
+  requesterId: string;
+  requesterName: string;
+  /** @nullable */
+  requesterPhoto: string | null;
+  ownerId: string;
+  ownerName: string;
+  /** @nullable */
+  ownerPhoto: string | null;
+  /** @nullable */
+  message: string | null;
+  status: RequestRowStatus;
+  statusSaid: string;
+  askedAt: string;
+  /** @nullable */
+  decidedAt: string | null;
+  /** @nullable */
+  decisionComment: string | null;
+  accounts: AccountRow[];
+  accountsAsked: number;
+  granted: number;
+  mine: boolean;
+}
+
+export interface AnswerRequest {
+  accounts: string[];
+  /** @nullable */
+  expiresOn: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  comment: string | null;
+}
+
+export interface GrantRow {
+  id: string;
+  ownerId: string;
+  granteeId: string;
+  theirName: string;
+  /** @nullable */
+  theirPhoto: string | null;
+  bankName: string;
+  accountType: string;
+  lastFour: string;
+  grantedAt: string;
+  /** @nullable */
+  expiresOn: string | null;
+  /** @nullable */
+  endedAt: string | null;
+  /** @nullable */
+  endedHow: string | null;
+  live: boolean;
+}
+
+export interface MyPermissions {
+  given: GrantRow[];
+  held: GrantRow[];
+}
+
+export interface Me {
+  id: string;
+  fullName: string;
+  code: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  photo: string | null;
+  /** @nullable */
+  mobile: string | null;
+  joinedOn: string;
+}
+
+export interface NotificationChoiceRequest {
+  accessRequests: boolean;
+  accessDecisions: boolean;
+  familyChanges: boolean;
+  accountActivity: boolean;
+}
+
+export interface MyNotifications {
+  accessRequests: boolean;
+  accessDecisions: boolean;
+  familyChanges: boolean;
+  accountActivity: boolean;
+}
+
+export interface JoinRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  fullName: string;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  phone: string | null;
+  /**
+     * @minLength 12
+     * @maxLength 200
+     */
+  password: string;
+}
+
+export interface SignedUp {
+  customerId: string;
+  accessToken: string;
+}
+
+export interface FamilyAsked {
+  id: string;
+  email: string;
+  relationship: string;
+  invitedAt: string;
+  status: string;
+  /** @nullable */
+  inviteUnder: string | null;
+}
+
+export interface FamilyPerson {
+  id: string;
+  fullName: string;
+  /** @nullable */
+  relationship: string | null;
+  joinedOn: string;
+  primaryHolder: boolean;
+  accountHolder: boolean;
+  you: boolean;
+  /** @nullable */
+  bankAccounts: number | null;
+  theyCanSeeMine: number;
+  iCanSeeTheirs: number;
+  /** @nullable */
+  photo: string | null;
+  /** @nullable */
+  parentId: string | null;
+  generation: number;
+  /** @nullable */
+  relationshipToPrimary: string | null;
+}
+
+export interface RelationshipAsk {
+  id: string;
+  customerId: string;
+  fullName: string;
+  /** @nullable */
+  from: string | null;
+  to: string;
+  /** @nullable */
+  fromCode: string | null;
+  toCode: string;
+  askedAt: string;
+  mine: boolean;
+}
+
+export interface MyFamily {
+  /** @nullable */
+  name: string | null;
+  /** @nullable */
+  openedOn: string | null;
+  people: FamilyPerson[];
+  asked: FamilyAsked[];
+  youArePrimary: boolean;
+  relationshipAsks: RelationshipAsk[];
+  generations: number;
+  /** @nullable */
+  bankAccountsInTheGroup: number | null;
+}
+
+export interface RelationshipAskRequest {
+  /**
+     * @minLength 0
+     * @maxLength 64
+     */
+  relationshipCode: string;
+}
+
+export interface FamilyNameRequest {
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  name: string | null;
+}
+
+export interface FamilyRequest {
+  id: string;
+  clientName: string;
+  /** @nullable */
+  clientPhoto: string | null;
+  /** @nullable */
+  familyName: string | null;
+  relationship: string;
+  invitedAt: string;
+  /** @nullable */
+  personalMessage: string | null;
+}
+
+export interface SignInRequest {
+  /** @minLength 1 */
+  email: string;
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface SignedIn {
+  /** @nullable */
+  accessToken: string | null;
+  /** @nullable */
+  expiresAt: string | null;
+  /** @nullable */
+  refreshToken: string | null;
+  /** @nullable */
+  joinToken: string | null;
+}
+
+export interface BankLine {
+  bankId: string;
+  bankName: string;
+  accounts: number;
+}
+
+export interface WhoICanAsk {
+  customerId: string;
+  fullName: string;
+  /** @nullable */
+  relationship: string | null;
+  /** @nullable */
+  photo: string | null;
+  banks: BankLine[];
+  alreadyAsked: boolean;
+}
+
+export interface AccessEventRow {
+  id: string;
+  at: string;
+  action: string;
+  said: string;
+  byYou: boolean;
+  /** @nullable */
+  memberId: string | null;
+  memberName: string;
+  /** @nullable */
+  memberPhoto: string | null;
+  /** @nullable */
+  about: string | null;
+  outcome: string;
+}
+
+export interface Invitation {
+  email: string;
+  clientName: string;
+  /** @nullable */
+  clientPhoto: string | null;
+  /** @nullable */
+  familyName: string | null;
+  relationship: string;
+  relationshipCode: string;
+  invitedAt: string;
+  /** @nullable */
+  invitedByName: string | null;
+  /** @nullable */
+  personalMessage: string | null;
+  /** @nullable */
+  expiresAt: string | null;
+}
+
+export interface StatementLine {
+  bookedOn: string;
+  description: string;
+  amount: number;
+  currency: string;
+}
+
+export interface AccountStatement {
+  account: AccountRow;
+  lines: StatementLine[];
+}
+
+export type UploadMyPhotoBody = {
+  file: Blob | File;
+};
+
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+
+
+const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKey: K } => {
+  const result = { queryKey } as T & { queryKey: K };
+  for (const key of Object.keys(query)) {
+    // The explicit queryKey always wins, matching the previous
+    // `{ ...query, queryKey }` spread where it was set last.
+    if (key === 'queryKey') continue;
+    Object.defineProperty(result, key, {
+      enumerable: true,
+      configurable: true,
+      get: () => (query as Record<string, unknown>)[key],
+    });
+  }
+  return result;
+};
+
+export const getAskUrl = () => {
+
+
+
+
+  return `/api/portal/sharing/requests`
+}
+
+export const ask = async (askRequest: AskRequest, options?: Parameters<typeof http>[1]): Promise<RequestRow[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<RequestRow[]>(getAskUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(askRequest)
+  }
+);}
+
+
+
+
+
+export const getAskMutationKey = () => ['ask'] as const;
+
+export const getAskMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ask>>, TError,AskMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof ask>>, TError,AskMutationVariables, TContext> => {
+
+const mutationKey = getAskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof ask>>, AskMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  ask(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskMutationResult = NonNullable<Awaited<ReturnType<typeof ask>>>
+    export type AskMutationBody = AskRequest
+    export type AskMutationError = unknown
+    export type AskMutationVariables = {data: AskRequest}
+
+    export const useAsk = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ask>>, TError,AskMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof ask>>,
+        TError,
+        AskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskMutationOptions(options), queryClient);
+    }
+
+export const getCancelUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/sharing/requests/${id}/cancel`
+}
+
+export const cancel = async (id: string, options?: Parameters<typeof http>[1]): Promise<RequestRow[]> => {
+
+  return http<RequestRow[]>(getCancelUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelMutationKey = () => ['cancel'] as const;
+
+export const getCancelMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancel>>, TError,CancelMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancel>>, TError,CancelMutationVariables, TContext> => {
+
+const mutationKey = getCancelMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancel>>, CancelMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  cancel(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelMutationResult = NonNullable<Awaited<ReturnType<typeof cancel>>>
+
+    export type CancelMutationError = unknown
+    export type CancelMutationVariables = {id: string}
+
+    export const useCancel = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancel>>, TError,CancelMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancel>>,
+        TError,
+        CancelMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelMutationOptions(options), queryClient);
+    }
+
+export const getAnswerUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/sharing/requests/${id}/answer`
+}
+
+export const answer = async (id: string,
+    answerRequest: AnswerRequest, options?: Parameters<typeof http>[1]): Promise<RequestRow[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<RequestRow[]>(getAnswerUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(answerRequest)
+  }
+);}
+
+
+
+
+
+export const getAnswerMutationKey = () => ['answer'] as const;
+
+export const getAnswerMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answer>>, TError,AnswerMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answer>>, TError,AnswerMutationVariables, TContext> => {
+
+const mutationKey = getAnswerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answer>>, AnswerMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  answer(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerMutationResult = NonNullable<Awaited<ReturnType<typeof answer>>>
+    export type AnswerMutationBody = AnswerRequest
+    export type AnswerMutationError = unknown
+    export type AnswerMutationVariables = {id: string;data: AnswerRequest}
+
+    export const useAnswer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answer>>, TError,AnswerMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answer>>,
+        TError,
+        AnswerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerMutationOptions(options), queryClient);
+    }
+
+export const getRevokeUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/sharing/permissions/${id}/revoke`
+}
+
+export const revoke = async (id: string, options?: Parameters<typeof http>[1]): Promise<MyPermissions> => {
+
+  return http<MyPermissions>(getRevokeUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeMutationKey = () => ['revoke'] as const;
+
+export const getRevokeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revoke>>, TError,RevokeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof revoke>>, TError,RevokeMutationVariables, TContext> => {
+
+const mutationKey = getRevokeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revoke>>, RevokeMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  revoke(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeMutationResult = NonNullable<Awaited<ReturnType<typeof revoke>>>
+
+    export type RevokeMutationError = unknown
+    export type RevokeMutationVariables = {id: string}
+
+    export const useRevoke = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revoke>>, TError,RevokeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof revoke>>,
+        TError,
+        RevokeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRevokeMutationOptions(options), queryClient);
+    }
+
+export const getRelinquishUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/sharing/permissions/${id}/relinquish`
+}
+
+export const relinquish = async (id: string, options?: Parameters<typeof http>[1]): Promise<MyPermissions> => {
+
+  return http<MyPermissions>(getRelinquishUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRelinquishMutationKey = () => ['relinquish'] as const;
+
+export const getRelinquishMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relinquish>>, TError,RelinquishMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof relinquish>>, TError,RelinquishMutationVariables, TContext> => {
+
+const mutationKey = getRelinquishMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relinquish>>, RelinquishMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  relinquish(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RelinquishMutationResult = NonNullable<Awaited<ReturnType<typeof relinquish>>>
+
+    export type RelinquishMutationError = unknown
+    export type RelinquishMutationVariables = {id: string}
+
+    export const useRelinquish = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relinquish>>, TError,RelinquishMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof relinquish>>,
+        TError,
+        RelinquishMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRelinquishMutationOptions(options), queryClient);
+    }
+
+export const getUploadMyPhotoUrl = () => {
+
+
+
+
+  return `/api/portal/me/photo`
+}
+
+export const uploadMyPhoto = async (uploadMyPhotoBody?: UploadMyPhotoBody, options?: Parameters<typeof http>[1]): Promise<Me> => {
+    const formData = new FormData();
+if(uploadMyPhotoBody?.file !== undefined) {
+ formData.append(`file`, uploadMyPhotoBody.file);
+ }
+
+  return http<Me>(getUploadMyPhotoUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadMyPhotoMutationKey = () => ['uploadMyPhoto'] as const;
+
+export const getUploadMyPhotoMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadMyPhoto>>, TError,UploadMyPhotoMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadMyPhoto>>, TError,UploadMyPhotoMutationVariables, TContext> => {
+
+const mutationKey = getUploadMyPhotoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadMyPhoto>>, UploadMyPhotoMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadMyPhoto(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadMyPhotoMutationResult = NonNullable<Awaited<ReturnType<typeof uploadMyPhoto>>>
+    export type UploadMyPhotoMutationBody = UploadMyPhotoBody | undefined
+    export type UploadMyPhotoMutationError = unknown
+    export type UploadMyPhotoMutationVariables = {data?: UploadMyPhotoBody}
+
+    export const useUploadMyPhoto = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadMyPhoto>>, TError,UploadMyPhotoMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof uploadMyPhoto>>,
+        TError,
+        UploadMyPhotoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadMyPhotoMutationOptions(options), queryClient);
+    }
+
+export const getRemoveMyPhotoUrl = () => {
+
+
+
+
+  return `/api/portal/me/photo/remove`
+}
+
+export const removeMyPhoto = async ( options?: Parameters<typeof http>[1]): Promise<Me> => {
+
+  return http<Me>(getRemoveMyPhotoUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveMyPhotoMutationKey = () => ['removeMyPhoto'] as const;
+
+export const getRemoveMyPhotoMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMyPhoto>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeMyPhoto>>, TError,void, TContext> => {
+
+const mutationKey = getRemoveMyPhotoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeMyPhoto>>, void> = () => {
+
+
+          return  removeMyPhoto(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveMyPhotoMutationResult = NonNullable<Awaited<ReturnType<typeof removeMyPhoto>>>
+
+    export type RemoveMyPhotoMutationError = unknown
+
+
+    export const useRemoveMyPhoto = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMyPhoto>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeMyPhoto>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRemoveMyPhotoMutationOptions(options), queryClient);
+    }
+
+export const getNotificationsUrl = () => {
+
+
+
+
+  return `/api/portal/me/notifications`
+}
+
+export const notifications = async ( options?: Parameters<typeof http>[1]): Promise<MyNotifications> => {
+
+  return http<MyNotifications>(getNotificationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getNotificationsQueryKey = () => {
+    return [
+    `/api/portal/me/notifications`
+    ] as const;
+    }
+
+
+export const getNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof notifications>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof notifications>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getNotificationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof notifications>>> = ({ signal }) => notifications({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof notifications>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type NotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof notifications>>>
+export type NotificationsQueryError = unknown
+
+
+export function useNotifications<TData = Awaited<ReturnType<typeof notifications>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof notifications>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notifications>>,
+          TError,
+          Awaited<ReturnType<typeof notifications>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useNotifications<TData = Awaited<ReturnType<typeof notifications>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof notifications>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notifications>>,
+          TError,
+          Awaited<ReturnType<typeof notifications>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useNotifications<TData = Awaited<ReturnType<typeof notifications>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof notifications>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useNotifications<TData = Awaited<ReturnType<typeof notifications>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof notifications>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getNotificationsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getChooseNotificationsUrl = () => {
+
+
+
+
+  return `/api/portal/me/notifications`
+}
+
+export const chooseNotifications = async (notificationChoiceRequest: NotificationChoiceRequest, options?: Parameters<typeof http>[1]): Promise<MyNotifications> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MyNotifications>(getChooseNotificationsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(notificationChoiceRequest)
+  }
+);}
+
+
+
+
+
+export const getChooseNotificationsMutationKey = () => ['chooseNotifications'] as const;
+
+export const getChooseNotificationsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chooseNotifications>>, TError,ChooseNotificationsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof chooseNotifications>>, TError,ChooseNotificationsMutationVariables, TContext> => {
+
+const mutationKey = getChooseNotificationsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chooseNotifications>>, ChooseNotificationsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  chooseNotifications(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChooseNotificationsMutationResult = NonNullable<Awaited<ReturnType<typeof chooseNotifications>>>
+    export type ChooseNotificationsMutationBody = NotificationChoiceRequest
+    export type ChooseNotificationsMutationError = unknown
+    export type ChooseNotificationsMutationVariables = {data: NotificationChoiceRequest}
+
+    export const useChooseNotifications = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chooseNotifications>>, TError,ChooseNotificationsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof chooseNotifications>>,
+        TError,
+        ChooseNotificationsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChooseNotificationsMutationOptions(options), queryClient);
+    }
+
+export const getOpenUrl = (token: string,) => {
+
+
+
+
+  return `/api/portal/join/${token}`
+}
+
+export const open = async (token: string, options?: Parameters<typeof http>[1]): Promise<Invitation> => {
+
+  return http<Invitation>(getOpenUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getOpenQueryKey = (token: string,) => {
+    return [
+    `/api/portal/join/${token}`
+    ] as const;
+    }
+
+
+export const getOpenQueryOptions = <TData = Awaited<ReturnType<typeof open>>, TError = unknown>(token: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof open>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getOpenQueryKey(token);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof open>>> = ({ signal }) => open(token, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: token !== null && token !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof open>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type OpenQueryResult = NonNullable<Awaited<ReturnType<typeof open>>>
+export type OpenQueryError = unknown
+
+
+export function useOpen<TData = Awaited<ReturnType<typeof open>>, TError = unknown>(
+ token: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof open>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof open>>,
+          TError,
+          Awaited<ReturnType<typeof open>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useOpen<TData = Awaited<ReturnType<typeof open>>, TError = unknown>(
+ token: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof open>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof open>>,
+          TError,
+          Awaited<ReturnType<typeof open>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useOpen<TData = Awaited<ReturnType<typeof open>>, TError = unknown>(
+ token: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof open>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useOpen<TData = Awaited<ReturnType<typeof open>>, TError = unknown>(
+ token: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof open>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getOpenQueryOptions(token,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getJoinUrl = (token: string,) => {
+
+
+
+
+  return `/api/portal/join/${token}`
+}
+
+export const join = async (token: string,
+    joinRequest: JoinRequest, options?: Parameters<typeof http>[1]): Promise<SignedUp> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<SignedUp>(getJoinUrl(token),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(joinRequest)
+  }
+);}
+
+
+
+
+
+export const getJoinMutationKey = () => ['join'] as const;
+
+export const getJoinMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof join>>, TError,JoinMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof join>>, TError,JoinMutationVariables, TContext> => {
+
+const mutationKey = getJoinMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof join>>, JoinMutationVariables> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  join(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type JoinMutationResult = NonNullable<Awaited<ReturnType<typeof join>>>
+    export type JoinMutationBody = JoinRequest
+    export type JoinMutationError = unknown
+    export type JoinMutationVariables = {token: string;data: JoinRequest}
+
+    export const useJoin = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof join>>, TError,JoinMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof join>>,
+        TError,
+        JoinMutationVariables,
+        TContext
+      > => {
+      return useMutation(getJoinMutationOptions(options), queryClient);
+    }
+
+export const getDeclineFromLinkUrl = (token: string,) => {
+
+
+
+
+  return `/api/portal/join/${token}/decline`
+}
+
+export const declineFromLink = async (token: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getDeclineFromLinkUrl(token),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeclineFromLinkMutationKey = () => ['declineFromLink'] as const;
+
+export const getDeclineFromLinkMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineFromLink>>, TError,DeclineFromLinkMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof declineFromLink>>, TError,DeclineFromLinkMutationVariables, TContext> => {
+
+const mutationKey = getDeclineFromLinkMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof declineFromLink>>, DeclineFromLinkMutationVariables> = (props) => {
+          const {token} = props ?? {};
+
+          return  declineFromLink(token,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineFromLinkMutationResult = NonNullable<Awaited<ReturnType<typeof declineFromLink>>>
+
+    export type DeclineFromLinkMutationError = unknown
+    export type DeclineFromLinkMutationVariables = {token: string}
+
+    export const useDeclineFromLink = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineFromLink>>, TError,DeclineFromLinkMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof declineFromLink>>,
+        TError,
+        DeclineFromLinkMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeclineFromLinkMutationOptions(options), queryClient);
+    }
+
+export const getRemoveFromMyFamilyUrl = (memberId: string,) => {
+
+
+
+
+  return `/api/portal/family/${memberId}/remove`
+}
+
+export const removeFromMyFamily = async (memberId: string, options?: Parameters<typeof http>[1]): Promise<MyFamily> => {
+
+  return http<MyFamily>(getRemoveFromMyFamilyUrl(memberId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveFromMyFamilyMutationKey = () => ['removeFromMyFamily'] as const;
+
+export const getRemoveFromMyFamilyMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeFromMyFamily>>, TError,RemoveFromMyFamilyMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeFromMyFamily>>, TError,RemoveFromMyFamilyMutationVariables, TContext> => {
+
+const mutationKey = getRemoveFromMyFamilyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeFromMyFamily>>, RemoveFromMyFamilyMutationVariables> = (props) => {
+          const {memberId} = props ?? {};
+
+          return  removeFromMyFamily(memberId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveFromMyFamilyMutationResult = NonNullable<Awaited<ReturnType<typeof removeFromMyFamily>>>
+
+    export type RemoveFromMyFamilyMutationError = unknown
+    export type RemoveFromMyFamilyMutationVariables = {memberId: string}
+
+    export const useRemoveFromMyFamily = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeFromMyFamily>>, TError,RemoveFromMyFamilyMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeFromMyFamily>>,
+        TError,
+        RemoveFromMyFamilyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveFromMyFamilyMutationOptions(options), queryClient);
+    }
+
+export const getAskToBeCalledUrl = () => {
+
+
+
+
+  return `/api/portal/family/relationship`
+}
+
+export const askToBeCalled = async (relationshipAskRequest: RelationshipAskRequest, options?: Parameters<typeof http>[1]): Promise<MyFamily> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MyFamily>(getAskToBeCalledUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(relationshipAskRequest)
+  }
+);}
+
+
+
+
+
+export const getAskToBeCalledMutationKey = () => ['askToBeCalled'] as const;
+
+export const getAskToBeCalledMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToBeCalled>>, TError,AskToBeCalledMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askToBeCalled>>, TError,AskToBeCalledMutationVariables, TContext> => {
+
+const mutationKey = getAskToBeCalledMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askToBeCalled>>, AskToBeCalledMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  askToBeCalled(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskToBeCalledMutationResult = NonNullable<Awaited<ReturnType<typeof askToBeCalled>>>
+    export type AskToBeCalledMutationBody = RelationshipAskRequest
+    export type AskToBeCalledMutationError = unknown
+    export type AskToBeCalledMutationVariables = {data: RelationshipAskRequest}
+
+    export const useAskToBeCalled = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToBeCalled>>, TError,AskToBeCalledMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askToBeCalled>>,
+        TError,
+        AskToBeCalledMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskToBeCalledMutationOptions(options), queryClient);
+    }
+
+export const getAnswerRelationshipRequestUrl = (id: string,
+    answer: string,) => {
+
+
+
+
+  return `/api/portal/family/relationship-requests/${id}/${answer}`
+}
+
+export const answerRelationshipRequest = async (id: string,
+    answer: string, options?: Parameters<typeof http>[1]): Promise<MyFamily> => {
+
+  return http<MyFamily>(getAnswerRelationshipRequestUrl(id,answer),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAnswerRelationshipRequestMutationKey = () => ['answerRelationshipRequest'] as const;
+
+export const getAnswerRelationshipRequestMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerRelationshipRequest>>, TError,AnswerRelationshipRequestMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerRelationshipRequest>>, TError,AnswerRelationshipRequestMutationVariables, TContext> => {
+
+const mutationKey = getAnswerRelationshipRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerRelationshipRequest>>, AnswerRelationshipRequestMutationVariables> = (props) => {
+          const {id,answer} = props ?? {};
+
+          return  answerRelationshipRequest(id,answer,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerRelationshipRequestMutationResult = NonNullable<Awaited<ReturnType<typeof answerRelationshipRequest>>>
+
+    export type AnswerRelationshipRequestMutationError = unknown
+    export type AnswerRelationshipRequestMutationVariables = {id: string;answer: string}
+
+    export const useAnswerRelationshipRequest = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerRelationshipRequest>>, TError,AnswerRelationshipRequestMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answerRelationshipRequest>>,
+        TError,
+        AnswerRelationshipRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerRelationshipRequestMutationOptions(options), queryClient);
+    }
+
+export const getRenameMyFamilyUrl = () => {
+
+
+
+
+  return `/api/portal/family/name`
+}
+
+export const renameMyFamily = async (familyNameRequest: FamilyNameRequest, options?: Parameters<typeof http>[1]): Promise<MyFamily> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MyFamily>(getRenameMyFamilyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(familyNameRequest)
+  }
+);}
+
+
+
+
+
+export const getRenameMyFamilyMutationKey = () => ['renameMyFamily'] as const;
+
+export const getRenameMyFamilyMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameMyFamily>>, TError,RenameMyFamilyMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof renameMyFamily>>, TError,RenameMyFamilyMutationVariables, TContext> => {
+
+const mutationKey = getRenameMyFamilyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renameMyFamily>>, RenameMyFamilyMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  renameMyFamily(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenameMyFamilyMutationResult = NonNullable<Awaited<ReturnType<typeof renameMyFamily>>>
+    export type RenameMyFamilyMutationBody = FamilyNameRequest
+    export type RenameMyFamilyMutationError = unknown
+    export type RenameMyFamilyMutationVariables = {data: FamilyNameRequest}
+
+    export const useRenameMyFamily = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameMyFamily>>, TError,RenameMyFamilyMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof renameMyFamily>>,
+        TError,
+        RenameMyFamilyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRenameMyFamilyMutationOptions(options), queryClient);
+    }
+
+export const getLeaveFamilyUrl = () => {
+
+
+
+
+  return `/api/portal/family/leave`
+}
+
+export const leaveFamily = async ( options?: Parameters<typeof http>[1]): Promise<MyFamily> => {
+
+  return http<MyFamily>(getLeaveFamilyUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getLeaveFamilyMutationKey = () => ['leaveFamily'] as const;
+
+export const getLeaveFamilyMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveFamily>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof leaveFamily>>, TError,void, TContext> => {
+
+const mutationKey = getLeaveFamilyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof leaveFamily>>, void> = () => {
+
+
+          return  leaveFamily(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LeaveFamilyMutationResult = NonNullable<Awaited<ReturnType<typeof leaveFamily>>>
+
+    export type LeaveFamilyMutationError = unknown
+
+
+    export const useLeaveFamily = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveFamily>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof leaveFamily>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getLeaveFamilyMutationOptions(options), queryClient);
+    }
+
+export const getDeclineUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/family-requests/${id}/decline`
+}
+
+export const decline = async (id: string, options?: Parameters<typeof http>[1]): Promise<FamilyRequest[]> => {
+
+  return http<FamilyRequest[]>(getDeclineUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeclineMutationKey = () => ['decline'] as const;
+
+export const getDeclineMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decline>>, TError,DeclineMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof decline>>, TError,DeclineMutationVariables, TContext> => {
+
+const mutationKey = getDeclineMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decline>>, DeclineMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  decline(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineMutationResult = NonNullable<Awaited<ReturnType<typeof decline>>>
+
+    export type DeclineMutationError = unknown
+    export type DeclineMutationVariables = {id: string}
+
+    export const useDecline = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decline>>, TError,DeclineMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof decline>>,
+        TError,
+        DeclineMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeclineMutationOptions(options), queryClient);
+    }
+
+export const getAcceptUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/family-requests/${id}/accept`
+}
+
+export const accept = async (id: string, options?: Parameters<typeof http>[1]): Promise<FamilyRequest[]> => {
+
+  return http<FamilyRequest[]>(getAcceptUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAcceptMutationKey = () => ['accept'] as const;
+
+export const getAcceptMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof accept>>, TError,AcceptMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof accept>>, TError,AcceptMutationVariables, TContext> => {
+
+const mutationKey = getAcceptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof accept>>, AcceptMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  accept(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptMutationResult = NonNullable<Awaited<ReturnType<typeof accept>>>
+
+    export type AcceptMutationError = unknown
+    export type AcceptMutationVariables = {id: string}
+
+    export const useAccept = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof accept>>, TError,AcceptMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof accept>>,
+        TError,
+        AcceptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAcceptMutationOptions(options), queryClient);
+    }
+
+export const getLogoutUrl = () => {
+
+
+
+
+  return `/api/portal/auth/logout`
+}
+
+export const logout = async ( options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getLogoutUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getLogoutMutationKey = () => ['logout'] as const;
+
+export const getLogoutMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logout>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof logout>>, TError,void, TContext> => {
+
+const mutationKey = getLogoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof logout>>, void> = () => {
+
+
+          return  logout(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LogoutMutationResult = NonNullable<Awaited<ReturnType<typeof logout>>>
+
+    export type LogoutMutationError = unknown
+
+
+    export const useLogout = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logout>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof logout>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getLogoutMutationOptions(options), queryClient);
+    }
+
+export const getLoginUrl = () => {
+
+
+
+
+  return `/api/portal/auth/login`
+}
+
+export const login = async (signInRequest: SignInRequest, options?: Parameters<typeof http>[1]): Promise<SignedIn> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<SignedIn>(getLoginUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(signInRequest)
+  }
+);}
+
+
+
+
+
+export const getLoginMutationKey = () => ['login'] as const;
+
+export const getLoginMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof login>>, TError,LoginMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof login>>, TError,LoginMutationVariables, TContext> => {
+
+const mutationKey = getLoginMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof login>>, LoginMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  login(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LoginMutationResult = NonNullable<Awaited<ReturnType<typeof login>>>
+    export type LoginMutationBody = SignInRequest
+    export type LoginMutationError = unknown
+    export type LoginMutationVariables = {data: SignInRequest}
+
+    export const useLogin = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof login>>, TError,LoginMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof login>>,
+        TError,
+        LoginMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLoginMutationOptions(options), queryClient);
+    }
+
+export const getWhoICanAskUrl = () => {
+
+
+
+
+  return `/api/portal/sharing/who`
+}
+
+export const whoICanAsk = async ( options?: Parameters<typeof http>[1]): Promise<WhoICanAsk[]> => {
+
+  return http<WhoICanAsk[]>(getWhoICanAskUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getWhoICanAskQueryKey = () => {
+    return [
+    `/api/portal/sharing/who`
+    ] as const;
+    }
+
+
+export const getWhoICanAskQueryOptions = <TData = Awaited<ReturnType<typeof whoICanAsk>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof whoICanAsk>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getWhoICanAskQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof whoICanAsk>>> = ({ signal }) => whoICanAsk({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof whoICanAsk>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type WhoICanAskQueryResult = NonNullable<Awaited<ReturnType<typeof whoICanAsk>>>
+export type WhoICanAskQueryError = unknown
+
+
+export function useWhoICanAsk<TData = Awaited<ReturnType<typeof whoICanAsk>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof whoICanAsk>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof whoICanAsk>>,
+          TError,
+          Awaited<ReturnType<typeof whoICanAsk>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useWhoICanAsk<TData = Awaited<ReturnType<typeof whoICanAsk>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof whoICanAsk>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof whoICanAsk>>,
+          TError,
+          Awaited<ReturnType<typeof whoICanAsk>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useWhoICanAsk<TData = Awaited<ReturnType<typeof whoICanAsk>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof whoICanAsk>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useWhoICanAsk<TData = Awaited<ReturnType<typeof whoICanAsk>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof whoICanAsk>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getWhoICanAskQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSentUrl = () => {
+
+
+
+
+  return `/api/portal/sharing/requests/sent`
+}
+
+export const sent = async ( options?: Parameters<typeof http>[1]): Promise<RequestRow[]> => {
+
+  return http<RequestRow[]>(getSentUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSentQueryKey = () => {
+    return [
+    `/api/portal/sharing/requests/sent`
+    ] as const;
+    }
+
+
+export const getSentQueryOptions = <TData = Awaited<ReturnType<typeof sent>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof sent>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSentQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof sent>>> = ({ signal }) => sent({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof sent>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SentQueryResult = NonNullable<Awaited<ReturnType<typeof sent>>>
+export type SentQueryError = unknown
+
+
+export function useSent<TData = Awaited<ReturnType<typeof sent>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof sent>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof sent>>,
+          TError,
+          Awaited<ReturnType<typeof sent>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSent<TData = Awaited<ReturnType<typeof sent>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof sent>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof sent>>,
+          TError,
+          Awaited<ReturnType<typeof sent>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSent<TData = Awaited<ReturnType<typeof sent>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof sent>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useSent<TData = Awaited<ReturnType<typeof sent>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof sent>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSentQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReceivedUrl = () => {
+
+
+
+
+  return `/api/portal/sharing/requests/received`
+}
+
+export const received = async ( options?: Parameters<typeof http>[1]): Promise<RequestRow[]> => {
+
+  return http<RequestRow[]>(getReceivedUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReceivedQueryKey = () => {
+    return [
+    `/api/portal/sharing/requests/received`
+    ] as const;
+    }
+
+
+export const getReceivedQueryOptions = <TData = Awaited<ReturnType<typeof received>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof received>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReceivedQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof received>>> = ({ signal }) => received({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof received>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReceivedQueryResult = NonNullable<Awaited<ReturnType<typeof received>>>
+export type ReceivedQueryError = unknown
+
+
+export function useReceived<TData = Awaited<ReturnType<typeof received>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof received>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof received>>,
+          TError,
+          Awaited<ReturnType<typeof received>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReceived<TData = Awaited<ReturnType<typeof received>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof received>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof received>>,
+          TError,
+          Awaited<ReturnType<typeof received>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReceived<TData = Awaited<ReturnType<typeof received>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof received>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useReceived<TData = Awaited<ReturnType<typeof received>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof received>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReceivedQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPermissionsUrl = () => {
+
+
+
+
+  return `/api/portal/sharing/permissions`
+}
+
+export const permissions = async ( options?: Parameters<typeof http>[1]): Promise<MyPermissions> => {
+
+  return http<MyPermissions>(getPermissionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPermissionsQueryKey = () => {
+    return [
+    `/api/portal/sharing/permissions`
+    ] as const;
+    }
+
+
+export const getPermissionsQueryOptions = <TData = Awaited<ReturnType<typeof permissions>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof permissions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPermissionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof permissions>>> = ({ signal }) => permissions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof permissions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type PermissionsQueryResult = NonNullable<Awaited<ReturnType<typeof permissions>>>
+export type PermissionsQueryError = unknown
+
+
+export function usePermissions<TData = Awaited<ReturnType<typeof permissions>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof permissions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof permissions>>,
+          TError,
+          Awaited<ReturnType<typeof permissions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePermissions<TData = Awaited<ReturnType<typeof permissions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof permissions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof permissions>>,
+          TError,
+          Awaited<ReturnType<typeof permissions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePermissions<TData = Awaited<ReturnType<typeof permissions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof permissions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function usePermissions<TData = Awaited<ReturnType<typeof permissions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof permissions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getPermissionsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAccessReportUrl = () => {
+
+
+
+
+  return `/api/portal/reports/access`
+}
+
+export const accessReport = async ( options?: Parameters<typeof http>[1]): Promise<AccessEventRow[]> => {
+
+  return http<AccessEventRow[]>(getAccessReportUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAccessReportQueryKey = () => {
+    return [
+    `/api/portal/reports/access`
+    ] as const;
+    }
+
+
+export const getAccessReportQueryOptions = <TData = Awaited<ReturnType<typeof accessReport>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof accessReport>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAccessReportQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof accessReport>>> = ({ signal }) => accessReport({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof accessReport>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AccessReportQueryResult = NonNullable<Awaited<ReturnType<typeof accessReport>>>
+export type AccessReportQueryError = unknown
+
+
+export function useAccessReport<TData = Awaited<ReturnType<typeof accessReport>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof accessReport>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof accessReport>>,
+          TError,
+          Awaited<ReturnType<typeof accessReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAccessReport<TData = Awaited<ReturnType<typeof accessReport>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof accessReport>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof accessReport>>,
+          TError,
+          Awaited<ReturnType<typeof accessReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAccessReport<TData = Awaited<ReturnType<typeof accessReport>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof accessReport>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useAccessReport<TData = Awaited<ReturnType<typeof accessReport>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof accessReport>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAccessReportQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMeUrl = () => {
+
+
+
+
+  return `/api/portal/me`
+}
+
+export const me = async ( options?: Parameters<typeof http>[1]): Promise<Me> => {
+
+  return http<Me>(getMeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMeQueryKey = () => {
+    return [
+    `/api/portal/me`
+    ] as const;
+    }
+
+
+export const getMeQueryOptions = <TData = Awaited<ReturnType<typeof me>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof me>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof me>>> = ({ signal }) => me({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof me>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MeQueryResult = NonNullable<Awaited<ReturnType<typeof me>>>
+export type MeQueryError = unknown
+
+
+export function useMe<TData = Awaited<ReturnType<typeof me>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof me>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof me>>,
+          TError,
+          Awaited<ReturnType<typeof me>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMe<TData = Awaited<ReturnType<typeof me>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof me>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof me>>,
+          TError,
+          Awaited<ReturnType<typeof me>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMe<TData = Awaited<ReturnType<typeof me>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof me>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMe<TData = Awaited<ReturnType<typeof me>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof me>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMeQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getFamilyUrl = () => {
+
+
+
+
+  return `/api/portal/family`
+}
+
+export const family = async ( options?: Parameters<typeof http>[1]): Promise<MyFamily> => {
+
+  return http<MyFamily>(getFamilyUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getFamilyQueryKey = () => {
+    return [
+    `/api/portal/family`
+    ] as const;
+    }
+
+
+export const getFamilyQueryOptions = <TData = Awaited<ReturnType<typeof family>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof family>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getFamilyQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof family>>> = ({ signal }) => family({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof family>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type FamilyQueryResult = NonNullable<Awaited<ReturnType<typeof family>>>
+export type FamilyQueryError = unknown
+
+
+export function useFamily<TData = Awaited<ReturnType<typeof family>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof family>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof family>>,
+          TError,
+          Awaited<ReturnType<typeof family>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useFamily<TData = Awaited<ReturnType<typeof family>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof family>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof family>>,
+          TError,
+          Awaited<ReturnType<typeof family>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useFamily<TData = Awaited<ReturnType<typeof family>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof family>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useFamily<TData = Awaited<ReturnType<typeof family>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof family>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getFamilyQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRequestsUrl = () => {
+
+
+
+
+  return `/api/portal/family-requests`
+}
+
+export const requests = async ( options?: Parameters<typeof http>[1]): Promise<FamilyRequest[]> => {
+
+  return http<FamilyRequest[]>(getRequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getRequestsQueryKey = () => {
+    return [
+    `/api/portal/family-requests`
+    ] as const;
+    }
+
+
+export const getRequestsQueryOptions = <TData = Awaited<ReturnType<typeof requests>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof requests>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getRequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof requests>>> = ({ signal }) => requests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof requests>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type RequestsQueryResult = NonNullable<Awaited<ReturnType<typeof requests>>>
+export type RequestsQueryError = unknown
+
+
+export function useRequests<TData = Awaited<ReturnType<typeof requests>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof requests>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof requests>>,
+          TError,
+          Awaited<ReturnType<typeof requests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRequests<TData = Awaited<ReturnType<typeof requests>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof requests>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof requests>>,
+          TError,
+          Awaited<ReturnType<typeof requests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRequests<TData = Awaited<ReturnType<typeof requests>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof requests>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useRequests<TData = Awaited<ReturnType<typeof requests>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof requests>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAccountsUrl = () => {
+
+
+
+
+  return `/api/portal/accounts`
+}
+
+export const accounts = async ( options?: Parameters<typeof http>[1]): Promise<AccountRow[]> => {
+
+  return http<AccountRow[]>(getAccountsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAccountsQueryKey = () => {
+    return [
+    `/api/portal/accounts`
+    ] as const;
+    }
+
+
+export const getAccountsQueryOptions = <TData = Awaited<ReturnType<typeof accounts>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof accounts>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAccountsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof accounts>>> = ({ signal }) => accounts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof accounts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AccountsQueryResult = NonNullable<Awaited<ReturnType<typeof accounts>>>
+export type AccountsQueryError = unknown
+
+
+export function useAccounts<TData = Awaited<ReturnType<typeof accounts>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof accounts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof accounts>>,
+          TError,
+          Awaited<ReturnType<typeof accounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAccounts<TData = Awaited<ReturnType<typeof accounts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof accounts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof accounts>>,
+          TError,
+          Awaited<ReturnType<typeof accounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAccounts<TData = Awaited<ReturnType<typeof accounts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof accounts>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useAccounts<TData = Awaited<ReturnType<typeof accounts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof accounts>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAccountsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAccountUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/accounts/${id}`
+}
+
+export const account = async (id: string, options?: Parameters<typeof http>[1]): Promise<AccountStatement> => {
+
+  return http<AccountStatement>(getAccountUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAccountQueryKey = (id: string,) => {
+    return [
+    `/api/portal/accounts/${id}`
+    ] as const;
+    }
+
+
+export const getAccountQueryOptions = <TData = Awaited<ReturnType<typeof account>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAccountQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof account>>> = ({ signal }) => account(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AccountQueryResult = NonNullable<Awaited<ReturnType<typeof account>>>
+export type AccountQueryError = unknown
+
+
+export function useAccount<TData = Awaited<ReturnType<typeof account>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof account>>,
+          TError,
+          Awaited<ReturnType<typeof account>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAccount<TData = Awaited<ReturnType<typeof account>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof account>>,
+          TError,
+          Awaited<ReturnType<typeof account>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAccount<TData = Awaited<ReturnType<typeof account>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useAccount<TData = Awaited<ReturnType<typeof account>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof account>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAccountQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}

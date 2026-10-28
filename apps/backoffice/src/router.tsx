@@ -15,13 +15,16 @@ import { DashboardPage } from "./pages/dashboard/dashboard-page";
 import { DeliveriesPage } from "./pages/notifications/deliveries-page";
 import { ChangePasswordPage } from "./pages/change-password-page";
 import { ConfigPage } from "./pages/config/config-page";
-import { AddAccountHolderPage } from "./pages/clients/add-account-holder-page";
 import { ClientPage } from "./pages/clients/client-page";
 import { ClientsPage } from "./pages/clients/clients-page";
 import { ClientKycPage } from "./pages/kyc/client-kyc-page";
 import { ReviewDocumentPage } from "./pages/kyc/review-document-page";
 import { KycDocumentReviewPage } from "./pages/kyc/kyc-documents-page";
 import { KycReviewQueuePage } from "./pages/kyc/kyc-queue-page";
+import { KycChecklistPage } from "./pages/kyc/kyc-checklist-page";
+import { TrailsPage } from "./pages/trails/trails-page";
+import { TrailClientPage } from "./pages/trails/trail-client-page";
+import { TrailItemPage } from "./pages/trails/trail-item-page";
 import { DocumentPage } from "./pages/forms/document-page";
 import { FormPage } from "./pages/forms/form-page";
 import { FormsPage } from "./pages/forms/forms-page";
@@ -33,11 +36,11 @@ import { HomePage } from "./pages/home-page";
 import { SettingsPage } from "./pages/settings-page";
 import {
   ONBOARDS_CLIENTS,
-  ONBOARDS_CLIENTS_CHANGE,
   ANSWERS_MOVE_PLANS,
   APPROVES_PROPOSALS,
   ONBOARDS_EVERY_CLIENT,
   OPENS_CLIENT_DOCUMENTS,
+  UPLOADS_CLIENT_DOCUMENTS,
   OPENS_CLIENT_FILES,
   READS_CLIENT_PORTFOLIOS,
   READS_CLIENT_FORMS,
@@ -50,7 +53,6 @@ import { ForgotPasswordPage } from "./pages/sign-in/forgot-password-page";
 import { LoginPage } from "./pages/sign-in/login-page";
 import { ResetPasswordPage } from "./pages/sign-in/reset-password-page";
 import { OnboardingCasePage } from "./pages/onboarding/onboarding-case-page";
-import { OnboardingListPage } from "./pages/onboarding/onboarding-list-page";
 import { PostOnboardingPage } from "./pages/onboarding/post-onboarding-page";
 import { ModelDetailPage } from "./pages/portfolios/model-detail-page";
 import { ManagementInformationPage } from "./pages/portfolios/management-information-page";
@@ -72,6 +74,8 @@ import { WorkspacePage } from "./pages/workspace-page";
 import { SignaturePackPage } from "./pages/to-sign/signature-pack-page";
 import { ToSignPage } from "./pages/to-sign/to-sign-page";
 import { ClientDocumentsPage } from "./pages/client-documents/client-documents-page";
+import { ArchivedClientsPage } from "./pages/clients/archived-clients-page";
+import { DeactivationRequestsPage } from "./pages/clients/deactivation-requests-page";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -98,26 +102,17 @@ export const router = createBrowserRouter([
             element: <RequireAuthority authority="VIEW_ALL_CLIENTS:VIEW" />,
             children: [
               { path: "notifications", element: <DeliveriesPage /> },
-              {
-                path: "family-access",
-                element: (
-                  <AuditLogPage
-                    actionPrefix="access."
-                    title="Family access trail"
-                    description="Every cross-access event: asked for, opened, approved, read under a grant, revoked. Searchable by person, action and date."
-                  />
-                ),
-              },
-              {
-                path: "proposal-trail",
-                element: (
-                  <AuditLogPage
-                    actionPrefix="proposal."
-                    title="Proposal trail"
-                    description="Every proposal from draft to approval, sent, opened and answered, with who did it and when."
-                  />
-                ),
-              },
+              { path: "trails", element: <TrailsPage /> },
+              // Three screens, three addresses. A row that expands in place has no address, so the back
+              // button, a bookmark and a link pasted into a message all stop working.
+              { path: "trails/:trail/:customerId", element: <TrailClientPage /> },
+              { path: "trails/:trail/:customerId/:itemId", element: <TrailItemPage /> },
+              // The addresses these trails had for months still work and land on their own tab, so a
+              // bookmark or a link in somebody's notes is not a dead end.
+              { path: "proposal-trail", element: <Navigate to="/trails?trail=proposals" replace /> },
+              // Family cross-access was never built — no grant was ever made, so every row on that
+              // screen was stand-in sample data. The screen is gone; the address lands on the trails.
+              { path: "family-access", element: <Navigate to="/trails" replace /> },
             ],
           },
           {
@@ -133,26 +128,43 @@ export const router = createBrowserRouter([
               { path: "clients/:clientId", element: <ClientPage /> },
             ],
           },
-          {
-            // Adding somebody to an open account is onboarding them onto it, so it goes on the permission
-            // onboarding goes on rather than on being able to read the client list.
-            element: <RequireAuthority authority={ONBOARDS_CLIENTS_CHANGE} />,
-            children: [{ path: "clients/:clientId/account-holders/new", element: <AddAccountHolderPage /> }],
-          },
+          // Adding an account holder by hand is gone, screen and address both. Somebody does not join an
+          // account because a desk typed their name on a form: they are invited from the client's family
+          // tab, they come in, and they are onboarded with their own papers and their own checks. The API
+          // still accepts a holder on a submitted case — that is how onboarding itself adds the second
+          // person — and nothing in the back-office asks it to any more.
           {
             // KYC sign-off is Compliance's, and Compliance have no sight of every client, so it cannot sit
             // under VIEW_ALL_CLIENTS. Operations may look at where a client's papers have got to.
             element: <RequireAuthority authority="APPROVE_ONBOARDING:VIEW" />,
             children: [
               { path: "kyc", element: <KycReviewQueuePage /> },
-              // The papers themselves, reviewed one by one. Its own screen, not a tab on the queue.
-              { path: "kyc-documents", element: <KycDocumentReviewPage /> },
               // Compliance read the client's case here rather than under Client onboarding, which is
               // Operations' own screen and closed to them.
               { path: "kyc/cases/:caseId", element: <OnboardingCasePage /> },
               // A client's form, read here. Compliance change none of it: every endpoint that writes asks
               // for a permission they do not hold.
               { path: "kyc/forms/:formId", element: <FormPage /> },
+              // What the KYC waits on, which the firm keeps. Under VIEW rather than CHANGE so Operations
+              // may read what is being waited on; every write behind it asks for CHANGE on its own.
+              { path: "kyc-checklist", element: <KycChecklistPage /> },
+            ],
+          },
+          {
+            // The papers themselves, reviewed one by one. Its own screen, not a tab on the queue — and its
+            // own guard, because the list behind it asks for CHANGE (KycController.listKycDocuments) while
+            // the screens above ask only for VIEW. Left in that block, Operations passed the route on their
+            // VIEW_ONLY, loaded the page, and met a 403 where the table should have been.
+            element: <RequireAuthority authority="APPROVE_ONBOARDING:CHANGE" />,
+            children: [{ path: "kyc-documents", element: <KycDocumentReviewPage /> }],
+          },
+          {
+            // Answering a deactivation and reading the archive are the same authority, because they are the
+            // same job: deciding whether the firm acts for somebody. The Admin's alone.
+            element: <RequireAuthority authority="MANAGE_USERS_AND_ROLES:CHANGE" />,
+            children: [
+              { path: "deactivation-requests", element: <DeactivationRequestsPage /> },
+              { path: "archived-clients", element: <ArchivedClientsPage /> },
             ],
           },
           {
@@ -166,9 +178,11 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            // Whoever may open a client's papers, which is the same set the menu offers it to: Operations
-            // read every client's to service them, and adding to them is refused on its own.
-            element: <RequireAuthority authority={OPENS_CLIENT_DOCUMENTS} />,
+            // Whoever puts a client's papers on file, which is the same set the menu offers it to. This read
+            // OPENS_CLIENT_DOCUMENTS once, which is wider: it let Compliance in on APPROVE_ONBOARDING, so a
+            // typed address still reached a screen the menu had stopped offering them. Compliance decide on
+            // these papers from the review queue and the document review; this is where they come from.
+            element: <RequireAuthority authority={UPLOADS_CLIENT_DOCUMENTS} />,
             children: [{ path: "client-documents", element: <ClientDocumentsPage /> }],
           },
           {
@@ -368,7 +382,8 @@ export const router = createBrowserRouter([
             // were not there.
             element: <RequireAuthority authority={ONBOARDS_CLIENTS} />,
             children: [
-              { path: "onboarding", element: <OnboardingListPage /> },
+              // There is no list of cases any more: the firm asked for one list of clients, and a case's
+              // stage is a column on it. What stays here is the case itself and the pages hung off it.
               // A form opened from a case's checklist lives under that case, so the menu keeps saying
               // Client onboarding and Back knows where to return to even after a refresh.
               { path: "onboarding/:caseId/forms/:formId", element: <FormPage /> },
@@ -392,7 +407,21 @@ export const router = createBrowserRouter([
           },
           {
             element: <RequireAuthority authority="VIEW_AUDIT_LOG:VIEW" />,
-            children: [{ path: "audit-log", element: <AuditLogPage /> }],
+            children: [
+              { path: "audit-log", element: <AuditLogPage /> },
+              // The same page, held to one family of actions. Its own address because it is its own
+              // question: not "what has the firm done" but "who has been reading whose money".
+              {
+                path: "family-access-trail",
+                element: (
+                  <AuditLogPage
+                    actionPrefix="access."
+                    title="Family access trail"
+                    description="Every request, decision and reading of one client's accounts by another. Searchable by client, event and date."
+                  />
+                ),
+              },
+            ],
           },
         ],
       },
