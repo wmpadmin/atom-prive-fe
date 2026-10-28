@@ -1,8 +1,8 @@
 import { ApiError } from "@atomprive/api-client";
 import { exportStaffUsers, useListStaffUsers, type StaffUserPage, type StaffUserSummary } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Button, cn, IconButton, Pagination, SelectInput, StatCard, TextInput } from "@atomprive/ui";
+import { Alert, Button, cn, IconButton, Pagination, SelectInput, StaffAvatar, StatCard, TextInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { Ban, CircleCheck, Download, Mail, Pencil, Plus, Power, Search, Users } from "lucide-react";
+import { Ban, CircleCheck, Download, Mail, Pencil, Power, Search, Users } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { ColumnPicker } from "../../components/column-picker";
@@ -12,7 +12,7 @@ import { useTableView } from "../../lib/table-view";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { useStaffUser } from "../../auth/session";
 import { downloadTextFile } from "../../lib/download";
-import { formatRelative, roleLabels, roleList, roles, statusLabels, statuses, type StaffRole, type StaffStatus } from "../../lib/labels";
+import { roleLabels, roleList, roles, statusLabels, statuses, type StaffRole, type StaffStatus } from "../../lib/labels";
 import { formatMobileNumber } from "../../lib/mobile-numbers";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
 import { AddUserDialog } from "./add-user-dialog";
@@ -81,9 +81,29 @@ const MOVABLE: {
     align: "left",
     nowrap: true,
     tone: "text-ink-soft",
-    cell: (user) => formatRelative(user.lastActiveAt),
+    // The day it was, and where they were working from. "5 days ago" answers how long and nothing else;
+    // somebody reading this column wants to know when somebody was last at work and whether that was from
+    // the office. The place is blank where their newest session recorded none.
+    cell: (user) => (
+      <>
+        <span className="block font-semibold text-ink">{lastActiveDay(user.lastActiveAt)}</span>
+        <span className="block text-xs text-ink-muted">{user.lastActiveFrom ?? "—"}</span>
+      </>
+    ),
   },
 ];
+
+/** Named day and date, or a dash where somebody has never signed in. */
+const dayAndDate = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+
+function lastActiveDay(at: string | null) {
+  return at ? dayAndDate.format(new Date(at)) : "Never";
+}
 
 export function UsersPage() {
   const currentUser = useStaffUser();
@@ -156,7 +176,6 @@ export function UsersPage() {
             {exporting ? "Exporting…" : "Export"}
           </Button>
           <Button onClick={() => setAdding(true)}>
-            <Plus aria-hidden="true" />
             New user
           </Button>
         </div>
@@ -294,7 +313,7 @@ export function UsersPage() {
                 >
                   <td className="py-3 pr-4 pl-5">
                     <div className="flex items-center gap-3">
-                      <Avatar name={user.fullName} />
+                      <StaffAvatar name={user.fullName} photo={user.photo} />
                       <div className="min-w-0">
                         <Link to={`/users/${user.id}`} onClick={(event) => event.stopPropagation()} className="block truncate font-semibold hover:text-primary-600">
                           {user.fullName}

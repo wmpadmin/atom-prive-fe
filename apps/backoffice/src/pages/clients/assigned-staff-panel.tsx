@@ -1,5 +1,5 @@
 import type { StaffMember } from "@atomprive/api-client/backoffice";
-import { Avatar, Button, IconButton } from "@atomprive/ui";
+import { Button, IconButton, StaffAvatar } from "@atomprive/ui";
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import { formatDate } from "../../lib/labels";
@@ -64,7 +64,7 @@ export function AssignedStaffPanel({
           {people.map(({ person, since }) => (
             <li key={person.id} className="flex items-center justify-between gap-3 px-6 py-4">
               <div className="flex items-center gap-3">
-                <Avatar name={person.fullName} className="size-10" />
+                <StaffAvatar name={person.fullName} photo={person.photo} className="size-10" />
                 <div>
                   <p className="text-sm font-semibold">{person.fullName}</p>
                   <p className="text-xs text-ink-muted">

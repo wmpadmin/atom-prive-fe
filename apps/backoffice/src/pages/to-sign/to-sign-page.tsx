@@ -1,4 +1,5 @@
 import type { ApiError } from "@atomprive/api-client";
+import { ArchivedMark, archivedRow } from "../../components/archived-client";
 import { useListPacksToSign, type SignaturePackPage } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Pagination, cn } from "@atomprive/ui";
 import { ChevronRight, FileSignature } from "lucide-react";
@@ -75,12 +76,12 @@ export function ToSignPage() {
       </div>
 
       <ul className="space-y-2">
-        {rows.map((pack) => (
-          <li key={pack.id}>
-            <Link
-              to={`/to-sign/${pack.id}`}
-              className="flex items-center gap-4 rounded-2xl border border-line bg-white px-5 py-4 transition-colors hover:border-primary-600"
-            >
+        {rows.map((pack) => {
+          // A pack whose client has been deactivated stays on the queue and stops opening. There is nothing
+          // left to sign for somebody the firm no longer acts for, and the row says so rather than
+          // disappearing — a queue that empties itself when a client goes is a queue nobody can trust.
+          const inside = (
+            <>
               <span className="grid size-9 shrink-0 place-items-center rounded-full bg-canvas text-ink-muted">
                 <FileSignature aria-hidden="true" className="size-4" />
               </span>
@@ -93,16 +94,31 @@ export function ToSignPage() {
                   {formatDate(pack.sentAt)}
                   {pack.dueOn ? ` · due ${formatDate(pack.dueOn)}` : ""}
                 </span>
+                {pack.clientArchived && <ArchivedMark />}
               </span>
-              {pack.overdue && <Badge tone="danger">Overdue</Badge>}
+              {pack.overdue && !pack.clientArchived && <Badge tone="danger">Overdue</Badge>}
               <Badge tone={packTones[pack.status]}>{pack.statusLabel}</Badge>
               <span className="text-xs font-semibold whitespace-nowrap text-ink-soft">
                 {whatIsLeft(pack.formsToSign, pack.formCount)}
               </span>
-              <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
-            </Link>
-          </li>
-        ))}
+              {!pack.clientArchived && (
+                <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
+              )}
+            </>
+          );
+          const shell = "flex items-center gap-4 rounded-2xl border border-line bg-white px-5 py-4";
+          return (
+            <li key={pack.id}>
+              {pack.clientArchived ? (
+                <div className={cn(shell, archivedRow)}>{inside}</div>
+              ) : (
+                <Link to={`/to-sign/${pack.id}`} className={cn(shell, "transition-colors hover:border-primary-600")}>
+                  {inside}
+                </Link>
+              )}
+            </li>
+          );
+        })}
         {packs.isPending && <li className="text-sm text-ink-muted">Loading…</li>}
         {packs.data && rows.length === 0 && (
           <li className="rounded-2xl border border-dashed border-line px-5 py-10 text-center text-sm text-ink-muted">
