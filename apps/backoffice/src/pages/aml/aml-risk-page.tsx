@@ -254,7 +254,7 @@ export function AmlRiskPage() {
                   >
                     <td className="py-3 pr-4 pl-5">
                       <div className="flex items-center gap-3">
-                        <Avatar name={row.clientName} />
+                        <Avatar name={row.clientName} photo={row.clientPhoto} />
                         <div>
                           <Link
                             to={`/aml-risk/clients/${row.customerId}`}

@@ -13,7 +13,7 @@ import {
   type Sheet,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, SelectInput, TextArea, TextInput, cn } from "@atomprive/ui";
-import { ChevronLeft, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -146,7 +146,6 @@ export function AmlMatrixPage() {
         </div>
         {mayWrite && (
           <Button onClick={() => setEditing({ id: null, draft: emptyDraft })}>
-            <Plus aria-hidden="true" />
             Add a line
           </Button>
         )}
@@ -454,7 +453,6 @@ export function AmlMatrixPage() {
                   })
                 }
               >
-                <Plus aria-hidden="true" />
                 Another answer
               </Button>
             </div>
@@ -749,7 +747,6 @@ function Bands({ bands, mayWrite, onSaved }: { bands: BandRow[]; mayWrite: boole
               ])
             }
           >
-            <Plus aria-hidden="true" />
             Another band
           </Button>
         </div>

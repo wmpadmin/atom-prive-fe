@@ -8,9 +8,9 @@ import {
   type ListAuditEventsOutcome,
   type ListAuditEventsParams,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, cn, Pagination, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, cn, Pagination, SelectInput, StaffAvatar, TextInput } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
-import { Download, Search } from "lucide-react";
+import { Cog, Download, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
@@ -34,6 +34,18 @@ const periods: Record<Period, { label: string; hours?: number; summary?: string 
 };
 
 const outcomeLabels: Record<ListAuditEventsOutcome, string> = { SUCCESS: "Success", FAILURE: "Failed" };
+
+/**
+ * What the saved file is called, by the trail it was saved from.
+ *
+ * <p>Worked out here rather than read off the response, because the CSV arrives as a string and the name is
+ * this page's to choose. The API says the same thing in its own Content-Disposition; if that is ever read
+ * instead, these have to agree.
+ */
+const FILE_NAMES: Record<string, string> = {
+  "proposal.": "proposal-trail",
+  "access.": "family-access-trail",
+};
 
 const dateOnly = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" });
 
@@ -102,10 +114,39 @@ const MOVABLE: MovableColumn[] = [
 
 /** Who logged in, what changed and what was exported (#82). Admin and Compliance by default. */
 interface AuditLogPageProps {
-  /** Narrows the log to one kind of event, e.g. "access." for the family access trail. */
+  /** Narrows the log to one kind of event, e.g. "proposal." for the proposal trail. */
   actionPrefix?: string;
+  /**
+   * Narrows it to these exact events, where a prefix cannot say it.
+   *
+   * <p>The trade trail is a rebalance, the agreement to it and each placing under it: two prefixes, and
+   * one of them shared letter for letter with a client's own asking, which belongs to a different trail.
+   */
+  actions?: string[];
+  /** What the saved file is called, where the trail has a name of its own. */
+  fileName?: string;
+  /**
+   * What period it opens on.
+   *
+   * <p>The audit log opens on the last day, which is the right question for it: who signed in, what was
+   * exported, what changed today. A trail is read backwards — somebody is asking what happened to a
+   * proposal in March — and opening it on the last day showed four empty tables over a log holding
+   * hundreds of rows, which reads as a screen that does not work rather than as a filter.
+   */
+  defaultPeriod?: Period;
+  /** One client's rows only, for a trail read client by client. */
+  customerId?: string;
   title?: string;
   description?: string;
+  /**
+   * Drawn inside somebody else's screen, under their heading.
+   *
+   * <p>The proposal trail is a tab on Approvals rather than a screen of its own, so the page's own
+   * heading and lede would be a second title under the first. Export stays — it belongs to this table
+   * and to no other tab on that screen — and moves in beside the filters, where the tab's own row of
+   * controls is.
+   */
+  embedded?: boolean;
 }
 
 /**
@@ -116,12 +157,17 @@ export function AuditLogPage({
   actionPrefix,
   title = "Audit log",
   description = "Who logged in, viewed which customer and exported what. Searchable by user, action and date.",
+  embedded = false,
+  actions,
+  fileName: namedFile,
+  defaultPeriod = "24h",
+  customerId,
 }: AuditLogPageProps = {}) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [role, setRole] = useState<StaffRole | "">("");
   const [outcome, setOutcome] = useState<ListAuditEventsOutcome | "">("");
-  const [period, setPeriod] = useState<Period>("24h");
+  const [period, setPeriod] = useState<Period>(defaultPeriod);
   // yyyy-mm-dd values from the date inputs, used when the period is "Custom dates"
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -136,9 +182,14 @@ export function AuditLogPage({
   const [notice, setNotice] = useState<string>();
   const [exporting, setExporting] = useState(false);
   const query = useDebouncedValue(search.trim());
+  // Three screens, one table, three files. Named after the whole audit log they were indistinguishable in a
+  // downloads folder, and the two narrowed ones were the misnamed pair.
+  const fileName = namedFile ?? ((actionPrefix && FILE_NAMES[actionPrefix]) || "audit-log");
 
   const filters: ListAuditEventsParams = {
     actionPrefix,
+    actions,
+    customerId,
     query: query || undefined,
     role: role || undefined,
     outcome: outcome || undefined,
@@ -166,7 +217,7 @@ export function AuditLogPage({
     setNotice(undefined);
     try {
       const csv = await exportAuditEvents(filters);
-      downloadTextFile(`audit-log-${new Date().toISOString().slice(0, 10)}.csv`, csv, "text/csv;charset=utf-8");
+      downloadTextFile(`${fileName}-${new Date().toISOString().slice(0, 10)}.csv`, csv, "text/csv;charset=utf-8");
       // The export is itself recorded, so show it.
       await queryClient.invalidateQueries({ queryKey: getListAuditEventsQueryKey() });
     } catch (caught) {
@@ -180,18 +231,24 @@ export function AuditLogPage({
   const total = events.data?.totalItems ?? 0;
   const filtered = Boolean(query || role || outcome);
 
+  const exportButton = (
+    <Button variant="secondary" onClick={() => void exportCsv()} disabled={exporting}>
+      <Download aria-hidden="true" />
+      {exporting ? "Exporting…" : "Export"}
+    </Button>
+  );
+
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[1.625rem] font-bold">{title}</h1>
-          <p className="mt-1 text-sm text-ink-muted">{description}</p>
-        </div>
-        <Button variant="secondary" onClick={() => void exportCsv()} disabled={exporting}>
-          <Download aria-hidden="true" />
-          {exporting ? "Exporting…" : "Export"}
-        </Button>
-      </header>
+    <div className={embedded ? "space-y-4" : "space-y-6"}>
+      {!embedded && (
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[1.625rem] font-bold">{title}</h1>
+            <p className="mt-1 text-sm text-ink-muted">{description}</p>
+          </div>
+          {exportButton}
+        </header>
+      )}
 
       {notice && <Alert tone="danger">{notice}</Alert>}
       {events.isError && <Alert tone="danger">{events.error.message}</Alert>}
@@ -323,6 +380,8 @@ export function AuditLogPage({
               onMove={view.move}
               onReset={view.reset}
             />
+            {/* Where there is no page header to hold it. It belongs to this table, not to the screen. */}
+            {embedded && exportButton}
           </div>
         </div>
 
@@ -397,7 +456,22 @@ function EventRow({ event, columns }: { event: AuditLogEntry; columns: MovableCo
     <tr className="hover:bg-slate-50/60">
       <td className="py-3 pr-4 pl-5">
         <div className="flex items-center gap-3">
-          <Avatar name={actor} />
+          {/* Who did it, drawn as what they are. This one row can carry three different subjects: a
+              member of the firm, a client acting in their own portal, or the platform itself. The same
+              component is the Family access trail, where a client actor is the ordinary case rather
+              than the odd one. */}
+          {event.actorType === "SYSTEM" ? (
+            <span
+              aria-hidden="true"
+              className="grid size-9 shrink-0 place-items-center rounded-lg bg-canvas text-ink-muted [&_svg]:size-4"
+            >
+              <Cog />
+            </span>
+          ) : event.actorType === "STAFF" ? (
+            <StaffAvatar name={actor} />
+          ) : (
+            <Avatar name={actor} />
+          )}
           <div className="min-w-0">
             <p className="truncate font-semibold">{actor}</p>
             <p className="truncate text-xs text-ink-muted">{actorDescription(event)}</p>
@@ -426,6 +500,10 @@ function EventRow({ event, columns }: { event: AuditLogEntry; columns: MovableCo
 function actorDescription(event: AuditLogEntry) {
   if (event.actorType === "SYSTEM") return "Automatic";
   if (event.actorRole) return roleLabel(event.actorRole);
+  // A client has no role to name, and saying "Staff" because they had a name was how every client
+  // acting in their own portal came to be described as an employee of the firm. On the Family access
+  // trail, where the actor is routinely a client, that was most of the screen.
+  if (event.actorType === "CUSTOMER") return "Client";
   // Staff holding several roles haven't picked one yet when they sign in.
   return event.actorName ? "Staff" : "No matching account";
 }
