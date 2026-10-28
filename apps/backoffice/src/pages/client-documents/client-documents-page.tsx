@@ -6,7 +6,7 @@ import { useState } from "react";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { hasAnyAuthority, hasAuthority, UPLOADS_CLIENT_DOCUMENTS } from "../../lib/permissions";
+import { hasAuthority } from "../../lib/permissions";
 import { kycStatusLabels, kycStatusTones } from "../clients/client-labels";
 import { formatDate } from "../../lib/labels";
 
@@ -14,10 +14,13 @@ import { formatDate } from "../../lib/labels";
  * Where a client's papers are put on file (#83). One client at a time, because a document is only worth
  * keeping against the client it belongs to.
  *
- * <p>Whose clients depends on whose job it is. Compliance own KYC for the whole firm, so they see every
- * client; a relationship manager is held to their own. This listed only the signed-in person's own clients whoever
- * they were, which left Compliance looking at "no clients are assigned to you yet" and no way to reach
- * anybody — on the one screen their job is done from.
+ * <p>The desks that collect papers, not the desk that decides on them: Operations and a relationship
+ * manager. Compliance reach the same client file from their review queue and their document review, and
+ * read it to judge it rather than to add to it — a third entry here only gave them a third door into one
+ * room. This is the other two desks' only door, so it is theirs.
+ *
+ * <p>Whose clients depends on whose job it is. Operations service every client, so they see every client;
+ * a relationship manager is held to their own.
  */
 export function ClientDocumentsPage() {
   const [query, setQuery] = useState("");
@@ -25,10 +28,9 @@ export function ClientDocumentsPage() {
   // Offered rather than fixed, so this footer reads like every other one in the portal.
   const [size, setSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const user = useStaffUser();
-  // Three different jobs on one screen: Compliance add and decide, a relationship manager adds for their own
-  // clients, Operations read every client's to service them and add to none.
-  const mayAdd = hasAnyAuthority(user, ...UPLOADS_CLIENT_DOCUMENTS);
-  const everyClient = hasAuthority(user, "UPLOAD_CLIENT_DOCUMENTS:CHANGE") || !mayAdd;
+  // Two jobs on one screen, and the menu entry admits nobody else: Operations put papers on file for every
+  // client, a relationship manager for their own. Neither decides on what they put there.
+  const everyClient = hasAuthority(user, "UPLOAD_CLIENT_DOCUMENTS:CHANGE");
   // One list, scoped by the API the same way putting a paper on a file is scoped — so a client somebody
   // may act for is a client they can find. The All clients list answers a different question and narrows
   // a restricted client away from everybody but whoever runs the firm.
@@ -43,11 +45,9 @@ export function ClientDocumentsPage() {
       <header>
         <h1 className="text-[1.625rem] font-bold">Client documents</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          {!mayAdd
-            ? "Every client's passports, identity papers and proof of address. Open a client to read what is on file and download it. Compliance put them on file and decide on them."
-            : everyClient
-              ? "Every client's passports, identity papers and proof of address. Open a client to see what is on file, add to it, and decide on what is there."
-              : "Your clients' passports, identity papers and proof of address. Open a client to see what is on file and add to it. Compliance check them and decide."}
+          {everyClient
+            ? "Every client's passports, identity papers and proof of address. Open a client to see what is on file and add to it. Compliance check them and decide."
+            : "Your clients' passports, identity papers and proof of address. Open a client to see what is on file and add to it. Compliance check them and decide."}
         </p>
       </header>
 

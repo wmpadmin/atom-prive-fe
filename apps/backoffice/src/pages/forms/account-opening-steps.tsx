@@ -1,5 +1,5 @@
 import { Button, cn, describedBy, Field, IconButton } from "@atomprive/ui";
-import { Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import {
   AddressFields,
   CountriesField,
@@ -225,7 +225,6 @@ export function PeopleStep({ at, noun, people, formId, documents, onChange, fiel
       ))}
       {people.length < MAX_PEOPLE && (
         <Button variant="secondary" onClick={() => onChange([...people, emptyPerson()])}>
-          <Plus aria-hidden="true" />
           Add another {noun.toLowerCase()}
         </Button>
       )}

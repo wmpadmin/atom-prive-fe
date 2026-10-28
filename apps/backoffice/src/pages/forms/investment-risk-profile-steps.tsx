@@ -1,6 +1,6 @@
 import { useFirmName } from "./firm-name";
 import { Alert, Button, IconButton, TextArea, cn } from "@atomprive/ui";
-import { Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Boxes, Tick } from "../../components/form-boxes";
 import { FirmSignsThis } from "../../components/client-signs-this";
 import { FollowUp, FormSection as FieldGroup, TextField, type FieldFor } from "../../components/form-fields";
@@ -553,7 +553,6 @@ function SignOffs({
       title={title}
       action={
         <Button variant="secondary" size="sm" disabled={rows.length >= MAX_ROWS} onClick={() => onChange([...rows, emptySignOff()])}>
-          <Plus aria-hidden="true" />
           Add a name
         </Button>
       }
