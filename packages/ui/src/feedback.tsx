@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { cn } from "./cn";
 
 type Tone = "neutral" | "success" | "info" | "warning" | "danger";
@@ -101,20 +101,64 @@ export function StatCard({ icon, value, label }: { icon: ReactNode; value: React
   );
 }
 
-/** Initials in a circle, the same for staff and clients; nobody has a profile photo in the back-office yet. */
-export function Avatar({ name, className }: { name: string; className?: string }) {
+/**
+ * A member of the firm's own face: brown, and in a rounded square.
+ *
+ * <p>Shape and colour both, because either alone fails somewhere. Colour alone goes when a photograph
+ * fills the circle; shape alone goes on a reader who does not notice corners. Together, whose face it
+ * is reads before the name does — which is the point, on screens where an adviser and the client they
+ * advise sit in the same row.
+ *
+ * <p>Everything else it does is {@link Avatar}'s, including falling back to initials when there is no
+ * photograph and when there is one that will not load.
+ */
+export function StaffAvatar({ name, photo, className }: {
+  name: string;
+  photo?: string | null;
+  className?: string;
+}) {
+  return <Avatar name={name} photo={photo} className={cn("rounded-lg bg-staff text-staff-ink", className)} />;
+}
+
+/** A client's face, in a circle: their photograph, or their initials where the firm holds none. */
+export function Avatar({ name, photo, className }: {
+  name: string;
+  /**
+   * Their photograph, where the firm has one. Anything an <img> can load: a URL, or the data URI a
+   * photograph kept in the database comes back as.
+   *
+   * <p>The initials are not a placeholder for it, they are the other half of the same thing — most people
+   * have no photograph on file and never will, and a row of empty grey circles says less than a row of
+   * initials does.
+   */
+  photo?: string | null;
+  className?: string;
+}) {
+  // A photograph that will not load falls back to the initials rather than to a hole. Kept per render of
+  // this avatar: the same person may be drawn a dozen times on one screen, and one broken image should not
+  // blank the others.
+  const [broken, setBroken] = useState(false);
   const initials = name
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+  const showing = photo && !broken;
   return (
     <span
       aria-hidden="true"
-      className={cn("grid size-9 shrink-0 place-items-center rounded-full bg-brand-900 text-xs font-bold text-primary-600", className)}
+      className={cn(
+        "grid size-9 shrink-0 place-items-center overflow-hidden rounded-full text-xs font-bold",
+        showing ? "bg-slate-200" : "bg-brand-900 text-primary-600",
+        className,
+      )}
     >
-      {initials || "?"}
+      {showing ? (
+        <img src={photo} alt="" loading="lazy" onError={() => setBroken(true)} className="size-full object-cover" />
+      ) : (
+        initials || "?"
+      )}
     </span>
   );
 }

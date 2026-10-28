@@ -22,6 +22,12 @@
   --color-brand-900: #0b2a5b;
   --color-brand-50: #eef3fa;
 
+  /* Brown: a member of the firm's own face. Clients are drawn in navy and in a circle, staff in brown
+     and in a rounded square, so whose face it is reads before the name does. Warm rather than red: it
+     has to sit beside a status badge without being mistaken for one. */
+  --color-staff: #8a4b2a;
+  --color-staff-ink: #ffffff;
+
   /* Blue: primary actions, active navigation, icon tiles */
   --color-primary-50: #eaf1fd;
   --color-primary-100: #d8e5fb;
@@ -170,6 +176,11 @@
   --color-primary-100: #17324f;
   --color-primary-600: #3d87f4;
   --color-primary-700: #62a0f7;
+
+  /* Brown lifts like every other fill, so a staff face still reads as brown against a dark page and
+     keeps carrying white letters. */
+  --color-staff: #b56b42;
+  --color-staff-ink: #1b0f08;
 
   /* Navy panels are already dark; they deepen a little so they do not float off the page. */
   --color-brand-950: #04101f;
