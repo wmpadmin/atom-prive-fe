@@ -246,3 +246,24 @@
 
   color-scheme: dark;
 }
+
+/*
+ * Compact density, for somebody who would rather see more rows than more air.
+ *
+ * <p>Set on the root element by the reader's own preference, the way the theme is, and read here rather
+ * than threaded through every component — a table nine levels down should not have to be told. It tightens
+ * the padding on cells and the gaps between stacked sections, and touches nothing else: type stays the
+ * size it was, because a reader asking for more rows is not asking for smaller words.
+ */
+:root[data-density="compact"] {
+  /* Rows first — they are where the height actually goes. */
+  & td,
+  & th {
+    padding-block: 0.3rem;
+  }
+
+  /* Then the air between the things on a page. */
+  & .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+    margin-block-start: 1rem;
+  }
+}

@@ -15,7 +15,7 @@ import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
+import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { formatDateTime } from "../../lib/labels";
 
 const statusLabels: Record<ListDeliveriesStatus, string> = {
@@ -104,7 +104,7 @@ export function DeliveriesPage() {
   const [status, setStatus] = useState<ListDeliveriesStatus | "">("");
   const [channel, setChannel] = useState<ListDeliveriesChannel | "">("");
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<number>(defaultPageSize);
 
   // A different page size starts again at the first page, so the rows on screen always match the summary.
   function changePageSize(size: number) {

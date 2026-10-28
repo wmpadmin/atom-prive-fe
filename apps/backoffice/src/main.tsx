@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";
 import { SessionProvider } from "./auth/session-provider";
 import "./index.css";
+import { applyDensity, preference } from "./lib/preferences";
 import { router } from "./router";
 
 const queryClient = new QueryClient({
@@ -16,6 +17,10 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Before the first paint, so a reader who asked for compact never sees one frame of comfortable. The
+// theme does the same thing from its own hook; this is the other half of it.
+applyDensity(preference("density"));
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -426,11 +426,6 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         }
       >
         <div className="flex flex-wrap items-center gap-2">
-          {/* Starting a client is done from here now: the list of cases it used to sit above is gone, and
-              a case begins with a client whether or not the firm has a record of them yet. */}
-          {canOnboard && (
-            <Button onClick={() => navigate("/onboarding/new")}>Start onboarding</Button>
-          )}
           <ColumnPicker
             columns={movable.map((one) => ({ id: one.id, label: one.label }))}
             shown={new Set(view.shown)}
@@ -473,6 +468,12 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         caption="Clients"
         search={
           <ClientSearch value={typed.search} filters={filters} onChange={typed.change} onSearch={typed.apply} />
+        }
+        action={
+          // Starting a client is done from here now: the list of cases it used to sit above is gone,
+          // and a case begins with a client whether or not the firm has a record of them yet. Beside
+          // the search box rather than up in the heading — it is the work, not a way of reading it.
+          canOnboard ? <Button onClick={() => navigate("/onboarding/new")}>Start onboarding</Button> : undefined
         }
         filters={
           <>
