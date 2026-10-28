@@ -40,9 +40,12 @@ export function EditStaffDialog({ user, isSelf, onClose, onSaved }: EditStaffDia
 function EditStaffForm({ user, isSelf, onCancel, onSaved }: { user: StaffUserDetail; isSelf: boolean; onCancel: () => void; onSaved: EditStaffDialogProps["onSaved"] }) {
   const queryClient = useQueryClient();
   const [roles, setRoles] = useState<StaffRole[]>(user.roles);
+  // A photograph just chosen, held until the form is sent: there is no account yet to upload one against.
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [defaultRole, setDefaultRole] = useState<StaffRole | null>(user.defaultRole ?? null);
   // Controlled, so the saved manager stays selected while the staff list is still loading.
   const [reportsToId, setReportsToId] = useState(user.reportsTo?.id ?? "");
-  const { formRef, errors, setErrors, setFieldError, fieldChanged, incomplete, handleChange, showIncomplete } = useStaffProfileForm(roles, reportsToId);
+  const { formRef, errors, setErrors, setFieldError, fieldChanged, incomplete, handleChange, showIncomplete } = useStaffProfileForm(roles, reportsToId, defaultRole);
   const directory = useListStaffDirectory<StaffReference[], ApiError>();
 
   const update = useUpdateStaffUser<ApiError>({
@@ -61,7 +64,7 @@ function EditStaffForm({ user, isSelf, onCancel, onSaved }: { user: StaffUserDet
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const { data, missing } = readStaffProfile(event.currentTarget, roles, reportsToId);
+    const { data, missing } = readStaffProfile(event.currentTarget, roles, reportsToId, defaultRole, photo);
     if (Object.keys(missing).length > 0) {
       showIncomplete();
       return;
@@ -89,7 +92,16 @@ function EditStaffForm({ user, isSelf, onCancel, onSaved }: { user: StaffUserDet
         onFieldError={setFieldError}
         onFieldChange={fieldChanged}
         roles={roles}
-        onRolesChange={setRoles}
+        onRolesChange={(next) => {
+          setRoles(next);
+          // A workspace they no longer hold is no workspace. Cleared as the tick comes off rather than
+          // left to be refused on save, so the box never offers a role that is not on the list above it.
+          if (defaultRole && !next.includes(defaultRole)) setDefaultRole(null);
+        }}
+        defaultRole={defaultRole}
+        onDefaultRoleChange={setDefaultRole}
+        photo={photo}
+        onPhotoChange={setPhoto}
         rolesHint={isSelf ? "Changing your own roles signs you out of every device." : "Changing roles signs the user out of every device."}
         reportsToId={reportsToId}
         onReportsToChange={setReportsToId}

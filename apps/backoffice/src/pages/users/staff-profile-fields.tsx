@@ -2,8 +2,9 @@ import type { StaffReference, StaffUserDetail } from "@atomprive/api-client/back
 import { Alert, Button, DateInput, describedBy, Field, SelectInput, TextArea, TextInput } from "@atomprive/ui";
 import type { ReactNode } from "react";
 import { countries, officeCountries } from "../../lib/countries";
-import type { StaffRole } from "../../lib/labels";
+import { roleLabels, type StaffRole } from "../../lib/labels";
 import { MobileNumberField } from "./mobile-number-field";
+import { PhotoField } from "../../components/photo-field";
 import { RolePicker } from "./role-picker";
 
 /** The API accepts employment start dates from 1950 up to a year ahead. */
@@ -22,6 +23,12 @@ interface StaffProfileFieldsProps {
   rolesHint?: string;
   reportsToId: string;
   onReportsToChange: (id: string) => void;
+  /** The role they land in at sign-in. Null where they hold one, or where nobody has chosen. */
+  defaultRole: StaffRole | null;
+  onDefaultRoleChange: (role: StaffRole | null) => void;
+  /** A photograph just chosen, as a squared data URI; null means nothing new has been picked. */
+  photo: string | null;
+  onPhotoChange: (dataUri: string) => void;
   /** People who can be chosen under "Reporting to". */
   managers: StaffReference[];
 }
@@ -34,6 +41,10 @@ export function StaffProfileFields({
   onFieldChange,
   roles,
   onRolesChange,
+  defaultRole,
+  onDefaultRoleChange,
+  photo,
+  onPhotoChange,
   rolesHint,
   reportsToId,
   onReportsToChange,
@@ -119,6 +130,19 @@ export function StaffProfileFields({
       </Section>
 
       <Section title="Access & identity">
+        {/* Optional, and replaced rather than removed. Carried in the form body because somebody being
+            added has no account yet to upload a photograph against. */}
+        <div className="sm:col-span-2">
+          {/* Nobody's initials until somebody has a name. "New member of staff" put NM in the circle,
+              which reads as a person whose initials are N.M. */}
+          <PhotoField
+            kind="staff"
+            name={user?.fullName ?? ""}
+            photo={photo ?? user?.photo ?? null}
+            onChoose={onPhotoChange}
+            hint="Optional. JPG, PNG or WebP, up to 5MB. They can change it themselves in Settings."
+          />
+        </div>
         <div className="sm:col-span-2">
           <RolePicker
             required
@@ -128,6 +152,34 @@ export function StaffProfileFields({
             error={fields.roles}
           />
         </div>
+        {/* Only where there is a choice. One role is the answer when there is only one, and a dropdown
+            offering it would be a decision nobody has to make. */}
+        {roles.length > 1 && (
+          <Field
+            id="defaultRole"
+            label="Workspace they open in"
+            required
+            error={fields.defaultRole}
+            hint="Where they land after signing in. They can change their own on their Settings."
+            className="sm:col-span-2"
+          >
+            <SelectInput
+              id="defaultRole"
+              value={defaultRole ?? ""}
+              onChange={(event) => {
+                onFieldError("defaultRole", undefined);
+                onDefaultRoleChange((event.target.value || null) as StaffRole | null);
+              }}
+            >
+              <option value="">They choose for themselves</option>
+              {roles.map((role) => (
+                <option key={role} value={role}>
+                  {roleLabels[role]}
+                </option>
+              ))}
+            </SelectInput>
+          </Field>
+        )}
         <Field id="nationalId" label="PAN ID / EID" required error={fields.nationalId}>
           <TextInput {...describedBy("nationalId", fields.nationalId)} name="nationalId" autoComplete="off" defaultValue={user?.nationalId ?? ""} className="uppercase" required />
         </Field>
