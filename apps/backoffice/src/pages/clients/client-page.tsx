@@ -242,7 +242,9 @@ export function ClientPage() {
                 tab === option.id ? "border-primary-600 text-primary-700" : "border-transparent text-ink-muted hover:text-ink",
               )}
             >
-              {option.label}
+              {/* A company or trust has no family, so calling the tab Family group on one reads as the
+                  individual's screen reused. Stakeholders is what the thing actually is. */}
+              {option.id === "family" && client.type === "ENTITY" ? "Stakeholders" : option.label}
             </button>
           ))}
         </div>
