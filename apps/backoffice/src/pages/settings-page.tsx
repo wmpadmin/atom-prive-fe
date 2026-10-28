@@ -1,9 +1,13 @@
-import { Button } from "@atomprive/ui";
-import { KeyRound, Laptop, UserRound, Users } from "lucide-react";
-import type { ReactNode } from "react";
+import { ApiError } from "@atomprive/api-client";
+import { useEnterWorkspace, useUploadMyPhoto, type StaffProfile } from "@atomprive/api-client/backoffice";
+import { Alert, Button, Field, SelectInput } from "@atomprive/ui";
+import { useQueryClient } from "@tanstack/react-query";
+import { Camera, KeyRound, Laptop, UserRound, Users } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useSession, useStaffUser } from "../auth/session";
-import { roleLabels, roleList } from "../lib/labels";
+import { roleLabels, roleList, type StaffRole } from "../lib/labels";
+import { PhotoField } from "../components/photo-field";
 import { SignedInDevices } from "./signed-in-devices";
 
 /**
@@ -38,6 +42,10 @@ export function SettingsPage() {
         </dl>
       </Panel>
 
+      <Panel icon={<Camera aria-hidden="true" className="size-4" />} title="Your photo">
+        <MyPhoto user={user} />
+      </Panel>
+
       <Panel icon={<KeyRound aria-hidden="true" className="size-4" />} title="Password">
         <p className="text-sm text-ink-muted">
           Changing it signs you out everywhere else, so a session somebody else has is ended with it.
@@ -48,17 +56,7 @@ export function SettingsPage() {
       </Panel>
 
       {/* Only worth a panel to somebody who holds more than one role; everyone else has nothing to switch to. */}
-      {wearsSeveralHats && (
-        <Panel icon={<Users aria-hidden="true" className="size-4" />} title="Workspace">
-          <p className="text-sm text-ink-muted">
-            You hold more than one role. Which you are working as decides what you see, and you may change it at
-            any time.
-          </p>
-          <Link to="/workspace" className="mt-3 inline-block">
-            <Button variant="secondary">Switch workspace</Button>
-          </Link>
-        </Panel>
-      )}
+      {wearsSeveralHats && <WorkspacePanel user={user} />}
 
       <Panel icon={<Laptop aria-hidden="true" className="size-4" />} title="Where you are signed in">
         <SignedInDevices />
@@ -71,6 +69,108 @@ export function SettingsPage() {
         </Button>
       </Panel>
     </div>
+  );
+}
+
+/**
+ * The role this person opens in, which they set for themselves.
+ *
+ * <p>The Admin chooses it when a member of staff is added, and this is where that person changes their own
+ * mind. It takes effect at once — picking one enters it — so the screens change under them as they choose,
+ * which is the point: it is their workspace, not a preference to be applied later.
+ */
+/**
+ * Their own photograph, changed by them and nobody else.
+ *
+ * <p>Uploaded against the token rather than against an id: the account is whoever is signed in, so there is
+ * no way from here to put a face on somebody else's.
+ */
+function MyPhoto({ user }: { user: StaffProfile }) {
+  const { applyProfile } = useSession();
+  const [wrong, setWrong] = useState<string>();
+  const upload = useUploadMyPhoto<ApiError>({
+    mutation: {
+      onSuccess: (profile) => {
+        setWrong(undefined);
+        applyProfile(profile);
+      },
+      onError: (caught) => setWrong(caught.message),
+    },
+  });
+
+  return (
+    <>
+      {wrong && (
+        <div className="mb-3">
+          <Alert tone="danger">{wrong}</Alert>
+        </div>
+      )}
+      <PhotoField
+        kind="staff"
+        name={user.fullName}
+        photo={user.photo ?? null}
+        busy={upload.isPending}
+        hint="JPG, PNG or WebP, up to 5MB. It shows wherever you appear on the platform."
+        onChoose={async (dataUri) => {
+          const file = await (await fetch(dataUri)).blob();
+          upload.mutate({ data: { file: new File([file], "photo.jpg", { type: "image/jpeg" }) } });
+        }}
+      />
+    </>
+  );
+}
+
+function WorkspacePanel({ user }: { user: StaffProfile }) {
+  const queryClient = useQueryClient();
+  const { applyProfile } = useSession();
+  const [saved, setSaved] = useState(false);
+  const enter = useEnterWorkspace<ApiError>({
+    mutation: {
+      onSuccess: (profile) => {
+        setSaved(true);
+        // The menu and every screen behind it are the active role's, so none of what is cached still
+        // applies — and the profile has to be taken in hand too, or the sidebar redraws as it was.
+        queryClient.clear();
+        applyProfile(profile);
+      },
+    },
+  });
+
+  return (
+    <Panel icon={<Users aria-hidden="true" className="size-4" />} title="Workspace">
+      <p className="text-sm text-ink-muted">
+        You hold more than one role. The one you open in decides what you see when you sign in — and you move
+        into it as soon as you choose it.
+      </p>
+      {enter.isError && (
+        <div className="mt-3">
+          <Alert tone="danger">{enter.error.message}</Alert>
+        </div>
+      )}
+      {saved && !enter.isError && (
+        <div className="mt-3">
+          <Alert tone="success">You open in {roleLabels[(user.opensIn ?? user.activeRole) as StaffRole]} from now on.</Alert>
+        </div>
+      )}
+      <Field id="opens-in" label="I open in" className="mt-3 max-w-xs">
+        <SelectInput
+          id="opens-in"
+          value={(user.opensIn ?? user.activeRole ?? "") as string}
+          disabled={enter.isPending}
+          onChange={(event) => {
+            const role = event.target.value as StaffRole;
+            setSaved(false);
+            enter.mutate({ data: { role, fromNowOn: true } });
+          }}
+        >
+          {user.roles.map((role) => (
+            <option key={role} value={role}>
+              {roleLabels[role as StaffRole]}
+            </option>
+          ))}
+        </SelectInput>
+      </Field>
+    </Panel>
   );
 }
 

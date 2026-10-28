@@ -26,3 +26,21 @@
   --text-sm: max(0.875rem, 12px);
   --text-base: max(1rem, 13px);
 }
+
+/*
+ * A row that scrolls sideways without drawing a bar for it.
+ *
+ * <p>The tab strips scroll so a long row of tabs stays on one line instead of wrapping onto two. On a Mac
+ * set to show scrollbars always, that drew a grey thumb hard against the last tab, which reads as a stray
+ * mark on the page rather than as something to drag. The scrolling is kept — a narrow window still swipes
+ * through the tabs — and only the bar is taken off.
+ */
+@utility scroll-x-quietly {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

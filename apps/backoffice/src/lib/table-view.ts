@@ -95,8 +95,11 @@ function read(table: string): Stored {
  * it was written, because a reader who arranged seven columns last week did not ask for the eighth to
  * land at the end. Without both, a saved view quietly becomes wrong the first time the table changes.
  */
-function settle(stored: TableView | null, columns: string[]): TableView {
-  if (!stored) return { order: columns, hidden: [] };
+function settle(stored: TableView | null, columns: string[], hiddenByDefault: string[] = []): TableView {
+  // Nothing on file means the firm's own arrangement, which may itself leave columns off. A table with
+  // more columns than anybody reads at once is better opened with the handful most people want and the
+  // rest a tick away than with all of them and a reader who has to take eight things off.
+  if (!stored) return { order: columns, hidden: hiddenByDefault.filter((one) => columns.includes(one)) };
   const known = new Set(columns);
   const kept = stored.order.filter((one) => known.has(one));
   const missing = columns.filter((one) => !kept.includes(one));
@@ -119,12 +122,17 @@ function same(a: TableView, b: TableView) {
  * @param table what these arrangements are saved under
  * @param columns every movable column the table has, in the order the firm wrote them
  */
-export function useTableView(table: string, columns: string[]) {
+export function useTableView(table: string, columns: string[], hiddenByDefault: string[] = []) {
   // The list itself and not its identity: a new array of the same names is the same table. Taken apart
   // again from the same string so everything below depends on one value a reader — and the compiler —
   // can check, without holding the caller's array across renders.
   const signature = columns.join("\u0000");
   const named = useMemo(() => (signature === "" ? [] : signature.split("\u0000")), [signature]);
+  const offSignature = hiddenByDefault.join("\u0000");
+  const offByDefault = useMemo(
+    () => (offSignature === "" ? [] : offSignature.split("\u0000")),
+    [offSignature],
+  );
 
   // What is on file, read once on the render that first needs it. Read in an effect afterwards instead,
   // the table draws the firm's order first and the reader's a moment later, which looks like the screen
@@ -133,7 +141,10 @@ export function useTableView(table: string, columns: string[]) {
 
   // Settled against the columns the table actually has, here rather than in an effect: this is a reading
   // of what is already known, not a thing that has to happen to anything.
-  const view = useMemo(() => settle(kept.working, named), [kept.working, named]);
+  const view = useMemo(
+    () => settle(kept.working, named, offByDefault),
+    [kept.working, named, offByDefault],
+  );
   const views = useMemo(
     () => kept.views.map((one) => ({ ...settle(one, named), name: one.name })),
     [kept.views, named],
