@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backoffice",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev:backoffice"],
+      "port": 5174
+    }
+  ]
+}
