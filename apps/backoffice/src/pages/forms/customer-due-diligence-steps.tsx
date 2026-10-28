@@ -1,6 +1,6 @@
 import type { RiskStanding } from "@atomprive/api-client/backoffice";
 import { Alert, Button, IconButton, cn } from "@atomprive/ui";
-import { Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Link } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Boxes, Tick, Written } from "../../components/form-boxes";
@@ -182,7 +182,6 @@ export function ClassificationStep({
           title="Evidence of documents obtained for Assessment as Professional Client"
           action={
             <Button variant="secondary" size="sm" disabled={evidence.length >= MAX_ROWS} onClick={() => onChange({ evidence: [...evidence, emptyEvidence()] })}>
-              <Plus aria-hidden="true" />
               Add a row
             </Button>
           }
@@ -277,7 +276,6 @@ export function SuitabilityStep({
               title={screenedAsLabels[list]}
               action={
                 <Button variant="secondary" size="sm" disabled={screening.length >= MAX_ROWS} onClick={() => onChange({ screening: [...screening, emptyScreened(list)] })}>
-                  <Plus aria-hidden="true" />
                   Add a row
                 </Button>
               }
@@ -356,7 +354,6 @@ export function WealthStep({
         title="Employment Details (salaried individuals)"
         action={
           <Button variant="secondary" size="sm" disabled={wealth.employment.length >= MAX_ROWS} onClick={() => onChange({ employment: [...wealth.employment, emptyEmployment()] })}>
-            <Plus aria-hidden="true" />
             Add a column
           </Button>
         }
@@ -391,7 +388,6 @@ export function WealthStep({
         title="Entity Details (self-employed individuals)"
         action={
           <Button variant="secondary" size="sm" disabled={wealth.entities.length >= MAX_ROWS} onClick={() => onChange({ entities: [...wealth.entities, emptyOwnedEntity()] })}>
-            <Plus aria-hidden="true" />
             Add a column
           </Button>
         }

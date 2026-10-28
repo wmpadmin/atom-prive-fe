@@ -1,5 +1,5 @@
 import { Button } from "@atomprive/ui";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 /**
  * The bar above every part of a form that is asked of each account holder in turn. A joint account is one
@@ -42,7 +42,6 @@ export function AccountHolders({
           </Button>
         )}
         <Button variant="secondary" size="sm" onClick={onAdd}>
-          <Plus aria-hidden="true" />
           Add an account holder
         </Button>
       </div>

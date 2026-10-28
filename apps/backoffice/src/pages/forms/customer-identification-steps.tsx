@@ -1,5 +1,5 @@
 import { Alert, Button, IconButton, cn } from "@atomprive/ui";
-import { Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Boxes, Tick } from "../../components/form-boxes";
 import { Documents, type FormDocuments } from "../../components/form-documents";
@@ -531,7 +531,6 @@ export function ScreeningStep(at: FirmAskProps) {
             disabled={rows.length >= MAX_SCREENING_ROWS}
             onClick={() => at.onChange({ screening: [...rows, emptyScreeningRow()] })}
           >
-            <Plus aria-hidden="true" />
             Add a screening
           </Button>
         </div>
