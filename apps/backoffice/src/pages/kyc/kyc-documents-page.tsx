@@ -8,7 +8,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Pagination, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { ChevronRight, Download, Plus, Search } from "lucide-react";
+import { ChevronRight, Download, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { TextInput } from "@atomprive/ui";
@@ -22,6 +22,9 @@ import { PAGE_SIZES } from "../../lib/page-sizes";
 import { clientLine, fileMark, pageCount, reviewStateLabels, reviewStateTones } from "./kyc-labels";
 import { PutOnFileBy } from "./kyc-who";
 import { PickClientDialog } from "./pick-client-dialog";
+import { ArchivedMark, archivedRow } from "../../components/archived-client";
+import { useStaffUser } from "../../auth/session";
+import { hasAnyAuthority, UPLOADS_CLIENT_DOCUMENTS } from "../../lib/permissions";
 
 /**
  * Every KYC document waiting on Compliance, with the client it belongs to. Opening one goes to that client's
@@ -94,6 +97,10 @@ export function KycDocumentReviewPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [picking, setPicking] = useState(false);
+  // Offered to whoever may actually put a paper on file. It was offered to everybody who could open
+  // this screen, which after V201 means Compliance — and their journey ended on a client's pack with
+  // no Upload on it, because deciding on papers and collecting them are now different desks.
+  const mayAdd = hasAnyAuthority(useStaffUser(), ...UPLOADS_CLIENT_DOCUMENTS);
   const queue = useListKycDocuments<KycQueue, ApiError>(
     { state, page, size },
     { query: { placeholderData: keepPreviousData } },
@@ -160,10 +167,11 @@ export function KycDocumentReviewPage() {
           >
             Review oldest
           </Button>
-          <Button onClick={() => setPicking(true)}>
-            <Plus aria-hidden="true" />
-            Add a document
-          </Button>
+          {mayAdd && (
+            <Button onClick={() => setPicking(true)}>
+              Add a document
+            </Button>
+          )}
         </div>
       </header>
 
@@ -303,17 +311,24 @@ export function KycDocumentReviewPage() {
               {shown.map((row) => (
                 <tr
                   key={row.id}
-                  onClick={() => void openApiFile(fileHref(row.id), row.fileName)}
-                  className="cursor-pointer hover:bg-slate-50/60"
+                  // A deactivated client's paper stays on the queue and stops opening. The row is the
+                  // record that it was here; the document behind it is the Admin's now.
+                  onClick={
+                    row.clientArchived ? undefined : () => void openApiFile(fileHref(row.id), row.fileName)
+                  }
+                  className={cn(
+                    row.clientArchived ? archivedRow : "cursor-pointer hover:bg-slate-50/60",
+                  )}
                 >
                   <td className="py-3 pr-4 pl-5">
                     <div className="flex items-center gap-3">
-                      <Avatar name={row.clientName} />
+                      <Avatar name={row.clientName} photo={row.clientPhoto} />
                       <div className="min-w-0">
                         <span className="block truncate font-semibold">{row.clientName}</span>
                         <span className="block truncate text-xs text-ink-muted">
                           {clientLine(row.clientType, row.clientCode)}
                         </span>
+                        {row.clientArchived && <ArchivedMark />}
                       </div>
                     </div>
                   </td>
