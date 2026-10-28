@@ -19,6 +19,7 @@ import { ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { hasAnyAuthority, ANSWERS_MOVE_PLANS, APPROVES_PROPOSALS, WRITES_PROPOSALS } from "../../lib/permissions";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { AttributionPanel } from "./attribution-panel";
 import { NetAumPanel } from "./net-aum-panel";
@@ -59,7 +60,7 @@ const CAME_FROM: Record<string, { to: string; label: string }> = {
 const FROM_THE_LIST = { to: "/portfolio-clients", label: "Back to the clients" };
 
 /** The questions this screen answers, in the order somebody asks them. */
-type Tab = "performance" | "daily" | "return" | "holdings" | "analytics";
+type Tab = "performance" | "daily" | "return" | "analytics";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "performance", label: "Portfolio performance" },
@@ -67,7 +68,6 @@ const TABS: { id: Tab; label: string }[] = [
   // After the tracker, because the tracker is what it is made of: the return is read off the days
   // somebody wrote down, and the money in and out written down beside them.
   { id: "return", label: "Return" },
-  { id: "holdings", label: "Holdings" },
   { id: "analytics", label: "Analytics" },
 ];
 
@@ -110,7 +110,23 @@ export function ClientPortfolioPage() {
   // refresh, could not be linked to, and sent anybody coming back from a day of the tracker to the first
   // tab rather than the one they left.
   const asked = address.get("tab");
-  const tab: Tab = TABS.some((one) => one.id === asked) ? (asked as Tab) : "performance";
+  /**
+   * Whether this reader works the portfolio desk, or only reads it.
+   *
+   * <p>Compliance open a client's portfolio to see what the firm has done, and can do none of it: they
+   * write no proposal, answer no move and change no plan. The tracker, the return, the holdings editor
+   * and the what-if are the desk's own working screens, and shown to somebody who may press nothing on
+   * them they are four tabs of other people's tools.
+   *
+   * <p>Asked of the permissions rather than of the role, so a role given or refused one of them later
+   * gets the right screen with it.
+   */
+  const reader = useStaffUser();
+  const worksTheDesk = hasAnyAuthority(reader, ...WRITES_PROPOSALS, ...ANSWERS_MOVE_PLANS,
+    ...APPROVES_PROPOSALS);
+  // A tab nobody is shown is a tab nobody lands on, however the address reads.
+  const offered = worksTheDesk ? TABS : TABS.slice(0, 1);
+  const tab: Tab = offered.some((one) => one.id === asked) ? (asked as Tab) : "performance";
   const setTab = (which: Tab) => {
     const next = new URLSearchParams(address);
     // The first tab is the one you get without asking, so asking for it adds nothing to the address.
@@ -305,7 +321,7 @@ export function ClientPortfolioPage() {
       {/* Scrolls rather than wraps: a second row would break the line the tabs sit on. */}
       <div role="tablist" aria-label="This client's portfolio"
         className="flex gap-1 overflow-x-auto border-b border-line">
-        {TABS.map((option) => (
+        {offered.map((option) => (
           <button
             key={option.id}
             type="button"
@@ -466,6 +482,7 @@ export function ClientPortfolioPage() {
         </fieldset>
       </section>
 
+      {worksTheDesk && <>
       <ValuationHistoryPanel customerId={customerId} />
 
       {/* Under the figures it is worked out from, and above what the bonds do: a reader who has just read
@@ -489,23 +506,17 @@ export function ClientPortfolioPage() {
       {standing.data && (
         <WhatIfPanel customerId={customerId} standing={standing.data} editing />
       )}
+      </>}
       </>)}
 
       {tab === "daily" && <DailyTrackerPanel customerId={customerId} />}
 
       {tab === "return" && <ClientReturnPanel customerId={customerId} />}
 
-      {/* Nothing yet, and said so rather than drawn empty. The firm's line-by-line holdings list is still
-          to come; until it does, what the client holds is read under Portfolio performance. */}
-      {tab === "holdings" && (
-        <section className="rounded-2xl border border-dashed border-line bg-white px-6 py-10 text-center">
-          <p className="font-semibold text-ink">Holdings is not built yet.</p>
-          <p className="mx-auto mt-1 max-w-prose text-sm text-ink-muted">
-            The firm&apos;s own list of what a client holds, instrument by instrument, goes here. Until it
-            arrives, what they hold by asset class and sub-asset is under Portfolio performance.
-          </p>
-        </section>
-      )}
+      {/* No Holdings tab here. The firm has no line-by-line holdings to put in one, and a tab that exists
+          only to say so was the second place on the platform saying it — the client file's own Holdings tab
+          says it, and that is the file somebody opens to read about a client. A reader who asks for this tab
+          by address lands on Portfolio performance, which is where what they hold by class is read. */}
 
       {tab === "analytics" && <AnalyticsPanel customerId={customerId} />}
     </div>

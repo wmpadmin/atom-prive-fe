@@ -1,4 +1,5 @@
 import type { MovePlanRow } from "@atomprive/api-client/backoffice";
+import { ArchivedMark } from "../../components/archived-client";
 import { Alert, Avatar, Badge, Button, cn } from "@atomprive/ui";
 import { formatDateTime } from "../../lib/labels";
 import { exactly, figure, named, netted, overItsBand } from "./money-words";
@@ -32,12 +33,15 @@ export function WaitingPlan({ row, showClient, answering, refusal, onApprove, on
           wide, and two tables that lined up with nothing. */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
-          {showClient && <Avatar name={row.clientName} />}
+          {showClient && <Avatar name={row.clientName} photo={row.clientPhoto} />}
           <div className="min-w-0">
             {showClient && (
               <>
                 <p className="font-semibold">{row.clientName}</p>
                 <p className="font-mono text-xs text-ink-muted">{row.clientCode}</p>
+                {/* The plan stays answerable — the money is the firm's business whatever became of the
+                    client — but whoever reads it is told the client has gone. */}
+                {row.clientArchived && <ArchivedMark />}
               </>
             )}
             {/* The reason first, because it is the thing whoever asked was told they would be
@@ -159,7 +163,12 @@ export function DealtWithPlan({ row, showClient }: { row: MovePlanRow; showClien
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        {showClient && <p className="text-sm font-semibold">{row.clientName}</p>}
+        {showClient && (
+          <>
+            <p className="text-sm font-semibold">{row.clientName}</p>
+            {row.clientArchived && <ArchivedMark />}
+          </>
+        )}
         <p className="mt-0.5 text-xs text-ink-muted">
           {exactly(row.amount, row.currency)} · {row.statusSaid}
           {row.decidedByName && ` by ${row.decidedByName}`}

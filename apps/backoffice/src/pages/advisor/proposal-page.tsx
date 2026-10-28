@@ -329,7 +329,7 @@ export function ProposalPage() {
       <header className="space-y-4 rounded-2xl border border-line bg-white p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            {!writing && <Avatar name={proposal!.summary.customerName} />}
+            {!writing && <Avatar name={proposal!.summary.customerName} photo={proposal!.summary.customerPhoto} />}
             <div className="min-w-0">
               <h1 className="text-[1.625rem] leading-tight font-bold">
                 {writing ? "New proposal" : proposal!.summary.title}
@@ -584,6 +584,7 @@ export function ProposalPage() {
           <MoneyMovementHistory
             moves={carryingOut.data ?? []}
             pending={carryingOut.isPending}
+            unreadable={carryingOut.isError}
             client={proposal!.summary.customerName}
           />
         ) : (
@@ -814,9 +815,17 @@ function CarriedOutBy({ moves, pending, fromRebalance }: {
  * much. A move of five legs written as one row says a figure and hides the five places it came from, and
  * those five places are the whole of what somebody reads this to find out.
  */
-function MoneyMovementHistory({ moves, pending, client }: {
+function MoneyMovementHistory({ moves, pending, unreadable, client }: {
   moves: MovePlanRow[];
   pending: boolean;
+  /**
+   * Whether the record could not be read at all, which is not the same as there being none.
+   *
+   * <p>Told apart because they were not. A reader the record refuses got an empty list and the sentence
+   * below, which states as a fact about the client's portfolio something this screen had not been allowed
+   * to find out — read by whoever checks the firm's work, it is the one wrong answer that matters here.
+   */
+  unreadable: boolean;
   client: string;
 }) {
   // Flattened to a row per leg up here, above the two cases that return below, because which page a reader
@@ -828,6 +837,14 @@ function MoneyMovementHistory({ moves, pending, client }: {
   const paged = usePagedRows(moves);
   if (pending) {
     return <p className="py-8 text-sm text-ink-muted">Reading what has moved…</p>;
+  }
+  if (unreadable) {
+    return (
+      <p className="py-8 text-sm text-ink-muted">
+        What has moved under this request could not be read. This does not mean nothing has — ask somebody
+        who may open {client}'s portfolio.
+      </p>
+    );
   }
   if (moves.length === 0) {
     return (

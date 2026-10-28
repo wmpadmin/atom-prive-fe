@@ -1,6 +1,6 @@
 import type { ClientHoldings, MoveLegRequest, SubClassGroup } from "@atomprive/api-client/backoffice";
 import { Button, Field, SelectInput, TextInput } from "@atomprive/ui";
-import { Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import { asFigure } from "../../lib/figures";
 
 /**
@@ -319,7 +319,6 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
         disabled={disabled}
         onClick={() => onChange([...rows, { ...EMPTY_ROW }])}
       >
-        <Plus aria-hidden="true" />
         Add another
       </Button>
     </div>
