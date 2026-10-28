@@ -10,7 +10,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, cn, Pagination, SelectInput } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import {  } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
@@ -167,7 +167,6 @@ export function BanksTab() {
             </SelectInput>
           </label>
           <Button size="sm" onClick={() => setEditing("new")}>
-            <Plus aria-hidden="true" />
             Add bank
           </Button>
         </div>

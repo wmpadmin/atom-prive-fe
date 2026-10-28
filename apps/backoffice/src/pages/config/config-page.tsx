@@ -17,13 +17,11 @@ import { BanksTab } from "./banks-tab";
 import { EmailTemplatesTab } from "./email-templates-tab";
 import { FieldMappingTab } from "./field-mapping-tab";
 import { FxRatesTab } from "./fx-rates-tab";
-import { OffboardingTab } from "./offboarding-tab";
 import { ReferenceListsTab } from "./reference-lists-tab";
 
 const tabs = [
   { id: "banks", title: "Supported banks", subtitle: "Connections & schedules" },
   { id: "mapping", title: "Format mapping & alerts", subtitle: "Field mapping" },
-  { id: "offboarding", title: "Deactivation & deletion", subtitle: "Off-boarding approvals" },
   { id: "fx", title: "FX rates", subtitle: "Daily rates in USD" },
   { id: "asset-classes", title: "Asset classes", subtitle: "What portfolios are counted in" },
   { id: "lists", title: "Product & relationship types", subtitle: "The firm's own short lists" },
@@ -76,7 +74,7 @@ export function ConfigPage() {
 
   // Only the tabs the API will actually hand back a CSV for; the rest leave the button off rather
   // than offering an export that answers with nothing.
-  const canExport = active !== "offboarding" && active !== "asset-classes" && !(active === "mapping" && !bankId);
+  const canExport = active !== "asset-classes" && !(active === "mapping" && !bankId);
 
   return (
     <div className="space-y-6">
@@ -149,7 +147,6 @@ export function ConfigPage() {
       <div id="config-panel" role="tabpanel" aria-labelledby={`config-tab-${active}`}>
         {active === "banks" && <BanksTab />}
         {active === "mapping" && <FieldMappingTab />}
-        {active === "offboarding" && <OffboardingTab />}
         {active === "fx" && <FxRatesTab />}
         {active === "asset-classes" && <AssetClassesTab />}
         {active === "lists" && <ReferenceListsTab />}
