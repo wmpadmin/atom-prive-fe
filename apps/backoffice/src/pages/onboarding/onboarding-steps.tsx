@@ -1,6 +1,6 @@
 import type { StaffMember } from "@atomprive/api-client/backoffice";
 import { describedBy, Field, SelectInput } from "@atomprive/ui";
-import { Armchair, Briefcase, Building2, GraduationCap, House, Landmark, Plus, Shapes, Store, User, X } from "lucide-react";
+import { Armchair, Briefcase, Building2, GraduationCap, House, Landmark, Shapes, Store, User, X } from "lucide-react";
 import { ChoiceCards } from "../../components/choice-cards";
 import { MobileNumberInput } from "../../components/mobile-number-input";
 import {
@@ -16,6 +16,7 @@ import {
 } from "./application";
 import { AddressFields, CountriesField, CountryField, DateField, FollowUp, FormSection, TextField, type FieldFor } from "../../components/form-fields";
 import { useRelationshipTypes } from "../../lib/relationship-types";
+import { PhotoField } from "../../components/photo-field";
 
 const yesNo = [
   { value: "yes" as const, label: "Yes" },
@@ -99,6 +100,21 @@ export function PersonalDetailsStep({ index, holder, onChange, field }: HolderSt
   const relationshipTypes = useRelationshipTypes();
   return (
     <div className="space-y-8">
+      {/* Optional, and first, because it is the one thing on this step somebody has in their hand rather
+          than has to read off a document. Held in the application until it is submitted: a holder is not a
+          client until then, so there is no record yet to put a photograph on. */}
+      <FormSection title="Photo" description="Optional. Nothing about onboarding waits on it.">
+        <div className="sm:col-span-2">
+          <PhotoField
+            kind="client"
+            name={holder.fullName || "This client"}
+            photo={holder.photo ?? null}
+            onChoose={(photo) => onChange({ photo })}
+            hint="JPG, PNG or WebP, up to 5MB. Squared automatically."
+          />
+        </div>
+      </FormSection>
+
       <FormSection title="Name" description="Exactly as it appears on their NRIC or passport.">
         <TextField id={`${at}fullName`} label="Full name" value={holder.fullName} onChange={(fullName) => onChange({ fullName })} field={field} placeholder="e.g. Rahul Kumar Sharma" className="sm:col-span-2" />
         <TextField id={`${at}forenames`} label="Forenames" value={holder.forenames} onChange={(forenames) => onChange({ forenames })} field={field} placeholder="e.g. Rahul Kumar" />
@@ -268,7 +284,6 @@ export function ContactStep({ index, holder, onChange, field }: HolderStepProps)
           onClick={() => onChange({ secondaryMailingAddress: emptyAddress() })}
           className="inline-flex items-center gap-1.5 rounded-lg px-1 text-sm font-semibold text-primary-600 hover:text-primary-700"
         >
-          <Plus aria-hidden="true" className="size-4" />
           Add a secondary mailing address
         </button>
       )}

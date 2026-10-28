@@ -7,6 +7,7 @@ import {
   useListProposals,
   type CustomerPage,
   type CustomerRow,
+  type DraftRow,
   type ProposalPage,
   type ProposalRow,
   type StaffMember,
@@ -24,13 +25,14 @@ import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
 import { formatDate, formatRelative } from "../../lib/labels";
 import { downloadTextFile } from "../../lib/download";
-import { hasAuthority } from "../../lib/permissions";
+import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
 import { AssignAdvisorDialog, type ClientToAssign } from "./assign-advisor-dialog";
 import { AssignPortfolioManagerDialog } from "./assign-portfolio-manager-dialog";
-import { assignmentNotice, clientKindLabels, clientTypeLabels, managerAssignmentNotice } from "./client-labels";
+import { assignmentNotice, clientKindLabels, clientTypeLabels, kycStatuses, kycStatusLabels,
+  kycStatusTones, managerAssignmentNotice, type KycStatus } from "./client-labels";
 import { ClientSearch } from "./client-search";
 import { StaffStack } from "./staff-stack";
 
@@ -77,10 +79,42 @@ function managersOn(customer: CustomerRow): StaffMember[] {
   return [...byId.values()].sort((one, other) => one.fullName.localeCompare(other.fullName));
 }
 
-const LINKED_BANKS_LATER = "Filled in once bank linking is built";
-
 
 /** One column beside the client's name: its heading, and what it draws on a row. */
+/**
+ * What a case still being entered puts in a client's column.
+ *
+ * <p>A dash wherever the answer is "nobody has been registered yet". That is most of them, and it is
+ * the honest reading: there is no client code because no code has been issued, no KYC because nothing
+ * has been asked for, and no last login because there is nobody to log in.
+ */
+function draftCell(columnId: string, draft: DraftRow) {
+  if (columnId === "onboarding") {
+    return (
+      <span className="font-medium text-ink">
+        {draft.stage}
+        <span className="text-ink-muted">
+          {" · "}
+          {draft.stepsDone}/{draft.stepsInAll}
+        </span>
+      </span>
+    );
+  }
+  if (columnId === "clientType") {
+    return clientTypeOfDraft(draft.clientType);
+  }
+  if (columnId === "advisors") {
+    return <StaffStack people={draft.relationshipManager ? [draft.relationshipManager] : []} desk="relationship managers" />;
+  }
+  return <span className="text-ink-muted">—</span>;
+}
+
+/** The case's own word for what kind of client this will be, said the way the list says it. */
+function clientTypeOfDraft(clientType: string) {
+  const known = clientKindLabels[clientType as keyof typeof clientKindLabels];
+  return known ?? clientType.charAt(0) + clientType.slice(1).toLowerCase();
+}
+
 type Column = {
   id: string;
   label: string;
@@ -129,6 +163,29 @@ function movableFor({ mine, newestProposal }: {
       cell: (customer) => clientKindLabels[customer.clientType],
     },
     {
+      id: "onboarding",
+      label: "Onboarding",
+      nowrap: true,
+      // Where their case got to, which used to be a list of its own. Stage and count in one cell: the
+      // old list had a Status column beside them reading In process or Completed, and the stage already
+      // says which — "Signed off · 9/9" is not in process.
+      cell: (customer) =>
+        customer.onboarding ? (
+          <Link
+            to={`/onboarding/${customer.onboarding.caseId}`}
+            className="font-medium text-ink hover:text-primary-700 hover:underline"
+          >
+            {customer.onboarding.stage}
+            <span className="text-ink-muted">
+              {" · "}
+              {customer.onboarding.stepsDone}/{customer.onboarding.stepsInAll}
+            </span>
+          </Link>
+        ) : (
+          <span className="text-ink-muted">—</span>
+        ),
+    },
+    {
       id: "registered",
       label: "Registered",
       nowrap: true,
@@ -136,13 +193,22 @@ function movableFor({ mine, newestProposal }: {
       cell: (customer) => formatDate(customer.registeredAt),
     },
     {
+      id: "kyc",
+      label: "KYC status",
+      // This client's own, and nobody else's. A row on this list is one client; stacking every other
+      // holder's KYC into their cell made a joint account four badges tall and pushed the rows it was
+      // trying to inform off the screen. Each holder has a row and a file of their own to be read in.
+      cell: (customer) => (
+        <Badge tone={kycStatusTones[customer.kycStatus]}>{kycStatusLabels[customer.kycStatus]}</Badge>
+      ),
+    },
+    {
       id: "banks",
       label: "Linked banks",
-      note: LINKED_BANKS_LATER,
-      tone: "text-ink-muted",
-      // The reason is carried by the dash itself, because the cell around it is drawn from the one list
-      // every column is drawn from and has no room for a column's own hover.
-      cell: () => <span title={LINKED_BANKS_LATER}>—</span>,
+      tone: "tabular-nums",
+      // How many, not which. Names turned one cell into three badges and made every row as tall as the
+      // client who banks in the most places.
+      cell: (customer) => customer.linkedAccounts,
     },
     {
       id: "advisors",
@@ -177,6 +243,7 @@ function movableFor({ mine, newestProposal }: {
 
 interface Filters {
   query: string;
+  kycStatus: KycStatus | "";
   advisorId: string;
   /** Registered on or after this day, yyyy-mm-dd. */
   from: string;
@@ -186,12 +253,14 @@ interface Filters {
   page: number;
 }
 
-/** The search, filters and page live in the address (?q=kapoor&advisor=…&from=2026-09-01), so they can be shared. */
+/** The search, filters and page live in the address (?q=kapoor&kyc=PENDING&from=2026-09-01), so they can be shared. */
 function readFilters(params: URLSearchParams): Filters {
   const size = Number(params.get("size"));
   const page = Number(params.get("page"));
+  const kycStatus = params.get("kyc") as KycStatus | null;
   return {
     query: params.get("q")?.trim() ?? "",
+    kycStatus: kycStatus && kycStatuses.includes(kycStatus) ? kycStatus : "",
     advisorId: params.get("advisor") ?? "",
     from: dayParam(params.get("from")),
     to: dayParam(params.get("to")),
@@ -230,7 +299,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { params, update } = useListAddress();
-  const { query, advisorId, from, to, size, page } = readFilters(params);
+  const { query, kycStatus, advisorId, from, to, size, page } = readFilters(params);
   const typed = useTypedSearch(query, update);
 
   // Clients ticked for assigning a relationship manager or a portfolio manager, on the page shown;
@@ -247,6 +316,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const [notice, setNotice] = useState<string>();
 
   const filters = {
+    kycStatus: kycStatus || undefined,
     advisorId: advisorId || undefined,
     registeredFrom: from ? localDay(from).toISOString() : undefined,
     registeredTo: to ? localDay(to, 1).toISOString() : undefined,
@@ -257,8 +327,8 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   );
   // The relationship manager's own list is the same list, narrowed by the API to the clients assigned to them.
   const myClients = useListMyClients<CustomerPage, ApiError>(
-    { registeredFrom: filters.registeredFrom, registeredTo: filters.registeredTo,
-      query: query || undefined, page, size },
+    { kycStatus: filters.kycStatus, registeredFrom: filters.registeredFrom,
+      registeredTo: filters.registeredTo, query: query || undefined, page, size },
     { query: { enabled: mine, placeholderData: keepPreviousData } },
   );
   const customers = mine ? myClients : everyClient;
@@ -284,14 +354,15 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
 
   function clearFilters() {
     typed.clear();
-    update({ q: null, advisor: null, from: null, to: null });
+    update({ q: null, kyc: null, advisor: null, from: null, to: null });
   }
 
   const rows = customers.data?.items ?? [];
   const total = customers.data?.totalItems ?? 0;
   const lastPage = Math.max(0, Math.ceil(total / size) - 1);
-  const filtered = query !== "" || advisorId !== "" || from !== "" || to !== "";
+  const filtered = query !== "" || kycStatus !== "" || advisorId !== "" || from !== "" || to !== "";
   const canExport = hasAuthority(user, "EXPORT_CUSTOMER_DATA:CHANGE");
+  const canOnboard = hasAnyAuthority(user, ...ONBOARDS_CLIENTS_CHANGE);
   const [exporting, setExporting] = useState(false);
   const [exportFailed, setExportFailed] = useState<string>();
 
@@ -315,11 +386,21 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   }
   const today = new Date();
   const movable = movableFor({ mine, newestProposal });
+  // Cases still being entered. The server decides whether to send any — first page, nothing filtered —
+  // so the screen only has to draw what it is given.
+  const drafts = customers.data?.drafts ?? [];
   // Read before the page can send itself anywhere else: how this reader has arranged the table is a thing
   // about them and not about which page they landed on, and a hook that is skipped on one render is a hook
   // React cannot keep in order. Kept apart for the two screens this component is, because they are not
   // offered the same columns and one arrangement saved over both would fit neither.
-  const view = useTableView(mine ? "my-clients" : "all-clients", movable.map((one) => one.id));
+  // Off until somebody asks for them. Who looks after a client is a question asked about one client at a
+  // time, on their file; carrying two columns of avatars down every row of the whole book answered it for
+  // nobody and took the width the columns people do read were short of.
+  const view = useTableView(
+    mine ? "my-clients" : "all-clients",
+    movable.map((one) => one.id),
+    ["advisors", "portfolioManagers"],
+  );
   const drag = useColumnDrag(view);
   const byId = new Map(movable.map((one) => [one.id, one]));
   const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
@@ -340,11 +421,16 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         title={mine ? "My clients" : "All clients"}
         lead={
           mine
-            ? "The clients assigned to you, with their code, relationship managers and last login."
-            : "Every client registered with the firm, with their code, relationship managers and last login."
+            ? "The clients assigned to you, with their code, KYC status, relationship managers and last login."
+            : "Every client registered with the firm, with their code, where their onboarding stands, KYC status and last login."
         }
       >
         <div className="flex flex-wrap items-center gap-2">
+          {/* Starting a client is done from here now: the list of cases it used to sit above is gone, and
+              a case begins with a client whether or not the firm has a record of them yet. */}
+          {canOnboard && (
+            <Button onClick={() => navigate("/onboarding/new")}>Start onboarding</Button>
+          )}
           <ColumnPicker
             columns={movable.map((one) => ({ id: one.id, label: one.label }))}
             shown={new Set(view.shown)}
@@ -390,6 +476,19 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         }
         filters={
           <>
+            {/* On both lists. A relationship manager narrowing to their own clients still wants the ones
+                whose papers are outstanding, and that is the same question Compliance asks of the firm. */}
+            <label>
+              <span className="sr-only">KYC status</span>
+              <SelectInput id="client-kyc" value={kycStatus} onChange={(event) => update({ kyc: event.target.value })} className="w-auto">
+                <option value="">All KYC statuses</option>
+                {kycStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {kycStatusLabels[status]}
+                  </option>
+                ))}
+              </SelectInput>
+            </label>
             {!mine && (
               <label>
                 <span className="sr-only">Relationship manager</span>
@@ -513,7 +612,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         loading={customers.isPending}
         loadingLabel="Loading clients…"
         empty={
-          rows.length > 0 ? undefined : filtered ? (
+          rows.length > 0 || drafts.length > 0 ? undefined : filtered ? (
             <ClearFiltersLink onClear={clearFilters}>No clients match your search and filters.</ClearFiltersLink>
           ) : (
             "No clients yet. Clients appear here once Operations submit their onboarding details."
@@ -528,6 +627,35 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         onPage={(next) => update({ page: next > 0 ? next + 1 : null })}
         onSize={(next) => update({ size: next === PAGE_SIZES[0] ? null : next })}
       >
+              {/* Cases still being entered, above the clients they are on their way to becoming. They
+                  come back from the server on the first page only and never under a filter: a draft has
+                  no KYC standing, no registered date and no code to match a search against, so one
+                  surviving a filter would be the screen stating something about it that is not true. */}
+              {drafts.map((draft) => (
+                <tr
+                  key={draft.caseId}
+                  onClick={() => void navigate(`/onboarding/${draft.caseId}`)}
+                  className="cursor-pointer bg-amber-50/40 hover:bg-amber-50/70"
+                >
+                  {canSelect && <td className="py-3 pl-5" />}
+                  <td className={cn("py-3 pr-4", canSelect ? "pl-3" : "pl-5")}>
+                    <span className="flex items-center gap-3">
+                      <Avatar name={draft.clientName ?? "?"} photo={draft.clientPhoto} />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-bold text-ink">
+                          {draft.clientName?.trim() || "Not named yet"}
+                        </span>
+                        <span className="block text-xs text-amber-700">Being entered</span>
+                      </span>
+                    </span>
+                  </td>
+                  {shownColumns.map((column) => (
+                    <td key={column.id} className={cn("px-4 py-3 text-sm", column.nowrap && "whitespace-nowrap")}>
+                      {draftCell(column.id, draft)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
               {rows.map((customer) => (
                 // The row opens the client, the same as their name does; what is in the row keeps its own job.
                 <tr
@@ -557,7 +685,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                   )}
                   <td className={cn("py-3 pr-4", canSelect ? "pl-3" : "pl-5")}>
                     <div className="flex items-center gap-3">
-                      <Avatar name={customer.fullName} className="size-10" />
+                      <Avatar name={customer.fullName} photo={customer.photo} className="size-10" />
                       <div className="min-w-0">
                         <Link to={`${opensAt}/${customer.id}`} state={{ list: location.search }} onClick={(event) => event.stopPropagation()} className="block truncate font-semibold hover:text-primary-600">
                           {customer.fullName}
