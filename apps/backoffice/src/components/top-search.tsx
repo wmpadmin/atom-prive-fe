@@ -41,7 +41,7 @@ export function TopSearch() {
     onChoose: () => open(customer.id),
     content: (
       <>
-        <Avatar name={customer.fullName} className="size-8 text-2xs" />
+        <Avatar name={customer.fullName} photo={customer.photo} className="size-8 text-2xs" />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold text-ink">
             <Highlight text={customer.fullName} query={typed} />

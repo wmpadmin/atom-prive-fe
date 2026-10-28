@@ -14,7 +14,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Banknote, Plus } from "lucide-react";
+import { Banknote } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useStaffUser } from "../../auth/session";
 import { ColumnPicker } from "../../components/column-picker";
@@ -136,7 +136,6 @@ export function BankAccountsPanel({ client }: { client: CustomerDetail["client"]
           )}
           {canManage && (
             <Button variant="secondary" size="sm" onClick={() => setLinking(true)}>
-              <Plus aria-hidden="true" />
               Link an account
             </Button>
           )}

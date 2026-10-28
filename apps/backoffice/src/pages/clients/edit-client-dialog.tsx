@@ -4,13 +4,16 @@ import {
   getGetCustomerQueryKey,
   getListCustomersQueryKey,
   useUpdateClient,
+  useUploadClientPhoto,
   type CustomerDetail,
+  type CustomerRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, describedBy, Dialog, Field, Note, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { CountrySelect } from "../../components/country-select";
 import { MobileNumberInput } from "../../components/mobile-number-input";
+import { PhotoField } from "../../components/photo-field";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { formatDate } from "../../lib/labels";
 import { mobileNumberMessage } from "../../lib/mobile-numbers";
@@ -95,7 +98,6 @@ function Details({ client, onClose, onSaved }: { client: Client } & Omit<EditCli
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
     const badNumber = phone ? mobileNumberMessage(phone) : undefined;
     const proofOfAddress = fileRef.current?.files?.[0];
     const problems: Record<string, string> = {};
@@ -111,8 +113,9 @@ function Details({ client, onClose, onSaved }: { client: Client } & Omit<EditCli
     save.mutate({
       id: client.id,
       data: {
-        fullName: String(form.get("fullName")),
-        email: String(form.get("email")).trim() || null,
+        // Sent back as they stand: the API takes the whole record, and this screen corrects neither.
+        fullName: client.fullName,
+        email: client.email,
         phone: phone || null,
         line1: address.line1 || null,
         line2: address.line2 || null,
@@ -133,33 +136,42 @@ function Details({ client, onClose, onSaved }: { client: Client } & Omit<EditCli
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="fullName" label="Full name" error={errors.fields.fullName} className="sm:col-span-2">
-          <TextInput {...describedBy("fullName", errors.fields.fullName)} name="fullName" defaultValue={client.fullName} required autoFocus />
-        </Field>
-        <Field id="email" label="Email" error={errors.fields.email} hint="How the client signs in to the portal.">
-          <TextInput {...describedBy("email", errors.fields.email)} name="email" type="email" defaultValue={client.email ?? ""} />
-        </Field>
-        <Field id="phone" label="Mobile" error={errors.fields.phone} hint="How the firm reaches the client.">
-          <MobileNumberInput
-            {...describedBy("phone", errors.fields.phone)}
-            id="phone"
-            value={phone}
-            onChange={setPhone}
-            onBlur={() => setErrors((was) => ({ ...was, fields: withOne(was.fields, "phone", phone && mobileNumberMessage(phone)) }))}
-          />
-        </Field>
+        {/* Shown, not offered. What the firm calls a client and the address they sign in with came off
+            their application and their papers; this screen changes how the firm reaches them and where they
+            live, and nothing about who they are. */}
+        <div className="flex flex-wrap items-center gap-5 rounded-xl bg-slate-50 px-4 py-3 sm:col-span-2">
+          <ClientPhotoField client={client} />
+          <div className="grid min-w-0 flex-1 gap-4 sm:grid-cols-2">
+            <Fixed label="Full name">{client.fullName}</Fixed>
+            <Fixed label="Email">{client.email ?? "Not on the file"}</Fixed>
+          </div>
+        </div>
       </div>
 
       <section className="space-y-3 border-t border-line pt-4">
         <h3 className="text-xs font-semibold tracking-wide text-ink-soft uppercase">Where they live</h3>
         <div className="grid gap-4 sm:grid-cols-3">
-          <Line id="line1" label="Address Line 1" placeholder="House or flat number and street" value={address.line1} onChange={(line1) => set({ line1 })} error={errors.fields.line1} wide />
-          <Line id="line2" label="Address Line 2" placeholder="Building, area or district" value={address.line2} onChange={(line2) => set({ line2 })} error={errors.fields.line2} />
+          <Line id="line1" label="Address Line 1" placeholder="House or flat number and street" value={address.line1} onChange={(line1) => set({ line1 })} error={errors.fields.line1} wholeRow />
+          <Line id="line2" label="Address Line 2" placeholder="Building, area or district" value={address.line2} onChange={(line2) => set({ line2 })} error={errors.fields.line2} wholeRow />
           <Line id="city" label="City" value={address.city} onChange={(city) => set({ city })} error={errors.fields.city} />
           <Line id="state" label="State" value={address.state} onChange={(state) => set({ state })} error={errors.fields.state} />
           <Line id="postalCode" label="Postal Code" value={address.postalCode} onChange={(postalCode) => set({ postalCode })} error={errors.fields.postalCode} />
+        </div>
+        {/* Country and mobile share a line, half each. Country sat alone on a row of three with two
+            empty cells beside it, and the mobile sat alone further up — two short fields each taking a
+            whole row to say one thing. */}
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field id="country" label="Country" error={errors.fields.country}>
             <CountrySelect {...describedBy("country", errors.fields.country)} id="country" value={address.country} onChange={(country) => set({ country })} />
+          </Field>
+          <Field id="phone" label="Mobile" error={errors.fields.phone} hint="How the firm reaches the client.">
+            <MobileNumberInput
+              {...describedBy("phone", errors.fields.phone)}
+              id="phone"
+              value={phone}
+              onChange={setPhone}
+              onBlur={() => setErrors((was) => ({ ...was, fields: withOne(was.fields, "phone", phone && mobileNumberMessage(phone)) }))}
+            />
           </Field>
         </div>
         {moved && (
@@ -227,6 +239,7 @@ function Line({
   error,
   placeholder,
   wide,
+  wholeRow,
 }: {
   id: string;
   label: string;
@@ -234,21 +247,71 @@ function Line({
   onChange: (value: string) => void;
   error?: string;
   placeholder?: string;
+  /** Two of the three columns. */
   wide?: boolean;
+  /** All three, for a line of an address that has no business sharing a row with another. */
+  wholeRow?: boolean;
 }) {
   return (
-    <Field id={id} label={label} error={error} className={wide ? "sm:col-span-2" : undefined}>
+    <Field
+      id={id}
+      label={label}
+      error={error}
+      className={wholeRow ? "sm:col-span-3" : wide ? "sm:col-span-2" : undefined}
+    >
       <TextInput {...describedBy(id, error)} id={id} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
     </Field>
+  );
+}
+
+/**
+ * The client's photograph, changed here and saved as it is chosen.
+ *
+ * <p>On its own endpoint rather than in the form below, so it is written the moment it is picked. The rest
+ * of this window is a correction somebody may think better of and cancel; a photograph is not — and a
+ * photograph held back until Save would be lost by the Cancel beside it.
+ *
+ * <p>Replaced, never removed.
+ */
+function ClientPhotoField({ client }: { client: CustomerRow }) {
+  const queryClient = useQueryClient();
+  const [wrong, setWrong] = useState<string>();
+  const upload = useUploadClientPhoto<ApiError>({
+    mutation: {
+      onSuccess: async () => {
+        setWrong(undefined);
+        await queryClient.invalidateQueries({ queryKey: getGetCustomerQueryKey(client.id) });
+        await queryClient.invalidateQueries({ queryKey: getListCustomersQueryKey() });
+      },
+      onError: (caught) => setWrong(caught.message),
+    },
+  });
+
+  return (
+    <div>
+      <PhotoField
+        stacked
+        kind="client"
+        name={client.fullName}
+        photo={client.photo ?? null}
+        busy={upload.isPending}
+        hint="Saved as soon as you choose it."
+        onChoose={async (dataUri) => {
+          const blob = await (await fetch(dataUri)).blob();
+          upload.mutate({ id: client.id, data: { file: new File([blob], "photo.jpg", { type: "image/jpeg" }) } });
+        }}
+      />
+      {wrong && <p className="mt-1 text-xs text-red-600">{wrong}</p>}
+    </div>
   );
 }
 
 /** One detail of the file that nothing on this form reaches, read as it stands. */
 function Fixed({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-baseline gap-1.5">
-      <dt className="text-xs text-ink-muted">{label}:</dt>
-      <dd className="text-xs font-semibold text-ink-soft">{children}</dd>
+    <div className="min-w-0">
+      <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
+      <dd className="mt-0.5 truncate text-sm font-semibold text-ink">{children}</dd>
     </div>
   );
 }
