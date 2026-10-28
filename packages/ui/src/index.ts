@@ -3,10 +3,11 @@ export { DateInput } from "./date-input";
 export { cn } from "./cn";
 export { describedBy } from "./described-by";
 export { Dialog } from "./dialog";
-export { Alert, Avatar, Badge, Card, Note, StatCard } from "./feedback";
-export { FilterMenu, type FilterOption } from "./filter-menu";
+export { Alert, Avatar, Badge, Card, Note, StaffAvatar, StatCard } from "./feedback";
+export { FilterMenu, type FilterOption } from "./filter-menu"
 export { Field, RequiredMark, TextArea, TextInput } from "./form";
-export { SelectInput } from "./select-input";
+export { SelectInput } from "./select-input"
+export { Switch } from "./switch";
 export { Pagination } from "./pagination";
 export { PasswordChecklist } from "./password-checklist";
 export { isStrongPassword, passwordRules } from "./password-rules";
