@@ -429,9 +429,28 @@ export function FamilyPanel({
     />
   );
   if (family.length === 0 && waiting.length === 0) {
+    /*
+     * An entity's emptiness is a different fact from an individual's, and saying so is the difference
+     * between a screen that looks unfinished and one that looks considered.
+     *
+     * An individual with no family group simply has not had one built yet, and there is a button for
+     * that. A company or trust has no family group at all: the account is held by the entity itself, and
+     * the backend says so in as many words when anybody tries — "an entity's account is held by the
+     * entity, so it has no account holders to add to". Offering the same button would be offering to
+     * file somebody's spouse against a family office.
+     */
+    const entity = client.type === "ENTITY";
     return (
       <>
-        <WaitingPanel icon={<Wallet />} title="No family group" actions={addThem} />
+        {entity ? (
+          <WaitingPanel icon={<Landmark />} title="An entity holds its own account">
+            A company or trust has no family group: the account is held by the entity itself rather than
+            by people. Who owns and controls it — shareholders, directors and beneficial owners, with
+            their percentages — is recorded as stakeholders, which is in build.
+          </WaitingPanel>
+        ) : (
+          <WaitingPanel icon={<Wallet />} title="No family group" actions={addThem} />
+        )}
         {invite}
       </>
     );
