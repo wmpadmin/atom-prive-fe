@@ -3,11 +3,13 @@ import {
   getGetOnboardingCaseQueryKey,
   getListOnboardingCasesQueryKey,
   useGetOnboardingCase,
+  useGivePortalAccess,
   useListRelationshipManagers,
   type CaseDetail,
+  type Given,
   type StaffMember,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar } from "@atomprive/ui";
+import { Alert, Avatar, Button, StaffAvatar } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
@@ -15,12 +17,13 @@ import { Link, Navigate, useLocation, useNavigate, useParams } from "react-route
 import { useStaffUser } from "../../auth/session";
 import { formatDate } from "../../lib/labels";
 import { hasAnyAuthority, hasAuthority, NAMES_ANY_RELATIONSHIP_MANAGER, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
+import { TemporaryPassword } from "../clients/temporary-password";
 import { newApplication, toForm } from "./application";
 import { ApplicationSummary } from "./application-summary";
 import type { SentForSignOff } from "@atomprive/api-client/backoffice";
 import { CaseSignOff, SignOffNotice } from "./case-sign-off";
 import { caseSubtitle, listHref } from "./case-labels";
-import { CaseStatusBadge, ClientMark, ProgressMeter } from "./case-parts";
+import { CaseStatusBadge, ProgressMeter } from "./case-parts";
 import { OnboardingWizard } from "./onboarding-wizard";
 
 /** /onboarding/new starts a case; /onboarding/:caseId continues a draft, or shows a submitted case. */
@@ -52,8 +55,9 @@ export function OnboardingCasePage() {
     if (namesAnyone) return managers.data;
     if (!managers.data) return undefined;
     const them = managers.data.find((person) => person.id === user.id);
-    return [them ?? { id: user.id, fullName: user.fullName }];
-  }, [namesAnyone, managers.data, user.id, user.fullName]);
+    // The signed-in user standing in for themselves, with their own face on it.
+    return [them ?? { id: user.id, fullName: user.fullName, photo: user.photo }];
+  }, [namesAnyone, managers.data, user.id, user.fullName, user.photo]);
   const initial = useMemo(() => {
     if (detail) return toForm(detail.application);
     const fresh = newApplication();
@@ -65,7 +69,7 @@ export function OnboardingCasePage() {
   // The same case is read from two screens, and only one of them is everybody's: Compliance work the KYC
   // review queue and have no Client onboarding to go back to. The link says where it goes.
   const fromKyc = location.pathname.startsWith("/kyc");
-  const backTo = fromKyc ? "/kyc" : listHref(location.state);
+  const backTo = fromKyc ? "/kyc" : listHref();
   const backLabel = fromKyc ? "KYC review queue" : "Client onboarding";
 
   function handleSaved(result: CaseDetail, submitted: boolean) {
@@ -110,6 +114,61 @@ export function OnboardingCasePage() {
   );
 }
 
+/**
+ * Offering the new clients a way into the portal, at the only moment it is easy to hand one over.
+ *
+ * <p>Here because this is where the desk is standing when the client becomes a client: they have just
+ * finished typing their details and are usually still on the telephone to them. A password handed over
+ * then is read out and used; the same password found on a list a fortnight later is a password nobody
+ * remembers asking for.
+ *
+ * <p>Offered rather than done. Not every firm gives every client a login on day one, and a platform that
+ * minted one regardless would be making that decision for them.
+ */
+function PortalAccessOffer({ caseId }: { caseId: string }) {
+  const [given, setGiven] = useState<Given[]>();
+  const give = useGivePortalAccess<ApiError>({ mutation: { onSuccess: (done) => setGiven(done.given) } });
+
+  if (given) {
+    const setUp = given.filter((one) => one.temporaryPassword);
+    return (
+      <section className="space-y-4 rounded-2xl border border-line bg-white px-5 py-5">
+        <h2 className="text-sm font-bold">
+          {setUp.length === 0 ? "Nobody could be set up" : "Read these out before you close this page"}
+        </h2>
+        {given.map((one) => (
+          <div key={one.customerId}>
+            <p className="text-xs font-semibold text-ink-soft">{one.fullName}</p>
+            {one.temporaryPassword && one.email ? (
+              <div className="mt-1.5">
+                <TemporaryPassword password={one.temporaryPassword} />
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-ink-muted">{one.why ?? "No password was made."}</p>
+            )}
+          </div>
+        ))}
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white px-5 py-4">
+      <div>
+        <h2 className="text-sm font-bold">Give them a way into the client portal?</h2>
+        <p className="mt-0.5 max-w-[70ch] text-xs text-ink-muted">
+          Each client on this application gets a temporary password, shown once on this page, which they
+          replace the first time they sign in. You can also do this later from their file.
+        </p>
+        {give.isError && <p className="mt-1 text-xs text-red-600">{give.error.message}</p>}
+      </div>
+      <Button disabled={give.isPending} onClick={() => give.mutate({ id: caseId })}>
+        {give.isPending ? "Setting them up…" : "Create temporary passwords"}
+      </Button>
+    </section>
+  );
+}
+
 function BackLink({ to, label }: { to: string; label: string }) {
   return (
     <Link to={to} className="inline-flex items-center gap-1 text-sm font-medium text-ink-muted hover:text-primary-700">
@@ -144,7 +203,7 @@ function CaseOverview({
         <BackLink to={backTo} label={backLabel} />
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <ClientMark name={summary.clientName} className="size-12 rounded-xl text-sm" />
+            <Avatar name={summary.clientName} photo={summary.clientPhoto} className="size-12 text-sm" />
             <div>
               <h1 className="text-[1.625rem] leading-tight font-bold">{summary.clientName}</h1>
               <p className="mt-0.5 text-sm text-ink-muted">{caseSubtitle(summary)}</p>
@@ -161,7 +220,10 @@ function CaseOverview({
 
 
       {justSubmitted && summary.submitted && (
-        <Alert tone="success">Details submitted. The next stage is collecting the client's documents.</Alert>
+        <>
+          <Alert tone="success">Details submitted. The next stage is collecting the client's forms.</Alert>
+          {canOnboard && <PortalAccessOffer caseId={summary.id} />}
+        </>
       )}
       {!summary.submitted && (
         <Alert tone="info">
@@ -171,24 +233,34 @@ function CaseOverview({
         </Alert>
       )}
 
-      <dl className="grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
-        <Fact label="Relationship manager">
-          {manager ? (
-            <span className="flex items-center gap-2">
-              <Avatar name={manager.fullName} className="size-6 text-3xs" />
-              {manager.fullName}
-            </span>
-          ) : (
-            "Not chosen yet"
-          )}
-        </Fact>
-        <Fact label="Started">{formatDate(summary.startedAt)}</Fact>
-        <Fact label="Submitted">{detail.submittedAt ? formatDate(detail.submittedAt) : "Not yet"}</Fact>
-        <Fact label="Current stage">
-          <span className="block">{summary.currentStage}</span>
-          <ProgressMeter done={summary.completedSteps} total={summary.totalSteps} className="mt-2" />
-        </Fact>
-      </dl>
+      {/* The card the client file's own Onboarding tile wears, so the same four facts are not laid out
+          two different ways on two screens. Four cells with rules between them read as a table of a
+          single line — the start of a list that never comes — and put a band of columns across the page
+          to say four short things. Down one side, then down the other, instead. */}
+      <section className="rounded-2xl border border-line bg-white px-6 py-5">
+        <h2 className="text-base font-bold">Where it stands</h2>
+        <dl className="mt-4 grid grid-flow-col grid-rows-2 gap-x-5 gap-y-5">
+          {/* The case's own, not the client's. A draft has no client on the book yet to read a desk off,
+              and this is the manager the application was filled in under. The client file reads who looks
+              after them now, which is a different question and is asked there. */}
+          <Fact label="Relationship manager">
+            {manager ? (
+              <span className="flex items-center gap-2">
+                <StaffAvatar name={manager.fullName} photo={manager.photo} className="size-6 text-3xs" />
+                {manager.fullName}
+              </span>
+            ) : (
+              "Not chosen yet"
+            )}
+          </Fact>
+          <Fact label="Started">{formatDate(summary.startedAt)}</Fact>
+          <Fact label="Submitted">{detail.submittedAt ? formatDate(detail.submittedAt) : "Not yet"}</Fact>
+          <Fact label="Current stage">
+            <span className="block">{summary.currentStage}</span>
+            <ProgressMeter done={summary.completedSteps} total={summary.totalSteps} className="mt-2" inWords />
+          </Fact>
+        </dl>
+      </section>
 
       {/* Read what Operations submitted, then decide on each signed form, before the KYC is signed off. */}
 
@@ -207,11 +279,12 @@ function CaseOverview({
   );
 }
 
+/** One fact, label above value, the way the client file's tile reads them. */
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="bg-white px-5 py-4">
+    <div className="min-w-0">
       <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
-      <dd className="mt-1 text-sm font-semibold text-ink">{children}</dd>
+      <dd className="mt-0.5 text-sm text-ink">{children}</dd>
     </div>
   );
 }

@@ -218,13 +218,6 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
             {category && <Badge tone="info">{categoryLabels[category]}</Badge>}
           </div>
           <p className="mt-1 text-sm text-ink-muted">Enter the details as verified from the client's NRIC, passport or company documents. Fields marked * are required.</p>
-          {category && (
-            <p className="mt-1 text-xs text-ink-muted">
-              {category === "JOINT"
-                ? "A second account holder makes this a joint account, so their forms come from the Joint pack."
-                : `Their forms will come from the ${categoryLabels[category]} pack.`}
-            </p>
-          )}
         </div>
         <p className="text-xs text-ink-muted">{dirty ? "Unsaved changes" : caseId ? "All changes saved" : ""}</p>
       </header>

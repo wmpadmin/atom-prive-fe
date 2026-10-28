@@ -7,8 +7,12 @@
  * decides is what comes before what.
  *
  * <p>The order is the order the work is done in, not the order the entries happen to be declared in:
- * managing money against a plan, then the firm's own setup and the people who run it, then everything
- * that begins with a client and reads forward from one.
+ * your own first screen, then managing money against a plan, then what is waiting on an answer, then
+ * everything that begins with a client and reads forward from one, then the trails those leave, and last
+ * the firm's own setup — read when a question is asked rather than worked every morning.
+ *
+ * <p>One list for every role, including the Admin: their menu is written out by hand elsewhere, but it is
+ * still ordered by this file, so a path named here is placed by this file wherever it appears.
  *
  * <p>A name here that no menu entry answers to orders nothing, and is worth deleting rather than
  * leaving: read on its own, this file is the only place that says what the menu holds, and a name it
@@ -21,26 +25,45 @@
  * worked, and could be reached by nothing but a typed address.
  */
 export const MENU_ORDER: string[] = [
-  // Money already under management, in the order the desk works it: who is on a plan, what the plans
-  // are, how they are doing, who has wandered off one, and putting them back.
+  // The portfolio desk's own book, in the order the desk works it: who is on a plan, what the plans are,
+  // how they are doing, who has wandered off one, and putting them back.
   "/portfolio-clients", "/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing",
 
-  // Then what is waiting on somebody.
-  "/approvals", "/trade-logs",
+  // What follows is one order serving three desks at once, written from the firm's own list for each.
+  // It works because the three barely overlap: where two of them hold the same screen they want it in
+  // the same place, and where they disagree it is over screens only one of them can open at all.
+  //
+  //   Compliance        KYC review queue, All clients, KYC document review, What KYC asks for,
+  //                     Trails, Family access trail, Audit log
+  //   Relationship mgr  Assigned customers, Approvals, Client documents, To sign, Trade logs
+  //   Operations        Approvals, All clients, Forms, Client documents, Post onboarding notice,
+  //                     Ingestion monitoring, Sync errors
+  //
+  // Each desk's first screen first: the queue Compliance works every morning, the book a relationship
+  // manager opens on, and the queue Operations answers.
+  "/kyc", "/my-clients", "/approvals",
 
-  // Then what the reader owes the firm themselves, what the platform will print for them, and the rules
-  // every screen above is judged by — read occasionally rather than worked, so they sit under the work
-  // rather than in front of it.
-  "/my-declarations", "/reports", "/portfolio-settings",
+  // Then the client, and the two reviews that decide whether the firm may act for them at all.
+  "/clients", "/kyc-documents", "/kyc-checklist",
 
-  // What exists before any client does, and would still exist with none.
-  "/config", "/roles", "/users", "/settings",
-  "/ingestion", "/sync-errors", "/notifications",
-  "/staff-declarations", "/staff-tracker", "/audit-log",
+  // Then the paper: what is filled in, what is held, what is signed, and what is sent after.
+  "/forms", "/client-documents", "/to-sign", "/trade-logs", "/post-onboarding",
 
-  // Everything that begins with a client: one from an empty form pack to advice signed off and sent,
-  // and the reads that come back off all of it.
-  "/forms", "/onboarding", "/clients", "/my-clients",
-  "/to-sign", "/client-documents", "/kyc-documents", "/kyc", "/post-onboarding",
-  "/dashboard", "/proposal-trail", "/family-access",
+  // Then the feeds, which are Operations' own and are watched rather than worked.
+  "/ingestion", "/sync-errors",
+
+  // Then the reads that come back off all of it — what was traded, who saw what, who did what. Looked
+  // at when a question is asked, rather than worked every morning, so they sit under the work.
+  "/trails", "/family-access-trail", "/audit-log",
+
+  // Then the rest of the client's file, and what the platform will print.
+  "/deactivation-requests", "/archived-clients", "/aml-risk", "/reports",
+
+  // Then what exists before any client does and would still exist with none: the firm's own setup and
+  // the people who run it.
+  "/config", "/roles", "/users", "/notifications",
+  "/staff-declarations", "/staff-tracker", "/portfolio-settings",
+
+  // A person's own account, which is nobody's work and everybody's last two entries.
+  "/my-declarations", "/settings",
 ];
