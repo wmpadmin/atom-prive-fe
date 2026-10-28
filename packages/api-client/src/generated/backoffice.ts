@@ -1379,6 +1379,7 @@ export const JsonNodeNodeType = {
 
 export interface JsonNode {
   number?: boolean;
+  bigInteger?: boolean;
   container?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
@@ -1391,7 +1392,6 @@ export interface JsonNode {
   long?: boolean;
   double?: boolean;
   bigDecimal?: boolean;
-  bigInteger?: boolean;
   /** @deprecated */
   textual?: boolean;
   boolean?: boolean;
@@ -4781,6 +4781,77 @@ export interface SignaturePackPage {
   size: number;
   totalItems: number;
   waitingOnMe: number;
+}
+
+/**
+ * @nullable
+ */
+export type SessionRowWorkingAs = typeof SessionRowWorkingAs[keyof typeof SessionRowWorkingAs] | null;
+
+
+export const SessionRowWorkingAs = {
+  ADMIN: 'ADMIN',
+  ADVISOR: 'ADVISOR',
+  COMPLIANCE: 'COMPLIANCE',
+  OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+} as const;
+
+export interface SessionRow {
+  id: string;
+  /** @nullable */
+  device: string | null;
+  /** @nullable */
+  ipAddress: string | null;
+  /** @nullable */
+  location: string | null;
+  signedInAt: string;
+  lastActiveAt: string;
+  expiresAt: string;
+  /** @nullable */
+  endedAt: string | null;
+  /** @nullable */
+  endedReason: string | null;
+  /** @nullable */
+  workingAs: SessionRowWorkingAs;
+  live: boolean;
+}
+
+export interface WhoSignedIn {
+  personId: string;
+  fullName: string;
+  /** @nullable */
+  photo: string | null;
+  /** @nullable */
+  mark: string | null;
+  latest: SessionRow | null;
+}
+
+export interface Session {
+  id: string;
+  /** @nullable */
+  device: string | null;
+  /** @nullable */
+  ipAddress: string | null;
+  signedInAt: string;
+  lastActiveAt: string;
+  expiresAt: string;
+  /** @nullable */
+  endedAt: string | null;
+  /** @nullable */
+  endedReason: string | null;
+  live: boolean;
+}
+
+export interface ClientWhoSignedIn {
+  clientLoginId: string;
+  customerId: string;
+  fullName: string;
+  /** @nullable */
+  photo: string | null;
+  /** @nullable */
+  mark: string | null;
+  latest: Session | null;
 }
 
 export interface ProposalCounts {
@@ -22891,6 +22962,386 @@ export function useListClientPacks<TData = Awaited<ReturnType<typeof listClientP
 
 
 
+export const getStaffWithSessionsUrl = () => {
+
+
+
+
+  return `/api/backoffice/sessions/staff`
+}
+
+export const staffWithSessions = async ( options?: Parameters<typeof http>[1]): Promise<WhoSignedIn[]> => {
+
+  return http<WhoSignedIn[]>(getStaffWithSessionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStaffWithSessionsQueryKey = () => {
+    return [
+    `/api/backoffice/sessions/staff`
+    ] as const;
+    }
+
+
+export const getStaffWithSessionsQueryOptions = <TData = Awaited<ReturnType<typeof staffWithSessions>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffWithSessions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStaffWithSessionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof staffWithSessions>>> = ({ signal }) => staffWithSessions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof staffWithSessions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type StaffWithSessionsQueryResult = NonNullable<Awaited<ReturnType<typeof staffWithSessions>>>
+export type StaffWithSessionsQueryError = unknown
+
+
+export function useStaffWithSessions<TData = Awaited<ReturnType<typeof staffWithSessions>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffWithSessions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof staffWithSessions>>,
+          TError,
+          Awaited<ReturnType<typeof staffWithSessions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStaffWithSessions<TData = Awaited<ReturnType<typeof staffWithSessions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffWithSessions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof staffWithSessions>>,
+          TError,
+          Awaited<ReturnType<typeof staffWithSessions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStaffWithSessions<TData = Awaited<ReturnType<typeof staffWithSessions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffWithSessions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useStaffWithSessions<TData = Awaited<ReturnType<typeof staffWithSessions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffWithSessions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getStaffWithSessionsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStaffHistoryUrl = (staffUserId: string,) => {
+
+
+
+
+  return `/api/backoffice/sessions/staff/${staffUserId}`
+}
+
+export const staffHistory = async (staffUserId: string, options?: Parameters<typeof http>[1]): Promise<SessionRow[]> => {
+
+  return http<SessionRow[]>(getStaffHistoryUrl(staffUserId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStaffHistoryQueryKey = (staffUserId: string,) => {
+    return [
+    `/api/backoffice/sessions/staff/${staffUserId}`
+    ] as const;
+    }
+
+
+export const getStaffHistoryQueryOptions = <TData = Awaited<ReturnType<typeof staffHistory>>, TError = unknown>(staffUserId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStaffHistoryQueryKey(staffUserId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof staffHistory>>> = ({ signal }) => staffHistory(staffUserId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: staffUserId !== null && staffUserId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof staffHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type StaffHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof staffHistory>>>
+export type StaffHistoryQueryError = unknown
+
+
+export function useStaffHistory<TData = Awaited<ReturnType<typeof staffHistory>>, TError = unknown>(
+ staffUserId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffHistory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof staffHistory>>,
+          TError,
+          Awaited<ReturnType<typeof staffHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStaffHistory<TData = Awaited<ReturnType<typeof staffHistory>>, TError = unknown>(
+ staffUserId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffHistory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof staffHistory>>,
+          TError,
+          Awaited<ReturnType<typeof staffHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStaffHistory<TData = Awaited<ReturnType<typeof staffHistory>>, TError = unknown>(
+ staffUserId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useStaffHistory<TData = Awaited<ReturnType<typeof staffHistory>>, TError = unknown>(
+ staffUserId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getStaffHistoryQueryOptions(staffUserId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getClientsWithSessionsUrl = () => {
+
+
+
+
+  return `/api/backoffice/sessions/clients`
+}
+
+export const clientsWithSessions = async ( options?: Parameters<typeof http>[1]): Promise<ClientWhoSignedIn[]> => {
+
+  return http<ClientWhoSignedIn[]>(getClientsWithSessionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getClientsWithSessionsQueryKey = () => {
+    return [
+    `/api/backoffice/sessions/clients`
+    ] as const;
+    }
+
+
+export const getClientsWithSessionsQueryOptions = <TData = Awaited<ReturnType<typeof clientsWithSessions>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientsWithSessions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getClientsWithSessionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof clientsWithSessions>>> = ({ signal }) => clientsWithSessions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof clientsWithSessions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ClientsWithSessionsQueryResult = NonNullable<Awaited<ReturnType<typeof clientsWithSessions>>>
+export type ClientsWithSessionsQueryError = unknown
+
+
+export function useClientsWithSessions<TData = Awaited<ReturnType<typeof clientsWithSessions>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientsWithSessions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof clientsWithSessions>>,
+          TError,
+          Awaited<ReturnType<typeof clientsWithSessions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useClientsWithSessions<TData = Awaited<ReturnType<typeof clientsWithSessions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientsWithSessions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof clientsWithSessions>>,
+          TError,
+          Awaited<ReturnType<typeof clientsWithSessions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useClientsWithSessions<TData = Awaited<ReturnType<typeof clientsWithSessions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientsWithSessions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useClientsWithSessions<TData = Awaited<ReturnType<typeof clientsWithSessions>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientsWithSessions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getClientsWithSessionsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getClientSessionHistoryUrl = (clientLoginId: string,) => {
+
+
+
+
+  return `/api/backoffice/sessions/clients/${clientLoginId}`
+}
+
+export const clientSessionHistory = async (clientLoginId: string, options?: Parameters<typeof http>[1]): Promise<Session[]> => {
+
+  return http<Session[]>(getClientSessionHistoryUrl(clientLoginId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getClientSessionHistoryQueryKey = (clientLoginId: string,) => {
+    return [
+    `/api/backoffice/sessions/clients/${clientLoginId}`
+    ] as const;
+    }
+
+
+export const getClientSessionHistoryQueryOptions = <TData = Awaited<ReturnType<typeof clientSessionHistory>>, TError = unknown>(clientLoginId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientSessionHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getClientSessionHistoryQueryKey(clientLoginId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof clientSessionHistory>>> = ({ signal }) => clientSessionHistory(clientLoginId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: clientLoginId !== null && clientLoginId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof clientSessionHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ClientSessionHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof clientSessionHistory>>>
+export type ClientSessionHistoryQueryError = unknown
+
+
+export function useClientSessionHistory<TData = Awaited<ReturnType<typeof clientSessionHistory>>, TError = unknown>(
+ clientLoginId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientSessionHistory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof clientSessionHistory>>,
+          TError,
+          Awaited<ReturnType<typeof clientSessionHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useClientSessionHistory<TData = Awaited<ReturnType<typeof clientSessionHistory>>, TError = unknown>(
+ clientLoginId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientSessionHistory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof clientSessionHistory>>,
+          TError,
+          Awaited<ReturnType<typeof clientSessionHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useClientSessionHistory<TData = Awaited<ReturnType<typeof clientSessionHistory>>, TError = unknown>(
+ clientLoginId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientSessionHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useClientSessionHistory<TData = Awaited<ReturnType<typeof clientSessionHistory>>, TError = unknown>(
+ clientLoginId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientSessionHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getClientSessionHistoryQueryOptions(clientLoginId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getPrintProposalUrl = (id: string,) => {
 
 
@@ -31120,6 +31571,146 @@ export function useExportPermissionMatrix<TData = Awaited<ReturnType<typeof expo
 
 
 
+
+export const getEndStaffSessionUrl = (staffUserId: string,
+    sessionId: string,) => {
+
+
+
+
+  return `/api/backoffice/sessions/staff/${staffUserId}/${sessionId}`
+}
+
+export const endStaffSession = async (staffUserId: string,
+    sessionId: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getEndStaffSessionUrl(staffUserId,sessionId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getEndStaffSessionMutationKey = () => ['endStaffSession'] as const;
+
+export const getEndStaffSessionMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endStaffSession>>, TError,EndStaffSessionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof endStaffSession>>, TError,EndStaffSessionMutationVariables, TContext> => {
+
+const mutationKey = getEndStaffSessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof endStaffSession>>, EndStaffSessionMutationVariables> = (props) => {
+          const {staffUserId,sessionId} = props ?? {};
+
+          return  endStaffSession(staffUserId,sessionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EndStaffSessionMutationResult = NonNullable<Awaited<ReturnType<typeof endStaffSession>>>
+
+    export type EndStaffSessionMutationError = unknown
+    export type EndStaffSessionMutationVariables = {staffUserId: string;sessionId: string}
+
+    export const useEndStaffSession = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endStaffSession>>, TError,EndStaffSessionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof endStaffSession>>,
+        TError,
+        EndStaffSessionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEndStaffSessionMutationOptions(options), queryClient);
+    }
+
+export const getEndClientSessionUrl = (clientLoginId: string,
+    sessionId: string,) => {
+
+
+
+
+  return `/api/backoffice/sessions/clients/${clientLoginId}/${sessionId}`
+}
+
+export const endClientSession = async (clientLoginId: string,
+    sessionId: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getEndClientSessionUrl(clientLoginId,sessionId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getEndClientSessionMutationKey = () => ['endClientSession'] as const;
+
+export const getEndClientSessionMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endClientSession>>, TError,EndClientSessionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof endClientSession>>, TError,EndClientSessionMutationVariables, TContext> => {
+
+const mutationKey = getEndClientSessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof endClientSession>>, EndClientSessionMutationVariables> = (props) => {
+          const {clientLoginId,sessionId} = props ?? {};
+
+          return  endClientSession(clientLoginId,sessionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EndClientSessionMutationResult = NonNullable<Awaited<ReturnType<typeof endClientSession>>>
+
+    export type EndClientSessionMutationError = unknown
+    export type EndClientSessionMutationVariables = {clientLoginId: string;sessionId: string}
+
+    export const useEndClientSession = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endClientSession>>, TError,EndClientSessionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof endClientSession>>,
+        TError,
+        EndClientSessionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEndClientSessionMutationOptions(options), queryClient);
+    }
 
 export const getRemoveClientCashflowUrl = (customerId: string,
     id: string,) => {
