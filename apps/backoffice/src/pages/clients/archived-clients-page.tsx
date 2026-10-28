@@ -12,7 +12,7 @@ import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
+import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { formatDate } from "../../lib/labels";
 
 /**
@@ -30,7 +30,7 @@ import { formatDate } from "../../lib/labels";
 export function ArchivedClientsPage() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState<number>(defaultPageSize);
   const [restoring, setRestoring] = useState<{ id: string; name: string } | null>(null);
 
   const clients = useListArchivedCustomers<CustomerPage, ApiError>(

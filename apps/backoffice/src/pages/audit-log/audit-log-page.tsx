@@ -17,7 +17,7 @@ import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
 import { downloadTextFile } from "../../lib/download";
 import { formatDateTime, formatRelative, roleLabel, roleLabels, roles, type StaffRole } from "../../lib/labels";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "../../lib/page-sizes";
+import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { useTableView } from "../../lib/table-view";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
 
@@ -172,7 +172,7 @@ export function AuditLogPage({
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<number>(defaultPageSize);
 
   // A different page size starts again at the first page, so the rows on screen always match the summary.
   function changePageSize(size: number) {

@@ -245,3 +245,30 @@ export function useTableView(table: string, columns: string[], hiddenByDefault: 
     remove,
   };
 }
+
+/**
+ * Forgets every table arrangement this browser holds, and says how many it threw away.
+ *
+ * <p>For the reader who has hidden a column on six screens over three months and now cannot remember
+ * which — rearranging each one back by hand is a worse afternoon than starting over. It takes only this
+ * browser's own keys, by prefix, so nothing else kept under the platform's name is touched.
+ */
+export function forgetEveryTableView() {
+  try {
+    const ours = Object.keys(localStorage).filter((key) => key.startsWith("atomprive.table-view."));
+    for (const key of ours) localStorage.removeItem(key);
+    return ours.length;
+  } catch {
+    // Site data blocked, so there was nothing kept to forget.
+    return 0;
+  }
+}
+
+/** How many table arrangements this browser is holding, which is what the reader is being offered. */
+export function tableViewsKept() {
+  try {
+    return Object.keys(localStorage).filter((key) => key.startsWith("atomprive.table-view.")).length;
+  } catch {
+    return 0;
+  }
+}
