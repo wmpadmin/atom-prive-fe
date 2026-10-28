@@ -61,7 +61,7 @@ export function SelectClientDialog({ open, onClose, onChoose }: SelectClientDial
                     onClick={() => choose(row)}
                     className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-primary-50 focus-visible:bg-primary-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600"
                   >
-                    <Avatar name={row.fullName} />
+                    <Avatar name={row.fullName} photo={row.photo} />
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-semibold">{row.fullName}</span>
                       <span className="block truncate text-xs text-ink-muted">

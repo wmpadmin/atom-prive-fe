@@ -15,7 +15,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, cn, IconButton, Pagination, SelectInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, TriangleAlert } from "lucide-react";
+import { Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { ColumnPicker } from "../../components/column-picker";
@@ -341,7 +341,6 @@ function BankMappingEditor({ bankId, options, onDirtyChange }: { bankId: string;
             onReset={view.reset}
           />
           <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
-            <Plus aria-hidden="true" />
             Add incoming field
           </Button>
         </div>

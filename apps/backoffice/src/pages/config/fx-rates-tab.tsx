@@ -15,7 +15,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, cn, describedBy, Dialog, Field, Pagination, SelectInput, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
@@ -208,7 +208,6 @@ export function FxRatesTab() {
             </Button>
           )}
           <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
-            <Plus aria-hidden="true" />
             Add currency
           </Button>
         </div>

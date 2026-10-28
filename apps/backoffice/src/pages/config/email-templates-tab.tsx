@@ -15,7 +15,7 @@ import {
   type TemplateDetail,
   type TemplateSummary,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, cn, describedBy, Dialog, Field, IconButton, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, cn, describedBy, Dialog, Field, IconButton, SelectInput, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { PencilLine } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -25,11 +25,19 @@ import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { useShowFirstError } from "../../lib/show-first-error";
 import { formatDay } from "./config-labels";
 import { ConfirmDialog } from "./confirm-dialog";
-import { placeholderValues, readPreviewClient, rememberPreviewClient, type PreviewClient } from "./preview-client";
+import {
+  aClientFillsSomethingIn,
+  placeholderValues,
+  readPreviewClient,
+  rememberPreviewClient,
+  type PreviewClient,
+} from "./preview-client";
 import { SelectClientDialog } from "./select-client-dialog";
 
 type Notice = { tone: "success" | "danger"; message: string };
-type Mode = "edit" | "preview" | "versions";
+// Versions used to be the third of these. They are a column of their own now, beside the wording rather
+// than behind a tab, so the history and what is being sent are read at the same time.
+type Mode = "edit" | "preview";
 
 interface EmailTemplatesTabProps {
   creating: boolean;
@@ -42,64 +50,126 @@ export function EmailTemplatesTab({ creating, onCreatingChange }: EmailTemplates
   const templates = useListEmailTemplates<TemplateSummary[], ApiError>();
   const [dirty, setDirty] = useState(false);
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
+  // Which client the preview and the test email stand in for. Held here rather than inside the editor
+  // because it is chosen beside the template, and because it survives moving from one template to another.
+  const [previewClient, setPreviewClient] = useState<PreviewClient | null>(readPreviewClient);
+  const [pickingClient, setPickingClient] = useState(false);
+
+  function chooseClient(client: PreviewClient | null) {
+    setPreviewClient(client);
+    rememberPreviewClient(client);
+  }
 
   const list = templates.data ?? [];
-  const selectedId = list.find((template) => template.id === searchParams.get("template"))?.id ?? list[0]?.id;
+  const selected = list.find((template) => template.id === searchParams.get("template")) ?? list[0];
+  const selectedId = selected?.id;
+  // What the chosen email is given. Asked here as well as in the editor so the picker beside the template
+  // can say, before anybody uses it, whether choosing a client would change a word of this one.
+  const placeholders = useListEmailPlaceholders<Placeholder[], ApiError>(
+    { template: selected?.key ?? "" },
+    { query: { enabled: selected !== undefined } },
+  );
+  const clientMatters = placeholders.data === undefined
+    || aClientFillsSomethingIn(placeholders.data.map((one) => one.name));
 
   function open(id: string) {
     setSearchParams({ tab: "templates", template: id }, { replace: true });
   }
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[16rem_1fr]">
-      <section aria-labelledby="templates-title" className="rounded-2xl border border-line bg-white p-4">
-        <h2 id="templates-title" className="text-base font-bold">
+    <div className="space-y-5">
+      {/* One box rather than twenty. The emails ran to a column of cards twice the height of the editor
+          beside them, and choosing one is a single choice — which is what a dropdown is for. */}
+      <section aria-labelledby="templates-title" className="rounded-2xl border border-line bg-white px-5 py-4">
+        <h2 id="templates-title" className="sr-only">
           Email templates
         </h2>
-        <p className="mt-0.5 text-xs text-ink-muted">Every email the portal sends</p>
-        {templates.isError && (
-          <div className="mt-3">
-            <Alert tone="danger">{templates.error.message}</Alert>
+        {templates.isError && <Alert tone="danger">{templates.error.message}</Alert>}
+        {templates.isPending && <p className="text-sm text-ink-muted">Loading…</p>}
+        {templates.isSuccess && list.length > 0 && (
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field
+              id="template"
+              label="Template"
+              hint={`${list.length} ${list.length === 1 ? "email" : "emails"} the platform sends`}
+              className="min-w-0"
+            >
+              <SelectInput
+                id="template"
+                value={selectedId ?? ""}
+                onChange={(event) => {
+                  const wanted = event.target.value;
+                  if (wanted === selectedId) return;
+                  if (dirty) setSwitchingTo(wanted);
+                  else open(wanted);
+                }}
+              >
+                {list.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                    {template.currentVersion === null ? " — draft" : ` — v${template.currentVersion}`}
+                  </option>
+                ))}
+              </SelectInput>
+            </Field>
+            {/* Beside the template rather than inside the editor. The two are one question asked twice —
+                which email, and whose details it is read with — and they were a card apart. */}
+            <Field
+              id="preview-client"
+              label="Read it as"
+              hint={
+                !clientMatters
+                  ? "This email has no client details in it. It reads as you."
+                  : previewClient
+                    ? previewClient.advisorName
+                      ? `Relationship manager ${previewClient.advisorName}`
+                      : "No relationship manager yet"
+                    : undefined
+              }
+              className="min-w-0"
+            >
+              {/* The same h-10 the dropdown beside it wears, so the two halves are one line of controls
+                  rather than one box taller than the other. The name and the code share that line; what
+                  else is known about them is said in the hint under it. */}
+              <div
+                aria-disabled={!clientMatters}
+                className={cn(
+                  "flex h-10 min-w-0 items-center gap-2 rounded-lg border border-line pr-1.5 pl-2.5",
+                  clientMatters ? "bg-white" : "bg-slate-50",
+                )}
+              >
+                <Avatar
+                  name={previewClient?.fullName ?? "Vikram Mehta"}
+                  photo={previewClient?.photo ?? null}
+                  className={cn("size-6 text-3xs", !clientMatters && "opacity-50")}
+                />
+                <span className={cn("min-w-0 flex-1 truncate text-sm", !clientMatters && "text-ink-muted")}>
+                  <span className={clientMatters ? "font-semibold" : undefined}>
+                    {previewClient?.fullName ?? "Vikram Mehta"}
+                  </span>
+                  <span className="text-ink-muted"> · {previewClient ? previewClient.code : "C1420"}</span>
+                </span>
+                {clientMatters && previewClient && (
+                  <Button size="sm" variant="ghost" onClick={() => chooseClient(null)}>
+                    Sample
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  disabled={!clientMatters}
+                  title={clientMatters ? undefined : "This email names no client"}
+                  onClick={() => setPickingClient(true)}
+                >
+                  {previewClient ? "Change" : "Select"}
+                </Button>
+              </div>
+            </Field>
           </div>
         )}
-        {templates.isPending && <p className="mt-4 text-sm text-ink-muted">Loading…</p>}
-        <ul className="mt-3 space-y-2">
-          {list.map((template) => {
-            const selected = template.id === selectedId;
-            return (
-              <li key={template.id}>
-                <button
-                  type="button"
-                  aria-current={selected ? "true" : undefined}
-                  onClick={() => {
-                    if (selected) return;
-                    if (dirty) setSwitchingTo(template.id);
-                    else open(template.id);
-                  }}
-                  className={cn(
-                    "w-full rounded-xl border px-3 py-2.5 text-left transition-colors",
-                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
-                    selected ? "border-primary-600 bg-primary-50" : "border-line bg-slate-50/60 hover:border-primary-100",
-                  )}
-                >
-                  <span className={cn("block text-sm font-semibold", selected && "text-primary-700")}>{template.name}</span>
-                  <span className="mt-0.5 flex items-center justify-between gap-2 text-2xs text-ink-muted">
-                    {template.currentVersion === null
-                      ? `draft · created ${formatDay(template.updatedAt)}`
-                      : `v${template.currentVersion} · edited ${formatDay(template.updatedAt)}`}
-                    {template.currentVersion === null && (
-                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-3xs font-bold text-amber-800">DRAFT</span>
-                    )}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
       </section>
 
       {selectedId ? (
-        <TemplateEditor key={selectedId} id={selectedId} onDirtyChange={setDirty} />
+        <TemplateEditor key={selectedId} id={selectedId} onDirtyChange={setDirty} previewClient={previewClient} />
       ) : (
         templates.isSuccess && (
           <section className="rounded-2xl border border-dashed border-line bg-white px-6 py-14 text-center text-sm text-ink-muted">
@@ -108,6 +178,7 @@ export function EmailTemplatesTab({ creating, onCreatingChange }: EmailTemplates
         )
       )}
 
+      <SelectClientDialog open={pickingClient} onClose={() => setPickingClient(false)} onChoose={chooseClient} />
       <CreateTemplateDialog
         open={creating}
         onClose={() => onCreatingChange(false)}
@@ -134,7 +205,11 @@ export function EmailTemplatesTab({ creating, onCreatingChange }: EmailTemplates
   );
 }
 
-function TemplateEditor({ id, onDirtyChange }: { id: string; onDirtyChange: (dirty: boolean) => void }) {
+function TemplateEditor({ id, onDirtyChange, previewClient }: {
+  id: string;
+  onDirtyChange: (dirty: boolean) => void;
+  previewClient: PreviewClient | null;
+}) {
   const detail = useGetEmailTemplate<TemplateDetail, ApiError>(id);
   if (detail.isPending) {
     return <section className="rounded-2xl border border-line bg-white p-6 text-sm text-ink-muted">Loading…</section>;
@@ -147,30 +222,41 @@ function TemplateEditor({ id, onDirtyChange }: { id: string; onDirtyChange: (dir
     );
   }
   // Remounts when a new version is saved, so the fields start from the saved wording.
-  return <EditorForm key={detail.data.versions[0]?.version ?? 0} template={detail.data} onDirtyChange={onDirtyChange} />;
+  return (
+    <EditorForm
+      key={detail.data.versions[0]?.version ?? 0}
+      template={detail.data}
+      onDirtyChange={onDirtyChange}
+      previewClient={previewClient}
+    />
+  );
 }
 
-function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onDirtyChange: (dirty: boolean) => void }) {
+function EditorForm({ template, onDirtyChange, previewClient }: {
+  template: TemplateDetail;
+  onDirtyChange: (dirty: boolean) => void;
+  previewClient: PreviewClient | null;
+}) {
   const queryClient = useQueryClient();
   const user = useStaffUser();
   const current = template.versions[0];
   const [subject, setSubject] = useState(current?.subject ?? "");
   const [body, setBody] = useState(current?.body ?? "");
   const [mode, setMode] = useState<Mode>("edit");
+  /**
+   * The version being read, or null for the one being sent.
+   *
+   * <p>An older one is shown as it was and cannot be typed over: editing it would be a new version written
+   * from an old one, which is what Restore is, and offering the same act twice under two names is how
+   * somebody ends up doing the other one. Restore brings it back, and then it is editable like anything else.
+   */
+  const [reading, setReading] = useState<number | null>(null);
   const [notice, setNotice] = useState<Notice>();
   const form = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   // A refusal takes the reader to it: the subject sits above a body box that fills the screen.
   useShowFirstError(errors, form);
   const [renaming, setRenaming] = useState(false);
-  // Which client the preview and test email stand in for; kept so it survives moving between templates.
-  const [previewClient, setPreviewClient] = useState<PreviewClient | null>(readPreviewClient);
-  const [pickingClient, setPickingClient] = useState(false);
-
-  function chooseClient(client: PreviewClient | null) {
-    setPreviewClient(client);
-    rememberPreviewClient(client);
-  }
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   // Only what this email is actually given. A name its sender doesn't fill in goes out as it was typed, so
   // offering it here would be offering a mistake.
@@ -234,40 +320,85 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
     save.mutate({ id: template.id, data: { subject, body, values: null } });
   }
 
+  const older = reading === null ? null : (template.versions.find((one) => one.version === reading) ?? null);
+  const shownSubject = older ? older.subject : subject;
+  const shownBody = older ? older.body : body;
+
   // The picked client's details go with the wording, so the preview and the test email read the same way.
-  const values = placeholderValues(previewClient);
-  const content = { subject, body, values };
-  const hasContent = subject.trim() !== "" && body.trim() !== "";
+  // The reader's own name wherever an email names the member of staff it is written to. A preview read
+  // "Hello Priya Nair" to everybody, which is a stranger's name on a letter addressed to you — and on the
+  // emails that name no client at all, it was the only name on screen and nothing could change it. Only
+  // the preview and the test email: a real send names whoever it is actually going to.
+  const values = { ...(placeholderValues(previewClient) ?? {}), staff_name: user.fullName };
+  const content = { subject: shownSubject, body: shownBody, values };
+  const hasContent = shownSubject.trim() !== "" && shownBody.trim() !== "";
 
   return (
-    <section aria-labelledby="template-name" className="rounded-2xl border border-line bg-white p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-primary-50 px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Avatar name={previewClient?.fullName ?? "Vikram Mehta"} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{previewClient?.fullName ?? "Vikram Mehta"}</p>
-            <p className="truncate text-xs text-ink-muted">
-              {previewClient
-                ? `${previewClient.code} · Previewing as this client · ${previewClient.advisorName ? `Relationship manager ${previewClient.advisorName}` : "No relationship manager yet"}`
-                : "Sample client C1420 · Relationship manager Priya Nair"}
-            </p>
-          </div>
+    <div className="grid items-start gap-5 lg:grid-cols-[17rem_1fr]">
+      {/* The history, beside the wording rather than behind a tab. Reading what was sent last month and
+          what is being sent now are the same question, and a tab made them two. */}
+      <section aria-labelledby="versions-title" className="rounded-2xl border border-line bg-white">
+        <div className="border-b border-line px-4 py-3">
+          <h3 id="versions-title" className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Saved versions
+          </h3>
+          <p className="mt-0.5 text-xs text-ink-muted">Newest first. Open one to read it.</p>
         </div>
-        <div className="flex items-center gap-2">
-          {previewClient && (
-            <Button size="sm" variant="ghost" onClick={() => chooseClient(null)}>
-              Use the sample
-            </Button>
-          )}
-          <Button size="sm" onClick={() => setPickingClient(true)}>
-            {previewClient ? "Change client" : "Select client"}
-          </Button>
-        </div>
-      </div>
+        {template.versions.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-ink-muted">
+            No versions yet. The first save becomes version 1.
+          </p>
+        ) : (
+          <ul>
+            {template.versions.map((version, index) => {
+              const open = reading === null ? index === 0 : reading === version.version;
+              return (
+                <li key={version.version} className="border-b border-line last:border-0">
+                  <button
+                    type="button"
+                    aria-current={open ? "true" : undefined}
+                    onClick={() => setReading(index === 0 ? null : version.version)}
+                    className={cn(
+                      "w-full px-4 py-3 text-left transition-colors",
+                      "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600",
+                      open ? "bg-primary-50 shadow-[inset_3px_0_0_var(--color-primary-600)]" : "hover:bg-slate-50",
+                    )}
+                  >
+                    <span className="flex items-center gap-2 text-sm font-semibold">
+                      Version {version.version}
+                      {index === 0 && <Badge tone="success">Being sent</Badge>}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-ink-muted">
+                      {formatDay(version.createdAt)} · {version.createdBy}
+                    </span>
+                  </button>
+                  {/* Only on one somebody is actually looking at, so the column is a list of versions
+                      rather than a column of buttons. */}
+                  {open && index > 0 && (
+                    <div className="px-4 pb-3">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={restore.isPending || dirty}
+                        title={dirty ? "Save or discard your edits first" : undefined}
+                        onClick={() => {
+                          setReading(null);
+                          restore.mutate({ id: template.id, version: version.version });
+                        }}
+                      >
+                        Restore this version
+                      </Button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
-      <SelectClientDialog open={pickingClient} onClose={() => setPickingClient(false)} onChoose={chooseClient} />
-
-      <div className="mt-5 flex flex-wrap items-start justify-between gap-3">
+    <section aria-labelledby="template-name" className="min-w-0 rounded-2xl border border-line bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <h2 id="template-name" className="text-base font-bold">
@@ -279,11 +410,16 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
           </div>
           <p className="text-xs text-ink-muted">
             {template.description}
-            {current ? ` · v${current.version} · edited ${formatDay(current.createdAt)}` : " · draft, not sent until saved"}
+            {/* Which version is on screen, because with the history beside it that is now a real question. */}
+            {older
+              ? ` · reading version ${older.version} · ${formatDay(older.createdAt)}`
+              : current
+                ? ` · version ${current.version}, the one being sent · edited ${formatDay(current.createdAt)}`
+                : " · draft, not sent until saved"}
           </p>
         </div>
         <div role="tablist" aria-label="View" className="inline-flex rounded-xl border border-line bg-slate-50 p-1">
-          {(["edit", "preview", "versions"] as const).map((option) => (
+          {(["edit", "preview"] as const).map((option) => (
             <button
               key={option}
               type="button"
@@ -314,7 +450,8 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
             <TextInput
               {...describedBy("subject", errors.fields.subject)}
               name="subject"
-              value={subject}
+              value={shownSubject}
+              readOnly={older !== null}
               onChange={(event) => setSubject(event.target.value)}
               placeholder={current ? undefined : "Paste the subject line from the client"}
               className="bg-slate-50"
@@ -325,14 +462,21 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
               {...describedBy("body", errors.fields.body)}
               ref={bodyRef}
               name="body"
-              value={body}
+              value={shownBody}
+              readOnly={older !== null}
               onChange={(event) => setBody(event.target.value)}
               placeholder={current ? undefined : "Paste the email text from the client"}
               rows={14}
               className="block w-full rounded-lg border border-line bg-slate-50 px-3 py-3 text-sm leading-6 text-ink placeholder:text-slate-400 focus:border-primary-600 focus:ring-2 focus:ring-primary-600/15 focus:outline-none aria-invalid:border-red-500"
             />
           </Field>
-          {placeholders.data && (
+          {older && (
+            <Alert tone="info">
+              You are reading version {older.version} as it was sent. Restore it on the left to edit it, or
+              open the version being sent.
+            </Alert>
+          )}
+          {!older && placeholders.data && (
             <div>
               <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Insert a placeholder</p>
               {placeholders.data.length === 0 && (
@@ -366,62 +510,17 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
 
       {mode === "preview" && <PreviewPanel subject={subject} body={body} values={values} templateKey={template.key} />}
 
-      {mode === "versions" && (
-        <div className="mt-4">
-          {template.versions.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
-              No versions yet. The first save becomes version 1.
-            </p>
-          ) : (
-            <ul className="divide-y divide-line rounded-xl border border-line">
-              {template.versions.map((version, index) => (
-                <li key={version.version} className="px-4 py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold">
-                        Version {version.version}
-                        {index === 0 && (
-                          <span className="ml-2 align-middle">
-                            <Badge tone="success">Being sent</Badge>
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-xs text-ink-muted">
-                        {formatDay(version.createdAt)} · {version.createdBy}
-                      </p>
-                    </div>
-                    {index > 0 && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={restore.isPending || dirty}
-                        title={dirty ? "Save or discard your edits first" : undefined}
-                        onClick={() => restore.mutate({ id: template.id, version: version.version })}
-                      >
-                        Restore
-                      </Button>
-                    )}
-                  </div>
-                  <details className="mt-2 text-sm">
-                    <summary className="cursor-pointer text-ink-soft">{version.subject}</summary>
-                    <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 whitespace-pre-wrap text-ink-soft">{version.body}</p>
-                  </details>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
         <p className="text-xs text-ink-muted">
-          {dirty ? "Unsaved changes. " : ""}Saving creates a new version — the previous one stays restorable.
+          {older
+            ? "Reading an older version. Restore it on the left to make it the one being sent."
+            : `${dirty ? "Unsaved changes. " : ""}Saving creates a new version — the previous one stays readable on the left.`}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
             variant="secondary"
-            disabled={!hasContent || sendTest.isPending}
+            disabled={older !== null || !hasContent || sendTest.isPending}
             onClick={() => {
               setNotice(undefined);
               sendTest.mutate({ id: template.id, data: content });
@@ -436,8 +535,14 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
             size="sm"
             type="submit"
             form="template-form"
-            disabled={save.isPending || !dirty || mode !== "edit"}
-            title={mode !== "edit" ? "Switch to Edit to save" : undefined}
+            disabled={save.isPending || !dirty || mode !== "edit" || older !== null}
+            title={
+              older !== null
+                ? "Restore this version to edit it"
+                : mode !== "edit"
+                  ? "Switch to Edit to save"
+                  : undefined
+            }
           >
             {save.isPending ? "Saving…" : "Save new version"}
           </Button>
@@ -455,6 +560,7 @@ function EditorForm({ template, onDirtyChange }: { template: TemplateDetail; onD
         }}
       />
     </section>
+    </div>
   );
 }
 

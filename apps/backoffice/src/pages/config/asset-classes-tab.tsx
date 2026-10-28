@@ -15,7 +15,7 @@ import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
 import { hasAuthority } from "../../lib/permissions";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { formatDateTime } from "../../lib/labels";
 
@@ -159,7 +159,6 @@ export function AssetClassesTab({ lean = false }: {
         )}
         {mayChange && (
         <Button variant="secondary" onClick={() => { setAdding(true); setEditing(undefined); setNotice(undefined); }}>
-          <Plus aria-hidden="true" />
           Add a class
         </Button>
         )}
