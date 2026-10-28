@@ -1,11 +1,10 @@
 import { ApiError } from "@atomprive/api-client";
 import { useListOnboardingCases, useListRelationshipManagers, type CasePage, type StaffMember } from "@atomprive/api-client/backoffice";
-import { Avatar } from "@atomprive/ui";
+import { Avatar, StaffAvatar } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Highlight, SuggestionSearch, type Suggestion } from "../../components/suggestion-search";
 import { useSuggestionsBox } from "../../components/use-suggestions-box";
 import { caseSubtitle, type CaseStatus } from "./case-labels";
-import { ClientMark } from "./case-parts";
 
 interface CaseSearchProps {
   value: string;
@@ -35,7 +34,7 @@ export function CaseSearch({ value, status, onChange, onSearch, onOpenCase }: Ca
       onChoose: () => onOpenCase(item.id),
       content: (
         <>
-          <ClientMark name={item.clientName} className="size-8" />
+          <Avatar name={item.clientName} photo={item.clientPhoto} className="size-8" />
           <span className="min-w-0 flex-1">
             <span className="block truncate font-semibold text-ink">
               <Highlight text={item.clientName} query={typed} />
@@ -63,7 +62,7 @@ export function CaseSearch({ value, status, onChange, onSearch, onOpenCase }: Ca
         onChoose: () => onSearch(person.fullName),
         content: (
           <>
-            <Avatar name={person.fullName} className="size-8 text-2xs" />
+            <StaffAvatar name={person.fullName} photo={person.photo} className="size-8 text-2xs" />
             <span className="min-w-0 flex-1">
               <span className="block truncate font-semibold text-ink">
                 <Highlight text={person.fullName} query={typed} />

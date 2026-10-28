@@ -29,8 +29,13 @@ export function initialsOf(name: string) {
 }
 
 
-/** The case list as it was left, with its search, filter and page, for links back to it from a case. */
-export function listHref(state: unknown) {
-  const search = (state as { list?: unknown } | null)?.list;
-  return typeof search === "string" && search.startsWith("?") ? `/onboarding${search}` : "/onboarding";
+/**
+ * Where Back goes from a case: All clients, which is the only list of them there is now.
+ *
+ * <p>It used to carry the case list's own search and page back with it, so a reader returned to the view
+ * they left. That search belonged to the case list's filters — a status and a manager — and All clients
+ * has neither, so carrying it would apply nothing and look like it had applied something.
+ */
+export function listHref() {
+  return "/clients";
 }

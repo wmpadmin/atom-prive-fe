@@ -1,5 +1,6 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  useEnterWorkspace,
   useListClientRequests,
   useListModelChanges,
   useListProposalsAwaitingMyAnswer,
@@ -10,29 +11,32 @@ import {
   type ProposalPage,
   type AllocationChangeQueue,
   type RestoreQueue,
+  type StaffProfile,
 } from "@atomprive/api-client/backoffice";
-import { Avatar, cn } from "@atomprive/ui";
-import { SystemStatusPanel } from "./components/system-status";
+import { cn, StaffAvatar } from "@atomprive/ui";
+import { useQueryClient } from "@tanstack/react-query";
+import type { ComponentProps } from "react";
 import { ThemeToggle } from "./components/theme-toggle";
 import { TopSearch } from "./components/top-search";
 import { NotificationBell } from "./components/notification-bell";
 import {
+  Archive,
   ArrowLeftRight,
   BellRing,
   ChevronDown,
   ClipboardCheck,
   Clock,
   Contact,
+  Eye,
   FileCheck,
   FileCheck2,
-  FileSignature,
   FileSpreadsheet,
   FileText,
   FolderOpen,
   KeyRound,
   Landmark,
   Layers,
-  LayoutGrid,
+  ListChecks,
   LogOut,
   Mail,
   PenLine,
@@ -45,15 +49,15 @@ import {
   TrendingUp,
   TriangleAlert,
   type LucideIcon,
-  UserPlus,
   Users,
   UsersRound,
+  UserX,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, Outlet, useLocation } from "react-router";
+import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
 import { MENU_ORDER } from "./menu-order";
-import { hasAnyAuthority, hasAuthority, ANSWERS_MOVE_PLANS, ONBOARDS_CLIENTS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, OPENS_CLIENT_DOCUMENTS, SIGNS_CLIENT_FORMS, type Authority } from "./lib/permissions";
+import { hasAnyAuthority, hasAuthority, ANSWERS_MOVE_PLANS, ONBOARDS_EVERY_CLIENT, READS_CLIENT_PORTFOLIOS, READS_PROPOSALS, SIGNS_CLIENT_FORMS, UPLOADS_CLIENT_DOCUMENTS, type Authority } from "./lib/permissions";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
@@ -115,18 +119,26 @@ const A_CLIENT_KYC = /^\/kyc\/[^/]+(\/documents\/[^/]+)?$/;
  * narrowing the matrix narrows this too.
  */
 const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
-  { to: "/dashboard" },
   { to: "/users" },
   // The client directory, which is where a relationship manager is put on a client. An Admin is given it for
   // that job and the menu says so: the screen is the same one Operations and Compliance read.
   { to: "/clients", label: "Assign relationship managers" },
+  // Deciding whether the firm stops acting for a client, and the clients it has stopped acting for. Both
+  // are the Admin's alone: nobody else may answer a request, and nobody else may see an archived client.
+  { to: "/deactivation-requests" },
+  { to: "/archived-clients" },
   { to: "/kyc-documents" },
+  // What the firm may do and what it runs on, before the people who do it: the Admin's own order puts
+  // the permission matrix and the configuration above the staff they apply to.
+  { to: "/roles" },
+  { to: "/config" },
   { to: "/staff-tracker" },
   // The declarations register is reached from under the tracker rather than from the menu's top level: it is
   // one of the things being tracked, not a heading of its own.
   { to: "/staff-declarations", under: "/staff-tracker" },
-  { to: "/roles" },
-  { to: "/config" },
+  // The narrower read before the wider one: family access is one question asked of the trail, and the
+  // audit log is every question at once.
+  { to: "/family-access-trail" },
   { to: "/audit-log" },
   // An Admin signs the same nine as everybody else. Their menu is written out rather than filtered down, so
   // their own declarations had to be written into it or they had no way to them at all — the screen was
@@ -155,17 +167,10 @@ const allNavigation: {
    */
   at?: (path: string, search: string) => boolean;
 }[] = [
-  // Whoever runs the platform gets the firm's figures; everybody else gets their own day, on the same address.
-  {
-    to: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutGrid,
-    authority: null,
-    // Not the portfolio desk's: their work is the clients, the plans and the queues, and the firm asked
-    // for the screens that are not that taken off their menu.
-    notFor: ["PORTFOLIO_MANAGER"],
-    at: (path, search) => path === "/dashboard" || ownsSharedScreen(path, search, A_PORTFOLIO, "dashboard"),
-  },
+  // The Dashboard is off every role's menu at the firm's request. Taken off the menu rather than out of
+  // the codebase: the screen and its route are untouched, so putting it back is this entry and nothing
+  // else. Nobody lands on it — HomePage sends each role to its own first screen and falls through to a
+  // welcome card, never here — so hiding it strands no one.
   {
     to: "/clients",
     label: "All clients",
@@ -233,7 +238,9 @@ const allNavigation: {
     label: "Approvals",
     icon: Stamp,
     authority: [...ANSWERS_MOVE_PLANS, ...READS_PROPOSALS, ...READS_CLIENT_PORTFOLIOS],
-    notFor: ["ADMIN"],
+    // Nor Compliance's. They hold no answering permission on any of its queues, so every row there was
+    // one they could read and not press — and what became of each is on Trails, client by client.
+    notFor: ["ADMIN", "COMPLIANCE"],
     // A proposal, or one client's moves, opened from here is read here: this is where they live now.
     at: (path, search) => path === "/approvals"
       // Not one opened from Trade logs. A bulk rebalance is read and answered there, and the two screens
@@ -248,10 +255,13 @@ const allNavigation: {
     label: "Trade logs",
     icon: ArrowLeftRight,
     authority: READS_PROPOSALS,
+    // Not Compliance's. What this screen showed them — every bulk rebalance the firm agreed — is the
+    // Trades trail now, grouped by the client it happened to and carrying the legs it was made of.
+    // The desks keep it: they raise and place these, and read them here while the work is live.
+    notFor: ["COMPLIANCE"],
     at: (path, search) => path === "/trade-logs" || path === "/trade-orders"
       || (A_PROPOSAL.test(path) && openedFrom(search) === "trade-logs"),
   },
-  { to: "/onboarding", label: "Client onboarding", icon: UserPlus, authority: ONBOARDS_CLIENTS, notFor: ["ADMIN"] },
   {
     to: "/post-onboarding",
     label: "Post onboarding notice",
@@ -288,18 +298,52 @@ const allNavigation: {
       path.startsWith("/kyc-documents") || livesHere(path, search, A_CLIENT_KYC, ["queue", "documents"]),
   },
   {
+    // What the KYC waits on, kept by the people who wait on it. Compliance's own screen: the lists were
+    // constants in the code, so a fourth paper or a dropped one was a release.
+    to: "/kyc-checklist",
+    label: "What KYC asks for",
+    icon: ListChecks,
+    authority: "APPROVE_ONBOARDING:CHANGE",
+    notFor: ["ADMIN"],
+  },
+  {
     to: "/client-documents",
     label: "Client documents",
     icon: FolderOpen,
-    // Whoever may open a client's papers, not only whoever may add to them: Operations read every
-    // client's documents to service them, and had no way in at all.
-    authority: OPENS_CLIENT_DOCUMENTS,
+    // Whoever puts a client's papers on file, and nobody else. This read OPENS_CLIENT_DOCUMENTS once,
+    // which let Compliance in on the strength of APPROVE_ONBOARDING — a third door into the same client
+    // KYC file beside their queue and their document review. Compliance decide on these papers from
+    // those two screens; this one is where the papers come from, so it belongs to the desks that collect
+    // them. The two reviews are guarded on APPROVE_ONBOARDING:CHANGE, which an RM does not hold at all
+    // and Operations holds only as VIEW_ONLY — so without this entry neither desk could reach the client
+    // file they are the only ones allowed to add to.
+    authority: UPLOADS_CLIENT_DOCUMENTS,
     notFor: ["ADMIN"],
     // A client's file opened from here stays here on the menu, as it does for the review queue. Without
     // this it lit the document review instead — a screen the reader had not been on.
     at: (path, search) =>
       path === "/client-documents" || ownsSharedScreen(path, search, A_CLIENT_KYC, "documents"),
   },
+  {
+    to: "/deactivation-requests",
+    label: "Deactivation requests",
+    icon: UserX,
+    // Whoever may answer one, which is the Admin and nobody else — the same authority the API's approve
+    // and reject endpoints ask for, so the menu offers exactly what the screen admits.
+    authority: "MANAGE_USERS_AND_ROLES:CHANGE",
+  },
+  {
+    to: "/archived-clients",
+    label: "Archived clients",
+    icon: Archive,
+    authority: "MANAGE_USERS_AND_ROLES:CHANGE",
+  },
+  // Client risk (AML) is off every role's menu at the firm's request, with the risk matrix that sat
+  // under it. Taken off the menu rather than out of the codebase: both screens, their routes and the
+  // permissions that guard them are untouched, so putting them back is these two entries.
+  // The AML risk matrix is off the menu at the firm's request, the same way as the Dashboard above: the
+  // screen, its route and its permission are untouched, and Client risk (AML) stays where it was. What
+  // went is the sheet underneath it, not client risk itself.
   { to: "/forms", label: "Forms", icon: FileText, authority: "FILL_CLIENT_FORMS:VIEW", notFor: ["ADMIN"] },
   // The register of everybody's, which is the Admin's alone: staff declarations are administration of the
   // staff, like creating them and setting what they may do. It is reached from under the staff tracker, so
@@ -333,8 +377,12 @@ const allNavigation: {
   { to: "/sync-errors", label: "Sync errors", icon: TriangleAlert, authority: "MANAGE_BANK_FEEDS:CHANGE" },
   { to: "/notifications", label: "Notification log", icon: Mail, authority: "MANAGE_CONFIGURATION:VIEW" },
   { to: "/audit-log", label: "Audit log", icon: Landmark, authority: "VIEW_AUDIT_LOG:VIEW" },
-  { to: "/family-access", label: "Family access trail", icon: UsersRound, authority: "VIEW_AUDIT_LOG:VIEW" },
-  { to: "/proposal-trail", label: "Proposal trail", icon: FileSignature, authority: "VIEW_AUDIT_LOG:VIEW" },
+  // Beside the audit log rather than inside it. "Who has been reading whose money" is a question somebody
+  // comes to the screen already holding, and finding it meant knowing to filter the whole trail by a
+  // prefix nobody would guess.
+  { to: "/family-access-trail", label: "Family access trail", icon: Eye, authority: "VIEW_AUDIT_LOG:VIEW" },
+  // Four trails that were four places, or in two cases no place at all.
+  { to: "/trails", label: "Trails", icon: UsersRound, authority: "VIEW_AUDIT_LOG:VIEW" },
   { to: "/my-declarations", label: "My declarations", icon: FileCheck, authority: null },
   // The clients assigned to this relationship manager: the whole book is not theirs, and this is the part that is.
   {
@@ -412,6 +460,137 @@ function useWaitingOn(to: string) {
     // Waiting on this reader, not visible to them: a bell that counts somebody else's work sends
     // people to a queue with nothing in it for them.
     + (modelChanges.data?.waitingOnYou ?? 0);
+}
+
+/** Yours rather than a desk's. Where each goes inside a workspace is decided below, and they differ. */
+const MY_DECLARATIONS = "/my-declarations";
+
+const SETTINGS = "/settings";
+
+/**
+ * The menu, grouped by the workspaces this person holds.
+ *
+ * <p>One open at a time, and the open one is always the workspace they are working in — because the menu
+ * can only ever be the active role's. What a role may open is decided by the permissions the API sends,
+ * and it sends the active role's alone; the browser does not know what the others could see. So a closed
+ * group is not a list waiting to be unfolded, it is a door: pressing it enters that workspace, and the
+ * menu that comes back is that role's.
+ *
+ * <p>Somebody holding one role has no groups at all. A heading over the only list there is would be a
+ * word that never changes and never answers anything.
+ */
+function RoleGroups({ user, items, pathname, search }: {
+  user: StaffProfile;
+  /** The entries this reader may open, already filtered and ordered — the same ones NavEntry draws. */
+  items: ComponentProps<typeof NavEntry>["item"][];
+  pathname: string;
+  search: string;
+}) {
+  const queryClient = useQueryClient();
+  const { applyProfile } = useSession();
+  const navigate = useNavigate();
+  const enter = useEnterWorkspace<ApiError>({
+    mutation: {
+      onSuccess: (profile) => {
+        // Three things, and leaving any one of them out leaves the screen lying. The cache belongs to the
+        // role being left; the profile in hand still says the old role is the active one, so the menu would
+        // redraw exactly as it was; and the screen underneath belongs to a workspace this reader has just
+        // walked out of, which the API will now refuse them.
+        queryClient.clear();
+        applyProfile(profile);
+        navigate("/", { replace: true });
+      },
+    },
+  });
+
+  const declarations = items.find((item) => item.to === MY_DECLARATIONS);
+  const settings = items.find((item) => item.to === SETTINGS);
+  const desk = items.filter((item) => item.to !== MY_DECLARATIONS && item.to !== SETTINGS);
+  /**
+   * The workspace this person calls home — the Admin's choice, or their own from Settings.
+   *
+   * <p>Their declarations hang off it and nowhere else. They are owed once by the person, not once by each
+   * desk they sit at, and repeating them under every role would say the opposite.
+   */
+  const home = user.opensIn ?? (user.roles.length === 1 ? user.roles[0] : null);
+  /**
+   * The workspace being worked in, first; the rest after it in the order they are held.
+   *
+   * <p>It is the only one with anything under it, and left in its own place it could open halfway down the
+   * sidebar with its screens running off the foot of the window — so the list began with four headings and
+   * the work was below the fold.
+   */
+  const active = user.activeRole;
+
+  if (user.roles.length < 2 || active === null) {
+    return (
+      <ul className="h-full space-y-1 overflow-y-auto">
+        {items.map((item) => (
+          <NavEntry key={item.to} item={item} pathname={pathname} search={search} />
+        ))}
+      </ul>
+    );
+  }
+
+  const header = (role: StaffRole, here: boolean) => (
+    <button
+      key={role}
+      type="button"
+      aria-expanded={here}
+      disabled={enter.isPending}
+      onClick={() => {
+        if (here) return;
+        enter.mutate({ data: { role, fromNowOn: false } });
+      }}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-2xs font-bold tracking-wider uppercase",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
+        here ? "text-primary-700" : "text-ink-muted hover:bg-white/60 hover:text-ink",
+        enter.isPending && !here && "cursor-wait",
+      )}
+    >
+      <ChevronDown
+        aria-hidden="true"
+        className={cn("size-3 shrink-0 transition-transform", here ? "" : "-rotate-90")}
+      />
+      <span className="min-w-0 flex-1 truncate">{roleLabels[role]}</span>
+    </button>
+  );
+
+  /*
+   * Three bands, and only the middle one moves. The open workspace's name is held at the top, its screens
+   * scroll between, and the other workspaces are held at the foot — so however long a desk's list runs,
+   * both the name of the desk you are at and the way to every other one stay on screen. Scrolled, they
+   * were a heading that left the top and four headings that could only be reached by going to the bottom
+   * of somebody else's menu.
+   */
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      {header(active as StaffRole, true)}
+
+      {/* Shrinks to fit, never grows to fill. Told to grow, a short desk's list stretched to the foot of
+          the window and left a hand's depth of white between its last screen and the workspaces under it.
+          Left to its own height it ends where its screens end, and only a list taller than the window is
+          cut down to what is left and scrolled. */}
+      <ul className="mt-1 ml-[1.0625rem] min-h-0 space-y-1 overflow-y-auto border-l border-line pl-2">
+        {desk.map((item) => (
+          <NavEntry key={item.to} item={item} pathname={pathname} search={search} />
+        ))}
+        {/* Only in the workspace they open in. One person owes one set of declarations. */}
+        {active === home && declarations && (
+          <NavEntry item={declarations} pathname={pathname} search={search} />
+        )}
+        {/* In every one of them: what somebody may change about their own account is theirs at whichever
+            desk they happen to be sitting at. */}
+        {settings && <NavEntry item={settings} pathname={pathname} search={search} />}
+      </ul>
+
+      {/* Faint. It is there to say the workspaces below are held still, not to cut the sidebar in two. */}
+      <div className="mt-2 shrink-0 space-y-1 border-t border-line/50 pt-2">
+        {user.roles.filter((role) => role !== active).map((role) => header(role as StaffRole, false))}
+      </div>
+    </div>
+  );
 }
 
 function NavEntry({
@@ -574,18 +753,12 @@ export function AppLayout() {
         {/* Scrolls on its own rather than with the page: the whole menu is on screen at once now, and on
             a short window the foot of it has to be reachable without the sidebar's own status panel
             sliding away under it. */}
-        <nav aria-label="Back-office" className="mt-14 min-h-0 flex-1 overflow-y-auto">
-          <ul className="space-y-1">
-            {items.map((item) => (
-              <NavEntry key={item.to} item={item} pathname={pathname} search={search} />
-            ))}
-          </ul>
+        {/* The menu does its own scrolling now: the workspace headings are held still and only the screens
+            between them move, which it cannot do if the whole menu scrolls as one. */}
+        <nav aria-label="Back-office" className="mt-14 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <RoleGroups user={user} items={items} pathname={pathname} search={search} />
         </nav>
 
-        {/* Pushed to the foot of the sidebar: it is there to be glanced at, not read. */}
-        <div className="mt-auto pt-6">
-          <SystemStatusPanel />
-        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -642,7 +815,7 @@ function UserMenu() {
           <span className="block text-sm font-semibold">{user.fullName}</span>
           <span className="block text-xs text-ink-muted">{user.activeRole ? roleLabels[user.activeRole] : ""}</span>
         </span>
-        <Avatar name={user.fullName} className="size-10" />
+        <StaffAvatar name={user.fullName} photo={user.photo} className="size-10" />
         <ChevronDown className="size-4 text-ink-muted" aria-hidden="true" />
       </button>
       {open && (

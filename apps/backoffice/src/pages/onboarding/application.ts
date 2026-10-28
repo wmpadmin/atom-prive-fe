@@ -86,6 +86,7 @@ export function emptyHolder(): FormHolder {
     mailingSameAsResidential: true,
     mailingAddress: emptyAddress(),
     secondaryMailingAddress: null,
+  photo: null,
   };
 }
 

@@ -443,7 +443,7 @@ export function PortfolioClientsPage() {
             >
               <td className="px-5 py-3">
                 <div className="flex items-center gap-3">
-                  <Avatar name={client.fullName} />
+                  <Avatar name={client.fullName} photo={client.photo} />
                   <div>
                     <Link
                       to={opens}
