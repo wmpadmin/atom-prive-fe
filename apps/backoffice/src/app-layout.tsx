@@ -349,10 +349,13 @@ function NavEntry({
 function SidebarEdge({
   width,
   onDrag,
+  onNudge,
   onSettled,
 }: {
   width: number;
   onDrag: (to: number) => void;
+  /** A step from wherever it is now, which is not the same as a step from where it was last drawn. */
+  onNudge: (by: number) => void;
   onSettled: (to: number) => void;
 }) {
   const dragging = useRef(false);
@@ -394,17 +397,22 @@ function SidebarEdge({
   }, [onDrag, onSettled]);
 
   const byKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Home") {
+      event.preventDefault();
+      onDrag(SIDEBAR_DEFAULT);
+      onSettled(SIDEBAR_DEFAULT);
+      return;
+    }
     const step = event.shiftKey ? 48 : 16;
-    const to = event.key === "ArrowLeft" ? width - step
-      : event.key === "ArrowRight" ? width + step
-      : event.key === "Home" ? SIDEBAR_DEFAULT
-      : null;
-    if (to === null) {
+    const by = event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0;
+    if (by === 0) {
       return;
     }
     event.preventDefault();
-    onDrag(to);
-    onSettled(to);
+    // Asked for as a step rather than as a width. Worked out here from the width this render was drawn
+    // with, a key held down would move it once and then stop: every repeat before the next paint reads
+    // the same starting figure and asks for the same destination.
+    onNudge(by);
   };
 
   return (
@@ -446,6 +454,11 @@ export function AppLayout() {
   // mean a storage write per pointer move, and holding only local state would forget it on the next screen.
   const [dragged, setDragged] = useState<number | null>(null);
   const width = dragged ?? preferences.sidebarWidth;
+  /** The width as it is this instant, which between a key repeat and a paint is not the drawn one. */
+  const liveWidth = useRef(width);
+  useEffect(() => {
+    liveWidth.current = width;
+  }, [width]);
   const away = preferences.sidebarAway;
 
   const held = useCallback(
@@ -453,6 +466,24 @@ export function AppLayout() {
     [],
   );
   const onDrag = useCallback((to: number) => setDragged(held(to)), [held]);
+  /**
+   * A step from where it is, taken from the live value rather than the drawn one.
+   *
+   * <p>Settled on the same press. A key repeat is a run of presses, not a drag with an end to it, so
+   * there is no release to write it down on.
+   */
+  const onNudge = useCallback(
+    (by: number) => {
+      // Stepped off the ref rather than off state, and the ref is moved on in the same breath: a key
+      // repeat fires again before React has painted, and a step worked out from the drawn width would
+      // ask for the same destination every time.
+      const next = held(liveWidth.current + by);
+      liveWidth.current = next;
+      setDragged(next);
+      change("sidebarWidth", next);
+    },
+    [change, held],
+  );
   const onSettled = useCallback(
     (to: number) => {
       change("sidebarWidth", held(to));
@@ -471,7 +502,7 @@ export function AppLayout() {
         style={{ width }}
         className="sticky top-0 flex h-screen shrink-0 flex-col border-r border-line bg-sidebar px-4 py-6 relative"
       >
-        <SidebarEdge width={width} onDrag={onDrag} onSettled={onSettled} />
+        <SidebarEdge width={width} onDrag={onDrag} onNudge={onNudge} onSettled={onSettled} />
         {/* Scrolls on its own rather than with the page: the whole menu is on screen at once now, and on
             a short window the foot of it has to be reachable without the sidebar's own status panel
             sliding away under it. */}
