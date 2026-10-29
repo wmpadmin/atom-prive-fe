@@ -59,8 +59,12 @@ export function DashboardPage() {
         <Tile label="Family groups" value={data?.tiles.familyGroups} />
         <Tile label="Linked bank accounts" value={data?.tiles.linkedBankAccounts ?? null} waitingOn="bank connections" />
         <Tile label="New clients today" value={data?.tiles.registeredToday} />
-        <Tile label="Sync runs today" value={data?.tiles.syncRunsToday} to="/bank-syncs" />
-        <Tile label="Failed syncs today" value={data?.tiles.failedSyncsToday} tone={data && data.tiles.failedSyncsToday > 0 ? "danger" : undefined} to="/bank-syncs" />
+        {/* "In the last day", not "today": the figures behind these are counted from this time yesterday,
+            which the service that answers them says in its own words. Labelled today, the tile read
+            non-zero on a morning nothing had run, and one failure last evening kept it red past
+            midnight — a number that resets when nobody is watching is worse than one that never does. */}
+        <Tile label="Sync runs, last 24 hours" value={data?.tiles.syncRunsToday} to="/bank-syncs" />
+        <Tile label="Failed syncs, last 24 hours" value={data?.tiles.failedSyncsToday} tone={data && data.tiles.failedSyncsToday > 0 ? "danger" : undefined} to="/bank-syncs" />
         <Tile label="KYC waiting for review" value={data?.tiles.kycPending} />
         <Tile
           label="Proposals waiting to be answered"
