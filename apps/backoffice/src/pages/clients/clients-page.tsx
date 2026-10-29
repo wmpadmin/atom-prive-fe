@@ -90,15 +90,9 @@ function managersOn(customer: CustomerRow): StaffMember[] {
  */
 function draftCell(columnId: string, draft: DraftRow) {
   if (columnId === "onboarding") {
-    return (
-      <span className="font-medium text-ink">
-        {draft.stage}
-        <span className="text-ink-muted">
-          {" · "}
-          {draft.stepsDone}/{draft.stepsInAll}
-        </span>
-      </span>
-    );
+    // The stage alone, for the same reason as the registered rows above: the count is the case's steps,
+    // and beside a stage named after forms it is read as a count of forms.
+    return <span className="font-medium text-ink">{draft.stage}</span>;
   }
   if (columnId === "clientType") {
     return clientTypeOfDraft(draft.clientType);
@@ -166,9 +160,13 @@ function movableFor({ mine, newestProposal }: {
       id: "onboarding",
       label: "Onboarding",
       nowrap: true,
-      // Where their case got to, which used to be a list of its own. Stage and count in one cell: the
-      // old list had a Status column beside them reading In process or Completed, and the stage already
-      // says which — "Signed off · 9/9" is not in process.
+      // Where their case got to, which used to be a list of its own. The stage alone, because the count
+      // beside it is the case's steps and is read as the thing the stage names: "Collecting forms · 4/6"
+      // was read as four of six forms by everybody who saw it, including the people who built it. A
+      // client's pack runs to eleven forms and this counted none of them. Renaming the stage from "Forms"
+      // did not fix it — a number sitting next to the word forms is a number about forms.
+      //
+      // The count is kept where it can be labelled: the case screen this cell links through to.
       cell: (customer) =>
         customer.onboarding ? (
           <Link
@@ -176,10 +174,6 @@ function movableFor({ mine, newestProposal }: {
             className="font-medium text-ink hover:text-primary-700 hover:underline"
           >
             {customer.onboarding.stage}
-            <span className="text-ink-muted">
-              {" · "}
-              {customer.onboarding.stepsDone}/{customer.onboarding.stepsInAll}
-            </span>
           </Link>
         ) : (
           <span className="text-ink-muted">—</span>
