@@ -15,7 +15,12 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { cn, StaffAvatar } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ComponentProps } from "react";
+import {
+  SIDEBAR_DEFAULT,
+  SIDEBAR_NARROWEST,
+  SIDEBAR_WIDEST,
+  usePreferences,
+} from "./lib/preferences";
 import { ThemeToggle } from "./components/theme-toggle";
 import { TopSearch } from "./components/top-search";
 import { NotificationBell } from "./components/notification-bell";
@@ -23,9 +28,19 @@ import {
   ChevronDown,
   KeyRound,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  // Aliased: the bare name is the DOM's own KeyboardEvent, which a listener further down this file needs.
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
 import { menuFor } from "./menu";
@@ -319,14 +334,144 @@ function NavEntry({
   );
 }
 
+/**
+ * The edge of the sidebar, which is also the handle for how wide it is.
+ *
+ * <p>The menu's longest labels — Post onboarding notice, KYC document review — wrapped onto two lines at
+ * the width the sidebar has always been, and a reader on a wide screen had no way to give them the room
+ * that was sitting unused beside them. A width is a reading preference, like density or the date format,
+ * so it is kept with those rather than guessed at per screen.
+ *
+ * <p>Dragging is not the only way in. A handle reachable only by pointer is a setting somebody on a
+ * keyboard does not have, so the arrow keys move it a step at a time and Home returns it to where it
+ * started — which also gives a reader who has dragged it somewhere unusable a way back.
+ */
+function SidebarEdge({
+  width,
+  onDrag,
+  onSettled,
+}: {
+  width: number;
+  onDrag: (to: number) => void;
+  onSettled: (to: number) => void;
+}) {
+  const dragging = useRef(false);
+  // The width as the release handler will find it. Kept in a ref because that handler is bound once, and
+  // bound to the width it was created with it would write down the width the drag started from.
+  const latest = useRef(width);
+  useEffect(() => {
+    latest.current = width;
+  }, [width]);
+
+  useEffect(() => {
+    const moved = (event: PointerEvent) => {
+      if (!dragging.current) {
+        return;
+      }
+      // The sidebar's left edge is the window's, so the pointer's own x is the width being asked for.
+      event.preventDefault();
+      onDrag(event.clientX);
+    };
+    const released = () => {
+      if (!dragging.current) {
+        return;
+      }
+      dragging.current = false;
+      // Written down once, on release. Writing on every pointer move would put a hundred values through
+      // storage to keep the last one.
+      onSettled(latest.current);
+      document.body.style.removeProperty("cursor");
+      document.body.style.removeProperty("user-select");
+    };
+    window.addEventListener("pointermove", moved);
+    window.addEventListener("pointerup", released);
+    window.addEventListener("pointercancel", released);
+    return () => {
+      window.removeEventListener("pointermove", moved);
+      window.removeEventListener("pointerup", released);
+      window.removeEventListener("pointercancel", released);
+    };
+  }, [onDrag, onSettled]);
+
+  const byKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 48 : 16;
+    const to = event.key === "ArrowLeft" ? width - step
+      : event.key === "ArrowRight" ? width + step
+      : event.key === "Home" ? SIDEBAR_DEFAULT
+      : null;
+    if (to === null) {
+      return;
+    }
+    event.preventDefault();
+    onDrag(to);
+    onSettled(to);
+  };
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="How wide the menu is"
+      aria-valuenow={width}
+      aria-valuemin={SIDEBAR_NARROWEST}
+      aria-valuemax={SIDEBAR_WIDEST}
+      tabIndex={0}
+      onKeyDown={byKey}
+      onDoubleClick={() => {
+        onDrag(SIDEBAR_DEFAULT);
+        onSettled(SIDEBAR_DEFAULT);
+      }}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        dragging.current = true;
+        // Held on the body rather than the handle: the pointer leaves the handle the moment it moves,
+        // and a cursor that changes back mid-drag reads as the drag having stopped.
+        document.body.style.setProperty("cursor", "col-resize");
+        document.body.style.setProperty("user-select", "none");
+      }}
+      className="absolute top-0 -right-1 z-10 h-full w-2 cursor-col-resize
+        before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2
+        before:bg-transparent hover:before:bg-line focus-visible:before:bg-line
+        focus-visible:outline-none"
+    />
+  );
+}
+
 export function AppLayout() {
   const user = useStaffUser();
   const { pathname, search } = useLocation();
   const items = menuFor(user);
+  const { preferences, change } = usePreferences();
+  // Live while a drag is in flight; what is on file otherwise. Reading straight from preferences would
+  // mean a storage write per pointer move, and holding only local state would forget it on the next screen.
+  const [dragged, setDragged] = useState<number | null>(null);
+  const width = dragged ?? preferences.sidebarWidth;
+  const away = preferences.sidebarAway;
+
+  const held = useCallback(
+    (to: number) => Math.min(Math.max(Math.round(to), SIDEBAR_NARROWEST), SIDEBAR_WIDEST),
+    [],
+  );
+  const onDrag = useCallback((to: number) => setDragged(held(to)), [held]);
+  const onSettled = useCallback(
+    (to: number) => {
+      change("sidebarWidth", held(to));
+      setDragged(null);
+    },
+    [change, held],
+  );
 
   return (
     <div className="flex min-h-screen bg-canvas font-sans text-ink">
-      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-line bg-sidebar px-4 py-6">
+      {/* Put away rather than narrowed to nothing: a sidebar of zero width still takes its border and its
+          padding, which draws a stripe down the page that nothing explains. The width it had is kept, so
+          bringing it back brings it back as the reader left it. */}
+      {!away && (
+      <aside
+        style={{ width }}
+        className="sticky top-0 flex h-screen shrink-0 flex-col border-r border-line bg-sidebar px-4 py-6 relative"
+      >
+        <SidebarEdge width={width} onDrag={onDrag} onSettled={onSettled} />
         {/* Scrolls on its own rather than with the page: the whole menu is on screen at once now, and on
             a short window the foot of it has to be reachable without the sidebar's own status panel
             sliding away under it. */}
@@ -337,10 +482,26 @@ export function AppLayout() {
         </nav>
 
       </aside>
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-20 items-center justify-between gap-4 px-8">
-          <p className="text-2xl font-bold">{user.activeRole ? roleLabels[user.activeRole] : ""}</p>
+          <div className="flex min-w-0 items-center gap-3">
+            {/* Lives here rather than inside the sidebar: a control for bringing the sidebar back cannot
+                be kept inside the thing it brings back. */}
+            <button
+              type="button"
+              onClick={() => change("sidebarAway", !away)}
+              aria-pressed={away}
+              title={away ? "Show the menu" : "Hide the menu"}
+              className="rounded-lg p-2 text-ink-muted hover:bg-sidebar hover:text-ink
+                focus-visible:ring-2 focus-visible:ring-line focus-visible:outline-none"
+            >
+              {away ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
+              <span className="sr-only">{away ? "Show the menu" : "Hide the menu"}</span>
+            </button>
+            <p className="truncate text-2xl font-bold">{user.activeRole ? roleLabels[user.activeRole] : ""}</p>
+          </div>
           <div className="flex items-center gap-3">
             <TopSearch />
             <div className="flex items-center gap-1">

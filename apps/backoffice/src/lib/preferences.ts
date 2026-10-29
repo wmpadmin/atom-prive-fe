@@ -27,7 +27,21 @@ export type Preferences = {
   dateFormat: DateFormat;
   timeFormat: TimeFormat;
   density: Density;
+  /** How wide the reader has drawn the sidebar, in pixels. Held between {@link SIDEBAR_NARROWEST} and
+   * {@link SIDEBAR_WIDEST}, because a sidebar dragged to nothing cannot be dragged back. */
+  sidebarWidth: number;
+  /** Whether the reader has put the sidebar away. The width is remembered separately, so bringing it
+   * back brings it back the width they had it. */
+  sidebarAway: boolean;
 };
+
+/** The sidebar at its narrowest still shows a label; at its widest it still leaves the page the most room. */
+export const SIDEBAR_NARROWEST = 200;
+
+export const SIDEBAR_WIDEST = 420;
+
+/** What it has always been: w-64, which is 16rem. */
+export const SIDEBAR_DEFAULT = 256;
 
 export const DEFAULTS: Preferences = {
   landing: "home",
@@ -35,12 +49,29 @@ export const DEFAULTS: Preferences = {
   dateFormat: "medium",
   timeFormat: "24",
   density: "comfortable",
+  sidebarWidth: SIDEBAR_DEFAULT,
+  sidebarAway: false,
 };
 
 const KEY = "atomprive.preferences";
 
 /** Raised when a change would make an old stored value mean something different. */
 const SHAPE = 1;
+
+/**
+ * A width this build can actually draw.
+ *
+ * <p>Anything unrecognised is the default rather than an error, as with every other value here — but a
+ * number is clamped rather than dropped, because somebody who dragged the sidebar wide on a large screen
+ * and then opened the same account on a laptop meant "wide", and the nearest width this screen can give
+ * them is nearer their intent than starting over.
+ */
+function withinReach(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULTS.sidebarWidth;
+  }
+  return Math.min(Math.max(Math.round(value), SIDEBAR_NARROWEST), SIDEBAR_WIDEST);
+}
 
 function where() {
   return `${KEY}.v${SHAPE}`;
@@ -59,6 +90,8 @@ export function readPreferences(): Preferences {
     const parsed = JSON.parse(held) as Partial<Preferences>;
     return {
       landing: typeof parsed.landing === "string" ? parsed.landing : DEFAULTS.landing,
+      sidebarWidth: withinReach(parsed.sidebarWidth),
+      sidebarAway: typeof parsed.sidebarAway === "boolean" ? parsed.sidebarAway : DEFAULTS.sidebarAway,
       pageSize: PAGE_CHOICES.includes(parsed.pageSize as number) ? (parsed.pageSize as number) : DEFAULTS.pageSize,
       dateFormat: DATE_CHOICES.includes(parsed.dateFormat as DateFormat)
         ? (parsed.dateFormat as DateFormat)

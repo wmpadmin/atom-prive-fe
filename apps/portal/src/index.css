@@ -1,3 +1,45 @@
 @import "tailwindcss";
 @import "@atomprive/ui/theme.css";
 @source "../../../packages/ui/src";
+
+/*
+ * A thin scrollbar everywhere the platform scrolls.
+ *
+ * <p>The menu, the tables and the long panels all scroll, and the browser's own bar is drawn wide enough to
+ * take a noticeable bite out of a column it sits beside — enough that a table reflows when its content
+ * crosses the line that makes it scroll. Narrow, it still reads as a bar to drag and costs the layout
+ * almost nothing.
+ *
+ * <p>The thumb takes its colour from the line token rather than a grey of its own, so it holds in both
+ * themes; the track is left transparent so the bar reads as part of whatever it is scrolling over rather
+ * than as a channel cut into it. Firefox is given the same two through scrollbar-color, which is the only
+ * thing it takes.
+ *
+ * <p>scroll-x-quietly above still wins where it is used: it hides the bar outright, and a rule that sets
+ * display:none on the same element is more specific about that element than this is.
+ */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-line);
+    border-radius: 999px;
+  }
+
+  /* Only worth pointing at once the pointer is over the thing that scrolls. */
+  *:hover::-webkit-scrollbar-thumb {
+    background-color: var(--color-ink-muted);
+  }
+}
