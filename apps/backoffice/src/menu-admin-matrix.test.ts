@@ -30,16 +30,15 @@ describe("an Admin's menu", () => {
     // is still deliberately not given.
     const where = menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to);
     for (const notTheirs of ["/approvals", "/forms", "/ingestion", "/trade-logs", "/kyc", "/kyc-checklist",
-      "/kyc-documents", "/post-onboarding", "/trails", "/notifications", "/family-access-trail",
-      "/client-documents", "/sync-errors"]) {
+      "/kyc-documents", "/post-onboarding", "/trails", "/notifications", "/client-documents", "/sync-errors"]) {
       expect(where).not.toContain(notTheirs);
     }
   });
 
-  it("is the ten screens the firm gives an Admin, and no more", () => {
+  it("is the eleven screens the firm gives an Admin, and no more", () => {
     expect(menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to)).toEqual([
       "/users", "/clients", "/deactivation-requests", "/archived-clients", "/roles", "/config",
-      "/staff-tracker", "/audit-log", "/my-declarations", "/settings",
+      "/staff-tracker", "/family-access-trail", "/audit-log", "/my-declarations", "/settings",
     ]);
   });
 
