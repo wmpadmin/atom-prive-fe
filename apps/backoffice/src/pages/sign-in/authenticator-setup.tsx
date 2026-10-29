@@ -1,5 +1,5 @@
 import { ApiError } from "@atomprive/api-client";
-import { setUpAuthenticator, type MfaSetupResponse } from "@atomprive/api-client/backoffice";
+import { setUpAuthenticator, setUpAuthenticatorAgain, type MfaSetupResponse } from "@atomprive/api-client/backoffice";
 import { Alert, Button } from "@atomprive/ui";
 import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -20,6 +20,7 @@ export function AuthenticatorSetup({ challengeToken, onReady, onExpired }: Authe
   const [setup, setSetup] = useState<MfaSetupResponse>();
   const [error, setError] = useState<string>();
   const [copied, setCopied] = useState(false);
+  const [startingAgain, setStartingAgain] = useState(false);
 
   // React runs effects twice in development and the screen can be re-drawn, so the request is kept rather than
   // repeated: asking twice would be answered with the same secret, but there is no reason to ask.
@@ -44,6 +45,34 @@ export function AuthenticatorSetup({ challengeToken, onReady, onExpired }: Authe
       current = false;
     };
   }, [challengeToken, onExpired]);
+
+  /*
+   * A different code, for an app that never got this one.
+   *
+   * <p>Showing the same QR again is the right answer when the screen was simply redrawn, and it is what
+   * asking twice does. It is the wrong answer for somebody who scanned this into the wrong account, or
+   * pressed on without scanning at all and then deleted whatever half-entry their app made: the code was
+   * never the problem, so repeating it does not help.
+   *
+   * <p>Safe only because nothing is confirmed yet. The server enforces that, not this screen.
+   */
+  async function startAgain() {
+    setStartingAgain(true);
+    setError(undefined);
+    setCopied(false);
+    try {
+      const fresh = await setUpAuthenticatorAgain({ challengeToken });
+      // Replaces what the first request cached, or a redraw would bring the old code straight back.
+      asked.current = { token: challengeToken, setup: Promise.resolve(fresh) };
+      setSetup(fresh);
+    } catch (caught) {
+      setError(
+        caught instanceof ApiError ? caught.message : "Couldn't reach the server. Try again.",
+      );
+    } finally {
+      setStartingAgain(false);
+    }
+  }
 
   async function copySecret() {
     if (!setup) return;
@@ -95,6 +124,15 @@ export function AuthenticatorSetup({ challengeToken, onReady, onExpired }: Authe
       <Button type="button" className="w-full" disabled={!setup} onClick={onReady}>
         Next
       </Button>
+      {/* Underneath Next, not beside it: starting again is the rarer answer and the one with a cost. */}
+      <button
+        type="button"
+        disabled={!setup || startingAgain}
+        onClick={() => void startAgain()}
+        className="w-full text-center text-sm font-semibold text-primary-700 underline underline-offset-2 hover:text-primary-800 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+      >
+        {startingAgain ? "Making a new code…" : "My app didn't get this — make a new code"}
+      </button>
     </div>
   );
 }
