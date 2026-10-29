@@ -45,14 +45,18 @@ export function PreferencesTab() {
                 <option value="en-GB">English (United Kingdom)</option>
               </SelectInput>
             </Setting>
-            <Setting label="Timezone" htmlFor="timezone">
-              <SelectInput id="timezone" value="asia-kolkata" disabled onChange={() => {}}>
-                <option value="asia-kolkata">India Standard Time (UTC+5:30)</option>
+            <Setting label="Timezone" hint="What a stored time is recorded against." htmlFor="timezone">
+              <SelectInput id="timezone" value="utc" disabled onChange={() => {}}>
+                <option value="utc">UTC</option>
               </SelectInput>
             </Setting>
-            <Setting label="Currency" hint="What a figure with no unit beside it means." htmlFor="currency">
-              <SelectInput id="currency" value="inr" disabled onChange={() => {}}>
-                <option value="inr">Indian Rupee (₹)</option>
+            <Setting
+              label="Currency"
+              hint="Carried on the figure itself, not set here."
+              htmlFor="currency"
+            >
+              <SelectInput id="currency" value="per-figure" disabled onChange={() => {}}>
+                <option value="per-figure">Whatever the account is held in</option>
               </SelectInput>
             </Setting>
             <Setting label="The week starts" htmlFor="week-start">
@@ -62,10 +66,13 @@ export function PreferencesTab() {
             </Setting>
           </Settings>
           <NotYet>
-            Not connected yet, and shown as the platform actually behaves. There is one set of strings and
-            one currency behind every screen, so each of these has exactly one honest answer — a picker
-            offering a second would change nothing but a reader's expectations. Date and time shape, which
-            <em> is</em> a reader's to set, is on the Workspace tab.
+            Not connected yet, and shown as the platform actually behaves. There is one set of strings
+            behind every screen, and every time is stored against UTC, so those two have exactly one
+            honest answer — a picker offering a second would change nothing but a reader's expectations.
+            Currency is not one of them: the firm holds nine, a portfolio is measured in its own and a
+            bank account in whatever the bank keeps it in, so a figure carries its currency rather than
+            borrowing one from here. Date and time shape, which <em>is</em> a reader's to set, is on the
+            Workspace tab.
           </NotYet>
         </Panel>
 

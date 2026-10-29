@@ -370,10 +370,23 @@ function Info({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-/** What this table will hold once client accounts are in the platform. Nothing until then. */
+/** Still nothing, but no longer because there are no clients. See the note on {@link AssignedClients}. */
 const NO_CLIENTS_YET: { id: string }[] = [];
 
-/** Clients come with the customer module; until then the table shows how it will look, with nothing in it. */
+/**
+ * Who this member of staff looks after — not wired yet, and the empty state no longer pretends to know why.
+ *
+ * <p>It used to say clients could be assigned "once client accounts are in the platform". They are: there
+ * is a client directory, assignments are written on it, and customer_advisor and customer_portfolio_manager
+ * have rows for every client. Reading a staff file and being told the client module does not exist is worse
+ * than being told nothing.
+ *
+ * <p>What is missing is narrower. Clients filtered by their relationship manager already come back from
+ * GET /customers?advisorId=..., so the first two columns and the KYC one could be filled today; Geography,
+ * Top allocation and Net worth have no source on that call, and a portfolio manager's clients are a
+ * different relationship again. Filling three columns and leaving three blank is a worse table than this
+ * one, so the column set wants deciding before it is wired.
+ */
 function AssignedClients() {
   // Counted even though there is nothing to count: the footer is drawn whatever the number, and a table
   // with none under it leaves a reader unsure whether the list is empty or only cut off.
@@ -413,7 +426,8 @@ function AssignedClients() {
           <tbody>
             <tr>
               <td colSpan={6} className="px-6 py-10 text-center text-ink-muted">
-                No clients assigned yet. Clients can be assigned once client accounts are in the platform.
+                Who this person looks after is shown on the client's own file for now, under Relationship
+                managers and Portfolio managers. It isn't gathered here yet.
               </td>
             </tr>
           </tbody>
