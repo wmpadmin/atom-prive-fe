@@ -8,6 +8,7 @@ import {
   Eye,
   FileCheck,
   FileCheck2,
+  ChartNoAxesColumn,
   FileSpreadsheet,
   FileText,
   FolderOpen,
@@ -215,6 +216,17 @@ const allNavigation: {
     to: "/reports",
     label: "Reports",
     icon: FileSpreadsheet,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  {
+    // The firm's own figures, beside the reports they sit with. The screen has been routed and guarded
+    // all along and nothing anywhere pointed at it, so it could only be opened by typing its address —
+    // and unlike the Dashboard and the AML screens, no comment said it was being withheld on purpose.
+    // Offered on the permission its own route already enforces, to the desk that route admits.
+    to: "/mis",
+    label: "Management information",
+    icon: ChartNoAxesColumn,
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
   },
