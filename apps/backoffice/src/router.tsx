@@ -99,9 +99,17 @@ export const router = createBrowserRouter([
           // Whoever runs the platform gets the firm's figures here; everybody else gets their own day.
           { path: "dashboard", element: <DashboardPage /> },
           {
+            // The delivery log is the platform's own, not a client screen: the endpoint behind it asks for
+            // MANAGE_CONFIGURATION:VIEW (DeliveryController), and the sidebar already offers it on that.
+            // The route asked for VIEW_ALL_CLIENTS:VIEW, which is held by desks that endpoint refuses — so
+            // a reader let through here met a refusal rather than the screen, and the repo disagreed with
+            // itself about who the log is for.
+            element: <RequireAuthority authority="MANAGE_CONFIGURATION:VIEW" />,
+            children: [{ path: "notifications", element: <DeliveriesPage /> }],
+          },
+          {
             element: <RequireAuthority authority="VIEW_ALL_CLIENTS:VIEW" />,
             children: [
-              { path: "notifications", element: <DeliveriesPage /> },
               { path: "trails", element: <TrailsPage /> },
               // Three screens, three addresses. A row that expands in place has no address, so the back
               // button, a bookmark and a link pasted into a message all stop working.
@@ -249,13 +257,19 @@ export const router = createBrowserRouter([
               // The four queues are tabs on one screen now. Their old addresses keep arriving, because
               // every bell already sent carries one and those notices are rows in a database rather than
               // links that can be rewritten.
-              { path: "moves-to-approve", element: <Navigate to="/approvals" replace /> },
+              // Named, because this queue is still here: money moves are the client-requests tab. Sent to
+              // /approvals with nothing said, the screen falls back to the first tab the reader may open
+              // — Proposals, for the relationship manager who raised the move — so an old bell about a
+              // money move opened the wrong queue and said nothing about why.
+              { path: "moves-to-approve", element: <Navigate to="/approvals?queue=client-requests" replace /> },
               { path: "restores-to-approve", element: <Navigate to="/approvals?queue=restores" replace /> },
               { path: "allocations-to-approve", element: <Navigate to="/approvals?queue=figures" replace /> },
               // Where the screen used to live. Every bell sent before it was renamed carries this path,
               // and those notices are rows in a database rather than links that can be rewritten — so the
               // old address has to keep arriving somewhere rather than at a page that is not there.
-              { path: "money-moves", element: <Navigate to="/moves-to-approve" replace /> },
+              // Straight at the queue rather than through its sibling: one old address depending on
+              // another staying right is two things to get wrong instead of one.
+              { path: "money-moves", element: <Navigate to="/approvals?queue=client-requests" replace /> },
             ],
           },
           {
