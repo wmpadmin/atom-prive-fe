@@ -117,7 +117,6 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   // are the Admin's alone: nobody else may answer a request, and nobody else may see an archived client.
   { to: "/deactivation-requests" },
   { to: "/archived-clients" },
-  { to: "/kyc-documents" },
   // What the firm may do and what it runs on, before the people who do it: the Admin's own order puts
   // the permission matrix and the configuration above the staff they apply to.
   { to: "/roles" },
@@ -126,9 +125,8 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   // The declarations register is reached from under the tracker rather than from the menu's top level: it is
   // one of the things being tracked, not a heading of its own.
   { to: "/staff-declarations", under: "/staff-tracker" },
-  // The narrower read before the wider one: family access is one question asked of the trail, and the
-  // audit log is every question at once.
-  { to: "/family-access-trail" },
+  // Every question at once. The narrower reads onto it - family access, the queue trails - belong to the
+  // desks that do that work; an Admin reads what was done, not the file it was done to.
   { to: "/audit-log" },
   // An Admin signs the same nine as everybody else. Their menu is written out rather than filtered down, so
   // their own declarations had to be written into it or they had no way to them at all — the screen was
