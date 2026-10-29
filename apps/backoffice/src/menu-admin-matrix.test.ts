@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { menuFor } from "./menu";
 
-/** The twenty permissions the ADMIN role holds at FULL, as the firm's matrix grants them. */
+/** The permissions the ADMIN role holds at FULL, as the firm's matrix grants them. */
 const ADMIN_PERMISSIONS = [
   "APPROVE_ONBOARDING", "APPROVE_PORTFOLIO_CHANGES", "ASSIGN_ADVISORS", "ASSIGN_PORTFOLIO_MANAGERS",
   "ASSIGN_WORK", "EXPORT_CUSTOMER_DATA", "FILL_CLIENT_FORMS", "MANAGE_AML_MATRIX", "MANAGE_ASSET_CLASSES",
@@ -13,25 +13,29 @@ const ADMIN_PERMISSIONS = [
 const anAdmin = (permissions: string[]) =>
   ({ activeRole: "ADMIN", permissions } as unknown as Parameters<typeof menuFor>[0]);
 
-describe("an Admin's menu is the permission matrix's answer", () => {
-  it("gives the Admin the client directory the matrix opens to them", () => {
-    const where = menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to);
-    expect(where).toContain("/clients");
+describe("an Admin's menu", () => {
+  it("carries the client directory under the name every other desk reads it by", () => {
+    const clients = menuFor(anAdmin(ADMIN_PERMISSIONS)).find((item) => item.to === "/clients");
+    expect(clients?.label).toBe("All clients");
   });
 
-  it("takes a screen away the moment the matrix does", () => {
+  it("takes the client directory away the moment the matrix does", () => {
     const narrowed = ADMIN_PERMISSIONS.filter((one) => !one.startsWith("VIEW_ALL_CLIENTS"));
-    const where = menuFor(anAdmin(narrowed)).map((item) => item.to);
-    expect(where).not.toContain("/clients");
+    expect(menuFor(anAdmin(narrowed)).map((item) => item.to)).not.toContain("/clients");
   });
 
-  it("keeps the firm's own order for what it named", () => {
-    const items = menuFor(anAdmin(ADMIN_PERMISSIONS));
-    expect(items[0]?.to).toBe("/users");
+  it("stays the firm's own list rather than everything the matrix would allow", () => {
+    // The hand-written list is the whole answer for an Admin, which is what keeps a screen added later
+    // from appearing on their menu on its own. These are screens the ADMIN role has permission for and
+    // is still deliberately not given.
+    const where = menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to);
+    expect(where).not.toContain("/approvals");
+    expect(where).not.toContain("/forms");
+    expect(where).not.toContain("/ingestion");
+    expect(where).not.toContain("/trade-logs");
   });
 
-  it("calls the client directory what every other desk calls it", () => {
-    const items = menuFor(anAdmin(ADMIN_PERMISSIONS));
-    expect(items.find((item) => item.to === "/clients")?.label).toBe("All clients");
+  it("keeps the firm's order, staff users first", () => {
+    expect(menuFor(anAdmin(ADMIN_PERMISSIONS))[0]?.to).toBe("/users");
   });
 });
