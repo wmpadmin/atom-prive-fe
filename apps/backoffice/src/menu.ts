@@ -107,10 +107,11 @@ const A_CLIENT_KYC = /^\/kyc\/[^/]+(\/documents\/[^/]+)?$/;
  */
 const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   { to: "/users" },
-  // The client directory. It was named for the one job an Admin was given it for — putting a relationship
-  // manager on a client — back when that was the whole of their access to it. The matrix opens the screen
-  // to them in full now, so it carries its own name here as it does on every other desk: a menu entry that
-  // names one job on a screen that does all of them sends a reader looking for a second entry.
+  // The client directory, the same screen Operations and Compliance read, under the name they read it by.
+  // It was called "Assign relationship managers" after the one job an Admin was given it for; an entry
+  // naming one job on a screen that does all of them sends a reader looking for a second entry that does
+  // not exist. The screen is theirs in full - putting a relationship manager on a client is one of the
+  // things done on it, not the whole of it.
   { to: "/clients" },
   // Deciding whether the firm stops acting for a client, and the clients it has stopped acting for. Both
   // are the Admin's alone: nobody else may answer a request, and nobody else may see an archived client.
@@ -411,22 +412,12 @@ export function menuFor(user: StaffProfile) {
   // An Admin's menu is written out by hand rather than filtered down, which means it is already in
   // the firm's own order — and must not be sorted again below.
   const admin = user.activeRole === "ADMIN";
-  // What the firm said about an Admin's menu, kept as its wording and its order rather than as the list
-  // of what exists. The matrix decides membership now, for the Admin as for every other desk: a screen
-  // the matrix opens to them appears whether or not somebody remembered to write it down here, and
-  // narrowing the matrix still narrows the menu.
-  const adminsOrder = new Map(
-    ADMINS_MENU.map((entry, at) => [entry.to, { at, label: entry.label, under: entry.under }]),
-  );
   const navigation = admin
-      ? allNavigation
-          // notFor is not read for an Admin. It exists to keep a screen off a desk the matrix would
-          // otherwise let in, and the Admin's answer is now the matrix's to give.
-          .filter((item) => (!item.onlyFor || item.onlyFor.includes("ADMIN")) && permitted(item))
-          .map((item) => {
-            const said = adminsOrder.get(item.to);
-            return { ...item, label: said?.label ?? item.label, under: said?.under ?? item.under };
-          })
+      ? ADMINS_MENU.flatMap((entry) =>
+          allNavigation
+            .filter((item) => item.to === entry.to && permitted(item))
+            .map((item) => ({ ...item, label: entry.label ?? item.label, under: entry.under })),
+        )
       : allNavigation.filter(
           (item) =>
             !(user.activeRole && item.notFor?.includes(user.activeRole)) &&
@@ -475,13 +466,6 @@ export function menuFor(user: StaffProfile) {
   // bug: that list decided which entries an Admin gets, then this line immediately threw its order
   // away and re-sorted by the order every other desk uses. Manage staff users, which the firm puts
   // first, came out ninth.
-  // The firm's own order first, for the entries it named; everything the matrix added after it, in the
-  // order every other desk uses. Sorting the named ones by MENU_ORDER instead was the old bug.
-  const adminItems = [...sections].sort((first, second) => {
-    const left = adminsOrder.get(first.to)?.at ?? Number.MAX_SAFE_INTEGER;
-    const right = adminsOrder.get(second.to)?.at ?? Number.MAX_SAFE_INTEGER;
-    return left !== right ? left - right : MENU_ORDER.indexOf(first.to) - MENU_ORDER.indexOf(second.to);
-  });
-  const items = admin ? adminItems : [...named, ...sections.filter((item) => !MENU_ORDER.includes(item.to))];
+  const items = admin ? sections : [...named, ...sections.filter((item) => !MENU_ORDER.includes(item.to))];
   return items;
 }
