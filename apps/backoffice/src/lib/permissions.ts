@@ -219,3 +219,18 @@ export function clientFileHref(user: { activeRole?: string | null }, clientId: s
   if (user.activeRole === "PORTFOLIO_MANAGER") return `/portfolio-clients/${clientId}`;
   return `/clients/${clientId}`;
 }
+
+/**
+ * The list of clients this reader is allowed to open, which is not the same address for everybody.
+ *
+ * <p>The sibling of {@link clientFileHref}, and it exists for the same reason that one does: /clients is
+ * closed to a relationship manager and to a portfolio manager, so sending either of them there is sending
+ * them to a guard that bounces them home. Anything carried in the address — what somebody just typed into
+ * the search box — is lost on the way.
+ */
+export function clientListHref(user: { activeRole?: string | null }, query?: string) {
+  const where = user.activeRole === "ADVISOR" ? "/my-clients"
+    : user.activeRole === "PORTFOLIO_MANAGER" ? "/portfolio-clients"
+    : "/clients";
+  return query ? `${where}?q=${encodeURIComponent(query)}` : where;
+}

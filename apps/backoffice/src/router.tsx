@@ -108,7 +108,12 @@ export const router = createBrowserRouter([
             children: [{ path: "notifications", element: <DeliveriesPage /> }],
           },
           {
-            element: <RequireAuthority authority="VIEW_ALL_CLIENTS:VIEW" />,
+            // The trails are a record of what was done, not a client screen: the sidebar offers them on
+            // VIEW_AUDIT_LOG:VIEW, which is the Admin's and Compliance's. The route asked for
+            // VIEW_ALL_CLIENTS:VIEW, which every role holds — so a desk with no business reading the
+            // trail could open it by address, and the proposals tab then met a refusal from an endpoint
+            // that never admitted them.
+            element: <RequireAuthority authority="VIEW_AUDIT_LOG:VIEW" />,
             children: [
               { path: "trails", element: <TrailsPage /> },
               // Three screens, three addresses. A row that expands in place has no address, so the back

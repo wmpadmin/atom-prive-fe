@@ -5,7 +5,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useStaffUser } from "../auth/session";
-import { clientFileHref } from "../lib/permissions";
+import { clientFileHref, clientListHref } from "../lib/permissions";
 import { Highlight, SuggestionSearch, type Suggestion } from "./suggestion-search";
 import { useSuggestionsBox } from "./use-suggestions-box";
 
@@ -66,11 +66,10 @@ export function TopSearch() {
       // Enter with nothing picked goes to the list, carrying what was typed, rather than guessing a client.
       onSearch={(value) => {
         setTypedValue("");
-        void navigate(
-          user.activeRole === "ADVISOR"
-            ? `/my-clients?q=${encodeURIComponent(value)}`
-            : `/clients?q=${encodeURIComponent(value)}`,
-        );
+        // Through the shared helper, because only the advisor was special-cased here: a portfolio
+        // manager was sent to /clients, which is closed to them, and the guard bounced them home with
+        // what they had just typed thrown away. The search looked as though it had simply done nothing.
+        void navigate(clientListHref(user, value));
       }}
       suggestions={suggestions}
       loading={customers.isFetching}

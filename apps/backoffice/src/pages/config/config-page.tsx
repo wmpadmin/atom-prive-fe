@@ -56,6 +56,9 @@ export function ConfigPage() {
     document.getElementById(`config-tab-${tab.id}`)?.focus();
   }
 
+  // The four the function below actually has a branch for. Kept beside it so the two are read together.
+  const EXPORTS_A_CSV = ["banks", "mapping", "fx", "templates"];
+
   async function exportActiveTab() {
     setExporting(true);
     setExportError(undefined);
@@ -72,9 +75,16 @@ export function ConfigPage() {
     }
   }
 
-  // Only the tabs the API will actually hand back a CSV for; the rest leave the button off rather
-  // than offering an export that answers with nothing.
-  const canExport = active !== "asset-classes" && !(active === "mapping" && !bankId);
+  /**
+   * Only the tabs the API will actually hand back a CSV for; the rest leave the button off rather than
+   * offering an export that answers with nothing.
+   *
+   * <p>Named rather than excluded. Written as "not asset-classes", it said yes to every tab added after
+   * it — and one was: Product & relationship types has no branch in exportActiveTab, so its button was
+   * enabled, pressing it ran the spinner and produced no file and no error. A list of what can be
+   * exported cannot drift out of step with the four branches below; a list of what cannot, does.
+   */
+  const canExport = EXPORTS_A_CSV.includes(active) && !(active === "mapping" && !bankId);
 
   return (
     <div className="space-y-6">
