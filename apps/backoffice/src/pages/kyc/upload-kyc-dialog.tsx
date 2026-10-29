@@ -6,9 +6,9 @@ import {
   useUploadKycDocument,
   type PaperRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, DateInput, Dialog, Field, SelectInput, TextInput } from "@atomprive/ui";
+import { Alert, Button, cn, DateInput, Dialog, Field, SelectInput, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type DragEvent, type FormEvent } from "react";
 
 /**
  * What the firm asks a client for, in the order it usually asks: a person's own papers first, then a company's.
@@ -18,6 +18,33 @@ import { useRef, useState, type FormEvent } from "react";
 
 /** The one choice that is not a paper: it is how a paper the firm has never filed before gets named. */
 const SOMETHING_ELSE = "something-else";
+
+/** What the firm takes, and the most it takes. Checked here so a refusal is immediate rather than a round trip. */
+const TAKES = ["application/pdf", "image/jpeg", "image/png"];
+
+const BIGGEST = 10 * 1024 * 1024;
+
+function sized(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * Whether this is a file the firm can take, in the words it would use to say why not.
+ *
+ * <p>A dropped file has not been through the picker's own accept list, so it arrives unchecked — and the
+ * two ways in have to refuse the same things or dropping would be a way around a rule the picker keeps.
+ */
+function whyNot(file: File) {
+  if (!TAKES.includes(file.type)) {
+    return "That has to be a PDF, a JPEG or a PNG.";
+  }
+  if (file.size > BIGGEST) {
+    return `That file is ${sized(file.size)}, and the most the firm takes is 10 MB.`;
+  }
+  return null;
+}
 
 function yearsFromToday(years: number) {
   const now = new Date();
@@ -42,6 +69,15 @@ export function UploadKycDialog({
   const queryClient = useQueryClient();
   const upload = useUploadKycDocument<ApiError>();
   const fileRef = useRef<HTMLInputElement>(null);
+  /**
+   * The file chosen, however it was chosen.
+   *
+   * <p>Held here rather than read off the input at the moment of sending, because a file dropped onto the
+   * dialog never goes near the input: the two ways of choosing have to end in the same place or the form
+   * would have to ask which one was used.
+   */
+  const [file, setFile] = useState<File | null>(null);
+  const [over, setOver] = useState(false);
   const papers = useListKycPapers<PaperRow[], ApiError>({ query: { staleTime: 60_000 } });
   /**
    * Which paper is chosen, by its id — or SOMETHING_ELSE, which is how a paper the firm has never filed
@@ -53,10 +89,31 @@ export function UploadKycDialog({
   const [expiresOn, setExpiresOn] = useState("");
   const [problem, setProblem] = useState<string>();
 
+  /**
+   * A file arriving, from the picker or from a drop.
+   *
+   * <p>One function for both, so a refusal reads the same either way and neither route can quietly accept
+   * something the other would turn down.
+   */
+  function take(arriving: File | undefined) {
+    if (!arriving) {
+      return;
+    }
+    const no = whyNot(arriving);
+    if (no) {
+      setProblem(no);
+      // Cleared, so the form does not look as though it is holding a file it has just refused.
+      setFile(null);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setProblem(undefined);
+    setFile(arriving);
+  }
+
   function send(event: FormEvent) {
     event.preventDefault();
     setProblem(undefined);
-    const file = fileRef.current?.files?.[0];
     if (!file) {
       setProblem("Choose the file to put on file.");
       return;
@@ -92,6 +149,7 @@ export function UploadKycDialog({
           setReference("");
           setExpiresOn("");
           setOtherName("");
+          setFile(null);
           if (fileRef.current) fileRef.current.value = "";
           onClose();
         },
@@ -166,13 +224,72 @@ export function UploadKycDialog({
         </Field>
 
         <Field id="kyc-file" label="The file" required hint="A PDF, JPEG or PNG, up to 10 MB.">
-          <input
-            ref={fileRef}
-            id="kyc-file"
-            type="file"
-            accept="application/pdf,image/jpeg,image/png"
-            className="block w-full text-sm text-ink-soft file:mr-3 file:rounded-lg file:border file:border-line file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink hover:file:bg-slate-50"
-          />
+          {/* Both ways in end at take(): the picker for somebody who wants the file browser, the drop for
+              somebody who already has the file in front of them. The input is kept in the tree rather than
+              replaced by a button, because it is what a screen reader and the keyboard already know how to
+              open — the drop zone is an addition to it, not a replacement for it. */}
+          <div
+            onDragOver={(event: DragEvent<HTMLDivElement>) => {
+              event.preventDefault();
+              setOver(true);
+            }}
+            onDragLeave={() => setOver(false)}
+            onDrop={(event: DragEvent<HTMLDivElement>) => {
+              // Without this the browser leaves the page and opens the file on its own, losing the half-
+              // filled form behind it.
+              event.preventDefault();
+              setOver(false);
+              take(event.dataTransfer.files?.[0]);
+            }}
+            className={cn(
+              "rounded-xl border border-dashed px-4 py-6 text-center transition-colors",
+              over ? "border-primary-600 bg-primary-50" : "border-line bg-canvas",
+            )}
+          >
+            {file ? (
+              <div className="flex items-center justify-between gap-3 text-left">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-ink">{file.name}</p>
+                  <p className="text-xs text-ink-muted">{sized(file.size)}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setFile(null);
+                    if (fileRef.current) fileRef.current.value = "";
+                  }}
+                >
+                  Remove
+                </Button>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-ink-soft">
+                  Drop the file here, or{" "}
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="font-semibold text-primary-700 underline underline-offset-2
+                      focus-visible:ring-2 focus-visible:ring-line focus-visible:outline-none"
+                  >
+                    choose one
+                  </button>
+                  .
+                </p>
+              </>
+            )}
+
+            <input
+              ref={fileRef}
+              id="kyc-file"
+              type="file"
+              accept="application/pdf,image/jpeg,image/png"
+              className="sr-only"
+              onChange={(event) => take(event.target.files?.[0])}
+            />
+          </div>
         </Field>
 
         <div className="flex justify-end gap-3 pt-2">
