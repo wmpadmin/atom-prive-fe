@@ -83,13 +83,21 @@ export function ComplianceDashboard() {
           to="/kyc"
           hint="Still collecting or checking papers"
         />
+        {/* Clients, not papers: the figure counts a client once however many of their papers are
+            lapsing, which is what the service that answers it says in its own words. Labelled "Papers",
+            a client with four lapsing documents read as one document.
+
+            It also counts only clients whose KYC is still pending, because the queue it is drawn from
+            holds nobody else — so an approved client whose passport runs out next week is not in it.
+            That is a gap in what the firm is warned about rather than a wrong label, and widening it is
+            the firm's call, not a quiet change to a compliance figure. */}
         <Tile
-          label="Papers expiring"
+          label="Clients with a paper expiring"
           value={review.data?.expiring}
           failed={review.isError}
           to="/kyc-documents"
           urgent={(review.data?.expiring ?? 0) > 0}
-          hint="A document lapses within 30 days"
+          hint="Awaiting review, with a document lapsing within 30 days"
         />
         <Tile
           label="Never scored for AML"
