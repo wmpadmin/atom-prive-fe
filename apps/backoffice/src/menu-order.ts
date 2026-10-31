@@ -66,5 +66,5 @@ export const MENU_ORDER: string[] = [
   "/staff-declarations", "/staff-tracker", "/portfolio-settings",
 
   // A person's own account, which is nobody's work and everybody's last two entries.
-  "/my-declarations", "/settings",
+  "/my-clearances", "/my-declarations", "/settings",
 ];

@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   BellRing,
   ClipboardCheck,
+  UserMinus,
   Clock,
   Contact,
   Eye,
@@ -133,6 +134,7 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   // An Admin signs the same nine as everybody else. Their menu is written out rather than filtered down, so
   // their own declarations had to be written into it or they had no way to them at all — the screen was
   // open to them the whole time, with nothing on the menu pointing at it.
+  { to: "/my-clearances" },
   { to: "/my-declarations" },
   { to: "/settings" },
 ];
@@ -384,6 +386,10 @@ const allNavigation: {
   { to: "/family-access-trail", label: "Family access trail", icon: Eye, authority: "VIEW_AUDIT_LOG:VIEW" },
   // Four trails that were four places, or in two cases no place at all.
   { to: "/trails", label: "Trails", icon: UsersRound, authority: "VIEW_AUDIT_LOG:VIEW" },
+  // Everybody's, because what it holds is decided by which desks somebody sits at rather than by a
+  // permission: a reader who holds none of the desks asked sees an empty list, which is the truth about
+  // them. Beside their own declarations, which is the other thing on this menu that is theirs alone.
+  { to: "/my-clearances", label: "My clearance requests", icon: UserMinus, authority: null },
   { to: "/my-declarations", label: "My declarations", icon: FileCheck, authority: null },
   // The clients assigned to this relationship manager: the whole book is not theirs, and this is the part that is.
   {

@@ -35,12 +35,20 @@ describe("an Admin's menu", () => {
     }
   });
 
-  it("is the eleven screens the firm gives an Admin, and no more", () => {
+  it("is the twelve screens the firm gives an Admin, and no more", () => {
     expect(menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to)).toEqual([
       "/users", "/clients", "/deactivation-requests", "/archived-clients", "/roles", "/config",
-      "/staff-tracker", "/family-access-trail", "/audit-log", "/my-declarations", "/settings",
+      "/staff-tracker", "/family-access-trail", "/audit-log", "/my-clearances", "/my-declarations",
+      "/settings",
     ]);
   });
+
+  /*
+   * My clearance requests is on the Admin's menu even though the Admin desk is never one of the four a
+   * client's clearance is put to. It is there because it follows the person rather than the desk: every
+   * administrator at this firm also sits at Compliance, Operations and the rest, so their list has rows
+   * in it. An administrator who holds nothing else sees an empty list, which is the truth about them.
+   */
 
   it("keeps the firm's order, staff users first", () => {
     expect(menuFor(anAdmin(ADMIN_PERMISSIONS))[0]?.to).toBe("/users");
