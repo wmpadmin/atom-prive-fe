@@ -40,9 +40,10 @@ import {
 } from "./client-file-panels";
 import { assignmentNotice, clientsHref, clientTypeLabels, kycStatusLabels, kycStatusTones, managerAssignmentNotice, oneLine } from "./client-labels";
 import { ClientAccessPanel } from "./client-access-panel";
+import { DeactivationTab } from "../deactivation/deactivation-tab";
 import { ClientFormsPanel } from "./client-forms-panel";
 
-type Tab = "overview" | "family" | "advisors" | "portfolioManagers" | "banks" | "holdings" | "transactions" | "documents" | "activity";
+type Tab = "overview" | "family" | "advisors" | "portfolioManagers" | "banks" | "holdings" | "transactions" | "documents" | "activity" | "deactivation";
 
 /** @param needs what the reader has to hold for this tab to be theirs; left out, the tab is everyone's */
 const TABS: { id: Tab; label: string; needs?: Authority[] }[] = [
@@ -61,6 +62,8 @@ const TABS: { id: Tab; label: string; needs?: Authority[] }[] = [
   // word pointed at two different piles.
   { id: "documents", label: "Forms" },
   { id: "activity", label: "Activity" },
+  // Last, because it is the end of a client's life with the firm and reads as one.
+  { id: "deactivation", label: "Deactivation" },
 ];
 
 /**
@@ -420,6 +423,10 @@ export function ClientPage() {
       {tab === "transactions" && <TransactionsPanel />}
       {tab === "documents" && <ClientFormsPanel client={client} />}
       {tab === "activity" && <ActivityPanel activity={activity} />}
+      {/* The whole of the deactivation on the client's own file: where it stands, the reader's own
+          answer if they hold one of the desks asked, and Operations' controls if they are Operations.
+          One tab rather than a screen per role, because every desk is looking at the same client. */}
+      {tab === "deactivation" && <DeactivationTab customerId={client.id} clientName={client.fullName} />}
 
       <AskToDeactivate
         open={deactivating}
@@ -719,7 +726,7 @@ function AskToDeactivate({
     <Dialog
       open={open}
       title={`Ask for ${clientName} to be deactivated?`}
-      description="This goes to the Admin to decide. Nothing changes until they approve it."
+      description="This goes to Operations, who ask every desk to clear their work on this client. Nothing changes until all of them have, and the Admin approves."
       onClose={() => {
         setWhy("");
         ask.reset();
@@ -756,7 +763,7 @@ function AskToDeactivate({
             disabled={ask.isPending || said.length === 0}
             onClick={() => ask.mutate({ customerId: clientId, data: { reason: said } })}
           >
-            {ask.isPending ? "Sending…" : "Send it to the Admin"}
+            {ask.isPending ? "Sending…" : "Send it to Operations"}
           </Button>
         </div>
       </div>

@@ -1378,6 +1378,7 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  number?: boolean;
   container?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
@@ -1395,7 +1396,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  number?: boolean;
   floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
@@ -4117,6 +4117,143 @@ export interface RejectDeactivationRequest {
   note: string;
 }
 
+export interface StartClearanceRequest {
+  deadline: string;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  instructions: string | null;
+}
+
+export type AnswerRowStanding = typeof AnswerRowStanding[keyof typeof AnswerRowStanding];
+
+
+export const AnswerRowStanding = {
+  AWAITED: 'AWAITED',
+  GO_AHEAD: 'GO_AHEAD',
+  PENDING: 'PENDING',
+  BLOCKED: 'BLOCKED',
+} as const;
+
+export interface AnswerRow {
+  roleSaid: string;
+  standing: AnswerRowStanding;
+  saidAt: string;
+  /** @nullable */
+  saidByName: string | null;
+  /** @nullable */
+  comments: string | null;
+  /** @nullable */
+  attachmentName: string | null;
+}
+
+export type ClearanceRowRole = typeof ClearanceRowRole[keyof typeof ClearanceRowRole];
+
+
+export const ClearanceRowRole = {
+  ADMIN: 'ADMIN',
+  ADVISOR: 'ADVISOR',
+  COMPLIANCE: 'COMPLIANCE',
+  OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+} as const;
+
+export type ClearanceRowStanding = typeof ClearanceRowStanding[keyof typeof ClearanceRowStanding];
+
+
+export const ClearanceRowStanding = {
+  AWAITED: 'AWAITED',
+  GO_AHEAD: 'GO_AHEAD',
+  PENDING: 'PENDING',
+  BLOCKED: 'BLOCKED',
+} as const;
+
+export interface ClearanceRow {
+  id: string;
+  role: ClearanceRowRole;
+  roleSaid: string;
+  standing: ClearanceRowStanding;
+  /** @nullable */
+  saidAt: string | null;
+  /** @nullable */
+  saidByName: string | null;
+  /** @nullable */
+  comments: string | null;
+  /** @nullable */
+  attachmentName: string | null;
+  hasAttachment: boolean;
+  mine: boolean;
+}
+
+export interface DeadlineChangeRow {
+  /** @nullable */
+  was: string | null;
+  nowIs: string;
+  changedAt: string;
+  /** @nullable */
+  changedByName: string | null;
+  /** @nullable */
+  why: string | null;
+}
+
+export interface RequestClearances {
+  customerId: string;
+  requestId: string;
+  /** @nullable */
+  reason: string | null;
+  askedAt: string;
+  /** @nullable */
+  askedByName: string | null;
+  /** @nullable */
+  deadline: string | null;
+  /** @nullable */
+  daysLeft: number | null;
+  overdue: boolean;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  instructions: string | null;
+  roles: ClearanceRow[];
+  cleared: number;
+  asked: number;
+  clear: boolean;
+  /** @nullable */
+  clearedAt: string | null;
+  deadlineMoves: DeadlineChangeRow[];
+  answers: AnswerRow[];
+}
+
+export type SayClearanceRequestStanding = typeof SayClearanceRequestStanding[keyof typeof SayClearanceRequestStanding];
+
+
+export const SayClearanceRequestStanding = {
+  AWAITED: 'AWAITED',
+  GO_AHEAD: 'GO_AHEAD',
+  PENDING: 'PENDING',
+  BLOCKED: 'BLOCKED',
+} as const;
+
+export interface SayClearanceRequest {
+  standing: SayClearanceRequestStanding;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  comments: string | null;
+}
+
+export interface ChangeDeadlineRequest {
+  deadline: string;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  why: string;
+}
+
 export interface ApproveDeactivationRequest {
   /**
      * @minLength 0
@@ -5835,6 +5972,79 @@ export interface DeactivationQueue {
   awaiting: number;
 }
 
+export interface PipelineRow {
+  requestId: string;
+  customerId: string;
+  clientName: string;
+  clientCode: string;
+  /** @nullable */
+  askedByName: string | null;
+  askedAt: string;
+  stage: string;
+  cleared: number;
+  asked: number;
+  /** @nullable */
+  deadline: string | null;
+  /** @nullable */
+  daysLeft: number | null;
+  overdue: boolean;
+  blocked: boolean;
+  readyForAdmin: boolean;
+}
+
+export interface Pipeline {
+  items: PipelineRow[];
+  inProgress: number;
+  readyForAdmin: number;
+  overdue: number;
+  blocked: number;
+}
+
+export type MyClearanceRowRole = typeof MyClearanceRowRole[keyof typeof MyClearanceRowRole];
+
+
+export const MyClearanceRowRole = {
+  ADMIN: 'ADMIN',
+  ADVISOR: 'ADVISOR',
+  COMPLIANCE: 'COMPLIANCE',
+  OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+} as const;
+
+export type MyClearanceRowStanding = typeof MyClearanceRowStanding[keyof typeof MyClearanceRowStanding];
+
+
+export const MyClearanceRowStanding = {
+  AWAITED: 'AWAITED',
+  GO_AHEAD: 'GO_AHEAD',
+  PENDING: 'PENDING',
+  BLOCKED: 'BLOCKED',
+} as const;
+
+export interface MyClearanceRow {
+  requestId: string;
+  customerId: string;
+  clientName: string;
+  clientCode: string;
+  role: MyClearanceRowRole;
+  roleSaid: string;
+  standing: MyClearanceRowStanding;
+  /** @nullable */
+  deadline: string | null;
+  /** @nullable */
+  daysLeft: number | null;
+  overdue: boolean;
+  /** @nullable */
+  instructions: string | null;
+  /** @nullable */
+  comments: string | null;
+}
+
+export interface MyClearances {
+  items: MyClearanceRow[];
+  waiting: number;
+}
+
 export interface DashboardTiles {
   clients: number;
   familyGroups: number;
@@ -6446,6 +6656,25 @@ field: string;
 };
 
 export type AttachToFormBody = {
+  file: Blob | File;
+};
+
+export type SayClearanceWithDocumentParams = {
+standing: SayClearanceWithDocumentStanding;
+comments?: string;
+};
+
+export type SayClearanceWithDocumentStanding = typeof SayClearanceWithDocumentStanding[keyof typeof SayClearanceWithDocumentStanding];
+
+
+export const SayClearanceWithDocumentStanding = {
+  AWAITED: 'AWAITED',
+  GO_AHEAD: 'GO_AHEAD',
+  PENDING: 'PENDING',
+  BLOCKED: 'BLOCKED',
+} as const;
+
+export type SayClearanceWithDocumentBody = {
   file: Blob | File;
 };
 
@@ -17858,6 +18087,432 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRejectDeactivationMutationOptions(options), queryClient);
     }
 
+export const getReadClearanceUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/deactivations/clients/${customerId}/clearance`
+}
+
+export const readClearance = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<RequestClearances> => {
+
+  return http<RequestClearances>(getReadClearanceUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReadClearanceQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/deactivations/clients/${customerId}/clearance`
+    ] as const;
+    }
+
+
+export const getReadClearanceQueryOptions = <TData = Awaited<ReturnType<typeof readClearance>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClearance>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReadClearanceQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readClearance>>> = ({ signal }) => readClearance(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readClearance>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReadClearanceQueryResult = NonNullable<Awaited<ReturnType<typeof readClearance>>>
+export type ReadClearanceQueryError = unknown
+
+
+export function useReadClearance<TData = Awaited<ReturnType<typeof readClearance>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClearance>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readClearance>>,
+          TError,
+          Awaited<ReturnType<typeof readClearance>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadClearance<TData = Awaited<ReturnType<typeof readClearance>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClearance>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readClearance>>,
+          TError,
+          Awaited<ReturnType<typeof readClearance>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadClearance<TData = Awaited<ReturnType<typeof readClearance>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClearance>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useReadClearance<TData = Awaited<ReturnType<typeof readClearance>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClearance>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReadClearanceQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartClearanceUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/deactivations/clients/${customerId}/clearance`
+}
+
+export const startClearance = async (customerId: string,
+    startClearanceRequest: StartClearanceRequest, options?: Parameters<typeof http>[1]): Promise<RequestClearances> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<RequestClearances>(getStartClearanceUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(startClearanceRequest)
+  }
+);}
+
+
+
+
+
+export const getStartClearanceMutationKey = () => ['startClearance'] as const;
+
+export const getStartClearanceMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startClearance>>, TError,StartClearanceMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof startClearance>>, TError,StartClearanceMutationVariables, TContext> => {
+
+const mutationKey = getStartClearanceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startClearance>>, StartClearanceMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  startClearance(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartClearanceMutationResult = NonNullable<Awaited<ReturnType<typeof startClearance>>>
+    export type StartClearanceMutationBody = StartClearanceRequest
+    export type StartClearanceMutationError = unknown
+    export type StartClearanceMutationVariables = {customerId: string;data: StartClearanceRequest}
+
+    export const useStartClearance = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startClearance>>, TError,StartClearanceMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof startClearance>>,
+        TError,
+        StartClearanceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartClearanceMutationOptions(options), queryClient);
+    }
+
+export const getSayClearanceUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/deactivations/clients/${customerId}/clearance/say`
+}
+
+export const sayClearance = async (customerId: string,
+    sayClearanceRequest: SayClearanceRequest, options?: Parameters<typeof http>[1]): Promise<RequestClearances> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<RequestClearances>(getSayClearanceUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(sayClearanceRequest)
+  }
+);}
+
+
+
+
+
+export const getSayClearanceMutationKey = () => ['sayClearance'] as const;
+
+export const getSayClearanceMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sayClearance>>, TError,SayClearanceMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof sayClearance>>, TError,SayClearanceMutationVariables, TContext> => {
+
+const mutationKey = getSayClearanceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sayClearance>>, SayClearanceMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  sayClearance(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SayClearanceMutationResult = NonNullable<Awaited<ReturnType<typeof sayClearance>>>
+    export type SayClearanceMutationBody = SayClearanceRequest
+    export type SayClearanceMutationError = unknown
+    export type SayClearanceMutationVariables = {customerId: string;data: SayClearanceRequest}
+
+    export const useSayClearance = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sayClearance>>, TError,SayClearanceMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sayClearance>>,
+        TError,
+        SayClearanceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSayClearanceMutationOptions(options), queryClient);
+    }
+
+export const getSayClearanceWithDocumentUrl = (customerId: string,
+    params: SayClearanceWithDocumentParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/deactivations/clients/${customerId}/clearance/say-with-document?${stringifiedParams}` : `/api/backoffice/deactivations/clients/${customerId}/clearance/say-with-document`
+}
+
+export const sayClearanceWithDocument = async (customerId: string,
+    params: SayClearanceWithDocumentParams,
+    sayClearanceWithDocumentBody?: SayClearanceWithDocumentBody, options?: Parameters<typeof http>[1]): Promise<RequestClearances> => {
+    const formData = new FormData();
+if(sayClearanceWithDocumentBody?.file !== undefined) {
+ formData.append(`file`, sayClearanceWithDocumentBody.file);
+ }
+
+  return http<RequestClearances>(getSayClearanceWithDocumentUrl(customerId,params),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getSayClearanceWithDocumentMutationKey = () => ['sayClearanceWithDocument'] as const;
+
+export const getSayClearanceWithDocumentMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sayClearanceWithDocument>>, TError,SayClearanceWithDocumentMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof sayClearanceWithDocument>>, TError,SayClearanceWithDocumentMutationVariables, TContext> => {
+
+const mutationKey = getSayClearanceWithDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sayClearanceWithDocument>>, SayClearanceWithDocumentMutationVariables> = (props) => {
+          const {customerId,params,data} = props ?? {};
+
+          return  sayClearanceWithDocument(customerId,params,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SayClearanceWithDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof sayClearanceWithDocument>>>
+    export type SayClearanceWithDocumentMutationBody = SayClearanceWithDocumentBody | undefined
+    export type SayClearanceWithDocumentMutationError = unknown
+    export type SayClearanceWithDocumentMutationVariables = {customerId: string;params: SayClearanceWithDocumentParams;data?: SayClearanceWithDocumentBody}
+
+    export const useSayClearanceWithDocument = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sayClearanceWithDocument>>, TError,SayClearanceWithDocumentMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sayClearanceWithDocument>>,
+        TError,
+        SayClearanceWithDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSayClearanceWithDocumentMutationOptions(options), queryClient);
+    }
+
+export const getChangeClearanceDeadlineUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/deactivations/clients/${customerId}/clearance/deadline`
+}
+
+export const changeClearanceDeadline = async (customerId: string,
+    changeDeadlineRequest: ChangeDeadlineRequest, options?: Parameters<typeof http>[1]): Promise<RequestClearances> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<RequestClearances>(getChangeClearanceDeadlineUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(changeDeadlineRequest)
+  }
+);}
+
+
+
+
+
+export const getChangeClearanceDeadlineMutationKey = () => ['changeClearanceDeadline'] as const;
+
+export const getChangeClearanceDeadlineMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeClearanceDeadline>>, TError,ChangeClearanceDeadlineMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeClearanceDeadline>>, TError,ChangeClearanceDeadlineMutationVariables, TContext> => {
+
+const mutationKey = getChangeClearanceDeadlineMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeClearanceDeadline>>, ChangeClearanceDeadlineMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  changeClearanceDeadline(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeClearanceDeadlineMutationResult = NonNullable<Awaited<ReturnType<typeof changeClearanceDeadline>>>
+    export type ChangeClearanceDeadlineMutationBody = ChangeDeadlineRequest
+    export type ChangeClearanceDeadlineMutationError = unknown
+    export type ChangeClearanceDeadlineMutationVariables = {customerId: string;data: ChangeDeadlineRequest}
+
+    export const useChangeClearanceDeadline = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeClearanceDeadline>>, TError,ChangeClearanceDeadlineMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeClearanceDeadline>>,
+        TError,
+        ChangeClearanceDeadlineMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeClearanceDeadlineMutationOptions(options), queryClient);
+    }
+
 export const getApproveDeactivationUrl = (customerId: string,) => {
 
 
@@ -28438,6 +29093,291 @@ export function useListDeactivations<TData = Awaited<ReturnType<typeof listDeact
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListDeactivationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReadPipelineUrl = () => {
+
+
+
+
+  return `/api/backoffice/deactivations/pipeline`
+}
+
+export const readPipeline = async ( options?: Parameters<typeof http>[1]): Promise<Pipeline> => {
+
+  return http<Pipeline>(getReadPipelineUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReadPipelineQueryKey = () => {
+    return [
+    `/api/backoffice/deactivations/pipeline`
+    ] as const;
+    }
+
+
+export const getReadPipelineQueryOptions = <TData = Awaited<ReturnType<typeof readPipeline>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPipeline>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReadPipelineQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readPipeline>>> = ({ signal }) => readPipeline({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readPipeline>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReadPipelineQueryResult = NonNullable<Awaited<ReturnType<typeof readPipeline>>>
+export type ReadPipelineQueryError = unknown
+
+
+export function useReadPipeline<TData = Awaited<ReturnType<typeof readPipeline>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPipeline>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readPipeline>>,
+          TError,
+          Awaited<ReturnType<typeof readPipeline>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadPipeline<TData = Awaited<ReturnType<typeof readPipeline>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPipeline>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readPipeline>>,
+          TError,
+          Awaited<ReturnType<typeof readPipeline>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadPipeline<TData = Awaited<ReturnType<typeof readPipeline>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPipeline>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useReadPipeline<TData = Awaited<ReturnType<typeof readPipeline>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPipeline>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReadPipelineQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReadMyClearancesUrl = () => {
+
+
+
+
+  return `/api/backoffice/deactivations/my-clearances`
+}
+
+export const readMyClearances = async ( options?: Parameters<typeof http>[1]): Promise<MyClearances> => {
+
+  return http<MyClearances>(getReadMyClearancesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReadMyClearancesQueryKey = () => {
+    return [
+    `/api/backoffice/deactivations/my-clearances`
+    ] as const;
+    }
+
+
+export const getReadMyClearancesQueryOptions = <TData = Awaited<ReturnType<typeof readMyClearances>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readMyClearances>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReadMyClearancesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readMyClearances>>> = ({ signal }) => readMyClearances({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readMyClearances>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReadMyClearancesQueryResult = NonNullable<Awaited<ReturnType<typeof readMyClearances>>>
+export type ReadMyClearancesQueryError = unknown
+
+
+export function useReadMyClearances<TData = Awaited<ReturnType<typeof readMyClearances>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readMyClearances>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readMyClearances>>,
+          TError,
+          Awaited<ReturnType<typeof readMyClearances>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadMyClearances<TData = Awaited<ReturnType<typeof readMyClearances>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readMyClearances>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readMyClearances>>,
+          TError,
+          Awaited<ReturnType<typeof readMyClearances>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadMyClearances<TData = Awaited<ReturnType<typeof readMyClearances>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readMyClearances>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useReadMyClearances<TData = Awaited<ReturnType<typeof readMyClearances>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readMyClearances>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReadMyClearancesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReadClearanceDocumentUrl = (clearanceId: string,) => {
+
+
+
+
+  return `/api/backoffice/deactivations/clearances/${clearanceId}/document`
+}
+
+export const readClearanceDocument = async (clearanceId: string, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getReadClearanceDocumentUrl(clearanceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReadClearanceDocumentQueryKey = (clearanceId: string,) => {
+    return [
+    `/api/backoffice/deactivations/clearances/${clearanceId}/document`
+    ] as const;
+    }
+
+
+export const getReadClearanceDocumentQueryOptions = <TData = Awaited<ReturnType<typeof readClearanceDocument>>, TError = unknown>(clearanceId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClearanceDocument>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReadClearanceDocumentQueryKey(clearanceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readClearanceDocument>>> = ({ signal }) => readClearanceDocument(clearanceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: clearanceId !== null && clearanceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readClearanceDocument>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReadClearanceDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof readClearanceDocument>>>
+export type ReadClearanceDocumentQueryError = unknown
+
+
+export function useReadClearanceDocument<TData = Awaited<ReturnType<typeof readClearanceDocument>>, TError = unknown>(
+ clearanceId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClearanceDocument>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readClearanceDocument>>,
+          TError,
+          Awaited<ReturnType<typeof readClearanceDocument>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadClearanceDocument<TData = Awaited<ReturnType<typeof readClearanceDocument>>, TError = unknown>(
+ clearanceId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClearanceDocument>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readClearanceDocument>>,
+          TError,
+          Awaited<ReturnType<typeof readClearanceDocument>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadClearanceDocument<TData = Awaited<ReturnType<typeof readClearanceDocument>>, TError = unknown>(
+ clearanceId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClearanceDocument>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useReadClearanceDocument<TData = Awaited<ReturnType<typeof readClearanceDocument>>, TError = unknown>(
+ clearanceId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClearanceDocument>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReadClearanceDocumentQueryOptions(clearanceId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

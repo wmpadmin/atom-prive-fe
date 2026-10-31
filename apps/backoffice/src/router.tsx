@@ -75,6 +75,7 @@ import { SignaturePackPage } from "./pages/to-sign/signature-pack-page";
 import { ToSignPage } from "./pages/to-sign/to-sign-page";
 import { ClientDocumentsPage } from "./pages/client-documents/client-documents-page";
 import { ArchivedClientsPage } from "./pages/clients/archived-clients-page";
+import { MyClearancesPage } from "./pages/deactivation/my-clearances-page";
 import { DeactivationRequestsPage } from "./pages/clients/deactivation-requests-page";
 
 export const router = createBrowserRouter([
@@ -92,6 +93,9 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Landing /> },
           // Everyone at the firm signs the same nine, so their own need no permission beyond being signed in.
+          // Everybody's, like their own declarations: what it shows is decided by which desks the
+          // reader holds, so a permission on top would be a second rule saying the same thing.
+          { path: "my-clearances", element: <MyClearancesPage /> },
           { path: "my-declarations", element: <MyDeclarationsPage /> },
           { path: "my-declarations/:kind", element: <MyDeclarationPage /> },
           // Somebody's own account, so it asks for nothing beyond being signed in.

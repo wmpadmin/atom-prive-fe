@@ -2,6 +2,8 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useApproveDeactivation,
   useListDeactivations,
+  useReadClearance,
+  type RequestClearances,
   useRejectDeactivation,
   type DeactivationQueue,
   type DeactivationRow,
@@ -9,6 +11,7 @@ import {
 import { Alert, Badge, Button, Dialog, Field, TextArea } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { PipelinePanel } from "../deactivation/pipeline-panel";
 import { Link } from "react-router";
 import { formatDate, formatDateTime } from "../../lib/labels";
 
@@ -52,6 +55,13 @@ export function DeactivationRequestsPage() {
       </header>
 
       {queue.isError && <Alert tone="danger">{queue.error.message}</Alert>}
+
+      {/* The pipeline above the queue, because it answers the question somebody arrives with - which
+          clients are moving and which have stopped - while the queue below is the narrower one of what
+          this reader has to answer right now. */}
+      <PipelinePanel />
+
+      <h2 className="pt-2 text-base font-bold">What is waiting on you</h2>
 
       {/* Waiting first, because this screen exists to be emptied. */}
       <div role="tablist" aria-label="Which requests" className="flex gap-1 border-b border-line">
@@ -216,6 +226,10 @@ function Answer({
     >
       <div className="space-y-3">
         {failed && <Alert tone="danger">{failed.message}</Alert>}
+        {/* What the desks said, inside the dialog that archives the client. The server refuses an
+            approval while a desk is still out, but a refusal arriving after the press is a worse way to
+            learn it than a line before. */}
+        {agreeing && answering && <DesksBefore customerId={answering.row.customerId} />}
         <Field
           id="deactivation-note"
           label={agreeing ? "Anything to add" : "Why"}
@@ -261,5 +275,38 @@ function Answer({
         </div>
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * Where the desks got to, said once more in the dialog that ends the client's life with the firm.
+ *
+ * <p>The Admin has almost certainly seen this on the pipeline and on the client's own file. It is here
+ * anyway because this is the press that cannot be taken back for ninety days, and the one place a
+ * reader should not have to remember what another screen told them.
+ */
+function DesksBefore({ customerId }: { customerId: string }) {
+  const standing = useReadClearance<RequestClearances, ApiError>(customerId, { query: { retry: false } });
+  if (!standing.data) {
+    return null;
+  }
+  const out = standing.data.roles.filter((one) => one.standing !== "GO_AHEAD");
+  if (standing.data.asked === 0) {
+    return (
+      <Alert tone="warning">
+        Nobody was asked to clear their work on this client. Operations normally sends that question
+        before a client is let go.
+      </Alert>
+    );
+  }
+  return out.length === 0 ? (
+    <Alert tone="success">
+      All {standing.data.asked} desks have gone ahead.
+    </Alert>
+  ) : (
+    <Alert tone="danger">
+      Still waiting on {out.map((one) => one.roleSaid).join(", ")}. The firm will refuse this until they
+      have all gone ahead.
+    </Alert>
   );
 }
