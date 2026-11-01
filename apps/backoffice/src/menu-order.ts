@@ -27,7 +27,7 @@
 export const MENU_ORDER: string[] = [
   // The portfolio desk's own book, in the order the desk works it: who is on a plan, what the plans are,
   // how they are doing, who has wandered off one, and putting them back.
-  "/portfolio-clients", "/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing",
+  "/book", "/portfolio-clients", "/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing",
   "/mis",
 
   // What follows is one order serving three desks at once, written from the firm's own list for each.
