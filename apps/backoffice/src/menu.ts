@@ -416,10 +416,10 @@ const allNavigation: {
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
   },
-  // Somebody's own account. Off the portfolio desk's menu at the firm's asking; switching role, changing
-  // a password and signing out are all on the profile menu at the top of every screen, so nothing they
-  // need has gone with it.
-  { to: "/settings", label: "Settings", icon: Settings, authority: null, notFor: ["PORTFOLIO_MANAGER"] },
+  // Somebody's own account, which everybody signed in has one of — the portfolio desk included. It was off
+  // their menu for a while, and a portfolio manager then had no way to their profile, notifications or
+  // preferences short of typing the address.
+  { to: "/settings", label: "Settings", icon: Settings, authority: null },
 ];
 
 
