@@ -62,6 +62,8 @@ import { ModelPerformancePage } from "./pages/portfolios/model-performance-page"
 import { BulkRebalancingPage } from "./pages/portfolios/bulk-rebalancing-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
+import { ClientListPage } from "./pages/book/book-page";
+import { LazyClientViewPage } from "./pages/book/client-view-lazy";
 import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
 import { DailyTrackerChangePage, DailyTrackerDayPage } from "./pages/portfolios/daily-tracker-day-page";
 import { ClientMovesPage } from "./pages/portfolios/client-moves-page";
@@ -357,6 +359,13 @@ export const router = createBrowserRouter([
             element: <RequireAuthority authority={READS_CLIENT_PORTFOLIOS} />,
             children: [
               { path: "model-portfolios", element: <ModelPortfoliosPage /> },
+              // The portfolio manager's client list and one client at a glance, laid out the way the firm
+              // asked for after seeing Canopy's.
+              { path: "book", element: <ClientListPage /> },
+              {
+                path: "book/:customerId",
+                element: <LazyClientViewPage />,
+              },
               { path: "drift", element: <DriftBreachesPage /> },
               { path: "bulk-rebalancing", element: <BulkRebalancingPage /> },
               { path: "model-changes", element: <Navigate to="/approvals?queue=model-changes" replace /> },

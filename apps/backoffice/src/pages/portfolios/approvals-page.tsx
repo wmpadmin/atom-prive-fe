@@ -2,9 +2,11 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useListClientRequests,
   useListModelChanges,
+  useListOwnedAssetChanges,
   useListProposalsAwaitingMyAnswer,
   type ModelChangePage,
   type MovePlanQueue,
+  type OwnedAssetChangeQueue,
   type ProposalPage,
 } from "@atomprive/api-client/backoffice";
 import { cn } from "@atomprive/ui";
@@ -26,10 +28,11 @@ import {
 import { ProposalsPage } from "../advisor/proposals-page";
 import { ClientRequestsPage } from "./client-requests-page";
 import { ModelChangesPage } from "./model-changes-page";
+import { OwnedAssetChangesPage } from "./owned-asset-changes-page";
 
 /** Which queue is being read. The value is in the address, so a link can point at one. */
 export type ApprovalTab =
-  | "proposals" | "client-requests" | "model-changes";
+  | "proposals" | "client-requests" | "model-changes" | "owned-assets";
 
 type TabSpec = {
   id: ApprovalTab;
@@ -81,6 +84,14 @@ const TABS: TabSpec[] = [
     authority: READS_CLIENT_PORTFOLIOS,
     Panel: ModelChangesPage,
   },
+  {
+    id: "owned-assets",
+    label: "Owned assets",
+    // What a client owns outside the portfolio: the portfolio desk asks, and reads what became of it; the
+    // client's relationship manager answers.
+    authority: [...ANSWERS_MOVE_PLANS, ...WRITES_PROPOSALS],
+    Panel: OwnedAssetChangesPage,
+  },
 ];
 
 /**
@@ -106,6 +117,8 @@ function useHowManyAreWaiting(mine: TabSpec[]) {
     { query: { enabled: offered("client-requests"), refetchOnWindowFocus: true } });
   const modelChanges = useListModelChanges<ModelChangePage, ApiError>({ status: "PENDING", page: 0, size: 1 },
     { query: { enabled: offered("model-changes"), refetchOnWindowFocus: true } });
+  const ownedAssets = useListOwnedAssetChanges<OwnedAssetChangeQueue, ApiError>(
+    { query: { enabled: offered("owned-assets"), refetchOnWindowFocus: true } });
   return {
     proposals: proposals.data?.totalItems ?? 0,
     "client-requests": (clientRequests.data?.waiting ?? []).length,
@@ -113,6 +126,7 @@ function useHowManyAreWaiting(mine: TabSpec[]) {
     // their scope reached, including ones somebody else answers — so a tab read "1" over a row the
     // reader had no button on.
     "model-changes": modelChanges.data?.waitingOnYou ?? 0,
+    "owned-assets": ownedAssets.data?.waiting ?? 0,
     // What this reader may actually answer, not what is waiting: the desk that raises these reads its own
     // asks here, and a tab counting those would send somebody to a row with no button on it.
   } as Record<ApprovalTab, number>;

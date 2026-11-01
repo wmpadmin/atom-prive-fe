@@ -174,6 +174,15 @@ const allNavigation: {
     at: (path) => (path === "/clients" || path.startsWith("/clients/")) && !NOTICE_OF_TREATMENT.test(path),
   },
   {
+    // The portfolio manager's own clients, starred first, each opening on an overview of their money.
+    to: "/book",
+    label: "Client list",
+    icon: UsersRound,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
+    at: (path) => path === "/book" || path.startsWith("/book/"),
+  },
+  {
     // The same clients, set out for portfolio work rather than for servicing the account.
     to: "/portfolio-clients",
     label: "Clients",

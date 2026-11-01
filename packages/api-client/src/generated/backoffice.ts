@@ -418,6 +418,79 @@ export interface PreTradeLimitRow {
   updatedBy: string | null;
 }
 
+export interface PanelConfig {
+  /**
+     * @minLength 0
+     * @maxLength 80
+     * @nullable
+     */
+  title: string | null;
+  /** @nullable */
+  attribute: string | null;
+  /** @nullable */
+  grouping: string | null;
+  /** @nullable */
+  timeRange: string | null;
+  /** @nullable */
+  chartType: string | null;
+  /** @nullable */
+  figures: string[] | null;
+  /** @nullable */
+  columns: string[] | null;
+  /** @nullable */
+  groupings: string[] | null;
+  /** @nullable */
+  tableType: string | null;
+}
+
+export interface ViewCell {
+  /**
+     * @minLength 0
+     * @maxLength 64
+     */
+  id: string;
+  /** @minLength 1 */
+  kind: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  config: PanelConfig | null;
+}
+
+export interface ViewSettings {
+  /** @nullable */
+  assetClasses: string[] | null;
+  /** @nullable */
+  sectors: string[] | null;
+  /** @nullable */
+  countries: string[] | null;
+  hideEmptyRows: boolean;
+  /** @nullable */
+  benchmarks: string[] | null;
+}
+
+export interface ViewDefinition {
+  cells: ViewCell[];
+  settings: ViewSettings | null;
+}
+
+export interface OverviewViewRequest {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  name: string;
+  definition: ViewDefinition;
+}
+
+export interface OverviewViewRow {
+  id: string;
+  name: string;
+  position: number;
+  definition: ViewDefinition;
+}
+
 export interface MovePlanAsked {
   /**
      * @minItems 1
@@ -658,6 +731,144 @@ export interface ModelRow {
   benchmarkName: string | null;
   revision: number;
   updatedAt: string;
+}
+
+export interface OwnerShareRequest {
+  customerId: string;
+  /**
+     * @minimum 0.01
+     * @maximum 100
+     */
+  share: number;
+}
+
+export interface OwnedAssetDetailsRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  name: string;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  description: string | null;
+  categoryId: string;
+  /** @nullable */
+  acquiredOn: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  location: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  insured: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  cost: number | null;
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  owners: OwnerShareRequest[];
+}
+
+export interface OwnedAssetRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  name: string;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  description: string | null;
+  categoryId: string;
+  /** @nullable */
+  acquiredOn: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  cost: number | null;
+  /** @minimum 0 */
+  value: number;
+  /** @nullable */
+  valuedOn: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  valuedBy: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  location: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  insured: number | null;
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  owners: OwnerShareRequest[];
+}
+
+export interface OwnedAssetValuationRequest {
+  valuedOn: string;
+  /** @minimum 0 */
+  value: number;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  valuedBy: string | null;
+}
+
+export interface OwnedAssetChangeRow {
+  id: string;
+  customerId: string;
+  clientName: string;
+  /** @nullable */
+  clientCode: string | null;
+  /** @nullable */
+  clientPhoto: string | null;
+  /** @nullable */
+  assetId: string | null;
+  assetName: string;
+  kind: string;
+  status: string;
+  item: OwnedAssetRequest | null;
+  valuation: OwnedAssetValuationRequest | null;
+  raisedBy: string;
+  raisedAt: string;
+  /** @nullable */
+  answeredBy: string | null;
+  /** @nullable */
+  answeredAt: string | null;
+  /** @nullable */
+  reason: string | null;
+  canAnswer: boolean;
+  canWithdraw: boolean;
+}
+
+export interface OwnedAssetDetailsSaved {
+  asked: OwnedAssetChangeRow | null;
 }
 
 export interface NonFinancialAssetRequest {
@@ -1380,11 +1591,12 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
+  floatingPointNumber?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1396,7 +1608,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -2799,6 +3010,7 @@ export const PermissionGrantPermission = {
   EXPORT_CUSTOMER_DATA: 'EXPORT_CUSTOMER_DATA',
   SEND_PROPOSALS: 'SEND_PROPOSALS',
   VIEW_ALL_CLIENTS: 'VIEW_ALL_CLIENTS',
+  VIEW_FAMILY_WEALTH: 'VIEW_FAMILY_WEALTH',
   ASSIGN_ADVISORS: 'ASSIGN_ADVISORS',
   ASSIGN_PORTFOLIO_MANAGERS: 'ASSIGN_PORTFOLIO_MANAGERS',
   ONBOARD_CLIENTS: 'ONBOARD_CLIENTS',
@@ -3309,6 +3521,31 @@ export interface ScheduleRequest {
   format: ScheduleRequestFormat;
 }
 
+export interface OwnedAssetAnswer {
+  approve: boolean;
+  /**
+     * @minLength 0
+     * @maxLength 1000
+     * @nullable
+     */
+  reason: string | null;
+}
+
+export interface OwnedAssetCategoryRequest {
+  /**
+     * @minLength 0
+     * @maxLength 80
+     */
+  name: string;
+}
+
+export interface OwnedAssetCategoryRow {
+  id: string;
+  name: string;
+  /** @nullable */
+  addedBy: string | null;
+}
+
 export interface MovePlanDecision {
   approved: boolean;
   /**
@@ -3460,6 +3697,235 @@ export interface WhatIf {
   bought: number;
   sold: number;
   netChange: number;
+}
+
+export interface OwnedAssetFileRow {
+  id: string;
+  kind: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  /** @nullable */
+  uploadedBy: string | null;
+  uploadedAt: string;
+}
+
+/**
+ * @nullable
+ */
+export type ReportFigureChange = typeof ReportFigureChange[keyof typeof ReportFigureChange] | null;
+
+
+export const ReportFigureChange = {
+  UP: 'UP',
+  DOWN: 'DOWN',
+} as const;
+
+export interface ReportFigure {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  label: string;
+  /**
+     * @minLength 0
+     * @maxLength 60
+     * @nullable
+     */
+  value: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 80
+     * @nullable
+     */
+  note: string | null;
+  /** @nullable */
+  change: ReportFigureChange;
+}
+
+export type ReportPanelPlace = typeof ReportPanelPlace[keyof typeof ReportPanelPlace];
+
+
+export const ReportPanelPlace = {
+  LEFT: 'LEFT',
+  MIDDLE: 'MIDDLE',
+  RIGHT: 'RIGHT',
+  BOTTOM: 'BOTTOM',
+} as const;
+
+export type ReportPairTone = typeof ReportPairTone[keyof typeof ReportPairTone];
+
+
+export const ReportPairTone = {
+  PLAIN: 'PLAIN',
+  GOOD: 'GOOD',
+  PENDING: 'PENDING',
+  MUTED: 'MUTED',
+} as const;
+
+export interface ReportPair {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  label: string;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     * @nullable
+     */
+  value: string | null;
+  tone: ReportPairTone;
+}
+
+export interface ReportBar {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  label: string;
+  share: number;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  amount: string | null;
+}
+
+export interface ReportPanel {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  title: string;
+  place: ReportPanelPlace;
+  /**
+     * @minItems 0
+     * @maxItems 30
+     */
+  pairs: ReportPair[];
+  /**
+     * @minItems 0
+     * @maxItems 20
+     */
+  bars: ReportBar[];
+  /**
+     * @minItems 0
+     * @maxItems 8
+     * @items.minLength 0
+     * @items.maxLength 60
+     */
+  columns: string[];
+  /**
+     * @minItems 0
+     * @maxItems 200
+     * @items.minItems 0
+     * @items.maxItems 8
+     */
+  rows: string[][];
+  alignRight: number[];
+}
+
+export interface OverviewReportRequest {
+  /**
+     * @minLength 0
+     * @maxLength 40
+     */
+  status: string;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     */
+  subtitle: string;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     */
+  asOf: string;
+  /**
+     * @minItems 0
+     * @maxItems 8
+     */
+  figures: ReportFigure[];
+  /**
+     * @minItems 1
+     * @maxItems 16
+     */
+  panels: ReportPanel[];
+}
+
+export type ExportColumnKind = typeof ExportColumnKind[keyof typeof ExportColumnKind];
+
+
+export const ExportColumnKind = {
+  TEXT: 'TEXT',
+  MONEY: 'MONEY',
+  PERCENT: 'PERCENT',
+  NUMBER: 'NUMBER',
+} as const;
+
+export interface ExportColumn {
+  /**
+     * @minLength 0
+     * @maxLength 120
+     */
+  label: string;
+  kind: ExportColumnKind;
+}
+
+export interface ExportRow {
+  /**
+     * @minItems 0
+     * @maxItems 30
+     * @items.minLength 0
+     * @items.maxLength 500
+     */
+  cells: string[];
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  level: number;
+  strong: boolean;
+}
+
+export interface ExportSheet {
+  /**
+     * @minLength 0
+     * @maxLength 80
+     */
+  name: string;
+  /**
+     * @minItems 1
+     * @maxItems 30
+     */
+  columns: ExportColumn[];
+  /**
+     * @minItems 0
+     * @maxItems 5000
+     */
+  rows: ExportRow[];
+}
+
+export interface OverviewExportRequest {
+  /**
+     * @minLength 0
+     * @maxLength 80
+     */
+  tab: string;
+  /**
+     * @minItems 0
+     * @maxItems 8
+     * @items.minLength 0
+     * @items.maxLength 300
+     */
+  about: string[];
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  sheets: ExportSheet[];
 }
 
 export interface CashflowRequest {
@@ -5207,6 +5673,15 @@ export interface ModelPerformanceTable {
   asOf: string;
 }
 
+export interface OwnedAssetChangeQueue {
+  items: OwnedAssetChangeRow[];
+  waiting: number;
+}
+
+export interface OverviewViewList {
+  views: OverviewViewRow[];
+}
+
 export interface ModelsPage {
   items: ModelRow[];
 }
@@ -5426,6 +5901,119 @@ export interface ReturnsByPeriod {
   periods: ReturnOverPeriod[];
 }
 
+export interface OwnerShare {
+  customerId: string;
+  name: string;
+  share: number;
+}
+
+export interface OwnedAssetValuationRow {
+  id: string;
+  valuedOn: string;
+  value: number;
+  /** @nullable */
+  valuedBy: string | null;
+  /** @nullable */
+  recordedBy: string | null;
+  recordedAt: string;
+}
+
+export interface OwnedAssetRow {
+  id: string;
+  name: string;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  categoryId: string | null;
+  /** @nullable */
+  category: string | null;
+  /** @nullable */
+  acquiredOn: string | null;
+  /** @nullable */
+  cost: number | null;
+  value: number;
+  valuedOn: string;
+  /** @nullable */
+  valuedBy: string | null;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  insured: number | null;
+  owners: OwnerShare[];
+  valuations: OwnedAssetValuationRow[];
+  files: OwnedAssetFileRow[];
+}
+
+export interface ClientOwnedAssets {
+  customerId: string;
+  currency: string;
+  asksFirst: boolean;
+  value: number;
+  cost: number;
+  insured: number;
+  items: OwnedAssetRow[];
+  waiting: OwnedAssetChangeRow[];
+}
+
+export interface ClassChange {
+  assetClass: string;
+  name: string;
+  change: number;
+  /** @nullable */
+  percent: number | null;
+}
+
+export interface ValueSlice {
+  key: string;
+  name: string;
+  value: number;
+  share: number;
+}
+
+export interface TopHolding {
+  name: string;
+  kind: string;
+  value: number;
+}
+
+export interface LinePoint {
+  on: string;
+  value: number;
+}
+
+export interface PositionChange {
+  positionId: string;
+  opening: number;
+  closing: number;
+  change: number;
+  /** @nullable */
+  percent: number | null;
+}
+
+export interface ClientOverview {
+  customerId: string;
+  currency: string;
+  baseCurrency: string;
+  marketValue: number;
+  assets: number;
+  liabilities: number;
+  /** @nullable */
+  twrYearToDate: number | null;
+  /** @nullable */
+  from: string | null;
+  /** @nullable */
+  to: string | null;
+  /** @nullable */
+  firstValuedOn: string | null;
+  byAssetClass: ValueSlice[];
+  changeByAssetClass: ClassChange[];
+  topHoldings: TopHolding[];
+  performance: LinePoint[];
+  portfolioValue: LinePoint[];
+  positionChanges: PositionChange[];
+  rates: LinePoint[];
+}
+
 export interface ClientNonFinancialAssets {
   customerId: string;
   currency: string;
@@ -5500,6 +6088,38 @@ export interface FixedIncome {
   durationKnown: number;
   credit: CreditBand[];
   rated: number;
+}
+
+export interface FamilyMemberWealth {
+  customerId: string;
+  name: string;
+  /** @nullable */
+  managed: number | null;
+  owned: number;
+  loans: number;
+  netWorth: number;
+  share: number;
+  /** @nullable */
+  twrYearToDate: number | null;
+  byAssetClass: ValueSlice[];
+  netWorthLine: LinePoint[];
+}
+
+export interface FamilyWealth {
+  currency: string;
+  /** @nullable */
+  from: string | null;
+  /** @nullable */
+  to: string | null;
+  members: FamilyMemberWealth[];
+  managed: number;
+  owned: number;
+  loans: number;
+  netWorth: number;
+  /** @nullable */
+  twrYearToDate: number | null;
+  byAssetClass: ValueSlice[];
+  netWorthLine: LinePoint[];
 }
 
 /**
@@ -5631,6 +6251,28 @@ export interface AllocationChangeRow {
 export interface MovePlanQueue {
   waiting: MovePlanRow[];
   answered: MovePlanRow[];
+}
+
+export interface BookRow {
+  customerId: string;
+  code: string;
+  name: string;
+  starred: boolean;
+  /** @nullable */
+  currency: string | null;
+  /** @nullable */
+  netWorth: number | null;
+  /** @nullable */
+  lastTransactionOn: string | null;
+  /** @nullable */
+  lastDocumentAt: string | null;
+  /** @nullable */
+  lastLoginAt: string | null;
+}
+
+export interface BookPage {
+  items: BookRow[];
+  totalItems: number;
 }
 
 export interface AllocationChangeQueue {
@@ -6439,6 +7081,7 @@ export const PermissionOptionPermission = {
   EXPORT_CUSTOMER_DATA: 'EXPORT_CUSTOMER_DATA',
   SEND_PROPOSALS: 'SEND_PROPOSALS',
   VIEW_ALL_CLIENTS: 'VIEW_ALL_CLIENTS',
+  VIEW_FAMILY_WEALTH: 'VIEW_FAMILY_WEALTH',
   ASSIGN_ADVISORS: 'ASSIGN_ADVISORS',
   ASSIGN_PORTFOLIO_MANAGERS: 'ASSIGN_PORTFOLIO_MANAGERS',
   ONBOARD_CLIENTS: 'ONBOARD_CLIENTS',
@@ -6552,6 +7195,14 @@ export const ListModelChangesStatus = {
   REJECTED: 'REJECTED',
   WITHDRAWN: 'WITHDRAWN',
 } as const;
+
+export type AttachToOwnedAssetParams = {
+kind: string;
+};
+
+export type AttachToOwnedAssetBody = {
+  file: Blob | File;
+};
 
 export type ListOnboardingCasesParams = {
 status?: ListOnboardingCasesStatus;
@@ -6787,10 +7438,28 @@ from?: string;
 every?: boolean;
 };
 
+export type GetClientOverviewParams = {
+from?: string;
+to?: string;
+currency?: string;
+};
+
+export type GetFamilyWealthParams = {
+from?: string;
+to?: string;
+currency?: string;
+};
+
 export type PreviewPortfolioCurrency200 = {[key: string]: number};
 
 export type GetClientAttributionParams = {
 from?: string;
+};
+
+export type ListBookParams = {
+query?: string;
+page?: number;
+size?: number;
 };
 
 export type ListDeliveriesParams = {
@@ -8113,6 +8782,157 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getSetPreTradeLimitsMutationOptions(options), queryClient);
     }
 
+export const getChangeOverviewViewUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/overview-views/${id}`
+}
+
+export const changeOverviewView = async (id: string,
+    overviewViewRequest: OverviewViewRequest, options?: Parameters<typeof http>[1]): Promise<OverviewViewRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<OverviewViewRow>(getChangeOverviewViewUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(overviewViewRequest)
+  }
+);}
+
+
+
+
+
+export const getChangeOverviewViewMutationKey = () => ['changeOverviewView'] as const;
+
+export const getChangeOverviewViewMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeOverviewView>>, TError,ChangeOverviewViewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeOverviewView>>, TError,ChangeOverviewViewMutationVariables, TContext> => {
+
+const mutationKey = getChangeOverviewViewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeOverviewView>>, ChangeOverviewViewMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  changeOverviewView(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeOverviewViewMutationResult = NonNullable<Awaited<ReturnType<typeof changeOverviewView>>>
+    export type ChangeOverviewViewMutationBody = OverviewViewRequest
+    export type ChangeOverviewViewMutationError = unknown
+    export type ChangeOverviewViewMutationVariables = {id: string;data: OverviewViewRequest}
+
+    export const useChangeOverviewView = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeOverviewView>>, TError,ChangeOverviewViewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeOverviewView>>,
+        TError,
+        ChangeOverviewViewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeOverviewViewMutationOptions(options), queryClient);
+    }
+
+export const getDeleteOverviewViewUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/overview-views/${id}`
+}
+
+export const deleteOverviewView = async (id: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getDeleteOverviewViewUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteOverviewViewMutationKey = () => ['deleteOverviewView'] as const;
+
+export const getDeleteOverviewViewMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOverviewView>>, TError,DeleteOverviewViewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteOverviewView>>, TError,DeleteOverviewViewMutationVariables, TContext> => {
+
+const mutationKey = getDeleteOverviewViewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteOverviewView>>, DeleteOverviewViewMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteOverviewView(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteOverviewViewMutationResult = NonNullable<Awaited<ReturnType<typeof deleteOverviewView>>>
+
+    export type DeleteOverviewViewMutationError = unknown
+    export type DeleteOverviewViewMutationVariables = {id: string}
+
+    export const useDeleteOverviewView = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOverviewView>>, TError,DeleteOverviewViewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteOverviewView>>,
+        TError,
+        DeleteOverviewViewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteOverviewViewMutationOptions(options), queryClient);
+    }
+
 export const getChangeTheMovePlanUrl = (id: string,) => {
 
 
@@ -8345,6 +9165,161 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeleteModelPortfolioMutationOptions(options), queryClient);
+    }
+
+export const getChangeOwnedAssetDetailsUrl = (customerId: string,
+    assetId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/owned-assets/${assetId}`
+}
+
+export const changeOwnedAssetDetails = async (customerId: string,
+    assetId: string,
+    ownedAssetDetailsRequest: OwnedAssetDetailsRequest, options?: Parameters<typeof http>[1]): Promise<OwnedAssetDetailsSaved> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<OwnedAssetDetailsSaved>(getChangeOwnedAssetDetailsUrl(customerId,assetId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ownedAssetDetailsRequest)
+  }
+);}
+
+
+
+
+
+export const getChangeOwnedAssetDetailsMutationKey = () => ['changeOwnedAssetDetails'] as const;
+
+export const getChangeOwnedAssetDetailsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeOwnedAssetDetails>>, TError,ChangeOwnedAssetDetailsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeOwnedAssetDetails>>, TError,ChangeOwnedAssetDetailsMutationVariables, TContext> => {
+
+const mutationKey = getChangeOwnedAssetDetailsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeOwnedAssetDetails>>, ChangeOwnedAssetDetailsMutationVariables> = (props) => {
+          const {customerId,assetId,data} = props ?? {};
+
+          return  changeOwnedAssetDetails(customerId,assetId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeOwnedAssetDetailsMutationResult = NonNullable<Awaited<ReturnType<typeof changeOwnedAssetDetails>>>
+    export type ChangeOwnedAssetDetailsMutationBody = OwnedAssetDetailsRequest
+    export type ChangeOwnedAssetDetailsMutationError = unknown
+    export type ChangeOwnedAssetDetailsMutationVariables = {customerId: string;assetId: string;data: OwnedAssetDetailsRequest}
+
+    export const useChangeOwnedAssetDetails = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeOwnedAssetDetails>>, TError,ChangeOwnedAssetDetailsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeOwnedAssetDetails>>,
+        TError,
+        ChangeOwnedAssetDetailsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeOwnedAssetDetailsMutationOptions(options), queryClient);
+    }
+
+export const getAskToRemoveOwnedAssetUrl = (customerId: string,
+    assetId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/owned-assets/${assetId}`
+}
+
+export const askToRemoveOwnedAsset = async (customerId: string,
+    assetId: string, options?: Parameters<typeof http>[1]): Promise<OwnedAssetChangeRow> => {
+
+  return http<OwnedAssetChangeRow>(getAskToRemoveOwnedAssetUrl(customerId,assetId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getAskToRemoveOwnedAssetMutationKey = () => ['askToRemoveOwnedAsset'] as const;
+
+export const getAskToRemoveOwnedAssetMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToRemoveOwnedAsset>>, TError,AskToRemoveOwnedAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askToRemoveOwnedAsset>>, TError,AskToRemoveOwnedAssetMutationVariables, TContext> => {
+
+const mutationKey = getAskToRemoveOwnedAssetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askToRemoveOwnedAsset>>, AskToRemoveOwnedAssetMutationVariables> = (props) => {
+          const {customerId,assetId} = props ?? {};
+
+          return  askToRemoveOwnedAsset(customerId,assetId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskToRemoveOwnedAssetMutationResult = NonNullable<Awaited<ReturnType<typeof askToRemoveOwnedAsset>>>
+
+    export type AskToRemoveOwnedAssetMutationError = unknown
+    export type AskToRemoveOwnedAssetMutationVariables = {customerId: string;assetId: string}
+
+    export const useAskToRemoveOwnedAsset = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToRemoveOwnedAsset>>, TError,AskToRemoveOwnedAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askToRemoveOwnedAsset>>,
+        TError,
+        AskToRemoveOwnedAssetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskToRemoveOwnedAssetMutationOptions(options), queryClient);
     }
 
 export const getChangeNonFinancialAssetUrl = (customerId: string,
@@ -9337,6 +10312,142 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSetClassToleranceMutationOptions(options), queryClient);
+    }
+
+export const getStarClientUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/book/${customerId}/star`
+}
+
+export const starClient = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getStarClientUrl(customerId),
+  {
+    ...options,
+    method: 'PUT'
+
+
+  }
+);}
+
+
+
+
+
+export const getStarClientMutationKey = () => ['starClient'] as const;
+
+export const getStarClientMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof starClient>>, TError,StarClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof starClient>>, TError,StarClientMutationVariables, TContext> => {
+
+const mutationKey = getStarClientMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof starClient>>, StarClientMutationVariables> = (props) => {
+          const {customerId} = props ?? {};
+
+          return  starClient(customerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StarClientMutationResult = NonNullable<Awaited<ReturnType<typeof starClient>>>
+
+    export type StarClientMutationError = unknown
+    export type StarClientMutationVariables = {customerId: string}
+
+    export const useStarClient = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof starClient>>, TError,StarClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof starClient>>,
+        TError,
+        StarClientMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStarClientMutationOptions(options), queryClient);
+    }
+
+export const getUnstarClientUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/book/${customerId}/star`
+}
+
+export const unstarClient = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getUnstarClientUrl(customerId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getUnstarClientMutationKey = () => ['unstarClient'] as const;
+
+export const getUnstarClientMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unstarClient>>, TError,UnstarClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof unstarClient>>, TError,UnstarClientMutationVariables, TContext> => {
+
+const mutationKey = getUnstarClientMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unstarClient>>, UnstarClientMutationVariables> = (props) => {
+          const {customerId} = props ?? {};
+
+          return  unstarClient(customerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnstarClientMutationResult = NonNullable<Awaited<ReturnType<typeof unstarClient>>>
+
+    export type UnstarClientMutationError = unknown
+    export type UnstarClientMutationVariables = {customerId: string}
+
+    export const useUnstarClient = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unstarClient>>, TError,UnstarClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof unstarClient>>,
+        TError,
+        UnstarClientMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUnstarClientMutationOptions(options), queryClient);
     }
 
 export const getListBenchmarkLevelsUrl = (id: string,) => {
@@ -11681,7 +12792,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     }
 
 export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',) => {
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',) => {
 
 
 
@@ -11690,7 +12801,7 @@ export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIAN
 }
 
 export const updateRolePermission = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',
     updateRolePermissionRequest: UpdateRolePermissionRequest, options?: Parameters<typeof http>[1]): Promise<RoleAccessView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -11752,7 +12863,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateRolePermissionMutationResult = NonNullable<Awaited<ReturnType<typeof updateRolePermission>>>
     export type UpdateRolePermissionMutationBody = UpdateRolePermissionRequest
     export type UpdateRolePermissionMutationError = unknown
-    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
+    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
 
     export const useUpdateRolePermission = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRolePermission>>, TError,UpdateRolePermissionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -13763,6 +14874,511 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getScheduleReportMutationOptions(options), queryClient);
     }
 
+export const getWithdrawOwnedAssetChangeUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/owned-asset-changes/${id}/withdraw`
+}
+
+export const withdrawOwnedAssetChange = async (id: string, options?: Parameters<typeof http>[1]): Promise<OwnedAssetChangeRow> => {
+
+  return http<OwnedAssetChangeRow>(getWithdrawOwnedAssetChangeUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getWithdrawOwnedAssetChangeMutationKey = () => ['withdrawOwnedAssetChange'] as const;
+
+export const getWithdrawOwnedAssetChangeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawOwnedAssetChange>>, TError,WithdrawOwnedAssetChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawOwnedAssetChange>>, TError,WithdrawOwnedAssetChangeMutationVariables, TContext> => {
+
+const mutationKey = getWithdrawOwnedAssetChangeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawOwnedAssetChange>>, WithdrawOwnedAssetChangeMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  withdrawOwnedAssetChange(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawOwnedAssetChangeMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawOwnedAssetChange>>>
+
+    export type WithdrawOwnedAssetChangeMutationError = unknown
+    export type WithdrawOwnedAssetChangeMutationVariables = {id: string}
+
+    export const useWithdrawOwnedAssetChange = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawOwnedAssetChange>>, TError,WithdrawOwnedAssetChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawOwnedAssetChange>>,
+        TError,
+        WithdrawOwnedAssetChangeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWithdrawOwnedAssetChangeMutationOptions(options), queryClient);
+    }
+
+export const getAnswerOwnedAssetChangeUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/owned-asset-changes/${id}/answer`
+}
+
+export const answerOwnedAssetChange = async (id: string,
+    ownedAssetAnswer: OwnedAssetAnswer, options?: Parameters<typeof http>[1]): Promise<OwnedAssetChangeRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<OwnedAssetChangeRow>(getAnswerOwnedAssetChangeUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ownedAssetAnswer)
+  }
+);}
+
+
+
+
+
+export const getAnswerOwnedAssetChangeMutationKey = () => ['answerOwnedAssetChange'] as const;
+
+export const getAnswerOwnedAssetChangeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerOwnedAssetChange>>, TError,AnswerOwnedAssetChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerOwnedAssetChange>>, TError,AnswerOwnedAssetChangeMutationVariables, TContext> => {
+
+const mutationKey = getAnswerOwnedAssetChangeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerOwnedAssetChange>>, AnswerOwnedAssetChangeMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  answerOwnedAssetChange(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerOwnedAssetChangeMutationResult = NonNullable<Awaited<ReturnType<typeof answerOwnedAssetChange>>>
+    export type AnswerOwnedAssetChangeMutationBody = OwnedAssetAnswer
+    export type AnswerOwnedAssetChangeMutationError = unknown
+    export type AnswerOwnedAssetChangeMutationVariables = {id: string;data: OwnedAssetAnswer}
+
+    export const useAnswerOwnedAssetChange = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerOwnedAssetChange>>, TError,AnswerOwnedAssetChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answerOwnedAssetChange>>,
+        TError,
+        AnswerOwnedAssetChangeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerOwnedAssetChangeMutationOptions(options), queryClient);
+    }
+
+export const getListOwnedAssetCategoriesUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/owned-asset-categories`
+}
+
+export const listOwnedAssetCategories = async ( options?: Parameters<typeof http>[1]): Promise<OwnedAssetCategoryRow[]> => {
+
+  return http<OwnedAssetCategoryRow[]>(getListOwnedAssetCategoriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOwnedAssetCategoriesQueryKey = () => {
+    return [
+    `/api/backoffice/portfolios/owned-asset-categories`
+    ] as const;
+    }
+
+
+export const getListOwnedAssetCategoriesQueryOptions = <TData = Awaited<ReturnType<typeof listOwnedAssetCategories>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetCategories>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOwnedAssetCategoriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOwnedAssetCategories>>> = ({ signal }) => listOwnedAssetCategories({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetCategories>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListOwnedAssetCategoriesQueryResult = NonNullable<Awaited<ReturnType<typeof listOwnedAssetCategories>>>
+export type ListOwnedAssetCategoriesQueryError = unknown
+
+
+export function useListOwnedAssetCategories<TData = Awaited<ReturnType<typeof listOwnedAssetCategories>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetCategories>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOwnedAssetCategories>>,
+          TError,
+          Awaited<ReturnType<typeof listOwnedAssetCategories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOwnedAssetCategories<TData = Awaited<ReturnType<typeof listOwnedAssetCategories>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetCategories>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOwnedAssetCategories>>,
+          TError,
+          Awaited<ReturnType<typeof listOwnedAssetCategories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOwnedAssetCategories<TData = Awaited<ReturnType<typeof listOwnedAssetCategories>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetCategories>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListOwnedAssetCategories<TData = Awaited<ReturnType<typeof listOwnedAssetCategories>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetCategories>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListOwnedAssetCategoriesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddOwnedAssetCategoryUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/owned-asset-categories`
+}
+
+export const addOwnedAssetCategory = async (ownedAssetCategoryRequest: OwnedAssetCategoryRequest, options?: Parameters<typeof http>[1]): Promise<OwnedAssetCategoryRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<OwnedAssetCategoryRow>(getAddOwnedAssetCategoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ownedAssetCategoryRequest)
+  }
+);}
+
+
+
+
+
+export const getAddOwnedAssetCategoryMutationKey = () => ['addOwnedAssetCategory'] as const;
+
+export const getAddOwnedAssetCategoryMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addOwnedAssetCategory>>, TError,AddOwnedAssetCategoryMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof addOwnedAssetCategory>>, TError,AddOwnedAssetCategoryMutationVariables, TContext> => {
+
+const mutationKey = getAddOwnedAssetCategoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addOwnedAssetCategory>>, AddOwnedAssetCategoryMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  addOwnedAssetCategory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddOwnedAssetCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof addOwnedAssetCategory>>>
+    export type AddOwnedAssetCategoryMutationBody = OwnedAssetCategoryRequest
+    export type AddOwnedAssetCategoryMutationError = unknown
+    export type AddOwnedAssetCategoryMutationVariables = {data: OwnedAssetCategoryRequest}
+
+    export const useAddOwnedAssetCategory = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addOwnedAssetCategory>>, TError,AddOwnedAssetCategoryMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addOwnedAssetCategory>>,
+        TError,
+        AddOwnedAssetCategoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddOwnedAssetCategoryMutationOptions(options), queryClient);
+    }
+
+export const getListOverviewViewsUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/overview-views`
+}
+
+export const listOverviewViews = async ( options?: Parameters<typeof http>[1]): Promise<OverviewViewList> => {
+
+  return http<OverviewViewList>(getListOverviewViewsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOverviewViewsQueryKey = () => {
+    return [
+    `/api/backoffice/portfolios/overview-views`
+    ] as const;
+    }
+
+
+export const getListOverviewViewsQueryOptions = <TData = Awaited<ReturnType<typeof listOverviewViews>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOverviewViews>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOverviewViewsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOverviewViews>>> = ({ signal }) => listOverviewViews({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOverviewViews>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListOverviewViewsQueryResult = NonNullable<Awaited<ReturnType<typeof listOverviewViews>>>
+export type ListOverviewViewsQueryError = unknown
+
+
+export function useListOverviewViews<TData = Awaited<ReturnType<typeof listOverviewViews>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOverviewViews>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOverviewViews>>,
+          TError,
+          Awaited<ReturnType<typeof listOverviewViews>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOverviewViews<TData = Awaited<ReturnType<typeof listOverviewViews>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOverviewViews>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOverviewViews>>,
+          TError,
+          Awaited<ReturnType<typeof listOverviewViews>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOverviewViews<TData = Awaited<ReturnType<typeof listOverviewViews>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOverviewViews>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListOverviewViews<TData = Awaited<ReturnType<typeof listOverviewViews>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOverviewViews>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListOverviewViewsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateOverviewViewUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/overview-views`
+}
+
+export const createOverviewView = async (overviewViewRequest: OverviewViewRequest, options?: Parameters<typeof http>[1]): Promise<OverviewViewRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<OverviewViewRow>(getCreateOverviewViewUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(overviewViewRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateOverviewViewMutationKey = () => ['createOverviewView'] as const;
+
+export const getCreateOverviewViewMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOverviewView>>, TError,CreateOverviewViewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOverviewView>>, TError,CreateOverviewViewMutationVariables, TContext> => {
+
+const mutationKey = getCreateOverviewViewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOverviewView>>, CreateOverviewViewMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createOverviewView(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOverviewViewMutationResult = NonNullable<Awaited<ReturnType<typeof createOverviewView>>>
+    export type CreateOverviewViewMutationBody = OverviewViewRequest
+    export type CreateOverviewViewMutationError = unknown
+    export type CreateOverviewViewMutationVariables = {data: OverviewViewRequest}
+
+    export const useCreateOverviewView = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOverviewView>>, TError,CreateOverviewViewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createOverviewView>>,
+        TError,
+        CreateOverviewViewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateOverviewViewMutationOptions(options), queryClient);
+    }
+
 export const getTakeBackTheMovePlanUrl = (id: string,) => {
 
 
@@ -14758,6 +16374,436 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getWhatIfMutationOptions(options), queryClient);
     }
 
+export const getListOwnedAssetsUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/owned-assets`
+}
+
+export const listOwnedAssets = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientOwnedAssets> => {
+
+  return http<ClientOwnedAssets>(getListOwnedAssetsUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOwnedAssetsQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/owned-assets`
+    ] as const;
+    }
+
+
+export const getListOwnedAssetsQueryOptions = <TData = Awaited<ReturnType<typeof listOwnedAssets>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOwnedAssetsQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOwnedAssets>>> = ({ signal }) => listOwnedAssets(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssets>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListOwnedAssetsQueryResult = NonNullable<Awaited<ReturnType<typeof listOwnedAssets>>>
+export type ListOwnedAssetsQueryError = unknown
+
+
+export function useListOwnedAssets<TData = Awaited<ReturnType<typeof listOwnedAssets>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssets>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOwnedAssets>>,
+          TError,
+          Awaited<ReturnType<typeof listOwnedAssets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOwnedAssets<TData = Awaited<ReturnType<typeof listOwnedAssets>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssets>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOwnedAssets>>,
+          TError,
+          Awaited<ReturnType<typeof listOwnedAssets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOwnedAssets<TData = Awaited<ReturnType<typeof listOwnedAssets>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListOwnedAssets<TData = Awaited<ReturnType<typeof listOwnedAssets>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListOwnedAssetsQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAskToAddOwnedAssetUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/owned-assets`
+}
+
+export const askToAddOwnedAsset = async (customerId: string,
+    ownedAssetRequest: OwnedAssetRequest, options?: Parameters<typeof http>[1]): Promise<OwnedAssetChangeRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<OwnedAssetChangeRow>(getAskToAddOwnedAssetUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ownedAssetRequest)
+  }
+);}
+
+
+
+
+
+export const getAskToAddOwnedAssetMutationKey = () => ['askToAddOwnedAsset'] as const;
+
+export const getAskToAddOwnedAssetMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToAddOwnedAsset>>, TError,AskToAddOwnedAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askToAddOwnedAsset>>, TError,AskToAddOwnedAssetMutationVariables, TContext> => {
+
+const mutationKey = getAskToAddOwnedAssetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askToAddOwnedAsset>>, AskToAddOwnedAssetMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  askToAddOwnedAsset(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskToAddOwnedAssetMutationResult = NonNullable<Awaited<ReturnType<typeof askToAddOwnedAsset>>>
+    export type AskToAddOwnedAssetMutationBody = OwnedAssetRequest
+    export type AskToAddOwnedAssetMutationError = unknown
+    export type AskToAddOwnedAssetMutationVariables = {customerId: string;data: OwnedAssetRequest}
+
+    export const useAskToAddOwnedAsset = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToAddOwnedAsset>>, TError,AskToAddOwnedAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askToAddOwnedAsset>>,
+        TError,
+        AskToAddOwnedAssetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskToAddOwnedAssetMutationOptions(options), queryClient);
+    }
+
+export const getAskToValueOwnedAssetUrl = (customerId: string,
+    assetId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/owned-assets/${assetId}/valuations`
+}
+
+export const askToValueOwnedAsset = async (customerId: string,
+    assetId: string,
+    ownedAssetValuationRequest: OwnedAssetValuationRequest, options?: Parameters<typeof http>[1]): Promise<OwnedAssetChangeRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<OwnedAssetChangeRow>(getAskToValueOwnedAssetUrl(customerId,assetId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ownedAssetValuationRequest)
+  }
+);}
+
+
+
+
+
+export const getAskToValueOwnedAssetMutationKey = () => ['askToValueOwnedAsset'] as const;
+
+export const getAskToValueOwnedAssetMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToValueOwnedAsset>>, TError,AskToValueOwnedAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askToValueOwnedAsset>>, TError,AskToValueOwnedAssetMutationVariables, TContext> => {
+
+const mutationKey = getAskToValueOwnedAssetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askToValueOwnedAsset>>, AskToValueOwnedAssetMutationVariables> = (props) => {
+          const {customerId,assetId,data} = props ?? {};
+
+          return  askToValueOwnedAsset(customerId,assetId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskToValueOwnedAssetMutationResult = NonNullable<Awaited<ReturnType<typeof askToValueOwnedAsset>>>
+    export type AskToValueOwnedAssetMutationBody = OwnedAssetValuationRequest
+    export type AskToValueOwnedAssetMutationError = unknown
+    export type AskToValueOwnedAssetMutationVariables = {customerId: string;assetId: string;data: OwnedAssetValuationRequest}
+
+    export const useAskToValueOwnedAsset = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToValueOwnedAsset>>, TError,AskToValueOwnedAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askToValueOwnedAsset>>,
+        TError,
+        AskToValueOwnedAssetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskToValueOwnedAssetMutationOptions(options), queryClient);
+    }
+
+export const getAttachToOwnedAssetUrl = (customerId: string,
+    assetId: string,
+    params: AttachToOwnedAssetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/portfolios/clients/${customerId}/owned-assets/${assetId}/files?${stringifiedParams}` : `/api/backoffice/portfolios/clients/${customerId}/owned-assets/${assetId}/files`
+}
+
+export const attachToOwnedAsset = async (customerId: string,
+    assetId: string,
+    params: AttachToOwnedAssetParams,
+    attachToOwnedAssetBody?: AttachToOwnedAssetBody, options?: Parameters<typeof http>[1]): Promise<OwnedAssetFileRow> => {
+    const formData = new FormData();
+if(attachToOwnedAssetBody?.file !== undefined) {
+ formData.append(`file`, attachToOwnedAssetBody.file);
+ }
+
+  return http<OwnedAssetFileRow>(getAttachToOwnedAssetUrl(customerId,assetId,params),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getAttachToOwnedAssetMutationKey = () => ['attachToOwnedAsset'] as const;
+
+export const getAttachToOwnedAssetMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof attachToOwnedAsset>>, TError,AttachToOwnedAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof attachToOwnedAsset>>, TError,AttachToOwnedAssetMutationVariables, TContext> => {
+
+const mutationKey = getAttachToOwnedAssetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof attachToOwnedAsset>>, AttachToOwnedAssetMutationVariables> = (props) => {
+          const {customerId,assetId,params,data} = props ?? {};
+
+          return  attachToOwnedAsset(customerId,assetId,params,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AttachToOwnedAssetMutationResult = NonNullable<Awaited<ReturnType<typeof attachToOwnedAsset>>>
+    export type AttachToOwnedAssetMutationBody = AttachToOwnedAssetBody | undefined
+    export type AttachToOwnedAssetMutationError = unknown
+    export type AttachToOwnedAssetMutationVariables = {customerId: string;assetId: string;params: AttachToOwnedAssetParams;data?: AttachToOwnedAssetBody}
+
+    export const useAttachToOwnedAsset = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof attachToOwnedAsset>>, TError,AttachToOwnedAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof attachToOwnedAsset>>,
+        TError,
+        AttachToOwnedAssetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAttachToOwnedAssetMutationOptions(options), queryClient);
+    }
+
+export const getClientOverviewReportUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/overview-report`
+}
+
+export const clientOverviewReport = async (customerId: string,
+    overviewReportRequest: OverviewReportRequest, options?: Parameters<typeof http>[1]): Promise<Blob> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<Blob>(getClientOverviewReportUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(overviewReportRequest)
+  }
+);}
+
+
+
+
+
+export const getClientOverviewReportMutationKey = () => ['clientOverviewReport'] as const;
+
+export const getClientOverviewReportMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clientOverviewReport>>, TError,ClientOverviewReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof clientOverviewReport>>, TError,ClientOverviewReportMutationVariables, TContext> => {
+
+const mutationKey = getClientOverviewReportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clientOverviewReport>>, ClientOverviewReportMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  clientOverviewReport(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClientOverviewReportMutationResult = NonNullable<Awaited<ReturnType<typeof clientOverviewReport>>>
+    export type ClientOverviewReportMutationBody = OverviewReportRequest
+    export type ClientOverviewReportMutationError = unknown
+    export type ClientOverviewReportMutationVariables = {customerId: string;data: OverviewReportRequest}
+
+    export const useClientOverviewReport = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clientOverviewReport>>, TError,ClientOverviewReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof clientOverviewReport>>,
+        TError,
+        ClientOverviewReportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getClientOverviewReportMutationOptions(options), queryClient);
+    }
+
 export const getListNonFinancialAssetsUrl = (customerId: string,) => {
 
 
@@ -15112,6 +17158,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordClientLoanMutationOptions(options), queryClient);
+    }
+
+export const getExportClientOverviewUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/exports`
+}
+
+export const exportClientOverview = async (customerId: string,
+    overviewExportRequest: OverviewExportRequest, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<string>(getExportClientOverviewUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(overviewExportRequest)
+  }
+);}
+
+
+
+
+
+export const getExportClientOverviewMutationKey = () => ['exportClientOverview'] as const;
+
+export const getExportClientOverviewMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof exportClientOverview>>, TError,ExportClientOverviewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof exportClientOverview>>, TError,ExportClientOverviewMutationVariables, TContext> => {
+
+const mutationKey = getExportClientOverviewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof exportClientOverview>>, ExportClientOverviewMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  exportClientOverview(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExportClientOverviewMutationResult = NonNullable<Awaited<ReturnType<typeof exportClientOverview>>>
+    export type ExportClientOverviewMutationBody = OverviewExportRequest
+    export type ExportClientOverviewMutationError = unknown
+    export type ExportClientOverviewMutationVariables = {customerId: string;data: OverviewExportRequest}
+
+    export const useExportClientOverview = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof exportClientOverview>>, TError,ExportClientOverviewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof exportClientOverview>>,
+        TError,
+        ExportClientOverviewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getExportClientOverviewMutationOptions(options), queryClient);
     }
 
 export const getAskOnBehalfOfTheClientUrl = (customerId: string,) => {
@@ -25067,6 +27196,101 @@ export function useGetModelPerformance<TData = Awaited<ReturnType<typeof getMode
 
 
 
+export const getListOwnedAssetChangesUrl = () => {
+
+
+
+
+  return `/api/backoffice/portfolios/owned-asset-changes`
+}
+
+export const listOwnedAssetChanges = async ( options?: Parameters<typeof http>[1]): Promise<OwnedAssetChangeQueue> => {
+
+  return http<OwnedAssetChangeQueue>(getListOwnedAssetChangesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOwnedAssetChangesQueryKey = () => {
+    return [
+    `/api/backoffice/portfolios/owned-asset-changes`
+    ] as const;
+    }
+
+
+export const getListOwnedAssetChangesQueryOptions = <TData = Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOwnedAssetChangesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOwnedAssetChanges>>> = ({ signal }) => listOwnedAssetChanges({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListOwnedAssetChangesQueryResult = NonNullable<Awaited<ReturnType<typeof listOwnedAssetChanges>>>
+export type ListOwnedAssetChangesQueryError = unknown
+
+
+export function useListOwnedAssetChanges<TData = Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOwnedAssetChanges>>,
+          TError,
+          Awaited<ReturnType<typeof listOwnedAssetChanges>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOwnedAssetChanges<TData = Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOwnedAssetChanges>>,
+          TError,
+          Awaited<ReturnType<typeof listOwnedAssetChanges>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOwnedAssetChanges<TData = Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListOwnedAssetChanges<TData = Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListOwnedAssetChangesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListMovesCarryingOutUrl = (proposalId: string,) => {
 
 
@@ -26060,6 +28284,299 @@ export function useListClientRestores<TData = Awaited<ReturnType<typeof listClie
 
 
 
+export const getReadOwnedAssetFileUrl = (customerId: string,
+    assetId: string,
+    fileId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/owned-assets/${assetId}/files/${fileId}`
+}
+
+export const readOwnedAssetFile = async (customerId: string,
+    assetId: string,
+    fileId: string, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getReadOwnedAssetFileUrl(customerId,assetId,fileId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReadOwnedAssetFileQueryKey = (customerId: string,
+    assetId: string,
+    fileId: string,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/owned-assets/${assetId}/files/${fileId}`
+    ] as const;
+    }
+
+
+export const getReadOwnedAssetFileQueryOptions = <TData = Awaited<ReturnType<typeof readOwnedAssetFile>>, TError = unknown>(customerId: string,
+    assetId: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReadOwnedAssetFileQueryKey(customerId,assetId,fileId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readOwnedAssetFile>>> = ({ signal }) => readOwnedAssetFile(customerId,assetId,fileId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined && assetId !== null && assetId !== undefined && fileId !== null && fileId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetFile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReadOwnedAssetFileQueryResult = NonNullable<Awaited<ReturnType<typeof readOwnedAssetFile>>>
+export type ReadOwnedAssetFileQueryError = unknown
+
+
+export function useReadOwnedAssetFile<TData = Awaited<ReturnType<typeof readOwnedAssetFile>>, TError = unknown>(
+ customerId: string,
+    assetId: string,
+    fileId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetFile>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readOwnedAssetFile>>,
+          TError,
+          Awaited<ReturnType<typeof readOwnedAssetFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadOwnedAssetFile<TData = Awaited<ReturnType<typeof readOwnedAssetFile>>, TError = unknown>(
+ customerId: string,
+    assetId: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetFile>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readOwnedAssetFile>>,
+          TError,
+          Awaited<ReturnType<typeof readOwnedAssetFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadOwnedAssetFile<TData = Awaited<ReturnType<typeof readOwnedAssetFile>>, TError = unknown>(
+ customerId: string,
+    assetId: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useReadOwnedAssetFile<TData = Awaited<ReturnType<typeof readOwnedAssetFile>>, TError = unknown>(
+ customerId: string,
+    assetId: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReadOwnedAssetFileQueryOptions(customerId,assetId,fileId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDetachFromOwnedAssetUrl = (customerId: string,
+    assetId: string,
+    fileId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/owned-assets/${assetId}/files/${fileId}`
+}
+
+export const detachFromOwnedAsset = async (customerId: string,
+    assetId: string,
+    fileId: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getDetachFromOwnedAssetUrl(customerId,assetId,fileId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDetachFromOwnedAssetMutationKey = () => ['detachFromOwnedAsset'] as const;
+
+export const getDetachFromOwnedAssetMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof detachFromOwnedAsset>>, TError,DetachFromOwnedAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof detachFromOwnedAsset>>, TError,DetachFromOwnedAssetMutationVariables, TContext> => {
+
+const mutationKey = getDetachFromOwnedAssetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof detachFromOwnedAsset>>, DetachFromOwnedAssetMutationVariables> = (props) => {
+          const {customerId,assetId,fileId} = props ?? {};
+
+          return  detachFromOwnedAsset(customerId,assetId,fileId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DetachFromOwnedAssetMutationResult = NonNullable<Awaited<ReturnType<typeof detachFromOwnedAsset>>>
+
+    export type DetachFromOwnedAssetMutationError = unknown
+    export type DetachFromOwnedAssetMutationVariables = {customerId: string;assetId: string;fileId: string}
+
+    export const useDetachFromOwnedAsset = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof detachFromOwnedAsset>>, TError,DetachFromOwnedAssetMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof detachFromOwnedAsset>>,
+        TError,
+        DetachFromOwnedAssetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDetachFromOwnedAssetMutationOptions(options), queryClient);
+    }
+
+export const getGetClientOverviewUrl = (customerId: string,
+    params?: GetClientOverviewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/portfolios/clients/${customerId}/overview?${stringifiedParams}` : `/api/backoffice/portfolios/clients/${customerId}/overview`
+}
+
+export const getClientOverview = async (customerId: string,
+    params?: GetClientOverviewParams, options?: Parameters<typeof http>[1]): Promise<ClientOverview> => {
+
+  return http<ClientOverview>(getGetClientOverviewUrl(customerId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientOverviewQueryKey = (customerId: string,
+    params?: GetClientOverviewParams,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/overview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetClientOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getClientOverview>>, TError = unknown>(customerId: string,
+    params?: GetClientOverviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientOverview>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientOverviewQueryKey(customerId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientOverview>>> = ({ signal }) => getClientOverview(customerId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientOverview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getClientOverview>>>
+export type GetClientOverviewQueryError = unknown
+
+
+export function useGetClientOverview<TData = Awaited<ReturnType<typeof getClientOverview>>, TError = unknown>(
+ customerId: string,
+    params: undefined |  GetClientOverviewParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientOverview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientOverview>>,
+          TError,
+          Awaited<ReturnType<typeof getClientOverview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientOverview<TData = Awaited<ReturnType<typeof getClientOverview>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientOverviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientOverview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientOverview>>,
+          TError,
+          Awaited<ReturnType<typeof getClientOverview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientOverview<TData = Awaited<ReturnType<typeof getClientOverview>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientOverviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientOverview>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientOverview<TData = Awaited<ReturnType<typeof getClientOverview>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientOverviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientOverview>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientOverviewQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getClientOnThatModelUrl = (customerId: string,
     modelPortfolioId: string,) => {
 
@@ -26531,6 +29048,116 @@ export function useGetClientFixedIncome<TData = Awaited<ReturnType<typeof getCli
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientFixedIncomeQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetFamilyWealthUrl = (customerId: string,
+    params?: GetFamilyWealthParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/portfolios/clients/${customerId}/family-wealth?${stringifiedParams}` : `/api/backoffice/portfolios/clients/${customerId}/family-wealth`
+}
+
+export const getFamilyWealth = async (customerId: string,
+    params?: GetFamilyWealthParams, options?: Parameters<typeof http>[1]): Promise<FamilyWealth> => {
+
+  return http<FamilyWealth>(getGetFamilyWealthUrl(customerId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFamilyWealthQueryKey = (customerId: string,
+    params?: GetFamilyWealthParams,) => {
+    return [
+    `/api/backoffice/portfolios/clients/${customerId}/family-wealth`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetFamilyWealthQueryOptions = <TData = Awaited<ReturnType<typeof getFamilyWealth>>, TError = unknown>(customerId: string,
+    params?: GetFamilyWealthParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFamilyWealth>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFamilyWealthQueryKey(customerId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFamilyWealth>>> = ({ signal }) => getFamilyWealth(customerId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFamilyWealth>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFamilyWealthQueryResult = NonNullable<Awaited<ReturnType<typeof getFamilyWealth>>>
+export type GetFamilyWealthQueryError = unknown
+
+
+export function useGetFamilyWealth<TData = Awaited<ReturnType<typeof getFamilyWealth>>, TError = unknown>(
+ customerId: string,
+    params: undefined |  GetFamilyWealthParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFamilyWealth>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFamilyWealth>>,
+          TError,
+          Awaited<ReturnType<typeof getFamilyWealth>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFamilyWealth<TData = Awaited<ReturnType<typeof getFamilyWealth>>, TError = unknown>(
+ customerId: string,
+    params?: GetFamilyWealthParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFamilyWealth>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFamilyWealth>>,
+          TError,
+          Awaited<ReturnType<typeof getFamilyWealth>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFamilyWealth<TData = Awaited<ReturnType<typeof getFamilyWealth>>, TError = unknown>(
+ customerId: string,
+    params?: GetFamilyWealthParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFamilyWealth>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetFamilyWealth<TData = Awaited<ReturnType<typeof getFamilyWealth>>, TError = unknown>(
+ customerId: string,
+    params?: GetFamilyWealthParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFamilyWealth>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFamilyWealthQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -27124,6 +29751,108 @@ export function useListClientRequests<TData = Awaited<ReturnType<typeof listClie
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListClientRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListBookUrl = (params?: ListBookParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/portfolios/book?${stringifiedParams}` : `/api/backoffice/portfolios/book`
+}
+
+export const listBook = async (params?: ListBookParams, options?: Parameters<typeof http>[1]): Promise<BookPage> => {
+
+  return http<BookPage>(getListBookUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBookQueryKey = (params?: ListBookParams,) => {
+    return [
+    `/api/backoffice/portfolios/book`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListBookQueryOptions = <TData = Awaited<ReturnType<typeof listBook>>, TError = unknown>(params?: ListBookParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBook>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBookQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBook>>> = ({ signal }) => listBook(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBook>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListBookQueryResult = NonNullable<Awaited<ReturnType<typeof listBook>>>
+export type ListBookQueryError = unknown
+
+
+export function useListBook<TData = Awaited<ReturnType<typeof listBook>>, TError = unknown>(
+ params: undefined |  ListBookParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBook>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBook>>,
+          TError,
+          Awaited<ReturnType<typeof listBook>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBook<TData = Awaited<ReturnType<typeof listBook>>, TError = unknown>(
+ params?: ListBookParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBook>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBook>>,
+          TError,
+          Awaited<ReturnType<typeof listBook>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBook<TData = Awaited<ReturnType<typeof listBook>>, TError = unknown>(
+ params?: ListBookParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBook>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListBook<TData = Awaited<ReturnType<typeof listBook>>, TError = unknown>(
+ params?: ListBookParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBook>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListBookQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

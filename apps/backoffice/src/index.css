@@ -86,3 +86,60 @@
     background-color: var(--color-ink-muted);
   }
 }
+
+/*
+ * The client overview's board, which a portfolio manager can rearrange. The grid library positions the
+ * panels; how a panel moves, and what it looks like while it is being moved or resized, is ours.
+ */
+@layer components {
+  .react-grid-layout {
+    position: relative;
+    transition: height 200ms ease;
+  }
+
+  .react-grid-item {
+    transition: all 200ms ease;
+    transition-property: left, top, width, height, transform;
+  }
+
+  .react-grid-item.resizing,
+  .react-grid-item.react-draggable-dragging {
+    transition: none;
+    z-index: 3;
+  }
+
+  /* Where a panel will land, in the platform's blue rather than the library's red. */
+  .react-grid-item.react-grid-placeholder {
+    border-radius: 1rem;
+    background: var(--color-primary-600);
+    opacity: 0.12;
+    transition-duration: 100ms;
+    z-index: 2;
+    user-select: none;
+  }
+
+  .react-grid-item > .react-resizable-handle {
+    display: none;
+  }
+
+  /* Only while the board is being arranged: at rest a corner dot is a control that does nothing. */
+  .board-editing .react-grid-item > .react-resizable-handle {
+    display: block;
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--color-white);
+    border-radius: 999px;
+    background: var(--color-primary-600);
+    cursor: se-resize;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .react-grid-layout,
+    .react-grid-item {
+      transition: none;
+    }
+  }
+}
