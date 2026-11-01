@@ -87,12 +87,13 @@ export function Setting({
   children: ReactNode;
 }) {
   return (
-    <div>
+    // The control kept to the foot of its cell, so two side by side line up whether or not one has a hint above it.
+    <div className="flex flex-col">
       <label htmlFor={htmlFor} className="block text-xs font-semibold text-ink-soft">
         {label}
       </label>
       {hint && <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>}
-      <div className="mt-1.5">{children}</div>
+      <div className="mt-auto pt-1.5">{children}</div>
     </div>
   );
 }
