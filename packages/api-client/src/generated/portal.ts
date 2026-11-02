@@ -40,6 +40,51 @@ export interface WealthGrant {
   mine: boolean;
 }
 
+export interface AskWealthRequest {
+  ownerId: string;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  message: string | null;
+}
+
+export interface WealthRequestRow {
+  id: string;
+  requesterId: string;
+  requesterName: string;
+  /** @nullable */
+  requesterPhoto: string | null;
+  ownerId: string;
+  ownerName: string;
+  /** @nullable */
+  ownerPhoto: string | null;
+  /** @nullable */
+  message: string | null;
+  status: string;
+  askedAt: string;
+  /** @nullable */
+  decidedAt: string | null;
+  /** @nullable */
+  decisionComment: string | null;
+  /** @nullable */
+  expiresOn: string | null;
+  mine: boolean;
+}
+
+export interface AnswerWealthRequest {
+  agreed: boolean;
+  /** @nullable */
+  expiresOn: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  comment: string | null;
+}
+
 export interface AskRequest {
   ownerId: string;
   bankId: string;
@@ -1220,6 +1265,334 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getGiveBackWealthMutationOptions(options), queryClient);
+    }
+
+export const getWealthRequestsUrl = () => {
+
+
+
+
+  return `/api/portal/sharing/wealth/requests`
+}
+
+export const wealthRequests = async ( options?: Parameters<typeof http>[1]): Promise<WealthRequestRow[]> => {
+
+  return http<WealthRequestRow[]>(getWealthRequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getWealthRequestsQueryKey = () => {
+    return [
+    `/api/portal/sharing/wealth/requests`
+    ] as const;
+    }
+
+
+export const getWealthRequestsQueryOptions = <TData = Awaited<ReturnType<typeof wealthRequests>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof wealthRequests>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getWealthRequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof wealthRequests>>> = ({ signal }) => wealthRequests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof wealthRequests>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type WealthRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof wealthRequests>>>
+export type WealthRequestsQueryError = unknown
+
+
+export function useWealthRequests<TData = Awaited<ReturnType<typeof wealthRequests>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof wealthRequests>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof wealthRequests>>,
+          TError,
+          Awaited<ReturnType<typeof wealthRequests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useWealthRequests<TData = Awaited<ReturnType<typeof wealthRequests>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof wealthRequests>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof wealthRequests>>,
+          TError,
+          Awaited<ReturnType<typeof wealthRequests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useWealthRequests<TData = Awaited<ReturnType<typeof wealthRequests>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof wealthRequests>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useWealthRequests<TData = Awaited<ReturnType<typeof wealthRequests>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof wealthRequests>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getWealthRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAskForWealthUrl = () => {
+
+
+
+
+  return `/api/portal/sharing/wealth/requests`
+}
+
+export const askForWealth = async (askWealthRequest: AskWealthRequest, options?: Parameters<typeof http>[1]): Promise<WealthRequestRow[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<WealthRequestRow[]>(getAskForWealthUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(askWealthRequest)
+  }
+);}
+
+
+
+
+
+export const getAskForWealthMutationKey = () => ['askForWealth'] as const;
+
+export const getAskForWealthMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askForWealth>>, TError,AskForWealthMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askForWealth>>, TError,AskForWealthMutationVariables, TContext> => {
+
+const mutationKey = getAskForWealthMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askForWealth>>, AskForWealthMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  askForWealth(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskForWealthMutationResult = NonNullable<Awaited<ReturnType<typeof askForWealth>>>
+    export type AskForWealthMutationBody = AskWealthRequest
+    export type AskForWealthMutationError = unknown
+    export type AskForWealthMutationVariables = {data: AskWealthRequest}
+
+    export const useAskForWealth = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askForWealth>>, TError,AskForWealthMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askForWealth>>,
+        TError,
+        AskForWealthMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskForWealthMutationOptions(options), queryClient);
+    }
+
+export const getCancelWealthRequestUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/sharing/wealth/requests/${id}/cancel`
+}
+
+export const cancelWealthRequest = async (id: string, options?: Parameters<typeof http>[1]): Promise<WealthRequestRow[]> => {
+
+  return http<WealthRequestRow[]>(getCancelWealthRequestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelWealthRequestMutationKey = () => ['cancelWealthRequest'] as const;
+
+export const getCancelWealthRequestMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelWealthRequest>>, TError,CancelWealthRequestMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelWealthRequest>>, TError,CancelWealthRequestMutationVariables, TContext> => {
+
+const mutationKey = getCancelWealthRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelWealthRequest>>, CancelWealthRequestMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  cancelWealthRequest(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelWealthRequestMutationResult = NonNullable<Awaited<ReturnType<typeof cancelWealthRequest>>>
+
+    export type CancelWealthRequestMutationError = unknown
+    export type CancelWealthRequestMutationVariables = {id: string}
+
+    export const useCancelWealthRequest = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelWealthRequest>>, TError,CancelWealthRequestMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancelWealthRequest>>,
+        TError,
+        CancelWealthRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelWealthRequestMutationOptions(options), queryClient);
+    }
+
+export const getAnswerWealthRequestUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/sharing/wealth/requests/${id}/answer`
+}
+
+export const answerWealthRequest = async (id: string,
+    answerWealthRequestBody: AnswerWealthRequest, options?: Parameters<typeof http>[1]): Promise<WealthRequestRow[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<WealthRequestRow[]>(getAnswerWealthRequestUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(answerWealthRequestBody)
+  }
+);}
+
+
+
+
+
+export const getAnswerWealthRequestMutationKey = () => ['answerWealthRequest'] as const;
+
+export const getAnswerWealthRequestMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerWealthRequest>>, TError,AnswerWealthRequestMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerWealthRequest>>, TError,AnswerWealthRequestMutationVariables, TContext> => {
+
+const mutationKey = getAnswerWealthRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerWealthRequest>>, AnswerWealthRequestMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  answerWealthRequest(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerWealthRequestMutationResult = NonNullable<Awaited<ReturnType<typeof answerWealthRequest>>>
+    export type AnswerWealthRequestMutationBody = AnswerWealthRequest
+    export type AnswerWealthRequestMutationError = unknown
+    export type AnswerWealthRequestMutationVariables = {id: string;data: AnswerWealthRequest}
+
+    export const useAnswerWealthRequest = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerWealthRequest>>, TError,AnswerWealthRequestMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answerWealthRequest>>,
+        TError,
+        AnswerWealthRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerWealthRequestMutationOptions(options), queryClient);
     }
 
 export const getAskUrl = () => {

@@ -4,9 +4,12 @@ import {
   useMe,
   useReceived,
   useRequests,
+  useSent,
+  useWealthRequests,
   type FamilyRequest,
   type Me,
   type RequestRow,
+  type WealthRequestRow,
 } from "@atomprive/api-client/portal";
 import {
   Activity,
@@ -32,6 +35,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useSession } from "../auth/session-context";
 import { initialsOf } from "../lib/money";
+import { lastSeen } from "./requests-seen";
 
 /**
  * The new look of the client portal, beside the classic one so the firm can put the two side by side.
@@ -52,7 +56,7 @@ const PLACES: Place[] = [
   { label: "KYC", icon: ShieldCheck },
   { label: "Family Wealth", icon: Network, to: "/new/family-wealth" },
   { label: "Family & Access", icon: Users, to: "/new/family-access" },
-  { label: "Access Requests", icon: KeyRound },
+  { label: "Access Requests", icon: KeyRound, to: "/new/access-requests" },
   { label: "Activity", icon: Activity },
   { label: "Audit Log", icon: ScrollText },
 ];
@@ -119,17 +123,27 @@ function Sidebar({ onGo }: { onGo: () => void }) {
   );
 }
 
-/** What is waiting on the client: requests to see their accounts, and invitations to join a family. */
+/**
+ * What is waiting on the client, and what has changed for them: requests to see their accounts or wealth,
+ * invitations to join a family, and answers to their own requests that came in since they last looked.
+ */
 function Waiting() {
   const access = useReceived<RequestRow[], ApiError>();
+  const sent = useSent<RequestRow[], ApiError>();
+  const wealth = useWealthRequests<WealthRequestRow[], ApiError>();
   const joins = useRequests<FamilyRequest[], ApiError>();
-  const onAccess = (access.data ?? []).filter((one) => one.status === "ASKED").length;
+  const seen = lastSeen();
+  const onAccess =
+    (access.data ?? []).filter((one) => one.status === "ASKED").length + (wealth.data ?? []).filter((one) => !one.mine && one.status === "ASKED").length;
+  const answered = [...(sent.data ?? []), ...(wealth.data ?? []).filter((one) => one.mine)].filter(
+    (one) => (one.status === "APPROVED" || one.status === "REJECTED") && one.decidedAt !== null && one.decidedAt > seen,
+  ).length;
   const onJoins = (joins.data ?? []).length;
-  const total = onAccess + onJoins;
+  const total = onAccess + answered + onJoins;
 
   return (
     <Link
-      to={onAccess > 0 ? "/access" : onJoins > 0 ? "/requests" : "/new"}
+      to={onAccess > 0 ? "/new/access-requests?tab=incoming" : answered > 0 ? "/new/access-requests?tab=history" : onJoins > 0 ? "/requests" : "/new"}
       aria-label={total > 0 ? `${total} waiting on you` : "Nothing waiting on you"}
       className="relative flex size-9 items-center justify-center rounded-lg text-ink-soft hover:bg-sidebar"
     >
