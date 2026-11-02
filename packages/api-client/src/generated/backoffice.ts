@@ -1801,14 +1801,16 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  short?: boolean;
+  number?: boolean;
   container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
+  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
+  short?: boolean;
   int?: boolean;
   long?: boolean;
   double?: boolean;
@@ -1818,8 +1820,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  number?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -4992,6 +4992,20 @@ export const SayClearanceRequestStanding = {
   BLOCKED: 'BLOCKED',
 } as const;
 
+/**
+ * @nullable
+ */
+export type SayClearanceRequestRole = typeof SayClearanceRequestRole[keyof typeof SayClearanceRequestRole] | null;
+
+
+export const SayClearanceRequestRole = {
+  ADMIN: 'ADMIN',
+  ADVISOR: 'ADVISOR',
+  COMPLIANCE: 'COMPLIANCE',
+  OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+} as const;
+
 export interface SayClearanceRequest {
   standing: SayClearanceRequestStanding;
   /**
@@ -5000,6 +5014,8 @@ export interface SayClearanceRequest {
      * @nullable
      */
   comments: string | null;
+  /** @nullable */
+  role: SayClearanceRequestRole;
 }
 
 export interface ChangeDeadlineRequest {
@@ -7790,6 +7806,7 @@ export type AttachToFormBody = {
 export type SayClearanceWithDocumentParams = {
 standing: SayClearanceWithDocumentStanding;
 comments?: string;
+role?: SayClearanceWithDocumentRole;
 };
 
 export type SayClearanceWithDocumentStanding = typeof SayClearanceWithDocumentStanding[keyof typeof SayClearanceWithDocumentStanding];
@@ -7800,6 +7817,17 @@ export const SayClearanceWithDocumentStanding = {
   GO_AHEAD: 'GO_AHEAD',
   PENDING: 'PENDING',
   BLOCKED: 'BLOCKED',
+} as const;
+
+export type SayClearanceWithDocumentRole = typeof SayClearanceWithDocumentRole[keyof typeof SayClearanceWithDocumentRole];
+
+
+export const SayClearanceWithDocumentRole = {
+  ADMIN: 'ADMIN',
+  ADVISOR: 'ADVISOR',
+  COMPLIANCE: 'COMPLIANCE',
+  OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
 } as const;
 
 export type SayClearanceWithDocumentBody = {
