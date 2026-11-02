@@ -339,6 +339,36 @@ export interface Invitation {
   expiresAt: string | null;
 }
 
+export interface Happening {
+  kind: string;
+  title: string;
+  detail: string;
+  at: string;
+}
+
+export interface LinePoint {
+  on: string;
+  value: number;
+}
+
+export interface ValueSlice {
+  key: string;
+  name: string;
+  value: number;
+  share: number;
+}
+
+export interface PortalDashboard {
+  currency: string;
+  netWorth: number;
+  /** @nullable */
+  returnYearToDate: number | null;
+  allocation: ValueSlice[];
+  valueThisYear: LinePoint[];
+  kycStatus: string;
+  activity: Happening[];
+}
+
 export interface StatementLine {
   bookedOn: string;
   description: string;
@@ -2778,6 +2808,101 @@ export function useRequests<TData = Awaited<ReturnType<typeof requests>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDashboardUrl = () => {
+
+
+
+
+  return `/api/portal/dashboard`
+}
+
+export const dashboard = async ( options?: Parameters<typeof http>[1]): Promise<PortalDashboard> => {
+
+  return http<PortalDashboard>(getDashboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDashboardQueryKey = () => {
+    return [
+    `/api/portal/dashboard`
+    ] as const;
+    }
+
+
+export const getDashboardQueryOptions = <TData = Awaited<ReturnType<typeof dashboard>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof dashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDashboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof dashboard>>> = ({ signal }) => dashboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof dashboard>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type DashboardQueryResult = NonNullable<Awaited<ReturnType<typeof dashboard>>>
+export type DashboardQueryError = unknown
+
+
+export function useDashboard<TData = Awaited<ReturnType<typeof dashboard>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof dashboard>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof dashboard>>,
+          TError,
+          Awaited<ReturnType<typeof dashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useDashboard<TData = Awaited<ReturnType<typeof dashboard>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof dashboard>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof dashboard>>,
+          TError,
+          Awaited<ReturnType<typeof dashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useDashboard<TData = Awaited<ReturnType<typeof dashboard>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof dashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useDashboard<TData = Awaited<ReturnType<typeof dashboard>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof dashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getDashboardQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
