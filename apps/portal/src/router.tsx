@@ -17,6 +17,8 @@ import { DashboardPage } from "./wealth/dashboard-page";
 import { AccountPage as NewAccountPage } from "./wealth/account-page";
 import { AccountsPage as NewAccountsPage } from "./wealth/accounts-page";
 import { DocumentsPage } from "./wealth/documents-page";
+import { FormSignPage } from "./wealth/form-sign-page";
+import { FormsPage } from "./wealth/forms-page";
 import { HoldingsPage } from "./wealth/holdings-page";
 import { PortfolioPage } from "./wealth/portfolio-page";
 
@@ -44,6 +46,8 @@ export const router = createBrowserRouter([
       { path: "accounts", element: <NewAccountsPage /> },
       { path: "accounts/:id", element: <NewAccountPage /> },
       { path: "documents", element: <DocumentsPage /> },
+      { path: "forms", element: <FormsPage /> },
+      { path: "forms/:id", element: <FormSignPage /> },
     ],
   },
   {
