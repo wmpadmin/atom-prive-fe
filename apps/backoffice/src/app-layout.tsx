@@ -45,6 +45,7 @@ import {
 } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
+import { rememberPage } from "./lib/last-page";
 import { menuFor } from "./menu";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
@@ -471,6 +472,12 @@ export function AppLayout() {
   const user = useStaffUser();
   const { pathname, search } = useLocation();
   const items = menuFor(user);
+  // Where somebody was before Report an issue, so a ticket can say which page the problem was on.
+  useEffect(() => {
+    if (!pathname.startsWith("/my-tickets") && !pathname.startsWith("/support")) {
+      rememberPage(window.location.href);
+    }
+  }, [pathname, search]);
   const { preferences, change } = usePreferences();
   // Live while a drag is in flight; what is on file otherwise. Reading straight from preferences would
   // mean a storage write per pointer move, and holding only local state would forget it on the next screen.

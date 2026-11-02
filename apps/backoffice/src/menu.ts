@@ -13,6 +13,7 @@ import {
   FileSpreadsheet,
   FileText,
   FolderOpen,
+  LifeBuoy,
   Landmark,
   Layers,
   ListChecks,
@@ -445,6 +446,9 @@ const allNavigation: {
   // Somebody's own account, which everybody signed in has one of — the portfolio desk included. It was off
   // their menu for a while, and a portfolio manager then had no way to their profile, notifications or
   // preferences short of typing the address.
+  // The IT Admin's queue of every ticket, and everybody else's way to raise one of their own.
+  { to: "/support", label: "Support tickets", icon: LifeBuoy, authority: "SUPPORT_TICKETS:CHANGE" },
+  { to: "/my-tickets", label: "Report an issue", icon: LifeBuoy, authority: null, notFor: ["IT_ADMIN"] },
   { to: "/settings", label: "Settings", icon: Settings, authority: null },
 ];
 

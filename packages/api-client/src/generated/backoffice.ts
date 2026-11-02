@@ -1801,14 +1801,14 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
+  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -3038,6 +3038,7 @@ export const StaffUserRequestRolesItem = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 /**
@@ -3052,6 +3053,7 @@ export const StaffUserRequestDefaultRole = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export interface StaffUserRequest {
@@ -3158,6 +3160,7 @@ export const StaffUserDetailRolesItem = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export type StaffUserDetailStatus = typeof StaffUserDetailStatus[keyof typeof StaffUserDetailStatus];
@@ -3181,6 +3184,7 @@ export const StaffUserDetailDefaultRole = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export interface StaffUserDetail {
@@ -3273,6 +3277,8 @@ export const PermissionGrantPermission = {
   MANAGE_CONFIGURATION: 'MANAGE_CONFIGURATION',
   MANAGE_ASSET_CLASSES: 'MANAGE_ASSET_CLASSES',
   VIEW_AUDIT_LOG: 'VIEW_AUDIT_LOG',
+  SUPPORT_TICKETS: 'SUPPORT_TICKETS',
+  SIGN_IN_AS: 'SIGN_IN_AS',
 } as const;
 
 export type PermissionGrantLevel = typeof PermissionGrantLevel[keyof typeof PermissionGrantLevel];
@@ -3302,6 +3308,7 @@ export const RoleAccessViewRole = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export interface RoleAccessView {
@@ -3363,6 +3370,81 @@ export interface SyncRunRow {
 export interface StartSyncRequest {
   /** @nullable */
   accountLabel: string | null;
+}
+
+export interface StatusRequest {
+  status: string;
+}
+
+export interface TicketRow {
+  id: string;
+  reference: string;
+  subject: string;
+  status: string;
+  raisedByType: string;
+  raisedByName: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: number;
+}
+
+export interface TicketMessage {
+  id: string;
+  fromSupport: boolean;
+  authorName: string;
+  body: string;
+  at: string;
+}
+
+export interface TicketFile {
+  id: string;
+  /** @nullable */
+  messageId: string | null;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
+export interface TicketDetail {
+  ticket: TicketRow;
+  description: string;
+  /** @nullable */
+  pageUrl: string | null;
+  /** @nullable */
+  userAgent: string | null;
+  /** @nullable */
+  raisedByEmail: string | null;
+  /** @nullable */
+  resolvedAt: string | null;
+  canReopen: boolean;
+  messages: TicketMessage[];
+  files: TicketFile[];
+}
+
+export interface NewTicket {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  subject: string;
+  /**
+     * @minLength 0
+     * @maxLength 10000
+     */
+  description: string;
+  /**
+     * @minLength 0
+     * @maxLength 1000
+     * @nullable
+     */
+  pageUrl: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  userAgent: string | null;
 }
 
 export interface Reminders {
@@ -4917,6 +4999,7 @@ export const ClearanceRowRole = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export type ClearanceRowStanding = typeof ClearanceRowStanding[keyof typeof ClearanceRowStanding];
@@ -5006,6 +5089,7 @@ export const SayClearanceRequestRole = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export interface SayClearanceRequest {
@@ -5307,6 +5391,7 @@ export const EnterWorkspaceRequestRole = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export interface EnterWorkspaceRequest {
@@ -5324,6 +5409,7 @@ export const StaffProfileRolesItem = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 /**
@@ -5338,6 +5424,7 @@ export const StaffProfileActiveRole = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 /**
@@ -5352,6 +5439,7 @@ export const StaffProfileOpensIn = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export interface StaffProfile {
@@ -5703,6 +5791,7 @@ export const StaffToNameRolesItem = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export interface StaffToName {
@@ -5801,6 +5890,7 @@ export const SessionRowWorkingAs = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export interface SessionRow {
@@ -7081,6 +7171,7 @@ export const MyClearanceRowRole = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export type MyClearanceRowStanding = typeof MyClearanceRowStanding[keyof typeof MyClearanceRowStanding];
@@ -7412,6 +7503,7 @@ export const SignedInDeviceWorkingAs = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export interface SignedInDevice {
@@ -7561,6 +7653,7 @@ export const StaffUserSummaryRolesItem = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export type StaffUserSummaryStatus = typeof StaffUserSummaryStatus[keyof typeof StaffUserSummaryStatus];
@@ -7643,6 +7736,8 @@ export const PermissionOptionPermission = {
   MANAGE_CONFIGURATION: 'MANAGE_CONFIGURATION',
   MANAGE_ASSET_CLASSES: 'MANAGE_ASSET_CLASSES',
   VIEW_AUDIT_LOG: 'VIEW_AUDIT_LOG',
+  SUPPORT_TICKETS: 'SUPPORT_TICKETS',
+  SIGN_IN_AS: 'SIGN_IN_AS',
 } as const;
 
 export type PermissionOptionLevelsItem = typeof PermissionOptionLevelsItem[keyof typeof PermissionOptionLevelsItem];
@@ -7690,6 +7785,22 @@ on: boolean;
 
 export type ListClientHoldingsParams = {
 against?: string;
+};
+
+export type AnswerTicketParams = {
+body: string;
+};
+
+export type AnswerTicketBody = {
+  files?: (Blob | File)[];
+};
+
+export type ReplyToMyStaffTicketParams = {
+body: string;
+};
+
+export type ReplyToMyStaffTicketBody = {
+  files?: (Blob | File)[];
 };
 
 export type ListEntriesParams = {
@@ -7898,6 +8009,7 @@ export const SayClearanceWithDocumentRole = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export type SayClearanceWithDocumentBody = {
@@ -7935,6 +8047,7 @@ export const ListStaffUsersRole = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export type ListStaffUsersStatus = typeof ListStaffUsersStatus[keyof typeof ListStaffUsersStatus];
@@ -8316,6 +8429,7 @@ export const ExportStaffUsersRole = {
   COMPLIANCE: 'COMPLIANCE',
   OPERATIONS: 'OPERATIONS',
   PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
 } as const;
 
 export type ExportStaffUsersStatus = typeof ExportStaffUsersStatus[keyof typeof ExportStaffUsersStatus];
@@ -13736,8 +13850,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateStaffUserMutationOptions(options), queryClient);
     }
 
-export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',) => {
+export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN',
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG' | 'SUPPORT_TICKETS' | 'SIGN_IN_AS',) => {
 
 
 
@@ -13745,8 +13859,8 @@ export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIAN
   return `/api/backoffice/admin/roles/${role}/permissions/${permission}`
 }
 
-export const updateRolePermission = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',
+export const updateRolePermission = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN',
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG' | 'SUPPORT_TICKETS' | 'SIGN_IN_AS',
     updateRolePermissionRequest: UpdateRolePermissionRequest, options?: Parameters<typeof http>[1]): Promise<RoleAccessView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -13808,7 +13922,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateRolePermissionMutationResult = NonNullable<Awaited<ReturnType<typeof updateRolePermission>>>
     export type UpdateRolePermissionMutationBody = UpdateRolePermissionRequest
     export type UpdateRolePermissionMutationError = unknown
-    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
+    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG' | 'SUPPORT_TICKETS' | 'SIGN_IN_AS';data: UpdateRolePermissionRequest}
 
     export const useUpdateRolePermission = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRolePermission>>, TError,UpdateRolePermissionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -14136,6 +14250,565 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getStartSyncNowMutationOptions(options), queryClient);
+    }
+
+export const getSetTicketStatusUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/support/tickets/${id}/status`
+}
+
+export const setTicketStatus = async (id: string,
+    statusRequest: StatusRequest, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<TicketDetail>(getSetTicketStatusUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(statusRequest)
+  }
+);}
+
+
+
+
+
+export const getSetTicketStatusMutationKey = () => ['setTicketStatus'] as const;
+
+export const getSetTicketStatusMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setTicketStatus>>, TError,SetTicketStatusMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof setTicketStatus>>, TError,SetTicketStatusMutationVariables, TContext> => {
+
+const mutationKey = getSetTicketStatusMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setTicketStatus>>, SetTicketStatusMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setTicketStatus(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetTicketStatusMutationResult = NonNullable<Awaited<ReturnType<typeof setTicketStatus>>>
+    export type SetTicketStatusMutationBody = StatusRequest
+    export type SetTicketStatusMutationError = unknown
+    export type SetTicketStatusMutationVariables = {id: string;data: StatusRequest}
+
+    export const useSetTicketStatus = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setTicketStatus>>, TError,SetTicketStatusMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setTicketStatus>>,
+        TError,
+        SetTicketStatusMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetTicketStatusMutationOptions(options), queryClient);
+    }
+
+export const getAnswerTicketUrl = (id: string,
+    params: AnswerTicketParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/support/tickets/${id}/messages?${stringifiedParams}` : `/api/backoffice/support/tickets/${id}/messages`
+}
+
+export const answerTicket = async (id: string,
+    params: AnswerTicketParams,
+    answerTicketBody?: AnswerTicketBody, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+    const formData = new FormData();
+if(answerTicketBody?.files !== undefined) {
+ answerTicketBody?.files.forEach(value => formData.append(`files`, value));
+ }
+
+  return http<TicketDetail>(getAnswerTicketUrl(id,params),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getAnswerTicketMutationKey = () => ['answerTicket'] as const;
+
+export const getAnswerTicketMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerTicket>>, TError,AnswerTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerTicket>>, TError,AnswerTicketMutationVariables, TContext> => {
+
+const mutationKey = getAnswerTicketMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerTicket>>, AnswerTicketMutationVariables> = (props) => {
+          const {id,params,data} = props ?? {};
+
+          return  answerTicket(id,params,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerTicketMutationResult = NonNullable<Awaited<ReturnType<typeof answerTicket>>>
+    export type AnswerTicketMutationBody = AnswerTicketBody | undefined
+    export type AnswerTicketMutationError = unknown
+    export type AnswerTicketMutationVariables = {id: string;params: AnswerTicketParams;data?: AnswerTicketBody}
+
+    export const useAnswerTicket = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerTicket>>, TError,AnswerTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answerTicket>>,
+        TError,
+        AnswerTicketMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerTicketMutationOptions(options), queryClient);
+    }
+
+export const getMyStaffTicketsUrl = () => {
+
+
+
+
+  return `/api/backoffice/support/my-tickets`
+}
+
+export const myStaffTickets = async ( options?: Parameters<typeof http>[1]): Promise<TicketRow[]> => {
+
+  return http<TicketRow[]>(getMyStaffTicketsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyStaffTicketsQueryKey = () => {
+    return [
+    `/api/backoffice/support/my-tickets`
+    ] as const;
+    }
+
+
+export const getMyStaffTicketsQueryOptions = <TData = Awaited<ReturnType<typeof myStaffTickets>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTickets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyStaffTicketsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myStaffTickets>>> = ({ signal }) => myStaffTickets({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myStaffTickets>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyStaffTicketsQueryResult = NonNullable<Awaited<ReturnType<typeof myStaffTickets>>>
+export type MyStaffTicketsQueryError = unknown
+
+
+export function useMyStaffTickets<TData = Awaited<ReturnType<typeof myStaffTickets>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTickets>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myStaffTickets>>,
+          TError,
+          Awaited<ReturnType<typeof myStaffTickets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyStaffTickets<TData = Awaited<ReturnType<typeof myStaffTickets>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTickets>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myStaffTickets>>,
+          TError,
+          Awaited<ReturnType<typeof myStaffTickets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyStaffTickets<TData = Awaited<ReturnType<typeof myStaffTickets>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTickets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyStaffTickets<TData = Awaited<ReturnType<typeof myStaffTickets>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTickets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyStaffTicketsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRaiseStaffTicketUrl = () => {
+
+
+
+
+  return `/api/backoffice/support/my-tickets`
+}
+
+export const raiseStaffTicket = async (newTicket?: NewTicket, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+    const formData = new FormData();
+if(newTicket?.subject !== undefined) {
+ formData.append(`subject`, newTicket.subject);
+ }
+if(newTicket?.description !== undefined) {
+ formData.append(`description`, newTicket.description);
+ }
+if(newTicket?.pageUrl !== undefined && newTicket.pageUrl !== null) {
+ formData.append(`pageUrl`, newTicket.pageUrl);
+ }
+if(newTicket?.userAgent !== undefined && newTicket.userAgent !== null) {
+ formData.append(`userAgent`, newTicket.userAgent);
+ }
+
+  return http<TicketDetail>(getRaiseStaffTicketUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getRaiseStaffTicketMutationKey = () => ['raiseStaffTicket'] as const;
+
+export const getRaiseStaffTicketMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof raiseStaffTicket>>, TError,RaiseStaffTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof raiseStaffTicket>>, TError,RaiseStaffTicketMutationVariables, TContext> => {
+
+const mutationKey = getRaiseStaffTicketMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof raiseStaffTicket>>, RaiseStaffTicketMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  raiseStaffTicket(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RaiseStaffTicketMutationResult = NonNullable<Awaited<ReturnType<typeof raiseStaffTicket>>>
+    export type RaiseStaffTicketMutationBody = NewTicket | undefined
+    export type RaiseStaffTicketMutationError = unknown
+    export type RaiseStaffTicketMutationVariables = {data?: NewTicket}
+
+    export const useRaiseStaffTicket = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof raiseStaffTicket>>, TError,RaiseStaffTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof raiseStaffTicket>>,
+        TError,
+        RaiseStaffTicketMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRaiseStaffTicketMutationOptions(options), queryClient);
+    }
+
+export const getReopenMyStaffTicketUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/support/my-tickets/${id}/reopen`
+}
+
+export const reopenMyStaffTicket = async (id: string, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+
+  return http<TicketDetail>(getReopenMyStaffTicketUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReopenMyStaffTicketMutationKey = () => ['reopenMyStaffTicket'] as const;
+
+export const getReopenMyStaffTicketMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenMyStaffTicket>>, TError,ReopenMyStaffTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof reopenMyStaffTicket>>, TError,ReopenMyStaffTicketMutationVariables, TContext> => {
+
+const mutationKey = getReopenMyStaffTicketMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reopenMyStaffTicket>>, ReopenMyStaffTicketMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  reopenMyStaffTicket(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReopenMyStaffTicketMutationResult = NonNullable<Awaited<ReturnType<typeof reopenMyStaffTicket>>>
+
+    export type ReopenMyStaffTicketMutationError = unknown
+    export type ReopenMyStaffTicketMutationVariables = {id: string}
+
+    export const useReopenMyStaffTicket = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenMyStaffTicket>>, TError,ReopenMyStaffTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reopenMyStaffTicket>>,
+        TError,
+        ReopenMyStaffTicketMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReopenMyStaffTicketMutationOptions(options), queryClient);
+    }
+
+export const getReplyToMyStaffTicketUrl = (id: string,
+    params: ReplyToMyStaffTicketParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/support/my-tickets/${id}/messages?${stringifiedParams}` : `/api/backoffice/support/my-tickets/${id}/messages`
+}
+
+export const replyToMyStaffTicket = async (id: string,
+    params: ReplyToMyStaffTicketParams,
+    replyToMyStaffTicketBody?: ReplyToMyStaffTicketBody, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+    const formData = new FormData();
+if(replyToMyStaffTicketBody?.files !== undefined) {
+ replyToMyStaffTicketBody?.files.forEach(value => formData.append(`files`, value));
+ }
+
+  return http<TicketDetail>(getReplyToMyStaffTicketUrl(id,params),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getReplyToMyStaffTicketMutationKey = () => ['replyToMyStaffTicket'] as const;
+
+export const getReplyToMyStaffTicketMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replyToMyStaffTicket>>, TError,ReplyToMyStaffTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof replyToMyStaffTicket>>, TError,ReplyToMyStaffTicketMutationVariables, TContext> => {
+
+const mutationKey = getReplyToMyStaffTicketMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replyToMyStaffTicket>>, ReplyToMyStaffTicketMutationVariables> = (props) => {
+          const {id,params,data} = props ?? {};
+
+          return  replyToMyStaffTicket(id,params,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReplyToMyStaffTicketMutationResult = NonNullable<Awaited<ReturnType<typeof replyToMyStaffTicket>>>
+    export type ReplyToMyStaffTicketMutationBody = ReplyToMyStaffTicketBody | undefined
+    export type ReplyToMyStaffTicketMutationError = unknown
+    export type ReplyToMyStaffTicketMutationVariables = {id: string;params: ReplyToMyStaffTicketParams;data?: ReplyToMyStaffTicketBody}
+
+    export const useReplyToMyStaffTicket = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replyToMyStaffTicket>>, TError,ReplyToMyStaffTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof replyToMyStaffTicket>>,
+        TError,
+        ReplyToMyStaffTicketMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReplyToMyStaffTicketMutationOptions(options), queryClient);
+    }
+
+export const getCloseMyStaffTicketUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/support/my-tickets/${id}/close`
+}
+
+export const closeMyStaffTicket = async (id: string, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+
+  return http<TicketDetail>(getCloseMyStaffTicketUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCloseMyStaffTicketMutationKey = () => ['closeMyStaffTicket'] as const;
+
+export const getCloseMyStaffTicketMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMyStaffTicket>>, TError,CloseMyStaffTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeMyStaffTicket>>, TError,CloseMyStaffTicketMutationVariables, TContext> => {
+
+const mutationKey = getCloseMyStaffTicketMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeMyStaffTicket>>, CloseMyStaffTicketMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  closeMyStaffTicket(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseMyStaffTicketMutationResult = NonNullable<Awaited<ReturnType<typeof closeMyStaffTicket>>>
+
+    export type CloseMyStaffTicketMutationError = unknown
+    export type CloseMyStaffTicketMutationVariables = {id: string}
+
+    export const useCloseMyStaffTicket = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMyStaffTicket>>, TError,CloseMyStaffTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof closeMyStaffTicket>>,
+        TError,
+        CloseMyStaffTicketMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCloseMyStaffTicketMutationOptions(options), queryClient);
     }
 
 export const getRemindOneUrl = (staffUserId: string,) => {
@@ -27013,6 +27686,497 @@ export function useListBankFeeds<TData = Awaited<ReturnType<typeof listBankFeeds
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListBankFeedsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSupportQueueUrl = () => {
+
+
+
+
+  return `/api/backoffice/support/tickets`
+}
+
+export const supportQueue = async ( options?: Parameters<typeof http>[1]): Promise<TicketRow[]> => {
+
+  return http<TicketRow[]>(getSupportQueueUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSupportQueueQueryKey = () => {
+    return [
+    `/api/backoffice/support/tickets`
+    ] as const;
+    }
+
+
+export const getSupportQueueQueryOptions = <TData = Awaited<ReturnType<typeof supportQueue>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportQueue>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSupportQueueQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof supportQueue>>> = ({ signal }) => supportQueue({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof supportQueue>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SupportQueueQueryResult = NonNullable<Awaited<ReturnType<typeof supportQueue>>>
+export type SupportQueueQueryError = unknown
+
+
+export function useSupportQueue<TData = Awaited<ReturnType<typeof supportQueue>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportQueue>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof supportQueue>>,
+          TError,
+          Awaited<ReturnType<typeof supportQueue>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSupportQueue<TData = Awaited<ReturnType<typeof supportQueue>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportQueue>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof supportQueue>>,
+          TError,
+          Awaited<ReturnType<typeof supportQueue>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSupportQueue<TData = Awaited<ReturnType<typeof supportQueue>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportQueue>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useSupportQueue<TData = Awaited<ReturnType<typeof supportQueue>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportQueue>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSupportQueueQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSupportTicketUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/support/tickets/${id}`
+}
+
+export const supportTicket = async (id: string, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+
+  return http<TicketDetail>(getSupportTicketUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSupportTicketQueryKey = (id: string,) => {
+    return [
+    `/api/backoffice/support/tickets/${id}`
+    ] as const;
+    }
+
+
+export const getSupportTicketQueryOptions = <TData = Awaited<ReturnType<typeof supportTicket>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportTicket>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSupportTicketQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof supportTicket>>> = ({ signal }) => supportTicket(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof supportTicket>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SupportTicketQueryResult = NonNullable<Awaited<ReturnType<typeof supportTicket>>>
+export type SupportTicketQueryError = unknown
+
+
+export function useSupportTicket<TData = Awaited<ReturnType<typeof supportTicket>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportTicket>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof supportTicket>>,
+          TError,
+          Awaited<ReturnType<typeof supportTicket>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSupportTicket<TData = Awaited<ReturnType<typeof supportTicket>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportTicket>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof supportTicket>>,
+          TError,
+          Awaited<ReturnType<typeof supportTicket>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSupportTicket<TData = Awaited<ReturnType<typeof supportTicket>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportTicket>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useSupportTicket<TData = Awaited<ReturnType<typeof supportTicket>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportTicket>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSupportTicketQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSupportTicketFileUrl = (id: string,
+    fileId: string,) => {
+
+
+
+
+  return `/api/backoffice/support/tickets/${id}/files/${fileId}`
+}
+
+export const supportTicketFile = async (id: string,
+    fileId: string, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getSupportTicketFileUrl(id,fileId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSupportTicketFileQueryKey = (id: string,
+    fileId: string,) => {
+    return [
+    `/api/backoffice/support/tickets/${id}/files/${fileId}`
+    ] as const;
+    }
+
+
+export const getSupportTicketFileQueryOptions = <TData = Awaited<ReturnType<typeof supportTicketFile>>, TError = unknown>(id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportTicketFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSupportTicketFileQueryKey(id,fileId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof supportTicketFile>>> = ({ signal }) => supportTicketFile(id,fileId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && fileId !== null && fileId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof supportTicketFile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SupportTicketFileQueryResult = NonNullable<Awaited<ReturnType<typeof supportTicketFile>>>
+export type SupportTicketFileQueryError = unknown
+
+
+export function useSupportTicketFile<TData = Awaited<ReturnType<typeof supportTicketFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportTicketFile>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof supportTicketFile>>,
+          TError,
+          Awaited<ReturnType<typeof supportTicketFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSupportTicketFile<TData = Awaited<ReturnType<typeof supportTicketFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportTicketFile>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof supportTicketFile>>,
+          TError,
+          Awaited<ReturnType<typeof supportTicketFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSupportTicketFile<TData = Awaited<ReturnType<typeof supportTicketFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportTicketFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useSupportTicketFile<TData = Awaited<ReturnType<typeof supportTicketFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof supportTicketFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSupportTicketFileQueryOptions(id,fileId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMyStaffTicketUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/support/my-tickets/${id}`
+}
+
+export const myStaffTicket = async (id: string, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+
+  return http<TicketDetail>(getMyStaffTicketUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyStaffTicketQueryKey = (id: string,) => {
+    return [
+    `/api/backoffice/support/my-tickets/${id}`
+    ] as const;
+    }
+
+
+export const getMyStaffTicketQueryOptions = <TData = Awaited<ReturnType<typeof myStaffTicket>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTicket>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyStaffTicketQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myStaffTicket>>> = ({ signal }) => myStaffTicket(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myStaffTicket>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyStaffTicketQueryResult = NonNullable<Awaited<ReturnType<typeof myStaffTicket>>>
+export type MyStaffTicketQueryError = unknown
+
+
+export function useMyStaffTicket<TData = Awaited<ReturnType<typeof myStaffTicket>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTicket>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myStaffTicket>>,
+          TError,
+          Awaited<ReturnType<typeof myStaffTicket>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyStaffTicket<TData = Awaited<ReturnType<typeof myStaffTicket>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTicket>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myStaffTicket>>,
+          TError,
+          Awaited<ReturnType<typeof myStaffTicket>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyStaffTicket<TData = Awaited<ReturnType<typeof myStaffTicket>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTicket>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyStaffTicket<TData = Awaited<ReturnType<typeof myStaffTicket>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTicket>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyStaffTicketQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMyStaffTicketFileUrl = (id: string,
+    fileId: string,) => {
+
+
+
+
+  return `/api/backoffice/support/my-tickets/${id}/files/${fileId}`
+}
+
+export const myStaffTicketFile = async (id: string,
+    fileId: string, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getMyStaffTicketFileUrl(id,fileId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyStaffTicketFileQueryKey = (id: string,
+    fileId: string,) => {
+    return [
+    `/api/backoffice/support/my-tickets/${id}/files/${fileId}`
+    ] as const;
+    }
+
+
+export const getMyStaffTicketFileQueryOptions = <TData = Awaited<ReturnType<typeof myStaffTicketFile>>, TError = unknown>(id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTicketFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyStaffTicketFileQueryKey(id,fileId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myStaffTicketFile>>> = ({ signal }) => myStaffTicketFile(id,fileId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && fileId !== null && fileId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myStaffTicketFile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyStaffTicketFileQueryResult = NonNullable<Awaited<ReturnType<typeof myStaffTicketFile>>>
+export type MyStaffTicketFileQueryError = unknown
+
+
+export function useMyStaffTicketFile<TData = Awaited<ReturnType<typeof myStaffTicketFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTicketFile>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myStaffTicketFile>>,
+          TError,
+          Awaited<ReturnType<typeof myStaffTicketFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyStaffTicketFile<TData = Awaited<ReturnType<typeof myStaffTicketFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTicketFile>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myStaffTicketFile>>,
+          TError,
+          Awaited<ReturnType<typeof myStaffTicketFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyStaffTicketFile<TData = Awaited<ReturnType<typeof myStaffTicketFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTicketFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyStaffTicketFile<TData = Awaited<ReturnType<typeof myStaffTicketFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myStaffTicketFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyStaffTicketFileQueryOptions(id,fileId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
