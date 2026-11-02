@@ -1,6 +1,15 @@
 import { ApiError } from "@atomprive/api-client";
-import { useReadMyClearances, type MyClearanceRow, type MyClearances } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, cn } from "@atomprive/ui";
+import {
+  getReadMyClearancesQueryKey,
+  useReadMyClearances,
+  useSayClearance,
+  type MyClearanceRow,
+  type MyClearances,
+  type SayClearanceRequestStanding,
+} from "@atomprive/api-client/backoffice";
+import { Alert, Badge, Button, cn, Dialog, Field, TextArea } from "@atomprive/ui";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatDate } from "../../lib/labels";
@@ -66,6 +75,7 @@ function Rows({ title, rows }: { title: string; rows: MyClearanceRow[] }) {
   // A relationship manager opens their clients from their own list; the all-clients address turns them away.
   const user = useStaffUser();
   const clientsAt = user.activeRole === "ADVISOR" ? "/my-clients" : "/clients";
+  const [answering, setAnswering] = useState<MyClearanceRow | null>(null);
   return (
     <section className="rounded-2xl border border-line bg-white">
       <h2 className="px-6 pt-5 pb-4 text-base font-bold">{title}</h2>
@@ -77,7 +87,8 @@ function Rows({ title, rows }: { title: string; rows: MyClearanceRow[] }) {
               <th scope="col" className="py-3 pr-4 pl-6">Client</th>
               <th scope="col" className="px-4 py-3">Your desk</th>
               <th scope="col" className="px-4 py-3">You said</th>
-              <th scope="col" className="py-3 pr-6 pl-4">Wanted by</th>
+              <th scope="col" className="px-4 py-3">Wanted by</th>
+              <th scope="col" className="py-3 pr-6 pl-4 text-right"><span className="sr-only">Answer</span></th>
             </tr>
           </thead>
           <tbody>
@@ -104,7 +115,7 @@ function Rows({ title, rows }: { title: string; rows: MyClearanceRow[] }) {
                       <span className="mt-1 block max-w-xs text-xs text-ink-muted">{row.comments}</span>
                     )}
                   </td>
-                  <td className="py-3 pr-6 pl-4">
+                  <td className="px-4 py-3">
                     {row.deadline ? (
                       <>
                         {formatDate(row.deadline)}
@@ -123,12 +134,71 @@ function Rows({ title, rows }: { title: string; rows: MyClearanceRow[] }) {
                       <span className="text-ink-muted">—</span>
                     )}
                   </td>
+                  {/* Answered here, for this desk: somebody holding several desks gives each its answer from this
+                      one list, whichever role they happen to be working in. */}
+                  <td className="py-3 pr-6 pl-4 text-right">
+                    <Button size="sm" variant={row.standing === "AWAITED" ? "primary" : "secondary"} onClick={() => setAnswering(row)}>
+                      {row.standing === "AWAITED" ? "Answer" : "Change answer"}
+                    </Button>
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        {answering && <AnswerDialog row={answering} onClose={() => setAnswering(null)} />}
       </div>
     </section>
+  );
+}
+
+/** One desk's answer on one client: go ahead, still pending, or blocked with the reason. */
+function AnswerDialog({ row, onClose }: { row: MyClearanceRow; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [standing, setStanding] = useState<SayClearanceRequestStanding>(
+    row.standing === "AWAITED" ? "GO_AHEAD" : (row.standing as SayClearanceRequestStanding),
+  );
+  const [comments, setComments] = useState(row.comments ?? "");
+  const say = useSayClearance<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getReadMyClearancesQueryKey() });
+        onClose();
+      },
+    },
+  });
+  const choices: SayClearanceRequestStanding[] = ["GO_AHEAD", "PENDING", "BLOCKED"];
+  return (
+    <Dialog open title={`${row.clientName} · ${row.roleSaid}`} onClose={onClose}>
+      <div className="space-y-4">
+        <div role="radiogroup" aria-label="Your answer" className="grid grid-cols-3 overflow-hidden rounded-lg border border-line">
+          {choices.map((one) => (
+            <button
+              key={one}
+              type="button"
+              role="radio"
+              aria-checked={standing === one}
+              onClick={() => setStanding(one)}
+              className={cn("h-10 text-sm", standing === one ? "bg-primary-50 font-semibold text-primary-700" : "text-ink-soft hover:bg-slate-50")}
+            >
+              {standingLabels[one]}
+            </button>
+          ))}
+        </div>
+        <Field id="clearance-comments" label={standing === "BLOCKED" ? "What is blocking it" : "Note"} required={standing === "BLOCKED"}>
+          <TextArea id="clearance-comments" rows={3} value={comments} onChange={(event) => setComments(event.target.value)} />
+        </Field>
+        {say.error && <Alert tone="danger">{say.error.message}</Alert>}
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button
+            disabled={say.isPending || (standing === "BLOCKED" && !comments.trim())}
+            onClick={() => say.mutate({ customerId: row.customerId, data: { standing, comments: comments.trim() || null, role: row.role } })}
+          >
+            Save answer
+          </Button>
+        </div>
+      </div>
+    </Dialog>
   );
 }

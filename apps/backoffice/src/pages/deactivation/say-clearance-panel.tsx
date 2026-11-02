@@ -99,7 +99,7 @@ export function SayClearancePanel({
         {
           customerId,
           data: { file },
-          params: { standing: answer, comments: comments.trim() || undefined },
+          params: { standing: answer, comments: comments.trim() || undefined, role: mine?.role },
         },
         after,
       );
@@ -110,7 +110,8 @@ export function SayClearancePanel({
           customerId,
           // Sent as null rather than left out: the field is nullable, and omitting it would leave a
           // previous comment standing beside an answer that no longer carries one.
-          data: { standing: answer, comments: comments.trim() || null },
+          // The desk this box is for, so somebody holding several answers for the one shown.
+          data: { standing: answer, comments: comments.trim() || null, role: mine?.role ?? null },
         },
         after,
       );
