@@ -102,7 +102,6 @@ function GrantDialog({ own, onClose }: { own: AccountRow[]; onClose: () => void 
                     <span className="block text-sm font-semibold text-ink">{accountName(one)}</span>
                     <span className="block text-xs text-ink-muted">•••• {one.lastFour}</span>
                   </span>
-                  <span className="text-sm text-ink-soft tabular-nums">{balance(one.balance, one.currency)}</span>
                 </label>
               </li>
             ))}
