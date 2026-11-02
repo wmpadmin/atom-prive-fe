@@ -14,6 +14,8 @@ import { SentAccessPage } from "./pages/sent-access-page";
 import { SettingsPage } from "./pages/settings-page";
 import { OnlySignedIn, OnlySignedInNewLook, OnlySignedOut } from "./auth/guards";
 import { DashboardPage } from "./wealth/dashboard-page";
+import { AccountPage as NewAccountPage } from "./wealth/account-page";
+import { AccountsPage as NewAccountsPage } from "./wealth/accounts-page";
 import { HoldingsPage } from "./wealth/holdings-page";
 import { PortfolioPage } from "./wealth/portfolio-page";
 
@@ -38,6 +40,8 @@ export const router = createBrowserRouter([
       { index: true, element: <DashboardPage /> },
       { path: "portfolio", element: <PortfolioPage /> },
       { path: "holdings", element: <HoldingsPage /> },
+      { path: "accounts", element: <NewAccountsPage /> },
+      { path: "accounts/:id", element: <NewAccountPage /> },
     ],
   },
   {
