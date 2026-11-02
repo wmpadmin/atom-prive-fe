@@ -1802,11 +1802,10 @@ export const JsonNodeNodeType = {
 
 export interface JsonNode {
   number?: boolean;
-  string?: boolean;
   container?: boolean;
-  integralNumber?: boolean;
   nodeType?: JsonNodeNodeType;
-  floatingPointNumber?: boolean;
+  string?: boolean;
+  integralNumber?: boolean;
   missingNode?: boolean;
   valueNode?: boolean;
   pojo?: boolean;
@@ -1820,6 +1819,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;

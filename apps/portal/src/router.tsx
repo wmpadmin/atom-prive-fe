@@ -14,6 +14,7 @@ import { SentAccessPage } from "./pages/sent-access-page";
 import { SettingsPage } from "./pages/settings-page";
 import { OnlySignedIn, OnlySignedInNewLook, OnlySignedOut } from "./auth/guards";
 import { DashboardPage } from "./wealth/dashboard-page";
+import { PortfolioPage } from "./wealth/portfolio-page";
 
 /**
  * Signed out, there is one screen; signed in, there is the rest.
@@ -32,7 +33,10 @@ export const router = createBrowserRouter([
   {
     path: "/new",
     element: <OnlySignedInNewLook />,
-    children: [{ index: true, element: <DashboardPage /> }],
+    children: [
+      { index: true, element: <DashboardPage /> },
+      { path: "portfolio", element: <PortfolioPage /> },
+    ],
   },
   {
     path: "/",
