@@ -46,7 +46,7 @@ export function AccountPage() {
       <BackLink />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-balance text-ink">{accountName(account)}</h1>
+          <h1 className="text-[1.625rem] font-bold text-balance text-ink">{accountName(account)}</h1>
           <p className="mt-1 text-sm text-ink-muted">
             {account.bankName} · {accountKind(account.accountType)} · •••• {account.lastFour} · {account.currency}
           </p>
@@ -91,10 +91,10 @@ export function AccountPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[480px] text-left text-sm">
                   <thead>
-                    <tr className="bg-sidebar text-xs text-ink-soft">
-                      <th scope="col" className="rounded-l-lg px-3 py-2.5 font-semibold">Date</th>
-                      <th scope="col" className="px-3 py-2.5 font-semibold">Description</th>
-                      <th scope="col" className="rounded-r-lg px-3 py-2.5 text-right font-semibold">Amount</th>
+                    <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
+                      <th scope="col" className="py-3 pr-4 pl-3">Date</th>
+                      <th scope="col" className="px-4 py-3">Description</th>
+                      <th scope="col" className="py-3 pr-3 pl-4 text-right">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">

@@ -67,9 +67,9 @@ function NavItem({ place, onGo }: { place: Place; onGo: () => void }) {
         <span
           aria-disabled="true"
           title="Coming soon"
-          className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-ink-muted/60"
+          className="flex cursor-default items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-ink-muted/55 select-none"
         >
-          <Icon aria-hidden="true" className="size-4 shrink-0" />
+          <Icon aria-hidden="true" className="size-4.5 shrink-0" />
           <span className="min-w-0 flex-1 truncate">{place.label}</span>
           <span className="rounded-full bg-canvas px-1.5 py-0.5 text-3xs font-semibold tracking-wide text-ink-muted uppercase">
             Soon
@@ -86,12 +86,12 @@ function NavItem({ place, onGo }: { place: Place; onGo: () => void }) {
         end={place.to === "/new"}
         onClick={onGo}
         className={({ isActive }) =>
-          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold ${
-            isActive ? "bg-primary-50 text-primary-700" : "text-ink-soft hover:bg-sidebar"
+          `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+            isActive ? "bg-primary-100 font-semibold text-ink" : "text-ink-soft hover:bg-white"
           }`
         }
       >
-        <Icon aria-hidden="true" className="size-4 shrink-0" />
+        <Icon aria-hidden="true" className="size-4.5 shrink-0" />
         <span className="truncate">{place.label}</span>
       </NavLink>
     </li>
@@ -169,16 +169,19 @@ function Account({ me }: { me: Me | undefined }) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((was) => !was)}
-        className="flex items-center gap-2.5 rounded-lg py-1 pr-2 pl-1 hover:bg-sidebar"
+        className="flex items-center gap-3 rounded-xl py-1.5 pr-2 pl-3 hover:bg-white"
       >
+        <span className="hidden text-right leading-tight sm:block">
+          <span className="block text-sm font-semibold text-ink">{me?.fullName ?? " "}</span>
+          <span className="block text-xs text-ink-muted">Client</span>
+        </span>
         {me?.photo ? (
-          <img src={me.photo} alt="" className="size-8 rounded-full object-cover" />
+          <img src={me.photo} alt="" className="size-10 rounded-full object-cover" />
         ) : (
-          <span className="flex size-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700">
+          <span className="flex size-10 items-center justify-center rounded-full bg-brand-900 text-sm font-bold text-on-fill">
             {initialsOf(me?.fullName ?? "")}
           </span>
         )}
-        <span className="hidden text-sm font-semibold text-ink sm:block">{me?.fullName ?? " "}</span>
         <ChevronDown aria-hidden="true" className="size-4 text-ink-muted" />
       </button>
       {open && (
@@ -223,7 +226,7 @@ export function WealthLayout() {
     <div className="flex min-h-screen bg-canvas text-ink">
       <nav
         aria-label="Portal"
-        className="sticky top-0 hidden h-screen w-60 shrink-0 overflow-y-auto border-r border-line bg-white px-3 py-5 lg:block print:hidden"
+        className="sticky top-0 hidden h-screen w-64 shrink-0 overflow-y-auto border-r border-line bg-sidebar px-4 py-6 lg:block print:hidden"
       >
         <Sidebar onGo={() => undefined} />
       </nav>
@@ -236,7 +239,7 @@ export function WealthLayout() {
             className="absolute inset-0 bg-brand-950/40"
             onClick={() => setMenuOpen(false)}
           />
-          <nav aria-label="Portal" className="relative h-full w-64 overflow-y-auto bg-white px-3 py-5">
+          <nav aria-label="Portal" className="relative h-full w-64 overflow-y-auto bg-sidebar px-4 py-6">
             <button
               type="button"
               aria-label="Close menu"
@@ -250,8 +253,8 @@ export function WealthLayout() {
         </div>
       )}
 
-      <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-white px-4 py-2.5 sm:px-6 print:hidden">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-20 items-center gap-3 px-4 sm:px-8 print:hidden">
           <button
             type="button"
             aria-label="Open menu"
@@ -265,7 +268,7 @@ export function WealthLayout() {
             <Account me={me.data} />
           </div>
         </header>
-        <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
+        <main className="flex-1 px-4 pb-10 sm:px-8">
           <Outlet />
         </main>
       </div>
