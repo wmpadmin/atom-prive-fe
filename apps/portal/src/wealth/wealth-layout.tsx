@@ -57,7 +57,7 @@ const PLACES: Place[] = [
   { label: "Family Wealth", icon: Network, to: "/new/family-wealth" },
   { label: "Family & Access", icon: Users, to: "/new/family-access" },
   { label: "Access Requests", icon: KeyRound, to: "/new/access-requests" },
-  { label: "Activity", icon: Activity },
+  { label: "Activity", icon: Activity, to: "/new/activity" },
   { label: "Audit Log", icon: ScrollText },
 ];
 

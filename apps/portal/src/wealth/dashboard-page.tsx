@@ -16,9 +16,12 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   ChevronRight,
+  FileSignature,
+  FileText,
   KeyRound,
   Landmark,
   LineChart,
+  Mail,
   ShieldCheck,
   UserPlus,
   Users,
@@ -42,6 +45,9 @@ const KYC: Record<string, { label: string; tone: string }> = {
 };
 
 const KIND_ICON: Record<string, LucideIcon> = {
+  documents: FileText,
+  forms: FileSignature,
+  communications: Mail,
   kyc: ShieldCheck,
   access: KeyRound,
   family: Users,
@@ -145,7 +151,7 @@ function Pending() {
 
 function Recent({ activity }: { activity: Happening[] }) {
   return (
-    <Card title="Recent activity">
+    <Card title="Recent activity" action={<Link to="/new/activity" className="text-xs font-semibold text-primary-700 hover:underline">View all</Link>}>
       {activity.length === 0 ? (
         <p className="py-6 text-center text-sm text-ink-muted">Nothing has happened on your account yet.</p>
       ) : (
