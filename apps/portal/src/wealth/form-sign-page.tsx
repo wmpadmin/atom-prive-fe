@@ -1,5 +1,14 @@
 import { ApiError } from "@atomprive/api-client";
-import { getMyFormQueryKey, getMyFormsQueryKey, useMyForm, useSignMyForm, type PortalFormDetail } from "@atomprive/api-client/portal";
+import {
+  getMyFormQueryKey,
+  getMyFormsQueryKey,
+  getMyPackFormQueryKey,
+  useMyForm,
+  useMyPackForm,
+  useSignMyForm,
+  useSignMyPackForm,
+  type PortalFormDetail,
+} from "@atomprive/api-client/portal";
 import { partsOf } from "@atomprive/forms/document-parts";
 import { DocumentWording } from "@atomprive/forms/document-wording";
 import { readBack } from "@atomprive/forms/read-back";
@@ -9,7 +18,7 @@ import { Alert, Button } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, ChevronLeft, PenLine, Printer } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { when } from "../lib/dates";
 
 /**
@@ -60,21 +69,29 @@ function TheDocument({ document }: { document: NonNullable<PortalFormDetail["doc
   );
 }
 
-/** Type a name or draw it, say yes, and sign. */
-function SignPanel({ formId, title }: { formId: string; title: string }) {
+/** A form of the pack by its kind, for one nobody has started yet. */
+type PackKind = Parameters<typeof getMyPackFormQueryKey>[0];
+
+/** Type a name or draw it, say yes, and sign. A form nobody had started is opened by signing it. */
+function SignPanel({ formId, kind, title }: { formId?: string; kind?: PackKind; title: string }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [how, setHow] = useState<"TYPED" | "DRAWN">("TYPED");
   const [typed, setTyped] = useState("");
   const [drawn, setDrawn] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
-  const sign = useSignMyForm<ApiError>({
-    mutation: {
-      onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: getMyFormQueryKey(formId) });
-        void queryClient.invalidateQueries({ queryKey: getMyFormsQueryKey() });
-      },
-    },
-  });
+  const done = (signed: PortalFormDetail) => {
+    void queryClient.invalidateQueries({ queryKey: getMyFormsQueryKey() });
+    if (formId) {
+      void queryClient.invalidateQueries({ queryKey: getMyFormQueryKey(formId) });
+    } else if (signed.form.id) {
+      // Signing opened the form, so it now has a page of its own.
+      void navigate(`/new/forms/${signed.form.id}`, { replace: true });
+    }
+  };
+  const byId = useSignMyForm<ApiError>({ mutation: { onSuccess: done } });
+  const byKind = useSignMyPackForm<ApiError>({ mutation: { onSuccess: done } });
+  const sign = formId ? byId : byKind;
   const signature = how === "TYPED" ? typed.trim() : (drawn ?? "");
 
   return (
@@ -137,7 +154,11 @@ function SignPanel({ formId, title }: { formId: string; title: string }) {
       <Button
         className="mt-5"
         disabled={!signature || !agreed || sign.isPending}
-        onClick={() => sign.mutate({ id: formId, data: { signatureKind: how, signature, agreed } })}
+        onClick={() => {
+          const data = { signatureKind: how, signature, agreed };
+          if (formId) byId.mutate({ id: formId, data });
+          else if (kind) byKind.mutate({ kind, data });
+        }}
       >
         <PenLine aria-hidden="true" />
         {sign.isPending ? "Signing…" : "Sign"}
@@ -147,8 +168,10 @@ function SignPanel({ formId, title }: { formId: string; title: string }) {
 }
 
 export function FormSignPage() {
-  const { id = "" } = useParams();
-  const detail = useMyForm<PortalFormDetail, ApiError>(id);
+  const { id = "", kind } = useParams();
+  const byId = useMyForm<PortalFormDetail, ApiError>(id, { query: { enabled: Boolean(id) } });
+  const byKind = useMyPackForm<PortalFormDetail, ApiError>(kind as PackKind, { query: { enabled: Boolean(kind) } });
+  const detail = kind ? byKind : byId;
 
   if (detail.isError) {
     return (
@@ -193,8 +216,6 @@ export function FormSignPage() {
           {signature ? `You signed this on ${when(signature.signedAt)}.` : `Your signed copy is on file${form.completedAt ? `, from ${when(form.completedAt)}` : ""}.`} This is the
           record of what was signed.
         </Alert>
-      ) : !form.canSign ? (
-        <Alert tone="info">{form.stage}. It will come to you to sign once it is ready; what you see here may still change.</Alert>
       ) : (
         <Alert tone="info">Read the form through. If anything in it is wrong, contact your relationship manager before you sign.</Alert>
       )}
@@ -208,7 +229,7 @@ export function FormSignPage() {
             <TheDocument document={document} />
           </>
         ) : (
-          <div className="p-6">{readBack(form.kind, answers, attachments, id)}</div>
+          <div className="p-6">{readBack(form.kind, answers, attachments, id || form.kind)}</div>
         )}
       </section>
 
@@ -221,7 +242,7 @@ export function FormSignPage() {
         </section>
       )}
 
-      {form.canSign && <SignPanel formId={id} title={form.title} />}
+      {form.canSign && <SignPanel formId={id || undefined} kind={kind ? (kind as PackKind) : undefined} title={form.title} />}
     </div>
   );
 }

@@ -47,6 +47,7 @@ export const router = createBrowserRouter([
       { path: "accounts/:id", element: <NewAccountPage /> },
       { path: "documents", element: <DocumentsPage /> },
       { path: "forms", element: <FormsPage /> },
+      { path: "forms/pack/:kind", element: <FormSignPage /> },
       { path: "forms/:id", element: <FormSignPage /> },
     ],
   },

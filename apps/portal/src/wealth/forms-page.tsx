@@ -5,9 +5,8 @@ import { Link, useSearchParams } from "react-router";
 import { when } from "../lib/dates";
 
 /**
- * Every form in the client's pack. Pending holds everything not yet signed by them: what the firm has sent, which they
- * can sign now, and what it is still preparing, which they can read and will sign once it is sent. One sent and still
- * unsigned after its due date shows under Expired and can still be signed; Completed holds what is signed and on file.
+ * Every form in the client's pack, each theirs to sign. Pending holds what they have not signed yet; one past its due
+ * date shows under Expired and can still be signed; Completed holds what is signed and on file.
  */
 
 const TABS = [
@@ -28,7 +27,7 @@ function FormCard({ form }: { form: PortalFormRow }) {
       <div className="min-w-0 flex-1">
         <p className="font-bold text-ink">{form.title}</p>
         <p className="text-sm text-ink-muted">
-          {[form.reference, form.status === "PENDING" && !form.canSign ? form.stage : null].filter(Boolean).join(" · ")}
+          {form.reference ?? "Not opened yet"}
           {form.status === "COMPLETED" && form.completedAt
             ? ` · ${signedHere ? "Signed by you" : "Signed copy on file"} ${when(form.completedAt)}`
             : ""}
@@ -40,27 +39,21 @@ function FormCard({ form }: { form: PortalFormRow }) {
           {form.status === "EXPIRED" ? "Was due" : "Due"}: {when(form.dueOn)}
         </p>
       )}
-      {form.id ? (
-        <Link
-          to={`/new/forms/${form.id}`}
-          className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold ${
-            !form.canSign
-              ? "border border-line bg-white text-ink hover:bg-sidebar"
-              : "bg-primary-600 text-on-accent hover:bg-primary-700"
-          }`}
-        >
-          {!form.canSign ? (
-            "View"
-          ) : (
-            <>
-              <PenLine aria-hidden="true" className="size-4" />
-              Review &amp; sign
-            </>
-          )}
-        </Link>
-      ) : (
-        <span className="shrink-0 rounded-full bg-canvas px-3 py-1 text-xs font-semibold text-ink-muted">Not started</span>
-      )}
+      <Link
+        to={form.id ? `/new/forms/${form.id}` : `/new/forms/pack/${form.kind}`}
+        className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold ${
+          form.canSign ? "bg-primary-600 text-on-accent hover:bg-primary-700" : "border border-line bg-white text-ink hover:bg-sidebar"
+        }`}
+      >
+        {form.canSign ? (
+          <>
+            <PenLine aria-hidden="true" className="size-4" />
+            Review &amp; sign
+          </>
+        ) : (
+          "View"
+        )}
+      </Link>
     </li>
   );
 }
@@ -76,7 +69,7 @@ export function FormsPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-[1.625rem] font-bold text-balance text-ink">Forms &amp; Signatures</h1>
-        <p className="mt-1 text-sm text-ink-muted">Review and sign your forms and agreements, and see the ones the firm is still preparing.</p>
+        <p className="mt-1 text-sm text-ink-muted">Review and sign every form and agreement in your pack.</p>
       </div>
 
       <div role="tablist" aria-label="Forms" className="flex gap-6 overflow-x-auto border-b border-line">

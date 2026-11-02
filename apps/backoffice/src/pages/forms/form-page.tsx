@@ -420,7 +420,7 @@ function FilledForm<T>({
             taken back for one correction is sent from wherever that correction was made. */}
         {!locked && detail.summary.takenBack && current.id !== "review" && (
           <Button size="sm" disabled={busy || sendAgain.isPending || dirty} onClick={sendItAgain}>
-            {sendAgain.isPending ? "Sending…" : "Send for signature"}
+            {sendAgain.isPending ? "Sending…" : "Send to the client to sign"}
           </Button>
         )}
       </div>
@@ -517,7 +517,7 @@ function FilledForm<T>({
       {detail.summary.takenBack && (
         <Alert tone="info">
           You took this back from {detail.summary.clientName}'s relationship manager, and every answer is
-          still in it. Go through it, put right what is wrong, and press Send for signature when you are done
+          still in it. Go through it, put right what is wrong, and press Send to the client to sign when you are done
           — it will need signing afresh. Until then nobody is waiting on it.
         </Alert>
       )}
@@ -617,7 +617,7 @@ function FilledForm<T>({
                   {/* Answering the last question used to be the send. Putting it on a button of its own is
                       what lets somebody finish a form on Friday and read it again on Monday. */}
                   <Button onClick={sendItAgain} disabled={busy || sendAgain.isPending || dirty || !everythingDone}>
-                    {sendAgain.isPending ? "Sending…" : "Send for signature"}
+                    {sendAgain.isPending ? "Sending…" : "Send to the client to sign"}
                   </Button>
                 </>
               ) : (

@@ -75,8 +75,6 @@ import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
 import { UsersPage } from "./pages/users/users-page";
 import { WorkspacePage } from "./pages/workspace-page";
-import { SignaturePackPage } from "./pages/to-sign/signature-pack-page";
-import { ToSignPage } from "./pages/to-sign/to-sign-page";
 import { ClientDocumentsPage } from "./pages/client-documents/client-documents-page";
 import { ArchivedClientsPage } from "./pages/clients/archived-clients-page";
 import { MyClearancesPage } from "./pages/deactivation/my-clearances-page";
@@ -410,8 +408,9 @@ export const router = createBrowserRouter([
             // Signing is the relationship manager's half of a pack; Operations follow the same packs from a client's file.
             element: <RequireAuthority authority={ONBOARDS_CLIENTS} />,
             children: [
-              { path: "to-sign", element: <ToSignPage /> },
-              { path: "to-sign/:packId", element: <SignaturePackPage /> },
+              // The relationship manager no longer signs for the client: the client signs in the portal.
+              { path: "to-sign", element: <Navigate to="/" replace /> },
+              { path: "to-sign/:packId", element: <Navigate to="/" replace /> },
             ],
           },
           {
