@@ -315,6 +315,7 @@ export interface PortalFormRow {
   kind: string;
   title: string;
   status: string;
+  stage: string;
   filledInHere: boolean;
   /** @nullable */
   dueOn: string | null;
