@@ -3,6 +3,7 @@ import { getCurrentStaff, logout, refresh, type SignInResponse, type StaffProfil
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { forgetGoogleAccount } from "../pages/sign-in/google-identity";
+import { forgetAssistantConversation } from "../lib/assistant-conversation";
 import { SessionContext, type SessionState } from "./session";
 
 // Kept in memory only: never in localStorage, where injected scripts could read it.
@@ -21,6 +22,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const clearSession = useCallback(() => {
     accessToken = null;
+    // Signed out, or the session ran out: the next sign-in starts a new chat with the portfolio assistant.
+    forgetAssistantConversation();
     queryClient.clear();
     setState({ status: "signedOut" });
   }, [queryClient]);

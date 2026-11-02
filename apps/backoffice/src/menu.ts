@@ -27,6 +27,7 @@ import {
   TrendingUp,
   TriangleAlert,
   UserX,
+  UserPlus,
   Users,
   UsersRound,
 } from "lucide-react";
@@ -109,16 +110,20 @@ const A_CLIENT_KYC = /^\/kyc\/[^/]+(\/documents\/[^/]+)?$/;
  */
 const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   { to: "/users" },
+  // Prospects and clients together, as one section: its overview, the prospects being followed up, and
+  // the client directory below them.
+  { to: "/client-management" },
+  { to: "/prospective-clients", under: "/client-management" },
   // The client directory, the same screen Operations and Compliance read, under the name they read it by.
   // It was called "Assign relationship managers" after the one job an Admin was given it for; an entry
   // naming one job on a screen that does all of them sends a reader looking for a second entry that does
   // not exist. The screen is theirs in full - putting a relationship manager on a client is one of the
   // things done on it, not the whole of it.
-  { to: "/clients" },
+  { to: "/clients", under: "/client-management" },
   // Deciding whether the firm stops acting for a client, and the clients it has stopped acting for. Both
   // are the Admin's alone: nobody else may answer a request, and nobody else may see an archived client.
-  { to: "/deactivation-requests" },
-  { to: "/archived-clients" },
+  { to: "/deactivation-requests", under: "/client-management" },
+  { to: "/archived-clients", under: "/client-management" },
   // What the firm may do and what it runs on, before the people who do it: the Admin's own order puts
   // the permission matrix and the configuration above the staff they apply to.
   { to: "/roles" },
@@ -134,7 +139,7 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   // An Admin signs the same nine as everybody else. Their menu is written out rather than filtered down, so
   // their own declarations had to be written into it or they had no way to them at all — the screen was
   // open to them the whole time, with nothing on the menu pointing at it.
-  { to: "/my-clearances" },
+  { to: "/my-clearances", under: "/client-management" },
   { to: "/my-declarations" },
   { to: "/settings" },
 ];
@@ -164,10 +169,28 @@ const allNavigation: {
   // else. Nobody lands on it — HomePage sends each role to its own first screen and falls through to a
   // welcome card, never here — so hiding it strands no one.
   {
+    // Prospects and clients as one section. The heading is the overview itself, and the lists sit under it.
+    to: "/client-management",
+    label: "Client Management",
+    icon: UsersRound,
+    authority: ["PROSPECTIVE_CLIENTS:VIEW", "PROSPECTIVE_CLIENTS:OWN_CLIENTS"],
+    at: (path) => path === "/client-management" || path === "/client-management/overview",
+  },
+  {
+    to: "/prospective-clients",
+    label: "Prospective Clients",
+    icon: UserPlus,
+    authority: ["PROSPECTIVE_CLIENTS:VIEW", "PROSPECTIVE_CLIENTS:OWN_CLIENTS"],
+    under: "/client-management",
+  },
+  {
     to: "/clients",
     label: "All clients",
     icon: Contact,
     authority: "VIEW_ALL_CLIENTS:VIEW",
+    // In the Client Management section for whoever has it; a reader who does not work with prospects keeps
+    // it at the top level, where it always was.
+    under: "/client-management",
     // A relationship manager onboards from the whole book, but reads in full only the clients assigned to
     // them, which is My clients. A second screen onto every client would say otherwise.
     notFor: ["ADMIN", "ADVISOR", "PORTFOLIO_MANAGER"],
@@ -343,12 +366,15 @@ const allNavigation: {
     // Whoever may answer one, which is the Admin and nobody else — the same authority the API's approve
     // and reject endpoints ask for, so the menu offers exactly what the screen admits.
     authority: "MANAGE_USERS_AND_ROLES:CHANGE",
+    // With the rest of the client lifecycle, in the Client Management section.
+    under: "/client-management",
   },
   {
     to: "/archived-clients",
     label: "Archived clients",
     icon: Archive,
     authority: "MANAGE_USERS_AND_ROLES:CHANGE",
+    under: "/client-management",
   },
   // Client risk (AML) is off every role's menu at the firm's request, with the risk matrix that sat
   // under it. Taken off the menu rather than out of the codebase: both screens, their routes and the
@@ -398,7 +424,8 @@ const allNavigation: {
   // Everybody's, because what it holds is decided by which desks somebody sits at rather than by a
   // permission: a reader who holds none of the desks asked sees an empty list, which is the truth about
   // them. Beside their own declarations, which is the other thing on this menu that is theirs alone.
-  { to: "/my-clearances", label: "My clearance requests", icon: UserMinus, authority: null },
+  // In the Client Management section for whoever has it; at the top level for everybody else.
+  { to: "/my-clearances", label: "My clearance requests", icon: UserMinus, authority: null, under: "/client-management" },
   { to: "/my-declarations", label: "My declarations", icon: FileCheck, authority: null },
   // The clients assigned to this relationship manager: the whole book is not theirs, and this is the part that is.
   {
@@ -406,6 +433,7 @@ const allNavigation: {
     label: "Assigned customers",
     icon: Contact,
     authority: "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS",
+    under: "/client-management",
   },
   // Somebody's own account, which everybody signed in has one of.
   {
@@ -451,9 +479,11 @@ export function menuFor(user: StaffProfile) {
             permitted(item),
         );
 
-  // An entry and whatever sits under it, so the menu is drawn as the sections it actually has.
+  // An entry and whatever sits under it, so the menu is drawn as the sections it actually has. An entry
+  // whose section this reader does not have stays at the top level rather than disappearing with it.
+  const present = new Set(navigation.map((item) => item.to));
   const sections = navigation
-    .filter((item) => !item.under)
+    .filter((item) => !item.under || !present.has(item.under))
     .map((item) => ({ ...item, below: navigation.filter((under) => under.under === item.to) }));
 
   /*
