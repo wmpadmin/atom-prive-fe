@@ -122,11 +122,20 @@ export interface GrantRow {
   /** @nullable */
   endedHow: string | null;
   live: boolean;
+  bankAccountId: string;
 }
 
 export interface MyPermissions {
   given: GrantRow[];
   held: GrantRow[];
+}
+
+export interface GrantRequest {
+  granteeId: string;
+  /** @minItems 1 */
+  accounts: string[];
+  /** @nullable */
+  expiresOn: string | null;
 }
 
 export interface Me {
@@ -950,6 +959,88 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRelinquishMutationOptions(options), queryClient);
+    }
+
+export const getGrantUrl = () => {
+
+
+
+
+  return `/api/portal/sharing/grants`
+}
+
+export const grant = async (grantRequest: GrantRequest, options?: Parameters<typeof http>[1]): Promise<MyPermissions> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MyPermissions>(getGrantUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(grantRequest)
+  }
+);}
+
+
+
+
+
+export const getGrantMutationKey = () => ['grant'] as const;
+
+export const getGrantMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof grant>>, TError,GrantMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof grant>>, TError,GrantMutationVariables, TContext> => {
+
+const mutationKey = getGrantMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof grant>>, GrantMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  grant(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GrantMutationResult = NonNullable<Awaited<ReturnType<typeof grant>>>
+    export type GrantMutationBody = GrantRequest
+    export type GrantMutationError = unknown
+    export type GrantMutationVariables = {data: GrantRequest}
+
+    export const useGrant = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof grant>>, TError,GrantMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof grant>>,
+        TError,
+        GrantMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGrantMutationOptions(options), queryClient);
     }
 
 export const getUploadMyPhotoUrl = () => {
