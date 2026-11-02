@@ -664,6 +664,7 @@ export interface AccessEventRow {
   /** @nullable */
   about: string | null;
   outcome: string;
+  category: string;
 }
 
 export interface ClassChange {
@@ -933,6 +934,14 @@ period?: string;
 
 export type Open1Params = {
 download?: boolean;
+};
+
+export type ExportAuditLogParams = {
+format?: string;
+category?: string;
+member?: string;
+from?: string;
+to?: string;
 };
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -5997,6 +6006,203 @@ export function useDashboard<TData = Awaited<ReturnType<typeof dashboard>>, TErr
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAuditLogUrl = () => {
+
+
+
+
+  return `/api/portal/audit-log`
+}
+
+export const auditLog = async ( options?: Parameters<typeof http>[1]): Promise<AccessEventRow[]> => {
+
+  return http<AccessEventRow[]>(getAuditLogUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuditLogQueryKey = () => {
+    return [
+    `/api/portal/audit-log`
+    ] as const;
+    }
+
+
+export const getAuditLogQueryOptions = <TData = Awaited<ReturnType<typeof auditLog>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof auditLog>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAuditLogQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof auditLog>>> = ({ signal }) => auditLog({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof auditLog>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AuditLogQueryResult = NonNullable<Awaited<ReturnType<typeof auditLog>>>
+export type AuditLogQueryError = unknown
+
+
+export function useAuditLog<TData = Awaited<ReturnType<typeof auditLog>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof auditLog>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof auditLog>>,
+          TError,
+          Awaited<ReturnType<typeof auditLog>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuditLog<TData = Awaited<ReturnType<typeof auditLog>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof auditLog>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof auditLog>>,
+          TError,
+          Awaited<ReturnType<typeof auditLog>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuditLog<TData = Awaited<ReturnType<typeof auditLog>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof auditLog>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useAuditLog<TData = Awaited<ReturnType<typeof auditLog>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof auditLog>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAuditLogQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportAuditLogUrl = (params?: ExportAuditLogParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/portal/audit-log/export?${stringifiedParams}` : `/api/portal/audit-log/export`
+}
+
+export const exportAuditLog = async (params?: ExportAuditLogParams, options?: Parameters<typeof http>[1]): Promise<string | Blob> => {
+
+  return http<string | Blob>(getExportAuditLogUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportAuditLogQueryKey = (params?: ExportAuditLogParams,) => {
+    return [
+    `/api/portal/audit-log/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportAuditLogQueryOptions = <TData = Awaited<ReturnType<typeof exportAuditLog>>, TError = unknown>(params?: ExportAuditLogParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditLog>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportAuditLogQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAuditLog>>> = ({ signal }) => exportAuditLog(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportAuditLog>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportAuditLogQueryResult = NonNullable<Awaited<ReturnType<typeof exportAuditLog>>>
+export type ExportAuditLogQueryError = unknown
+
+
+export function useExportAuditLog<TData = Awaited<ReturnType<typeof exportAuditLog>>, TError = unknown>(
+ params: undefined |  ExportAuditLogParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditLog>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportAuditLog>>,
+          TError,
+          Awaited<ReturnType<typeof exportAuditLog>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportAuditLog<TData = Awaited<ReturnType<typeof exportAuditLog>>, TError = unknown>(
+ params?: ExportAuditLogParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditLog>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportAuditLog>>,
+          TError,
+          Awaited<ReturnType<typeof exportAuditLog>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportAuditLog<TData = Awaited<ReturnType<typeof exportAuditLog>>, TError = unknown>(
+ params?: ExportAuditLogParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditLog>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportAuditLog<TData = Awaited<ReturnType<typeof exportAuditLog>>, TError = unknown>(
+ params?: ExportAuditLogParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAuditLog>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportAuditLogQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

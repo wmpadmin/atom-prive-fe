@@ -58,7 +58,7 @@ const PLACES: Place[] = [
   { label: "Family & Access", icon: Users, to: "/new/family-access" },
   { label: "Access Requests", icon: KeyRound, to: "/new/access-requests" },
   { label: "Activity", icon: Activity, to: "/new/activity" },
-  { label: "Audit Log", icon: ScrollText },
+  { label: "Audit Log", icon: ScrollText, to: "/new/audit-log" },
 ];
 
 const HELP: Place = { label: "Help & Support", icon: LifeBuoy };
