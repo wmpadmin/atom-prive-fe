@@ -1,0 +1,54 @@
+{
+  "name": "@atomprive/forms",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./account-opening-entity": "./src/account-opening-entity.ts",
+    "./account-opening-individual": "./src/account-opening-individual.ts",
+    "./account-opening-individual-summary": "./src/account-opening-individual-summary.tsx",
+    "./account-opening-summary": "./src/account-opening-summary.tsx",
+    "./attached-files": "./src/attached-files.tsx",
+    "./client-classification": "./src/client-classification.ts",
+    "./client-classification-summary": "./src/client-classification-summary.tsx",
+    "./countries": "./src/countries.ts",
+    "./customer-due-diligence": "./src/customer-due-diligence.ts",
+    "./customer-due-diligence-individual": "./src/customer-due-diligence-individual.ts",
+    "./customer-due-diligence-individual-summary": "./src/customer-due-diligence-individual-summary.tsx",
+    "./customer-due-diligence-summary": "./src/customer-due-diligence-summary.tsx",
+    "./customer-identification": "./src/customer-identification.ts",
+    "./customer-identification-summary": "./src/customer-identification-summary.tsx",
+    "./dfsa-checklist": "./src/dfsa-checklist.ts",
+    "./dfsa-checklist-summary": "./src/dfsa-checklist-summary.tsx",
+    "./document-parts": "./src/document-parts.ts",
+    "./fatca-crs": "./src/fatca-crs.ts",
+    "./fatca-crs-individual": "./src/fatca-crs-individual.ts",
+    "./fatca-crs-individual-summary": "./src/fatca-crs-individual-summary.tsx",
+    "./fatca-crs-summary": "./src/fatca-crs-summary.tsx",
+    "./firm-name": "./src/firm-name.ts",
+    "./form-labels": "./src/form-labels.ts",
+    "./format": "./src/format.ts",
+    "./investment-risk-profile": "./src/investment-risk-profile.ts",
+    "./investment-risk-profile-summary": "./src/investment-risk-profile-summary.tsx",
+    "./made-signature": "./src/made-signature.ts",
+    "./professional-client-confirmation": "./src/professional-client-confirmation.ts",
+    "./professional-client-confirmation-summary": "./src/professional-client-confirmation-summary.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@atomprive/api-client": "workspace:*",
+    "@atomprive/ui": "workspace:*",
+    "lucide-react": "^1.46.0"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0",
+    "typescript": "~6.0.2",
+    "@tanstack/react-query": "^5.100.0"
+  }
+}
