@@ -18,6 +18,8 @@ import { AccountPage as NewAccountPage } from "./wealth/account-page";
 import { AccountsPage as NewAccountsPage } from "./wealth/accounts-page";
 import { DocumentsPage } from "./wealth/documents-page";
 import { FormSignPage } from "./wealth/form-sign-page";
+import { SupportPage } from "./wealth/support-page";
+import { SupportTicketPage } from "./wealth/support-ticket-page";
 import { AuditLogPage } from "./wealth/audit-log-page";
 import { ActivityPage } from "./wealth/activity-page";
 import { AccessRequestsPage } from "./wealth/access-requests-page";
@@ -57,6 +59,8 @@ export const router = createBrowserRouter([
       { path: "access-requests", element: <AccessRequestsPage /> },
       { path: "activity", element: <ActivityPage /> },
       { path: "audit-log", element: <AuditLogPage /> },
+      { path: "support", element: <SupportPage /> },
+      { path: "support/:id", element: <SupportTicketPage /> },
       { path: "forms/pack/:kind", element: <FormSignPage /> },
       { path: "forms/:id", element: <FormSignPage /> },
     ],

@@ -4,11 +4,13 @@ import {
   useMe,
   useReceived,
   useRequests,
+  useMyTickets,
   useSent,
   useWealthRequests,
   type FamilyRequest,
   type Me,
   type RequestRow,
+  type TicketRow,
   type WealthRequestRow,
 } from "@atomprive/api-client/portal";
 import {
@@ -35,6 +37,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useSession } from "../auth/session-context";
 import { initialsOf } from "../lib/money";
+import { rememberPage } from "./last-page";
 import { lastSeen } from "./requests-seen";
 
 /**
@@ -61,7 +64,7 @@ const PLACES: Place[] = [
   { label: "Audit Log", icon: ScrollText, to: "/new/audit-log" },
 ];
 
-const HELP: Place = { label: "Help & Support", icon: LifeBuoy };
+const HELP: Place = { label: "Help & Support", icon: LifeBuoy, to: "/new/support" };
 
 function NavItem({ place, onGo }: { place: Place; onGo: () => void }) {
   const Icon = place.icon;
@@ -139,11 +142,13 @@ function Waiting() {
     (one) => (one.status === "APPROVED" || one.status === "REJECTED") && one.decidedAt !== null && one.decidedAt > seen,
   ).length;
   const onJoins = (joins.data ?? []).length;
-  const total = onAccess + answered + onJoins;
+  const tickets = useMyTickets<TicketRow[], ApiError>();
+  const onTickets = (tickets.data ?? []).filter((one) => one.status === "WAITING").length;
+  const total = onAccess + answered + onJoins + onTickets;
 
   return (
     <Link
-      to={onAccess > 0 ? "/new/access-requests?tab=incoming" : answered > 0 ? "/new/access-requests?tab=history" : onJoins > 0 ? "/requests" : "/new"}
+      to={onAccess > 0 ? "/new/access-requests?tab=incoming" : answered > 0 ? "/new/access-requests?tab=history" : onJoins > 0 ? "/requests" : onTickets > 0 ? "/new/support" : "/new"}
       aria-label={total > 0 ? `${total} waiting on you` : "Nothing waiting on you"}
       className="relative flex size-9 items-center justify-center rounded-lg text-ink-soft hover:bg-sidebar"
     >
@@ -235,6 +240,13 @@ export function WealthLayout() {
     setShownFor(where.pathname);
     setMenuOpen(false);
   }
+
+  // Where the client was before Help & Support, so a ticket can say which page the problem was on.
+  useEffect(() => {
+    if (!where.pathname.startsWith("/new/support")) {
+      rememberPage(window.location.href);
+    }
+  }, [where]);
 
   return (
     <div className="flex min-h-screen bg-canvas text-ink">
