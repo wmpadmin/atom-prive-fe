@@ -2,8 +2,9 @@ import { ApiError, httpFile } from "@atomprive/api-client";
 import { getExportHoldingsUrl, useHoldings, type HoldingRow, type PortalHoldings } from "@atomprive/api-client/portal";
 import { Button, Pagination, SelectInput } from "@atomprive/ui";
 import { Building2, ChevronDown, Download, HandCoins, LineChart, Search, X, type LucideIcon } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
+import { PanelEdge } from "./panel-edge";
 
 /**
  * Everything the client holds and owes, one line each: investments, things owned outright and loans. Searched and
@@ -13,6 +14,25 @@ import { useSearchParams } from "react-router";
  */
 
 const PAGE = 10;
+
+/** How wide the details panel opens, and how far it may be dragged either way. */
+const PANEL_OPENS = 448;
+const PANEL_NARROWEST = 360;
+const PANEL_KEY = "atomprive.portal.holdingPanelWidth";
+
+function widest() {
+  return Math.max(PANEL_NARROWEST, Math.min(900, window.innerWidth - 80));
+}
+
+/** The width the client last left the panel at, kept in this browser only. */
+function rememberedWidth() {
+  try {
+    const kept = Number(window.localStorage.getItem(PANEL_KEY));
+    return kept >= PANEL_NARROWEST ? Math.min(kept, widest()) : PANEL_OPENS;
+  } catch {
+    return PANEL_OPENS;
+  }
+}
 const NOT_SENT = "Not sent by your bank yet";
 
 const KIND_ICON: Record<string, LucideIcon> = { INVESTMENT: LineChart, OWNED: Building2, LOAN: HandCoins };
@@ -98,6 +118,21 @@ function HoldingPanel({ row, currency, onClose }: { row: HoldingRow; currency: s
     document.addEventListener("keydown", escape);
     return () => document.removeEventListener("keydown", escape);
   }, [onClose]);
+  const [width, setWidth] = useState(rememberedWidth);
+  const fit = useCallback((to: number) => Math.round(Math.min(widest(), Math.max(PANEL_NARROWEST, to))), []);
+  const drag = useCallback((to: number) => setWidth(fit(to)), [fit]);
+  const settle = useCallback(
+    (to: number) => {
+      const kept = fit(to);
+      setWidth(kept);
+      try {
+        window.localStorage.setItem(PANEL_KEY, String(kept));
+      } catch {
+        // Nothing to keep it in; it opens at the usual width next time.
+      }
+    },
+    [fit],
+  );
   const Icon = KIND_ICON[row.kind] ?? LineChart;
   const dash = <span className="font-normal text-ink-muted">—</span>;
   const text = (value: string | null) => value ?? dash;
@@ -108,8 +143,19 @@ function HoldingPanel({ row, currency, onClose }: { row: HoldingRow; currency: s
         role="dialog"
         aria-modal="true"
         aria-labelledby="holding-title"
-        className="absolute inset-y-0 right-0 flex w-full max-w-md flex-col overflow-y-auto bg-white shadow-2xl"
+        className="absolute inset-y-0 right-0 flex max-w-full flex-col bg-white shadow-2xl"
+        style={{ width }}
       >
+        <PanelEdge
+          label="How wide the holding panel is"
+          width={width}
+          narrowest={PANEL_NARROWEST}
+          widest={widest()}
+          opensAt={PANEL_OPENS}
+          onDrag={drag}
+          onSettled={settle}
+        />
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <div className="flex items-start gap-3 border-b border-line px-6 py-5">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
             <Icon aria-hidden="true" className="size-5" />
@@ -147,11 +193,8 @@ function HoldingPanel({ row, currency, onClose }: { row: HoldingRow; currency: s
           <Detail label={row.kind === "OWNED" ? "What it is" : "Sub-class"}>{text(row.subClass)}</Detail>
           {row.kind === "INVESTMENT" && (
             <>
-              <Detail label="Line">{text(row.subSubClass)}</Detail>
               <Detail label="Quantity">{row.units === null ? dash : quantity(row.units)}</Detail>
-              <Detail label="Identifier (ISIN)">{text(row.identifier)}</Detail>
               <Detail label="Ticker">{text(row.ticker)}</Detail>
-              <Detail label="Issuer">{text(row.issuer)}</Detail>
               <Detail label="Country">{row.countryCode ? countryName(row.countryCode) : dash}</Detail>
               <Detail label="Sector">{text(row.sector)}</Detail>
               <Detail label="Credit rating">{text(row.creditRating)}</Detail>
@@ -159,12 +202,8 @@ function HoldingPanel({ row, currency, onClose }: { row: HoldingRow; currency: s
               <Detail label="Duration">{row.durationYears === null ? dash : `${row.durationYears.toFixed(2)} years`}</Detail>
             </>
           )}
-          <Detail label="Account">
-            <span className="font-normal text-ink-muted" title={NOT_SENT}>
-              — {NOT_SENT}
-            </span>
-          </Detail>
         </dl>
+        </div>
       </aside>
     </div>
   );
