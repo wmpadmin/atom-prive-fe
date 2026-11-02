@@ -197,6 +197,8 @@ export function AllocationRing({
   legend?: boolean;
 }) {
   const [hovered, setHovered] = useState<string | null>(null);
+  // Where the pointer is inside the ring, so the box comes out beside it rather than at a fixed place.
+  const [pointer, setPointer] = useState({ x: 0, y: 0 });
   const drawn = slices.filter((one) => one.value > 0);
   const total = drawn.reduce((sum, one) => sum + one.value, 0);
 
@@ -215,7 +217,13 @@ export function AllocationRing({
 
   return (
     <div className="flex flex-col items-center gap-5 sm:flex-row lg:flex-col xl:flex-row">
-      <div className="relative size-40 shrink-0">
+      <div
+        className="relative size-40 shrink-0"
+        onPointerMove={(event) => {
+          const box = event.currentTarget.getBoundingClientRect();
+          setPointer({ x: event.clientX - box.left, y: event.clientY - box.top });
+        }}
+      >
         <svg viewBox="0 0 100 100" role="img" aria-label="Asset allocation" className="size-full -rotate-90">
           {drawn.map((one, index) => {
             const length = (one.value / total) * circumference;
@@ -228,14 +236,14 @@ export function AllocationRing({
                 r={radius}
                 fill="none"
                 stroke={INK[index % INK.length]}
-                strokeWidth={picked === one.key ? 15 : 12}
+                strokeWidth={picked === one.key || hovered === one.key ? 16 : 12}
                 strokeDasharray={`${dash} ${circumference - dash}`}
                 strokeDashoffset={-(starts[index] ?? 0)}
                 opacity={picked && picked !== one.key ? 0.3 : 1}
                 onClick={onPick ? () => onPick(one.key) : undefined}
                 onPointerEnter={() => setHovered(one.key)}
                 onPointerLeave={() => setHovered(null)}
-                className={onPick ? "cursor-pointer transition-opacity" : undefined}
+                className={`transition-all duration-150 ${onPick ? "cursor-pointer" : ""}`}
               >
               </circle>
             );
@@ -245,9 +253,12 @@ export function AllocationRing({
           const at = drawn.findIndex((one) => one.key === hovered);
           const one = drawn[at];
           return one ? (
-            <div className="pointer-events-none absolute -top-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-xs whitespace-nowrap shadow-md">
-              <span aria-hidden="true" className="size-2.5 rounded-full" style={{ background: INK[at % INK.length] }} />
-              <span className="text-ink-soft">{one.name}</span>
+            <div
+              className="pointer-events-none absolute z-20 flex items-center gap-3 rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm whitespace-nowrap shadow-lg"
+              style={{ left: pointer.x + 14, top: pointer.y + 14 }}
+            >
+              <span aria-hidden="true" className="size-3 rounded-full" style={{ background: INK[at % INK.length] }} />
+              <span className="text-ink">{one.name}</span>
               <span className="font-semibold text-ink tabular-nums">{one.share.toFixed(2)}%</span>
             </div>
           ) : null;
