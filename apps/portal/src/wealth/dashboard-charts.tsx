@@ -233,3 +233,120 @@ export function AllocationRing({ slices, currency }: { slices: ValueSlice[]; cur
     </div>
   );
 }
+
+/** One bar: what it is called, how big, and a colour where it should not be the default. */
+export type Bar = { label: string; value: number | null; colour?: string };
+
+/**
+ * Bars from a nought line, up for gains and down for losses, on round ticks. A bar with no value is left as a gap
+ * with a dash beneath it, so a figure not yet sent never reads as nought.
+ */
+export function BarChart({
+  bars,
+  format,
+  tick,
+  label,
+  empty,
+  waterfall,
+}: {
+  bars: Bar[];
+  format: (value: number) => string;
+  tick: (value: number) => string;
+  label: string;
+  empty: string;
+  /** Each bar starts where the one before ended, as an explainer reads; bars marked total stand from nought. */
+  waterfall?: { totals: number[] };
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  if (bars.length === 0 || bars.every((one) => one.value === null)) {
+    return <p className="flex h-52 items-center justify-center px-6 text-center text-sm text-ink-muted">{empty}</p>;
+  }
+
+  // Where each bar starts and ends: from nought, or, in a waterfall, from where the running total stands.
+  const spans = bars.reduce<{ low: number; high: number; total: number }[]>((all, one, index) => {
+    const value = one.value ?? 0;
+    const before = all[all.length - 1]?.total ?? 0;
+    if (!waterfall || waterfall.totals.includes(index)) {
+      all.push({ low: Math.min(0, value), high: Math.max(0, value), total: value });
+    } else {
+      const after = before + value;
+      all.push({ low: Math.min(before, after), high: Math.max(before, after), total: after });
+    }
+    return all;
+  }, []);
+  const scale = ticks(Math.min(0, ...spans.map((one) => one.low)), Math.max(0, ...spans.map((one) => one.high)));
+  const low = scale[0] ?? 0;
+  const high = scale[scale.length - 1] ?? 1;
+  const tilted = bars.length > 6;
+  const bottom = tilted ? 64 : BOTTOM;
+  const y = (value: number) => TOP + (1 - (value - low) / (high - low || 1)) * (HEIGHT - TOP - bottom);
+  const band = (WIDTH - LEFT - RIGHT) / bars.length;
+  const width = Math.min(32, band * 0.55);
+
+  return (
+    <div className="relative">
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={label} className="h-auto w-full" onPointerLeave={() => setHover(null)}>
+        {scale.map((value) => (
+          <g key={value}>
+            <line
+              x1={LEFT}
+              x2={WIDTH - RIGHT}
+              y1={y(value)}
+              y2={y(value)}
+              stroke={value === 0 ? "var(--color-ink-muted)" : "var(--color-line)"}
+              strokeWidth="1"
+              strokeDasharray={value === 0 ? undefined : "3 3"}
+            />
+            <text x={LEFT - 8} y={y(value) + 4} textAnchor="end" fontSize="11" fill="var(--color-ink-muted)">
+              {tick(value)}
+            </text>
+          </g>
+        ))}
+        {bars.map((one, index) => {
+          const centre = LEFT + band * index + band / 2;
+          const span = spans[index]!;
+          const value = one.value ?? 0;
+          const colour = one.colour ?? (value < 0 ? "#f97316" : "var(--color-brand-900)");
+          return (
+            <g key={`${one.label}-${index}`} onPointerEnter={() => setHover(index)}>
+              <rect x={centre - band / 2} y={TOP} width={band} height={HEIGHT - TOP - bottom} fill="transparent" />
+              {one.value !== null && (
+                <rect
+                  x={centre - width / 2}
+                  y={y(span.high)}
+                  width={width}
+                  height={Math.max(1, y(span.low) - y(span.high))}
+                  rx="2"
+                  fill={colour}
+                  opacity={hover === null || hover === index ? 1 : 0.55}
+                />
+              )}
+              <text
+                x={centre}
+                y={HEIGHT - bottom + 16}
+                textAnchor={tilted ? "end" : "middle"}
+                fontSize="11"
+                fill="var(--color-ink-muted)"
+                transform={tilted ? `rotate(-35 ${centre} ${HEIGHT - bottom + 16})` : undefined}
+              >
+                {one.label.length > 18 ? `${one.label.slice(0, 17)}…` : one.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      {hover !== null && bars[hover] && (
+        <div
+          className="pointer-events-none absolute top-0 rounded-lg border border-line bg-white px-3 py-2 text-xs shadow-md"
+          style={{
+            left: `${((LEFT + band * hover + band / 2) / WIDTH) * 100}%`,
+            transform: hover > bars.length / 2 ? "translateX(calc(-100% - 10px))" : "translateX(10px)",
+          }}
+        >
+          <p className="text-ink-muted">{bars[hover].label}</p>
+          <p className="font-semibold text-ink tabular-nums">{bars[hover].value === null ? "Not sent yet" : format(bars[hover].value)}</p>
+        </div>
+      )}
+    </div>
+  );
+}

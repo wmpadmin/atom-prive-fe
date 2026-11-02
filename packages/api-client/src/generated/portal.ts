@@ -358,20 +358,6 @@ export interface AccessEventRow {
   outcome: string;
 }
 
-export interface LinePoint {
-  on: string;
-  value: number;
-}
-
-export interface BenchmarkLine {
-  name: string;
-  /** @nullable */
-  description: string | null;
-  /** @nullable */
-  periodReturn: number | null;
-  line: LinePoint[];
-}
-
 export interface ClassChange {
   assetClass: string;
   name: string;
@@ -380,47 +366,88 @@ export interface ClassChange {
   percent: number | null;
 }
 
-export interface ValueSlice {
+export interface Explained {
+  startedOn: string;
+  startingValue: number;
+  endedOn: string;
+  endingValue: number;
+  changed: number;
+  funded: number;
+  paidIn: number;
+  paidOut: number;
+  earned: number;
+}
+
+export interface Flow {
+  on: string;
+  amount: number;
+  currency: string;
+}
+
+export interface HoldingLine {
+  name: string;
+  /** @nullable */
+  detail: string | null;
+  /** @nullable */
+  change: number | null;
+  value: number;
+  share: number;
+}
+
+export interface HoldingGroup {
+  key: string;
+  name: string;
+  /** @nullable */
+  change: number | null;
+  value: number;
+  share: number;
+  lines: HoldingLine[];
+}
+
+export interface LinePoint {
+  on: string;
+  value: number;
+}
+
+export interface MonthFlow {
+  month: string;
+  net: number;
+}
+
+export interface Weight {
   key: string;
   name: string;
   value: number;
   share: number;
 }
 
-export interface PortfolioHolding {
-  name: string;
-  assetClass: string;
-  value: number;
-  share: number;
-}
-
-export interface PortfolioMovement {
-  on: string;
-  direction: string;
-  amount: number;
-  currency: string;
-}
-
-export interface PortalPortfolio {
+export interface PortfolioInsights {
   period: string;
   currency: string;
-  value: number;
-  /** @nullable */
-  invested: number | null;
-  /** @nullable */
-  unrealisedGain: number | null;
-  /** @nullable */
-  periodReturn: number | null;
   /** @nullable */
   from: string | null;
   to: string;
+  marketValue: number;
+  assets: number;
+  liabilities: number;
+  /** @nullable */
+  twrMonthToDate: number | null;
+  /** @nullable */
+  twrYearToDate: number | null;
+  /** @nullable */
+  twrSinceStart: number | null;
+  /** @nullable */
+  twrPeriod: number | null;
   performance: LinePoint[];
   valueLine: LinePoint[];
-  benchmark: BenchmarkLine | null;
-  allocation: ValueSlice[];
-  changeByAssetClass: ClassChange[];
-  topHoldings: PortfolioHolding[];
-  movements: PortfolioMovement[];
+  byAssetClass: Weight[];
+  bySubClass: Weight[];
+  byCountry: Weight[];
+  gainByAssetClass: ClassChange[];
+  explained: Explained | null;
+  cashByMonth: MonthFlow[];
+  topFlows: Flow[];
+  holdings: HoldingGroup[];
 }
 
 export interface Invitation {
@@ -446,6 +473,13 @@ export interface Happening {
   title: string;
   detail: string;
   at: string;
+}
+
+export interface ValueSlice {
+  key: string;
+  name: string;
+  value: number;
+  share: number;
 }
 
 export interface PortalDashboard {
@@ -475,7 +509,7 @@ export type UploadMyPhotoBody = {
   file: Blob | File;
 };
 
-export type PortfolioParams = {
+export type InsightsParams = {
 period?: string;
 };
 
@@ -2957,7 +2991,7 @@ export function useAccessReport<TData = Awaited<ReturnType<typeof accessReport>>
 
 
 
-export const getPortfolioUrl = (params?: PortfolioParams,) => {
+export const getInsightsUrl = (params?: InsightsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -2969,12 +3003,12 @@ export const getPortfolioUrl = (params?: PortfolioParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/portal/portfolio?${stringifiedParams}` : `/api/portal/portfolio`
+  return stringifiedParams.length > 0 ? `/api/portal/portfolio/insights?${stringifiedParams}` : `/api/portal/portfolio/insights`
 }
 
-export const portfolio = async (params?: PortfolioParams, options?: Parameters<typeof http>[1]): Promise<PortalPortfolio> => {
+export const insights = async (params?: InsightsParams, options?: Parameters<typeof http>[1]): Promise<PortfolioInsights> => {
 
-  return http<PortalPortfolio>(getPortfolioUrl(params),
+  return http<PortfolioInsights>(getInsightsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2987,66 +3021,66 @@ export const portfolio = async (params?: PortfolioParams, options?: Parameters<t
 
 
 
-export const getPortfolioQueryKey = (params?: PortfolioParams,) => {
+export const getInsightsQueryKey = (params?: InsightsParams,) => {
     return [
-    `/api/portal/portfolio`, ...(params ? [params] : [])
+    `/api/portal/portfolio/insights`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getPortfolioQueryOptions = <TData = Awaited<ReturnType<typeof portfolio>>, TError = unknown>(params?: PortfolioParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof portfolio>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getInsightsQueryOptions = <TData = Awaited<ReturnType<typeof insights>>, TError = unknown>(params?: InsightsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof insights>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getPortfolioQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getInsightsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof portfolio>>> = ({ signal }) => portfolio(params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof insights>>> = ({ signal }) => insights(params, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof portfolio>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof insights>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
-export type PortfolioQueryResult = NonNullable<Awaited<ReturnType<typeof portfolio>>>
-export type PortfolioQueryError = unknown
+export type InsightsQueryResult = NonNullable<Awaited<ReturnType<typeof insights>>>
+export type InsightsQueryError = unknown
 
 
-export function usePortfolio<TData = Awaited<ReturnType<typeof portfolio>>, TError = unknown>(
- params: undefined |  PortfolioParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof portfolio>>, TError, TData>> & Pick<
+export function useInsights<TData = Awaited<ReturnType<typeof insights>>, TError = unknown>(
+ params: undefined |  InsightsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof insights>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof portfolio>>,
+          Awaited<ReturnType<typeof insights>>,
           TError,
-          Awaited<ReturnType<typeof portfolio>>
+          Awaited<ReturnType<typeof insights>>
         > , 'initialData'
       >, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePortfolio<TData = Awaited<ReturnType<typeof portfolio>>, TError = unknown>(
- params?: PortfolioParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof portfolio>>, TError, TData>> & Pick<
+export function useInsights<TData = Awaited<ReturnType<typeof insights>>, TError = unknown>(
+ params?: InsightsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof insights>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof portfolio>>,
+          Awaited<ReturnType<typeof insights>>,
           TError,
-          Awaited<ReturnType<typeof portfolio>>
+          Awaited<ReturnType<typeof insights>>
         > , 'initialData'
       >, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePortfolio<TData = Awaited<ReturnType<typeof portfolio>>, TError = unknown>(
- params?: PortfolioParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof portfolio>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export function useInsights<TData = Awaited<ReturnType<typeof insights>>, TError = unknown>(
+ params?: InsightsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof insights>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function usePortfolio<TData = Awaited<ReturnType<typeof portfolio>>, TError = unknown>(
- params?: PortfolioParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof portfolio>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export function useInsights<TData = Awaited<ReturnType<typeof insights>>, TError = unknown>(
+ params?: InsightsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof insights>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getPortfolioQueryOptions(params,options)
+  const queryOptions = getInsightsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

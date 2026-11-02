@@ -7,7 +7,7 @@ export const INK = ["#2563eb", "#38bdf8", "#fbbf24", "#8b5cf6", "#cbd5e1", "#10b
 
 /** A large figure kept short for a chart or a tile: 4.2M, 850K. With a currency, AUD 4.2M. */
 export function compact(amount: number, currency?: string) {
-  const short = new Intl.NumberFormat("en-GB", { notation: "compact", maximumFractionDigits: 1 }).format(amount);
+  const short = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(amount);
   return currency ? `${currency} ${short}` : short;
 }
 
