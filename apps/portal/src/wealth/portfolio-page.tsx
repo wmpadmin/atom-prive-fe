@@ -82,11 +82,11 @@ function Stats({ children }: { children: ReactNode }) {
 }
 
 /**
- * Cards that settle into whichever column has room, so a short card never leaves a gap beside a tall one: one
- * column on a narrow screen, two from a laptop up. Each card keeps whole rather than splitting across columns.
+ * Cards two to a row, each the height of the taller one beside it, so a row always reads as a pair. A card
+ * left over on its own takes the whole row rather than leaving half of it empty. One column on a narrow screen.
  */
 function Flow({ children }: { children: ReactNode }) {
-  return <div className="gap-5 lg:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">{children}</div>;
+  return <div className="grid gap-5 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2">{children}</div>;
 }
 
 function Toggle<T extends string>({ value, options, onChange, label }: { value: T; options: { id: T; label: string }[]; onChange: (next: T) => void; label: string }) {
@@ -164,8 +164,7 @@ function Allocation({ data }: { data: PortfolioInsights }) {
     return INK[(at < 0 ? index : at) % INK.length];
   };
   return (
-    // No space between the two parts here: every card in a Flow already carries the gap beneath it.
-    <div>
+    <div className="space-y-5">
       <Flow>
       <Card
         title={chosen ? `Market Value Weight by Sub Asset Class · ${chosen.name}` : "Market Value Weight by Sub Asset Class"}
