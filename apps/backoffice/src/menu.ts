@@ -17,7 +17,6 @@ import {
   Layers,
   ListChecks,
   Mail,
-  PenLine,
   Radio,
   Scale,
   Settings,
@@ -39,7 +38,6 @@ import {
   ONBOARDS_EVERY_CLIENT,
   READS_CLIENT_PORTFOLIOS,
   READS_PROPOSALS,
-  SIGNS_CLIENT_FORMS,
   UPLOADS_CLIENT_DOCUMENTS,
   type Authority,
 } from "./lib/permissions";
@@ -307,7 +305,7 @@ const allNavigation: {
     notFor: ["ADMIN"],
     at: (path) => path === "/post-onboarding" || NOTICE_OF_TREATMENT.test(path),
   },
-  { to: "/to-sign", label: "To sign", icon: PenLine, authority: SIGNS_CLIENT_FORMS },
+  // No "To sign": the relationship manager signed for the client only while the client had no portal to sign in.
   // The queue is where a client's KYC is signed off, which is Compliance's alone. The papers themselves the
   // Admin reads too, so the document review sits on both menus.
   {
