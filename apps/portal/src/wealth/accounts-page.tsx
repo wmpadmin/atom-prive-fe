@@ -153,7 +153,7 @@ export function AccountsPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-balance text-ink">Accounts</h1>
+          <h1 className="text-[1.625rem] font-bold text-balance text-ink">Accounts</h1>
           <p className="mt-1 text-sm text-ink-muted">View your accounts, balances and access details.</p>
         </div>
         {own.length > 0 && (
@@ -179,13 +179,13 @@ export function AccountsPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
-                <tr className="bg-sidebar text-xs text-ink-soft">
-                  <th scope="col" className="rounded-l-lg px-3 py-2.5 font-semibold">Account name</th>
-                  <th scope="col" className="px-3 py-2.5 font-semibold">Account no.</th>
-                  <th scope="col" className="px-3 py-2.5 font-semibold">Account type</th>
-                  <th scope="col" className="px-3 py-2.5 font-semibold">Currency</th>
-                  <th scope="col" className="px-3 py-2.5 text-right font-semibold">Balance</th>
-                  <th scope="col" className="rounded-r-lg px-3 py-2.5 font-semibold">Access</th>
+                <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
+                  <th scope="col" className="py-3 pr-4 pl-3">Account name</th>
+                  <th scope="col" className="px-4 py-3">Account no.</th>
+                  <th scope="col" className="px-4 py-3">Account type</th>
+                  <th scope="col" className="px-4 py-3">Currency</th>
+                  <th scope="col" className="px-4 py-3 text-right">Balance</th>
+                  <th scope="col" className="py-3 pr-3 pl-4">Access</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">

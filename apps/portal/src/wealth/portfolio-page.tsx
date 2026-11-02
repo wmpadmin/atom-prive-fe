@@ -511,12 +511,12 @@ function Holdings({ data }: { data: PortfolioInsights }) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead>
-            <tr className="bg-sidebar text-xs text-ink-soft">
-              <th scope="col" className="rounded-l-lg px-3 py-2.5 font-semibold">Asset Class &gt; Security</th>
-              <th scope="col" className="px-3 py-2.5 text-right font-semibold">Market Price</th>
-              <th scope="col" className="px-3 py-2.5 text-right font-semibold">Net Gain/Loss - Change ({c})</th>
-              <th scope="col" className="px-3 py-2.5 text-right font-semibold">Market Value ({c})</th>
-              <th scope="col" className="rounded-r-lg px-3 py-2.5 text-right font-semibold">Market Value Weight % ({c})</th>
+            <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
+              <th scope="col" className="py-3 pr-4 pl-3">Asset Class &gt; Security</th>
+              <th scope="col" className="px-4 py-3 text-right">Market Price</th>
+              <th scope="col" className="px-4 py-3 text-right">Net Gain/Loss - Change ({c})</th>
+              <th scope="col" className="px-4 py-3 text-right">Market Value ({c})</th>
+              <th scope="col" className="py-3 pr-3 pl-4 text-right">Market Value Weight % ({c})</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -583,7 +583,7 @@ export function PortfolioPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-balance text-ink">Portfolio</h1>
+          <h1 className="text-[1.625rem] font-bold text-balance text-ink">Portfolio</h1>
           <p className="mt-1 text-sm text-ink-muted">View performance, returns and portfolio allocation.</p>
         </div>
         {tab !== "overview" && (
