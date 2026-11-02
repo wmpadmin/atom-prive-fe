@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "@atomprive/ui/theme.css";
 @source "../../../packages/ui/src";
+@source "../../../packages/forms/src";
 
 /*
  * The Figma screens are drawn on a 1920 x 1080 frame. Tying the root font size to the window width scales every

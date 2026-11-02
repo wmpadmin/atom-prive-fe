@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "@atomprive/ui/theme.css";
 @source "../../../packages/ui/src";
+@source "../../../packages/forms/src";
 
 /*
  * A thin scrollbar everywhere the platform scrolls.
