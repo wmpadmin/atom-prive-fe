@@ -47,7 +47,7 @@ const PLACES: Place[] = [
   { label: "Portfolio", icon: LineChart, to: "/new/portfolio" },
   { label: "Holdings", icon: Layers, to: "/new/holdings" },
   { label: "Accounts", icon: Wallet, to: "/new/accounts" },
-  { label: "Documents", icon: FileText },
+  { label: "Documents", icon: FileText, to: "/new/documents" },
   { label: "Forms & Signatures", icon: FileSignature },
   { label: "KYC", icon: ShieldCheck },
   { label: "Family Wealth", icon: Network },

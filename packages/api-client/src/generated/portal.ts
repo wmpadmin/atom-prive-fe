@@ -279,6 +279,24 @@ export interface FamilyRequest {
   personalMessage: string | null;
 }
 
+export interface DocumentRow {
+  source: string;
+  id: string;
+  name: string;
+  category: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+  byYou: boolean;
+  /** @nullable */
+  status: string | null;
+  /** @nullable */
+  reason: string | null;
+  /** @nullable */
+  expiresOn: string | null;
+}
+
 export interface SignedIn {
   /** @nullable */
   accessToken: string | null;
@@ -563,6 +581,16 @@ export type UploadMyPhotoBody = {
   file: Blob | File;
 };
 
+export type UploadParams = {
+kind: string;
+otherName?: string;
+expiresOn?: string;
+};
+
+export type UploadBody = {
+  file: Blob | File;
+};
+
 export type InsightsParams = {
 period?: string;
 };
@@ -571,6 +599,10 @@ export type ExportHoldingsParams = {
 format?: string;
 assetClass?: string;
 search?: string;
+};
+
+export type Open1Params = {
+download?: boolean;
 };
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -2110,6 +2142,181 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAcceptMutationOptions(options), queryClient);
+    }
+
+export const getDocumentsUrl = () => {
+
+
+
+
+  return `/api/portal/documents`
+}
+
+export const documents = async ( options?: Parameters<typeof http>[1]): Promise<DocumentRow[]> => {
+
+  return http<DocumentRow[]>(getDocumentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDocumentsQueryKey = () => {
+    return [
+    `/api/portal/documents`
+    ] as const;
+    }
+
+
+export const getDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof documents>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof documents>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDocumentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof documents>>> = ({ signal }) => documents({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof documents>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type DocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof documents>>>
+export type DocumentsQueryError = unknown
+
+
+export function useDocuments<TData = Awaited<ReturnType<typeof documents>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof documents>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof documents>>,
+          TError,
+          Awaited<ReturnType<typeof documents>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useDocuments<TData = Awaited<ReturnType<typeof documents>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof documents>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof documents>>,
+          TError,
+          Awaited<ReturnType<typeof documents>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useDocuments<TData = Awaited<ReturnType<typeof documents>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof documents>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useDocuments<TData = Awaited<ReturnType<typeof documents>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof documents>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getDocumentsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadUrl = (params: UploadParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/portal/documents?${stringifiedParams}` : `/api/portal/documents`
+}
+
+export const upload = async (params: UploadParams,
+    uploadBody?: UploadBody, options?: Parameters<typeof http>[1]): Promise<DocumentRow> => {
+    const formData = new FormData();
+if(uploadBody?.file !== undefined) {
+ formData.append(`file`, uploadBody.file);
+ }
+
+  return http<DocumentRow>(getUploadUrl(params),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadMutationKey = () => ['upload'] as const;
+
+export const getUploadMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upload>>, TError,UploadMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof upload>>, TError,UploadMutationVariables, TContext> => {
+
+const mutationKey = getUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upload>>, UploadMutationVariables> = (props) => {
+          const {params,data} = props ?? {};
+
+          return  upload(params,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadMutationResult = NonNullable<Awaited<ReturnType<typeof upload>>>
+    export type UploadMutationBody = UploadBody | undefined
+    export type UploadMutationError = unknown
+    export type UploadMutationVariables = {params: UploadParams;data?: UploadBody}
+
+    export const useUpload = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upload>>, TError,UploadMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof upload>>,
+        TError,
+        UploadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadMutationOptions(options), queryClient);
     }
 
 export const getRefreshUrl = () => {
@@ -3705,6 +3912,124 @@ export function useRequests<TData = Awaited<ReturnType<typeof requests>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getOpen1Url = (source: string,
+    id: string,
+    params?: Open1Params,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/portal/documents/${source}/${id}?${stringifiedParams}` : `/api/portal/documents/${source}/${id}`
+}
+
+export const open1 = async (source: string,
+    id: string,
+    params?: Open1Params, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getOpen1Url(source,id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getOpen1QueryKey = (source: string,
+    id: string,
+    params?: Open1Params,) => {
+    return [
+    `/api/portal/documents/${source}/${id}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getOpen1QueryOptions = <TData = Awaited<ReturnType<typeof open1>>, TError = unknown>(source: string,
+    id: string,
+    params?: Open1Params, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof open1>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getOpen1QueryKey(source,id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof open1>>> = ({ signal }) => open1(source,id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: source !== null && source !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof open1>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type Open1QueryResult = NonNullable<Awaited<ReturnType<typeof open1>>>
+export type Open1QueryError = unknown
+
+
+export function useOpen1<TData = Awaited<ReturnType<typeof open1>>, TError = unknown>(
+ source: string,
+    id: string,
+    params: undefined |  Open1Params, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof open1>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof open1>>,
+          TError,
+          Awaited<ReturnType<typeof open1>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useOpen1<TData = Awaited<ReturnType<typeof open1>>, TError = unknown>(
+ source: string,
+    id: string,
+    params?: Open1Params, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof open1>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof open1>>,
+          TError,
+          Awaited<ReturnType<typeof open1>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useOpen1<TData = Awaited<ReturnType<typeof open1>>, TError = unknown>(
+ source: string,
+    id: string,
+    params?: Open1Params, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof open1>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useOpen1<TData = Awaited<ReturnType<typeof open1>>, TError = unknown>(
+ source: string,
+    id: string,
+    params?: Open1Params, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof open1>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getOpen1QueryOptions(source,id,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

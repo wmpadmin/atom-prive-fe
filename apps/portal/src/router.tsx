@@ -16,6 +16,7 @@ import { OnlySignedIn, OnlySignedInNewLook, OnlySignedOut } from "./auth/guards"
 import { DashboardPage } from "./wealth/dashboard-page";
 import { AccountPage as NewAccountPage } from "./wealth/account-page";
 import { AccountsPage as NewAccountsPage } from "./wealth/accounts-page";
+import { DocumentsPage } from "./wealth/documents-page";
 import { HoldingsPage } from "./wealth/holdings-page";
 import { PortfolioPage } from "./wealth/portfolio-page";
 
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
       { path: "holdings", element: <HoldingsPage /> },
       { path: "accounts", element: <NewAccountsPage /> },
       { path: "accounts/:id", element: <NewAccountPage /> },
+      { path: "documents", element: <DocumentsPage /> },
     ],
   },
   {
