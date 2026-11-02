@@ -310,8 +310,10 @@ export interface DocumentText {
 export type PortalFormDetailAnswers = {[key: string]: unknown};
 
 export interface PortalFormRow {
-  id: string;
-  reference: string;
+  /** @nullable */
+  id: string | null;
+  /** @nullable */
+  reference: string | null;
   kind: string;
   title: string;
   status: string;
@@ -319,7 +321,8 @@ export interface PortalFormRow {
   filledInHere: boolean;
   /** @nullable */
   dueOn: string | null;
-  lastChanged: string;
+  /** @nullable */
+  lastChanged: string | null;
   /** @nullable */
   completedAt: string | null;
   /** @nullable */
