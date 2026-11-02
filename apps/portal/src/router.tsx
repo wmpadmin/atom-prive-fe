@@ -18,6 +18,7 @@ import { AccountPage as NewAccountPage } from "./wealth/account-page";
 import { AccountsPage as NewAccountsPage } from "./wealth/accounts-page";
 import { DocumentsPage } from "./wealth/documents-page";
 import { FormSignPage } from "./wealth/form-sign-page";
+import { ActivityPage } from "./wealth/activity-page";
 import { AccessRequestsPage } from "./wealth/access-requests-page";
 import { FamilyAccessPage } from "./wealth/family-access-page";
 import { FamilyWealthPage } from "./wealth/family-wealth-page";
@@ -53,6 +54,7 @@ export const router = createBrowserRouter([
       { path: "family-wealth", element: <FamilyWealthPage /> },
       { path: "family-access", element: <FamilyAccessPage /> },
       { path: "access-requests", element: <AccessRequestsPage /> },
+      { path: "activity", element: <ActivityPage /> },
       { path: "forms/pack/:kind", element: <FormSignPage /> },
       { path: "forms/:id", element: <FormSignPage /> },
     ],
