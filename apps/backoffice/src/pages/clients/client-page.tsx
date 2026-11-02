@@ -37,13 +37,14 @@ import { assignmentNotice, clientsHref, clientTypeLabels, managerAssignmentNotic
 import { ClientAccessPanel } from "./client-access-panel";
 import { DeactivationTab } from "../deactivation/deactivation-tab";
 import { ClientFormsPanel } from "./client-forms-panel";
+import { SecurityTab } from "./security-tab";
 import { ClientOverviewTab, GenerateReport } from "./client-overview";
 import { Popover } from "../book/overview-dialogs";
 
 const STATUS_LABELS: Record<CustomerDetail["client"]["status"], string> = { ACTIVE: "Active", DEACTIVATED: "Deactivated", ARCHIVED: "Archived" };
 const STATUS_TONES: Record<CustomerDetail["client"]["status"], "success" | "warning" | "neutral"> = { ACTIVE: "success", DEACTIVATED: "warning", ARCHIVED: "neutral" };
 
-type Tab = "overview" | "family" | "advisors" | "portfolioManagers" | "banks" | "holdings" | "transactions" | "documents" | "activity" | "deactivation";
+type Tab = "overview" | "family" | "advisors" | "portfolioManagers" | "banks" | "holdings" | "transactions" | "documents" | "security" | "activity" | "deactivation";
 
 /** @param needs what the reader has to hold for this tab to be theirs; left out, the tab is everyone's */
 const TABS: { id: Tab; label: string; needs?: Authority[] }[] = [
@@ -61,6 +62,8 @@ const TABS: { id: Tab; label: string; needs?: Authority[] }[] = [
   // well — the passport and the proof of address, which are read on the client's KYC screens — so one
   // word pointed at two different piles.
   { id: "documents", label: "Forms" },
+  // How the client signs in to the portal, and the firm's hold on it. Operations and Admin act; Compliance reads.
+  { id: "security", label: "Security & Authentication", needs: ["CLIENT_SIGN_IN:VIEW", "CLIENT_SIGN_IN:CHANGE"] },
   { id: "activity", label: "Activity" },
   // Last, because it is the end of a client's life with the firm and reads as one.
   { id: "deactivation", label: "Deactivation" },
@@ -284,6 +287,7 @@ export function ClientPage() {
         />
       )}
 
+      {tab === "security" && <SecurityTab clientId={client.id} clientName={client.fullName} />}
       {tab === "family" && (
         <FamilyPanel
           client={client}
