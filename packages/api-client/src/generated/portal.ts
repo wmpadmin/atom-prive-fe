@@ -470,6 +470,49 @@ export interface Invitation {
   expiresAt: string | null;
 }
 
+export interface HoldingRow {
+  id: string;
+  kind: string;
+  name: string;
+  assetClass: string;
+  assetClassName: string;
+  /** @nullable */
+  subClass: string | null;
+  /** @nullable */
+  subSubClass: string | null;
+  /** @nullable */
+  identifier: string | null;
+  /** @nullable */
+  ticker: string | null;
+  /** @nullable */
+  issuer: string | null;
+  /** @nullable */
+  countryCode: string | null;
+  /** @nullable */
+  sector: string | null;
+  /** @nullable */
+  creditRating: string | null;
+  /** @nullable */
+  yieldPercent: number | null;
+  /** @nullable */
+  durationYears: number | null;
+  /** @nullable */
+  units: number | null;
+  value: number;
+  share: number;
+  /** @nullable */
+  changeThisYear: number | null;
+}
+
+export type PortalHoldingsClasses = {[key: string]: string};
+
+export interface PortalHoldings {
+  currency: string;
+  marketValue: number;
+  classes: PortalHoldingsClasses;
+  rows: HoldingRow[];
+}
+
 export interface Happening {
   kind: string;
   title: string;
@@ -513,6 +556,12 @@ export type UploadMyPhotoBody = {
 
 export type InsightsParams = {
 period?: string;
+};
+
+export type ExportHoldingsParams = {
+format?: string;
+assetClass?: string;
+search?: string;
 };
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -3178,6 +3227,203 @@ export function useMe<TData = Awaited<ReturnType<typeof me>>, TError = unknown>(
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getMeQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getHoldingsUrl = () => {
+
+
+
+
+  return `/api/portal/holdings`
+}
+
+export const holdings = async ( options?: Parameters<typeof http>[1]): Promise<PortalHoldings> => {
+
+  return http<PortalHoldings>(getHoldingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHoldingsQueryKey = () => {
+    return [
+    `/api/portal/holdings`
+    ] as const;
+    }
+
+
+export const getHoldingsQueryOptions = <TData = Awaited<ReturnType<typeof holdings>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof holdings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHoldingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof holdings>>> = ({ signal }) => holdings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof holdings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type HoldingsQueryResult = NonNullable<Awaited<ReturnType<typeof holdings>>>
+export type HoldingsQueryError = unknown
+
+
+export function useHoldings<TData = Awaited<ReturnType<typeof holdings>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof holdings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof holdings>>,
+          TError,
+          Awaited<ReturnType<typeof holdings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHoldings<TData = Awaited<ReturnType<typeof holdings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof holdings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof holdings>>,
+          TError,
+          Awaited<ReturnType<typeof holdings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHoldings<TData = Awaited<ReturnType<typeof holdings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof holdings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useHoldings<TData = Awaited<ReturnType<typeof holdings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof holdings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getHoldingsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportHoldingsUrl = (params?: ExportHoldingsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/portal/holdings/export?${stringifiedParams}` : `/api/portal/holdings/export`
+}
+
+export const exportHoldings = async (params?: ExportHoldingsParams, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getExportHoldingsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportHoldingsQueryKey = (params?: ExportHoldingsParams,) => {
+    return [
+    `/api/portal/holdings/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportHoldingsQueryOptions = <TData = Awaited<ReturnType<typeof exportHoldings>>, TError = unknown>(params?: ExportHoldingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportHoldingsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportHoldings>>> = ({ signal }) => exportHoldings(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportHoldings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportHoldingsQueryResult = NonNullable<Awaited<ReturnType<typeof exportHoldings>>>
+export type ExportHoldingsQueryError = unknown
+
+
+export function useExportHoldings<TData = Awaited<ReturnType<typeof exportHoldings>>, TError = unknown>(
+ params: undefined |  ExportHoldingsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportHoldings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportHoldings>>,
+          TError,
+          Awaited<ReturnType<typeof exportHoldings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportHoldings<TData = Awaited<ReturnType<typeof exportHoldings>>, TError = unknown>(
+ params?: ExportHoldingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportHoldings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportHoldings>>,
+          TError,
+          Awaited<ReturnType<typeof exportHoldings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportHoldings<TData = Awaited<ReturnType<typeof exportHoldings>>, TError = unknown>(
+ params?: ExportHoldingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportHoldings<TData = Awaited<ReturnType<typeof exportHoldings>>, TError = unknown>(
+ params?: ExportHoldingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportHoldingsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
