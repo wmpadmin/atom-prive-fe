@@ -6495,6 +6495,7 @@ export interface FamilyMemberWealth {
   twrYearToDate: number | null;
   byAssetClass: ValueSlice[];
   netWorthLine: LinePoint[];
+  topHoldings: TopHolding[];
 }
 
 export interface FamilyWealth {
