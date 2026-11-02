@@ -11,6 +11,8 @@ import { TradeLogsPage } from "./pages/portfolios/trade-logs-page";
 import { AuditLogPage } from "./pages/audit-log/audit-log-page";
 import { MyTicketPage } from "./pages/support/my-ticket-page";
 import { MyTicketsPage } from "./pages/support/my-tickets-page";
+import { SignInAsPage } from "./pages/support/sign-in-as-page";
+import { SupportViewPage } from "./pages/support/support-view-page";
 import { SupportQueuePage } from "./pages/support/support-queue-page";
 import { SupportTicketPage } from "./pages/support/support-ticket-page";
 import { IngestionMonitoringPage } from "./pages/bank-syncs/ingestion-monitoring-page";
@@ -86,6 +88,7 @@ import { DeactivationRequestsPage } from "./pages/clients/deactivation-requests-
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
+  { path: "/support-view", element: <SupportViewPage /> },
   { path: "/forgot-password", element: <ForgotPasswordPage /> },
   { path: "/reset-password", element: <ResetPasswordPage /> },
   {
@@ -111,6 +114,10 @@ export const router = createBrowserRouter([
               { path: "support", element: <SupportQueuePage /> },
               { path: "support/:id", element: <SupportTicketPage /> },
             ],
+          },
+          {
+            element: <RequireAuthority authority="SIGN_IN_AS:CHANGE" />,
+            children: [{ path: "sign-in-as", element: <SignInAsPage /> }],
           },
           { path: "my-declarations/:kind", element: <MyDeclarationPage /> },
           // Somebody's own account, so it asks for nothing beyond being signed in.
