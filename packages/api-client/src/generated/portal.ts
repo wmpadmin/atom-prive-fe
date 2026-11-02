@@ -459,6 +459,49 @@ export interface FamilyNameRequest {
   name: string | null;
 }
 
+export interface InviteAskRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  fullName: string;
+  /**
+     * @minLength 0
+     * @maxLength 320
+     */
+  email: string;
+  /**
+     * @minLength 0
+     * @maxLength 64
+     */
+  relationshipCode: string;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  personalMessage: string | null;
+}
+
+export interface InviteAsk {
+  id: string;
+  customerId: string;
+  fullName: string;
+  email: string;
+  relationshipCode: string;
+  relationship: string;
+  /** @nullable */
+  personalMessage: string | null;
+  status: string;
+  askedAt: string;
+  /** @nullable */
+  answeredAt: string | null;
+  /** @nullable */
+  answeredByName: string | null;
+  /** @nullable */
+  reason: string | null;
+}
+
 export interface FamilyRequest {
   id: string;
   clientName: string;
@@ -2727,6 +2770,251 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getLeaveFamilyMutationOptions(options), queryClient);
+    }
+
+export const getMyInviteAsksUrl = () => {
+
+
+
+
+  return `/api/portal/family/invite-asks`
+}
+
+export const myInviteAsks = async ( options?: Parameters<typeof http>[1]): Promise<InviteAsk[]> => {
+
+  return http<InviteAsk[]>(getMyInviteAsksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyInviteAsksQueryKey = () => {
+    return [
+    `/api/portal/family/invite-asks`
+    ] as const;
+    }
+
+
+export const getMyInviteAsksQueryOptions = <TData = Awaited<ReturnType<typeof myInviteAsks>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myInviteAsks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyInviteAsksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myInviteAsks>>> = ({ signal }) => myInviteAsks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myInviteAsks>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyInviteAsksQueryResult = NonNullable<Awaited<ReturnType<typeof myInviteAsks>>>
+export type MyInviteAsksQueryError = unknown
+
+
+export function useMyInviteAsks<TData = Awaited<ReturnType<typeof myInviteAsks>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myInviteAsks>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myInviteAsks>>,
+          TError,
+          Awaited<ReturnType<typeof myInviteAsks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyInviteAsks<TData = Awaited<ReturnType<typeof myInviteAsks>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myInviteAsks>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myInviteAsks>>,
+          TError,
+          Awaited<ReturnType<typeof myInviteAsks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyInviteAsks<TData = Awaited<ReturnType<typeof myInviteAsks>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myInviteAsks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyInviteAsks<TData = Awaited<ReturnType<typeof myInviteAsks>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myInviteAsks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyInviteAsksQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAskToInviteUrl = () => {
+
+
+
+
+  return `/api/portal/family/invite-asks`
+}
+
+export const askToInvite = async (inviteAskRequest: InviteAskRequest, options?: Parameters<typeof http>[1]): Promise<InviteAsk[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<InviteAsk[]>(getAskToInviteUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(inviteAskRequest)
+  }
+);}
+
+
+
+
+
+export const getAskToInviteMutationKey = () => ['askToInvite'] as const;
+
+export const getAskToInviteMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToInvite>>, TError,AskToInviteMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askToInvite>>, TError,AskToInviteMutationVariables, TContext> => {
+
+const mutationKey = getAskToInviteMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askToInvite>>, AskToInviteMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  askToInvite(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskToInviteMutationResult = NonNullable<Awaited<ReturnType<typeof askToInvite>>>
+    export type AskToInviteMutationBody = InviteAskRequest
+    export type AskToInviteMutationError = unknown
+    export type AskToInviteMutationVariables = {data: InviteAskRequest}
+
+    export const useAskToInvite = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToInvite>>, TError,AskToInviteMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askToInvite>>,
+        TError,
+        AskToInviteMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskToInviteMutationOptions(options), queryClient);
+    }
+
+export const getWithdrawInviteAskUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/family/invite-asks/${id}/withdraw`
+}
+
+export const withdrawInviteAsk = async (id: string, options?: Parameters<typeof http>[1]): Promise<InviteAsk[]> => {
+
+  return http<InviteAsk[]>(getWithdrawInviteAskUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getWithdrawInviteAskMutationKey = () => ['withdrawInviteAsk'] as const;
+
+export const getWithdrawInviteAskMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawInviteAsk>>, TError,WithdrawInviteAskMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawInviteAsk>>, TError,WithdrawInviteAskMutationVariables, TContext> => {
+
+const mutationKey = getWithdrawInviteAskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawInviteAsk>>, WithdrawInviteAskMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  withdrawInviteAsk(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawInviteAskMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawInviteAsk>>>
+
+    export type WithdrawInviteAskMutationError = unknown
+    export type WithdrawInviteAskMutationVariables = {id: string}
+
+    export const useWithdrawInviteAsk = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawInviteAsk>>, TError,WithdrawInviteAskMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawInviteAsk>>,
+        TError,
+        WithdrawInviteAskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWithdrawInviteAskMutationOptions(options), queryClient);
     }
 
 export const getDeclineUrl = (id: string,) => {

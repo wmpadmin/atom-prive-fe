@@ -30,7 +30,7 @@ function tomorrow() {
 }
 
 /** Choose a family member, tick the accounts, and say until when — or for good. */
-function GrantDialog({ own, onClose }: { own: AccountRow[]; onClose: () => void }) {
+export function GrantDialog({ own, onClose }: { own: AccountRow[]; onClose: () => void }) {
   const queryClient = useQueryClient();
   const family = useWhoICanAsk<WhoICanAsk[], ApiError>();
   const [who, setWho] = useState<string>();
