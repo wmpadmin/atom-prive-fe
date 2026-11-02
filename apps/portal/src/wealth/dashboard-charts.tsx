@@ -73,7 +73,13 @@ export function LineChart({
   const long = last - first > 730 * 86_400_000;
   const stepOf = (day: string) =>
     long ? String(new Date(day).getFullYear()) : `${new Date(day).getFullYear()}-${new Date(day).getMonth()}`;
-  const marks = main.points.filter((one, index, points) => index === 0 || stepOf(points[index - 1]!.on) !== stepOf(one.on));
+  const starts = main.points.filter((one, index, points) => index === 0 || stepOf(points[index - 1]!.on) !== stepOf(one.on));
+  // A label too close to the one before is dropped, so a line opening late in a month does not print that month
+  // on top of the next one. The later label is the one kept: it marks a whole month.
+  const marks = starts.filter((one, index) => {
+    const next = starts[index + 1];
+    return !next || x(next.on) - x(one.on) >= 40;
+  });
 
   /** The point of a line nearest a day, for the tooltip. */
   const near = (points: LinePoint[], at: number) =>
@@ -190,6 +196,7 @@ export function AllocationRing({
   onPick?: (key: string) => void;
   legend?: boolean;
 }) {
+  const [hovered, setHovered] = useState<string | null>(null);
   const drawn = slices.filter((one) => one.value > 0);
   const total = drawn.reduce((sum, one) => sum + one.value, 0);
 
@@ -226,14 +233,26 @@ export function AllocationRing({
                 strokeDashoffset={-(starts[index] ?? 0)}
                 opacity={picked && picked !== one.key ? 0.3 : 1}
                 onClick={onPick ? () => onPick(one.key) : undefined}
+                onPointerEnter={() => setHovered(one.key)}
+                onPointerLeave={() => setHovered(null)}
                 className={onPick ? "cursor-pointer transition-opacity" : undefined}
               >
-                <title>{`${one.name}: ${one.share.toFixed(1)}%`}</title>
               </circle>
             );
           })}
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
+        {hovered && (() => {
+          const at = drawn.findIndex((one) => one.key === hovered);
+          const one = drawn[at];
+          return one ? (
+            <div className="pointer-events-none absolute -top-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-xs whitespace-nowrap shadow-md">
+              <span aria-hidden="true" className="size-2.5 rounded-full" style={{ background: INK[at % INK.length] }} />
+              <span className="text-ink-soft">{one.name}</span>
+              <span className="font-semibold text-ink tabular-nums">{one.share.toFixed(2)}%</span>
+            </div>
+          ) : null;
+        })()}
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-2xs font-semibold text-ink-muted">{currency}</span>
           <span className="text-lg font-bold text-ink tabular-nums">{compact(total)}</span>
         </div>

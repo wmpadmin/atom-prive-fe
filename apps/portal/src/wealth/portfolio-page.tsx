@@ -458,7 +458,6 @@ function Explainer({ data }: { data: PortfolioInsights }) {
 
 function CashFlow({ data }: { data: PortfolioInsights }) {
   const month = (key: string) => new Date(`${key}-01`).toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
-  const biggest = Math.max(1, ...data.topFlows.map((one) => Math.abs(one.amount)));
   return (
     <Flow>
       <Card title="Net Cash Flow by Month">
@@ -471,23 +470,17 @@ function CashFlow({ data }: { data: PortfolioInsights }) {
         />
       </Card>
       <Card title="Top Cash Flow Movers">
-        {data.topFlows.length === 0 ? (
-          <p className="py-8 text-center text-sm text-ink-muted">No money has moved in or out in this period.</p>
-        ) : (
-          <ul className="space-y-3">
-            {data.topFlows.map((one, index) => (
-              <li key={`${one.on}-${index}`} className="grid grid-cols-[6rem_minmax(0,1fr)_8rem] items-center gap-3 text-xs">
-                <span className="text-ink-muted">{new Date(one.on).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span>
-                <span className="h-3 rounded-sm bg-canvas">
-                  <span className="block h-3 rounded-sm" style={{ width: `${(Math.abs(one.amount) / biggest) * 100}%`, background: one.amount >= 0 ? GAIN : LOSS }} />
-                </span>
-                <span className="text-right font-semibold text-ink tabular-nums">
-                  {one.currency} {exact(one.amount)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <BarChart
+          bars={data.topFlows.map((one) => ({
+            label: new Date(one.on).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }),
+            value: one.amount,
+            colour: one.amount >= 0 ? GAIN : LOSS,
+          }))}
+          format={(value) => `${data.currency} ${exact(value)}`}
+          tick={moneyTick}
+          label="The largest payments in and out in the period"
+          empty="No money has moved in or out in this period."
+        />
         <div className="mt-4 flex justify-center gap-4 text-xs text-ink-soft">
           <span className="flex items-center gap-1.5">
             <span className="size-2.5 rounded-sm" style={{ background: GAIN }} /> Cash inflow
