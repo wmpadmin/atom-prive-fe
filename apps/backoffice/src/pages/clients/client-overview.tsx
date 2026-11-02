@@ -7,6 +7,8 @@ import {
   useGetClientPortfolio,
   useListClientBankAccounts,
   useListClientChecklist,
+  useRiskProfileReview,
+  type RiskReview,
   type Attribution,
   type BankAccountRow,
   type ClientChecklist,
@@ -121,6 +123,7 @@ function useOverviewFacts(detail: CustomerDetail) {
   const kyc = useGetClientKycFile<ClientKycFile, ApiError>(client.id, quiet);
   const forms = useListClientChecklist<ClientChecklist, ApiError>(client.id, quiet);
   const banks = useListClientBankAccounts<BankAccountRow[], ApiError>(client.id, quiet);
+  const review = useRiskProfileReview<RiskReview, ApiError>(client.id, quiet);
 
   const overview = year.data;
   const ccy = overview?.currency ?? standing.data?.currency ?? "";
@@ -152,7 +155,7 @@ function useOverviewFacts(detail: CustomerDetail) {
   const accounts = banks.data ?? [];
   return {
     today, year, overview, ccy, attribution, gained, gainedShare, holder, me, linked, amlStanding, readsAml, riskProfile,
-    documents, accounts, kyc, forms, banks, application,
+    documents, accounts, kyc, forms, banks, application, riskReview: review.data ?? null,
   };
 }
 
@@ -198,6 +201,7 @@ export function ClientOverviewTab({
   const { client, advisors, portfolioManagers, family, familyGroup, activity, onboarding } = detail;
   const facts = useOverviewFacts(detail);
   const { today, year, overview, ccy, attribution, gained, gainedShare, holder, me, linked, amlStanding, readsAml, riskProfile } = facts;
+  const riskReview = facts.riskReview;
   const { documents, accounts, kyc, forms, banks, application } = facts;
   const [range, setRange] = useState<Range>("YTD");
   const ranged = useGetClientOverview<ClientOverview, ApiError>(
@@ -396,7 +400,17 @@ export function ClientOverviewTab({
           <Row icon={ShieldCheck} label="Risk profile">
             {riskProfile ? <Badge tone="info">{PROFILES[riskProfile] ?? riskProfile}</Badge> : <Missing>Not set</Missing>}
           </Row>
-          <Row icon={CalendarDays} label="Next review date">
+          <Row icon={CalendarDays} label="Risk profile review">
+            {riskReview?.nextReviewOn ? (
+              <span className={cn("font-semibold", riskReview.standing === "OVERDUE" ? "text-danger" : riskReview.standing === "DUE_SOON" && "text-amber-700")}>
+                {formatDate(riskReview.nextReviewOn)}
+                {riskReview.standing === "OVERDUE" ? " · overdue" : riskReview.standing === "DUE_SOON" ? " · due soon" : ""}
+              </span>
+            ) : (
+              <Missing>Not profiled</Missing>
+            )}
+          </Row>
+          <Row icon={CalendarDays} label="AML review date">
             {amlStanding ? (
               <span className={cn("font-semibold", amlStanding.overdue && "text-danger")}>{formatDate(amlStanding.nextReviewOn)}</span>
             ) : (
@@ -771,7 +785,8 @@ export function GenerateReport({ detail }: { detail: CustomerDetail }) {
             ["KYC status", kycStatusLabels[client.kycStatus]],
             ["AML status", amlStanding?.bandName ?? "Not rated"],
             ["Risk profile", riskProfile ? (PROFILES[riskProfile] ?? riskProfile) : "Not set"],
-            ["Next review date", amlStanding ? formatDate(amlStanding.nextReviewOn) : "Not set"],
+            ["Risk profile review", facts.riskReview?.nextReviewOn ? formatDate(facts.riskReview.nextReviewOn) : "Not profiled"],
+            ["AML review date", amlStanding ? formatDate(amlStanding.nextReviewOn) : "Not set"],
           ]),
         },
         {
@@ -847,7 +862,9 @@ export function GenerateReport({ detail }: { detail: CustomerDetail }) {
               pair("KYC", kycStatusLabels[client.kycStatus], toneOf(kycStatusTones[client.kycStatus])),
               pair("AML", amlStanding?.bandName ?? null, amlStanding ? "GOOD" : "MUTED"),
               pair("Risk profile", riskProfile ? (PROFILES[riskProfile] ?? riskProfile) : null),
-              pair("Next review", amlStanding ? formatDate(amlStanding.nextReviewOn) : null),
+              pair("Profile review", facts.riskReview?.nextReviewOn ? formatDate(facts.riskReview.nextReviewOn) : null,
+                facts.riskReview?.standing === "OVERDUE" || facts.riskReview?.standing === "DUE_SOON" ? "PENDING" : "PLAIN"),
+              pair("AML review", amlStanding ? formatDate(amlStanding.nextReviewOn) : null),
             ] },
             { ...empty, title: "Family & access", place: "RIGHT", pairs: [
               pair("Family group", familyGroup?.name ?? "None"), pair("Members", String(familyGroup?.members ?? family.length)),

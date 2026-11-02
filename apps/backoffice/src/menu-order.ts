@@ -42,7 +42,7 @@ export const MENU_ORDER: string[] = [
   //
   // Each desk's first screen first: the queue Compliance works every morning, the book a relationship
   // manager opens on, and the queue Operations answers.
-  "/kyc", "/my-clients", "/approvals",
+  "/client-management", "/kyc", "/my-clients", "/approvals",
 
   // Then the client, and the two reviews that decide whether the firm may act for them at all.
   "/clients", "/kyc-documents", "/kyc-checklist",

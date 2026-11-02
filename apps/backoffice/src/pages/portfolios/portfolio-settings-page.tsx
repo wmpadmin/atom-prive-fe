@@ -4,6 +4,10 @@ import {
   useChangePortfolioSettings,
   useGetPortfolioSettings,
   useListReportSchedules,
+  useRiskProfileReviewSettings,
+  useChangeRiskProfileReviewSettings,
+  getRiskProfileReviewSettingsQueryKey,
+  type RiskReviewSettings,
   type SchedulesPage,
   type SettingsView,
 } from "@atomprive/api-client/backoffice";
@@ -283,6 +287,7 @@ export function PortfolioSettingsPage() {
             Drift is looked for every morning at 6:30 Dubai on every client on a model, and each alert goes to the bell of the
             client&rsquo;s own managers. The other three wait for the valuation feed, cash targets and the order system.
           </p>
+          <RiskReviewBox />
         </Card>
       )}
 
@@ -391,6 +396,67 @@ function GeneralTab() {
         daily feed, returns are time-weighted, and a PM picks the period and benchmark on the client&rsquo;s page. These
         become settings with the custodian&rsquo;s price feed.
       </NotYet>
+    </section>
+  );
+}
+
+const EVERY_MONTHS = [12, 24, 36];
+const REMIND_DAYS = [14, 30, 60, 90];
+
+/** How often a client's risk profile is redone, and how far ahead their managers are told. Admin sets it. */
+function RiskReviewBox() {
+  const queryClient = useQueryClient();
+  const mayChange = hasAuthority(useStaffUser(), "MANAGE_CONFIGURATION:CHANGE");
+  const held = useRiskProfileReviewSettings<RiskReviewSettings, ApiError>();
+  const [typed, setTyped] = useState<{ everyMonths: number; remindDays: number } | null>(null);
+  const [saved, setSaved] = useState(false);
+  const save = useChangeRiskProfileReviewSettings<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        setTyped(null);
+        setSaved(true);
+        void queryClient.invalidateQueries({ queryKey: getRiskProfileReviewSettingsQueryKey() });
+      },
+    },
+  });
+  if (!held.data) return null;
+  const now = typed ?? { everyMonths: held.data.everyMonths, remindDays: held.data.remindDays };
+  const changed = now.everyMonths !== held.data.everyMonths || now.remindDays !== held.data.remindDays;
+  const years = (months: number) => (months % 12 === 0 ? `${months / 12} year${months === 12 ? "" : "s"}` : `${months} months`);
+  return (
+    <section className="mt-5 rounded-xl border border-line p-4">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-bold">Risk profile reviews</h3>
+          <p className="text-xs text-ink-muted">When a client&rsquo;s investment risk profile must be redone, and when their managers are reminded.</p>
+        </div>
+        {mayChange && (
+          <Button size="sm" disabled={!changed || save.isPending}
+            onClick={() => { setSaved(false); save.mutate({ data: now }); }}>
+            {save.isPending ? "Saving…" : "Save"}
+          </Button>
+        )}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field id="risk-every" label="Redo every">
+          <SelectInput id="risk-every" value={String(now.everyMonths)} disabled={!mayChange}
+            onChange={(event) => setTyped({ ...now, everyMonths: Number(event.target.value) })}>
+            {[...new Set([...EVERY_MONTHS, held.data.everyMonths])].map((one) => <option key={one} value={one}>{years(one)}</option>)}
+          </SelectInput>
+        </Field>
+        <Field id="risk-remind" label="Remind before">
+          <SelectInput id="risk-remind" value={String(now.remindDays)} disabled={!mayChange}
+            onChange={(event) => setTyped({ ...now, remindDays: Number(event.target.value) })}>
+            {[...new Set([...REMIND_DAYS, held.data.remindDays])].map((one) => <option key={one} value={one}>{one} days</option>)}
+          </SelectInput>
+        </Field>
+        <Fixed label="Who is reminded" value="Client's RM and PM (bell + email)" />
+      </div>
+      <p className="mt-2 text-xs text-ink-muted">
+        Counted from the day the newest questionnaire was finished; reminded once ahead and once on the day, at 7:15 Dubai.
+        {!mayChange && " Admin sets this."}
+        {saved && !changed && " Saved."}
+      </p>
     </section>
   );
 }

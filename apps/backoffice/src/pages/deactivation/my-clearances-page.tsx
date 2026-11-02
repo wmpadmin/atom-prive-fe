@@ -2,6 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import { useReadMyClearances, type MyClearanceRow, type MyClearances } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, cn } from "@atomprive/ui";
 import { Link } from "react-router";
+import { useStaffUser } from "../../auth/session";
 import { formatDate } from "../../lib/labels";
 import { deadlineSaid, standingLabels, standingTones } from "./clearance-labels";
 
@@ -62,6 +63,9 @@ export function MyClearancesPage() {
 }
 
 function Rows({ title, rows }: { title: string; rows: MyClearanceRow[] }) {
+  // A relationship manager opens their clients from their own list; the all-clients address turns them away.
+  const user = useStaffUser();
+  const clientsAt = user.activeRole === "ADVISOR" ? "/my-clients" : "/clients";
   return (
     <section className="rounded-2xl border border-line bg-white">
       <h2 className="px-6 pt-5 pb-4 text-base font-bold">{title}</h2>
@@ -85,7 +89,7 @@ function Rows({ title, rows }: { title: string; rows: MyClearanceRow[] }) {
                     {/* Through to the client's own file, where the answer is actually given: a list that
                         cannot be acted on from is a list somebody reads and then goes looking. */}
                     <Link
-                      to={`/clients/${row.customerId}`}
+                      to={`${clientsAt}/${row.customerId}`}
           state={{ tab: "deactivation" }}
                       className="text-ink hover:text-primary-700 hover:underline"
                     >

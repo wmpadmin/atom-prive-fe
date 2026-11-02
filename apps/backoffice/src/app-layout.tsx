@@ -24,6 +24,8 @@ import {
 import { ThemeToggle } from "./components/theme-toggle";
 import { TopSearch } from "./components/top-search";
 import { NotificationBell } from "./components/notification-bell";
+import { AssistantButton, AssistantPanel } from "./components/portfolio-assistant";
+import { hasAuthority } from "./lib/permissions";
 import {
   ChevronDown,
   KeyRound,
@@ -262,7 +264,17 @@ function NavEntry({
   locked?: boolean;
 }) {
   const Icon = item.icon;
-  const here = isHere(item, pathname, search);
+  const { preferences, change } = usePreferences();
+  // A section with screens under it can be closed, and stays as the reader left it.
+  const closes = item.below.length > 0;
+  const closed = closes && preferences.closedSections.includes(item.to);
+  const toggle = () =>
+    change("closedSections", closed
+      ? preferences.closedSections.filter((one) => one !== item.to)
+      : [...preferences.closedSections, item.to]);
+  // Closed over the screen the reader is on, the heading lights up instead, so they still see where they are.
+  const here = isHere(item, pathname, search)
+    || (closed && item.below.some((under) => isHere(under, pathname, search)));
   const waiting = useWaitingOn(item.to);
 
   if (locked) {
@@ -288,6 +300,9 @@ function NavEntry({
             out where they are themselves, and both the highlight and what is announced follow that. */}
         <Link
           to={item.to}
+          // A section's heading opens and closes it as well as opening its own screen.
+          onClick={closes ? toggle : undefined}
+          aria-expanded={closes ? !closed : undefined}
           aria-current={here ? "page" : undefined}
           className={cn(
             ENTRY_CLASS,
@@ -305,9 +320,16 @@ function NavEntry({
               {waiting}
             </span>
           )}
+          {/* The arrow says whether the section is open; the heading itself opens and closes it. */}
+          {closes && (
+            <ChevronDown
+              className={cn("size-4 shrink-0 text-ink-muted transition-transform", !closed && "rotate-180")}
+              aria-hidden="true"
+            />
+          )}
         </Link>
       </div>
-      {item.below.length > 0 && (
+      {item.below.length > 0 && !closed && (
         <ul className="mt-1 space-y-1 border-l border-line pl-3 ml-5">
           {item.below.map((under) => {
             const UnderIcon = under.icon;
@@ -460,6 +482,9 @@ export function AppLayout() {
     liveWidth.current = width;
   }, [width]);
   const away = preferences.sidebarAway;
+  // The portfolio assistant is for whoever may write proposals: the Portfolio Managers and Admin.
+  const mayAsk = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
+  const [asking, setAsking] = useState(false);
 
   const held = useCallback(
     (to: number) => Math.min(Math.max(Math.round(to), SIDEBAR_NARROWEST), SIDEBAR_WIDEST),
@@ -536,6 +561,7 @@ export function AppLayout() {
           <div className="flex items-center gap-3">
             <TopSearch />
             <div className="flex items-center gap-1">
+              {mayAsk && <AssistantButton open={asking} onToggle={() => setAsking((was) => !was)} />}
               <ThemeToggle />
               <NotificationBell />
               <UserMenu />
@@ -546,6 +572,7 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      {mayAsk && <AssistantPanel open={asking} onClose={() => setAsking(false)} />}
     </div>
   );
 }
