@@ -180,7 +180,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-balance text-ink">Welcome{firstName ? `, ${firstName}` : ""}</h1>
+        <h1 className="text-[1.625rem] font-bold text-balance text-ink">Welcome{firstName ? `, ${firstName}` : ""}</h1>
         <p className="mt-1 text-sm text-ink-muted">Here's your wealth overview and key updates.</p>
       </div>
 

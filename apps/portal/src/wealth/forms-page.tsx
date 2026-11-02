@@ -75,7 +75,7 @@ export function FormsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-balance text-ink">Forms &amp; Signatures</h1>
+        <h1 className="text-[1.625rem] font-bold text-balance text-ink">Forms &amp; Signatures</h1>
         <p className="mt-1 text-sm text-ink-muted">Review and sign your forms and agreements, and see the ones the firm is still preparing.</p>
       </div>
 
