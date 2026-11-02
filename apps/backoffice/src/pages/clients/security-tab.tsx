@@ -127,7 +127,7 @@ function ActionRow({ icon: Icon, title, lead, button }: { icon: LucideIcon; titl
         <p className="text-sm font-bold text-ink">{title}</p>
         <p className="text-xs text-ink-muted">{lead}</p>
       </div>
-      <div className="shrink-0">{button}</div>
+      <div className="w-full shrink-0 sm:w-60 [&>button]:w-full">{button}</div>
     </li>
   );
 }
@@ -373,7 +373,7 @@ export function SecurityTab({ clientId, clientName }: { clientId: string; client
               icon={KeyRound}
               title="Generate temporary password"
               lead="Create a new temporary password for the client. They sign in with it, enter their authenticator code and create a new password."
-              button={canAct && <Button size="sm" onClick={() => ask("temporary")}>+ Generate temporary password</Button>}
+              button={canAct && <Button size="sm" onClick={() => ask("temporary")}>Generate temporary password</Button>}
             />
             <ActionRow
               icon={RefreshCcw}

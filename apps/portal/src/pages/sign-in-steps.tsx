@@ -7,9 +7,10 @@ import {
   type AuthenticatorSetup,
   type SignedIn,
 } from "@atomprive/api-client/portal";
-import { Alert, Button, Field, isStrongPassword, PasswordChecklist, TextInput } from "@atomprive/ui";
+import { Alert, Button, Field, isStrongPassword, PasswordChecklist } from "@atomprive/ui";
 import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { PasswordInput } from "./password-input";
 
 /*
  * The steps between a client's password and the portal, the way staff sign in: an authenticator set up where
@@ -279,9 +280,8 @@ export function NewPasswordStep({
       </div>
       {error && <Alert tone="danger">{error}</Alert>}
       <Field id="newPassword" label="New password" required>
-        <TextInput
+        <PasswordInput
           id="newPassword"
-          type="password"
           autoComplete="new-password"
           autoFocus
           value={password}
@@ -291,9 +291,8 @@ export function NewPasswordStep({
       </Field>
       <PasswordChecklist id="newPassword-rules" password={password} showMissing={tried} />
       <Field id="newPasswordAgain" label="Type it again" required error={mismatch ? "The two passwords don't match." : undefined}>
-        <TextInput
+        <PasswordInput
           id="newPasswordAgain"
-          type="password"
           autoComplete="new-password"
           value={again}
           onChange={(event) => setAgain(event.target.value)}
