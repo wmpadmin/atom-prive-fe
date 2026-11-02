@@ -164,7 +164,9 @@ function Allocation({ data }: { data: PortfolioInsights }) {
     return INK[(at < 0 ? index : at) % INK.length];
   };
   return (
-    <Flow>
+    // No space between the two parts here: every card in a Flow already carries the gap beneath it.
+    <div>
+      <Flow>
       <Card
         title={chosen ? `Market Value Weight by Sub Asset Class · ${chosen.name}` : "Market Value Weight by Sub Asset Class"}
         action={
@@ -221,6 +223,9 @@ function Allocation({ data }: { data: PortfolioInsights }) {
             <p className="text-center text-3xs text-ink-muted">Click a class to see its sub-classes.</p>
           </div>
         </Card>
+      </Flow>
+      {/* Side by side across the whole width: two small cards read as a pair, not as two rows of one column. */}
+      <div className="grid gap-5 lg:grid-cols-2">
         <Card title="Market Value Weight by Geography">
           <BarChart
             bars={data.byCountry.map((one) => ({ label: countryName(one.key), value: one.share }))}
@@ -233,7 +238,8 @@ function Allocation({ data }: { data: PortfolioInsights }) {
         <Card title="Market Value Weight % by Custodian">
           <p className="py-4 text-center text-sm text-ink-muted">— {NOT_SENT}</p>
         </Card>
-    </Flow>
+      </div>
+    </div>
   );
 }
 
