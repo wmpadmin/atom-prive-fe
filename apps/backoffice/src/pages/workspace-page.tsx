@@ -2,7 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import { useEnterWorkspace } from "@atomprive/api-client/backoffice";
 import { Alert, Badge } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, ChartColumn, ChartLine, Settings, Shield, ShieldCheck, type LucideIcon } from "lucide-react";
+import { ArrowRight, ChartColumn, ChartLine, LifeBuoy, Settings, Shield, ShieldCheck, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router";
 import { useSession, useStaffUser } from "../auth/session";
@@ -30,6 +30,11 @@ const workspaces: Record<StaffRole, { name: string; description: string; icon: L
     name: "Product Portfolio Manager",
     description: "Model portfolio, mandate rebalancing and house view allocation across books.",
     icon: ChartColumn,
+  },
+  IT_ADMIN: {
+    name: "IT Admin",
+    description: "Support tickets from clients and staff, and signing in as somebody to reproduce a problem.",
+    icon: LifeBuoy,
   },
 };
 

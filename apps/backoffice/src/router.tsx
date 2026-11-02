@@ -9,6 +9,10 @@ import { AmlMatrixPage } from "./pages/aml/aml-matrix-page";
 import { AmlRiskPage } from "./pages/aml/aml-risk-page";
 import { TradeLogsPage } from "./pages/portfolios/trade-logs-page";
 import { AuditLogPage } from "./pages/audit-log/audit-log-page";
+import { MyTicketPage } from "./pages/support/my-ticket-page";
+import { MyTicketsPage } from "./pages/support/my-tickets-page";
+import { SupportQueuePage } from "./pages/support/support-queue-page";
+import { SupportTicketPage } from "./pages/support/support-ticket-page";
 import { IngestionMonitoringPage } from "./pages/bank-syncs/ingestion-monitoring-page";
 import { SyncErrorsPage } from "./pages/bank-syncs/sync-errors-page";
 import { SyncRunsPage } from "./pages/bank-syncs/sync-runs-page";
@@ -99,6 +103,15 @@ export const router = createBrowserRouter([
           // reader holds, so a permission on top would be a second rule saying the same thing.
           { path: "my-clearances", element: <MyClearancesPage /> },
           { path: "my-declarations", element: <MyDeclarationsPage /> },
+          { path: "my-tickets", element: <MyTicketsPage /> },
+          { path: "my-tickets/:id", element: <MyTicketPage /> },
+          {
+            element: <RequireAuthority authority="SUPPORT_TICKETS:CHANGE" />,
+            children: [
+              { path: "support", element: <SupportQueuePage /> },
+              { path: "support/:id", element: <SupportTicketPage /> },
+            ],
+          },
           { path: "my-declarations/:kind", element: <MyDeclarationPage /> },
           // Somebody's own account, so it asks for nothing beyond being signed in.
           { path: "settings", element: <SettingsPage /> },

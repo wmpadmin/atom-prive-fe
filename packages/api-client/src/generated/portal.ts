@@ -24,6 +24,77 @@ import type {
 } from '@tanstack/react-query';
 
 import { http } from '../http';
+export interface NewTicket {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  subject: string;
+  /**
+     * @minLength 0
+     * @maxLength 10000
+     */
+  description: string;
+  /**
+     * @minLength 0
+     * @maxLength 1000
+     * @nullable
+     */
+  pageUrl: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  userAgent: string | null;
+}
+
+export interface TicketRow {
+  id: string;
+  reference: string;
+  subject: string;
+  status: string;
+  raisedByType: string;
+  raisedByName: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: number;
+}
+
+export interface TicketMessage {
+  id: string;
+  fromSupport: boolean;
+  authorName: string;
+  body: string;
+  at: string;
+}
+
+export interface TicketFile {
+  id: string;
+  /** @nullable */
+  messageId: string | null;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
+export interface TicketDetail {
+  ticket: TicketRow;
+  description: string;
+  /** @nullable */
+  pageUrl: string | null;
+  /** @nullable */
+  userAgent: string | null;
+  /** @nullable */
+  raisedByEmail: string | null;
+  /** @nullable */
+  resolvedAt: string | null;
+  canReopen: boolean;
+  messages: TicketMessage[];
+  files: TicketFile[];
+}
+
 export interface ShareWealthRequest {
   granteeId: string;
   /** @nullable */
@@ -904,6 +975,14 @@ export interface AccountStatement {
   lines: StatementLine[];
 }
 
+export type ReplyToMyTicketParams = {
+body: string;
+};
+
+export type ReplyToMyTicketBody = {
+  files?: (Blob | File)[];
+};
+
 export type UploadMyPhotoBody = {
   file: Blob | File;
 };
@@ -962,6 +1041,400 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getMyTicketsUrl = () => {
+
+
+
+
+  return `/api/portal/support/tickets`
+}
+
+export const myTickets = async ( options?: Parameters<typeof http>[1]): Promise<TicketRow[]> => {
+
+  return http<TicketRow[]>(getMyTicketsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyTicketsQueryKey = () => {
+    return [
+    `/api/portal/support/tickets`
+    ] as const;
+    }
+
+
+export const getMyTicketsQueryOptions = <TData = Awaited<ReturnType<typeof myTickets>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTickets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyTicketsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myTickets>>> = ({ signal }) => myTickets({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myTickets>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyTicketsQueryResult = NonNullable<Awaited<ReturnType<typeof myTickets>>>
+export type MyTicketsQueryError = unknown
+
+
+export function useMyTickets<TData = Awaited<ReturnType<typeof myTickets>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTickets>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myTickets>>,
+          TError,
+          Awaited<ReturnType<typeof myTickets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyTickets<TData = Awaited<ReturnType<typeof myTickets>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTickets>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myTickets>>,
+          TError,
+          Awaited<ReturnType<typeof myTickets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyTickets<TData = Awaited<ReturnType<typeof myTickets>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTickets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyTickets<TData = Awaited<ReturnType<typeof myTickets>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTickets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyTicketsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRaiseTicketUrl = () => {
+
+
+
+
+  return `/api/portal/support/tickets`
+}
+
+export const raiseTicket = async (newTicket?: NewTicket, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+    const formData = new FormData();
+if(newTicket?.subject !== undefined) {
+ formData.append(`subject`, newTicket.subject);
+ }
+if(newTicket?.description !== undefined) {
+ formData.append(`description`, newTicket.description);
+ }
+if(newTicket?.pageUrl !== undefined && newTicket.pageUrl !== null) {
+ formData.append(`pageUrl`, newTicket.pageUrl);
+ }
+if(newTicket?.userAgent !== undefined && newTicket.userAgent !== null) {
+ formData.append(`userAgent`, newTicket.userAgent);
+ }
+
+  return http<TicketDetail>(getRaiseTicketUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getRaiseTicketMutationKey = () => ['raiseTicket'] as const;
+
+export const getRaiseTicketMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof raiseTicket>>, TError,RaiseTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof raiseTicket>>, TError,RaiseTicketMutationVariables, TContext> => {
+
+const mutationKey = getRaiseTicketMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof raiseTicket>>, RaiseTicketMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  raiseTicket(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RaiseTicketMutationResult = NonNullable<Awaited<ReturnType<typeof raiseTicket>>>
+    export type RaiseTicketMutationBody = NewTicket | undefined
+    export type RaiseTicketMutationError = unknown
+    export type RaiseTicketMutationVariables = {data?: NewTicket}
+
+    export const useRaiseTicket = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof raiseTicket>>, TError,RaiseTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof raiseTicket>>,
+        TError,
+        RaiseTicketMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRaiseTicketMutationOptions(options), queryClient);
+    }
+
+export const getReopenMyTicketUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/support/tickets/${id}/reopen`
+}
+
+export const reopenMyTicket = async (id: string, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+
+  return http<TicketDetail>(getReopenMyTicketUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReopenMyTicketMutationKey = () => ['reopenMyTicket'] as const;
+
+export const getReopenMyTicketMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenMyTicket>>, TError,ReopenMyTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof reopenMyTicket>>, TError,ReopenMyTicketMutationVariables, TContext> => {
+
+const mutationKey = getReopenMyTicketMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reopenMyTicket>>, ReopenMyTicketMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  reopenMyTicket(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReopenMyTicketMutationResult = NonNullable<Awaited<ReturnType<typeof reopenMyTicket>>>
+
+    export type ReopenMyTicketMutationError = unknown
+    export type ReopenMyTicketMutationVariables = {id: string}
+
+    export const useReopenMyTicket = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenMyTicket>>, TError,ReopenMyTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reopenMyTicket>>,
+        TError,
+        ReopenMyTicketMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReopenMyTicketMutationOptions(options), queryClient);
+    }
+
+export const getReplyToMyTicketUrl = (id: string,
+    params: ReplyToMyTicketParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/portal/support/tickets/${id}/messages?${stringifiedParams}` : `/api/portal/support/tickets/${id}/messages`
+}
+
+export const replyToMyTicket = async (id: string,
+    params: ReplyToMyTicketParams,
+    replyToMyTicketBody?: ReplyToMyTicketBody, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+    const formData = new FormData();
+if(replyToMyTicketBody?.files !== undefined) {
+ replyToMyTicketBody?.files.forEach(value => formData.append(`files`, value));
+ }
+
+  return http<TicketDetail>(getReplyToMyTicketUrl(id,params),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getReplyToMyTicketMutationKey = () => ['replyToMyTicket'] as const;
+
+export const getReplyToMyTicketMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replyToMyTicket>>, TError,ReplyToMyTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof replyToMyTicket>>, TError,ReplyToMyTicketMutationVariables, TContext> => {
+
+const mutationKey = getReplyToMyTicketMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replyToMyTicket>>, ReplyToMyTicketMutationVariables> = (props) => {
+          const {id,params,data} = props ?? {};
+
+          return  replyToMyTicket(id,params,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReplyToMyTicketMutationResult = NonNullable<Awaited<ReturnType<typeof replyToMyTicket>>>
+    export type ReplyToMyTicketMutationBody = ReplyToMyTicketBody | undefined
+    export type ReplyToMyTicketMutationError = unknown
+    export type ReplyToMyTicketMutationVariables = {id: string;params: ReplyToMyTicketParams;data?: ReplyToMyTicketBody}
+
+    export const useReplyToMyTicket = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replyToMyTicket>>, TError,ReplyToMyTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof replyToMyTicket>>,
+        TError,
+        ReplyToMyTicketMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReplyToMyTicketMutationOptions(options), queryClient);
+    }
+
+export const getCloseMyTicketUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/support/tickets/${id}/close`
+}
+
+export const closeMyTicket = async (id: string, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+
+  return http<TicketDetail>(getCloseMyTicketUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCloseMyTicketMutationKey = () => ['closeMyTicket'] as const;
+
+export const getCloseMyTicketMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMyTicket>>, TError,CloseMyTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeMyTicket>>, TError,CloseMyTicketMutationVariables, TContext> => {
+
+const mutationKey = getCloseMyTicketMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeMyTicket>>, CloseMyTicketMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  closeMyTicket(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseMyTicketMutationResult = NonNullable<Awaited<ReturnType<typeof closeMyTicket>>>
+
+    export type CloseMyTicketMutationError = unknown
+    export type CloseMyTicketMutationVariables = {id: string}
+
+    export const useCloseMyTicket = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMyTicket>>, TError,CloseMyTicketMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof closeMyTicket>>,
+        TError,
+        CloseMyTicketMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCloseMyTicketMutationOptions(options), queryClient);
+    }
 
 export const getWealthGrantsUrl = () => {
 
@@ -4255,6 +4728,204 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getSetUpAuthenticatorAgainMutationOptions(options), queryClient);
     }
+
+export const getMyTicketUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/support/tickets/${id}`
+}
+
+export const myTicket = async (id: string, options?: Parameters<typeof http>[1]): Promise<TicketDetail> => {
+
+  return http<TicketDetail>(getMyTicketUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyTicketQueryKey = (id: string,) => {
+    return [
+    `/api/portal/support/tickets/${id}`
+    ] as const;
+    }
+
+
+export const getMyTicketQueryOptions = <TData = Awaited<ReturnType<typeof myTicket>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTicket>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyTicketQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myTicket>>> = ({ signal }) => myTicket(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myTicket>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyTicketQueryResult = NonNullable<Awaited<ReturnType<typeof myTicket>>>
+export type MyTicketQueryError = unknown
+
+
+export function useMyTicket<TData = Awaited<ReturnType<typeof myTicket>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTicket>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myTicket>>,
+          TError,
+          Awaited<ReturnType<typeof myTicket>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyTicket<TData = Awaited<ReturnType<typeof myTicket>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTicket>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myTicket>>,
+          TError,
+          Awaited<ReturnType<typeof myTicket>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyTicket<TData = Awaited<ReturnType<typeof myTicket>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTicket>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyTicket<TData = Awaited<ReturnType<typeof myTicket>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTicket>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyTicketQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMyTicketFileUrl = (id: string,
+    fileId: string,) => {
+
+
+
+
+  return `/api/portal/support/tickets/${id}/files/${fileId}`
+}
+
+export const myTicketFile = async (id: string,
+    fileId: string, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getMyTicketFileUrl(id,fileId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyTicketFileQueryKey = (id: string,
+    fileId: string,) => {
+    return [
+    `/api/portal/support/tickets/${id}/files/${fileId}`
+    ] as const;
+    }
+
+
+export const getMyTicketFileQueryOptions = <TData = Awaited<ReturnType<typeof myTicketFile>>, TError = unknown>(id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTicketFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyTicketFileQueryKey(id,fileId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myTicketFile>>> = ({ signal }) => myTicketFile(id,fileId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && fileId !== null && fileId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myTicketFile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyTicketFileQueryResult = NonNullable<Awaited<ReturnType<typeof myTicketFile>>>
+export type MyTicketFileQueryError = unknown
+
+
+export function useMyTicketFile<TData = Awaited<ReturnType<typeof myTicketFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTicketFile>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myTicketFile>>,
+          TError,
+          Awaited<ReturnType<typeof myTicketFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyTicketFile<TData = Awaited<ReturnType<typeof myTicketFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTicketFile>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myTicketFile>>,
+          TError,
+          Awaited<ReturnType<typeof myTicketFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyTicketFile<TData = Awaited<ReturnType<typeof myTicketFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTicketFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyTicketFile<TData = Awaited<ReturnType<typeof myTicketFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myTicketFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyTicketFileQueryOptions(id,fileId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getWhoICanAskUrl = () => {
 
