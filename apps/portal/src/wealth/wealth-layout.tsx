@@ -44,7 +44,7 @@ type Place = { label: string; icon: LucideIcon; to?: string };
 
 const PLACES: Place[] = [
   { label: "Dashboard", icon: LayoutDashboard, to: "/new" },
-  { label: "Portfolio", icon: LineChart },
+  { label: "Portfolio", icon: LineChart, to: "/new/portfolio" },
   { label: "Holdings", icon: Layers },
   { label: "Accounts", icon: Wallet },
   { label: "Documents", icon: FileText },

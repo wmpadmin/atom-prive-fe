@@ -28,6 +28,7 @@ import {
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { when } from "../lib/dates";
+import { Card } from "./card";
 import { AllocationRing, ValueChart } from "./dashboard-charts";
 import { percent, whole } from "./figures";
 
@@ -46,18 +47,6 @@ const KIND_ICON: Record<string, LucideIcon> = {
   family: Users,
   portfolio: LineChart,
 };
-
-function Card({ title, action, children, className = "" }: { title: string; action?: ReactNode; children: ReactNode; className?: string }) {
-  return (
-    <section className={`rounded-2xl border border-line bg-white p-5 ${className}`}>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-base font-bold text-ink">{title}</h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
 
 function Tile({ icon: Icon, label, children }: { icon?: LucideIcon; label: string; children: ReactNode }) {
   return (

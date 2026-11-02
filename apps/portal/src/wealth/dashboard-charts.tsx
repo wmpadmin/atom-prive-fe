@@ -24,98 +24,153 @@ function ticks(low: number, high: number) {
   return all;
 }
 
-/**
- * What the portfolio was worth, day by day, this year: a line over a faint area, with the months along the
- * bottom and a crosshair that reads off the day under the pointer.
- */
-export function ValueChart({ points, currency }: { points: LinePoint[]; currency: string }) {
-  const [hover, setHover] = useState<number | null>(null);
+/** One line on a chart: what it is called, the colour it is drawn in, and its points. */
+export type Series = { name: string; colour: string; points: LinePoint[]; area?: boolean };
 
-  if (points.length < 2) {
-    return (
-      <p className="flex h-60 items-center justify-center text-sm text-ink-muted">
-        Your portfolio's performance appears here once it has been valued this year.
-      </p>
-    );
+const time = (day: string) => new Date(day).getTime();
+
+/**
+ * Lines over time on one scale: the months (or years, over a long span) along the bottom, round ticks up the
+ * side, and a crosshair that reads every line off the day under the pointer. Placed by date rather than by
+ * position, so a benchmark quoted on different days from the portfolio still lines up with it.
+ */
+export function LineChart({
+  series,
+  format,
+  tick,
+  label,
+  empty,
+}: {
+  series: Series[];
+  /** A value as the tooltip writes it. */
+  format: (value: number) => string;
+  /** A value as the axis writes it. */
+  tick: (value: number) => string;
+  label: string;
+  empty: string;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const drawn = series.filter((one) => one.points.length > 0);
+  const main = drawn[0];
+
+  if (!main || main.points.length < 2) {
+    return <p className="flex h-60 items-center justify-center px-6 text-center text-sm text-ink-muted">{empty}</p>;
   }
 
-  const values = points.map((one) => one.value);
+  const all = drawn.flatMap((one) => one.points);
+  const values = all.map((one) => one.value);
   const scale = ticks(Math.min(...values), Math.max(...values));
   const low = scale[0] ?? 0;
   const high = scale[scale.length - 1] ?? 1;
-  const x = (index: number) => LEFT + (index / (points.length - 1)) * (WIDTH - LEFT - RIGHT);
+  const first = Math.min(...all.map((one) => time(one.on)));
+  const last = Math.max(...all.map((one) => time(one.on)));
+  const x = (day: string) => LEFT + ((time(day) - first) / (last - first || 1)) * (WIDTH - LEFT - RIGHT);
   const y = (value: number) => TOP + (1 - (value - low) / (high - low || 1)) * (HEIGHT - TOP - BOTTOM);
+  const path = (points: LinePoint[]) =>
+    points.map((one, index) => `${index === 0 ? "M" : "L"}${x(one.on).toFixed(1)},${y(one.value).toFixed(1)}`).join(" ");
 
-  const line = points.map((one, index) => `${index === 0 ? "M" : "L"}${x(index).toFixed(1)},${y(one.value).toFixed(1)}`).join(" ");
-  const area = `${line} L${x(points.length - 1).toFixed(1)},${HEIGHT - BOTTOM} L${LEFT},${HEIGHT - BOTTOM} Z`;
+  // A label where each month (or, past two years, each year) begins.
+  const long = last - first > 730 * 86_400_000;
+  const stepOf = (day: string) =>
+    long ? String(new Date(day).getFullYear()) : `${new Date(day).getFullYear()}-${new Date(day).getMonth()}`;
+  const marks = main.points.filter((one, index, points) => index === 0 || stepOf(points[index - 1]!.on) !== stepOf(one.on));
 
-  // A label on the first day valued in each month.
-  const months = points
-    .map((one, index) => ({ index, month: monthOf(one.on) }))
-    .filter((one, index, all) => index === 0 || all[index - 1]?.month !== one.month);
-
-  const shown = hover === null ? null : points[hover];
+  /** The point of a line nearest a day, for the tooltip. */
+  const near = (points: LinePoint[], at: number) =>
+    points.reduce((best, one) => (Math.abs(time(one.on) - at) < Math.abs(time(best.on) - at) ? one : best), points[0]!);
+  const shown = hover === null ? null : main.points[hover];
 
   return (
     <div className="relative">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         role="img"
-        aria-label={`Portfolio value this year, from ${compact(values[0] ?? 0, currency)} to ${compact(values[values.length - 1] ?? 0, currency)}`}
+        aria-label={label}
         className="h-auto w-full touch-none"
         onPointerMove={(event) => {
           const box = event.currentTarget.getBoundingClientRect();
-          const at = ((event.clientX - box.left) / box.width) * WIDTH;
-          const index = Math.round(((at - LEFT) / (WIDTH - LEFT - RIGHT)) * (points.length - 1));
-          setHover(Math.max(0, Math.min(points.length - 1, index)));
+          const at = first + ((((event.clientX - box.left) / box.width) * WIDTH - LEFT) / (WIDTH - LEFT - RIGHT)) * (last - first);
+          const closest = near(main.points, at);
+          setHover(main.points.indexOf(closest));
         }}
         onPointerLeave={() => setHover(null)}
       >
         <defs>
-          <linearGradient id="value-fill" x1="0" x2="0" y1="0" y2="1">
+          <linearGradient id="line-fill" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="var(--color-primary-600)" stopOpacity="0.18" />
             <stop offset="100%" stopColor="var(--color-primary-600)" stopOpacity="0" />
           </linearGradient>
         </defs>
-        {scale.map((tick) => (
-          <g key={tick}>
-            <line x1={LEFT} x2={WIDTH - RIGHT} y1={y(tick)} y2={y(tick)} stroke="var(--color-line)" strokeWidth="1" />
-            <text x={LEFT - 8} y={y(tick) + 4} textAnchor="end" fontSize="11" fill="var(--color-ink-muted)">
-              {compact(tick)}
+        {scale.map((value) => (
+          <g key={value}>
+            <line x1={LEFT} x2={WIDTH - RIGHT} y1={y(value)} y2={y(value)} stroke="var(--color-line)" strokeWidth="1" />
+            <text x={LEFT - 8} y={y(value) + 4} textAnchor="end" fontSize="11" fill="var(--color-ink-muted)">
+              {tick(value)}
             </text>
           </g>
         ))}
-        {months.map((one) => (
-          <text key={one.index} x={x(one.index)} y={HEIGHT - 8} textAnchor="middle" fontSize="11" fill="var(--color-ink-muted)">
-            {one.month}
+        {marks.map((one) => (
+          <text key={one.on} x={x(one.on)} y={HEIGHT - 8} textAnchor="middle" fontSize="11" fill="var(--color-ink-muted)">
+            {long ? new Date(one.on).getFullYear() : monthOf(one.on)}
           </text>
         ))}
-        <path d={area} fill="url(#value-fill)" />
-        <path d={line} fill="none" stroke="var(--color-primary-600)" strokeWidth="2" strokeLinejoin="round" />
-        {shown && hover !== null && (
+        {drawn.map((one) =>
+          one.area ? (
+            <path
+              key={`${one.name}-area`}
+              d={`${path(one.points)} L${x(one.points[one.points.length - 1]!.on).toFixed(1)},${HEIGHT - BOTTOM} L${x(one.points[0]!.on).toFixed(1)},${HEIGHT - BOTTOM} Z`}
+              fill="url(#line-fill)"
+            />
+          ) : null,
+        )}
+        {drawn.map((one) => (
+          <path key={one.name} d={path(one.points)} fill="none" stroke={one.colour} strokeWidth="2" strokeLinejoin="round" />
+        ))}
+        {shown && (
           <g>
-            <line x1={x(hover)} x2={x(hover)} y1={TOP} y2={HEIGHT - BOTTOM} stroke="var(--color-ink-muted)" strokeDasharray="3 3" />
-            <circle cx={x(hover)} cy={y(shown.value)} r="4.5" fill="var(--color-primary-600)" stroke="white" strokeWidth="2" />
+            <line x1={x(shown.on)} x2={x(shown.on)} y1={TOP} y2={HEIGHT - BOTTOM} stroke="var(--color-ink-muted)" strokeDasharray="3 3" />
+            {drawn.map((one) => {
+              const point = near(one.points, time(shown.on));
+              return <circle key={one.name} cx={x(point.on)} cy={y(point.value)} r="4.5" fill={one.colour} stroke="white" strokeWidth="2" />;
+            })}
           </g>
         )}
       </svg>
       {shown && hover !== null && (
         <div
-          className="pointer-events-none absolute top-0 rounded-lg border border-line bg-white px-3 py-2 text-xs shadow-md"
+          className="pointer-events-none absolute top-0 min-w-36 rounded-lg border border-line bg-white px-3 py-2 text-xs shadow-md"
           style={{
-            left: `${(x(hover) / WIDTH) * 100}%`,
-            transform: hover > points.length / 2 ? "translateX(calc(-100% - 10px))" : "translateX(10px)",
+            left: `${(x(shown.on) / WIDTH) * 100}%`,
+            transform: hover > main.points.length / 2 ? "translateX(calc(-100% - 10px))" : "translateX(10px)",
           }}
         >
           <p className="text-ink-muted">
             {new Date(shown.on).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
           </p>
-          <p className="font-semibold text-ink tabular-nums">
-            {new Intl.NumberFormat("en-GB", { style: "currency", currency, maximumFractionDigits: 0 }).format(shown.value)}
-          </p>
+          {drawn.map((one) => (
+            <p key={one.name} className="flex items-center gap-1.5 font-semibold text-ink tabular-nums">
+              {drawn.length > 1 && <span aria-hidden="true" className="size-2 rounded-full" style={{ background: one.colour }} />}
+              {drawn.length > 1 && <span className="font-medium text-ink-muted">{one.name}</span>}
+              <span className="ml-auto">{format(near(one.points, time(shown.on)).value)}</span>
+            </p>
+          ))}
         </div>
       )}
     </div>
+  );
+}
+
+/** What the portfolio was worth, day by day: one line over a faint area. */
+export function ValueChart({ points, currency, empty }: { points: LinePoint[]; currency: string; empty?: string }) {
+  const values = points.map((one) => one.value);
+  return (
+    <LineChart
+      series={[{ name: "Portfolio value", colour: "var(--color-primary-600)", points, area: true }]}
+      format={(value) => new Intl.NumberFormat("en-GB", { style: "currency", currency, maximumFractionDigits: 0 }).format(value)}
+      tick={(value) => compact(value)}
+      label={`Portfolio value, from ${compact(values[0] ?? 0, currency)} to ${compact(values[values.length - 1] ?? 0, currency)}`}
+      empty={empty ?? "Your portfolio's performance appears here once it has been valued this year."}
+    />
   );
 }
 

@@ -358,6 +358,71 @@ export interface AccessEventRow {
   outcome: string;
 }
 
+export interface LinePoint {
+  on: string;
+  value: number;
+}
+
+export interface BenchmarkLine {
+  name: string;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  periodReturn: number | null;
+  line: LinePoint[];
+}
+
+export interface ClassChange {
+  assetClass: string;
+  name: string;
+  change: number;
+  /** @nullable */
+  percent: number | null;
+}
+
+export interface ValueSlice {
+  key: string;
+  name: string;
+  value: number;
+  share: number;
+}
+
+export interface PortfolioHolding {
+  name: string;
+  assetClass: string;
+  value: number;
+  share: number;
+}
+
+export interface PortfolioMovement {
+  on: string;
+  direction: string;
+  amount: number;
+  currency: string;
+}
+
+export interface PortalPortfolio {
+  period: string;
+  currency: string;
+  value: number;
+  /** @nullable */
+  invested: number | null;
+  /** @nullable */
+  unrealisedGain: number | null;
+  /** @nullable */
+  periodReturn: number | null;
+  /** @nullable */
+  from: string | null;
+  to: string;
+  performance: LinePoint[];
+  valueLine: LinePoint[];
+  benchmark: BenchmarkLine | null;
+  allocation: ValueSlice[];
+  changeByAssetClass: ClassChange[];
+  topHoldings: PortfolioHolding[];
+  movements: PortfolioMovement[];
+}
+
 export interface Invitation {
   email: string;
   clientName: string;
@@ -381,18 +446,6 @@ export interface Happening {
   title: string;
   detail: string;
   at: string;
-}
-
-export interface LinePoint {
-  on: string;
-  value: number;
-}
-
-export interface ValueSlice {
-  key: string;
-  name: string;
-  value: number;
-  share: number;
 }
 
 export interface PortalDashboard {
@@ -420,6 +473,10 @@ export interface AccountStatement {
 
 export type UploadMyPhotoBody = {
   file: Blob | File;
+};
+
+export type PortfolioParams = {
+period?: string;
 };
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -2888,6 +2945,108 @@ export function useAccessReport<TData = Awaited<ReturnType<typeof accessReport>>
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getAccessReportQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPortfolioUrl = (params?: PortfolioParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/portal/portfolio?${stringifiedParams}` : `/api/portal/portfolio`
+}
+
+export const portfolio = async (params?: PortfolioParams, options?: Parameters<typeof http>[1]): Promise<PortalPortfolio> => {
+
+  return http<PortalPortfolio>(getPortfolioUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPortfolioQueryKey = (params?: PortfolioParams,) => {
+    return [
+    `/api/portal/portfolio`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getPortfolioQueryOptions = <TData = Awaited<ReturnType<typeof portfolio>>, TError = unknown>(params?: PortfolioParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof portfolio>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPortfolioQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof portfolio>>> = ({ signal }) => portfolio(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof portfolio>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type PortfolioQueryResult = NonNullable<Awaited<ReturnType<typeof portfolio>>>
+export type PortfolioQueryError = unknown
+
+
+export function usePortfolio<TData = Awaited<ReturnType<typeof portfolio>>, TError = unknown>(
+ params: undefined |  PortfolioParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof portfolio>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof portfolio>>,
+          TError,
+          Awaited<ReturnType<typeof portfolio>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePortfolio<TData = Awaited<ReturnType<typeof portfolio>>, TError = unknown>(
+ params?: PortfolioParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof portfolio>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof portfolio>>,
+          TError,
+          Awaited<ReturnType<typeof portfolio>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePortfolio<TData = Awaited<ReturnType<typeof portfolio>>, TError = unknown>(
+ params?: PortfolioParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof portfolio>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function usePortfolio<TData = Awaited<ReturnType<typeof portfolio>>, TError = unknown>(
+ params?: PortfolioParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof portfolio>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getPortfolioQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
