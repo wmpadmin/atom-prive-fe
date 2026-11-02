@@ -53,6 +53,8 @@ import { ForgotPasswordPage } from "./pages/sign-in/forgot-password-page";
 import { LoginPage } from "./pages/sign-in/login-page";
 import { ResetPasswordPage } from "./pages/sign-in/reset-password-page";
 import { OnboardingCasePage } from "./pages/onboarding/onboarding-case-page";
+import { ClientManagementOverviewPage } from "./pages/prospects/client-management-overview-page";
+import { ProspectiveClientsPage } from "./pages/prospects/prospective-clients-page";
 import { PostOnboardingPage } from "./pages/onboarding/post-onboarding-page";
 import { ModelDetailPage } from "./pages/portfolios/model-detail-page";
 import { ManagementInformationPage } from "./pages/portfolios/management-information-page";
@@ -145,6 +147,16 @@ export const router = createBrowserRouter([
             children: [
               { path: "clients", element: <ClientsPage /> },
               { path: "clients/:clientId", element: <ClientPage /> },
+            ],
+          },
+          {
+            // Prospective clients and the Client Management overview: Operations and Admin for every prospect,
+            // a relationship manager for their own.
+            element: <RequireAuthority authority={["PROSPECTIVE_CLIENTS:VIEW", "PROSPECTIVE_CLIENTS:OWN_CLIENTS"]} />,
+            children: [
+              { path: "client-management", element: <Navigate to="/client-management/overview" replace /> },
+              { path: "client-management/overview", element: <ClientManagementOverviewPage /> },
+              { path: "prospective-clients", element: <ProspectiveClientsPage /> },
             ],
           },
           // Adding an account holder by hand is gone, screen and address both. Somebody does not join an
