@@ -12,7 +12,8 @@ import { ReportsPage } from "./pages/reports-page";
 import { RequestsPage } from "./pages/requests-page";
 import { SentAccessPage } from "./pages/sent-access-page";
 import { SettingsPage } from "./pages/settings-page";
-import { OnlySignedIn, OnlySignedOut } from "./auth/guards";
+import { OnlySignedIn, OnlySignedInNewLook, OnlySignedOut } from "./auth/guards";
+import { DashboardPage } from "./wealth/dashboard-page";
 
 /**
  * Signed out, there is one screen; signed in, there is the rest.
@@ -26,6 +27,13 @@ export const router = createBrowserRouter([
   // Open to anybody holding a link, signed in or not: the person arriving has no account yet, which
   // is the entire point of an invitation.
   { path: "/join/:token", element: <JoinPage /> },
+  // The new look of the portal, at its own address beside the classic one so the two can be compared. Its
+  // screens arrive one at a time; the menu shows the rest greyed until they do.
+  {
+    path: "/new",
+    element: <OnlySignedInNewLook />,
+    children: [{ index: true, element: <DashboardPage /> }],
+  },
   {
     path: "/",
     element: <OnlySignedIn />,
