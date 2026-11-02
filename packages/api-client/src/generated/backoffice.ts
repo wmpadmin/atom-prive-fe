@@ -1801,13 +1801,14 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1819,7 +1820,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -14254,7 +14254,7 @@ export const getSendFormsForSignatureUrl = () => {
   return `/api/backoffice/signature-packs`
 }
 
-export const sendFormsForSignature = async (sendForSignatureRequest: SendForSignatureRequest, options?: Parameters<typeof http>[1]): Promise<SignaturePackDetail> => {
+export const sendFormsForSignature = async (sendForSignatureRequest: SendForSignatureRequest, options?: Parameters<typeof http>[1]): Promise<void> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -14270,7 +14270,7 @@ export const sendFormsForSignature = async (sendForSignatureRequest: SendForSign
     }
     return headers;
   };
-return http<SignaturePackDetail>(getSendFormsForSignatureUrl(),
+return http<void>(getSendFormsForSignatureUrl(),
   {
     ...options,
     method: 'POST',

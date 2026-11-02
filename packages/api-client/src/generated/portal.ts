@@ -1898,6 +1898,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getSignMyFormMutationOptions(options), queryClient);
     }
 
+export const getSignMyPackFormUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',) => {
+
+
+
+
+  return `/api/portal/forms/pack/${kind}/sign`
+}
+
+export const signMyPackForm = async (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',
+    portalSignRequest: PortalSignRequest, options?: Parameters<typeof http>[1]): Promise<PortalFormDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<PortalFormDetail>(getSignMyPackFormUrl(kind),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(portalSignRequest)
+  }
+);}
+
+
+
+
+
+export const getSignMyPackFormMutationKey = () => ['signMyPackForm'] as const;
+
+export const getSignMyPackFormMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signMyPackForm>>, TError,SignMyPackFormMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof signMyPackForm>>, TError,SignMyPackFormMutationVariables, TContext> => {
+
+const mutationKey = getSignMyPackFormMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof signMyPackForm>>, SignMyPackFormMutationVariables> = (props) => {
+          const {kind,data} = props ?? {};
+
+          return  signMyPackForm(kind,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SignMyPackFormMutationResult = NonNullable<Awaited<ReturnType<typeof signMyPackForm>>>
+    export type SignMyPackFormMutationBody = PortalSignRequest
+    export type SignMyPackFormMutationError = unknown
+    export type SignMyPackFormMutationVariables = {kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE';data: PortalSignRequest}
+
+    export const useSignMyPackForm = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signMyPackForm>>, TError,SignMyPackFormMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof signMyPackForm>>,
+        TError,
+        SignMyPackFormMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSignMyPackFormMutationOptions(options), queryClient);
+    }
+
 export const getRemoveFromMyFamilyUrl = (memberId: string,) => {
 
 
@@ -4275,6 +4358,101 @@ export function useMyFormAttachment<TData = Awaited<ReturnType<typeof myFormAtta
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getMyFormAttachmentQueryOptions(id,attachmentId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMyPackFormUrl = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',) => {
+
+
+
+
+  return `/api/portal/forms/pack/${kind}`
+}
+
+export const myPackForm = async (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE', options?: Parameters<typeof http>[1]): Promise<PortalFormDetail> => {
+
+  return http<PortalFormDetail>(getMyPackFormUrl(kind),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyPackFormQueryKey = (kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE',) => {
+    return [
+    `/api/portal/forms/pack/${kind}`
+    ] as const;
+    }
+
+
+export const getMyPackFormQueryOptions = <TData = Awaited<ReturnType<typeof myPackForm>>, TError = unknown>(kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE', options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myPackForm>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyPackFormQueryKey(kind);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myPackForm>>> = ({ signal }) => myPackForm(kind, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: kind !== null && kind !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myPackForm>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyPackFormQueryResult = NonNullable<Awaited<ReturnType<typeof myPackForm>>>
+export type MyPackFormQueryError = unknown
+
+
+export function useMyPackForm<TData = Awaited<ReturnType<typeof myPackForm>>, TError = unknown>(
+ kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE', options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myPackForm>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myPackForm>>,
+          TError,
+          Awaited<ReturnType<typeof myPackForm>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyPackForm<TData = Awaited<ReturnType<typeof myPackForm>>, TError = unknown>(
+ kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE', options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myPackForm>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myPackForm>>,
+          TError,
+          Awaited<ReturnType<typeof myPackForm>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyPackForm<TData = Awaited<ReturnType<typeof myPackForm>>, TError = unknown>(
+ kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE', options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myPackForm>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyPackForm<TData = Awaited<ReturnType<typeof myPackForm>>, TError = unknown>(
+ kind: 'ACCOUNT_OPENING_ENTITY' | 'ACCOUNT_OPENING_INDIVIDUAL' | 'CUSTOMER_DUE_DILIGENCE_ENTITY' | 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL' | 'CLIENT_CLASSIFICATION' | 'FATCA_CRS_ENTITY' | 'FATCA_CRS_INDIVIDUAL' | 'INVESTMENT_RISK_PROFILE' | 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT' | 'CUSTOMER_IDENTIFICATION_INDIVIDUAL' | 'DFSA_ONBOARDING_CHECKLIST_ENTITY' | 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL' | 'NDAM_AGREEMENT' | 'NDAM_INVESTMENT_MANDATE' | 'DAM_AGREEMENT' | 'DAM_INVESTMENT_MANDATE' | 'NOTICE_OF_TREATMENT' | 'RISK_DISCLOSURE_SCHEDULE', options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myPackForm>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyPackFormQueryOptions(kind,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
