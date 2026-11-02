@@ -48,7 +48,7 @@ const PLACES: Place[] = [
   { label: "Holdings", icon: Layers, to: "/new/holdings" },
   { label: "Accounts", icon: Wallet, to: "/new/accounts" },
   { label: "Documents", icon: FileText, to: "/new/documents" },
-  { label: "Forms & Signatures", icon: FileSignature },
+  { label: "Forms & Signatures", icon: FileSignature, to: "/new/forms" },
   { label: "KYC", icon: ShieldCheck },
   { label: "Family Wealth", icon: Network },
   { label: "Family & Access", icon: Users },
@@ -223,7 +223,7 @@ export function WealthLayout() {
     <div className="flex min-h-screen bg-canvas text-ink">
       <nav
         aria-label="Portal"
-        className="sticky top-0 hidden h-screen w-60 shrink-0 overflow-y-auto border-r border-line bg-white px-3 py-5 lg:block"
+        className="sticky top-0 hidden h-screen w-60 shrink-0 overflow-y-auto border-r border-line bg-white px-3 py-5 lg:block print:hidden"
       >
         <Sidebar onGo={() => undefined} />
       </nav>
@@ -251,7 +251,7 @@ export function WealthLayout() {
       )}
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-white px-4 py-2.5 sm:px-6">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-white px-4 py-2.5 sm:px-6 print:hidden">
           <button
             type="button"
             aria-label="Open menu"

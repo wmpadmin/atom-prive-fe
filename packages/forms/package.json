@@ -21,6 +21,7 @@
     "./dfsa-checklist": "./src/dfsa-checklist.ts",
     "./dfsa-checklist-summary": "./src/dfsa-checklist-summary.tsx",
     "./document-parts": "./src/document-parts.ts",
+    "./document-wording": "./src/document-wording.tsx",
     "./fatca-crs": "./src/fatca-crs.ts",
     "./fatca-crs-individual": "./src/fatca-crs-individual.ts",
     "./fatca-crs-individual-summary": "./src/fatca-crs-individual-summary.tsx",
@@ -32,7 +33,10 @@
     "./investment-risk-profile-summary": "./src/investment-risk-profile-summary.tsx",
     "./made-signature": "./src/made-signature.ts",
     "./professional-client-confirmation": "./src/professional-client-confirmation.ts",
-    "./professional-client-confirmation-summary": "./src/professional-client-confirmation-summary.tsx"
+    "./professional-client-confirmation-summary": "./src/professional-client-confirmation-summary.tsx",
+    "./read-back": "./src/read-back.tsx",
+    "./signature-mark": "./src/signature-mark.tsx",
+    "./signature-pad": "./src/signature-pad.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

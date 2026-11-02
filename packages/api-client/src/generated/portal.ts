@@ -189,6 +189,178 @@ export interface SignedUp {
   accessToken: string;
 }
 
+export type PortalSignRequestSignatureKind = typeof PortalSignRequestSignatureKind[keyof typeof PortalSignRequestSignatureKind];
+
+
+export const PortalSignRequestSignatureKind = {
+  TYPED: 'TYPED',
+  DRAWN: 'DRAWN',
+} as const;
+
+export interface PortalSignRequest {
+  signatureKind: PortalSignRequestSignatureKind;
+  /**
+     * @minLength 0
+     * @maxLength 200000
+     */
+  signature: string;
+  agreed: boolean;
+}
+
+export interface AttachedFile {
+  id: string;
+  field: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+  fromTheFile: boolean;
+}
+
+export type DocumentBlockKind = typeof DocumentBlockKind[keyof typeof DocumentBlockKind];
+
+
+export const DocumentBlockKind = {
+  TITLE: 'TITLE',
+  HEADING: 'HEADING',
+  CLAUSE: 'CLAUSE',
+  PARAGRAPH: 'PARAGRAPH',
+  BULLET: 'BULLET',
+  CHECKBOX: 'CHECKBOX',
+  TABLE: 'TABLE',
+  COLUMNS: 'COLUMNS',
+} as const;
+
+export interface DocumentCell {
+  text: string;
+  across: number;
+  down: number;
+  shaded: boolean;
+}
+
+export interface DocumentBlock {
+  kind: DocumentBlockKind;
+  level: number;
+  /** @nullable */
+  number: string | null;
+  /** @nullable */
+  text: string | null;
+  centred: boolean;
+  /** @nullable */
+  lead: string | null;
+  strong: boolean;
+  /** @nullable */
+  key: string | null;
+  rows: DocumentCell[][];
+  widths: number[];
+}
+
+export type DocumentGapAbout = typeof DocumentGapAbout[keyof typeof DocumentGapAbout];
+
+
+export const DocumentGapAbout = {
+  CLIENT: 'CLIENT',
+  FIRM: 'FIRM',
+  FEES: 'FEES',
+} as const;
+
+export interface DocumentGap {
+  key: string;
+  label: string;
+  about: DocumentGapAbout;
+  /** @nullable */
+  printed: string | null;
+}
+
+export type DocumentTextKind = typeof DocumentTextKind[keyof typeof DocumentTextKind];
+
+
+export const DocumentTextKind = {
+  ACCOUNT_OPENING_ENTITY: 'ACCOUNT_OPENING_ENTITY',
+  ACCOUNT_OPENING_INDIVIDUAL: 'ACCOUNT_OPENING_INDIVIDUAL',
+  CUSTOMER_DUE_DILIGENCE_ENTITY: 'CUSTOMER_DUE_DILIGENCE_ENTITY',
+  CUSTOMER_DUE_DILIGENCE_INDIVIDUAL: 'CUSTOMER_DUE_DILIGENCE_INDIVIDUAL',
+  CLIENT_CLASSIFICATION: 'CLIENT_CLASSIFICATION',
+  FATCA_CRS_ENTITY: 'FATCA_CRS_ENTITY',
+  FATCA_CRS_INDIVIDUAL: 'FATCA_CRS_INDIVIDUAL',
+  INVESTMENT_RISK_PROFILE: 'INVESTMENT_RISK_PROFILE',
+  PROFESSIONAL_CLIENT_CONFIRMATION_JOINT: 'PROFESSIONAL_CLIENT_CONFIRMATION_JOINT',
+  CUSTOMER_IDENTIFICATION_INDIVIDUAL: 'CUSTOMER_IDENTIFICATION_INDIVIDUAL',
+  DFSA_ONBOARDING_CHECKLIST_ENTITY: 'DFSA_ONBOARDING_CHECKLIST_ENTITY',
+  DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL: 'DFSA_ONBOARDING_CHECKLIST_INDIVIDUAL',
+  NDAM_AGREEMENT: 'NDAM_AGREEMENT',
+  NDAM_INVESTMENT_MANDATE: 'NDAM_INVESTMENT_MANDATE',
+  DAM_AGREEMENT: 'DAM_AGREEMENT',
+  DAM_INVESTMENT_MANDATE: 'DAM_INVESTMENT_MANDATE',
+  NOTICE_OF_TREATMENT: 'NOTICE_OF_TREATMENT',
+  RISK_DISCLOSURE_SCHEDULE: 'RISK_DISCLOSURE_SCHEDULE',
+} as const;
+
+export type DocumentTextDetails = {[key: string]: unknown};
+
+export interface DocumentText {
+  kind: DocumentTextKind;
+  title: string;
+  filledInHere: boolean;
+  blocks: DocumentBlock[];
+  gaps: DocumentGap[];
+  details: DocumentTextDetails;
+}
+
+export type PortalFormDetailAnswers = {[key: string]: unknown};
+
+export interface PortalFormRow {
+  id: string;
+  reference: string;
+  kind: string;
+  title: string;
+  status: string;
+  filledInHere: boolean;
+  /** @nullable */
+  dueOn: string | null;
+  lastChanged: string;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  signedHow: string | null;
+}
+
+export type SignatureRowSignedAs = typeof SignatureRowSignedAs[keyof typeof SignatureRowSignedAs];
+
+
+export const SignatureRowSignedAs = {
+  CLIENT: 'CLIENT',
+  ADVISOR: 'ADVISOR',
+} as const;
+
+export type SignatureRowSignatureKind = typeof SignatureRowSignatureKind[keyof typeof SignatureRowSignatureKind];
+
+
+export const SignatureRowSignatureKind = {
+  TYPED: 'TYPED',
+  DRAWN: 'DRAWN',
+} as const;
+
+export interface SignatureRow {
+  signedAs: SignatureRowSignedAs;
+  signedAsLabel: string;
+  signerName: string;
+  signatureKind: SignatureRowSignatureKind;
+  /** @nullable */
+  signature: string | null;
+  /** @nullable */
+  capacity: string | null;
+  signedAt: string;
+}
+
+export interface PortalFormDetail {
+  form: PortalFormRow;
+  answers: PortalFormDetailAnswers;
+  attachments: AttachedFile[];
+  document: DocumentText | null;
+  signature: SignatureRow | null;
+}
+
 export interface FamilyAsked {
   id: string;
   email: string;
@@ -1636,6 +1808,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeclineFromLinkMutationOptions(options), queryClient);
+    }
+
+export const getSignMyFormUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/forms/${id}/sign`
+}
+
+export const signMyForm = async (id: string,
+    portalSignRequest: PortalSignRequest, options?: Parameters<typeof http>[1]): Promise<PortalFormDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<PortalFormDetail>(getSignMyFormUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(portalSignRequest)
+  }
+);}
+
+
+
+
+
+export const getSignMyFormMutationKey = () => ['signMyForm'] as const;
+
+export const getSignMyFormMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signMyForm>>, TError,SignMyFormMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof signMyForm>>, TError,SignMyFormMutationVariables, TContext> => {
+
+const mutationKey = getSignMyFormMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof signMyForm>>, SignMyFormMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  signMyForm(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SignMyFormMutationResult = NonNullable<Awaited<ReturnType<typeof signMyForm>>>
+    export type SignMyFormMutationBody = PortalSignRequest
+    export type SignMyFormMutationError = unknown
+    export type SignMyFormMutationVariables = {id: string;data: PortalSignRequest}
+
+    export const useSignMyForm = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signMyForm>>, TError,SignMyFormMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof signMyForm>>,
+        TError,
+        SignMyFormMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSignMyFormMutationOptions(options), queryClient);
     }
 
 export const getRemoveFromMyFamilyUrl = (memberId: string,) => {
@@ -3722,6 +3977,299 @@ export function useExportHoldings<TData = Awaited<ReturnType<typeof exportHoldin
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getExportHoldingsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMyFormsUrl = () => {
+
+
+
+
+  return `/api/portal/forms`
+}
+
+export const myForms = async ( options?: Parameters<typeof http>[1]): Promise<PortalFormRow[]> => {
+
+  return http<PortalFormRow[]>(getMyFormsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyFormsQueryKey = () => {
+    return [
+    `/api/portal/forms`
+    ] as const;
+    }
+
+
+export const getMyFormsQueryOptions = <TData = Awaited<ReturnType<typeof myForms>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myForms>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyFormsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myForms>>> = ({ signal }) => myForms({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myForms>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyFormsQueryResult = NonNullable<Awaited<ReturnType<typeof myForms>>>
+export type MyFormsQueryError = unknown
+
+
+export function useMyForms<TData = Awaited<ReturnType<typeof myForms>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myForms>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myForms>>,
+          TError,
+          Awaited<ReturnType<typeof myForms>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyForms<TData = Awaited<ReturnType<typeof myForms>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myForms>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myForms>>,
+          TError,
+          Awaited<ReturnType<typeof myForms>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyForms<TData = Awaited<ReturnType<typeof myForms>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myForms>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyForms<TData = Awaited<ReturnType<typeof myForms>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myForms>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyFormsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMyFormUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/forms/${id}`
+}
+
+export const myForm = async (id: string, options?: Parameters<typeof http>[1]): Promise<PortalFormDetail> => {
+
+  return http<PortalFormDetail>(getMyFormUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyFormQueryKey = (id: string,) => {
+    return [
+    `/api/portal/forms/${id}`
+    ] as const;
+    }
+
+
+export const getMyFormQueryOptions = <TData = Awaited<ReturnType<typeof myForm>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myForm>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyFormQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myForm>>> = ({ signal }) => myForm(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myForm>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyFormQueryResult = NonNullable<Awaited<ReturnType<typeof myForm>>>
+export type MyFormQueryError = unknown
+
+
+export function useMyForm<TData = Awaited<ReturnType<typeof myForm>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myForm>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myForm>>,
+          TError,
+          Awaited<ReturnType<typeof myForm>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyForm<TData = Awaited<ReturnType<typeof myForm>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myForm>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myForm>>,
+          TError,
+          Awaited<ReturnType<typeof myForm>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyForm<TData = Awaited<ReturnType<typeof myForm>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myForm>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyForm<TData = Awaited<ReturnType<typeof myForm>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myForm>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyFormQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMyFormAttachmentUrl = (id: string,
+    attachmentId: string,) => {
+
+
+
+
+  return `/api/portal/forms/${id}/attachments/${attachmentId}`
+}
+
+export const myFormAttachment = async (id: string,
+    attachmentId: string, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getMyFormAttachmentUrl(id,attachmentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyFormAttachmentQueryKey = (id: string,
+    attachmentId: string,) => {
+    return [
+    `/api/portal/forms/${id}/attachments/${attachmentId}`
+    ] as const;
+    }
+
+
+export const getMyFormAttachmentQueryOptions = <TData = Awaited<ReturnType<typeof myFormAttachment>>, TError = unknown>(id: string,
+    attachmentId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myFormAttachment>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyFormAttachmentQueryKey(id,attachmentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myFormAttachment>>> = ({ signal }) => myFormAttachment(id,attachmentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && attachmentId !== null && attachmentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myFormAttachment>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyFormAttachmentQueryResult = NonNullable<Awaited<ReturnType<typeof myFormAttachment>>>
+export type MyFormAttachmentQueryError = unknown
+
+
+export function useMyFormAttachment<TData = Awaited<ReturnType<typeof myFormAttachment>>, TError = unknown>(
+ id: string,
+    attachmentId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myFormAttachment>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myFormAttachment>>,
+          TError,
+          Awaited<ReturnType<typeof myFormAttachment>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyFormAttachment<TData = Awaited<ReturnType<typeof myFormAttachment>>, TError = unknown>(
+ id: string,
+    attachmentId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myFormAttachment>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myFormAttachment>>,
+          TError,
+          Awaited<ReturnType<typeof myFormAttachment>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyFormAttachment<TData = Awaited<ReturnType<typeof myFormAttachment>>, TError = unknown>(
+ id: string,
+    attachmentId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myFormAttachment>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyFormAttachment<TData = Awaited<ReturnType<typeof myFormAttachment>>, TError = unknown>(
+ id: string,
+    attachmentId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myFormAttachment>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyFormAttachmentQueryOptions(id,attachmentId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

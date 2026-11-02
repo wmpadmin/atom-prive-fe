@@ -1801,14 +1801,13 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1820,6 +1819,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -1961,12 +1961,41 @@ export interface RiskStanding {
   ratedAt: string;
 }
 
+export type SignatureRowSignedAs = typeof SignatureRowSignedAs[keyof typeof SignatureRowSignedAs];
+
+
+export const SignatureRowSignedAs = {
+  CLIENT: 'CLIENT',
+  ADVISOR: 'ADVISOR',
+} as const;
+
+export type SignatureRowSignatureKind = typeof SignatureRowSignatureKind[keyof typeof SignatureRowSignatureKind];
+
+
+export const SignatureRowSignatureKind = {
+  TYPED: 'TYPED',
+  DRAWN: 'DRAWN',
+} as const;
+
+export interface SignatureRow {
+  signedAs: SignatureRowSignedAs;
+  signedAsLabel: string;
+  signerName: string;
+  signatureKind: SignatureRowSignatureKind;
+  /** @nullable */
+  signature: string | null;
+  /** @nullable */
+  capacity: string | null;
+  signedAt: string;
+}
+
 export interface FormDetail {
   summary: FormRow;
   answers: FormDetailAnswers;
   sections: FormSection[];
   attachments: AttachedFile[];
   amlRating: RiskStanding | null;
+  clientSignature: SignatureRow | null;
 }
 
 export type FormCategoriesRequestCategoriesItem = typeof FormCategoriesRequestCategoriesItem[keyof typeof FormCategoriesRequestCategoriesItem];
@@ -3384,34 +3413,6 @@ export interface PersonToTag {
   id: string;
   name: string;
   wroteThisForm: boolean;
-}
-
-export type SignatureRowSignedAs = typeof SignatureRowSignedAs[keyof typeof SignatureRowSignedAs];
-
-
-export const SignatureRowSignedAs = {
-  CLIENT: 'CLIENT',
-  ADVISOR: 'ADVISOR',
-} as const;
-
-export type SignatureRowSignatureKind = typeof SignatureRowSignatureKind[keyof typeof SignatureRowSignatureKind];
-
-
-export const SignatureRowSignatureKind = {
-  TYPED: 'TYPED',
-  DRAWN: 'DRAWN',
-} as const;
-
-export interface SignatureRow {
-  signedAs: SignatureRowSignedAs;
-  signedAsLabel: string;
-  signerName: string;
-  signatureKind: SignatureRowSignatureKind;
-  /** @nullable */
-  signature: string | null;
-  /** @nullable */
-  capacity: string | null;
-  signedAt: string;
 }
 
 export interface PackFormRow {

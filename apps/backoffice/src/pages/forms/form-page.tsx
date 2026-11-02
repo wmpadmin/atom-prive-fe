@@ -32,6 +32,7 @@ import type { FieldFor } from "../../components/form-fields";
 import { FirmContext } from "./firm-name";
 import { toFormErrors } from "../../lib/api-errors";
 import { formatDate } from "../../lib/labels";
+import { SignatureMark } from "../../components/signature-mark";
 import type { FormStep } from "./account-opening-entity";
 import { ConfirmDialog } from "../config/confirm-dialog";
 import { formStatus } from "./form-labels";
@@ -431,11 +432,26 @@ function FilledForm<T>({
       <div className="space-y-6">
         {header}
         {signed ? (
-          <Alert tone="success">
-            {detail.summary.clientName}'s signed copy is on file
-            {detail.summary.submittedAt ? `, from ${formatDate(detail.summary.submittedAt)}` : ""}. This is the record of
-            what they signed.
-          </Alert>
+          <>
+            <Alert tone="success">
+              {detail.clientSignature
+                ? `${detail.summary.clientName} signed this in the portal on ${formatDate(detail.clientSignature.signedAt)}.`
+                : `${detail.summary.clientName}'s signed copy is on file${detail.summary.submittedAt ? `, from ${formatDate(detail.summary.submittedAt)}` : ""}.`}{" "}
+              This is the record of what they signed.
+            </Alert>
+            {detail.clientSignature && (
+              <div className="max-w-sm">
+                <SignatureMark
+                  made={{
+                    kind: detail.clientSignature.signatureKind,
+                    signature: detail.clientSignature.signature ?? "",
+                    signerName: detail.clientSignature.signerName,
+                    at: detail.clientSignature.signedAt,
+                  }}
+                />
+              </div>
+            )}
+          </>
         ) : withTheAdvisor ? (
           <Alert tone="info">
             Every part is answered, so this has gone to {detail.summary.clientName}'s relationship manager to
