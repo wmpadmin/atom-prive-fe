@@ -81,6 +81,14 @@ function Stats({ children }: { children: ReactNode }) {
   return <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">{children}</div>;
 }
 
+/**
+ * Cards that settle into whichever column has room, so a short card never leaves a gap beside a tall one: one
+ * column on a narrow screen, two from a laptop up. Each card keeps whole rather than splitting across columns.
+ */
+function Flow({ children }: { children: ReactNode }) {
+  return <div className="gap-5 lg:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">{children}</div>;
+}
+
 function Toggle<T extends string>({ value, options, onChange, label }: { value: T; options: { id: T; label: string }[]; onChange: (next: T) => void; label: string }) {
   return (
     <div role="radiogroup" aria-label={label} className="inline-flex rounded-lg bg-canvas p-0.5">
@@ -156,7 +164,7 @@ function Allocation({ data }: { data: PortfolioInsights }) {
     return INK[(at < 0 ? index : at) % INK.length];
   };
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+    <Flow>
       <Card
         title={chosen ? `Market Value Weight by Sub Asset Class · ${chosen.name}` : "Market Value Weight by Sub Asset Class"}
         action={
@@ -186,7 +194,6 @@ function Allocation({ data }: { data: PortfolioInsights }) {
         )}
         <p className="mt-3 text-right text-3xs text-ink-muted">Market value weight (%) ({data.currency})</p>
       </Card>
-      <div className="space-y-5">
         <Card title="Market Value Weight by Asset Class">
           <div className="space-y-5">
             <div className="mx-auto w-44">
@@ -226,8 +233,7 @@ function Allocation({ data }: { data: PortfolioInsights }) {
         <Card title="Market Value Weight % by Custodian">
           <p className="py-4 text-center text-sm text-ink-muted">— {NOT_SENT}</p>
         </Card>
-      </div>
-    </div>
+    </Flow>
   );
 }
 
@@ -241,7 +247,7 @@ function Performance({ data }: { data: PortfolioInsights }) {
         <Stat label={`TWR (${c}) (Since start)`} value={data.twrSinceStart === null ? null : pct(data.twrSinceStart)} tone={data.twrSinceStart} why="Not valued yet" />
         <Stat label={`Total Trading Profit (${c})`} value={null} why={NOT_SENT} />
       </Stats>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <Flow>
         <Card title="TWR by Day">
           <LineChart
             series={[{ name: "TWR", colour: "var(--color-primary-600)", points: data.performance, area: true }]}
@@ -251,7 +257,6 @@ function Performance({ data }: { data: PortfolioInsights }) {
             empty="Your return appears here once your portfolio has been valued in this period."
           />
         </Card>
-        <div className="space-y-5">
           <Card title="Net Gain/Loss by Asset Class">
             <BarChart
               bars={data.gainByAssetClass.map((one) => ({ label: one.name, value: one.change }))}
@@ -264,8 +269,7 @@ function Performance({ data }: { data: PortfolioInsights }) {
           <Card title="Total Trading Profit by Month">
             <p className="py-4 text-center text-sm text-ink-muted">— {NOT_SENT}</p>
           </Card>
-        </div>
-      </div>
+      </Flow>
     </div>
   );
 }
@@ -287,7 +291,7 @@ function Attribution({ data }: { data: PortfolioInsights }) {
         <Stat label={`Capital FX Gain/Loss - Change (${c})`} value={null} why={NOT_SENT} />
         <Stat label={`Market Value (${c})`} value={compact(data.marketValue)} />
       </div>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <Flow>
         <Card title="Performance Attribution">
           <BarChart
             bars={[
@@ -304,7 +308,7 @@ function Attribution({ data }: { data: PortfolioInsights }) {
         <Card title="Market Value by Month" action={<span className="text-xs text-ink-muted">{c}</span>}>
           <ValueChart points={monthEnds(data.valueLine)} currency={c} empty="Your portfolio's value appears here once it has been valued." />
         </Card>
-      </div>
+      </Flow>
     </div>
   );
 }
@@ -451,7 +455,7 @@ function CashFlow({ data }: { data: PortfolioInsights }) {
   const month = (key: string) => new Date(`${key}-01`).toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
   const biggest = Math.max(1, ...data.topFlows.map((one) => Math.abs(one.amount)));
   return (
-    <div className="grid gap-5 xl:grid-cols-2">
+    <Flow>
       <Card title="Net Cash Flow by Month">
         <BarChart
           bars={data.cashByMonth.map((one) => ({ label: month(one.month), value: one.net, colour: one.net >= 0 ? "var(--color-brand-900)" : LOSS }))}
@@ -488,7 +492,7 @@ function CashFlow({ data }: { data: PortfolioInsights }) {
           </span>
         </div>
       </Card>
-    </div>
+    </Flow>
   );
 }
 
