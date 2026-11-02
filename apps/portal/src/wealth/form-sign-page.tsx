@@ -193,7 +193,7 @@ export function FormSignPage() {
           {signature ? `You signed this on ${when(signature.signedAt)}.` : `Your signed copy is on file${form.completedAt ? `, from ${when(form.completedAt)}` : ""}.`} This is the
           record of what was signed.
         </Alert>
-      ) : form.status === "IN_PREPARATION" ? (
+      ) : !form.canSign ? (
         <Alert tone="info">{form.stage}. It will come to you to sign once it is ready; what you see here may still change.</Alert>
       ) : (
         <Alert tone="info">Read the form through. If anything in it is wrong, contact your relationship manager before you sign.</Alert>
@@ -221,7 +221,7 @@ export function FormSignPage() {
         </section>
       )}
 
-      {(form.status === "PENDING" || form.status === "EXPIRED") && <SignPanel formId={id} title={form.title} />}
+      {form.canSign && <SignPanel formId={id} title={form.title} />}
     </div>
   );
 }
