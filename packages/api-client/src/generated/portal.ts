@@ -419,6 +419,8 @@ export interface Weight {
   name: string;
   value: number;
   share: number;
+  /** @nullable */
+  within: string | null;
 }
 
 export interface PortfolioInsights {
