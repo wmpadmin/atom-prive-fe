@@ -111,6 +111,43 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** Credit rating, yield and duration belong to bonds, and only to bonds. */
+const BONDS = "FIXED_INCOME";
+
+/**
+ * What is worth saying about one holding: only rows that have something in them, and the bond figures only for a
+ * bond. A sub-class that merely repeats the holding's name says nothing new and is left off.
+ */
+function facts(row: HoldingRow, currency: string): [string, ReactNode][] {
+  const all: [string, ReactNode | null][] = [
+    [
+      "Change this year",
+      row.changeThisYear === null ? null : (
+        <span key="change" className={row.changeThisYear >= 0 ? "text-access-full-ink" : "text-orange-600"}>
+          {currency} {amount(row.changeThisYear)}
+        </span>
+      ),
+    ],
+    [row.kind === "OWNED" ? "What it is" : "Sub-class", row.subClass && row.subClass !== row.name ? row.subClass : null],
+  ];
+  if (row.kind === "INVESTMENT") {
+    all.push(
+      ["Quantity", row.units === null ? null : quantity(row.units)],
+      ["Ticker", row.ticker],
+      ["Country", row.countryCode ? countryName(row.countryCode) : null],
+      ["Sector", row.sector],
+    );
+    if (row.assetClass === BONDS) {
+      all.push(
+        ["Credit rating", row.creditRating],
+        ["Yield", row.yieldPercent === null ? null : `${row.yieldPercent.toFixed(2)}%`],
+        ["Duration", row.durationYears === null ? null : `${row.durationYears.toFixed(2)} years`],
+      );
+    }
+  }
+  return all.filter((one): one is [string, ReactNode] => one[1] !== null && one[1] !== undefined && one[1] !== "");
+}
+
 /** One holding, everything the firm has on it, in a panel from the right. */
 function HoldingPanel({ row, currency, onClose }: { row: HoldingRow; currency: string; onClose: () => void }) {
   useEffect(() => {
@@ -134,8 +171,6 @@ function HoldingPanel({ row, currency, onClose }: { row: HoldingRow; currency: s
     [fit],
   );
   const Icon = KIND_ICON[row.kind] ?? LineChart;
-  const dash = <span className="font-normal text-ink-muted">—</span>;
-  const text = (value: string | null) => value ?? dash;
   return (
     <div className="fixed inset-0 z-40">
       <button type="button" aria-label="Close" className="absolute inset-0 bg-brand-950/30" onClick={onClose} />
@@ -181,27 +216,11 @@ function HoldingPanel({ row, currency, onClose }: { row: HoldingRow; currency: s
           </div>
         </div>
         <dl className="divide-y divide-line px-6 pb-6">
-          <Detail label="Change this year">
-            {row.changeThisYear === null ? (
-              dash
-            ) : (
-              <span className={row.changeThisYear >= 0 ? "text-access-full-ink" : "text-orange-600"}>
-                {currency} {amount(row.changeThisYear)}
-              </span>
-            )}
-          </Detail>
-          <Detail label={row.kind === "OWNED" ? "What it is" : "Sub-class"}>{text(row.subClass)}</Detail>
-          {row.kind === "INVESTMENT" && (
-            <>
-              <Detail label="Quantity">{row.units === null ? dash : quantity(row.units)}</Detail>
-              <Detail label="Ticker">{text(row.ticker)}</Detail>
-              <Detail label="Country">{row.countryCode ? countryName(row.countryCode) : dash}</Detail>
-              <Detail label="Sector">{text(row.sector)}</Detail>
-              <Detail label="Credit rating">{text(row.creditRating)}</Detail>
-              <Detail label="Yield">{row.yieldPercent === null ? dash : `${row.yieldPercent.toFixed(2)}%`}</Detail>
-              <Detail label="Duration">{row.durationYears === null ? dash : `${row.durationYears.toFixed(2)} years`}</Detail>
-            </>
-          )}
+          {facts(row, currency).map(([label, value]) => (
+            <Detail key={label} label={label}>
+              {value}
+            </Detail>
+          ))}
         </dl>
         </div>
       </aside>
