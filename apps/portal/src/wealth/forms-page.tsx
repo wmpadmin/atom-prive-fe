@@ -5,16 +5,15 @@ import { Link, useSearchParams } from "react-router";
 import { when } from "../lib/dates";
 
 /**
- * Every form on the client's file. Pending ones wait for the client; one still unsigned after its due date shows
- * under Expired and can still be signed; Completed holds what is signed and on file; In preparation holds what the
- * firm is still writing, correcting or having its relationship manager sign, which the client can read but not sign.
+ * Every form in the client's pack. Pending holds everything not yet signed by them: what the firm has sent, which they
+ * can sign now, and what it is still preparing, which they can read and will sign once it is sent. One sent and still
+ * unsigned after its due date shows under Expired and can still be signed; Completed holds what is signed and on file.
  */
 
 const TABS = [
   { id: "PENDING", label: "Pending" },
   { id: "COMPLETED", label: "Completed" },
   { id: "EXPIRED", label: "Expired" },
-  { id: "IN_PREPARATION", label: "In preparation" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -29,7 +28,7 @@ function FormCard({ form }: { form: PortalFormRow }) {
       <div className="min-w-0 flex-1">
         <p className="font-bold text-ink">{form.title}</p>
         <p className="text-sm text-ink-muted">
-          {[form.reference, form.status === "IN_PREPARATION" ? form.stage : null].filter(Boolean).join(" · ")}
+          {[form.reference, form.status === "PENDING" && !form.canSign ? form.stage : null].filter(Boolean).join(" · ")}
           {form.status === "COMPLETED" && form.completedAt
             ? ` · ${signedHere ? "Signed by you" : "Signed copy on file"} ${when(form.completedAt)}`
             : ""}
@@ -45,12 +44,12 @@ function FormCard({ form }: { form: PortalFormRow }) {
         <Link
           to={`/new/forms/${form.id}`}
           className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold ${
-            form.status === "COMPLETED" || form.status === "IN_PREPARATION"
+            !form.canSign
               ? "border border-line bg-white text-ink hover:bg-sidebar"
               : "bg-primary-600 text-on-accent hover:bg-primary-700"
           }`}
         >
-          {form.status === "COMPLETED" || form.status === "IN_PREPARATION" ? (
+          {!form.canSign ? (
             "View"
           ) : (
             <>
@@ -77,7 +76,7 @@ export function FormsPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-balance text-ink">Forms &amp; Signatures</h1>
-        <p className="mt-1 text-sm text-ink-muted">Review and sign the forms and agreements the firm has sent you, and see what it is preparing.</p>
+        <p className="mt-1 text-sm text-ink-muted">Review and sign your forms and agreements, and see the ones the firm is still preparing.</p>
       </div>
 
       <div role="tablist" aria-label="Forms" className="flex gap-6 overflow-x-auto border-b border-line">
@@ -116,9 +115,7 @@ export function FormsPage() {
             ? "Nothing is waiting for your signature."
             : tab === "EXPIRED"
               ? "Nothing has passed its due date."
-              : tab === "IN_PREPARATION"
-                ? "The firm isn't preparing anything for you right now."
-                : "Nothing signed yet."}
+              : "Nothing signed yet."}
         </p>
       ) : (
         <ul className="space-y-3">

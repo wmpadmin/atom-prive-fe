@@ -318,6 +318,7 @@ export interface PortalFormRow {
   title: string;
   status: string;
   stage: string;
+  canSign: boolean;
   filledInHere: boolean;
   /** @nullable */
   dueOn: string | null;
