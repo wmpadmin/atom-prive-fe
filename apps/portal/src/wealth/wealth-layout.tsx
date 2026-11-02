@@ -4,6 +4,7 @@ import {
   useMe,
   useReceived,
   useRequests,
+  endClientView,
   useMyTickets,
   useSent,
   useWealthRequests,
@@ -38,6 +39,8 @@ import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useSession } from "../auth/session-context";
 import { initialsOf } from "../lib/money";
 import { rememberPage } from "./last-page";
+import { currentSupportView, forgetSupportView } from "@atomprive/support/support-view";
+import { SupportViewBanner } from "@atomprive/support/support-view-banner";
 import { lastSeen } from "./requests-seen";
 
 /**
@@ -248,7 +251,20 @@ export function WealthLayout() {
     }
   }, [where]);
 
+  const view = currentSupportView();
+  const endView = () => {
+    void endClientView()
+      .catch(() => undefined)
+      .finally(() => {
+        forgetSupportView();
+        window.close();
+        window.location.replace("/login");
+      });
+  };
+
   return (
+    <>
+    {view && <SupportViewBanner view={view} onEnd={endView} />}
     <div className="flex min-h-screen bg-canvas text-ink">
       <nav
         aria-label="Portal"
@@ -299,5 +315,6 @@ export function WealthLayout() {
         </main>
       </div>
     </div>
+    </>
   );
 }

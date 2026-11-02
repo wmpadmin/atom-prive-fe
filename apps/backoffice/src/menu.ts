@@ -448,6 +448,7 @@ const allNavigation: {
   // preferences short of typing the address.
   // The IT Admin's queue of every ticket, and everybody else's way to raise one of their own.
   { to: "/support", label: "Support tickets", icon: LifeBuoy, authority: "SUPPORT_TICKETS:CHANGE" },
+  { to: "/sign-in-as", label: "Sign in as", icon: Eye, authority: "SIGN_IN_AS:CHANGE" },
   { to: "/my-tickets", label: "Report an issue", icon: LifeBuoy, authority: null, notFor: ["IT_ADMIN"] },
   { to: "/settings", label: "Settings", icon: Settings, authority: null },
 ];

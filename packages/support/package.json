@@ -8,7 +8,9 @@
     "./ticket-view": "./src/ticket-view.tsx",
     "./raise-ticket-dialog": "./src/raise-ticket-dialog.tsx",
     "./ticket-status": "./src/ticket-status.tsx",
-    "./ticket-status-label": "./src/ticket-status-label.ts"
+    "./ticket-status-label": "./src/ticket-status-label.ts",
+    "./support-view": "./src/support-view.ts",
+    "./support-view-banner": "./src/support-view-banner.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
