@@ -45,6 +45,8 @@ import {
 } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
+import { currentSupportView } from "@atomprive/support/support-view";
+import { SupportViewBanner } from "@atomprive/support/support-view-banner";
 import { rememberPage } from "./lib/last-page";
 import { menuFor } from "./menu";
 import { roleLabels, type StaffRole } from "./lib/labels";
@@ -471,6 +473,7 @@ function SidebarEdge({
 export function AppLayout() {
   const user = useStaffUser();
   const { pathname, search } = useLocation();
+  const { signOut } = useSession();
   const items = menuFor(user);
   // Where somebody was before Report an issue, so a ticket can say which page the problem was on.
   useEffect(() => {
@@ -524,7 +527,11 @@ export function AppLayout() {
     [change, held],
   );
 
+  const view = currentSupportView();
+
   return (
+    <>
+    {view && <SupportViewBanner view={view} onEnd={() => void signOut()} />}
     <div className="flex min-h-screen bg-canvas font-sans text-ink">
       {/* Put away rather than narrowed to nothing: a sidebar of zero width still takes its border and its
           padding, which draws a stripe down the page that nothing explains. The width it had is kept, so
@@ -581,6 +588,7 @@ export function AppLayout() {
       </div>
       {mayAsk && <AssistantPanel open={asking} onClose={() => setAsking(false)} />}
     </div>
+    </>
   );
 }
 

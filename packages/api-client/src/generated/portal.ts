@@ -1436,6 +1436,74 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCloseMyTicketMutationOptions(options), queryClient);
     }
 
+export const getEndClientViewUrl = () => {
+
+
+
+
+  return `/api/portal/support-view/end`
+}
+
+export const endClientView = async ( options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getEndClientViewUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEndClientViewMutationKey = () => ['endClientView'] as const;
+
+export const getEndClientViewMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endClientView>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof endClientView>>, TError,void, TContext> => {
+
+const mutationKey = getEndClientViewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof endClientView>>, void> = () => {
+
+
+          return  endClientView(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EndClientViewMutationResult = NonNullable<Awaited<ReturnType<typeof endClientView>>>
+
+    export type EndClientViewMutationError = unknown
+
+
+    export const useEndClientView = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endClientView>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof endClientView>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getEndClientViewMutationOptions(options), queryClient);
+    }
+
 export const getWealthGrantsUrl = () => {
 
 

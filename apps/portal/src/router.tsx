@@ -18,6 +18,7 @@ import { AccountPage as NewAccountPage } from "./wealth/account-page";
 import { AccountsPage as NewAccountsPage } from "./wealth/accounts-page";
 import { DocumentsPage } from "./wealth/documents-page";
 import { FormSignPage } from "./wealth/form-sign-page";
+import { SupportViewPage } from "./wealth/support-view-page";
 import { SupportPage } from "./wealth/support-page";
 import { SupportTicketPage } from "./wealth/support-ticket-page";
 import { AuditLogPage } from "./wealth/audit-log-page";
@@ -38,6 +39,7 @@ import { PortfolioPage } from "./wealth/portfolio-page";
  */
 export const router = createBrowserRouter([
   { path: "/login", element: <OnlySignedOut /> },
+  { path: "/support-view", element: <SupportViewPage /> },
   // Open to anybody holding a link, signed in or not: the person arriving has no account yet, which
   // is the entire point of an invitation.
   { path: "/join/:token", element: <JoinPage /> },

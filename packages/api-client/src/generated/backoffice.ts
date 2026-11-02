@@ -1803,12 +1803,11 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
-  floatingPointNumber?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1820,6 +1819,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -3420,6 +3420,24 @@ export interface TicketDetail {
   canReopen: boolean;
   messages: TicketMessage[];
   files: TicketFile[];
+}
+
+export interface SignInAsRequest {
+  kind: string;
+  id: string;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export interface SupportView {
+  portal: string;
+  accessToken: string;
+  expiresAt: string;
+  name: string;
+  openAt: string;
 }
 
 export interface NewTicket {
@@ -5782,6 +5800,13 @@ export interface BankFeed {
   failingForDays: boolean;
 }
 
+export interface StaffToView {
+  id: string;
+  fullName: string;
+  /** @nullable */
+  photo: string | null;
+}
+
 export type StaffToNameRolesItem = typeof StaffToNameRolesItem[keyof typeof StaffToNameRolesItem];
 
 
@@ -8082,6 +8107,10 @@ export const ListSyncRunsOutcome = {
   SUCCEEDED: 'SUCCEEDED',
   FAILED: 'FAILED',
 } as const;
+
+export type StaffToViewParams = {
+query?: string;
+};
 
 export type ListPacksToSignParams = {
 waiting?: boolean;
@@ -14417,6 +14446,88 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getAnswerTicketMutationOptions(options), queryClient);
     }
 
+export const getSignInAsUrl = () => {
+
+
+
+
+  return `/api/backoffice/support/sign-in-as`
+}
+
+export const signInAs = async (signInAsRequest: SignInAsRequest, options?: Parameters<typeof http>[1]): Promise<SupportView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<SupportView>(getSignInAsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(signInAsRequest)
+  }
+);}
+
+
+
+
+
+export const getSignInAsMutationKey = () => ['signInAs'] as const;
+
+export const getSignInAsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signInAs>>, TError,SignInAsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof signInAs>>, TError,SignInAsMutationVariables, TContext> => {
+
+const mutationKey = getSignInAsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof signInAs>>, SignInAsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  signInAs(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SignInAsMutationResult = NonNullable<Awaited<ReturnType<typeof signInAs>>>
+    export type SignInAsMutationBody = SignInAsRequest
+    export type SignInAsMutationError = unknown
+    export type SignInAsMutationVariables = {data: SignInAsRequest}
+
+    export const useSignInAs = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signInAs>>, TError,SignInAsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof signInAs>>,
+        TError,
+        SignInAsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSignInAsMutationOptions(options), queryClient);
+    }
+
 export const getMyStaffTicketsUrl = () => {
 
 
@@ -14809,6 +14920,74 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getCloseMyStaffTicketMutationOptions(options), queryClient);
+    }
+
+export const getEndStaffViewUrl = () => {
+
+
+
+
+  return `/api/backoffice/support-view/end`
+}
+
+export const endStaffView = async ( options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getEndStaffViewUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEndStaffViewMutationKey = () => ['endStaffView'] as const;
+
+export const getEndStaffViewMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endStaffView>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof endStaffView>>, TError,void, TContext> => {
+
+const mutationKey = getEndStaffViewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof endStaffView>>, void> = () => {
+
+
+          return  endStaffView(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EndStaffViewMutationResult = NonNullable<Awaited<ReturnType<typeof endStaffView>>>
+
+    export type EndStaffViewMutationError = unknown
+
+
+    export const useEndStaffView = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endStaffView>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof endStaffView>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getEndStaffViewMutationOptions(options), queryClient);
     }
 
 export const getRemindOneUrl = (staffUserId: string,) => {
@@ -27979,6 +28158,108 @@ export function useSupportTicketFile<TData = Awaited<ReturnType<typeof supportTi
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getSupportTicketFileQueryOptions(id,fileId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStaffToViewUrl = (params?: StaffToViewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/support/staff?${stringifiedParams}` : `/api/backoffice/support/staff`
+}
+
+export const staffToView = async (params?: StaffToViewParams, options?: Parameters<typeof http>[1]): Promise<StaffToView[]> => {
+
+  return http<StaffToView[]>(getStaffToViewUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStaffToViewQueryKey = (params?: StaffToViewParams,) => {
+    return [
+    `/api/backoffice/support/staff`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getStaffToViewQueryOptions = <TData = Awaited<ReturnType<typeof staffToView>>, TError = unknown>(params?: StaffToViewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffToView>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStaffToViewQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof staffToView>>> = ({ signal }) => staffToView(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof staffToView>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type StaffToViewQueryResult = NonNullable<Awaited<ReturnType<typeof staffToView>>>
+export type StaffToViewQueryError = unknown
+
+
+export function useStaffToView<TData = Awaited<ReturnType<typeof staffToView>>, TError = unknown>(
+ params: undefined |  StaffToViewParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffToView>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof staffToView>>,
+          TError,
+          Awaited<ReturnType<typeof staffToView>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStaffToView<TData = Awaited<ReturnType<typeof staffToView>>, TError = unknown>(
+ params?: StaffToViewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffToView>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof staffToView>>,
+          TError,
+          Awaited<ReturnType<typeof staffToView>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStaffToView<TData = Awaited<ReturnType<typeof staffToView>>, TError = unknown>(
+ params?: StaffToViewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffToView>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useStaffToView<TData = Awaited<ReturnType<typeof staffToView>>, TError = unknown>(
+ params?: StaffToViewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffToView>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getStaffToViewQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
