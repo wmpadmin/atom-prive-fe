@@ -145,45 +145,74 @@ function Overview({ data, period, onPeriod }: { data: PortfolioInsights; period:
 }
 
 function Allocation({ data }: { data: PortfolioInsights }) {
+  const [picked, setPicked] = useState<string | null>(null);
   const positive = data.byAssetClass.filter((one) => one.value > 0).map((one) => ({ key: one.key, name: one.name, value: one.value, share: one.share }));
+  const pick = (key: string) => setPicked((was) => (was === key ? null : key));
+  const chosen = data.byAssetClass.find((one) => one.key === picked);
+  const subClasses = picked ? data.bySubClass.filter((one) => one.within === picked) : data.bySubClass;
+  const biggest = Math.max(1, ...subClasses.map((one) => one.share));
+  const colourOf = (key: string, index: number) => {
+    const at = positive.findIndex((one) => one.key === key);
+    return INK[(at < 0 ? index : at) % INK.length];
+  };
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-      <Card title="Market Value Weight by Asset Class">
-        <div className="grid items-center gap-6 md:grid-cols-[auto_minmax(0,1fr)]">
-          <div className="mx-auto w-44 [&_ul]:hidden">
-            <AllocationRing slices={positive} currency={data.currency} />
-          </div>
-          <ul className="space-y-2.5">
-            {data.byAssetClass.map((one, index) => (
-              <li key={one.key} className="flex items-center gap-3 text-sm">
-                <span aria-hidden="true" className="size-3 shrink-0 rounded-sm" style={{ background: one.value > 0 ? INK[positive.findIndex((p) => p.key === one.key) % INK.length] : INK[index % INK.length] }} />
-                <span className="min-w-0 flex-1 truncate text-ink-soft">{one.name}</span>
-                <span className="font-semibold text-ink tabular-nums">{one.share.toFixed(2)}%</span>
+      <Card
+        title={chosen ? `Market Value Weight by Sub Asset Class · ${chosen.name}` : "Market Value Weight by Sub Asset Class"}
+        action={
+          picked && (
+            <button type="button" onClick={() => setPicked(null)} className="text-xs font-semibold text-primary-700 hover:underline">
+              Show all
+            </button>
+          )
+        }
+      >
+        {subClasses.length === 0 ? (
+          <p className="py-6 text-center text-sm text-ink-muted">{picked ? "No sub-classes recorded for this asset class." : "No sub-classes recorded yet."}</p>
+        ) : (
+          <ul className="space-y-2">
+            {subClasses.map((one) => (
+              <li key={one.key} className="grid grid-cols-[minmax(0,11rem)_minmax(0,1fr)_3.5rem] items-center gap-3 text-xs">
+                <span className="truncate text-right text-ink-soft" title={one.name}>
+                  {one.name}
+                </span>
+                <span className="h-3 rounded-sm bg-canvas">
+                  <span className="block h-3 rounded-sm bg-access-full" style={{ width: `${Math.max(1, (one.share / biggest) * 100)}%` }} />
+                </span>
+                <span className="text-ink-muted tabular-nums">{one.share.toFixed(2)}</span>
               </li>
             ))}
           </ul>
-        </div>
+        )}
+        <p className="mt-3 text-right text-3xs text-ink-muted">Market value weight (%) ({data.currency})</p>
       </Card>
       <div className="space-y-5">
-        <Card title="Market Value Weight by Sub Asset Class">
-          {data.bySubClass.length === 0 ? (
-            <p className="py-4 text-center text-sm text-ink-muted">No sub-classes recorded yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {data.bySubClass.map((one) => (
-                <li key={one.key} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_3.5rem] items-center gap-3 text-xs">
-                  <span className="truncate text-right text-ink-soft" title={one.name}>
-                    {one.name}
-                  </span>
-                  <span className="h-3 rounded-sm bg-canvas">
-                    <span className="block h-3 rounded-sm bg-access-full" style={{ width: `${Math.max(1, Math.min(100, one.share))}%` }} />
-                  </span>
-                  <span className="text-ink-muted tabular-nums">{one.share.toFixed(2)}</span>
+        <Card title="Market Value Weight by Asset Class">
+          <div className="space-y-5">
+            <div className="mx-auto w-44">
+              <AllocationRing slices={positive} currency={data.currency} picked={picked} onPick={pick} legend={false} />
+            </div>
+            <ul className="space-y-1">
+              {data.byAssetClass.map((one, index) => (
+                <li key={one.key}>
+                  <button
+                    type="button"
+                    disabled={one.value <= 0}
+                    aria-pressed={picked === one.key}
+                    onClick={() => pick(one.key)}
+                    className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm disabled:cursor-default ${
+                      picked === one.key ? "bg-primary-50" : "enabled:hover:bg-sidebar"
+                    } ${picked && picked !== one.key ? "opacity-50" : ""}`}
+                  >
+                    <span aria-hidden="true" className="size-3 shrink-0 rounded-sm" style={{ background: colourOf(one.key, index) }} />
+                    <span className="min-w-0 flex-1 truncate text-ink-soft">{one.name}</span>
+                    <span className="font-semibold text-ink tabular-nums">{one.share.toFixed(2)}%</span>
+                  </button>
                 </li>
               ))}
             </ul>
-          )}
-          <p className="mt-3 text-right text-3xs text-ink-muted">Market value weight (%) ({data.currency})</p>
+            <p className="text-center text-3xs text-ink-muted">Click a class to see its sub-classes.</p>
+          </div>
         </Card>
         <Card title="Market Value Weight by Geography">
           <BarChart

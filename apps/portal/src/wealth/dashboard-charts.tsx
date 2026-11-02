@@ -175,7 +175,21 @@ export function ValueChart({ points, currency, empty }: { points: LinePoint[]; c
 }
 
 /** How what the client owns is spread: a ring, the total in its middle, and a legend naming every slice. */
-export function AllocationRing({ slices, currency }: { slices: ValueSlice[]; currency: string }) {
+export function AllocationRing({
+  slices,
+  currency,
+  picked,
+  onPick,
+  legend = true,
+}: {
+  slices: ValueSlice[];
+  currency: string;
+  /** The slice chosen, drawn full while the rest fade. */
+  picked?: string | null;
+  /** Makes each slice clickable; the legend beside it carries the same choice for the keyboard. */
+  onPick?: (key: string) => void;
+  legend?: boolean;
+}) {
   const drawn = slices.filter((one) => one.value > 0);
   const total = drawn.reduce((sum, one) => sum + one.value, 0);
 
@@ -207,9 +221,12 @@ export function AllocationRing({ slices, currency }: { slices: ValueSlice[]; cur
                 r={radius}
                 fill="none"
                 stroke={INK[index % INK.length]}
-                strokeWidth="12"
+                strokeWidth={picked === one.key ? 15 : 12}
                 strokeDasharray={`${dash} ${circumference - dash}`}
                 strokeDashoffset={-(starts[index] ?? 0)}
+                opacity={picked && picked !== one.key ? 0.3 : 1}
+                onClick={onPick ? () => onPick(one.key) : undefined}
+                className={onPick ? "cursor-pointer transition-opacity" : undefined}
               >
                 <title>{`${one.name}: ${one.share.toFixed(1)}%`}</title>
               </circle>
@@ -221,7 +238,7 @@ export function AllocationRing({ slices, currency }: { slices: ValueSlice[]; cur
           <span className="text-lg font-bold text-ink tabular-nums">{compact(total)}</span>
         </div>
       </div>
-      <ul className="w-full min-w-0 space-y-2">
+      {legend && <ul className="w-full min-w-0 space-y-2">
         {drawn.map((one, index) => (
           <li key={one.key} className="flex items-center gap-2 text-sm">
             <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: INK[index % INK.length] }} />
@@ -229,7 +246,7 @@ export function AllocationRing({ slices, currency }: { slices: ValueSlice[]; cur
             <span className="font-semibold text-ink tabular-nums">{one.share.toFixed(0)}%</span>
           </li>
         ))}
-      </ul>
+      </ul>}
     </div>
   );
 }
