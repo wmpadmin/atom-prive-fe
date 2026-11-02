@@ -46,7 +46,7 @@ const PLACES: Place[] = [
   { label: "Dashboard", icon: LayoutDashboard, to: "/new" },
   { label: "Portfolio", icon: LineChart, to: "/new/portfolio" },
   { label: "Holdings", icon: Layers, to: "/new/holdings" },
-  { label: "Accounts", icon: Wallet },
+  { label: "Accounts", icon: Wallet, to: "/new/accounts" },
   { label: "Documents", icon: FileText },
   { label: "Forms & Signatures", icon: FileSignature },
   { label: "KYC", icon: ShieldCheck },
@@ -82,7 +82,8 @@ function NavItem({ place, onGo }: { place: Place; onGo: () => void }) {
     <li>
       <NavLink
         to={place.to}
-        end
+        // Only the dashboard needs an exact match; an account's own page still lights up Accounts.
+        end={place.to === "/new"}
         onClick={onGo}
         className={({ isActive }) =>
           `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold ${
