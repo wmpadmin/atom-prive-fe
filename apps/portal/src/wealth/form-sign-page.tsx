@@ -208,7 +208,7 @@ export function FormSignPage() {
             <TheDocument document={document} />
           </>
         ) : (
-          <div className="p-6">{readBack(form.kind, answers, attachments, form.id)}</div>
+          <div className="p-6">{readBack(form.kind, answers, attachments, id)}</div>
         )}
       </section>
 
@@ -221,7 +221,7 @@ export function FormSignPage() {
         </section>
       )}
 
-      {(form.status === "PENDING" || form.status === "EXPIRED") && <SignPanel formId={form.id} title={form.title} />}
+      {(form.status === "PENDING" || form.status === "EXPIRED") && <SignPanel formId={id} title={form.title} />}
     </div>
   );
 }

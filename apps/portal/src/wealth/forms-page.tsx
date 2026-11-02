@@ -29,8 +29,7 @@ function FormCard({ form }: { form: PortalFormRow }) {
       <div className="min-w-0 flex-1">
         <p className="font-bold text-ink">{form.title}</p>
         <p className="text-sm text-ink-muted">
-          {form.reference}
-          {form.status === "IN_PREPARATION" ? ` · ${form.stage}` : ""}
+          {[form.reference, form.status === "IN_PREPARATION" ? form.stage : null].filter(Boolean).join(" · ")}
           {form.status === "COMPLETED" && form.completedAt
             ? ` · ${signedHere ? "Signed by you" : "Signed copy on file"} ${when(form.completedAt)}`
             : ""}
@@ -42,23 +41,27 @@ function FormCard({ form }: { form: PortalFormRow }) {
           {form.status === "EXPIRED" ? "Was due" : "Due"}: {when(form.dueOn)}
         </p>
       )}
-      <Link
-        to={`/new/forms/${form.id}`}
-        className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold ${
-          form.status === "COMPLETED" || form.status === "IN_PREPARATION"
-            ? "border border-line bg-white text-ink hover:bg-sidebar"
-            : "bg-primary-600 text-on-accent hover:bg-primary-700"
-        }`}
-      >
-        {form.status === "COMPLETED" || form.status === "IN_PREPARATION" ? (
-          "View"
-        ) : (
-          <>
-            <PenLine aria-hidden="true" className="size-4" />
-            Review &amp; sign
-          </>
-        )}
-      </Link>
+      {form.id ? (
+        <Link
+          to={`/new/forms/${form.id}`}
+          className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold ${
+            form.status === "COMPLETED" || form.status === "IN_PREPARATION"
+              ? "border border-line bg-white text-ink hover:bg-sidebar"
+              : "bg-primary-600 text-on-accent hover:bg-primary-700"
+          }`}
+        >
+          {form.status === "COMPLETED" || form.status === "IN_PREPARATION" ? (
+            "View"
+          ) : (
+            <>
+              <PenLine aria-hidden="true" className="size-4" />
+              Review &amp; sign
+            </>
+          )}
+        </Link>
+      ) : (
+        <span className="shrink-0 rounded-full bg-canvas px-3 py-1 text-xs font-semibold text-ink-muted">Not started</span>
+      )}
     </li>
   );
 }
@@ -120,7 +123,7 @@ export function FormsPage() {
       ) : (
         <ul className="space-y-3">
           {shown.map((form) => (
-            <FormCard key={form.id} form={form} />
+            <FormCard key={form.id ?? form.kind} form={form} />
           ))}
         </ul>
       )}

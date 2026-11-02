@@ -1804,9 +1804,9 @@ export interface JsonNode {
   floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
+  nodeType?: JsonNodeNodeType;
   valueNode?: boolean;
   missingNode?: boolean;
-  nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
   pojo?: boolean;
