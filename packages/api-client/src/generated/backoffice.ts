@@ -1802,13 +1802,13 @@ export const JsonNodeNodeType = {
 
 export interface JsonNode {
   number?: boolean;
-  container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
-  floatingPointNumber?: boolean;
-  nodeType?: JsonNodeNodeType;
   string?: boolean;
+  container?: boolean;
   integralNumber?: boolean;
+  nodeType?: JsonNodeNodeType;
+  floatingPointNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -3228,6 +3228,7 @@ export const PermissionGrantPermission = {
   ONBOARD_CLIENTS: 'ONBOARD_CLIENTS',
   PROSPECTIVE_CLIENTS: 'PROSPECTIVE_CLIENTS',
   CONVERT_PROSPECTS: 'CONVERT_PROSPECTS',
+  CLIENT_SIGN_IN: 'CLIENT_SIGN_IN',
   APPROVE_ONBOARDING: 'APPROVE_ONBOARDING',
   FILL_CLIENT_FORMS: 'FILL_CLIENT_FORMS',
   UPLOAD_CLIENT_DOCUMENTS: 'UPLOAD_CLIENT_DOCUMENTS',
@@ -5064,6 +5065,17 @@ export interface InviteFamilyMemberRequest {
   personalMessage: string | null;
   /** @nullable */
   inviteUnder: string | null;
+}
+
+export interface TemporaryPasswordIssued {
+  temporaryPassword: string;
+  /** @nullable */
+  expiresAt: string | null;
+  sessionsEnded: number;
+}
+
+export interface RevokedSessions {
+  sessionsEnded: number;
 }
 
 export type LinkAccountRequestAccountType = typeof LinkAccountRequestAccountType[keyof typeof LinkAccountRequestAccountType];
@@ -7126,6 +7138,34 @@ export interface Dashboard {
   health: SystemHealth;
 }
 
+export interface SecurityActivity {
+  at: string;
+  action: string;
+  label: string;
+  by: string;
+  succeeded: boolean;
+  details: string;
+}
+
+export interface SecurityStanding {
+  canSignIn: boolean;
+  /** @nullable */
+  email: string | null;
+  authenticatorSetUp: boolean;
+  password: string;
+  /** @nullable */
+  temporaryExpiresAt: string | null;
+  /** @nullable */
+  lastSignedInAt: string | null;
+  activeSessions: number;
+  /** @nullable */
+  lastAuthenticationReset: string | null;
+  /** @nullable */
+  passwordExpiresAt: string | null;
+  account: string;
+  recent: SecurityActivity[];
+}
+
 export interface RiskReview {
   /** @nullable */
   profile: string | null;
@@ -7558,6 +7598,7 @@ export const PermissionOptionPermission = {
   ONBOARD_CLIENTS: 'ONBOARD_CLIENTS',
   PROSPECTIVE_CLIENTS: 'PROSPECTIVE_CLIENTS',
   CONVERT_PROSPECTS: 'CONVERT_PROSPECTS',
+  CLIENT_SIGN_IN: 'CLIENT_SIGN_IN',
   APPROVE_ONBOARDING: 'APPROVE_ONBOARDING',
   FILL_CLIENT_FORMS: 'FILL_CLIENT_FORMS',
   UPLOAD_CLIENT_DOCUMENTS: 'UPLOAD_CLIENT_DOCUMENTS',
@@ -13667,7 +13708,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     }
 
 export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',) => {
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',) => {
 
 
 
@@ -13676,7 +13717,7 @@ export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIAN
 }
 
 export const updateRolePermission = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG',
     updateRolePermissionRequest: UpdateRolePermissionRequest, options?: Parameters<typeof http>[1]): Promise<RoleAccessView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -13738,7 +13779,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateRolePermissionMutationResult = NonNullable<Awaited<ReturnType<typeof updateRolePermission>>>
     export type UpdateRolePermissionMutationBody = UpdateRolePermissionRequest
     export type UpdateRolePermissionMutationError = unknown
-    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
+    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG';data: UpdateRolePermissionRequest}
 
     export const useUpdateRolePermission = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRolePermission>>, TError,UpdateRolePermissionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -22556,6 +22597,210 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getCancelFamilyInvitationMutationOptions(options), queryClient);
+    }
+
+export const getGenerateTemporaryPasswordUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${customerId}/security/temporary-password`
+}
+
+export const generateTemporaryPassword = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<TemporaryPasswordIssued> => {
+
+  return http<TemporaryPasswordIssued>(getGenerateTemporaryPasswordUrl(customerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getGenerateTemporaryPasswordMutationKey = () => ['generateTemporaryPassword'] as const;
+
+export const getGenerateTemporaryPasswordMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateTemporaryPassword>>, TError,GenerateTemporaryPasswordMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateTemporaryPassword>>, TError,GenerateTemporaryPasswordMutationVariables, TContext> => {
+
+const mutationKey = getGenerateTemporaryPasswordMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateTemporaryPassword>>, GenerateTemporaryPasswordMutationVariables> = (props) => {
+          const {customerId} = props ?? {};
+
+          return  generateTemporaryPassword(customerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateTemporaryPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof generateTemporaryPassword>>>
+
+    export type GenerateTemporaryPasswordMutationError = unknown
+    export type GenerateTemporaryPasswordMutationVariables = {customerId: string}
+
+    export const useGenerateTemporaryPassword = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateTemporaryPassword>>, TError,GenerateTemporaryPasswordMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof generateTemporaryPassword>>,
+        TError,
+        GenerateTemporaryPasswordMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGenerateTemporaryPasswordMutationOptions(options), queryClient);
+    }
+
+export const getRevokeSessionsUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${customerId}/security/revoke-sessions`
+}
+
+export const revokeSessions = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<RevokedSessions> => {
+
+  return http<RevokedSessions>(getRevokeSessionsUrl(customerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeSessionsMutationKey = () => ['revokeSessions'] as const;
+
+export const getRevokeSessionsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeSessions>>, TError,RevokeSessionsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeSessions>>, TError,RevokeSessionsMutationVariables, TContext> => {
+
+const mutationKey = getRevokeSessionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeSessions>>, RevokeSessionsMutationVariables> = (props) => {
+          const {customerId} = props ?? {};
+
+          return  revokeSessions(customerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeSessionsMutationResult = NonNullable<Awaited<ReturnType<typeof revokeSessions>>>
+
+    export type RevokeSessionsMutationError = unknown
+    export type RevokeSessionsMutationVariables = {customerId: string}
+
+    export const useRevokeSessions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeSessions>>, TError,RevokeSessionsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof revokeSessions>>,
+        TError,
+        RevokeSessionsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRevokeSessionsMutationOptions(options), queryClient);
+    }
+
+export const getResetAuthenticationUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${customerId}/security/reset-authentication`
+}
+
+export const resetAuthentication = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<TemporaryPasswordIssued> => {
+
+  return http<TemporaryPasswordIssued>(getResetAuthenticationUrl(customerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResetAuthenticationMutationKey = () => ['resetAuthentication'] as const;
+
+export const getResetAuthenticationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetAuthentication>>, TError,ResetAuthenticationMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetAuthentication>>, TError,ResetAuthenticationMutationVariables, TContext> => {
+
+const mutationKey = getResetAuthenticationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetAuthentication>>, ResetAuthenticationMutationVariables> = (props) => {
+          const {customerId} = props ?? {};
+
+          return  resetAuthentication(customerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetAuthenticationMutationResult = NonNullable<Awaited<ReturnType<typeof resetAuthentication>>>
+
+    export type ResetAuthenticationMutationError = unknown
+    export type ResetAuthenticationMutationVariables = {customerId: string}
+
+    export const useResetAuthentication = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetAuthentication>>, TError,ResetAuthenticationMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resetAuthentication>>,
+        TError,
+        ResetAuthenticationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResetAuthenticationMutationOptions(options), queryClient);
     }
 
 export const getListClientBankAccountsUrl = (customerId: string,) => {
@@ -34350,6 +34595,101 @@ export function useListCustomers<TData = Awaited<ReturnType<typeof listCustomers
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListCustomersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientSecurityUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${customerId}/security`
+}
+
+export const getClientSecurity = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<SecurityStanding> => {
+
+  return http<SecurityStanding>(getGetClientSecurityUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientSecurityQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/customers/${customerId}/security`
+    ] as const;
+    }
+
+
+export const getGetClientSecurityQueryOptions = <TData = Awaited<ReturnType<typeof getClientSecurity>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientSecurity>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientSecurityQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientSecurity>>> = ({ signal }) => getClientSecurity(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientSecurity>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientSecurityQueryResult = NonNullable<Awaited<ReturnType<typeof getClientSecurity>>>
+export type GetClientSecurityQueryError = unknown
+
+
+export function useGetClientSecurity<TData = Awaited<ReturnType<typeof getClientSecurity>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientSecurity>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientSecurity>>,
+          TError,
+          Awaited<ReturnType<typeof getClientSecurity>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientSecurity<TData = Awaited<ReturnType<typeof getClientSecurity>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientSecurity>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientSecurity>>,
+          TError,
+          Awaited<ReturnType<typeof getClientSecurity>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientSecurity<TData = Awaited<ReturnType<typeof getClientSecurity>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientSecurity>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientSecurity<TData = Awaited<ReturnType<typeof getClientSecurity>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientSecurity>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientSecurityQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

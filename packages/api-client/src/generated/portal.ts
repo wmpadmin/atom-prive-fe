@@ -279,6 +279,22 @@ export interface SignedIn {
   refreshToken: string | null;
   /** @nullable */
   joinToken: string | null;
+  /** @nullable */
+  challengeToken: string | null;
+  /** @nullable */
+  challengeExpiresAt: string | null;
+  /** @nullable */
+  next: string | null;
+}
+
+export interface NewPasswordRequest {
+  /** @minLength 1 */
+  challengeToken: string;
+  /**
+     * @minLength 0
+     * @maxLength 128
+     */
+  newPassword: string;
 }
 
 export interface SignInRequest {
@@ -286,6 +302,27 @@ export interface SignInRequest {
   email: string;
   /** @minLength 1 */
   password: string;
+}
+
+export interface CodeRequest {
+  /** @minLength 1 */
+  challengeToken: string;
+  /**
+     * @minLength 0
+     * @maxLength 12
+     */
+  code: string;
+}
+
+export interface ChallengeRequest {
+  /** @minLength 1 */
+  challengeToken: string;
+}
+
+export interface AuthenticatorSetup {
+  secret: string;
+  otpauthUri: string;
+  qrSvg: string;
 }
 
 export interface BankLine {
@@ -1910,6 +1947,88 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRefreshMutationOptions(options), queryClient);
     }
 
+export const getChoosePasswordUrl = () => {
+
+
+
+
+  return `/api/portal/auth/new-password`
+}
+
+export const choosePassword = async (newPasswordRequest: NewPasswordRequest, options?: Parameters<typeof http>[1]): Promise<SignedIn> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<SignedIn>(getChoosePasswordUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(newPasswordRequest)
+  }
+);}
+
+
+
+
+
+export const getChoosePasswordMutationKey = () => ['choosePassword'] as const;
+
+export const getChoosePasswordMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof choosePassword>>, TError,ChoosePasswordMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof choosePassword>>, TError,ChoosePasswordMutationVariables, TContext> => {
+
+const mutationKey = getChoosePasswordMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof choosePassword>>, ChoosePasswordMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  choosePassword(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChoosePasswordMutationResult = NonNullable<Awaited<ReturnType<typeof choosePassword>>>
+    export type ChoosePasswordMutationBody = NewPasswordRequest
+    export type ChoosePasswordMutationError = unknown
+    export type ChoosePasswordMutationVariables = {data: NewPasswordRequest}
+
+    export const useChoosePassword = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof choosePassword>>, TError,ChoosePasswordMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof choosePassword>>,
+        TError,
+        ChoosePasswordMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChoosePasswordMutationOptions(options), queryClient);
+    }
+
 export const getLogoutUrl = () => {
 
 
@@ -2058,6 +2177,252 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getLoginMutationOptions(options), queryClient);
+    }
+
+export const getEnterCodeUrl = () => {
+
+
+
+
+  return `/api/portal/auth/code`
+}
+
+export const enterCode = async (codeRequest: CodeRequest, options?: Parameters<typeof http>[1]): Promise<SignedIn> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<SignedIn>(getEnterCodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(codeRequest)
+  }
+);}
+
+
+
+
+
+export const getEnterCodeMutationKey = () => ['enterCode'] as const;
+
+export const getEnterCodeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enterCode>>, TError,EnterCodeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof enterCode>>, TError,EnterCodeMutationVariables, TContext> => {
+
+const mutationKey = getEnterCodeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enterCode>>, EnterCodeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  enterCode(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnterCodeMutationResult = NonNullable<Awaited<ReturnType<typeof enterCode>>>
+    export type EnterCodeMutationBody = CodeRequest
+    export type EnterCodeMutationError = unknown
+    export type EnterCodeMutationVariables = {data: CodeRequest}
+
+    export const useEnterCode = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enterCode>>, TError,EnterCodeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof enterCode>>,
+        TError,
+        EnterCodeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEnterCodeMutationOptions(options), queryClient);
+    }
+
+export const getSetUpAuthenticatorUrl = () => {
+
+
+
+
+  return `/api/portal/auth/authenticator`
+}
+
+export const setUpAuthenticator = async (challengeRequest: ChallengeRequest, options?: Parameters<typeof http>[1]): Promise<AuthenticatorSetup> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<AuthenticatorSetup>(getSetUpAuthenticatorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(challengeRequest)
+  }
+);}
+
+
+
+
+
+export const getSetUpAuthenticatorMutationKey = () => ['setUpAuthenticator'] as const;
+
+export const getSetUpAuthenticatorMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUpAuthenticator>>, TError,SetUpAuthenticatorMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof setUpAuthenticator>>, TError,SetUpAuthenticatorMutationVariables, TContext> => {
+
+const mutationKey = getSetUpAuthenticatorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setUpAuthenticator>>, SetUpAuthenticatorMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setUpAuthenticator(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetUpAuthenticatorMutationResult = NonNullable<Awaited<ReturnType<typeof setUpAuthenticator>>>
+    export type SetUpAuthenticatorMutationBody = ChallengeRequest
+    export type SetUpAuthenticatorMutationError = unknown
+    export type SetUpAuthenticatorMutationVariables = {data: ChallengeRequest}
+
+    export const useSetUpAuthenticator = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUpAuthenticator>>, TError,SetUpAuthenticatorMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setUpAuthenticator>>,
+        TError,
+        SetUpAuthenticatorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetUpAuthenticatorMutationOptions(options), queryClient);
+    }
+
+export const getSetUpAuthenticatorAgainUrl = () => {
+
+
+
+
+  return `/api/portal/auth/authenticator/new`
+}
+
+export const setUpAuthenticatorAgain = async (challengeRequest: ChallengeRequest, options?: Parameters<typeof http>[1]): Promise<AuthenticatorSetup> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<AuthenticatorSetup>(getSetUpAuthenticatorAgainUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(challengeRequest)
+  }
+);}
+
+
+
+
+
+export const getSetUpAuthenticatorAgainMutationKey = () => ['setUpAuthenticatorAgain'] as const;
+
+export const getSetUpAuthenticatorAgainMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUpAuthenticatorAgain>>, TError,SetUpAuthenticatorAgainMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof setUpAuthenticatorAgain>>, TError,SetUpAuthenticatorAgainMutationVariables, TContext> => {
+
+const mutationKey = getSetUpAuthenticatorAgainMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setUpAuthenticatorAgain>>, SetUpAuthenticatorAgainMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setUpAuthenticatorAgain(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetUpAuthenticatorAgainMutationResult = NonNullable<Awaited<ReturnType<typeof setUpAuthenticatorAgain>>>
+    export type SetUpAuthenticatorAgainMutationBody = ChallengeRequest
+    export type SetUpAuthenticatorAgainMutationError = unknown
+    export type SetUpAuthenticatorAgainMutationVariables = {data: ChallengeRequest}
+
+    export const useSetUpAuthenticatorAgain = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUpAuthenticatorAgain>>, TError,SetUpAuthenticatorAgainMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setUpAuthenticatorAgain>>,
+        TError,
+        SetUpAuthenticatorAgainMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetUpAuthenticatorAgainMutationOptions(options), queryClient);
     }
 
 export const getWhoICanAskUrl = () => {
