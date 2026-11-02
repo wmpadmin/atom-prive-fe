@@ -3349,9 +3349,9 @@ export const getExportHoldingsUrl = (params?: ExportHoldingsParams,) => {
   return stringifiedParams.length > 0 ? `/api/portal/holdings/export?${stringifiedParams}` : `/api/portal/holdings/export`
 }
 
-export const exportHoldings = async (params?: ExportHoldingsParams, options?: Parameters<typeof http>[1]): Promise<string> => {
+export const exportHoldings = async (params?: ExportHoldingsParams, options?: Parameters<typeof http>[1]): Promise<string | Blob> => {
 
-  return http<string>(getExportHoldingsUrl(params),
+  return http<string | Blob>(getExportHoldingsUrl(params),
   {
     ...options,
     method: 'GET'

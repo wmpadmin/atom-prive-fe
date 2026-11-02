@@ -56,8 +56,10 @@ function quantity(value: number | null) {
   return value === null ? "—" : new Intl.NumberFormat("en-GB", { maximumFractionDigits: 4 }).format(value);
 }
 
-/** Excel or CSV, from a small menu under the button. */
-function ExportMenu({ onPick, busy }: { onPick: (format: "xlsx" | "csv") => void; busy: boolean }) {
+/** Excel, CSV or PDF, from a small menu under the button. */
+type Format = "xlsx" | "csv" | "pdf";
+
+function ExportMenu({ onPick, busy }: { onPick: (format: Format) => void; busy: boolean }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -81,6 +83,7 @@ function ExportMenu({ onPick, busy }: { onPick: (format: "xlsx" | "csv") => void
             [
               ["xlsx", "Excel (.xlsx)"],
               ["csv", "CSV (.csv)"],
+              ["pdf", "PDF (.pdf)"],
             ] as const
           ).map(([format, label]) => (
             <button
@@ -261,7 +264,7 @@ export function HoldingsPage() {
   );
   const shown = rows.slice(page * PAGE, page * PAGE + PAGE);
 
-  const exportAs = async (format: "xlsx" | "csv") => {
+  const exportAs = async (format: Format) => {
     setExporting(true);
     setProblem(undefined);
     try {
