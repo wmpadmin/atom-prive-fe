@@ -1,16 +1,20 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useCancelFamilyInvitation,
+  useDeclineFamilyInviteAsk,
+  useFamilyInviteAsks,
   useGetClientPortfolio,
   useInviteFamilyMember,
   useListProposals,
   useRemoveFamilyMember,
   useResendFamilyInvitation,
+  useSendFamilyInviteAsk,
   type ClientEvent,
   type CustomerDetail,
   type FamilyGroupSummary,
   type FamilyInvitationRow,
   type FamilyMember,
+  type InviteAsk,
   type PortfolioStanding,
   type ProposalPage,
   type ProposalRow,
@@ -541,6 +545,7 @@ export function FamilyPanel({
             </tbody>
           </table>
         </div>
+        <ClientInviteAsks clientId={client.id} mayAct={mayAdd} />
         <Invitations clientId={client.id} invitations={invitations} mayAct={mayAdd} />
       </section>
     </div>
@@ -740,6 +745,130 @@ function Invitations({
     </section>
   );
 }
+
+/**
+ * Who the client's holder asked the firm to invite from the portal.
+ *
+ * <p>The client never sends an invitation: they say who, and the desk checks the person and sends it from
+ * here exactly as it sends one of its own, or declines and says why — the client reads that reason.
+ */
+function ClientInviteAsks({ clientId, mayAct }: { clientId: string; mayAct: boolean }) {
+  const asks = useFamilyInviteAsks<InviteAsk[], ApiError>(clientId);
+  const queryClient = useQueryClient();
+  const [declining, setDeclining] = useState<InviteAsk | null>(null);
+  const [reason, setReason] = useState("");
+  const done = { mutation: { onSuccess: () => void queryClient.invalidateQueries() } };
+  const send = useSendFamilyInviteAsk<ApiError>(done);
+  const decline = useDeclineFamilyInviteAsk<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries();
+        setDeclining(null);
+        setReason("");
+      },
+    },
+  });
+  const shown = asks.data ?? [];
+  if (shown.length === 0) {
+    return null;
+  }
+  return (
+    <section className="border-t border-line px-6 py-5">
+      <h3 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Asked by the client</h3>
+      {send.error && (
+        <div className="mt-2">
+          <Alert tone="danger">{send.error.message}</Alert>
+        </div>
+      )}
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-line text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              <th className="py-2 pr-4 text-left">Person</th>
+              <th className="px-4 py-2 text-left">Relationship</th>
+              <th className="px-4 py-2 text-left">Asked</th>
+              <th className="px-4 py-2 text-left">Status</th>
+              <th className="px-4 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((one) => (
+              <tr key={one.id} className="border-b border-line text-sm last:border-0">
+                <td className="py-2.5 pr-4">
+                  <span className="block font-semibold">{one.fullName}</span>
+                  <span className="block text-xs text-ink-muted">{one.email}</span>
+                  {one.personalMessage && <span className="block text-xs text-ink-muted italic">“{one.personalMessage}”</span>}
+                </td>
+                <td className="px-4 py-2.5">{one.relationship}</td>
+                <td className="px-4 py-2.5 whitespace-nowrap">{formatDate(one.askedAt.slice(0, 10))}</td>
+                <td className="px-4 py-2.5">
+                  <Badge tone={askTones[one.status] ?? "neutral"}>{askLabels[one.status] ?? one.status}</Badge>
+                  {one.answeredByName && <span className="mt-0.5 block text-xs text-ink-muted">by {one.answeredByName}</span>}
+                  {one.reason && <span className="mt-0.5 block max-w-64 text-xs text-ink-muted">{one.reason}</span>}
+                </td>
+                <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                  {mayAct && one.status === "ASKED" && (
+                    <span className="inline-flex gap-2">
+                      <Button size="sm" disabled={send.isPending} onClick={() => send.mutate({ id: clientId, askId: one.id })}>
+                        {send.isPending ? "Sending…" : "Send invitation"}
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => setDeclining(one)}>
+                        Decline
+                      </Button>
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Dialog
+        open={declining !== null}
+        title={declining ? `Decline inviting ${declining.fullName}?` : ""}
+        description="Nothing is sent to them. The client sees your reason."
+        onClose={() => {
+          setDeclining(null);
+          setReason("");
+          decline.reset();
+        }}
+      >
+        <div className="space-y-4">
+          {decline.error && <Alert tone="danger">{decline.error.message}</Alert>}
+          <Field id="decline-ask-reason" label="Why" required>
+            <TextArea id="decline-ask-reason" rows={3} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" disabled={decline.isPending} onClick={() => setDeclining(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              disabled={decline.isPending || !reason.trim() || !declining}
+              onClick={() => declining && decline.mutate({ id: clientId, askId: declining.id, data: { reason: reason.trim() } })}
+            >
+              {decline.isPending ? "Declining…" : "Decline"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+    </section>
+  );
+}
+
+const askLabels: Record<string, string> = {
+  ASKED: "Waiting for you",
+  SENT: "Invitation sent",
+  DECLINED: "Declined",
+  WITHDRAWN: "Withdrawn by the client",
+};
+
+const askTones: Record<string, "warning" | "success" | "neutral" | "danger"> = {
+  ASKED: "warning",
+  SENT: "success",
+  DECLINED: "danger",
+  WITHDRAWN: "neutral",
+};
 
 /** How each outcome is coloured, in the firm's own words for them. */
 const invitationTones: Record<FamilyInvitationRow["status"], "warning" | "success" | "neutral" | "danger"> = {

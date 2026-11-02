@@ -165,7 +165,7 @@ function Holdings({ holdings, currency }: { holdings: TopHolding[]; currency: st
 }
 
 /** Choose who may see your wealth, until when; and stop showing it to anybody already shown. */
-function ShareDialog({ people, onClose }: { people: FamilyPerson[]; onClose: () => void }) {
+export function ShareDialog({ people, onClose }: { people: FamilyPerson[]; onClose: () => void }) {
   const queryClient = useQueryClient();
   const grants = useWealthGrants<WealthGrant[], ApiError>();
   const [who, setWho] = useState<string>();

@@ -102,7 +102,7 @@ export function ClientPage() {
   // the file: whoever went into a document is on their way back to the rest of them.
   const tabs = TABS.filter((option) => !option.needs || hasAnyAuthority(user, ...option.needs));
   const [tab, setTab] = useState<Tab>(() => {
-    const asked = (location.state as { tab?: string } | null)?.tab;
+    const asked = (location.state as { tab?: string } | null)?.tab ?? new URLSearchParams(location.search).get("tab");
     return tabs.some((option) => option.id === asked) ? (asked as Tab) : "overview";
   });
   // "Open the portfolio" goes down this screen rather than away to another one, and from another tab
