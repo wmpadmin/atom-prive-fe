@@ -5,6 +5,7 @@ import { useCallback, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { useSession } from "../auth/session-context";
 import { AuthLayout } from "./auth-layout";
+import { PasswordInput } from "./password-input";
 import { AuthenticatorStep, CodeStep, NewPasswordStep } from "./sign-in-steps";
 
 /** Where a client is between their password and the portal. */
@@ -127,9 +128,8 @@ export function LoginPage() {
         </Field>
 
         <Field id="password" label="Password" required>
-          <TextInput
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="current-password"
             required
             value={password}
