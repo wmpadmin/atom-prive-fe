@@ -50,7 +50,7 @@ const PLACES: Place[] = [
   { label: "Documents", icon: FileText, to: "/new/documents" },
   { label: "Forms & Signatures", icon: FileSignature, to: "/new/forms" },
   { label: "KYC", icon: ShieldCheck },
-  { label: "Family Wealth", icon: Network },
+  { label: "Family Wealth", icon: Network, to: "/new/family-wealth" },
   { label: "Family & Access", icon: Users },
   { label: "Access Requests", icon: KeyRound },
   { label: "Activity", icon: Activity },
