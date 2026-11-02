@@ -5047,6 +5047,33 @@ export interface LeaveFamilyRequest {
   reason: string | null;
 }
 
+export interface InviteAsk {
+  id: string;
+  customerId: string;
+  fullName: string;
+  email: string;
+  relationshipCode: string;
+  relationship: string;
+  /** @nullable */
+  personalMessage: string | null;
+  status: string;
+  askedAt: string;
+  /** @nullable */
+  answeredAt: string | null;
+  /** @nullable */
+  answeredByName: string | null;
+  /** @nullable */
+  reason: string | null;
+}
+
+export interface DeclineInviteAskRequest {
+  /**
+     * @minLength 0
+     * @maxLength 500
+     */
+  reason: string;
+}
+
 export interface InviteFamilyMemberRequest {
   /**
      * @minLength 0
@@ -22378,6 +22405,161 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRemoveFamilyMemberMutationOptions(options), queryClient);
     }
 
+export const getSendFamilyInviteAskUrl = (id: string,
+    askId: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${id}/family-invite-asks/${askId}/send`
+}
+
+export const sendFamilyInviteAsk = async (id: string,
+    askId: string, options?: Parameters<typeof http>[1]): Promise<InviteAsk[]> => {
+
+  return http<InviteAsk[]>(getSendFamilyInviteAskUrl(id,askId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSendFamilyInviteAskMutationKey = () => ['sendFamilyInviteAsk'] as const;
+
+export const getSendFamilyInviteAskMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendFamilyInviteAsk>>, TError,SendFamilyInviteAskMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendFamilyInviteAsk>>, TError,SendFamilyInviteAskMutationVariables, TContext> => {
+
+const mutationKey = getSendFamilyInviteAskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendFamilyInviteAsk>>, SendFamilyInviteAskMutationVariables> = (props) => {
+          const {id,askId} = props ?? {};
+
+          return  sendFamilyInviteAsk(id,askId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendFamilyInviteAskMutationResult = NonNullable<Awaited<ReturnType<typeof sendFamilyInviteAsk>>>
+
+    export type SendFamilyInviteAskMutationError = unknown
+    export type SendFamilyInviteAskMutationVariables = {id: string;askId: string}
+
+    export const useSendFamilyInviteAsk = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendFamilyInviteAsk>>, TError,SendFamilyInviteAskMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendFamilyInviteAsk>>,
+        TError,
+        SendFamilyInviteAskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendFamilyInviteAskMutationOptions(options), queryClient);
+    }
+
+export const getDeclineFamilyInviteAskUrl = (id: string,
+    askId: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${id}/family-invite-asks/${askId}/decline`
+}
+
+export const declineFamilyInviteAsk = async (id: string,
+    askId: string,
+    declineInviteAskRequest: DeclineInviteAskRequest, options?: Parameters<typeof http>[1]): Promise<InviteAsk[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<InviteAsk[]>(getDeclineFamilyInviteAskUrl(id,askId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(declineInviteAskRequest)
+  }
+);}
+
+
+
+
+
+export const getDeclineFamilyInviteAskMutationKey = () => ['declineFamilyInviteAsk'] as const;
+
+export const getDeclineFamilyInviteAskMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineFamilyInviteAsk>>, TError,DeclineFamilyInviteAskMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof declineFamilyInviteAsk>>, TError,DeclineFamilyInviteAskMutationVariables, TContext> => {
+
+const mutationKey = getDeclineFamilyInviteAskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof declineFamilyInviteAsk>>, DeclineFamilyInviteAskMutationVariables> = (props) => {
+          const {id,askId,data} = props ?? {};
+
+          return  declineFamilyInviteAsk(id,askId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineFamilyInviteAskMutationResult = NonNullable<Awaited<ReturnType<typeof declineFamilyInviteAsk>>>
+    export type DeclineFamilyInviteAskMutationBody = DeclineInviteAskRequest
+    export type DeclineFamilyInviteAskMutationError = unknown
+    export type DeclineFamilyInviteAskMutationVariables = {id: string;askId: string;data: DeclineInviteAskRequest}
+
+    export const useDeclineFamilyInviteAsk = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineFamilyInviteAsk>>, TError,DeclineFamilyInviteAskMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof declineFamilyInviteAsk>>,
+        TError,
+        DeclineFamilyInviteAskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeclineFamilyInviteAskMutationOptions(options), queryClient);
+    }
+
 export const getInviteFamilyMemberUrl = (id: string,) => {
 
 
@@ -34597,6 +34779,101 @@ export function useListCustomers<TData = Awaited<ReturnType<typeof listCustomers
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListCustomersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getFamilyInviteAsksUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/customers/${id}/family-invite-asks`
+}
+
+export const familyInviteAsks = async (id: string, options?: Parameters<typeof http>[1]): Promise<InviteAsk[]> => {
+
+  return http<InviteAsk[]>(getFamilyInviteAsksUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getFamilyInviteAsksQueryKey = (id: string,) => {
+    return [
+    `/api/backoffice/customers/${id}/family-invite-asks`
+    ] as const;
+    }
+
+
+export const getFamilyInviteAsksQueryOptions = <TData = Awaited<ReturnType<typeof familyInviteAsks>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof familyInviteAsks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getFamilyInviteAsksQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof familyInviteAsks>>> = ({ signal }) => familyInviteAsks(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof familyInviteAsks>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type FamilyInviteAsksQueryResult = NonNullable<Awaited<ReturnType<typeof familyInviteAsks>>>
+export type FamilyInviteAsksQueryError = unknown
+
+
+export function useFamilyInviteAsks<TData = Awaited<ReturnType<typeof familyInviteAsks>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof familyInviteAsks>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof familyInviteAsks>>,
+          TError,
+          Awaited<ReturnType<typeof familyInviteAsks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useFamilyInviteAsks<TData = Awaited<ReturnType<typeof familyInviteAsks>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof familyInviteAsks>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof familyInviteAsks>>,
+          TError,
+          Awaited<ReturnType<typeof familyInviteAsks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useFamilyInviteAsks<TData = Awaited<ReturnType<typeof familyInviteAsks>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof familyInviteAsks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useFamilyInviteAsks<TData = Awaited<ReturnType<typeof familyInviteAsks>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof familyInviteAsks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getFamilyInviteAsksQueryOptions(id,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
