@@ -1801,9 +1801,9 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  floatingPointNumber?: boolean;
   valueNode?: boolean;
   missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
