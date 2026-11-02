@@ -57,9 +57,9 @@ function quantity(value: number | null) {
 }
 
 /** Excel, CSV or PDF, from a small menu under the button. */
-type Format = "xlsx" | "csv" | "pdf";
+export type Format = "xlsx" | "csv" | "pdf";
 
-function ExportMenu({ onPick, busy }: { onPick: (format: Format) => void; busy: boolean }) {
+export function ExportMenu({ onPick, busy, formats = ["xlsx", "csv", "pdf"] }: { onPick: (format: Format) => void; busy: boolean; formats?: Format[] }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -85,7 +85,9 @@ function ExportMenu({ onPick, busy }: { onPick: (format: Format) => void; busy: 
               ["csv", "CSV (.csv)"],
               ["pdf", "PDF (.pdf)"],
             ] as const
-          ).map(([format, label]) => (
+          )
+            .filter(([format]) => formats.includes(format))
+            .map(([format, label]) => (
             <button
               key={format}
               role="menuitem"
