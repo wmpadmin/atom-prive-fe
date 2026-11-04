@@ -22,6 +22,7 @@ import {
   Radio,
   Scale,
   Settings,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
   SlidersHorizontal,
@@ -39,6 +40,7 @@ import {
   hasAuthority,
   ANSWERS_MOVE_PLANS,
   ONBOARDS_EVERY_CLIENT,
+  READS_AML_RISK,
   READS_CLIENT_PORTFOLIOS,
   READS_PROPOSALS,
   UPLOADS_CLIENT_DOCUMENTS,
@@ -428,6 +430,9 @@ const allNavigation: {
   },
   { to: "/sync-errors", label: "Sync errors", icon: TriangleAlert, authority: "MANAGE_BANK_FEEDS:CHANGE" },
   { to: "/notifications", label: "Notification log", icon: Mail, authority: "MANAGE_CONFIGURATION:VIEW" },
+  // The firm's AML sheet and where each client sits on it. On Compliance's menu since 4 Nov 2026: their
+  // dashboard counts what is due on it, and a figure with no way to its screen is no use to them.
+  { to: "/aml-risk", label: "AML risk", icon: ShieldAlert, authority: READS_AML_RISK, onlyFor: ["COMPLIANCE"] },
   { to: "/audit-log", label: "Audit log", icon: Landmark, authority: "VIEW_AUDIT_LOG:VIEW" },
   // Beside the audit log rather than inside it. "Who has been reading whose money" is a question somebody
   // comes to the screen already holding, and finding it meant knowing to filter the whole trail by a
