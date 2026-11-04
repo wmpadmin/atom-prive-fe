@@ -116,12 +116,13 @@ export function FirmAssistantChat({ customerId, portfolioDesk }: { customerId: s
   const user = useStaffUser();
   const [conversationId] = useState(() => conversationFor(user.id));
   const [said, setSaid] = useState<Said[]>([]);
-  // The chat so far, read back once from the server — so a refresh or a new tab picks it up where it was
-  // left, until sign-out starts a new one.
-  const kept = useGetAssistantConversation(conversationId, { query: { staleTime: Infinity } });
+  // The chat so far, read back from the server each time the chat is opened — so a refresh, a new tab, or
+  // coming back from the Market tab or another screen picks it up where it was left, until sign-out starts a
+  // new one. Read fresh rather than from the cache, which would not have the questions asked since.
+  const kept = useGetAssistantConversation(conversationId, { query: { staleTime: 0, refetchOnMount: "always" } });
   const restored = useRef(false);
   useEffect(() => {
-    if (restored.current || !kept.data) return;
+    if (restored.current || !kept.data || kept.isFetching) return;
     restored.current = true;
     const earlier: Said[] = kept.data.turns.flatMap((turn) => {
       const at = new Date(turn.answeredAt);
@@ -132,7 +133,7 @@ export function FirmAssistantChat({ customerId, portfolioDesk }: { customerId: s
     });
     // Ahead of anything asked while it was loading, which came after it.
     setSaid((now) => [...earlier, ...now]);
-  }, [kept.data]);
+  }, [kept.data, kept.isFetching]);
   const [draft, setDraft] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
   const ask = useAskAssistant<ApiError>({
