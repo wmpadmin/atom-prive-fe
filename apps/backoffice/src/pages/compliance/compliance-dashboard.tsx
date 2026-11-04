@@ -9,7 +9,7 @@ import {
   type ExpiredClient,
   type MyDeclarationRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, SelectInput, cn } from "@atomprive/ui";
+import { Alert, SelectInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -42,6 +42,7 @@ import {
   EditCards,
   Loading,
   Panel,
+  Strip,
   useDashboardCards,
   type CardMeta,
 } from "../dashboard/dashboard-kit";
@@ -228,27 +229,6 @@ export function ComplianceDashboard() {
 
       <CardGrid meta={CARD} shown={view.cards} render={render} editing={editing} onChange={view.change} />
     </div>
-  );
-}
-
-/** A row of figures under a ring, each opening the screen it was counted from. */
-function Strip({ figures }: { figures: { label: string; value: number; danger?: boolean; to?: string }[] }) {
-  return (
-    <dl className="grid grid-cols-3 divide-x divide-line rounded-xl bg-slate-50 px-1 py-2.5">
-      {figures.map((one) => {
-        const body = (
-          <>
-            <dt className="text-xs text-ink-muted">{one.label}</dt>
-            <dd className={cn("mt-0.5 text-lg font-bold tabular-nums", one.danger && "text-red-600")}>{one.value}</dd>
-          </>
-        );
-        return one.to ? (
-          <Link key={one.label} to={one.to} className="px-3 hover:[&_dd]:text-primary-700">{body}</Link>
-        ) : (
-          <div key={one.label} className="px-3">{body}</div>
-        );
-      })}
-    </dl>
   );
 }
 

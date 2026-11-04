@@ -1,9 +1,10 @@
 import { useStaffUser } from "../../auth/session";
-import { hasAuthority } from "../../lib/permissions";
+import { hasAnyAuthority, hasAuthority } from "../../lib/permissions";
 import { AdvisorDashboard } from "../advisor/advisor-dashboard";
 import { ComplianceDashboard } from "../compliance/compliance-dashboard";
 import { PortfolioManagerDashboard } from "../portfolios/portfolio-manager-dashboard";
 import { AdminDashboard } from "./admin-dashboard";
+import { OperationsDashboard } from "./operations-dashboard";
 
 /**
  * The dashboard belonging to whoever asked for it. The firm-wide figures are the Admin's — the API answers
@@ -25,6 +26,9 @@ export function DashboardPage() {
   // and signed in as Admin they came for the firm as a whole, not for one desk's book.
   if (user.activeRole === "ADMIN" && runsThePlatform) {
     return <AdminDashboard />;
+  }
+  if (user.activeRole === "OPERATIONS" && hasAnyAuthority(user, "ONBOARD_CLIENTS:VIEW", "ONBOARD_CLIENTS:CHANGE")) {
+    return <OperationsDashboard />;
   }
   if (checksTheFirm) {
     return <ComplianceDashboard />;
