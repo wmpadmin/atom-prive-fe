@@ -4,6 +4,9 @@ import {
   useCreateProposal,
   useGetAssistantConversation,
   useGetAssistantStatus,
+  useSendKycReminder,
+  getGetClientKycFileQueryKey,
+  type AssistantAction,
   type AssistantModel,
   type AssistantReply,
   type RebalanceSuggestion,
@@ -13,12 +16,15 @@ import {
   ArrowLeftRight,
   ChartColumn,
   ChartPie,
+  CircleCheck,
   FileText,
   Compass,
   Info,
   LifeBuoy,
   ListChecks,
   Lock,
+  Mail,
+  ShieldCheck,
   RefreshCw,
   Search,
   SendHorizontal,
@@ -27,7 +33,8 @@ import {
   User,
   type LucideIcon,
 } from "lucide-react";
-import { SelectInput } from "@atomprive/ui";
+import { Button, SelectInput } from "@atomprive/ui";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { usePreferences } from "../lib/preferences";
@@ -64,6 +71,7 @@ const ON_THE_BOOK: { icon: LucideIcon; question: string }[] = [
 const ABOUT_A_CLIENT: { icon: LucideIcon; question: string }[] = [
   { icon: FileText, question: "What KYC papers are still outstanding for this client?" },
   { icon: ListChecks, question: "How far has this client's onboarding got?" },
+  { icon: Mail, question: "Send this client a KYC reminder." },
 ];
 
 const ABOUT_THE_PORTAL: { icon: LucideIcon; question: string }[] = [
@@ -335,6 +343,7 @@ function Answer({ reply, at, models }: { reply: AssistantReply; at: Date; models
         <div className="min-w-0 flex-1 space-y-4 rounded-xl border border-line px-4 py-4">
           <p className="text-sm whitespace-pre-wrap">{reply.summary}</p>
           {reply.suggestion && <Suggestion suggestion={reply.suggestion} />}
+          {reply.action && <ActionCard action={reply.action} />}
           {reply.notes.length > 0 && (
             <div className="rounded-xl bg-slate-50 px-4 py-3">
               <p className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
@@ -354,6 +363,69 @@ function Answer({ reply, at, models }: { reply: AssistantReply; at: Date; models
           ? `${label(reply.answeredBy)} answered: ${label(reply.picked)} is out of free answers for now`
           : label(reply.answeredBy)}
       />
+    </div>
+  );
+}
+
+/**
+ * Something the assistant offers to do, waiting on the person. Approving calls the same endpoint as the button on
+ * the screen the action belongs to, with the person's own permissions; until then nothing has happened.
+ */
+function ActionCard({ action }: { action: AssistantAction }) {
+  const queryClient = useQueryClient();
+  const [state, setState] = useState<"offered" | "sent" | "cancelled">("offered");
+  const send = useSendKycReminder<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        setState("sent");
+        void queryClient.invalidateQueries({ queryKey: getGetClientKycFileQueryKey(action.customerId) });
+      },
+    },
+  });
+  if (state === "sent") {
+    return (
+      <p className="flex items-start gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <CircleCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        KYC reminder sent to {action.clientName}&rsquo;s registered email.
+      </p>
+    );
+  }
+  if (state === "cancelled") {
+    return <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-ink-muted">Cancelled. Nothing was sent.</p>;
+  }
+  return (
+    <div className="rounded-xl border border-line">
+      <div className="flex flex-wrap items-start gap-3 px-4 py-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-600">
+          <Mail className="size-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold">Action: Send KYC reminder</p>
+          <p className="text-xs text-ink-muted">Client: {action.clientName}</p>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">
+          <ShieldCheck className="size-3.5" aria-hidden="true" />
+          Requires your approval
+        </span>
+      </div>
+      {action.papers.length > 0 && (
+        <div className="border-t border-line px-4 py-3 text-sm">
+          <p className="mb-1 text-xs text-ink-muted">The email will ask for:</p>
+          <ul className="list-disc space-y-0.5 pl-5">
+            {action.papers.map((paper) => <li key={paper}>{paper}</li>)}
+          </ul>
+        </div>
+      )}
+      {send.isError && <p className="px-4 pb-2 text-sm text-red-700">{send.error.message}</p>}
+      <div className="flex justify-end gap-2 border-t border-line px-4 py-3">
+        <Button variant="secondary" disabled={send.isPending} onClick={() => setState("cancelled")}>
+          Cancel
+        </Button>
+        <Button disabled={send.isPending} onClick={() => send.mutate({ customerId: action.customerId })}>
+          <SendHorizontal aria-hidden="true" />
+          {send.isPending ? "Sending…" : "Approve & send"}
+        </Button>
+      </div>
     </div>
   );
 }
