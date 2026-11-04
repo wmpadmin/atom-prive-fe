@@ -41,7 +41,6 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 import { useStaffUser } from "../../auth/session";
 import { lastPage } from "../../lib/last-page";
-import { hasAuthority } from "../../lib/permissions";
 
 /**
  * Support, for every member of staff: the tickets they raised, and — for the IT Admin — every ticket with how
@@ -77,7 +76,8 @@ function remaining(ticket: TicketRow) {
 
 export function SupportPage() {
   const user = useStaffUser();
-  const answers = hasAuthority(user, "SUPPORT_TICKETS:CHANGE");
+  // The person who is the IT Admin, whichever workspace they are working in: Support is theirs, not a desk's.
+  const answers = user.roles.includes("IT_ADMIN");
   const [tab, setTab] = useState<Tab>(answers ? "all" : "mine");
   const [typed, setTyped] = useState("");
   const [status, setStatus] = useState("");
