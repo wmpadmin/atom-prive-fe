@@ -46,6 +46,10 @@ export function HomePage() {
   if (hasAuthority(user, "VIEW_AUDIT_LOG:VIEW")) {
     return <Navigate to="/audit-log" replace />;
   }
+  // Relationship managers open on their own dashboard since 4 Nov 2026; their clients are one click from it.
+  if (user.activeRole === "ADVISOR") {
+    return <Navigate to="/dashboard" replace />;
+  }
   if (advisesClients(user)) {
     return <Navigate to="/my-clients" replace />;
   }
