@@ -22,7 +22,7 @@ function token(name: string, fallback: string) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 
-function ink() {
+export function ink() {
   return {
     font: typeof document === "undefined" ? "sans-serif" : getComputedStyle(document.body).fontFamily,
     text: token("--color-ink", "#0f172a"),
@@ -43,7 +43,7 @@ const HANDLE =
 
 /** One ECharts canvas, sized by its box and redrawn whenever its option changes. */
 /** @param height in pixels, or nothing to fill whatever panel the chart is in */
-function Chart({ option, height, label }: { option: echarts.EChartsCoreOption; height?: number; label: string }) {
+export function Chart({ option, height, label }: { option: echarts.EChartsCoreOption; height?: number; label: string }) {
   const box = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
 

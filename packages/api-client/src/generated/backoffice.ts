@@ -7397,6 +7397,79 @@ export interface Dashboard {
   health: SystemHealth;
 }
 
+export interface ClassSlice {
+  code: string;
+  name: string;
+  amount: number;
+  sharePercent: number;
+}
+
+export interface Headline {
+  totalAum: number;
+  /** @nullable */
+  aumChangePercent: number | null;
+  clients: number;
+  /** @nullable */
+  clientsChangePercent: number | null;
+  activeStaff: number;
+  onboarding: number;
+  openApprovals: number;
+  openRequests: number;
+  complianceDue: number;
+}
+
+export interface GrowthPoint {
+  on: string;
+  aum: number;
+  clients: number;
+}
+
+export interface Lifecycle {
+  active: number;
+  onboarding: number;
+  kycExpired: number;
+  deactivating: number;
+  prospects: number;
+}
+
+export interface Operations {
+  onboarding: number;
+  kycInReview: number;
+  proposalsPending: number;
+  bankFeedsFailed: number;
+}
+
+export interface Waiting {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface ManagerAum {
+  staffId: string;
+  name: string;
+  amount: number;
+  sharePercent: number;
+  clients: number;
+}
+
+export interface FirmDashboard {
+  currency: string;
+  days: number;
+  headline: Headline;
+  growth: GrowthPoint[];
+  byAssetClass: ClassSlice[];
+  lifecycle: Lifecycle;
+  operations: Operations;
+  approvals: Waiting[];
+  requests: Waiting[];
+  attention: Waiting[];
+  upcoming: Waiting[];
+  byRelationshipManager: ManagerAum[];
+  byPortfolioManager: ManagerAum[];
+  unconverted: number;
+}
+
 export interface SecurityActivity {
   at: string;
   action: string;
@@ -8432,6 +8505,11 @@ export const ListCaseFormsCategory = {
 
 export type ListDeactivationsParams = {
 decided?: boolean;
+};
+
+export type GetFirmDashboardParams = {
+currency?: string;
+days?: number;
 };
 
 export type ListCustomersParams = {
@@ -36483,6 +36561,108 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetFirmDashboardUrl = (params?: GetFirmDashboardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/dashboard/firm?${stringifiedParams}` : `/api/backoffice/dashboard/firm`
+}
+
+export const getFirmDashboard = async (params?: GetFirmDashboardParams, options?: Parameters<typeof http>[1]): Promise<FirmDashboard> => {
+
+  return http<FirmDashboard>(getGetFirmDashboardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFirmDashboardQueryKey = (params?: GetFirmDashboardParams,) => {
+    return [
+    `/api/backoffice/dashboard/firm`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetFirmDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getFirmDashboard>>, TError = unknown>(params?: GetFirmDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFirmDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFirmDashboardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFirmDashboard>>> = ({ signal }) => getFirmDashboard(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFirmDashboard>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFirmDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getFirmDashboard>>>
+export type GetFirmDashboardQueryError = unknown
+
+
+export function useGetFirmDashboard<TData = Awaited<ReturnType<typeof getFirmDashboard>>, TError = unknown>(
+ params: undefined |  GetFirmDashboardParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFirmDashboard>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFirmDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getFirmDashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFirmDashboard<TData = Awaited<ReturnType<typeof getFirmDashboard>>, TError = unknown>(
+ params?: GetFirmDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFirmDashboard>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFirmDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getFirmDashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFirmDashboard<TData = Awaited<ReturnType<typeof getFirmDashboard>>, TError = unknown>(
+ params?: GetFirmDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFirmDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetFirmDashboard<TData = Awaited<ReturnType<typeof getFirmDashboard>>, TError = unknown>(
+ params?: GetFirmDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFirmDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFirmDashboardQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

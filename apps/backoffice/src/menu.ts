@@ -1,5 +1,6 @@
 import {
   Archive,
+  LayoutDashboard,
   ArrowLeftRight,
   BellRing,
   ClipboardCheck,
@@ -109,6 +110,7 @@ const A_CLIENT_KYC = /^\/kyc\/[^/]+(\/documents\/[^/]+)?$/;
  * narrowing the matrix narrows this too.
  */
 const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
+  { to: "/dashboard" },
   { to: "/users" },
   // Prospects and clients together, as one section: its overview, the prospects being followed up, and
   // the client directory below them.
@@ -165,10 +167,10 @@ const allNavigation: {
    */
   at?: (path: string, search: string) => boolean;
 }[] = [
-  // The Dashboard is off every role's menu at the firm's request. Taken off the menu rather than out of
-  // the codebase: the screen and its route are untouched, so putting it back is this entry and nothing
-  // else. Nobody lands on it — HomePage sends each role to its own first screen and falls through to a
-  // welcome card, never here — so hiding it strands no one.
+  // The Dashboard was off every role's menu at the firm's request; it is back for the Admin, whose firm-wide
+  // dashboard the firm asked for on 4 Nov 2026. Other roles' dashboards come back one at a time as each is
+  // agreed, by adding their role here.
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, authority: "MANAGE_USERS_AND_ROLES:VIEW", onlyFor: ["ADMIN"] },
   {
     // Prospects and clients as one section. The heading is the overview itself, and the lists sit under it.
     to: "/client-management",
