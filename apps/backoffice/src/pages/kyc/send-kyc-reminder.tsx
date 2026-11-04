@@ -6,7 +6,7 @@ import { Mail } from "lucide-react";
 import { useState } from "react";
 
 /** When a reminder went, as somebody reads it on the file: a time today, a date before that. */
-export function remindedWhen(at: string) {
+function remindedWhen(at: string) {
   const sent = new Date(at);
   const today = new Date().toDateString() === sent.toDateString();
   return today
