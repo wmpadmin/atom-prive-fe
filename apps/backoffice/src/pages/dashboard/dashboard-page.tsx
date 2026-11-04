@@ -4,6 +4,7 @@ import { AdvisorDashboard } from "../advisor/advisor-dashboard";
 import { ComplianceDashboard } from "../compliance/compliance-dashboard";
 import { PortfolioManagerDashboard } from "../portfolios/portfolio-manager-dashboard";
 import { AdminDashboard } from "./admin-dashboard";
+import { ItAdminDashboard } from "./it-admin-dashboard";
 import { OperationsDashboard } from "./operations-dashboard";
 
 /**
@@ -29,6 +30,9 @@ export function DashboardPage() {
   }
   if (user.activeRole === "OPERATIONS" && hasAnyAuthority(user, "ONBOARD_CLIENTS:VIEW", "ONBOARD_CLIENTS:CHANGE")) {
     return <OperationsDashboard />;
+  }
+  if (user.activeRole === "IT_ADMIN") {
+    return <ItAdminDashboard />;
   }
   if (user.activeRole === "ADVISOR") {
     return <AdvisorDashboard />;
