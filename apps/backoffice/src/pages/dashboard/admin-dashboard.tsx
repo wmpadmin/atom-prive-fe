@@ -910,8 +910,17 @@ function Breakdown({ rows, centre, centreLabel, currency }: {
     return <p className="py-10 text-center text-sm text-ink-muted">Nothing on file yet.</p>;
   }
   return (
-    // What makes it up on the left, read first, and the ring on the right; one above the other when narrow.
-    <div className="flex flex-col-reverse gap-4 sm:flex-row sm:items-center">
+    // The ring on the left and what makes it up beside it; one above the other when narrow.
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+      <div className="relative mx-auto w-40 shrink-0 sm:mx-0">
+        <Chart option={option} height={160} label={`${centreLabel}: ${ringed.map((one) => `${one.name} ${one.value}`).join(", ")}`} />
+        <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+          <span>
+            <span className="block text-2xs text-ink-muted">{centreLabel}</span>
+            <span className="block text-sm font-bold tabular-nums">{centre.replace(`${currency ?? ""} `, "")}</span>
+          </span>
+        </div>
+      </div>
       <ul className="min-w-0 flex-1 space-y-2 text-sm">
         {rows.map((one, index) => (
           <li key={one.name} className={cn("flex items-center gap-2", one.apart && "mt-2 border-t border-line pt-2")}>
@@ -925,15 +934,6 @@ function Breakdown({ rows, centre, centreLabel, currency }: {
           </li>
         ))}
       </ul>
-      <div className="relative mx-auto w-40 shrink-0 sm:mx-0">
-        <Chart option={option} height={160} label={`${centreLabel}: ${ringed.map((one) => `${one.name} ${one.value}`).join(", ")}`} />
-        <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
-          <span>
-            <span className="block text-2xs text-ink-muted">{centreLabel}</span>
-            <span className="block text-sm font-bold tabular-nums">{centre.replace(`${currency ?? ""} `, "")}</span>
-          </span>
-        </div>
-      </div>
     </div>
   );
 }
