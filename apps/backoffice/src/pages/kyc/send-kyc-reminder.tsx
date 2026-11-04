@@ -6,7 +6,7 @@ import { Mail } from "lucide-react";
 import { useState } from "react";
 
 /** When a reminder went, as somebody reads it on the file: a time today, a date before that. */
-function remindedWhen(at: string) {
+export function remindedWhen(at: string) {
   const sent = new Date(at);
   const today = new Date().toDateString() === sent.toDateString();
   return today
@@ -18,11 +18,13 @@ function remindedWhen(at: string) {
  * Emailing a client the KYC papers they still owe, from their KYC file. The server decides what is owed and
  * whether a reminder may go — at most one a day per client — so this asks once and then shows what was sent.
  */
-export function SendKycReminder({ customerId, clientName, last, onSent }: {
+export function SendKycReminder({ customerId, clientName, last, onSent, compact = false }: {
   customerId: string;
   clientName: string;
   last: KycReminder | null;
   onSent: (reminder: KycReminder) => void;
+  /** In a list that shows the last reminder in a column of its own: a smaller button, and no line under it. */
+  compact?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [asking, setAsking] = useState(false);
@@ -38,11 +40,11 @@ export function SendKycReminder({ customerId, clientName, last, onSent }: {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button variant="secondary" onClick={() => { send.reset(); setAsking(true); }}>
+      <Button variant="secondary" size={compact ? "sm" : "md"} onClick={() => { send.reset(); setAsking(true); }}>
         <Mail aria-hidden="true" />
-        Send KYC reminder
+        {compact ? "Send reminder" : "Send KYC reminder"}
       </Button>
-      {last && (
+      {last && !compact && (
         <p className="text-2xs text-ink-muted">
           Reminded {remindedWhen(last.sentAt)} by {last.sentByName}
         </p>

@@ -7067,6 +7067,35 @@ export interface ReviewQueue {
   reUpload: number;
 }
 
+export type ExpiredClientClientType = typeof ExpiredClientClientType[keyof typeof ExpiredClientClientType];
+
+
+export const ExpiredClientClientType = {
+  INDIVIDUAL: 'INDIVIDUAL',
+  ENTITY: 'ENTITY',
+} as const;
+
+export interface LapsedPaper {
+  kindTitle: string;
+  /** @nullable */
+  expiredOn: string | null;
+}
+
+export interface ExpiredClient {
+  customerId: string;
+  clientName: string;
+  code: string;
+  clientType: ExpiredClientClientType;
+  /** @nullable */
+  clientPhoto: string | null;
+  /** @nullable */
+  countryCode: string | null;
+  /** @nullable */
+  advisorName: string | null;
+  lapsed: LapsedPaper[];
+  lastReminder: KycReminder | null;
+}
+
 export interface KycQueue {
   items: KycDocumentRow[];
   page: number;
@@ -34499,6 +34528,101 @@ export function useListClientsForReview<TData = Awaited<ReturnType<typeof listCl
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListClientsForReviewQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListExpiredClientsUrl = () => {
+
+
+
+
+  return `/api/backoffice/kyc/expired`
+}
+
+export const listExpiredClients = async ( options?: Parameters<typeof http>[1]): Promise<ExpiredClient[]> => {
+
+  return http<ExpiredClient[]>(getListExpiredClientsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListExpiredClientsQueryKey = () => {
+    return [
+    `/api/backoffice/kyc/expired`
+    ] as const;
+    }
+
+
+export const getListExpiredClientsQueryOptions = <TData = Awaited<ReturnType<typeof listExpiredClients>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpiredClients>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListExpiredClientsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listExpiredClients>>> = ({ signal }) => listExpiredClients({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listExpiredClients>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListExpiredClientsQueryResult = NonNullable<Awaited<ReturnType<typeof listExpiredClients>>>
+export type ListExpiredClientsQueryError = unknown
+
+
+export function useListExpiredClients<TData = Awaited<ReturnType<typeof listExpiredClients>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpiredClients>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listExpiredClients>>,
+          TError,
+          Awaited<ReturnType<typeof listExpiredClients>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListExpiredClients<TData = Awaited<ReturnType<typeof listExpiredClients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpiredClients>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listExpiredClients>>,
+          TError,
+          Awaited<ReturnType<typeof listExpiredClients>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListExpiredClients<TData = Awaited<ReturnType<typeof listExpiredClients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpiredClients>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListExpiredClients<TData = Awaited<ReturnType<typeof listExpiredClients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listExpiredClients>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListExpiredClientsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
