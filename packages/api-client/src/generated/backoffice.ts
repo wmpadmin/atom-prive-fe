@@ -7441,6 +7441,66 @@ export interface RelationshipManagerDashboard {
   chase: Waiting[];
 }
 
+export interface ClassSlice {
+  code: string;
+  name: string;
+  amount: number;
+  sharePercent: number;
+}
+
+export interface PmBook {
+  clients: number;
+  portfolios: number;
+  aum: number;
+  /** @nullable */
+  aumChangePercent: number | null;
+}
+
+export interface PmDeviation {
+  customerId: string;
+  clientName: string;
+  /** @nullable */
+  modelName: string | null;
+  drift: number;
+}
+
+export interface PmHealth {
+  onPlan: number;
+  offPlan: number;
+  noModel: number;
+  onPlanPercent: number;
+  /** @nullable */
+  averageDrift: number | null;
+  switchesWaiting: number;
+  movesWaiting: number;
+}
+
+export interface PmModel {
+  modelId: string;
+  name: string;
+  aum: number;
+  clients: number;
+  /** @nullable */
+  averageDrift: number | null;
+}
+
+export interface PmWaiting {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface PortfolioManagerDashboard {
+  currency: string;
+  days: number;
+  book: PmBook;
+  byAssetClass: ClassSlice[];
+  health: PmHealth;
+  proposals: PmWaiting[];
+  models: PmModel[];
+  deviations: PmDeviation[];
+}
+
 export interface OperationsOnboarding {
   fillingIn: number;
   awaitingClient: number;
@@ -7480,13 +7540,6 @@ export interface OperationsDashboard {
   feeds: OperationsFeeds;
   requests: Waiting[];
   toDo: Waiting[];
-}
-
-export interface ClassSlice {
-  code: string;
-  name: string;
-  amount: number;
-  sharePercent: number;
 }
 
 export interface Headline {
@@ -8627,6 +8680,11 @@ decided?: boolean;
 };
 
 export type GetRelationshipManagerDashboardParams = {
+currency?: string;
+days?: number;
+};
+
+export type GetPortfolioManagerDashboardParams = {
 currency?: string;
 days?: number;
 };
@@ -36795,6 +36853,108 @@ export function useGetRelationshipManagerDashboard<TData = Awaited<ReturnType<ty
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetRelationshipManagerDashboardQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPortfolioManagerDashboardUrl = (params?: GetPortfolioManagerDashboardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/dashboard/portfolio-manager?${stringifiedParams}` : `/api/backoffice/dashboard/portfolio-manager`
+}
+
+export const getPortfolioManagerDashboard = async (params?: GetPortfolioManagerDashboardParams, options?: Parameters<typeof http>[1]): Promise<PortfolioManagerDashboard> => {
+
+  return http<PortfolioManagerDashboard>(getGetPortfolioManagerDashboardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPortfolioManagerDashboardQueryKey = (params?: GetPortfolioManagerDashboardParams,) => {
+    return [
+    `/api/backoffice/dashboard/portfolio-manager`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPortfolioManagerDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getPortfolioManagerDashboard>>, TError = unknown>(params?: GetPortfolioManagerDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPortfolioManagerDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPortfolioManagerDashboardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPortfolioManagerDashboard>>> = ({ signal }) => getPortfolioManagerDashboard(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPortfolioManagerDashboard>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPortfolioManagerDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getPortfolioManagerDashboard>>>
+export type GetPortfolioManagerDashboardQueryError = unknown
+
+
+export function useGetPortfolioManagerDashboard<TData = Awaited<ReturnType<typeof getPortfolioManagerDashboard>>, TError = unknown>(
+ params: undefined |  GetPortfolioManagerDashboardParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPortfolioManagerDashboard>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPortfolioManagerDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getPortfolioManagerDashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPortfolioManagerDashboard<TData = Awaited<ReturnType<typeof getPortfolioManagerDashboard>>, TError = unknown>(
+ params?: GetPortfolioManagerDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPortfolioManagerDashboard>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPortfolioManagerDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getPortfolioManagerDashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPortfolioManagerDashboard<TData = Awaited<ReturnType<typeof getPortfolioManagerDashboard>>, TError = unknown>(
+ params?: GetPortfolioManagerDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPortfolioManagerDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetPortfolioManagerDashboard<TData = Awaited<ReturnType<typeof getPortfolioManagerDashboard>>, TError = unknown>(
+ params?: GetPortfolioManagerDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPortfolioManagerDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetPortfolioManagerDashboardQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

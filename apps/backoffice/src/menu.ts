@@ -174,8 +174,7 @@ const allNavigation: {
    */
   at?: (path: string, search: string) => boolean;
 }[] = [
-  // The Dashboard was off every role's menu at the firm's request; it is back for the Admin, Compliance,
-  // Operations and relationship managers, whose dashboards the firm asked for on 4 Nov 2026. Other roles' dashboards come back one at a time as each is
+  // The Dashboard was off every role's menu at the firm's request; it is back for every desk, whose dashboards the firm asked for on 4 Nov 2026. Other roles' dashboards come back one at a time as each is
   // agreed, by adding their role here.
   {
     to: "/dashboard",
@@ -183,7 +182,7 @@ const allNavigation: {
     icon: LayoutDashboard,
     // Each role's dashboard asks the server only for what that role reads, so the entry itself asks for nothing.
     authority: null,
-    onlyFor: ["ADMIN", "COMPLIANCE", "OPERATIONS", "ADVISOR"],
+    onlyFor: ["ADMIN", "COMPLIANCE", "OPERATIONS", "ADVISOR", "PORTFOLIO_MANAGER"],
   },
   {
     // Prospects and clients as one section. The heading is the overview itself, and the lists sit under it.
