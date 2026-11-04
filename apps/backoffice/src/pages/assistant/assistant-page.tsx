@@ -37,8 +37,8 @@ export function AssistantPage() {
   const [params, setParams] = useSearchParams();
   const which: Which = params.get("tab") === "market" ? "market" : "firm";
   const customerId = params.get("client");
-  // Today the Firm Assistant answers portfolio questions, which the server keeps to whoever may write proposals.
-  const mayAskFirm = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
+  // Portfolio questions are the portfolio desk's, which is whoever may write proposals; the server keeps to the same rule.
+  const portfolioDesk = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
 
   const open = (to: Which) =>
     setParams((now) => {
@@ -96,17 +96,7 @@ export function AssistantPage() {
             className="h-[calc(100vh-17rem)] min-h-[32rem]"
           >
             {which === "firm" ? (
-              mayAskFirm ? (
-                <FirmAssistantChat customerId={customerId} />
-              ) : (
-                <Waiting
-                  icon={Layers}
-                  title="Firm questions for your role are on their way"
-                  body="The Firm Assistant answers portfolio questions for Portfolio Managers and Admin today. Questions
-                    about clients, KYC, operations and how to use the portal — limited to what your role can already
-                    see — are being added next."
-                />
-              )
+              <FirmAssistantChat customerId={customerId} portfolioDesk={portfolioDesk} />
             ) : (
               <Waiting
                 icon={Globe}
