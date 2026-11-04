@@ -24,8 +24,7 @@ import {
 import { ThemeToggle } from "./components/theme-toggle";
 import { TopSearch } from "./components/top-search";
 import { NotificationBell } from "./components/notification-bell";
-import { AssistantButton, AssistantPanel } from "./components/portfolio-assistant";
-import { hasAuthority } from "./lib/permissions";
+import { AssistantButton } from "./components/portfolio-assistant";
 import {
   ChevronDown,
   KeyRound,
@@ -492,9 +491,6 @@ export function AppLayout() {
     liveWidth.current = width;
   }, [width]);
   const away = preferences.sidebarAway;
-  // The portfolio assistant is for whoever may write proposals: the Portfolio Managers and Admin.
-  const mayAsk = hasAuthority(user, "SEND_PROPOSALS:CHANGE");
-  const [asking, setAsking] = useState(false);
 
   const held = useCallback(
     (to: number) => Math.min(Math.max(Math.round(to), SIDEBAR_NARROWEST), SIDEBAR_WIDEST),
@@ -575,7 +571,7 @@ export function AppLayout() {
           <div className="flex items-center gap-3">
             <TopSearch />
             <div className="flex items-center gap-1">
-              {mayAsk && <AssistantButton open={asking} onToggle={() => setAsking((was) => !was)} />}
+              <AssistantButton />
               <ThemeToggle />
               <NotificationBell />
               <UserMenu />
@@ -586,7 +582,6 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
-      {mayAsk && <AssistantPanel open={asking} onClose={() => setAsking(false)} />}
     </div>
     </>
   );
