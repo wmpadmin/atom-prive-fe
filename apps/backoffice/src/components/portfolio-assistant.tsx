@@ -21,26 +21,13 @@ import {
   Sparkles,
   TrendingUp,
   User,
-  X,
   type LucideIcon,
 } from "lucide-react";
 import { SelectInput } from "@atomprive/ui";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
-import { useLocation, useNavigate } from "react-router";
-import {
-  ASSISTANT_DEFAULT,
-  ASSISTANT_NARROWEST,
-  ASSISTANT_WIDEST,
-  usePreferences,
-} from "../lib/preferences";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
+import { usePreferences } from "../lib/preferences";
 import { conversationFor } from "../lib/assistant-conversation";
-import { PanelEdge } from "./panel-edge";
 import { useStaffUser } from "../auth/session";
 
 
@@ -69,37 +56,42 @@ const ON_THE_BOOK: { icon: LucideIcon; question: string }[] = [
   { icon: ChartColumn, question: "Summarise the breaches across my book." },
 ];
 
-/** The ✦ in the top bar that opens the assistant. */
-export function AssistantButton({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+/**
+ * The ✦ in the top bar: a shortcut to the AI Assistant page. Opened from a client's own page, it takes that
+ * client along, so the first question can be about them without naming them.
+ */
+export function AssistantButton() {
+  const { pathname } = useLocation();
+  const customerId = CLIENT_PAGE.exec(pathname)?.[1] ?? null;
+  const here = pathname.startsWith("/assistant");
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={open}
-      title="Portfolio Assistant"
+    <Link
+      to={customerId ? `/assistant?client=${customerId}` : "/assistant"}
+      aria-current={here ? "page" : undefined}
+      title="AI Assistant"
       className="rounded-lg p-2 text-violet-600 hover:bg-violet-500/10 focus-visible:ring-2 focus-visible:ring-violet-300
         focus-visible:outline-none"
     >
       <Sparkles className="size-5" aria-hidden="true" />
-      <span className="sr-only">Portfolio Assistant</span>
-    </button>
+      <span className="sr-only">AI Assistant</span>
+    </Link>
   );
 }
 
 /**
- * The Portfolio Assistant: questions about drift, breaches and rebalancing, answered from the platform's own
- * figures. Kept mounted while closed so a conversation survives moving between screens.
+ * The Firm Assistant's conversation: questions about drift, breaches and rebalancing, answered from the
+ * platform's own figures. The same conversation wherever it is opened, until its owner signs out.
+ *
+ * @param customerId the client the questions are about, when the page was opened from theirs
  */
-export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { pathname } = useLocation();
-  const customerId = CLIENT_PAGE.exec(pathname)?.[1] ?? null;
-  const status = useGetAssistantStatus({ query: { enabled: open } });
+export function FirmAssistantChat({ customerId }: { customerId: string | null }) {
+  const status = useGetAssistantStatus();
   const user = useStaffUser();
   const [conversationId] = useState(() => conversationFor(user.id));
   const [said, setSaid] = useState<Said[]>([]);
-  // The chat so far, read back once from the server the first time the panel opens in this tab — so a
-  // refresh or a new tab picks it up where it was left, until sign-out starts a new one.
-  const kept = useGetAssistantConversation(conversationId, { query: { enabled: open, staleTime: Infinity } });
+  // The chat so far, read back once from the server — so a refresh or a new tab picks it up where it was
+  // left, until sign-out starts a new one.
+  const kept = useGetAssistantConversation(conversationId, { query: { staleTime: Infinity } });
   const restored = useRef(false);
   useEffect(() => {
     if (restored.current || !kept.data) return;
@@ -134,6 +126,11 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
     bottom.current?.scrollIntoView({ block: "end" });
   }, [said, ask.isPending]);
 
+  const { preferences, change } = usePreferences();
+  const models = status.data?.models ?? [];
+  // What the reader picked last time, if the firm still offers it; otherwise the firm's default.
+  const model = models.some((one) => one.id === preferences.assistantModel)
+    ? preferences.assistantModel! : status.data?.defaultModel ?? null;
   const send = (question: string) => {
     const text = question.trim();
     if (!text || ask.isPending) return;
@@ -145,63 +142,12 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
     event.preventDefault();
     send(draft);
   };
-  const { preferences, change } = usePreferences();
-  // Live while a drag is in flight; what is on file otherwise, as with the sidebar.
-  const [dragged, setDragged] = useState<number | null>(null);
-  const width = dragged ?? preferences.assistantWidth;
-  const held = useCallback(
-    (to: number) => Math.min(Math.max(Math.round(to), ASSISTANT_NARROWEST), ASSISTANT_WIDEST),
-    [],
-  );
-  const onDrag = useCallback((to: number) => setDragged(held(to)), [held]);
-  const onSettled = useCallback(
-    (to: number) => {
-      change("assistantWidth", held(to));
-      setDragged(null);
-    },
-    [change, held],
-  );
-  const models = status.data?.models ?? [];
-  // What the reader picked last time, if the firm still offers it; otherwise the firm's default.
-  const model = models.some((one) => one.id === preferences.assistantModel)
-    ? preferences.assistantModel! : status.data?.defaultModel ?? null;
   const lastReply = [...said].reverse().find((one) => one.who === "assistant");
   const off = status.data && !status.data.available;
   const suggested = customerId ? ON_A_CLIENT : ON_THE_BOOK;
 
   return (
-    <aside
-      aria-label="Portfolio Assistant"
-      hidden={!open}
-      style={{ width }}
-      className="fixed top-0 right-0 bottom-0 z-40 flex max-w-full flex-col border-l border-line bg-white shadow-2xl"
-    >
-      <PanelEdge
-        label="How wide the assistant is"
-        width={width}
-        narrowest={ASSISTANT_NARROWEST}
-        widest={ASSISTANT_WIDEST}
-        opensAt={ASSISTANT_DEFAULT}
-        onDrag={onDrag}
-        onSettled={onSettled}
-      />
-      <header className="flex items-start gap-4 border-b border-line px-6 py-5">
-        <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-violet-500/10 text-violet-600">
-          <Sparkles className="size-6" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="flex items-center gap-2 text-xl font-bold">
-            Portfolio Assistant
-            <span className="rounded-md bg-violet-500/15 px-2 py-0.5 text-xs font-semibold text-violet-700">AI</span>
-          </h2>
-          <p className="text-sm text-ink-muted">Get portfolio insights, drift analysis and rebalancing guidance.</p>
-        </div>
-        <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-ink-muted hover:bg-slate-100 hover:text-ink">
-          <X className="size-5" aria-hidden="true" />
-          <span className="sr-only">Close the assistant</span>
-        </button>
-      </header>
-
+    <div className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <div className="space-y-5">
           {off && (
@@ -300,7 +246,7 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
         </form>
         <Privacy />
       </div>
-    </aside>
+    </div>
   );
 }
 
