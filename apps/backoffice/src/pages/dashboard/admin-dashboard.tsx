@@ -23,11 +23,9 @@ import {
   Banknote,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
   ClipboardList,
   Clock,
-  Copy,
   ExternalLink,
   FileText,
   Gem,
@@ -41,7 +39,6 @@ import {
   MoreVertical,
   Pencil,
   PieChart,
-  Plus,
   RotateCcw,
   Search,
   SendHorizontal,
@@ -149,89 +146,43 @@ const CARD: Record<CardId, { title: string; area: Area; wide?: boolean }> = {
 
 const CARD_IDS = Object.keys(CARD) as CardId[];
 
-/** The firm's ready-made views, agreed 4 Nov 2026. A view is just which cards, in what order. */
-const PRESETS: { id: string; name: string; cards: CardId[] }[] = [
-  { id: "mine", name: "My dashboard",
-    cards: ["summary", "asset-classes", "operations", "approvals", "upcoming", "assistant"] },
-  { id: "firm", name: "Firm overview", cards: ["summary", "trend", "asset-classes", "lifecycle", "by-pm", "by-rm"] },
-  { id: "operations", name: "Operations", cards: ["operations", "approvals", "attention", "activity"] },
-  { id: "compliance", name: "Compliance", cards: ["upcoming", "attention", "lifecycle"] },
-  { id: "system", name: "System", cards: ["health", "activity", "quick", "links"] },
-];
+/** What the dashboard opens on until the Admin changes it: the firm's own choice, 4 Nov 2026. */
+const DEFAULT_CARDS: CardId[] = ["summary", "asset-classes", "operations", "approvals", "upcoming", "assistant"];
 
-type Saved = { name: string; cards: CardId[] };
+const KEPT_AT = "atomprive.dashboard-cards.v1.admin";
 
-type Kept = {
-  /** "preset:<id>" or "saved:<name>". */
-  tab: string;
-  /** What a ready-made view was changed to and not saved yet; a saved view is changed in place instead. */
-  working: CardId[] | null;
-  saved: Saved[];
-};
-
-const KEPT_AT = "atomprive.dashboard-view.v1.admin";
-
-function onlyCards(list: unknown): CardId[] {
-  return Array.isArray(list) ? [...new Set(list.filter((one): one is CardId => CARD_IDS.includes(one as CardId)))] : [];
-}
-
-function readKept(): Kept {
-  const empty: Kept = { tab: "preset:mine", working: null, saved: [] };
+function readCards(): CardId[] {
   try {
     const found = window.localStorage.getItem(KEPT_AT);
-    if (!found) return empty;
-    const parsed = JSON.parse(found) as Partial<Kept>;
-    const saved = (Array.isArray(parsed.saved) ? parsed.saved : [])
-      .filter((one) => typeof one?.name === "string" && one.name !== "")
-      .map((one) => ({ name: one.name, cards: onlyCards(one.cards) }));
-    const tab = typeof parsed.tab === "string" && (PRESETS.some((one) => `preset:${one.id}` === parsed.tab)
-      || saved.some((one) => `saved:${one.name}` === parsed.tab)) ? parsed.tab : empty.tab;
-    return { tab, working: parsed.working ? onlyCards(parsed.working) : null, saved };
+    if (!found) return DEFAULT_CARDS;
+    const parsed: unknown = JSON.parse(found);
+    return Array.isArray(parsed)
+      ? [...new Set(parsed.filter((one): one is CardId => CARD_IDS.includes(one as CardId)))]
+      : DEFAULT_CARDS;
   } catch {
-    return empty;
+    return DEFAULT_CARDS;
   }
 }
 
 /**
- * The Admin's views of the dashboard, kept in this browser: the firm's ready-made ones, their own saved ones,
- * and which is open. Changing a saved view changes it; changing a ready-made one is held until it is saved
- * under a name of its own, and picking the tab again puts it back as the firm made it.
+ * The cards on the Admin's dashboard, in order, kept in this browser. One dashboard and no named views, at the
+ * firm's request: whatever is ticked in Edit view is simply what the dashboard shows from then on.
  */
-function useDashboardViews() {
-  const [kept, setKept] = useState<Kept>(readKept);
-  const write = (next: Kept) => {
-    setKept(next);
+function useDashboardCards() {
+  const [cards, setCards] = useState<CardId[]>(readCards);
+  const change = (next: CardId[]) => {
+    setCards(next);
     try {
       window.localStorage.setItem(KEPT_AT, JSON.stringify(next));
     } catch {
-      // A browser that keeps nothing still shows the views; they last until the page is left.
+      // A browser that keeps nothing still shows the change; it lasts until the page is left.
     }
   };
-  const preset = PRESETS.find((one) => `preset:${one.id}` === kept.tab);
-  const savedOne = kept.saved.find((one) => `saved:${one.name}` === kept.tab);
-  const cards = savedOne?.cards ?? kept.working ?? preset?.cards ?? PRESETS[0]!.cards;
   return {
-    tab: kept.tab,
-    saved: kept.saved,
     cards,
-    /** A ready-made view showing something other than what the firm made it. */
-    edited: !savedOne && kept.working !== null,
-    pick: (tab: string) => write({ ...kept, tab, working: null }),
-    change: (next: CardId[]) => (savedOne
-      ? write({ ...kept, saved: kept.saved.map((one) => (one === savedOne ? { ...one, cards: next } : one)) })
-      : write({ ...kept, working: next })),
-    reset: () => write({ ...kept, working: null }),
-    saveAs: (name: string) => {
-      const trimmed = name.trim();
-      if (!trimmed) return;
-      write({ tab: `saved:${trimmed}`, working: null,
-        saved: [...kept.saved.filter((one) => one.name !== trimmed), { name: trimmed, cards }] });
-    },
-    remove: (name: string) => {
-      const open = kept.tab === `saved:${name}`;
-      write({ tab: open ? "preset:mine" : kept.tab, working: open ? null : kept.working,
-        saved: kept.saved.filter((one) => one.name !== name) });
-    },
+    change,
+    changed: cards.join("|") !== DEFAULT_CARDS.join("|"),
+    reset: () => change(DEFAULT_CARDS),
   };
 }
 
@@ -289,7 +240,7 @@ export function AdminDashboard() {
   const data = firm.data;
   const cur = data?.currency ?? currency;
 
-  const view = useDashboardViews();
+  const view = useDashboardCards();
   const [editing, setEditing] = useState(false);
   const openItems = data ? data.headline.openApprovals + data.headline.openRequests : undefined;
 
@@ -488,7 +439,6 @@ export function AdminDashboard() {
     });
   }
   const side = inArea("side");
-  const savedName = view.tab.startsWith("saved:") ? view.tab.slice("saved:".length) : null;
 
   return (
     <div className="space-y-4">
@@ -503,6 +453,8 @@ export function AdminDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <EditCards shown={shown} editing={editing} onEditing={setEditing} onChange={view.change}
+            changed={view.changed} onReset={view.reset} />
           <SelectInput id="firm-period" aria-label="Period the changes are measured over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -516,38 +468,6 @@ export function AdminDashboard() {
         </div>
       </header>
 
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line">
-        <div role="tablist" aria-label="Dashboard views" className="-mb-px flex flex-wrap gap-1">
-          {PRESETS.map((one) => (
-            <ViewTab key={one.id} name={one.name} on={view.tab === `preset:${one.id}`}
-              edited={view.tab === `preset:${one.id}` && view.edited} onPick={() => view.pick(`preset:${one.id}`)} />
-          ))}
-          {view.saved.map((one) => (
-            <ViewTab key={one.name} name={one.name} on={view.tab === `saved:${one.name}`}
-              onPick={() => view.pick(`saved:${one.name}`)} onDelete={() => view.remove(one.name)} />
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 pb-2">
-          {editing && !savedName && view.edited && (
-            <Button variant="secondary" size="sm" onClick={view.reset}>
-              <RotateCcw aria-hidden="true" />
-              Reset
-            </Button>
-          )}
-          <Button variant={editing ? "primary" : "secondary"} size="sm" onClick={() => setEditing((now) => !now)}>
-            <Pencil aria-hidden="true" />
-            {editing ? "Done editing" : "Edit view"}
-          </Button>
-          <SaveViewAs onSave={view.saveAs} />
-          <AddCard shown={shown} onApply={view.change} />
-        </div>
-      </div>
-
-      {view.edited && (
-        <p className="text-xs text-ink-muted">
-          You&rsquo;ve changed this ready-made view. Use Save view as to keep it; picking the tab again puts it back.
-        </p>
-      )}
       {firm.isError && <Alert tone="danger">{firm.error.message}</Alert>}
       {data && data.unconverted > 0 && (
         <Alert tone="warning">
@@ -575,129 +495,65 @@ export function AdminDashboard() {
   );
 }
 
-/** One view's tab. A saved view can be deleted from its own tab; the firm's ready-made ones cannot. */
-function ViewTab({ name, on, edited, onPick, onDelete }: {
-  name: string;
-  on: boolean;
-  edited?: boolean;
-  onPick: () => void;
-  onDelete?: () => void;
+/**
+ * Edit view: every card, ticked where it is on the dashboard. Ticking one puts it on straight away and unticking
+ * takes it off; nothing waits on a button. Reset puts back the firm's own six.
+ */
+function EditCards({ shown, editing, onEditing, onChange, changed, onReset }: {
+  shown: CardId[];
+  editing: boolean;
+  onEditing: (editing: boolean) => void;
+  onChange: (cards: CardId[]) => void;
+  changed: boolean;
+  onReset: () => void;
 }) {
-  return (
-    <span className={cn("group flex items-center border-b-2", on ? "border-primary-600" : "border-transparent")}>
-      <button type="button" role="tab" aria-selected={on} onClick={onPick}
-        className={cn("px-3 py-2.5 text-sm font-semibold whitespace-nowrap",
-          on ? "text-primary-700" : "text-ink-muted hover:text-ink")}>
-        {name}
-        {edited && <span className="ml-1 text-primary-600" title="Changed, not saved">•</span>}
-      </button>
-      {onDelete && (
-        <button type="button" aria-label={`Delete the view ${name}`} title="Delete this view" onClick={onDelete}
-          className="-ml-1.5 mr-1 grid size-5 place-items-center rounded text-ink-muted opacity-0 group-hover:opacity-100
-            focus:opacity-100 hover:bg-red-50 hover:text-red-600">
-          <X className="size-3.5" aria-hidden="true" />
-        </button>
-      )}
-    </span>
-  );
-}
-
-/** Names what is on screen and keeps it as a view of its own. */
-function SaveViewAs({ onSave }: { onSave: (name: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const close = useCallback(() => setOpen(false), []);
-  const box = useDismiss(open, close);
-  const save = (event: FormEvent) => {
-    event.preventDefault();
-    if (!name.trim()) return;
-    onSave(name);
-    setName("");
-    setOpen(false);
-  };
-  return (
-    <div ref={box} className="relative">
-      <Button variant="secondary" size="sm" onClick={() => setOpen((now) => !now)} aria-expanded={open}>
-        <Copy aria-hidden="true" />
-        Save view as
-      </Button>
-      {open && (
-        <form onSubmit={save} className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-line bg-white p-3 shadow-lg">
-          <label htmlFor="dashboard-view-name" className="text-xs font-semibold text-ink-muted">Name this view</label>
-          <div className="mt-1.5 flex gap-2">
-            <input id="dashboard-view-name" autoFocus value={name} onChange={(event) => setName(event.target.value)}
-              maxLength={40} placeholder="e.g. Month end"
-              className="min-w-0 flex-1 rounded-xl border border-line bg-white px-3 py-1.5 text-sm focus:border-primary-400 focus:outline-none" />
-            <Button size="sm" type="submit" disabled={!name.trim()}>Save</Button>
-          </div>
-          <p className="mt-2 text-2xs text-ink-muted">Kept in this browser, as a tab beside the others.</p>
-        </form>
-      )}
-    </div>
-  );
-}
-
-/** Every card, ticked where it is on this view: tick more to add them, untick to take them off. */
-function AddCard({ shown, onApply }: { shown: CardId[]; onApply: (cards: CardId[]) => void }) {
-  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [ticked, setTicked] = useState<Set<CardId>>(new Set());
-  const close = useCallback(() => setOpen(false), []);
-  const box = useDismiss(open, close);
-  const begin = () => {
-    setTicked(new Set(shown));
-    setQuery("");
-    setOpen((now) => !now);
-  };
-  const added = CARD_IDS.filter((id) => ticked.has(id) && !shown.includes(id));
-  const removed = shown.filter((id) => !ticked.has(id));
+  const close = useCallback(() => onEditing(false), [onEditing]);
+  const box = useDismiss(editing, close);
   const listed = CARD_IDS.filter((id) => CARD[id].title.toLowerCase().includes(query.trim().toLowerCase()));
-  const apply = () => {
-    onApply([...shown.filter((id) => ticked.has(id)), ...added]);
-    setOpen(false);
-  };
+  const flip = (id: CardId) => onChange(shown.includes(id) ? shown.filter((one) => one !== id) : [...shown, id]);
   return (
     <div ref={box} className="relative">
-      <Button size="sm" onClick={begin} aria-expanded={open}>
-        <Plus aria-hidden="true" />
-        Add card
-        <ChevronDown aria-hidden="true" />
+      <Button variant={editing ? "primary" : "secondary"} onClick={() => { setQuery(""); onEditing(!editing); }}
+        aria-expanded={editing}>
+        <Pencil aria-hidden="true" />
+        Edit view
       </Button>
-      {open && (
+      {editing && (
         <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-line bg-white p-3 shadow-lg">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-bold">Add card</p>
+            <p className="text-sm font-bold">Cards on your dashboard</p>
             <button type="button" aria-label="Close" onClick={close} className="rounded p-1 text-ink-muted hover:bg-slate-100">
               <X className="size-4" aria-hidden="true" />
             </button>
           </div>
+          <p className="mt-0.5 text-2xs text-ink-muted">Tick to add a card, untick to take it off. Kept in this browser.</p>
           <div className="relative mt-2">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
             <input aria-label="Search cards" value={query} onChange={(event) => setQuery(event.target.value)}
               placeholder="Search cards…"
               className="w-full rounded-xl border border-line bg-white py-1.5 pr-3 pl-8 text-sm focus:border-primary-400 focus:outline-none" />
           </div>
-          <ul className="mt-2 max-h-72 space-y-0.5 overflow-y-auto">
+          <ul className="mt-2 max-h-80 space-y-0.5 overflow-y-auto">
             {listed.map((id) => (
               <li key={id}>
                 <label className={cn("flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50",
-                  ticked.has(id) && "bg-primary-50/60")}>
-                  <input type="checkbox" checked={ticked.has(id)} className="size-4 accent-primary-600"
-                    onChange={() => setTicked((now) => {
-                      const next = new Set(now);
-                      if (next.has(id)) next.delete(id);
-                      else next.add(id);
-                      return next;
-                    })} />
+                  shown.includes(id) && "bg-primary-50/60")}>
+                  <input type="checkbox" checked={shown.includes(id)} onChange={() => flip(id)}
+                    className="size-4 accent-primary-600" />
                   {CARD[id].title}
                 </label>
               </li>
             ))}
             {listed.length === 0 && <li className="px-2 py-3 text-sm text-ink-muted">No card is called that.</li>}
           </ul>
-          <Button className="mt-3 w-full" size="sm" onClick={apply} disabled={added.length === 0 && removed.length === 0}>
-            {added.length === 0 && removed.length > 0 ? "Update view" : `Add selected (${added.length})`}
-          </Button>
+          <div className="mt-3 flex justify-between gap-2">
+            <Button variant="secondary" size="sm" onClick={onReset} disabled={!changed}>
+              <RotateCcw aria-hidden="true" />
+              Reset to default
+            </Button>
+            <Button size="sm" onClick={close}>Done</Button>
+          </div>
         </div>
       )}
     </div>
