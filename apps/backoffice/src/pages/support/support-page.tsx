@@ -78,7 +78,9 @@ export function SupportPage() {
   const user = useStaffUser();
   // The person who is the IT Admin, whichever workspace they are working in: Support is theirs, not a desk's.
   const answers = user.roles.includes("IT_ADMIN");
-  const [tab, setTab] = useState<Tab>(answers ? "all" : "mine");
+  // The Admin reads every ticket as well, and answers none (4 Nov 2026).
+  const readsAll = answers || user.roles.includes("ADMIN");
+  const [tab, setTab] = useState<Tab>(readsAll ? "all" : "mine");
   const [typed, setTyped] = useState("");
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
@@ -89,7 +91,9 @@ export function SupportPage() {
   const queryClient = useQueryClient();
 
   const mine = useMyStaffTickets<TicketRow[], ApiError>({ query: { enabled: tab === "mine" } });
-  const all = useSupportQueue<TicketRow[], ApiError>({ query: { enabled: answers && tab !== "mine" } });
+  const all = useSupportQueue<TicketRow[], ApiError>({ query: { enabled: readsAll && tab !== "mine" } });
+  // Whether the list on screen is everybody's tickets, read as support reads them, or the reader's own.
+  const everyone = tab !== "mine";
   const source = tab === "mine" ? mine : all;
 
   const rows = useMemo(() => {
@@ -108,9 +112,11 @@ export function SupportPage() {
   const current = picked && rows.some((one) => one.id === picked) ? picked : shown[0]?.id ?? null;
   const overdue = (all.data ?? []).filter((one) => one.overdue).length;
 
+  const sla = { id: "sla" as const, label: `SLA monitor${overdue ? ` (${overdue} overdue)` : ""}` };
   const tabs: { id: Tab; label: string }[] = answers
-    ? [{ id: "all", label: "All tickets" }, { id: "sla", label: `SLA monitor${overdue ? ` (${overdue} overdue)` : ""}` }]
-    : [{ id: "mine", label: "My tickets" }];
+    ? [{ id: "all", label: "All tickets" }, sla]
+    : readsAll ? [{ id: "all", label: "All tickets" }, sla, { id: "mine", label: "My tickets" }]
+      : [{ id: "mine", label: "My tickets" }];
   const resetPage = () => setPage(0);
 
   return (
@@ -123,7 +129,7 @@ export function SupportPage() {
           <div>
             <h1 className="text-[1.625rem] leading-tight font-bold">Support</h1>
             <p className="text-sm text-ink-muted">
-              {answers ? "Every ticket raised, how urgent it is and when it should be answered." : "Raise, track and follow up your support requests."}
+              {readsAll ? "Every ticket raised, how urgent it is and when it should be answered." : "Raise, track and follow up your support requests."}
             </p>
           </div>
         </div>
@@ -144,7 +150,7 @@ export function SupportPage() {
               onClick={() => { setStatus(status === one ? "" : one); resetPage(); }}
               className={cn("rounded-2xl border bg-white px-4 py-3 text-left transition-colors",
                 status === one ? "border-primary-400 ring-2 ring-primary-100" : "border-line hover:border-primary-300")}>
-              <span className="block text-xs font-semibold text-ink-muted">{statusLabel(one, answers ? "support" : "raiser")}</span>
+              <span className="block text-xs font-semibold text-ink-muted">{statusLabel(one, everyone ? "support" : "raiser")}</span>
               <span className="block text-2xl font-bold tabular-nums">{source.data ? count : "—"}</span>
             </button>
           );
@@ -169,13 +175,13 @@ export function SupportPage() {
           <span className="grid size-14 place-items-center rounded-2xl bg-primary-50 text-primary-600">
             <Headset className="size-7" aria-hidden="true" />
           </span>
-          <h2 className="mt-4 text-lg font-bold">{answers ? "No ticket has been raised yet" : "You haven't raised a ticket yet"}</h2>
+          <h2 className="mt-4 text-lg font-bold">{everyone ? "No ticket has been raised yet" : "You haven't raised a ticket yet"}</h2>
           <p className="mt-1 max-w-md text-sm text-ink-muted">
-            {answers
+            {everyone
               ? "When a client or a member of staff raises one, it appears here with how urgent it is and when it should be answered."
               : "Something not working? Raise a ticket and the IT team will reply here and by email."}
           </p>
-          {!answers && (
+          {!everyone && (
             <Button className="mt-5" onClick={() => setRaising(true)}>
               <Plus aria-hidden="true" />
               Raise a ticket
@@ -193,7 +199,7 @@ export function SupportPage() {
         <SelectInput id="ticket-status-filter" aria-label="Status" value={status} className="w-44"
           onChange={(event) => { setStatus(event.target.value); resetPage(); }}>
           <option value="">Status: all</option>
-          {STATUSES.map((one) => <option key={one} value={one}>{statusLabel(one, answers ? "support" : "raiser")}</option>)}
+          {STATUSES.map((one) => <option key={one} value={one}>{statusLabel(one, everyone ? "support" : "raiser")}</option>)}
         </SelectInput>
         <SelectInput id="ticket-priority-filter" aria-label="Priority" value={priority} className="w-40"
           onChange={(event) => { setPriority(event.target.value); resetPage(); }}>
@@ -217,7 +223,7 @@ export function SupportPage() {
                 <tr className="border-b border-line text-left text-xs text-ink-muted">
                   <th scope="col" className="px-4 py-3 font-semibold">Ticket</th>
                   <th scope="col" className="px-3 py-3 font-semibold">Subject</th>
-                  {answers && <th scope="col" className="px-3 py-3 font-semibold">Raised by</th>}
+                  {everyone && <th scope="col" className="px-3 py-3 font-semibold">Raised by</th>}
                   <th scope="col" className="px-3 py-3 font-semibold">Category</th>
                   <th scope="col" className="px-3 py-3 font-semibold">Priority</th>
                   <th scope="col" className="px-3 py-3 font-semibold">Status</th>
@@ -232,7 +238,7 @@ export function SupportPage() {
                       className={cn("cursor-pointer", current === one.id ? "bg-primary-50/70" : "hover:bg-slate-50")}>
                       <td className="px-4 py-3 font-semibold whitespace-nowrap">{one.reference}</td>
                       <td className="max-w-64 px-3 py-3"><span className="line-clamp-2">{one.subject}</span></td>
-                      {answers && (
+                      {everyone && (
                         <td className="px-3 py-3 whitespace-nowrap">
                           {one.raisedByName}
                           <span className="block text-2xs text-ink-muted">{one.raisedByType === "CLIENT" ? "Client" : "Staff"}</span>
@@ -244,7 +250,7 @@ export function SupportPage() {
                           {PRIORITY_LABELS[one.priority] ?? one.priority}
                         </span>
                       </td>
-                      <td className="px-3 py-3"><TicketStatus status={one.status} side={answers ? "support" : "raiser"} /></td>
+                      <td className="px-3 py-3"><TicketStatus status={one.status} side={everyone ? "support" : "raiser"} /></td>
                       <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
                         {tab === "sla" && left
                           ? <span className={cn("font-semibold", left.late ? "text-red-600" : "text-ink")}>{left.text}</span>
@@ -255,7 +261,7 @@ export function SupportPage() {
                 })}
                 {source.data && shown.length === 0 && (
                   <tr>
-                    <td colSpan={answers ? 7 : 6} className="px-4 py-10 text-center text-ink-muted">
+                    <td colSpan={everyone ? 7 : 6} className="px-4 py-10 text-center text-ink-muted">
                       {(source.data ?? []).length === 0
                         ? tab === "mine" ? "You haven't raised a ticket yet." : "No ticket has been raised yet."
                         : "No ticket matches these filters."}
@@ -287,7 +293,7 @@ export function SupportPage() {
         </section>
 
         {current ? (
-          answers ? <SupportSide id={current} /> : <RaiserSide id={current} />
+          everyone ? <SupportSide id={current} canAct={answers} /> : <RaiserSide id={current} />
         ) : (
           <section className="rounded-2xl border border-dashed border-line px-6 py-16 text-center text-sm text-ink-muted">
             No ticket matches these filters.
@@ -316,7 +322,11 @@ export function SupportPage() {
 }
 
 /** The ticket as the IT Admin works it: sort it, set its status, and answer it. */
-function SupportSide({ id }: { id: string }) {
+function SupportSide({ id, canAct }: {
+  id: string;
+  /** The IT Admin answers and sorts; the Admin reads. */
+  canAct: boolean;
+}) {
   const queryClient = useQueryClient();
   const detail = useSupportTicket<TicketDetail, ApiError>(id);
   const refreshed = (fresh: TicketDetail) => {
@@ -339,8 +349,9 @@ function SupportSide({ id }: { id: string }) {
       side="support"
       fileUrl={(fileId) => getSupportTicketFileUrl(id, fileId)}
       onReply={reply}
+      canReply={canAct}
       problem={status.error?.message ?? triage.error?.message}
-      controls={
+      controls={!canAct ? null : (
         <div className="grid grid-cols-3 gap-2">
           <Picker id="side-status" label="Status" value={ticket.status} disabled={status.isPending}
             options={STATUSES.map((one) => [one, statusLabel(one, "support")])}
@@ -352,7 +363,7 @@ function SupportSide({ id }: { id: string }) {
             options={Object.entries(CATEGORY_LABELS)}
             onChange={(value) => triage.mutate({ id, data: { priority: ticket.priority, category: value } })} />
         </div>
-      }
+      )}
     />
   );
 }
@@ -406,8 +417,10 @@ function SidePlaceholder({ failed }: { failed: boolean }) {
 type SideTab = "details" | "conversation" | "attachments" | "activity";
 
 /** One ticket on the right: its heading, the reader's controls, and four tabs. */
-function TicketSide({ detail, side, fileUrl, onReply, controls, problem }: {
+function TicketSide({ detail, side, fileUrl, onReply, controls, problem, canReply = true }: {
   detail: TicketDetail;
+  /** Whether the reader may write on it at all: the Admin reads support's side without answering. */
+  canReply?: boolean;
   side: "support" | "raiser";
   fileUrl: (fileId: string) => string;
   onReply: (body: string, files: File[]) => Promise<unknown>;
@@ -477,7 +490,7 @@ function TicketSide({ detail, side, fileUrl, onReply, controls, problem }: {
         )}
         {tab === "conversation" && (
           <TicketView detail={detail} side={side} fileUrl={fileUrl} onReply={onReply}
-            canReply={!["CLOSED"].includes(ticket.status)} />
+            canReply={canReply && ticket.status !== "CLOSED"} />
         )}
         {tab === "attachments" && (
           detail.files.length === 0 ? <p className="text-sm text-ink-muted">Nothing is attached.</p> : (
