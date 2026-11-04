@@ -11,7 +11,8 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { ChevronRight, Download, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
-import { TextInput } from "@atomprive/ui";
+import { SelectInput, TextInput } from "@atomprive/ui";
+import { useDebouncedValue } from "../../lib/use-debounced-value";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
@@ -94,6 +95,8 @@ export function KycDocumentReviewPage() {
   const navigate = useNavigate();
   const [state, setState] = useState<KycDocumentRowReviewState>("AWAITING_REVIEW");
   const [search, setSearch] = useState("");
+  // Oldest first is how Compliance work; newest first is for finding what has just come in.
+  const [newestFirst, setNewestFirst] = useState(false);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [picking, setPicking] = useState(false);
@@ -101,27 +104,22 @@ export function KycDocumentReviewPage() {
   // this screen, which after V201 means Compliance — and their journey ended on a client's pack with
   // no Upload on it, because deciding on papers and collecting them are now different desks.
   const mayAdd = hasAnyAuthority(useStaffUser(), ...UPLOADS_CLIENT_DOCUMENTS);
+  // Searched by the server across the whole queue, not only the page on screen: a paper that came in a moment
+  // ago sits at the end of a long queue, where filtering page one never found it.
+  const words = useDebouncedValue(search.trim(), 300);
   const queue = useListKycDocuments<KycQueue, ApiError>(
-    { state, page, size },
+    { state, query: words || undefined, newestFirst, page, size },
     { query: { placeholderData: keepPreviousData } },
   );
-
-  const words = search.trim().toLowerCase();
-  const shown = (queue.data?.items ?? []).filter((row) =>
-    !words
-      ? true
-      : [row.fileName, row.clientName, row.clientCode, row.kindTitle]
-          .filter(Boolean)
-          .some((said) => said.toLowerCase().includes(words)),
-  );
+  const shown = queue.data?.items ?? [];
 
   function show(next: KycDocumentRowReviewState) {
     setState(next);
     setPage(0);
   }
 
-  /** The one that has waited longest, which is where Compliance should start. */
-  const oldest = (queue.data?.items ?? [])[0];
+  /** The one that has waited longest, which is where Compliance should start — known only in the working order. */
+  const oldest = newestFirst || words ? undefined : (queue.data?.items ?? [])[0];
   const view = useTableView("kyc-documents", MOVABLE.map((one) => one.id));
   const drag = useColumnDrag(view);
   const byId = new Map(MOVABLE.map((one) => [one.id, one]));
@@ -162,7 +160,8 @@ export function KycDocumentReviewPage() {
           <Button
             variant="secondary"
             disabled={oldest === undefined}
-            title={oldest === undefined ? "Nothing is waiting" : undefined}
+            title={oldest !== undefined ? undefined
+              : newestFirst || words ? "Clear the search and sort oldest first to start from the oldest" : "Nothing is waiting"}
             onClick={() => oldest && void navigate(`/kyc/${oldest.customerId}?from=review`)}
           >
             Review oldest
@@ -253,13 +252,30 @@ export function KycDocumentReviewPage() {
               onMove={view.move}
               onReset={view.reset}
             />
+            <div className="w-44">
+              <label htmlFor="kyc-documents-order" className="sr-only">Order</label>
+              <SelectInput
+                id="kyc-documents-order"
+                value={newestFirst ? "newest" : "oldest"}
+                onChange={(event) => {
+                  setNewestFirst(event.target.value === "newest");
+                  setPage(0);
+                }}
+              >
+                <option value="oldest">Oldest first</option>
+                <option value="newest">Newest first</option>
+              </SelectInput>
+            </div>
             <div className="relative w-72 max-w-full">
               <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted" />
               <TextInput
                 aria-label="Search document, client or type"
                 placeholder="Search document, client or type…"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(0);
+                }}
                 className="pl-9"
               />
             </div>
