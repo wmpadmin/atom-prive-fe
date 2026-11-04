@@ -7,7 +7,7 @@ import {
   type KycRequirement,
   type MyKyc,
 } from "@atomprive/api-client/portal";
-import { Alert, Button, Dialog } from "@atomprive/ui";
+import { Alert, Button, Dialog, SelectInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, CircleAlert, CircleX, Clock, FileText, Upload, type LucideIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -53,7 +53,8 @@ const OWED_LOOK: Record<string, { icon: LucideIcon; tone: string }> = {
 
 export function KycPage() {
   const kyc = useMyKyc<MyKyc, ApiError>();
-  const [uploading, setUploading] = useState<KycRequirement>();
+  // Open with the paper it was opened from, or with none chosen yet from the button at the top.
+  const [uploading, setUploading] = useState<{ paper?: KycRequirement }>();
   const [problem, setProblem] = useState<string>();
 
   if (!kyc.data) {
@@ -88,7 +89,14 @@ export function KycPage() {
 
   return (
     <div className="space-y-5">
-      <Heading />
+      <Heading
+        action={papers.length > 0 && (
+          <Button onClick={() => setUploading({})}>
+            <Upload aria-hidden="true" />
+            Upload a document
+          </Button>
+        )}
+      />
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-5">
           <Status settled={approved.length} total={papers.length} owed={owed.length} waiting={waiting.length}
@@ -102,7 +110,7 @@ export function KycPage() {
                 return (
                   <Row key={paper.paperId} icon={look.icon} tone={look.tone} title={paper.kindTitle} line={owedLine(paper)}
                     action={
-                      <Button onClick={() => setUploading(paper)}>
+                      <Button onClick={() => setUploading({ paper })}>
                         <Upload aria-hidden="true" />
                         {paper.stands === "NOT_SENT" || paper.stands === "EXPIRED" ? "Upload" : "Upload new copy"}
                       </Button>
@@ -180,21 +188,36 @@ export function KycPage() {
         </aside>
       </div>
 
-      {uploading && <UploadPaper paper={uploading} onClose={() => setUploading(undefined)} />}
+      {uploading && (
+        <UploadPaper papers={papers} chosen={uploading.paper} onClose={() => setUploading(undefined)} />
+      )}
     </div>
   );
 }
 
-function Heading() {
+function Heading({ action }: { action?: ReactNode }) {
   return (
-    <div>
-      <h1 className="text-[1.625rem] font-bold text-balance text-ink">KYC</h1>
-      <p className="mt-1 text-sm text-ink-muted">
-        The documents we need to keep your account verified. Upload what is missing and we&rsquo;ll review it.
-      </p>
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 className="text-[1.625rem] font-bold text-balance text-ink">KYC</h1>
+        <p className="mt-1 text-sm text-ink-muted">
+          The documents we need to keep your account verified. Upload what is missing and we&rsquo;ll review it.
+        </p>
+      </div>
+      {action}
     </div>
   );
 }
+
+/** How a paper reads in the list of what can be uploaded: its name, and where it stands where that matters. */
+const STANDS_SAID: Record<string, string> = {
+  NOT_SENT: "needed",
+  RE_UPLOAD_REQUESTED: "new copy needed",
+  REJECTED: "new copy needed",
+  EXPIRED: "expired",
+  AWAITING_REVIEW: "with us for review",
+  APPROVED: "approved",
+};
 
 function count(n: number) {
   return `${n} ${n === 1 ? "document" : "documents"}`;
@@ -276,9 +299,14 @@ function Row({ icon: Icon, tone, title, line, action, children }: {
   );
 }
 
-/** Sending one paper the firm asked for: it is filed under that paper and waits for Compliance. */
-function UploadPaper({ paper, onClose }: { paper: KycRequirement; onClose: () => void }) {
+/**
+ * Sending one of the papers the firm asks for: chosen from the list, or already chosen when opened from that
+ * paper's own row. It is filed under that paper and waits for Compliance.
+ */
+function UploadPaper({ papers, chosen, onClose }: { papers: KycRequirement[]; chosen?: KycRequirement; onClose: () => void }) {
   const queryClient = useQueryClient();
+  const [paperId, setPaperId] = useState(chosen?.paperId ?? "");
+  const paper = papers.find((one) => one.paperId === paperId);
   const [expiresOn, setExpiresOn] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const upload = useUpload<ApiError>({
@@ -291,13 +319,32 @@ function UploadPaper({ paper, onClose }: { paper: KycRequirement; onClose: () =>
     },
   });
   // A paper the platform has its own name for is sent as that kind; one the firm named is sent by its name.
-  const kind = paper.kind ?? "OTHER";
+  const kind = paper?.kind ?? "OTHER";
 
   return (
-    <Dialog open onClose={onClose} title={`Upload ${paper.kindTitle}`}
+    <Dialog open onClose={onClose} title="Upload a document"
       description="It goes to our compliance team, and shows as with us for review until they have checked it."
     >
       <div className="space-y-4">
+        <div>
+          <label htmlFor="kyc-paper" className="mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Document
+          </label>
+          <SelectInput id="kyc-paper" value={paperId} onChange={(event) => setPaperId(event.target.value)}>
+            <option value="">Choose which document this is…</option>
+            {papers.map((one) => (
+              <option key={one.paperId} value={one.paperId}>
+                {one.kindTitle} — {STANDS_SAID[one.stands] ?? one.stands.toLowerCase()}
+              </option>
+            ))}
+          </SelectInput>
+          {paper?.stands === "APPROVED" && (
+            <p className="mt-1 text-xs text-ink-muted">Already approved. Send a new one only if it has changed or is about to expire.</p>
+          )}
+          {paper?.stands === "AWAITING_REVIEW" && (
+            <p className="mt-1 text-xs text-ink-muted">We already have one waiting for review. Send another only to replace it.</p>
+          )}
+        </div>
         <div>
           <label htmlFor="kyc-file" className="mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             File
@@ -327,9 +374,9 @@ function UploadPaper({ paper, onClose }: { paper: KycRequirement; onClose: () =>
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={upload.isPending}>Cancel</Button>
           <Button
-            disabled={!file || upload.isPending}
+            disabled={!file || !paper || upload.isPending}
             onClick={() =>
-              file &&
+              file && paper &&
               upload.mutate({
                 params: { kind, otherName: kind === "OTHER" ? paper.kindTitle : undefined, expiresOn: expiresOn || undefined },
                 data: { file },
