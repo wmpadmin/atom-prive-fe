@@ -4542,6 +4542,65 @@ export interface PortalAccessGiven {
   given: Given[];
 }
 
+export interface MarketTurn {
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  question: string;
+  /**
+     * @minLength 0
+     * @maxLength 8000
+     */
+  answer: string;
+}
+
+export interface MarketQuestion {
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  question: string;
+  /**
+     * @minItems 0
+     * @maxItems 20
+     * @nullable
+     */
+  earlier: MarketTurn[] | null;
+  /** @nullable */
+  model: string | null;
+}
+
+export interface MarketQuote {
+  symbol: string;
+  name: string;
+  /** @nullable */
+  price: number | null;
+  currency: string;
+  /** @nullable */
+  change: number | null;
+  /** @nullable */
+  changePercent: number | null;
+  asOf: string;
+}
+
+export interface MarketSource {
+  title: string;
+  /** @nullable */
+  outlet: string | null;
+  url: string;
+  /** @nullable */
+  publishedAt: string | null;
+}
+
+export interface MarketReply {
+  summary: string;
+  points: string[];
+  sources: MarketSource[];
+  quotes: MarketQuote[];
+  answeredBy: string;
+}
+
 export interface NamePaperRequest {
   /**
      * @minLength 0
@@ -20803,6 +20862,88 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSignMineMutationOptions(options), queryClient);
+    }
+
+export const getAskMarketAssistantUrl = () => {
+
+
+
+
+  return `/api/backoffice/market-assistant/questions`
+}
+
+export const askMarketAssistant = async (marketQuestion: MarketQuestion, options?: Parameters<typeof http>[1]): Promise<MarketReply> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MarketReply>(getAskMarketAssistantUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(marketQuestion)
+  }
+);}
+
+
+
+
+
+export const getAskMarketAssistantMutationKey = () => ['askMarketAssistant'] as const;
+
+export const getAskMarketAssistantMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askMarketAssistant>>, TError,AskMarketAssistantMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askMarketAssistant>>, TError,AskMarketAssistantMutationVariables, TContext> => {
+
+const mutationKey = getAskMarketAssistantMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askMarketAssistant>>, AskMarketAssistantMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  askMarketAssistant(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskMarketAssistantMutationResult = NonNullable<Awaited<ReturnType<typeof askMarketAssistant>>>
+    export type AskMarketAssistantMutationBody = MarketQuestion
+    export type AskMarketAssistantMutationError = unknown
+    export type AskMarketAssistantMutationVariables = {data: MarketQuestion}
+
+    export const useAskMarketAssistant = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askMarketAssistant>>, TError,AskMarketAssistantMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askMarketAssistant>>,
+        TError,
+        AskMarketAssistantMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskMarketAssistantMutationOptions(options), queryClient);
     }
 
 export const getListKycPapersUrl = () => {
