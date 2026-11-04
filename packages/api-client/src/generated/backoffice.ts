@@ -1803,11 +1803,12 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
+  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1819,7 +1820,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -4707,6 +4707,12 @@ export interface KycDecisionRequest {
   reason: string;
 }
 
+export interface KycReminder {
+  sentAt: string;
+  sentByName: string;
+  papers: string[];
+}
+
 export interface ClientPaperRequest {
   paperId: string;
   required: boolean;
@@ -4827,6 +4833,7 @@ export interface ClientKycFile {
   documents: KycDocumentRow[];
   checklist: KycRequirement[];
   exceptions: ClientPaperRow[];
+  lastReminder: KycReminder | null;
 }
 
 export interface ChecklistPaperRequest {
@@ -5594,6 +5601,13 @@ export interface AssistantQuestion {
   model: string | null;
 }
 
+export interface AssistantAction {
+  kind: string;
+  customerId: string;
+  clientName: string;
+  papers: string[];
+}
+
 export interface SuggestionRow {
   assetClass: string;
   name: string;
@@ -5635,6 +5649,7 @@ export interface AssistantReply {
   answeredBy: string;
   /** @nullable */
   picked: string | null;
+  action: AssistantAction | null;
 }
 
 export type RatingRequestChosen = {[key: string]: string};
@@ -21297,6 +21312,74 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDecideKycDocumentMutationOptions(options), queryClient);
+    }
+
+export const getSendKycReminderUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/kyc/clients/${customerId}/reminders`
+}
+
+export const sendKycReminder = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<KycReminder> => {
+
+  return http<KycReminder>(getSendKycReminderUrl(customerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSendKycReminderMutationKey = () => ['sendKycReminder'] as const;
+
+export const getSendKycReminderMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendKycReminder>>, TError,SendKycReminderMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendKycReminder>>, TError,SendKycReminderMutationVariables, TContext> => {
+
+const mutationKey = getSendKycReminderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendKycReminder>>, SendKycReminderMutationVariables> = (props) => {
+          const {customerId} = props ?? {};
+
+          return  sendKycReminder(customerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendKycReminderMutationResult = NonNullable<Awaited<ReturnType<typeof sendKycReminder>>>
+
+    export type SendKycReminderMutationError = unknown
+    export type SendKycReminderMutationVariables = {customerId: string}
+
+    export const useSendKycReminder = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendKycReminder>>, TError,SendKycReminderMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendKycReminder>>,
+        TError,
+        SendKycReminderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendKycReminderMutationOptions(options), queryClient);
     }
 
 export const getExceptOneClientUrl = (customerId: string,) => {
