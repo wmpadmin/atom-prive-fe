@@ -30,6 +30,9 @@ export function DashboardPage() {
   if (user.activeRole === "OPERATIONS" && hasAnyAuthority(user, "ONBOARD_CLIENTS:VIEW", "ONBOARD_CLIENTS:CHANGE")) {
     return <OperationsDashboard />;
   }
+  if (user.activeRole === "ADVISOR") {
+    return <AdvisorDashboard />;
+  }
   if (checksTheFirm) {
     return <ComplianceDashboard />;
   }
