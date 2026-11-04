@@ -17,39 +17,47 @@ import {
   AlertTriangle,
   ArrowDownRight,
   ArrowLeft,
+  ArrowLeftRight,
   ArrowRight,
   ArrowUpRight,
-  BadgeCheck,
   Banknote,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
   ChevronRight,
   ClipboardList,
+  Clock,
+  Copy,
+  ExternalLink,
   FileText,
-  Flag,
+  Gem,
   HeartPulse,
   Landmark,
+  Layers,
+  LifeBuoy,
   Link2,
   ListChecks,
   Mail,
+  MoreVertical,
   Pencil,
   PieChart,
   Plus,
   RotateCcw,
+  Search,
   SendHorizontal,
   ShieldCheck,
   Sparkles,
-  UserCog,
+  UserMinus,
   UserPlus,
   Users,
   X,
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatRelative, roleLabel } from "../../lib/labels";
-import { ViewTabs } from "../../components/view-tabs";
-import { useTableView } from "../../lib/table-view";
 import { menuFor } from "../../menu";
 import { Chart, ink } from "../book/overview-charts";
 
@@ -111,28 +119,29 @@ const ASK: string[] = [
   "Give me a summary of open approvals.",
 ];
 
-type Area = "top" | "main" | "side";
+type Area = "main" | "side";
 
-type CardId = "figures" | "growth" | "approvals" | "attention" | "asset-classes" | "lifecycle" | "operations"
-  | "activity" | "tasks" | "by-rm" | "by-pm" | "upcoming" | "assistant" | "quick" | "links";
+type CardId = "summary" | "trend" | "asset-classes" | "lifecycle" | "operations" | "approvals" | "upcoming"
+  | "attention" | "activity" | "health" | "tasks" | "by-rm" | "by-pm" | "assistant" | "quick" | "links";
 
 /**
- * Every card the dashboard can show, in the firm's own order. Where it sits: the key figures across the top,
- * the assistant and the Admin's shortcuts down the side, everything else three to a row.
+ * Every card the dashboard can show, in the firm's own order. The assistant and the Admin's shortcuts sit down
+ * the side; everything else three to a row, the wide ones taking two places.
  */
 const CARD: Record<CardId, { title: string; area: Area; wide?: boolean }> = {
-  figures: { title: "Key figures", area: "top" },
-  growth: { title: "AUM & client growth", area: "main" },
-  approvals: { title: "Approvals & queues", area: "main" },
-  attention: { title: "Items requiring attention", area: "main" },
+  summary: { title: "Firm summary", area: "main", wide: true },
+  trend: { title: "AUM trend", area: "main" },
   "asset-classes": { title: "AUM by asset class", area: "main" },
   lifecycle: { title: "Clients by lifecycle", area: "main" },
   operations: { title: "Operational health", area: "main" },
-  activity: { title: "Firm activity", area: "main", wide: true },
-  tasks: { title: "Task summary", area: "main" },
-  "by-rm": { title: "AUM by RM (top 5)", area: "main" },
-  "by-pm": { title: "AUM by PM (top 5)", area: "main" },
+  approvals: { title: "Approvals & queues", area: "main" },
   upcoming: { title: "Upcoming & due", area: "main" },
+  attention: { title: "Items requiring attention", area: "main" },
+  activity: { title: "Firm activity", area: "main", wide: true },
+  health: { title: "System health", area: "main" },
+  tasks: { title: "Task summary", area: "main" },
+  "by-rm": { title: "AUM by RM", area: "main" },
+  "by-pm": { title: "AUM by PM", area: "main" },
   assistant: { title: "AI Assistant", area: "side" },
   quick: { title: "Quick actions", area: "side" },
   links: { title: "Key links", area: "side" },
@@ -140,10 +149,117 @@ const CARD: Record<CardId, { title: string; area: Area; wide?: boolean }> = {
 
 const CARD_IDS = Object.keys(CARD) as CardId[];
 
-/** The firm's five, asked for on 4 Nov 2026: everything else is one click away under Add card. */
-const SHOWN_BY_DEFAULT: CardId[] = ["figures", "growth", "approvals", "attention", "assistant"];
+/** The firm's ready-made views, agreed 4 Nov 2026. A view is just which cards, in what order. */
+const PRESETS: { id: string; name: string; cards: CardId[] }[] = [
+  { id: "mine", name: "My dashboard",
+    cards: ["summary", "asset-classes", "operations", "approvals", "upcoming", "assistant"] },
+  { id: "firm", name: "Firm overview", cards: ["summary", "trend", "asset-classes", "lifecycle", "by-rm", "by-pm"] },
+  { id: "operations", name: "Operations", cards: ["operations", "approvals", "attention", "activity"] },
+  { id: "compliance", name: "Compliance", cards: ["upcoming", "attention", "lifecycle"] },
+  { id: "system", name: "System", cards: ["health", "activity", "quick", "links"] },
+];
 
-const HIDDEN_BY_DEFAULT = CARD_IDS.filter((id) => !SHOWN_BY_DEFAULT.includes(id));
+type Saved = { name: string; cards: CardId[] };
+
+type Kept = {
+  /** "preset:<id>" or "saved:<name>". */
+  tab: string;
+  /** What a ready-made view was changed to and not saved yet; a saved view is changed in place instead. */
+  working: CardId[] | null;
+  saved: Saved[];
+};
+
+const KEPT_AT = "atomprive.dashboard-view.v1.admin";
+
+function onlyCards(list: unknown): CardId[] {
+  return Array.isArray(list) ? [...new Set(list.filter((one): one is CardId => CARD_IDS.includes(one as CardId)))] : [];
+}
+
+function readKept(): Kept {
+  const empty: Kept = { tab: "preset:mine", working: null, saved: [] };
+  try {
+    const found = window.localStorage.getItem(KEPT_AT);
+    if (!found) return empty;
+    const parsed = JSON.parse(found) as Partial<Kept>;
+    const saved = (Array.isArray(parsed.saved) ? parsed.saved : [])
+      .filter((one) => typeof one?.name === "string" && one.name !== "")
+      .map((one) => ({ name: one.name, cards: onlyCards(one.cards) }));
+    const tab = typeof parsed.tab === "string" && (PRESETS.some((one) => `preset:${one.id}` === parsed.tab)
+      || saved.some((one) => `saved:${one.name}` === parsed.tab)) ? parsed.tab : empty.tab;
+    return { tab, working: parsed.working ? onlyCards(parsed.working) : null, saved };
+  } catch {
+    return empty;
+  }
+}
+
+/**
+ * The Admin's views of the dashboard, kept in this browser: the firm's ready-made ones, their own saved ones,
+ * and which is open. Changing a saved view changes it; changing a ready-made one is held until it is saved
+ * under a name of its own, and picking the tab again puts it back as the firm made it.
+ */
+function useDashboardViews() {
+  const [kept, setKept] = useState<Kept>(readKept);
+  const write = (next: Kept) => {
+    setKept(next);
+    try {
+      window.localStorage.setItem(KEPT_AT, JSON.stringify(next));
+    } catch {
+      // A browser that keeps nothing still shows the views; they last until the page is left.
+    }
+  };
+  const preset = PRESETS.find((one) => `preset:${one.id}` === kept.tab);
+  const savedOne = kept.saved.find((one) => `saved:${one.name}` === kept.tab);
+  const cards = savedOne?.cards ?? kept.working ?? preset?.cards ?? PRESETS[0]!.cards;
+  return {
+    tab: kept.tab,
+    saved: kept.saved,
+    cards,
+    /** A ready-made view showing something other than what the firm made it. */
+    edited: !savedOne && kept.working !== null,
+    pick: (tab: string) => write({ ...kept, tab, working: null }),
+    change: (next: CardId[]) => (savedOne
+      ? write({ ...kept, saved: kept.saved.map((one) => (one === savedOne ? { ...one, cards: next } : one)) })
+      : write({ ...kept, working: next })),
+    reset: () => write({ ...kept, working: null }),
+    saveAs: (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      write({ tab: `saved:${trimmed}`, working: null,
+        saved: [...kept.saved.filter((one) => one.name !== trimmed), { name: trimmed, cards }] });
+    },
+    remove: (name: string) => {
+      const open = kept.tab === `saved:${name}`;
+      write({ tab: open ? "preset:mine" : kept.tab, working: open ? null : kept.working,
+        saved: kept.saved.filter((one) => one.name !== name) });
+    },
+  };
+}
+
+/** Closes a pop-over when somebody clicks anywhere outside it, or presses Escape. */
+function useDismiss(open: boolean, close: () => void) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: MouseEvent) => {
+      if (box.current && !box.current.contains(event.target as Node)) close();
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    document.addEventListener("mousedown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("mousedown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open, close]);
+  return box;
+}
+
+/** What a card's ⋮ offers, handed down to whichever card is drawn inside it. */
+type CardControls = { earlier?: () => void; later?: () => void; remove: () => void; title: string };
+
+const CardContext = createContext<CardControls | null>(null);
 
 function money(amount: number, currency: string) {
   return `${currency} ${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(amount)}`;
@@ -173,39 +289,26 @@ export function AdminDashboard() {
   const data = firm.data;
   const cur = data?.currency ?? currency;
 
-  const view = useTableView("admin-dashboard", CARD_IDS, HIDDEN_BY_DEFAULT);
+  const view = useDashboardViews();
   const [editing, setEditing] = useState(false);
-  const [adding, setAdding] = useState(false);
-  // Whether what is on screen differs from the tab that is lit: the firm's five, or the saved view picked.
-  const asTheFirmHasIt = view.order.join("|") === CARD_IDS.join("|")
-    && [...view.hidden].sort().join("|") === [...HIDDEN_BY_DEFAULT].sort().join("|");
-  const edited = view.current === null ? !asTheFirmHasIt : view.changed;
+  const openItems = data ? data.headline.openApprovals + data.headline.openRequests : undefined;
 
   const cards: Record<CardId, ReactNode> = {
-    figures: (
-      <Panel icon={Landmark} title="Key figures">
-        <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-4">
-          <Headline icon={Landmark} label="Total AUM" value={data ? money(data.headline.totalAum, cur) : undefined}
+    summary: (
+      <Panel icon={Layers} title="Firm summary">
+        <dl className="grid grid-cols-2 gap-y-4 sm:grid-cols-4 sm:divide-x sm:divide-line">
+          <Figure label="Total AUM" value={data ? money(data.headline.totalAum, cur) : undefined}
             change={data?.headline.aumChangePercent} to={goTo("/client-management", "/clients")} />
-          <Headline icon={Users} label="Total clients" value={data?.headline.clients} change={data?.headline.clientsChangePercent}
+          <Figure label="Total clients" value={data?.headline.clients} change={data?.headline.clientsChangePercent}
             to={goTo("/clients")} />
-          <Headline icon={UserCog} label="Active staff" value={data?.headline.activeStaff} to={goTo("/users")} />
-          <Headline icon={UserPlus} label="Onboarding" value={data?.headline.onboarding} to={goTo("/clients")} />
-          <Headline icon={ListChecks} label="Open approvals" value={data?.headline.openApprovals} tone="warn"
+          <Figure label="Active staff" value={data?.headline.activeStaff} to={goTo("/users")} />
+          <Figure label="Open items" value={openItems} tone={openItems ? "danger" : undefined}
             to={goTo("/approvals", "/deactivation-requests")} />
-          <Headline icon={Flag} label="Open requests" value={data?.headline.openRequests} tone="warn"
-            to={goTo("/family-access-trail", "/support")} />
-          <Headline icon={ShieldCheck} label="Compliance due" value={data?.headline.complianceDue} tone="danger"
-            to={goTo("/kyc", "/staff-declarations")} />
-          <Headline icon={HeartPulse} label="System health"
-            value={platform.data ? (platform.data.health.databaseUp ? "Up" : "Down") : undefined}
-            tone={platform.data && !platform.data.health.databaseUp ? "danger" : "good"} note="Uptime % coming soon"
-            to={goTo("/ingestion")} />
-        </div>
+        </dl>
       </Panel>
     ),
-    growth: (
-      <Panel icon={Banknote} title="AUM & client growth" to={goTo("/client-management", "/clients")}>
+    trend: (
+      <Panel icon={Banknote} title="AUM trend" to={goTo("/client-management", "/clients")}>
         {data ? <GrowthChart data={data} /> : <Loading />}
       </Panel>
     ),
@@ -230,16 +333,19 @@ export function AdminDashboard() {
     ),
     operations: (
       <Panel icon={Activity} title="Operational health">
-        <div className="grid h-full auto-rows-fr grid-cols-2 gap-2.5">
-          <Mini label="Onboarding" value={data?.operations.onboarding} state="In progress" tone="good"
-            to={goTo("/clients")} />
-          <Mini label="KYC & compliance" value={data?.operations.kycInReview} state="In review"
-            tone={data && data.operations.kycInReview > 0 ? "warn" : "good"} to={goTo("/kyc-documents", "/kyc", "/clients")} />
-          <Mini label="Portfolio proposals" value={data?.operations.proposalsPending} state="Pending"
-            tone={data && data.operations.proposalsPending > 0 ? "warn" : "good"} to={goTo("/approvals?queue=proposals")} />
-          <Mini label="Bank feeds" value={data?.operations.bankFeedsFailed} state="Failed, 24 h"
-            tone={data && data.operations.bankFeedsFailed > 0 ? "danger" : "good"} to={goTo("/ingestion")} />
-        </div>
+        <ul className="space-y-2">
+          <OpsRow icon={CheckCircle2} label="Onboarding" state="In progress" value={data?.operations.onboarding}
+            tone="good" to={goTo("/clients")} />
+          <OpsRow icon={Clock} label="KYC & compliance" state={data?.operations.kycInReview ? "Needs attention" : "Up to date"}
+            value={data?.operations.kycInReview} tone={data?.operations.kycInReview ? "warn" : "good"}
+            to={goTo("/kyc-documents", "/kyc", "/clients")} />
+          <OpsRow icon={Layers} label="Portfolio proposals" state={data?.operations.proposalsPending ? "Pending approval" : "None waiting"}
+            value={data?.operations.proposalsPending} tone={data?.operations.proposalsPending ? "danger" : "good"}
+            to={goTo("/approvals?queue=proposals")} />
+          <OpsRow icon={AlertTriangle} label="Bank feeds" state={data?.operations.bankFeedsFailed ? "Failed syncs" : "No failures, 24 h"}
+            value={data?.operations.bankFeedsFailed} tone={data?.operations.bankFeedsFailed ? "danger" : "good"}
+            to={goTo("/ingestion")} />
+        </ul>
       </Panel>
     ),
     approvals: (
@@ -248,12 +354,43 @@ export function AdminDashboard() {
         <Counts rows={[...(data?.approvals ?? []), ...(data?.requests ?? [])]} linkFor={linkFor} />
       </Panel>
     ),
+    upcoming: (
+      <Panel icon={CalendarDays} title="Upcoming & due" to={goTo("/staff-declarations", "/kyc")}>
+        <Counts rows={data?.upcoming ?? []} linkFor={linkFor} countFirst />
+        <ul className="mt-1 divide-y divide-line border-t border-line text-sm">
+          <li className="flex items-center gap-3 py-2 text-ink-muted"><Landmark className="size-4 shrink-0" aria-hidden="true" />
+            <span className="flex-1">Regulatory reports</span><SoonTag /></li>
+          <li className="flex items-center gap-3 py-2 text-ink-muted"><Users className="size-4 shrink-0" aria-hidden="true" />
+            <span className="flex-1">Client reviews</span><SoonTag /></li>
+        </ul>
+      </Panel>
+    ),
     attention: (
       <Panel icon={AlertTriangle} title="Items requiring attention" to={goTo("/approvals")}>
         <Attention rows={(data?.attention ?? []).filter((one) => one.count > 0)} linkFor={linkFor} loaded={!!data} />
       </Panel>
     ),
     activity: <FirmActivity platform={platform.data} attention={data?.attention ?? []} linkFor={linkFor} to={goTo("/audit-log")} />,
+    health: (
+      <Panel icon={HeartPulse} title="System health" to={goTo("/ingestion")}>
+        {platform.data ? (
+          <dl className="divide-y divide-line text-sm">
+            <Row label="Database">
+              <Badge tone={platform.data.health.databaseUp ? "success" : "danger"}>
+                {platform.data.health.databaseUp ? "Up" : "Not answering"}
+              </Badge>
+            </Row>
+            <Row label="API response">{platform.data.health.apiLatencyMillis} ms</Row>
+            <Row label="Last bank sync">
+              {platform.data.health.lastSyncRunAt ? formatRelative(platform.data.health.lastSyncRunAt) : "None yet"}
+            </Row>
+            <Row label="Failed syncs, 24 h">{platform.data.tiles.failedSyncsToday}</Row>
+            <Row label="Failed emails today">{platform.data.tiles.failedEmailsToday}</Row>
+            <Row label="Uptime %"><SoonTag /></Row>
+          </dl>
+        ) : <Loading />}
+      </Panel>
+    ),
     tasks: (
       <Panel icon={ClipboardList} title="Task summary">
         <ComingSoon>Tasks with owners and due dates aren&rsquo;t in the platform yet.</ComingSoon>
@@ -267,15 +404,6 @@ export function AdminDashboard() {
     "by-pm": (
       <Panel icon={Users} title="AUM by PM (top 5)" to={goTo("/users")}>
         <Managers rows={data?.byPortfolioManager} currency={cur} />
-      </Panel>
-    ),
-    upcoming: (
-      <Panel icon={BadgeCheck} title="Upcoming & due" to={goTo("/staff-declarations", "/kyc")}>
-        <Counts rows={data?.upcoming ?? []} linkFor={linkFor} />
-        <ul className="mt-1 divide-y divide-line border-t border-line text-sm">
-          <li className="flex justify-between py-2 text-ink-muted"><span>Regulatory reports</span><SoonTag /></li>
-          <li className="flex justify-between py-2 text-ink-muted"><span>Client reviews</span><SoonTag /></li>
-        </ul>
       </Panel>
     ),
     assistant: <AskTheAssistant />,
@@ -308,80 +436,53 @@ export function AdminDashboard() {
     ),
   };
 
-  const shown = view.shown as CardId[];
+  const shown = view.cards;
   const inArea = (area: Area) => shown.filter((id) => CARD[id].area === area);
-  // Moving a card past its neighbour in the same part of the page, whatever sits between them elsewhere.
+  // Past its neighbour in the same part of the page, whatever sits between them elsewhere.
   const nudge = (id: CardId, step: -1 | 1) => {
     const mates = inArea(CARD[id].area);
     const neighbour = mates[mates.indexOf(id) + step];
-    if (neighbour) view.move(id, view.order.indexOf(neighbour));
+    if (!neighbour) return;
+    const next = [...shown];
+    const from = next.indexOf(id);
+    const to = next.indexOf(neighbour);
+    next[from] = neighbour;
+    next[to] = id;
+    view.change(next);
   };
   const card = (id: CardId) => {
     const mates = inArea(CARD[id].area);
+    const controls: CardControls = {
+      title: CARD[id].title,
+      earlier: mates[0] === id ? undefined : () => nudge(id, -1),
+      later: mates[mates.length - 1] === id ? undefined : () => nudge(id, 1),
+      remove: () => view.change(shown.filter((one) => one !== id)),
+    };
     return (
-      <Editable key={id} editing={editing} title={CARD[id].title} wide={CARD[id].wide}
-        first={mates[0] === id} last={mates[mates.length - 1] === id}
-        onEarlier={() => nudge(id, -1)} onLater={() => nudge(id, 1)} onRemove={() => view.toggle(id)}>
-        {cards[id]}
-      </Editable>
+      <CardContext.Provider key={id} value={controls}>
+        <div className={cn("flex min-w-0 flex-col [&>*]:flex-1", CARD[id].wide && "@2xl:col-span-2",
+          editing && "rounded-2xl outline-2 outline-offset-2 outline-primary-300 outline-dashed")}>
+          {cards[id]}
+        </div>
+      </CardContext.Provider>
     );
   };
   const side = inArea("side");
+  const savedName = view.tab.startsWith("saved:") ? view.tab.slice("saved:".length) : null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[1.625rem] font-bold">Admin dashboard</h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            {editing
-              ? `Editing ${view.current ? `\u201c${view.current}\u201d` : "the default view"}. Changes are kept only in this browser.`
-              : "Firm overview, operational control and key actions."}
-          </p>
+        <div className="flex items-center gap-3">
+          <span className="grid size-11 place-items-center rounded-2xl bg-primary-50 text-primary-600">
+            <Layers className="size-6" aria-hidden="true" />
+          </span>
+          <div>
+            <h1 className="text-[1.625rem] leading-tight font-bold">Admin dashboard</h1>
+            <p className="text-sm text-ink-muted">Firm overview, operational control and key actions.</p>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <ViewTabs
-            views={view.views}
-            current={view.current}
-            edited={edited}
-            onPick={(name) => (name === null ? view.reset() : view.apply(name))}
-            onSave={view.saveAs}
-            onDelete={view.remove}
-            firstLabel="Default"
-          />
-          {editing ? (
-            <>
-              <Button variant="secondary" size="sm" onClick={view.reset}>
-                <RotateCcw aria-hidden="true" />
-                Reset to default
-              </Button>
-              <div className="relative">
-                <Button size="sm" onClick={() => setAdding((now) => !now)} disabled={view.hidden.length === 0}
-                  aria-expanded={adding}>
-                  <Plus aria-hidden="true" />
-                  Add card
-                </Button>
-                {adding && view.hidden.length > 0 && (
-                  <div className="absolute right-0 z-20 mt-2 w-64 rounded-2xl border border-line bg-white p-2 shadow-lg">
-                    <p className="px-2 pt-1 pb-2 text-xs font-semibold text-ink-muted">Cards not on this view</p>
-                    {(view.hidden as CardId[]).map((id) => (
-                      <button key={id} type="button" onClick={() => { view.toggle(id); setAdding(false); }}
-                        className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-primary-50">
-                        {CARD[id].title}
-                        <Plus className="size-4 text-primary-600" aria-hidden="true" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <Button size="sm" onClick={() => { setEditing(false); setAdding(false); }}>Done</Button>
-            </>
-          ) : (
-            <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
-              <Pencil aria-hidden="true" />
-              Edit view
-            </Button>
-          )}
+        <div className="flex flex-wrap gap-2">
           <SelectInput id="firm-period" aria-label="Period the changes are measured over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -395,6 +496,38 @@ export function AdminDashboard() {
         </div>
       </header>
 
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line">
+        <div role="tablist" aria-label="Dashboard views" className="-mb-px flex flex-wrap gap-1">
+          {PRESETS.map((one) => (
+            <ViewTab key={one.id} name={one.name} on={view.tab === `preset:${one.id}`}
+              edited={view.tab === `preset:${one.id}` && view.edited} onPick={() => view.pick(`preset:${one.id}`)} />
+          ))}
+          {view.saved.map((one) => (
+            <ViewTab key={one.name} name={one.name} on={view.tab === `saved:${one.name}`}
+              onPick={() => view.pick(`saved:${one.name}`)} onDelete={() => view.remove(one.name)} />
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 pb-2">
+          {editing && !savedName && view.edited && (
+            <Button variant="secondary" size="sm" onClick={view.reset}>
+              <RotateCcw aria-hidden="true" />
+              Reset
+            </Button>
+          )}
+          <Button variant={editing ? "primary" : "secondary"} size="sm" onClick={() => setEditing((now) => !now)}>
+            <Pencil aria-hidden="true" />
+            {editing ? "Done editing" : "Edit view"}
+          </Button>
+          <SaveViewAs onSave={view.saveAs} />
+          <AddCard shown={shown} onApply={view.change} />
+        </div>
+      </div>
+
+      {view.edited && (
+        <p className="text-xs text-ink-muted">
+          You&rsquo;ve changed this ready-made view. Use Save view as to keep it; picking the tab again puts it back.
+        </p>
+      )}
       {firm.isError && <Alert tone="danger">{firm.error.message}</Alert>}
       {data && data.unconverted > 0 && (
         <Alert tone="warning">
@@ -403,11 +536,9 @@ export function AdminDashboard() {
         </Alert>
       )}
 
-      {inArea("top").map(card)}
-
       {shown.length === 0 && (
         <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
-          Nothing on this view. Use Edit view, then Add card.
+          Nothing on this view yet. Use Add card to put cards on it.
         </p>
       )}
 
@@ -423,87 +554,231 @@ export function AdminDashboard() {
   );
 }
 
-/**
- * One card as the view arranges it. While the view is being edited it carries its own controls: earlier,
- * later, and off the view altogether — what comes off goes back into Add card.
- */
-function Editable({ editing, title, wide, first, last, onEarlier, onLater, onRemove, children }: {
-  editing: boolean;
-  title: string;
-  wide?: boolean;
-  first: boolean;
-  last: boolean;
-  onEarlier: () => void;
-  onLater: () => void;
-  onRemove: () => void;
-  children: ReactNode;
+/** One view's tab. A saved view can be deleted from its own tab; the firm's ready-made ones cannot. */
+function ViewTab({ name, on, edited, onPick, onDelete }: {
+  name: string;
+  on: boolean;
+  edited?: boolean;
+  onPick: () => void;
+  onDelete?: () => void;
 }) {
   return (
-    <div className={cn("relative flex min-w-0 flex-col [&>*]:flex-1", wide && "@2xl:col-span-2",
-      editing && "rounded-2xl outline-2 outline-offset-2 outline-primary-300 outline-dashed")}>
-      {children}
-      {editing && (
-        <div className="absolute top-2.5 right-2.5 z-10 flex gap-1 rounded-xl bg-white/90 p-1 shadow-sm">
-          <IconButton label={`Move ${title} earlier`} onClick={onEarlier} disabled={first}><ArrowLeft /></IconButton>
-          <IconButton label={`Move ${title} later`} onClick={onLater} disabled={last}><ArrowRight /></IconButton>
-          <IconButton label={`Remove ${title} from this view`} onClick={onRemove} danger><X /></IconButton>
+    <span className={cn("group flex items-center border-b-2", on ? "border-primary-600" : "border-transparent")}>
+      <button type="button" role="tab" aria-selected={on} onClick={onPick}
+        className={cn("px-3 py-2.5 text-sm font-semibold whitespace-nowrap",
+          on ? "text-primary-700" : "text-ink-muted hover:text-ink")}>
+        {name}
+        {edited && <span className="ml-1 text-primary-600" title="Changed, not saved">•</span>}
+      </button>
+      {onDelete && (
+        <button type="button" aria-label={`Delete the view ${name}`} title="Delete this view" onClick={onDelete}
+          className="-ml-1.5 mr-1 grid size-5 place-items-center rounded text-ink-muted opacity-0 group-hover:opacity-100
+            focus:opacity-100 hover:bg-red-50 hover:text-red-600">
+          <X className="size-3.5" aria-hidden="true" />
+        </button>
+      )}
+    </span>
+  );
+}
+
+/** Names what is on screen and keeps it as a view of its own. */
+function SaveViewAs({ onSave }: { onSave: (name: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const close = useCallback(() => setOpen(false), []);
+  const box = useDismiss(open, close);
+  const save = (event: FormEvent) => {
+    event.preventDefault();
+    if (!name.trim()) return;
+    onSave(name);
+    setName("");
+    setOpen(false);
+  };
+  return (
+    <div ref={box} className="relative">
+      <Button variant="secondary" size="sm" onClick={() => setOpen((now) => !now)} aria-expanded={open}>
+        <Copy aria-hidden="true" />
+        Save view as
+      </Button>
+      {open && (
+        <form onSubmit={save} className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-line bg-white p-3 shadow-lg">
+          <label htmlFor="dashboard-view-name" className="text-xs font-semibold text-ink-muted">Name this view</label>
+          <div className="mt-1.5 flex gap-2">
+            <input id="dashboard-view-name" autoFocus value={name} onChange={(event) => setName(event.target.value)}
+              maxLength={40} placeholder="e.g. Month end"
+              className="min-w-0 flex-1 rounded-xl border border-line bg-white px-3 py-1.5 text-sm focus:border-primary-400 focus:outline-none" />
+            <Button size="sm" type="submit" disabled={!name.trim()}>Save</Button>
+          </div>
+          <p className="mt-2 text-2xs text-ink-muted">Kept in this browser, as a tab beside the others.</p>
+        </form>
+      )}
+    </div>
+  );
+}
+
+/** Every card, ticked where it is on this view: tick more to add them, untick to take them off. */
+function AddCard({ shown, onApply }: { shown: CardId[]; onApply: (cards: CardId[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [ticked, setTicked] = useState<Set<CardId>>(new Set());
+  const close = useCallback(() => setOpen(false), []);
+  const box = useDismiss(open, close);
+  const begin = () => {
+    setTicked(new Set(shown));
+    setQuery("");
+    setOpen((now) => !now);
+  };
+  const added = CARD_IDS.filter((id) => ticked.has(id) && !shown.includes(id));
+  const removed = shown.filter((id) => !ticked.has(id));
+  const listed = CARD_IDS.filter((id) => CARD[id].title.toLowerCase().includes(query.trim().toLowerCase()));
+  const apply = () => {
+    onApply([...shown.filter((id) => ticked.has(id)), ...added]);
+    setOpen(false);
+  };
+  return (
+    <div ref={box} className="relative">
+      <Button size="sm" onClick={begin} aria-expanded={open}>
+        <Plus aria-hidden="true" />
+        Add card
+        <ChevronDown aria-hidden="true" />
+      </Button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-line bg-white p-3 shadow-lg">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold">Add card</p>
+            <button type="button" aria-label="Close" onClick={close} className="rounded p-1 text-ink-muted hover:bg-slate-100">
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="relative mt-2">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
+            <input aria-label="Search cards" value={query} onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search cards…"
+              className="w-full rounded-xl border border-line bg-white py-1.5 pr-3 pl-8 text-sm focus:border-primary-400 focus:outline-none" />
+          </div>
+          <ul className="mt-2 max-h-72 space-y-0.5 overflow-y-auto">
+            {listed.map((id) => (
+              <li key={id}>
+                <label className={cn("flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50",
+                  ticked.has(id) && "bg-primary-50/60")}>
+                  <input type="checkbox" checked={ticked.has(id)} className="size-4 accent-primary-600"
+                    onChange={() => setTicked((now) => {
+                      const next = new Set(now);
+                      if (next.has(id)) next.delete(id);
+                      else next.add(id);
+                      return next;
+                    })} />
+                  {CARD[id].title}
+                </label>
+              </li>
+            ))}
+            {listed.length === 0 && <li className="px-2 py-3 text-sm text-ink-muted">No card is called that.</li>}
+          </ul>
+          <Button className="mt-3 w-full" size="sm" onClick={apply} disabled={added.length === 0 && removed.length === 0}>
+            {added.length === 0 && removed.length > 0 ? "Update view" : `Add selected (${added.length})`}
+          </Button>
         </div>
       )}
     </div>
   );
 }
 
-function IconButton({ label, onClick, disabled, danger, children }: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  danger?: boolean;
-  children: ReactNode;
-}) {
+/** A card's ⋮: move it either way, open the screen behind it, or take it off this view. */
+function CardMenu({ to }: { to?: string }) {
+  const controls = useContext(CardContext);
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const box = useDismiss(open, close);
+  if (!controls) return null;
+  const item = "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-slate-50 disabled:opacity-40 [&_svg]:size-4";
+  const act = (run?: () => void) => () => {
+    run?.();
+    setOpen(false);
+  };
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled}
-      className={cn("grid size-7 place-items-center rounded-lg disabled:opacity-30 [&_svg]:size-4",
-        danger ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-primary-50 text-primary-700 hover:bg-primary-100")}>
-      {children}
-    </button>
+    <div ref={box} className="relative">
+      <button type="button" aria-label={`Options for ${controls.title}`} aria-expanded={open} onClick={() => setOpen((now) => !now)}
+        className="grid size-7 place-items-center rounded-lg text-ink-muted hover:bg-slate-100 hover:text-ink">
+        <MoreVertical className="size-4" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-1 w-52 rounded-xl border border-line bg-white p-1.5 shadow-lg">
+          <button type="button" className={item} onClick={act(controls.earlier)} disabled={!controls.earlier}>
+            <ArrowLeft aria-hidden="true" />Move earlier
+          </button>
+          <button type="button" className={item} onClick={act(controls.later)} disabled={!controls.later}>
+            <ArrowRight aria-hidden="true" />Move later
+          </button>
+          {to && (
+            <Link to={to} className={item}>
+              <ExternalLink aria-hidden="true" />Open full screen
+            </Link>
+          )}
+          <button type="button" className={cn(item, "text-red-600 hover:bg-red-50")} onClick={act(controls.remove)}>
+            <X aria-hidden="true" />Remove from this view
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
-function Headline({ icon: Icon, label, value, change, tone, to, note }: {
-  icon: LucideIcon;
+/** One of the four figures across the Firm summary. */
+function Figure({ label, value, change, tone, to }: {
   label: string;
   value: ReactNode | undefined;
   change?: number | null;
-  tone?: "warn" | "danger" | "good";
+  tone?: "danger";
   to?: string;
-  note?: string;
 }) {
   const body = (
     <>
-      <span className={cn("grid size-8 shrink-0 place-items-center rounded-xl",
-        tone === "danger" ? "bg-red-50 text-red-600" : tone === "warn" ? "bg-amber-50 text-amber-600"
-          : tone === "good" ? "bg-emerald-50 text-emerald-600" : "bg-primary-50 text-primary-600")}>
-        <Icon className="size-5" aria-hidden="true" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-xs leading-tight font-semibold text-ink-muted">{label}</span>
-        <span className="flex flex-wrap items-baseline gap-x-1.5">
-          <span className={cn("text-lg font-bold tabular-nums", tone === "danger" && "text-red-600",
-            tone === "good" && "text-emerald-600")}>{value ?? "—"}</span>
-          {change != null && (
-            <span className={cn("inline-flex items-center text-2xs font-semibold tabular-nums",
-              change < 0 ? "text-red-600" : "text-emerald-600")}>
-              {change < 0 ? <ArrowDownRight className="size-3" aria-hidden="true" /> : <ArrowUpRight className="size-3" aria-hidden="true" />}
-              {change > 0 ? "+" : ""}{change}%
-            </span>
-          )}
-        </span>
-        {note && <span className="block text-2xs text-ink-muted">{note}</span>}
-      </span>
+      <dt className="text-sm text-ink-muted">{label}</dt>
+      <dd className={cn("mt-1 text-lg font-bold whitespace-nowrap tabular-nums xl:text-xl", tone === "danger" && "text-red-600")}>{value ?? "—"}</dd>
+      {change != null && (
+        <dd className={cn("mt-1 inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums",
+          change < 0 ? "text-red-600" : "text-emerald-600")}>
+          {change < 0 ? <ArrowDownRight className="size-3.5" aria-hidden="true" /> : <ArrowUpRight className="size-3.5" aria-hidden="true" />}
+          {change > 0 ? "+" : ""}{change}%
+        </dd>
+      )}
     </>
   );
-  const className = "flex items-center gap-2.5 rounded-2xl border border-line bg-white px-3 py-3";
-  return to ? <Link to={to} className={cn(className, "hover:border-primary-300")}>{body}</Link> : <div className={className}>{body}</div>;
+  return to ? <Link to={to} className="block px-4 first:pl-0 hover:[&_dd]:text-primary-700">{body}</Link>
+    : <div className="px-4 first:pl-0">{body}</div>;
+}
+
+/** One line of Operational health: what, where it stands, how many, and the way in. */
+function OpsRow({ icon: Icon, label, state, value, tone, to }: {
+  icon: LucideIcon;
+  label: string;
+  state: string;
+  value: number | undefined;
+  tone: "good" | "warn" | "danger";
+  to?: string;
+}) {
+  const inner = (
+    <>
+      <Icon className={cn("size-5 shrink-0", tone === "danger" ? "text-red-600" : tone === "warn" ? "text-amber-600" : "text-emerald-600")}
+        aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">{label}</span>
+        <span className={cn("block text-xs", tone === "danger" ? "text-red-700" : tone === "warn" ? "text-amber-700" : "text-ink-muted")}>
+          {state}
+        </span>
+      </span>
+      <span className={cn("text-lg font-bold tabular-nums", tone === "danger" && "text-red-600")}>{value ?? "—"}</span>
+      {to && <ChevronRight className="size-4 text-ink-muted" aria-hidden="true" />}
+    </>
+  );
+  const className = cn("flex items-center gap-3 rounded-xl px-3 py-2.5",
+    tone === "danger" ? "bg-red-50/70" : tone === "warn" ? "bg-amber-50/70" : "bg-slate-50");
+  return (
+    <li>
+      {to ? <Link to={to} className={cn(className, "hover:ring-1 hover:ring-primary-200")}>{inner}</Link>
+        : <div className={className}>{inner}</div>}
+    </li>
+  );
 }
 
 function Panel({ icon: Icon, title, to, children }: {
@@ -520,12 +795,15 @@ function Panel({ icon: Icon, title, to, children }: {
           <Icon className="size-4.5 text-primary-600" aria-hidden="true" />
           {to ? <Link to={to} className="hover:text-primary-700 hover:underline">{title}</Link> : title}
         </h2>
-        {to && (
-          <Link to={to} className="inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-primary-700 hover:underline">
-            View all
-            <ChevronRight className="size-3.5" aria-hidden="true" />
-          </Link>
-        )}
+        <div className="flex items-center gap-1">
+          {to && (
+            <Link to={to} className="inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-primary-700 hover:underline">
+              View all
+              <ChevronRight className="size-3.5" aria-hidden="true" />
+            </Link>
+          )}
+          <CardMenu to={to} />
+        </div>
       </div>
       <div className="flex-1 px-5 pb-4">{children}</div>
     </section>
@@ -638,35 +916,42 @@ function Breakdown({ rows, centre, centreLabel, currency }: {
   );
 }
 
-function Mini({ label, value, state, tone, to }: {
-  label: string;
-  value: number | undefined;
-  state: string;
-  tone: "good" | "warn" | "danger";
-  to?: string;
-}) {
-  const className = cn("flex h-full flex-col justify-center rounded-xl border px-3 py-2.5",
-    tone === "danger" ? "border-red-200 bg-red-50/60" : tone === "warn" ? "border-amber-200 bg-amber-50/60" : "border-emerald-200 bg-emerald-50/60");
-  const body = (
-    <>
-      <p className="text-xs font-semibold">{label}</p>
-      <p className="text-xl font-bold tabular-nums">{value ?? "—"}</p>
-      <p className={cn("text-2xs font-semibold", tone === "danger" ? "text-red-700" : tone === "warn" ? "text-amber-700" : "text-emerald-700")}>{state}</p>
-    </>
-  );
-  return to ? <Link to={to} className={cn(className, "transition-shadow hover:shadow-md")}>{body}</Link>
-    : <div className={className}>{body}</div>;
-}
+/** The icon each waiting thing is drawn with, so a list of counts can be read at a glance. */
+const ICON_FOR: Record<string, LucideIcon> = {
+  proposals: Users,
+  "portfolio-changes": ArrowLeftRight,
+  "model-changes": Layers,
+  "owned-assets": Gem,
+  deactivations: UserMinus,
+  "family-access": Users,
+  "family-invites": UserPlus,
+  support: LifeBuoy,
+  "kyc-renewals": CalendarDays,
+  "aml-reviews": ShieldCheck,
+  "staff-declarations": FileText,
+};
 
-function Counts({ rows, linkFor }: { rows: Waiting[]; linkFor: (key: string) => string | undefined }) {
+function Counts({ rows, linkFor, countFirst = false }: {
+  rows: Waiting[];
+  linkFor: (key: string) => string | undefined;
+  /** "21 KYC renewals due" rather than "KYC renewals due … 21", where the number is the point of the line. */
+  countFirst?: boolean;
+}) {
   return (
     <ul className="divide-y divide-line text-sm">
       {rows.map((one) => {
         const to = linkFor(one.key);
+        const Icon = ICON_FOR[one.key] ?? FileText;
+        const count = (
+          <span className={cn("font-bold tabular-nums", one.count === 0 && "font-normal text-ink-muted")}>{one.count}</span>
+        );
         const inner = (
           <>
+            <Icon className="size-4 shrink-0 text-primary-600" aria-hidden="true" />
+            {countFirst && count}
             <span className="min-w-0 flex-1 leading-tight">{one.label}</span>
-            <span className={cn("font-bold tabular-nums", one.count === 0 && "font-normal text-ink-muted")}>{one.count}</span>
+            {!countFirst && count}
+            {to && <ChevronRight className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />}
           </>
         );
         return (
@@ -729,12 +1014,15 @@ function FirmActivity({ platform, attention, linkFor, to }: {
           </button>
         ))}
       </div>
-      {to && (
-        <Link to={to} className="mb-2.5 inline-flex shrink-0 items-center gap-1 pr-2 text-xs font-semibold text-primary-700 hover:underline">
-          View all
-          <ChevronRight className="size-3.5" aria-hidden="true" />
-        </Link>
-      )}
+      <div className="mb-1.5 flex shrink-0 items-center gap-1 pr-1">
+        {to && (
+          <Link to={to} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline">
+            View all
+            <ChevronRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        )}
+        <CardMenu to={to} />
+      </div>
       </div>
       <div className="px-5 py-3">
         {tab === "Firm activity (recent)" && (
@@ -835,10 +1123,11 @@ function AskTheAssistant() {
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-600">
           <Sparkles className="size-5" aria-hidden="true" />
         </span>
-        <div>
+        <div className="min-w-0 flex-1">
           <h2 className="text-base font-bold">AI Assistant</h2>
           <p className="text-xs text-ink-muted">Ask about operations, clients, compliance or how to use the portal.</p>
         </div>
+        <CardMenu to="/assistant" />
       </div>
       <ul className="mt-3 space-y-1.5">
         {ASK.map((question) => (
