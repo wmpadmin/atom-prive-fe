@@ -35,11 +35,11 @@ describe("an Admin's menu", () => {
     }
   });
 
-  it("is the seventeen screens the firm gives an Admin, and no more", () => {
+  it("is the eighteen screens the firm gives an Admin, and no more", () => {
     expect(menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to)).toEqual([
       "/dashboard", "/users", "/clients", "/deactivation-requests", "/archived-clients", "/roles", "/config",
       "/staff-tracker", "/approvals", "/reports", "/ingestion", "/family-access-trail", "/audit-log", "/my-clearances", "/my-declarations",
-      "/assistant", "/settings",
+      "/support", "/assistant", "/settings",
     ]);
   });
 
