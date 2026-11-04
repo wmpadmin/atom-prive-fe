@@ -153,7 +153,7 @@ const CARD_IDS = Object.keys(CARD) as CardId[];
 const PRESETS: { id: string; name: string; cards: CardId[] }[] = [
   { id: "mine", name: "My dashboard",
     cards: ["summary", "asset-classes", "operations", "approvals", "upcoming", "assistant"] },
-  { id: "firm", name: "Firm overview", cards: ["summary", "trend", "asset-classes", "lifecycle", "by-rm", "by-pm"] },
+  { id: "firm", name: "Firm overview", cards: ["summary", "trend", "asset-classes", "lifecycle", "by-pm", "by-rm"] },
   { id: "operations", name: "Operations", cards: ["operations", "approvals", "attention", "activity"] },
   { id: "compliance", name: "Compliance", cards: ["upcoming", "attention", "lifecycle"] },
   { id: "system", name: "System", cards: ["health", "activity", "quick", "links"] },
@@ -910,9 +910,23 @@ function Breakdown({ rows, centre, centreLabel, currency }: {
     return <p className="py-10 text-center text-sm text-ink-muted">Nothing on file yet.</p>;
   }
   return (
-    <div className="space-y-3">
-      <div className="relative mx-auto w-36">
-        <Chart option={option} height={144} label={`${centreLabel}: ${ringed.map((one) => `${one.name} ${one.value}`).join(", ")}`} />
+    // What makes it up on the left, read first, and the ring on the right; one above the other when narrow.
+    <div className="flex flex-col-reverse gap-4 sm:flex-row sm:items-center">
+      <ul className="min-w-0 flex-1 space-y-2 text-sm">
+        {rows.map((one, index) => (
+          <li key={one.name} className={cn("flex items-center gap-2", one.apart && "mt-2 border-t border-line pt-2")}>
+            <span className="size-2.5 shrink-0 rounded-full"
+              style={{ background: one.apart ? "var(--color-slate-300)" : SLICE_COLOURS[index % SLICE_COLOURS.length] }} />
+            <span className="min-w-0 flex-1 leading-tight">{one.name}</span>
+            {one.share !== undefined && <span className="text-xs text-ink-muted tabular-nums">{one.share}%</span>}
+            <span className="font-semibold tabular-nums">
+              {currency ? new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(one.value) : one.value}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="relative mx-auto w-40 shrink-0 sm:mx-0">
+        <Chart option={option} height={160} label={`${centreLabel}: ${ringed.map((one) => `${one.name} ${one.value}`).join(", ")}`} />
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
           <span>
             <span className="block text-2xs text-ink-muted">{centreLabel}</span>
@@ -920,19 +934,6 @@ function Breakdown({ rows, centre, centreLabel, currency }: {
           </span>
         </div>
       </div>
-      <ul className="space-y-1.5 text-xs">
-        {rows.map((one, index) => (
-          <li key={one.name} className={cn("flex items-center gap-2", one.apart && "mt-2 border-t border-line pt-2")}>
-            <span className="size-2.5 shrink-0 rounded-full"
-              style={{ background: one.apart ? "var(--color-slate-300)" : SLICE_COLOURS[index % SLICE_COLOURS.length] }} />
-            <span className="min-w-0 flex-1 leading-tight">{one.name}</span>
-            {one.share !== undefined && <span className="text-ink-muted tabular-nums">{one.share}%</span>}
-            <span className="font-semibold tabular-nums">
-              {currency ? new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(one.value) : one.value}
-            </span>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
