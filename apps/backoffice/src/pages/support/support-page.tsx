@@ -135,6 +135,23 @@ export function SupportPage() {
         )}
       </header>
 
+      {/* Where each ticket stands, counted, and each a quick filter: pressing one shows those alone. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {STATUSES.map((one) => {
+          const count = (source.data ?? []).filter((ticket) => ticket.status === one).length;
+          return (
+            <button key={one} type="button" aria-pressed={status === one}
+              onClick={() => { setStatus(status === one ? "" : one); resetPage(); }}
+              className={cn("rounded-2xl border bg-white px-4 py-3 text-left transition-colors",
+                status === one ? "border-primary-400 ring-2 ring-primary-100" : "border-line hover:border-primary-300")}>
+              <span className="block text-xs font-semibold text-ink-muted">{statusLabel(one, answers ? "support" : "raiser")}</span>
+              <span className="block text-2xl font-bold tabular-nums">{source.data ? count : "—"}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {tabs.length > 1 && (
       <div role="tablist" aria-label="Which tickets" className="flex gap-1 border-b border-line">
         {tabs.map((one) => (
           <button key={one.id} type="button" role="tab" aria-selected={tab === one.id}
@@ -145,7 +162,28 @@ export function SupportPage() {
           </button>
         ))}
       </div>
+      )}
 
+      {source.data && source.data.length === 0 ? (
+        <section className="grid place-items-center rounded-2xl border border-line bg-white px-6 py-16 text-center">
+          <span className="grid size-14 place-items-center rounded-2xl bg-primary-50 text-primary-600">
+            <Headset className="size-7" aria-hidden="true" />
+          </span>
+          <h2 className="mt-4 text-lg font-bold">{answers ? "No ticket has been raised yet" : "You haven't raised a ticket yet"}</h2>
+          <p className="mt-1 max-w-md text-sm text-ink-muted">
+            {answers
+              ? "When a client or a member of staff raises one, it appears here with how urgent it is and when it should be answered."
+              : "Something not working? Raise a ticket and the IT team will reply here and by email."}
+          </p>
+          {!answers && (
+            <Button className="mt-5" onClick={() => setRaising(true)}>
+              <Plus aria-hidden="true" />
+              Raise a ticket
+            </Button>
+          )}
+        </section>
+      ) : (
+      <>
       <div className="flex flex-wrap gap-2">
         <div className="relative min-w-60 flex-1">
           <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted" />
@@ -252,10 +290,12 @@ export function SupportPage() {
           answers ? <SupportSide id={current} /> : <RaiserSide id={current} />
         ) : (
           <section className="rounded-2xl border border-dashed border-line px-6 py-16 text-center text-sm text-ink-muted">
-            Pick a ticket to read it here.
+            No ticket matches these filters.
           </section>
         )}
       </div>
+      </>
+      )}
 
       {raising && (
         <RaiseTicketDialog
