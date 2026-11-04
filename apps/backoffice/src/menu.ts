@@ -136,6 +136,11 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   { to: "/staff-declarations", under: "/staff-tracker" },
   // The narrower read before the wider one: family access is one question asked of the trail, and the
   // audit log is every question at once.
+  // Asked for on 4 Nov 2026 so the dashboard's links have somewhere to go: the approval queues, the portfolio
+  // reports and the bank feeds, each opened as the screen the desk that works it already uses.
+  { to: "/approvals" },
+  { to: "/reports" },
+  { to: "/ingestion", label: "Bank feeds" },
   { to: "/family-access-trail" },
   { to: "/audit-log" },
   // An Admin signs the same nine as everybody else. Their menu is written out rather than filtered down, so

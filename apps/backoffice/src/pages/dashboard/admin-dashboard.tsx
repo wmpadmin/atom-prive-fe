@@ -126,6 +126,8 @@ export function AdminDashboard() {
     const to = WORKED_FROM[key];
     return to && reachable.has(to.split("?")[0]!) ? to : undefined;
   };
+  // The first of these screens the reader's menu offers, so a card goes somewhere they can open.
+  const goTo = (...screens: string[]) => screens.find((one) => reachable.has(one.split("?")[0]!));
   const data = firm.data;
   const cur = data?.currency ?? currency;
 
@@ -158,33 +160,37 @@ export function AdminDashboard() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 2xl:grid-cols-8">
+      <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-4 2xl:grid-cols-8">
         <Headline icon={Landmark} label="Total AUM" value={data ? money(data.headline.totalAum, cur) : undefined}
-          change={data?.headline.aumChangePercent} />
+          change={data?.headline.aumChangePercent} to={goTo("/client-management", "/clients")} />
         <Headline icon={Users} label="Total clients" value={data?.headline.clients} change={data?.headline.clientsChangePercent}
-          to={reachable.has("/clients") ? "/clients" : undefined} />
-        <Headline icon={UserCog} label="Active staff" value={data?.headline.activeStaff} to="/users" />
-        <Headline icon={UserPlus} label="Onboarding" value={data?.headline.onboarding} />
-        <Headline icon={ListChecks} label="Open approvals" value={data?.headline.openApprovals} tone="warn" to="/approvals" />
-        <Headline icon={Flag} label="Open requests" value={data?.headline.openRequests} tone="warn" />
-        <Headline icon={ShieldCheck} label="Compliance due" value={data?.headline.complianceDue} tone="danger" />
+          to={goTo("/clients")} />
+        <Headline icon={UserCog} label="Active staff" value={data?.headline.activeStaff} to={goTo("/users")} />
+        <Headline icon={UserPlus} label="Onboarding" value={data?.headline.onboarding} to={goTo("/clients")} />
+        <Headline icon={ListChecks} label="Open approvals" value={data?.headline.openApprovals} tone="warn"
+          to={goTo("/approvals", "/deactivation-requests")} />
+        <Headline icon={Flag} label="Open requests" value={data?.headline.openRequests} tone="warn"
+          to={goTo("/family-access-trail", "/support")} />
+        <Headline icon={ShieldCheck} label="Compliance due" value={data?.headline.complianceDue} tone="danger"
+          to={goTo("/kyc", "/staff-declarations")} />
         <Headline icon={HeartPulse} label="System health"
           value={platform.data ? (platform.data.health.databaseUp ? "Up" : "Down") : undefined}
-          tone={platform.data && !platform.data.health.databaseUp ? "danger" : "good"} note="Uptime % coming soon" />
+          tone={platform.data && !platform.data.health.databaseUp ? "danger" : "good"} note="Uptime % coming soon"
+          to={goTo("/ingestion")} />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-5">
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
-            <Panel icon={Banknote} title="AUM & client growth">
+            <Panel icon={Banknote} title="AUM & client growth" to={goTo("/client-management", "/clients")}>
               {data ? <GrowthChart data={data} /> : <Loading />}
             </Panel>
-            <Panel icon={PieChart} title="AUM by asset class">
+            <Panel icon={PieChart} title="AUM by asset class" to={goTo("/client-management", "/clients")}>
               {data ? <Breakdown currency={cur} centre={money(data.headline.totalAum, cur)} centreLabel={cur}
                 rows={data.byAssetClass.map((one: ClassSlice) => ({ name: one.name, value: one.amount, share: one.sharePercent }))} />
                 : <Loading />}
             </Panel>
-            <Panel icon={Users} title="Clients by lifecycle">
+            <Panel icon={Users} title="Clients by lifecycle" to={goTo("/clients")}>
               {data ? <Breakdown centre={String(data.headline.clients)} centreLabel="Clients"
                 rows={[
                   { name: "Active", value: data.lifecycle.active },
@@ -198,40 +204,41 @@ export function AdminDashboard() {
 
           <div className="grid gap-5 lg:grid-cols-3">
             <Panel icon={Activity} title="Operational health">
-              <div className="grid grid-cols-2 gap-2.5">
-                <Mini label="Onboarding" value={data?.operations.onboarding} state="In progress" tone="good" />
+              <div className="grid h-full auto-rows-fr grid-cols-2 gap-2.5">
+                <Mini label="Onboarding" value={data?.operations.onboarding} state="In progress" tone="good"
+                  to={goTo("/clients")} />
                 <Mini label="KYC & compliance" value={data?.operations.kycInReview} state="In review"
-                  tone={data && data.operations.kycInReview > 0 ? "warn" : "good"} />
+                  tone={data && data.operations.kycInReview > 0 ? "warn" : "good"} to={goTo("/kyc-documents", "/kyc", "/clients")} />
                 <Mini label="Portfolio proposals" value={data?.operations.proposalsPending} state="Pending"
-                  tone={data && data.operations.proposalsPending > 0 ? "warn" : "good"} />
+                  tone={data && data.operations.proposalsPending > 0 ? "warn" : "good"} to={goTo("/approvals?queue=proposals")} />
                 <Mini label="Bank feeds" value={data?.operations.bankFeedsFailed} state="Failed, 24 h"
-                  tone={data && data.operations.bankFeedsFailed > 0 ? "danger" : "good"} />
+                  tone={data && data.operations.bankFeedsFailed > 0 ? "danger" : "good"} to={goTo("/ingestion")} />
               </div>
             </Panel>
             <Panel icon={ListChecks} title={`Approvals & queues${data ? ` (${data.headline.openApprovals})` : ""}`}
-              action={reachable.has("/approvals") ? { label: "View all", to: "/approvals" } : undefined}>
+              to={goTo("/approvals")}>
               <Counts rows={[...(data?.approvals ?? []), ...(data?.requests ?? [])]} linkFor={linkFor} />
             </Panel>
-            <Panel icon={AlertTriangle} title="Items requiring attention">
+            <Panel icon={AlertTriangle} title="Items requiring attention" to={goTo("/approvals")}>
               <Attention rows={(data?.attention ?? []).filter((one) => one.count > 0)} linkFor={linkFor} loaded={!!data} />
             </Panel>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <FirmActivity platform={platform.data} attention={data?.attention ?? []} linkFor={linkFor} />
+            <FirmActivity platform={platform.data} attention={data?.attention ?? []} linkFor={linkFor} to={goTo("/audit-log")} />
             <Panel icon={ClipboardList} title="Task summary">
               <ComingSoon>Tasks with owners and due dates aren&rsquo;t in the platform yet.</ComingSoon>
             </Panel>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-3">
-            <Panel icon={Users} title="AUM by RM (top 5)">
+            <Panel icon={Users} title="AUM by RM (top 5)" to={goTo("/users")}>
               <Managers rows={data?.byRelationshipManager} currency={cur} />
             </Panel>
-            <Panel icon={Users} title="AUM by PM (top 5)">
+            <Panel icon={Users} title="AUM by PM (top 5)" to={goTo("/users")}>
               <Managers rows={data?.byPortfolioManager} currency={cur} />
             </Panel>
-            <Panel icon={BadgeCheck} title="Upcoming & due">
+            <Panel icon={BadgeCheck} title="Upcoming & due" to={goTo("/staff-declarations", "/kyc")}>
               <Counts rows={data?.upcoming ?? []} linkFor={linkFor} />
               <ul className="mt-1 divide-y divide-line border-t border-line text-sm">
                 <li className="flex justify-between py-2 text-ink-muted"><span>Regulatory reports</span><SoonTag /></li>
@@ -244,10 +251,10 @@ export function AdminDashboard() {
         <aside className="space-y-5">
           <AskTheAssistant />
           <Panel icon={Zap} title="Quick actions">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid auto-rows-fr grid-cols-2 gap-2">
               {QUICK.filter((one) => reachable.has(one.to)).map(({ label, to, icon: Icon }) => (
                 <Link key={label} to={to}
-                  className="flex items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-xs font-semibold hover:border-primary-300 hover:bg-primary-50/50">
+                  className="flex h-full min-h-12 items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-xs leading-tight font-semibold hover:border-primary-300 hover:bg-primary-50/50">
                   <Icon className="size-4 shrink-0 text-primary-600" aria-hidden="true" />
                   {label}
                 </Link>
@@ -309,10 +316,11 @@ function Headline({ icon: Icon, label, value, change, tone, to, note }: {
   return to ? <Link to={to} className={cn(className, "hover:border-primary-300")}>{body}</Link> : <div className={className}>{body}</div>;
 }
 
-function Panel({ icon: Icon, title, action, children }: {
+function Panel({ icon: Icon, title, to, children }: {
   icon: LucideIcon;
   title: string;
-  action?: { label: string; to: string };
+  /** Where the whole card leads: its title opens it, and so does "View all" beside it. */
+  to?: string;
   children: ReactNode;
 }) {
   return (
@@ -320,11 +328,11 @@ function Panel({ icon: Icon, title, action, children }: {
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
         <h2 className="flex items-center gap-2 text-base font-bold">
           <Icon className="size-4.5 text-primary-600" aria-hidden="true" />
-          {title}
+          {to ? <Link to={to} className="hover:text-primary-700 hover:underline">{title}</Link> : title}
         </h2>
-        {action && (
-          <Link to={action.to} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline">
-            {action.label}
+        {to && (
+          <Link to={to} className="inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-primary-700 hover:underline">
+            View all
             <ChevronRight className="size-3.5" aria-hidden="true" />
           </Link>
         )}
@@ -440,15 +448,24 @@ function Breakdown({ rows, centre, centreLabel, currency }: {
   );
 }
 
-function Mini({ label, value, state, tone }: { label: string; value: number | undefined; state: string; tone: "good" | "warn" | "danger" }) {
-  return (
-    <div className={cn("rounded-xl border px-3 py-2.5",
-      tone === "danger" ? "border-red-200 bg-red-50/60" : tone === "warn" ? "border-amber-200 bg-amber-50/60" : "border-emerald-200 bg-emerald-50/60")}>
+function Mini({ label, value, state, tone, to }: {
+  label: string;
+  value: number | undefined;
+  state: string;
+  tone: "good" | "warn" | "danger";
+  to?: string;
+}) {
+  const className = cn("flex h-full flex-col justify-center rounded-xl border px-3 py-2.5",
+    tone === "danger" ? "border-red-200 bg-red-50/60" : tone === "warn" ? "border-amber-200 bg-amber-50/60" : "border-emerald-200 bg-emerald-50/60");
+  const body = (
+    <>
       <p className="text-xs font-semibold">{label}</p>
       <p className="text-xl font-bold tabular-nums">{value ?? "—"}</p>
       <p className={cn("text-2xs font-semibold", tone === "danger" ? "text-red-700" : tone === "warn" ? "text-amber-700" : "text-emerald-700")}>{state}</p>
-    </div>
+    </>
   );
+  return to ? <Link to={to} className={cn(className, "transition-shadow hover:shadow-md")}>{body}</Link>
+    : <div className={className}>{body}</div>;
 }
 
 function Counts({ rows, linkFor }: { rows: Waiting[]; linkFor: (key: string) => string | undefined }) {
@@ -502,15 +519,18 @@ function Attention({ rows, linkFor, loaded }: { rows: Waiting[]; linkFor: (key: 
 
 const ACTIVITY_TABS = ["Firm activity (recent)", "Stuck items", "Key changes", "System & integrations"] as const;
 
-function FirmActivity({ platform, attention, linkFor }: {
+function FirmActivity({ platform, attention, linkFor, to }: {
   platform: Dashboard | undefined;
   attention: Waiting[];
   linkFor: (key: string) => string | undefined;
+  /** Where the whole record is read: the audit log. */
+  to?: string;
 }) {
   const [tab, setTab] = useState<(typeof ACTIVITY_TABS)[number]>(ACTIVITY_TABS[0]);
   return (
     <section className="min-w-0 rounded-2xl border border-line bg-white">
-      <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-line px-3 pt-2">
+      <div className="flex items-end justify-between gap-3 border-b border-line px-3 pt-2">
+      <div role="tablist" className="flex gap-1 overflow-x-auto">
         {ACTIVITY_TABS.map((one) => (
           <button key={one} type="button" role="tab" aria-selected={tab === one} onClick={() => setTab(one)}
             className={cn("border-b-2 px-3 py-2 text-sm font-semibold whitespace-nowrap",
@@ -518,6 +538,13 @@ function FirmActivity({ platform, attention, linkFor }: {
             {one}
           </button>
         ))}
+      </div>
+      {to && (
+        <Link to={to} className="mb-2.5 inline-flex shrink-0 items-center gap-1 pr-2 text-xs font-semibold text-primary-700 hover:underline">
+          View all
+          <ChevronRight className="size-3.5" aria-hidden="true" />
+        </Link>
+      )}
       </div>
       <div className="px-5 py-3">
         {tab === "Firm activity (recent)" && (

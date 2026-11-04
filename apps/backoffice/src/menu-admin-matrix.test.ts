@@ -29,16 +29,16 @@ describe("an Admin's menu", () => {
     // from appearing on their menu on its own. These are screens the ADMIN role has permission for and
     // is still deliberately not given.
     const where = menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to);
-    for (const notTheirs of ["/approvals", "/forms", "/ingestion", "/trade-logs", "/kyc", "/kyc-checklist",
+    for (const notTheirs of ["/forms", "/trade-logs", "/kyc", "/kyc-checklist",
       "/kyc-documents", "/post-onboarding", "/trails", "/notifications", "/client-documents", "/sync-errors"]) {
       expect(where).not.toContain(notTheirs);
     }
   });
 
-  it("is the fourteen screens the firm gives an Admin, and no more", () => {
+  it("is the seventeen screens the firm gives an Admin, and no more", () => {
     expect(menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to)).toEqual([
       "/dashboard", "/users", "/clients", "/deactivation-requests", "/archived-clients", "/roles", "/config",
-      "/staff-tracker", "/family-access-trail", "/audit-log", "/my-clearances", "/my-declarations",
+      "/staff-tracker", "/approvals", "/reports", "/ingestion", "/family-access-trail", "/audit-log", "/my-clearances", "/my-declarations",
       "/assistant", "/settings",
     ]);
   });
