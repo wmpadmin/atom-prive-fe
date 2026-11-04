@@ -351,7 +351,8 @@ export function AdminDashboard() {
     approvals: (
       <Panel icon={ListChecks} title={`Approvals & queues${data ? ` (${data.headline.openApprovals})` : ""}`}
         to={goTo("/approvals")}>
-        <Counts rows={[...(data?.approvals ?? []), ...(data?.requests ?? [])]} linkFor={linkFor} />
+        <Counts rows={[...(data?.approvals ?? []), ...(data?.requests ?? [])]} linkFor={linkFor} limit={5}
+          more={goTo("/approvals")} />
       </Panel>
     ),
     upcoming: (
@@ -563,10 +564,10 @@ export function AdminDashboard() {
 
       <div className={cn("grid gap-5", side.length > 0 && "xl:grid-cols-[minmax(0,1fr)_20rem]")}>
         {/* Two cards to a row whenever the column is wide enough for two, read off the column itself rather
-            than the window. Each card is as tall as what is in it, so a short one does not stand half empty
-            beside a long one; the summary and the activity table take the whole row. */}
+            than the window. The two in a row are one height; a long list shows its first few and leaves the
+            rest to View all, so neither card stands half empty beside the other. */}
         <div className="@container min-w-0">
-          <div className="grid items-start gap-5 @2xl:grid-cols-2">{inArea("main").map(card)}</div>
+          <div className="grid gap-5 @2xl:grid-cols-2">{inArea("main").map(card)}</div>
         </div>
         {side.length > 0 && <aside className="space-y-5">{side.map(card)}</aside>}
       </div>
@@ -951,15 +952,24 @@ const ICON_FOR: Record<string, LucideIcon> = {
   "staff-declarations": FileText,
 };
 
-function Counts({ rows, linkFor, countFirst = false }: {
+function Counts({ rows, linkFor, countFirst = false, limit, more }: {
   rows: Waiting[];
   linkFor: (key: string) => string | undefined;
   /** "21 KYC renewals due" rather than "KYC renewals due … 21", where the number is the point of the line. */
   countFirst?: boolean;
+  /** How many lines the card shows: the ones with something waiting first, the rest left to View all. */
+  limit?: number;
+  /** Where the lines left out are read. */
+  more?: string;
 }) {
+  const ordered = limit === undefined ? rows
+    : [...rows.filter((one) => one.count > 0), ...rows.filter((one) => one.count === 0)];
+  const shown = limit === undefined ? ordered : ordered.slice(0, limit);
+  const left = ordered.length - shown.length;
   return (
+    <>
     <ul className="divide-y divide-line text-sm">
-      {rows.map((one) => {
+      {shown.map((one) => {
         const to = linkFor(one.key);
         const Icon = ICON_FOR[one.key] ?? FileText;
         const count = (
@@ -982,6 +992,15 @@ function Counts({ rows, linkFor, countFirst = false }: {
         );
       })}
     </ul>
+    {left > 0 && (
+      more ? (
+        <Link to={more} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline">
+          {left} more in View all
+          <ChevronRight className="size-3.5" aria-hidden="true" />
+        </Link>
+      ) : <p className="mt-1 text-xs text-ink-muted">{left} more</p>
+    )}
+    </>
   );
 }
 
