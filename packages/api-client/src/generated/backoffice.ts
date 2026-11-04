@@ -8328,6 +8328,8 @@ export const ListClientsForReviewStanding = {
 
 export type ListKycDocumentsParams = {
 state?: ListKycDocumentsState;
+query?: string;
+newestFirst?: boolean;
 page?: number;
 size?: number;
 };
