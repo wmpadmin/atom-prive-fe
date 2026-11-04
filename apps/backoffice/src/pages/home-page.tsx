@@ -13,6 +13,10 @@ export function HomePage() {
   if (user.activeRole === "PORTFOLIO_MANAGER") {
     return <Navigate to="/portfolio-clients" replace />;
   }
+  // The Admin opens on the firm as a whole, the dashboard the firm asked for; staff users is one click away.
+  if (user.activeRole === "ADMIN" && hasAuthority(user, "MANAGE_USERS_AND_ROLES:VIEW")) {
+    return <Navigate to="/dashboard" replace />;
+  }
   if (hasAuthority(user, "MANAGE_USERS_AND_ROLES:VIEW")) {
     return <Navigate to="/users" replace />;
   }

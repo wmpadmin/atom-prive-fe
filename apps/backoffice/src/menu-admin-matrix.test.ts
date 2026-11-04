@@ -35,9 +35,9 @@ describe("an Admin's menu", () => {
     }
   });
 
-  it("is the thirteen screens the firm gives an Admin, and no more", () => {
+  it("is the fourteen screens the firm gives an Admin, and no more", () => {
     expect(menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to)).toEqual([
-      "/users", "/clients", "/deactivation-requests", "/archived-clients", "/roles", "/config",
+      "/dashboard", "/users", "/clients", "/deactivation-requests", "/archived-clients", "/roles", "/config",
       "/staff-tracker", "/family-access-trail", "/audit-log", "/my-clearances", "/my-declarations",
       "/assistant", "/settings",
     ]);
@@ -50,7 +50,7 @@ describe("an Admin's menu", () => {
    * in it. An administrator who holds nothing else sees an empty list, which is the truth about them.
    */
 
-  it("keeps the firm's order, staff users first", () => {
-    expect(menuFor(anAdmin(ADMIN_PERMISSIONS))[0]?.to).toBe("/users");
+  it("keeps the firm's order, the dashboard first and staff users after it", () => {
+    expect(menuFor(anAdmin(ADMIN_PERMISSIONS)).slice(0, 2).map((item) => item.to)).toEqual(["/dashboard", "/users"]);
   });
 });
