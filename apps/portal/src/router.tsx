@@ -17,6 +17,7 @@ import { DashboardPage } from "./wealth/dashboard-page";
 import { AccountPage as NewAccountPage } from "./wealth/account-page";
 import { AccountsPage as NewAccountsPage } from "./wealth/accounts-page";
 import { DocumentsPage } from "./wealth/documents-page";
+import { KycPage } from "./wealth/kyc-page";
 import { FormSignPage } from "./wealth/form-sign-page";
 import { SupportViewPage } from "./wealth/support-view-page";
 import { SupportPage } from "./wealth/support-page";
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
       { path: "accounts/:id", element: <NewAccountPage /> },
       { path: "documents", element: <DocumentsPage /> },
       { path: "forms", element: <FormsPage /> },
+      { path: "kyc", element: <KycPage /> },
       { path: "family-wealth", element: <FamilyWealthPage /> },
       { path: "family-access", element: <FamilyAccessPage /> },
       { path: "access-requests", element: <AccessRequestsPage /> },
