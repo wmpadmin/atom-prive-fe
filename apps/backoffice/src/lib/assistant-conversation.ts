@@ -1,6 +1,6 @@
 /**
- * Which portfolio-assistant conversation this browser is in, so the panel shows the same chat after a refresh
- * or in another tab until its owner signs out.
+ * Which Firm Assistant conversation this browser is in, so the page shows the same chat after a refresh, in
+ * another tab or after a visit elsewhere, until its owner signs out.
  *
  * <p>Only the conversation's id is kept here — a random id that means nothing on its own. The questions and
  * answers themselves, client names included, stay on the server and are read back from there; the server
@@ -37,10 +37,42 @@ export function conversationFor(userId: string): string {
   return conversationId;
 }
 
-/** Signing out ends the chat: whoever signs in next, the same person included, starts a new one. */
+/**
+ * The Market Assistant's conversation, kept in this browser for its owner. Nothing in it is the firm's — it is
+ * public news and prices — so the questions and answers themselves are kept here rather than on the server.
+ */
+const MARKET_KEY = "atomprive.market-assistant";
+
+type KeptMarket<T> = { userId: string; said: T[] };
+
+export function marketChatFor<T>(userId: string): T[] {
+  try {
+    const held = localStorage.getItem(MARKET_KEY);
+    if (held) {
+      const kept = JSON.parse(held) as Partial<KeptMarket<T>>;
+      if (kept.userId === userId && Array.isArray(kept.said)) {
+        return kept.said;
+      }
+    }
+  } catch {
+    // Unreadable is the same as nothing kept.
+  }
+  return [];
+}
+
+export function keepMarketChat<T>(userId: string, said: T[]) {
+  try {
+    localStorage.setItem(MARKET_KEY, JSON.stringify({ userId, said: said.slice(-40) } satisfies KeptMarket<T>));
+  } catch {
+    // Not kept: the chat still works, a refresh starts it again.
+  }
+}
+
+/** Signing out ends both chats: whoever signs in next, the same person included, starts new ones. */
 export function forgetAssistantConversation() {
   try {
     localStorage.removeItem(KEY);
+    localStorage.removeItem(MARKET_KEY);
   } catch {
     // Nothing kept to forget.
   }
