@@ -22,6 +22,10 @@ export function HomePage() {
   }
   // Whoever onboards clients opens on the clients list, which is where onboarding is now read and
   // started from. It used to be a list of cases of its own; that list is gone.
+  // Operations open on their own dashboard since 4 Nov 2026; the clients list is one click from it.
+  if (user.activeRole === "OPERATIONS" && hasAnyAuthority(user, "ONBOARD_CLIENTS:VIEW", "ONBOARD_CLIENTS:CHANGE")) {
+    return <Navigate to="/dashboard" replace />;
+  }
   if (hasAuthority(user, "ONBOARD_CLIENTS:VIEW")) {
     return <Navigate to="/clients" replace />;
   }

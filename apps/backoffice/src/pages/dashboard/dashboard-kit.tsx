@@ -492,3 +492,33 @@ export function AskTheAssistant({ questions, blurb }: { questions: string[]; blu
     </section>
   );
 }
+
+/** A row of figures under a ring, each opening the screen it was counted from. */
+export function Strip({ figures }: {
+  figures: { label: string; value: ReactNode; change?: number | null; danger?: boolean; to?: string }[];
+}) {
+  return (
+    <dl className="grid auto-cols-fr grid-flow-col divide-x divide-line rounded-xl bg-slate-50 px-1 py-2.5">
+      {figures.map((one) => {
+        const body = (
+          <>
+            <dt className="text-xs text-ink-muted">{one.label}</dt>
+            <dd className={cn("mt-0.5 flex items-baseline gap-1.5 text-lg font-bold tabular-nums", one.danger && "text-red-600")}>
+              {one.value}
+              {one.change != null && (
+                <span className={cn("text-xs font-semibold", one.change < 0 ? "text-red-600" : "text-emerald-600")}>
+                  {one.change > 0 ? "+" : ""}{one.change}%
+                </span>
+              )}
+            </dd>
+          </>
+        );
+        return one.to ? (
+          <Link key={one.label} to={one.to} className="px-3 hover:[&_dd]:text-primary-700">{body}</Link>
+        ) : (
+          <div key={one.label} className="px-3">{body}</div>
+        );
+      })}
+    </dl>
+  );
+}

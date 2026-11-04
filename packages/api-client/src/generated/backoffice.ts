@@ -7397,6 +7397,53 @@ export interface Dashboard {
   health: SystemHealth;
 }
 
+export interface OperationsOnboarding {
+  fillingIn: number;
+  awaitingClient: number;
+  inReview: number;
+  activated: number;
+  newIntakes: number;
+  /** @nullable */
+  newIntakesChangePercent: number | null;
+  /** @nullable */
+  averageDaysToActivate: number | null;
+}
+
+export interface OperationsPipeline {
+  fresh: number;
+  inDiscussion: number;
+  followUp: number;
+  qualified: number;
+  converted: number;
+  open: number;
+  /** @nullable */
+  conversionPercent: number | null;
+  stalled: number;
+}
+
+export interface OperationsFeeds {
+  succeeded: number;
+  failed: number;
+  running: number;
+  /** @nullable */
+  successPercent: number | null;
+}
+
+export interface Waiting {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface OperationsDashboard {
+  days: number;
+  onboarding: OperationsOnboarding;
+  pipeline: OperationsPipeline;
+  feeds: OperationsFeeds;
+  requests: Waiting[];
+  toDo: Waiting[];
+}
+
 export interface ClassSlice {
   code: string;
   name: string;
@@ -7437,12 +7484,6 @@ export interface Operations {
   kycInReview: number;
   proposalsPending: number;
   bankFeedsFailed: number;
-}
-
-export interface Waiting {
-  key: string;
-  label: string;
-  count: number;
 }
 
 export interface ManagerAum {
@@ -8545,6 +8586,10 @@ export const ListCaseFormsCategory = {
 
 export type ListDeactivationsParams = {
 decided?: boolean;
+};
+
+export type GetOperationsDashboardParams = {
+days?: number;
 };
 
 export type GetFirmDashboardParams = {
@@ -36605,6 +36650,108 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetOperationsDashboardUrl = (params?: GetOperationsDashboardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/dashboard/operations?${stringifiedParams}` : `/api/backoffice/dashboard/operations`
+}
+
+export const getOperationsDashboard = async (params?: GetOperationsDashboardParams, options?: Parameters<typeof http>[1]): Promise<OperationsDashboard> => {
+
+  return http<OperationsDashboard>(getGetOperationsDashboardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOperationsDashboardQueryKey = (params?: GetOperationsDashboardParams,) => {
+    return [
+    `/api/backoffice/dashboard/operations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetOperationsDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getOperationsDashboard>>, TError = unknown>(params?: GetOperationsDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOperationsDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOperationsDashboardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOperationsDashboard>>> = ({ signal }) => getOperationsDashboard(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOperationsDashboard>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetOperationsDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getOperationsDashboard>>>
+export type GetOperationsDashboardQueryError = unknown
+
+
+export function useGetOperationsDashboard<TData = Awaited<ReturnType<typeof getOperationsDashboard>>, TError = unknown>(
+ params: undefined |  GetOperationsDashboardParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOperationsDashboard>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOperationsDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getOperationsDashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOperationsDashboard<TData = Awaited<ReturnType<typeof getOperationsDashboard>>, TError = unknown>(
+ params?: GetOperationsDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOperationsDashboard>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOperationsDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getOperationsDashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOperationsDashboard<TData = Awaited<ReturnType<typeof getOperationsDashboard>>, TError = unknown>(
+ params?: GetOperationsDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOperationsDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetOperationsDashboard<TData = Awaited<ReturnType<typeof getOperationsDashboard>>, TError = unknown>(
+ params?: GetOperationsDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOperationsDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetOperationsDashboardQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
