@@ -13,7 +13,9 @@ import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { PipelinePanel } from "../deactivation/pipeline-panel";
 import { Link } from "react-router";
+import { useStaffUser } from "../../auth/session";
 import { formatDate, formatDateTime } from "../../lib/labels";
+import { hasAuthority } from "../../lib/permissions";
 
 const toneOf: Record<DeactivationRow["status"], "warning" | "danger" | "neutral" | "success"> = {
   ASKED: "warning",
@@ -36,13 +38,30 @@ const MOST = 2000;
  * says nothing has been told nothing.
  */
 export function DeactivationRequestsPage() {
+  // Operations read where every request stands; only the Admin answers, so only the Admin is shown the queue.
+  const answers = hasAuthority(useStaffUser(), "MANAGE_USERS_AND_ROLES:CHANGE");
   const [decided, setDecided] = useState(false);
   const [answering, setAnswering] = useState<{ row: DeactivationRow; agreeing: boolean } | null>(null);
   const queue = useListDeactivations<DeactivationQueue, ApiError>(
     { decided },
-    { query: { placeholderData: keepPreviousData } },
+    { query: { placeholderData: keepPreviousData, enabled: answers } },
   );
   const rows = queue.data?.items ?? [];
+
+  if (!answers) {
+    return (
+      <div className="space-y-5">
+        <header>
+          <h1 className="text-[1.625rem] font-bold">Deactivation requests</h1>
+          <p className="mt-1 max-w-[84ch] text-sm text-ink-muted">
+            Clients the firm has been asked to stop acting for, and where each request has got to. The Admin
+            answers them.
+          </p>
+        </header>
+        <PipelinePanel />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

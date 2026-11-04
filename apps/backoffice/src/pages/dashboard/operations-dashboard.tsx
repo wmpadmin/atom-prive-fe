@@ -75,7 +75,8 @@ const DEFAULT_CARDS: CardId[] = ["onboarding", "pipeline", "feeds", "requests", 
 /** Which screen each counted line is worked from. A line whose screen the reader's menu lacks has no link. */
 const WORKED_FROM: Record<string, string[]> = {
   "family-invites": ["/clients"],
-  "family-access": ["/family-access-trail"],
+  // Not the access trail: that is the audit log, which Operations do not read. The clients are where it is done.
+  "family-access": ["/clients"],
   deactivations: ["/deactivation-requests"],
   "re-uploads": ["/client-documents", "/clients"],
   "feeds-failed": ["/sync-errors", "/ingestion"],

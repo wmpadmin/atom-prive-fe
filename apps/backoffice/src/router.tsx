@@ -214,10 +214,13 @@ export const router = createBrowserRouter([
             // Answering a deactivation and reading the archive are the same authority, because they are the
             // same job: deciding whether the firm acts for somebody. The Admin's alone.
             element: <RequireAuthority authority="MANAGE_USERS_AND_ROLES:CHANGE" />,
-            children: [
-              { path: "deactivation-requests", element: <DeactivationRequestsPage /> },
-              { path: "archived-clients", element: <ArchivedClientsPage /> },
-            ],
+            children: [{ path: "archived-clients", element: <ArchivedClientsPage /> }],
+          },
+          {
+            // Operations read the requests too since 4 Nov 2026 — where each stands, read-only — while the
+            // answering stays the Admin's: the screen draws the queue and its buttons only for whoever answers.
+            element: <RequireAuthority authority={["MANAGE_USERS_AND_ROLES:CHANGE", "ONBOARD_CLIENTS:CHANGE"]} />,
+            children: [{ path: "deactivation-requests", element: <DeactivationRequestsPage /> }],
           },
           {
             // A client's papers are opened both by Compliance, who decide on them, and by the relationship manager who
