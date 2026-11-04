@@ -7397,6 +7397,50 @@ export interface Dashboard {
   health: SystemHealth;
 }
 
+export interface MyClients {
+  total: number;
+  active: number;
+  onboarding: number;
+  kycExpired: number;
+  deactivating: number;
+  aum: number;
+  /** @nullable */
+  aumChangePercent: number | null;
+  newClients: number;
+  papersExpiring: number;
+}
+
+export interface MyKyc {
+  approved: number;
+  inReview: number;
+  needsAction: number;
+  notStarted: number;
+  completePercent: number;
+}
+
+export interface MyPortfolios {
+  withPortfolio: number;
+  offPlan: number;
+  drafts: number;
+  modelChanges: number;
+}
+
+export interface Waiting {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface RelationshipManagerDashboard {
+  currency: string;
+  days: number;
+  clients: MyClients;
+  kyc: MyKyc;
+  portfolios: MyPortfolios;
+  approvals: Waiting[];
+  chase: Waiting[];
+}
+
 export interface OperationsOnboarding {
   fillingIn: number;
   awaitingClient: number;
@@ -7427,12 +7471,6 @@ export interface OperationsFeeds {
   running: number;
   /** @nullable */
   successPercent: number | null;
-}
-
-export interface Waiting {
-  key: string;
-  label: string;
-  count: number;
 }
 
 export interface OperationsDashboard {
@@ -8586,6 +8624,11 @@ export const ListCaseFormsCategory = {
 
 export type ListDeactivationsParams = {
 decided?: boolean;
+};
+
+export type GetRelationshipManagerDashboardParams = {
+currency?: string;
+days?: number;
 };
 
 export type GetOperationsDashboardParams = {
@@ -36650,6 +36693,108 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRelationshipManagerDashboardUrl = (params?: GetRelationshipManagerDashboardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/dashboard/relationship-manager?${stringifiedParams}` : `/api/backoffice/dashboard/relationship-manager`
+}
+
+export const getRelationshipManagerDashboard = async (params?: GetRelationshipManagerDashboardParams, options?: Parameters<typeof http>[1]): Promise<RelationshipManagerDashboard> => {
+
+  return http<RelationshipManagerDashboard>(getGetRelationshipManagerDashboardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRelationshipManagerDashboardQueryKey = (params?: GetRelationshipManagerDashboardParams,) => {
+    return [
+    `/api/backoffice/dashboard/relationship-manager`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetRelationshipManagerDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getRelationshipManagerDashboard>>, TError = unknown>(params?: GetRelationshipManagerDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRelationshipManagerDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRelationshipManagerDashboardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRelationshipManagerDashboard>>> = ({ signal }) => getRelationshipManagerDashboard(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRelationshipManagerDashboard>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetRelationshipManagerDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getRelationshipManagerDashboard>>>
+export type GetRelationshipManagerDashboardQueryError = unknown
+
+
+export function useGetRelationshipManagerDashboard<TData = Awaited<ReturnType<typeof getRelationshipManagerDashboard>>, TError = unknown>(
+ params: undefined |  GetRelationshipManagerDashboardParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRelationshipManagerDashboard>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRelationshipManagerDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getRelationshipManagerDashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRelationshipManagerDashboard<TData = Awaited<ReturnType<typeof getRelationshipManagerDashboard>>, TError = unknown>(
+ params?: GetRelationshipManagerDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRelationshipManagerDashboard>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRelationshipManagerDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getRelationshipManagerDashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRelationshipManagerDashboard<TData = Awaited<ReturnType<typeof getRelationshipManagerDashboard>>, TError = unknown>(
+ params?: GetRelationshipManagerDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRelationshipManagerDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetRelationshipManagerDashboard<TData = Awaited<ReturnType<typeof getRelationshipManagerDashboard>>, TError = unknown>(
+ params?: GetRelationshipManagerDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRelationshipManagerDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetRelationshipManagerDashboardQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
