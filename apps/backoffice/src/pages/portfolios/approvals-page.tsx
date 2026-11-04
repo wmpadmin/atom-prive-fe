@@ -111,10 +111,13 @@ function useHowManyAreWaiting(mine: TabSpec[]) {
   // refusal reads back as no rows — but a question whose answer is known is not worth asking, and the
   // count for somebody who answers none is nought without asking anybody.
   const answersAny = hasAnyAuthority(user, ...APPROVES_PROPOSALS);
+  // The Admin reads these two queues and answers neither — the server refuses them both counts, so they are
+  // not asked for, and the two tabs carry no number.
+  const admin = user.activeRole === "ADMIN";
   const proposals = useListProposalsAwaitingMyAnswer<ProposalPage, ApiError>({ page: 0, size: 1 },
-    { query: { enabled: offered("proposals") && answersAny, refetchOnWindowFocus: true } });
+    { query: { enabled: offered("proposals") && answersAny && !admin, refetchOnWindowFocus: true } });
   const clientRequests = useListClientRequests<MovePlanQueue, ApiError>(
-    { query: { enabled: offered("client-requests"), refetchOnWindowFocus: true } });
+    { query: { enabled: offered("client-requests") && !admin, refetchOnWindowFocus: true } });
   const modelChanges = useListModelChanges<ModelChangePage, ApiError>({ status: "PENDING", page: 0, size: 1 },
     { query: { enabled: offered("model-changes"), refetchOnWindowFocus: true } });
   const ownedAssets = useListOwnedAssetChanges<OwnedAssetChangeQueue, ApiError>(
