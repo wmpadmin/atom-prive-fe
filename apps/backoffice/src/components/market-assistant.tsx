@@ -3,13 +3,14 @@ import { useAskMarketAssistant, type MarketQuote, type MarketReply } from "@atom
 import { ExternalLink, Globe, Info, Newspaper, SendHorizontal, TrendingUp, User, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useStaffUser } from "../auth/session";
+import { keepMarketChat, marketChatFor } from "../lib/assistant-conversation";
 
 /**
  * The Market Assistant's conversation: market news and prices from the open web, never the firm's records.
  *
- * <p>Kept in this browser tab rather than on the server — nothing in it is the firm's — so it survives moving
- * between the two tabs and a refresh, and ends with the tab. The last few turns go along with each question so a
- * follow-up can say "and that one?".
+ * <p>Kept in this browser rather than on the server — nothing in it is the firm's — so it survives moving between
+ * the two tabs, a refresh, another tab and closing the browser, and ends when its owner signs out. The last few
+ * turns go along with each question so a follow-up can say "and that one?".
  */
 
 type Said =
@@ -27,27 +28,6 @@ const SUGGESTED: { icon: LucideIcon; question: string }[] = [
 /** How many earlier questions and answers go along with a new one. */
 const REMEMBERED = 6;
 
-function keyFor(userId: string) {
-  return `atomprive.market-assistant.${userId}`;
-}
-
-function kept(userId: string): Said[] {
-  try {
-    const held = sessionStorage.getItem(keyFor(userId));
-    return held ? (JSON.parse(held) as Said[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function keep(userId: string, said: Said[]) {
-  try {
-    sessionStorage.setItem(keyFor(userId), JSON.stringify(said.slice(-40)));
-  } catch {
-    // Not kept: the chat still works, a refresh starts it again.
-  }
-}
-
 /** An answer as plain text, for sending back as context with the next question. */
 function asText(reply: MarketReply) {
   return [reply.summary, ...reply.points.map((point) => `- ${point}`)].join("\n");
@@ -55,7 +35,7 @@ function asText(reply: MarketReply) {
 
 export function MarketAssistantChat() {
   const user = useStaffUser();
-  const [said, setSaid] = useState<Said[]>(() => kept(user.id));
+  const [said, setSaid] = useState<Said[]>(() => marketChatFor<Said>(user.id));
   const [draft, setDraft] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
   const ask = useAskMarketAssistant<ApiError>({
@@ -65,7 +45,7 @@ export function MarketAssistantChat() {
     },
   });
 
-  useEffect(() => keep(user.id, said), [user.id, said]);
+  useEffect(() => keepMarketChat(user.id, said), [user.id, said]);
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
   }, [said, ask.isPending]);
