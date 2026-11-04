@@ -380,9 +380,10 @@ const allNavigation: {
     to: "/deactivation-requests",
     label: "Deactivation requests",
     icon: UserX,
-    // Whoever may answer one, which is the Admin and nobody else — the same authority the API's approve
-    // and reject endpoints ask for, so the menu offers exactly what the screen admits.
-    authority: "MANAGE_USERS_AND_ROLES:CHANGE",
+    // Whoever may answer one, which is the Admin and nobody else, and Operations, who read where each stands
+    // without answering (4 Nov 2026).
+    authority: ["MANAGE_USERS_AND_ROLES:CHANGE", "ONBOARD_CLIENTS:CHANGE"],
+    onlyFor: ["ADMIN", "OPERATIONS"],
     // With the rest of the client lifecycle, in the Client Management section.
     under: "/client-management",
   },
