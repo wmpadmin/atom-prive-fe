@@ -160,7 +160,7 @@ export function AdminDashboard() {
         </Alert>
       )}
 
-      <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-4 2xl:grid-cols-8">
+      <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-4">
         <Headline icon={Landmark} label="Total AUM" value={data ? money(data.headline.totalAum, cur) : undefined}
           change={data?.headline.aumChangePercent} to={goTo("/client-management", "/clients")} />
         <Headline icon={Users} label="Total clients" value={data?.headline.clients} change={data?.headline.clientsChangePercent}
@@ -180,8 +180,10 @@ export function AdminDashboard() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="min-w-0 space-y-5">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        {/* Three cards to a row whenever the column is wide enough for three, read off the column itself
+            rather than the window, so the sidebar and the assistant beside it cannot push them into one. */}
+        <div className="@container min-w-0 space-y-5">
+          <div className="grid gap-5 @2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
             <Panel icon={Banknote} title="AUM & client growth" to={goTo("/client-management", "/clients")}>
               {data ? <GrowthChart data={data} /> : <Loading />}
             </Panel>
@@ -202,7 +204,7 @@ export function AdminDashboard() {
             </Panel>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-3">
+          <div className="grid gap-5 @2xl:grid-cols-3">
             <Panel icon={Activity} title="Operational health">
               <div className="grid h-full auto-rows-fr grid-cols-2 gap-2.5">
                 <Mini label="Onboarding" value={data?.operations.onboarding} state="In progress" tone="good"
@@ -224,14 +226,14 @@ export function AdminDashboard() {
             </Panel>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <div className="grid gap-5 @2xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <FirmActivity platform={platform.data} attention={data?.attention ?? []} linkFor={linkFor} to={goTo("/audit-log")} />
             <Panel icon={ClipboardList} title="Task summary">
               <ComingSoon>Tasks with owners and due dates aren&rsquo;t in the platform yet.</ComingSoon>
             </Panel>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-3">
+          <div className="grid gap-5 @2xl:grid-cols-3">
             <Panel icon={Users} title="AUM by RM (top 5)" to={goTo("/users")}>
               <Managers rows={data?.byRelationshipManager} currency={cur} />
             </Panel>
@@ -475,7 +477,7 @@ function Counts({ rows, linkFor }: { rows: Waiting[]; linkFor: (key: string) => 
         const to = linkFor(one.key);
         const inner = (
           <>
-            <span className="min-w-0 flex-1 truncate">{one.label}</span>
+            <span className="min-w-0 flex-1 leading-tight">{one.label}</span>
             <span className={cn("font-bold tabular-nums", one.count === 0 && "font-normal text-ink-muted")}>{one.count}</span>
           </>
         );
