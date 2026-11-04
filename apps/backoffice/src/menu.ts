@@ -22,6 +22,7 @@ import {
   Scale,
   Settings,
   ShieldCheck,
+  Sparkles,
   SlidersHorizontal,
   Stamp,
   TrendingUp,
@@ -140,6 +141,7 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   // open to them the whole time, with nothing on the menu pointing at it.
   { to: "/my-clearances", under: "/client-management" },
   { to: "/my-declarations" },
+  { to: "/assistant" },
   { to: "/settings" },
 ];
 
@@ -450,6 +452,8 @@ const allNavigation: {
   { to: "/support", label: "Support tickets", icon: LifeBuoy, authority: "SUPPORT_TICKETS:CHANGE" },
   { to: "/sign-in-as", label: "Sign in as", icon: Eye, authority: "SIGN_IN_AS:CHANGE" },
   { to: "/my-tickets", label: "Report an issue", icon: LifeBuoy, authority: null, notFor: ["IT_ADMIN"] },
+  // Everybody's: the Firm Assistant answers only from what the asker may already see.
+  { to: "/assistant", label: "AI Assistant", icon: Sparkles, authority: null },
   { to: "/settings", label: "Settings", icon: Settings, authority: null },
 ];
 

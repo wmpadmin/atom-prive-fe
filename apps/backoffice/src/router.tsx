@@ -1,4 +1,5 @@
 import { Navigate, createBrowserRouter } from "react-router";
+import { AssistantPage } from "./pages/assistant/assistant-page";
 import { AppLayout } from "./app-layout";
 import { Landing } from "./pages/landing";
 import { RequireAuthority, RequireSignIn } from "./auth/guards";
@@ -122,6 +123,8 @@ export const router = createBrowserRouter([
           { path: "my-declarations/:kind", element: <MyDeclarationPage /> },
           // Somebody's own account, so it asks for nothing beyond being signed in.
           { path: "settings", element: <SettingsPage /> },
+          // Everybody's: what the Firm Assistant answers is decided by the server, from the asker's own permissions.
+          { path: "assistant", element: <AssistantPage /> },
           // Whoever runs the platform gets the firm's figures here; everybody else gets their own day.
           { path: "dashboard", element: <DashboardPage /> },
           {
