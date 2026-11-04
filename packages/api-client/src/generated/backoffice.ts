@@ -7000,6 +7000,7 @@ export interface ReviewPaper {
   kindTitle: string;
   uploadedAt: string;
   reviewState: ReviewPaperReviewState;
+  expired: boolean;
 }
 
 export type ReviewRowClientType = typeof ReviewRowClientType[keyof typeof ReviewRowClientType];

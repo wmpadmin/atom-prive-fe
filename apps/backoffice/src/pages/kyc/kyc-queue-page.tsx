@@ -87,7 +87,12 @@ const MOVABLE: Column[] = [
       <ul className="space-y-0.5">
         {row.papers.map((paper, at) => (
           <li key={`${paper.kindTitle}-${at}`}>
-            <Badge tone={reviewStateTones[paper.reviewState]}>{reviewStateLabels[paper.reviewState]}</Badge>
+            {/* Approved but past its date: it no longer counts as in, so it must not read as plain Approved. */}
+            {paper.reviewState === "APPROVED" && paper.expired ? (
+              <Badge tone="danger">Approved · expired</Badge>
+            ) : (
+              <Badge tone={reviewStateTones[paper.reviewState]}>{reviewStateLabels[paper.reviewState]}</Badge>
+            )}
           </li>
         ))}
       </ul>
