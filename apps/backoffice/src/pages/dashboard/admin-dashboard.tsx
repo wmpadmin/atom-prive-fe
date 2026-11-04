@@ -126,7 +126,7 @@ type CardId = "summary" | "trend" | "asset-classes" | "lifecycle" | "operations"
 
 /**
  * Every card the dashboard can show, in the firm's own order. The assistant and the Admin's shortcuts sit down
- * the side; everything else three to a row, the wide ones taking two places.
+ * the side; everything else two to a row, the wide ones taking the whole row.
  */
 const CARD: Record<CardId, { title: string; area: Area; wide?: boolean }> = {
   summary: { title: "Firm summary", area: "main", wide: true },
@@ -460,13 +460,32 @@ export function AdminDashboard() {
     };
     return (
       <CardContext.Provider key={id} value={controls}>
-        <div className={cn("flex min-w-0 flex-col [&>*]:flex-1", CARD[id].wide && "@2xl:col-span-2",
+        <div className={cn("flex min-w-0 flex-col [&>*]:flex-1", (CARD[id].wide || fullRow.has(id)) && "@2xl:col-span-2",
           editing && "rounded-2xl outline-2 outline-offset-2 outline-primary-300 outline-dashed")}>
           {cards[id]}
         </div>
       </CardContext.Provider>
     );
   };
+  // A card that would sit alone in its row — the last of an odd run, or one just before a full-width card —
+  // takes the whole row, so no row is left half empty.
+  const fullRow = new Set<CardId>();
+  {
+    let column = 0;
+    const main = inArea("main");
+    main.forEach((id, index) => {
+      if (CARD[id].wide) {
+        column = 0;
+        return;
+      }
+      const next = main[index + 1];
+      if (column === 0 && (!next || CARD[next].wide)) {
+        fullRow.add(id);
+        return;
+      }
+      column = (column + 1) % 2;
+    });
+  }
   const side = inArea("side");
   const savedName = view.tab.startsWith("saved:") ? view.tab.slice("saved:".length) : null;
 
@@ -543,10 +562,11 @@ export function AdminDashboard() {
       )}
 
       <div className={cn("grid gap-5", side.length > 0 && "xl:grid-cols-[minmax(0,1fr)_20rem]")}>
-        {/* Three cards to a row whenever the column is wide enough for three, read off the column itself
-            rather than the window, so the sidebar and the assistant beside it cannot push them into one. */}
+        {/* Two cards to a row whenever the column is wide enough for two, read off the column itself rather
+            than the window. Each card is as tall as what is in it, so a short one does not stand half empty
+            beside a long one; the summary and the activity table take the whole row. */}
         <div className="@container min-w-0">
-          <div className="grid gap-5 @2xl:grid-cols-3">{inArea("main").map(card)}</div>
+          <div className="grid items-start gap-5 @2xl:grid-cols-2">{inArea("main").map(card)}</div>
         </div>
         {side.length > 0 && <aside className="space-y-5">{side.map(card)}</aside>}
       </div>
