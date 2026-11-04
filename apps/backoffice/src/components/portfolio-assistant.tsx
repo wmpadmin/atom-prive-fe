@@ -14,9 +14,13 @@ import {
   ChartColumn,
   ChartPie,
   FileText,
+  Compass,
   Info,
+  LifeBuoy,
+  ListChecks,
   Lock,
   RefreshCw,
+  Search,
   SendHorizontal,
   Sparkles,
   TrendingUp,
@@ -56,6 +60,19 @@ const ON_THE_BOOK: { icon: LucideIcon; question: string }[] = [
   { icon: ChartColumn, question: "Summarise the breaches across my book." },
 ];
 
+/** For everybody else: what the Firm Assistant answers for any desk. */
+const ABOUT_A_CLIENT: { icon: LucideIcon; question: string }[] = [
+  { icon: FileText, question: "What KYC papers are still outstanding for this client?" },
+  { icon: ListChecks, question: "How far has this client's onboarding got?" },
+];
+
+const ABOUT_THE_PORTAL: { icon: LucideIcon; question: string }[] = [
+  { icon: Compass, question: "What can I do on this portal?" },
+  { icon: LifeBuoy, question: "What's the status of my support tickets?" },
+  { icon: Search, question: "How do I find a client?" },
+  { icon: FileText, question: "How do I report a problem?" },
+];
+
 /**
  * The ✦ in the top bar: a shortcut to the AI Assistant page. Opened from a client's own page, it takes that
  * client along, so the first question can be about them without naming them.
@@ -79,12 +96,14 @@ export function AssistantButton() {
 }
 
 /**
- * The Firm Assistant's conversation: questions about drift, breaches and rebalancing, answered from the
- * platform's own figures. The same conversation wherever it is opened, until its owner signs out.
+ * The Firm Assistant's conversation, answered from the platform's own records as far as the asker's role can see
+ * them: portfolios for the portfolio desk, a client's KYC, their own tickets and how to use the portal. The same
+ * conversation wherever it is opened, until its owner signs out.
  *
  * @param customerId the client the questions are about, when the page was opened from theirs
+ * @param portfolioDesk whether the asker may write proposals, which is what opens the portfolio questions
  */
-export function FirmAssistantChat({ customerId }: { customerId: string | null }) {
+export function FirmAssistantChat({ customerId, portfolioDesk }: { customerId: string | null; portfolioDesk: boolean }) {
   const status = useGetAssistantStatus();
   const user = useStaffUser();
   const [conversationId] = useState(() => conversationFor(user.id));
@@ -144,7 +163,9 @@ export function FirmAssistantChat({ customerId }: { customerId: string | null })
   };
   const lastReply = [...said].reverse().find((one) => one.who === "assistant");
   const off = status.data && !status.data.available;
-  const suggested = customerId ? ON_A_CLIENT : ON_THE_BOOK;
+  const suggested = portfolioDesk
+    ? customerId ? [...ON_A_CLIENT, ...ABOUT_A_CLIENT] : [...ON_THE_BOOK, ABOUT_THE_PORTAL[0]!]
+    : customerId ? [...ABOUT_A_CLIENT, ...ABOUT_THE_PORTAL.slice(0, 2)] : ABOUT_THE_PORTAL;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -167,7 +188,7 @@ export function FirmAssistantChat({ customerId }: { customerId: string | null })
           {ask.isPending && (
             <div className="flex items-center gap-3 text-sm text-ink-muted">
               <AssistantMark />
-              Looking at the figures…
+              Looking it up…
             </div>
           )}
           {/* Only after an answer with trades in it: the three actions are all about those trades. */}
@@ -228,8 +249,8 @@ export function FirmAssistantChat({ customerId }: { customerId: string | null })
                   send(draft);
                 }
               }}
-              placeholder={customerId ? "Ask about this client's portfolio, drift, allocation or rebalancing…"
-                : "Ask a question about portfolio, drift, allocation or rebalancing…"}
+              placeholder={customerId ? "Ask about this client — their KYC, onboarding or portfolio…"
+                : "Ask about clients, KYC, your tickets or how to use the portal…"}
               className="block min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-1 text-sm focus:ring-0
                 focus:outline-none"
             />
@@ -495,8 +516,8 @@ function Privacy() {
       <div className="flex items-start gap-3">
         <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <p className="flex-1">
-          <span className="font-semibold">Data Privacy:</span> This assistant uses portfolio metrics and rules only. It
-          does not access or share any client personal information.
+          <span className="font-semibold">Data Privacy:</span> This assistant only reads what your role can already see,
+          and client names are replaced with aliases before anything is sent to the AI.
         </p>
         <button type="button" onClick={() => setMore((was) => !was)} className="font-semibold whitespace-nowrap text-primary-700 hover:underline">
           {more ? "Less" : "Learn more"}
@@ -505,8 +526,9 @@ function Privacy() {
       {more && (
         <p className="mt-2 pl-7 text-ink-muted">
           Before a question leaves Atom Privé, every client name and code in it is replaced with an alias such as
-          &ldquo;Client K7QM&rdquo;, and the AI only ever sees figures under that alias. Names are put back only on
-          your screen. Suggestions are never traded: a draft proposal still goes to the client&rsquo;s relationship
+          &ldquo;Client K7QM&rdquo;, and the AI only ever sees records under that alias. Names are put back only on
+          your screen. Each answer is looked up with your own permissions, so it never shows more than your screens
+          do. Portfolio suggestions are never traded: a draft proposal still goes to the client&rsquo;s relationship
           manager. Every question and answer is kept in the audit log.
         </p>
       )}
