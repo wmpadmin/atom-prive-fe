@@ -118,6 +118,12 @@ const MY_DECLARATIONS = "/my-declarations";
 const SETTINGS = "/settings";
 
 /**
+ * The person's own, not a desk's: the tickets they raised are theirs whichever workspace they are in, so Support
+ * sits once, outside every workspace, rather than under each.
+ */
+const SUPPORT = "/support";
+
+/**
  * The menu, grouped by the workspaces this person holds.
  *
  * <p>One open at a time, and the open one is always the workspace they are working in — because the menu
@@ -155,7 +161,8 @@ function RoleGroups({ user, items, pathname, search }: {
 
   const declarations = items.find((item) => item.to === MY_DECLARATIONS);
   const settings = items.find((item) => item.to === SETTINGS);
-  const desk = items.filter((item) => item.to !== MY_DECLARATIONS && item.to !== SETTINGS);
+  const support = items.find((item) => item.to === SUPPORT);
+  const desk = items.filter((item) => item.to !== MY_DECLARATIONS && item.to !== SETTINGS && item.to !== SUPPORT);
   /**
    * The workspace this person calls home — the Admin's choice, or their own from Settings.
    *
@@ -239,6 +246,13 @@ function RoleGroups({ user, items, pathname, search }: {
       <div className="mt-2 shrink-0 space-y-1 border-t border-line/50 pt-2">
         {user.roles.filter((role) => role !== active).map((role) => header(role as StaffRole, false))}
       </div>
+
+      {/* Outside every workspace, because it is the person's and not the desk's. */}
+      {support && (
+        <ul className="mt-2 shrink-0 border-t border-line/50 pt-2">
+          <NavEntry item={support} pathname={pathname} search={search} />
+        </ul>
+      )}
     </div>
   );
 }
