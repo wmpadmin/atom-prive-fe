@@ -11,10 +11,9 @@ import { AmlRiskPage } from "./pages/aml/aml-risk-page";
 import { TradeLogsPage } from "./pages/portfolios/trade-logs-page";
 import { AuditLogPage } from "./pages/audit-log/audit-log-page";
 import { MyTicketPage } from "./pages/support/my-ticket-page";
-import { MyTicketsPage } from "./pages/support/my-tickets-page";
 import { SignInAsPage } from "./pages/support/sign-in-as-page";
 import { SupportViewPage } from "./pages/support/support-view-page";
-import { SupportQueuePage } from "./pages/support/support-queue-page";
+import { SupportPage } from "./pages/support/support-page";
 import { SupportTicketPage } from "./pages/support/support-ticket-page";
 import { IngestionMonitoringPage } from "./pages/bank-syncs/ingestion-monitoring-page";
 import { SyncErrorsPage } from "./pages/bank-syncs/sync-errors-page";
@@ -107,14 +106,15 @@ export const router = createBrowserRouter([
           // reader holds, so a permission on top would be a second rule saying the same thing.
           { path: "my-clearances", element: <MyClearancesPage /> },
           { path: "my-declarations", element: <MyDeclarationsPage /> },
-          { path: "my-tickets", element: <MyTicketsPage /> },
+          // Support is everybody's: whoever raises sees their own tickets, the IT Admin every ticket. The page
+          // decides which from the reader's permissions, and the server holds each list to the same rule.
+          { path: "support", element: <SupportPage /> },
+          // Where "Report an issue" used to be, so a bookmark or an old link still lands on Support.
+          { path: "my-tickets", element: <Navigate to="/support" replace /> },
           { path: "my-tickets/:id", element: <MyTicketPage /> },
           {
             element: <RequireAuthority authority="SUPPORT_TICKETS:CHANGE" />,
-            children: [
-              { path: "support", element: <SupportQueuePage /> },
-              { path: "support/:id", element: <SupportTicketPage /> },
-            ],
+            children: [{ path: "support/:id", element: <SupportTicketPage /> }],
           },
           {
             element: <RequireAuthority authority="SIGN_IN_AS:CHANGE" />,

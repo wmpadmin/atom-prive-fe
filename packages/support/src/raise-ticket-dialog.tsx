@@ -3,6 +3,7 @@ import type { TicketDetail } from "@atomprive/api-client/portal";
 import { Alert, Button, Dialog } from "@atomprive/ui";
 import { Paperclip, Send } from "lucide-react";
 import { useState } from "react";
+import { CATEGORY_LABELS } from "./ticket-fields";
 
 /**
  * Raising a ticket for a technical problem: what it is about, what happened, and any screenshots. The page they
@@ -13,6 +14,7 @@ export function RaiseTicketDialog({
   pageUrl,
   onClose,
   onRaised,
+  askCategory = false,
 }: {
   /** Where the ticket is posted: the portal's or the back office's own address for it. */
   url: string;
@@ -20,7 +22,10 @@ export function RaiseTicketDialog({
   pageUrl: string;
   onClose: () => void;
   onRaised: (raised: TicketDetail) => void;
+  /** Whether to ask what the ticket is about. The back office asks; a ticket raised without it is "Other". */
+  askCategory?: boolean;
 }) {
+  const [category, setCategory] = useState("OTHER");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [page, setPage] = useState(pageUrl);
@@ -38,6 +43,7 @@ export function RaiseTicketDialog({
     form.append("description", description.trim());
     if (page.trim()) form.append("pageUrl", page.trim());
     form.append("userAgent", navigator.userAgent.slice(0, 500));
+    if (askCategory) form.append("category", category);
     for (const file of files) form.append("files", file);
     try {
       onRaised(await http<TicketDetail>(url, { method: "POST", body: form }));
@@ -61,6 +67,15 @@ export function RaiseTicketDialog({
           <label htmlFor="ticket-subject" className={label}>Subject</label>
           <input id="ticket-subject" name="ticket-subject" required maxLength={200} value={subject} onChange={(event) => setSubject(event.target.value)} className={`h-10 ${field}`} />
         </div>
+        {askCategory && (
+          <div>
+            <label htmlFor="ticket-category" className={label}>What it is about</label>
+            <select id="ticket-category" name="ticket-category" value={category} onChange={(event) => setCategory(event.target.value)}
+              className={`h-10 ${field}`}>
+              {Object.entries(CATEGORY_LABELS).map(([value, name]) => <option key={value} value={value}>{name}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label htmlFor="ticket-description" className={label}>What happened</label>
           <textarea
