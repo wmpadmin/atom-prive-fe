@@ -182,7 +182,7 @@ const allNavigation: {
     icon: LayoutDashboard,
     // Each role's dashboard asks the server only for what that role reads, so the entry itself asks for nothing.
     authority: null,
-    onlyFor: ["ADMIN", "COMPLIANCE", "OPERATIONS", "ADVISOR", "PORTFOLIO_MANAGER"],
+    onlyFor: ["ADMIN", "COMPLIANCE", "OPERATIONS", "ADVISOR", "PORTFOLIO_MANAGER", "IT_ADMIN"],
   },
   {
     // Prospects and clients as one section. The heading is the overview itself, and the lists sit under it.

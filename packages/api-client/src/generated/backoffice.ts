@@ -7542,6 +7542,51 @@ export interface OperationsDashboard {
   toDo: Waiting[];
 }
 
+export interface ItTickets {
+  open: number;
+  inProgress: number;
+  waiting: number;
+  overdue: number;
+  closed: number;
+  raised: number;
+  /** @nullable */
+  averageHoursToResolve: number | null;
+}
+
+export interface ItSessions {
+  staff: number;
+  clients: number;
+  signedInAs: number;
+  signInsAsInPeriod: number;
+  signInsInPeriod: number;
+}
+
+export interface ItHealth {
+  databaseUp: boolean;
+  apiLatencyMillis: number;
+  /** @nullable */
+  lastSyncRunAt: string | null;
+  /** @nullable */
+  lastSyncOutcome: string | null;
+  failedEmailsToday: number;
+  pendingEvents: number;
+}
+
+export interface ItCount {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface ItAdminDashboard {
+  days: number;
+  tickets: ItTickets;
+  sessions: ItSessions;
+  health: ItHealth;
+  users: ItCount[];
+  security: ItCount[];
+}
+
 export interface Headline {
   totalAum: number;
   /** @nullable */
@@ -8690,6 +8735,10 @@ days?: number;
 };
 
 export type GetOperationsDashboardParams = {
+days?: number;
+};
+
+export type GetItAdminDashboardParams = {
 days?: number;
 };
 
@@ -37057,6 +37106,108 @@ export function useGetOperationsDashboard<TData = Awaited<ReturnType<typeof getO
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetOperationsDashboardQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetItAdminDashboardUrl = (params?: GetItAdminDashboardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/dashboard/it-admin?${stringifiedParams}` : `/api/backoffice/dashboard/it-admin`
+}
+
+export const getItAdminDashboard = async (params?: GetItAdminDashboardParams, options?: Parameters<typeof http>[1]): Promise<ItAdminDashboard> => {
+
+  return http<ItAdminDashboard>(getGetItAdminDashboardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetItAdminDashboardQueryKey = (params?: GetItAdminDashboardParams,) => {
+    return [
+    `/api/backoffice/dashboard/it-admin`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetItAdminDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getItAdminDashboard>>, TError = unknown>(params?: GetItAdminDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getItAdminDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetItAdminDashboardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getItAdminDashboard>>> = ({ signal }) => getItAdminDashboard(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getItAdminDashboard>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetItAdminDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getItAdminDashboard>>>
+export type GetItAdminDashboardQueryError = unknown
+
+
+export function useGetItAdminDashboard<TData = Awaited<ReturnType<typeof getItAdminDashboard>>, TError = unknown>(
+ params: undefined |  GetItAdminDashboardParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getItAdminDashboard>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getItAdminDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getItAdminDashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetItAdminDashboard<TData = Awaited<ReturnType<typeof getItAdminDashboard>>, TError = unknown>(
+ params?: GetItAdminDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getItAdminDashboard>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getItAdminDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getItAdminDashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetItAdminDashboard<TData = Awaited<ReturnType<typeof getItAdminDashboard>>, TError = unknown>(
+ params?: GetItAdminDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getItAdminDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetItAdminDashboard<TData = Awaited<ReturnType<typeof getItAdminDashboard>>, TError = unknown>(
+ params?: GetItAdminDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getItAdminDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetItAdminDashboardQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

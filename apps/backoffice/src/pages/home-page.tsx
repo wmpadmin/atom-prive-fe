@@ -10,7 +10,8 @@ export function HomePage() {
   // what they may reach: an administrator can reach these screens too, and sending them here would take
   // them off their own first screen. Somebody signing in as a portfolio manager came to read clients
   // against their plans.
-  if (user.activeRole === "PORTFOLIO_MANAGER") {
+  // Every desk opens on its own dashboard since 4 Nov 2026, the IT Admin's included.
+  if (user.activeRole === "PORTFOLIO_MANAGER" || user.activeRole === "IT_ADMIN") {
     return <Navigate to="/dashboard" replace />;
   }
   // The Admin opens on the firm as a whole, the dashboard the firm asked for; staff users is one click away.
