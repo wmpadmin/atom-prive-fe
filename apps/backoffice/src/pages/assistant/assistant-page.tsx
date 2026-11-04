@@ -2,6 +2,7 @@ import { Database, Globe, Layers, Lock, ShieldCheck, Sparkles, TrendingUp, Users
 import type { ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { MarketAssistantChat } from "../../components/market-assistant";
 import { FirmAssistantChat } from "../../components/portfolio-assistant";
 import { hasAuthority } from "../../lib/permissions";
 
@@ -28,7 +29,7 @@ const TABS: { id: Which; icon: LucideIcon; title: string; blurb: string }[] = [
     id: "market",
     icon: TrendingUp,
     title: "Market Assistant",
-    blurb: "Market news, trends and insights from the open web",
+    blurb: "Market news, share prices and today's movers, with sources",
   },
 ];
 
@@ -98,12 +99,7 @@ export function AssistantPage() {
             {which === "firm" ? (
               <FirmAssistantChat customerId={customerId} portfolioDesk={portfolioDesk} />
             ) : (
-              <Waiting
-                icon={Globe}
-                title="The Market Assistant is on its way"
-                body="It will answer questions about markets and the latest finance news from the open web, with its
-                  sources linked under every answer. It never sees anything of the firm's or its clients'."
-              />
+              <MarketAssistantChat />
             )}
           </div>
         </section>
@@ -126,7 +122,8 @@ export function AssistantPage() {
                 Client names are replaced with aliases before anything leaves Atom Privé.
               </Detail>
               <Detail icon={Globe} term="Market Assistant">
-                General market information from the open web, not investment advice.
+                Market news from Google News and prices from Twelve Data, with every article linked. General
+                information, not investment advice.
               </Detail>
             </dl>
           </section>
@@ -143,21 +140,6 @@ function Detail({ icon: Icon, term, children }: { icon: LucideIcon; term: string
       <div>
         <dt className="font-semibold">{term}</dt>
         <dd className="text-ink-muted">{children}</dd>
-      </div>
-    </div>
-  );
-}
-
-/** What a tab says while what it does is still being built. */
-function Waiting({ icon: Icon, title, body }: { icon: LucideIcon; title: string; body: string }) {
-  return (
-    <div className="grid h-full place-items-center px-6 py-10">
-      <div className="max-w-md text-center">
-        <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-violet-500/10 text-violet-600">
-          <Icon className="size-6" aria-hidden="true" />
-        </span>
-        <h2 className="mt-4 text-lg font-bold text-balance">{title}</h2>
-        <p className="mt-2 text-sm text-ink-muted">{body}</p>
       </div>
     </div>
   );
