@@ -112,10 +112,8 @@ export const router = createBrowserRouter([
           // Where "Report an issue" used to be, so a bookmark or an old link still lands on Support.
           { path: "my-tickets", element: <Navigate to="/support" replace /> },
           { path: "my-tickets/:id", element: <MyTicketPage /> },
-          {
-            element: <RequireAuthority authority="SUPPORT_TICKETS:CHANGE" />,
-            children: [{ path: "support/:id", element: <SupportTicketPage /> }],
-          },
+          // The IT Admin's, at whichever desk they are working; the server refuses anybody else the ticket.
+          { path: "support/:id", element: <SupportTicketPage /> },
           {
             element: <RequireAuthority authority="SIGN_IN_AS:CHANGE" />,
             children: [{ path: "sign-in-as", element: <SignInAsPage /> }],
