@@ -88,7 +88,7 @@ const QUICK: { label: string; to: string; icon: LucideIcon }[] = [
 ];
 
 const LINKS: { label: string; to: string }[] = [
-  { label: "Client Management overview", to: "/client-management/overview" },
+  { label: "Client Management overview", to: "/client-management" },
   { label: "Approvals", to: "/approvals" },
   { label: "Reports", to: "/reports" },
   { label: "Staff declarations", to: "/staff-declarations" },
@@ -175,7 +175,7 @@ export function AdminDashboard() {
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-5">
-          <div className="grid gap-5 lg:grid-cols-3">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
             <Panel icon={Banknote} title="AUM & client growth">
               {data ? <GrowthChart data={data} /> : <Loading />}
             </Panel>
@@ -283,13 +283,13 @@ function Headline({ icon: Icon, label, value, change, tone, to, note }: {
 }) {
   const body = (
     <>
-      <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl",
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-xl",
         tone === "danger" ? "bg-red-50 text-red-600" : tone === "warn" ? "bg-amber-50 text-amber-600"
           : tone === "good" ? "bg-emerald-50 text-emerald-600" : "bg-primary-50 text-primary-600")}>
         <Icon className="size-5" aria-hidden="true" />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-xs font-semibold text-ink-muted">{label}</span>
+        <span className="block text-xs leading-tight font-semibold text-ink-muted">{label}</span>
         <span className="flex flex-wrap items-baseline gap-x-1.5">
           <span className={cn("text-lg font-bold tabular-nums", tone === "danger" && "text-red-600",
             tone === "good" && "text-emerald-600")}>{value ?? "—"}</span>
@@ -305,7 +305,7 @@ function Headline({ icon: Icon, label, value, change, tone, to, note }: {
       </span>
     </>
   );
-  const className = "flex items-center gap-3 rounded-2xl border border-line bg-white px-3.5 py-3";
+  const className = "flex items-center gap-2.5 rounded-2xl border border-line bg-white px-3 py-3";
   return to ? <Link to={to} className={cn(className, "hover:border-primary-300")}>{body}</Link> : <div className={className}>{body}</div>;
 }
 
@@ -363,13 +363,14 @@ function GrowthChart({ data }: { data: FirmDashboard }) {
     const compact = (value: number) => new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
     return {
       textStyle: { fontFamily: c.font, color: c.muted },
-      grid: { left: 44, right: 36, top: 30, bottom: 24 },
+      grid: { left: 40, right: 28, top: 36, bottom: 22 },
       legend: { top: 0, textStyle: { color: c.muted, fontSize: 11 }, itemWidth: 12, itemHeight: 8 },
       tooltip: {
         trigger: "axis",
         valueFormatter: (value: number) => compact(value),
       },
-      xAxis: { type: "category", data: months, axisLine: { lineStyle: { color: c.line } }, axisTick: { show: false } },
+      xAxis: { type: "category", data: months, axisLine: { lineStyle: { color: c.line } }, axisTick: { show: false },
+        axisLabel: { interval: 0, color: c.muted, fontSize: 10 } },
       yAxis: [
         { type: "value", axisLabel: { formatter: compact, color: c.muted }, splitLine: { lineStyle: { color: c.line } } },
         { type: "value", axisLabel: { color: c.muted }, splitLine: { show: false }, minInterval: 1 },
@@ -412,9 +413,9 @@ function Breakdown({ rows, centre, centreLabel, currency }: {
     return <p className="py-10 text-center text-sm text-ink-muted">Nothing on file yet.</p>;
   }
   return (
-    <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] items-center gap-3">
-      <div className="relative">
-        <Chart option={option} height={136} label={`${centreLabel}: ${ringed.map((one) => `${one.name} ${one.value}`).join(", ")}`} />
+    <div className="space-y-3">
+      <div className="relative mx-auto w-36">
+        <Chart option={option} height={144} label={`${centreLabel}: ${ringed.map((one) => `${one.name} ${one.value}`).join(", ")}`} />
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
           <span>
             <span className="block text-2xs text-ink-muted">{centreLabel}</span>
@@ -427,7 +428,7 @@ function Breakdown({ rows, centre, centreLabel, currency }: {
           <li key={one.name} className={cn("flex items-center gap-2", one.apart && "mt-2 border-t border-line pt-2")}>
             <span className="size-2.5 shrink-0 rounded-full"
               style={{ background: one.apart ? "var(--color-slate-300)" : SLICE_COLOURS[index % SLICE_COLOURS.length] }} />
-            <span className="min-w-0 flex-1 truncate">{one.name}</span>
+            <span className="min-w-0 flex-1 leading-tight">{one.name}</span>
             {one.share !== undefined && <span className="text-ink-muted tabular-nums">{one.share}%</span>}
             <span className="font-semibold tabular-nums">
               {currency ? new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(one.value) : one.value}
@@ -583,8 +584,8 @@ function Managers({ rows, currency }: { rows: ManagerAum[] | undefined; currency
   return (
     <ul className="space-y-2.5 text-sm">
       {(rows ?? []).map((one) => (
-        <li key={one.staffId} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_auto] items-center gap-3">
-          <span className="truncate">{one.name}</span>
+        <li key={one.staffId} className="grid grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_auto] items-center gap-3">
+          <span className="truncate" title={one.name}>{one.name}</span>
           <span className="h-2 rounded-full bg-slate-100">
             <span className="block h-2 rounded-full bg-primary-600" style={{ width: `${(Number(one.amount) / most) * 100}%` }} />
           </span>
