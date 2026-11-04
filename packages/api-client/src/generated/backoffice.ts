@@ -7470,6 +7470,46 @@ export interface FirmDashboard {
   unconverted: number;
 }
 
+export interface Band {
+  name: string;
+  dueDiligence: string;
+  clients: number;
+  percent: number;
+}
+
+export interface AmlOverview {
+  clients: number;
+  bands: Band[];
+  neverScored: number;
+  reassessmentsDue: number;
+  highRisk: number;
+}
+
+export interface KycOverview {
+  clients: number;
+  approved: number;
+  inReview: number;
+  needsAction: number;
+  notStarted: number;
+  compliantPercent: number;
+}
+
+export interface Expiring {
+  within30: number;
+  within60: number;
+  within90: number;
+  alreadyExpired: number;
+}
+
+export interface ComplianceDashboard {
+  days: number;
+  kyc: KycOverview;
+  aml: AmlOverview;
+  queue: Waiting[];
+  expiring: Expiring;
+  declarations: Waiting[];
+}
+
 export interface SecurityActivity {
   at: string;
   action: string;
@@ -8509,6 +8549,10 @@ decided?: boolean;
 
 export type GetFirmDashboardParams = {
 currency?: string;
+days?: number;
+};
+
+export type GetComplianceDashboardParams = {
 days?: number;
 };
 
@@ -36663,6 +36707,108 @@ export function useGetFirmDashboard<TData = Awaited<ReturnType<typeof getFirmDas
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetFirmDashboardQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetComplianceDashboardUrl = (params?: GetComplianceDashboardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/dashboard/compliance?${stringifiedParams}` : `/api/backoffice/dashboard/compliance`
+}
+
+export const getComplianceDashboard = async (params?: GetComplianceDashboardParams, options?: Parameters<typeof http>[1]): Promise<ComplianceDashboard> => {
+
+  return http<ComplianceDashboard>(getGetComplianceDashboardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetComplianceDashboardQueryKey = (params?: GetComplianceDashboardParams,) => {
+    return [
+    `/api/backoffice/dashboard/compliance`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetComplianceDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getComplianceDashboard>>, TError = unknown>(params?: GetComplianceDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getComplianceDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetComplianceDashboardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getComplianceDashboard>>> = ({ signal }) => getComplianceDashboard(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getComplianceDashboard>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetComplianceDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getComplianceDashboard>>>
+export type GetComplianceDashboardQueryError = unknown
+
+
+export function useGetComplianceDashboard<TData = Awaited<ReturnType<typeof getComplianceDashboard>>, TError = unknown>(
+ params: undefined |  GetComplianceDashboardParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getComplianceDashboard>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getComplianceDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getComplianceDashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetComplianceDashboard<TData = Awaited<ReturnType<typeof getComplianceDashboard>>, TError = unknown>(
+ params?: GetComplianceDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getComplianceDashboard>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getComplianceDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getComplianceDashboard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetComplianceDashboard<TData = Awaited<ReturnType<typeof getComplianceDashboard>>, TError = unknown>(
+ params?: GetComplianceDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getComplianceDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetComplianceDashboard<TData = Awaited<ReturnType<typeof getComplianceDashboard>>, TError = unknown>(
+ params?: GetComplianceDashboardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getComplianceDashboard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetComplianceDashboardQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

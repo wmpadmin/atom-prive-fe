@@ -10,15 +10,13 @@ import {
   type ManagerAum,
   type Waiting,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, SelectInput, cn } from "@atomprive/ui";
+import { Alert, Badge, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import {
   Activity,
   AlertTriangle,
   ArrowDownRight,
-  ArrowLeft,
   ArrowLeftRight,
-  ArrowRight,
   ArrowUpRight,
   Banknote,
   CalendarDays,
@@ -26,7 +24,6 @@ import {
   ChevronRight,
   ClipboardList,
   Clock,
-  ExternalLink,
   FileText,
   Gem,
   HeartPulse,
@@ -36,27 +33,36 @@ import {
   Link2,
   ListChecks,
   Mail,
-  MoreVertical,
-  Pencil,
   PieChart,
-  RotateCcw,
-  Search,
-  SendHorizontal,
   ShieldCheck,
-  Sparkles,
   UserMinus,
   UserPlus,
   Users,
-  X,
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router";
+import { useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatRelative, roleLabel } from "../../lib/labels";
 import { menuFor } from "../../menu";
 import { Chart, ink } from "../book/overview-charts";
+import {
+  AskTheAssistant,
+  Breakdown,
+  CardGrid,
+  CardMenu,
+  ComingSoon,
+  Counts,
+  EditCards,
+  Loading,
+  Panel,
+  Row,
+  SoonTag,
+  money,
+  useDashboardCards,
+  type CardMeta,
+} from "./dashboard-kit";
 
 /**
  * The Admin's dashboard: the firm's money and clients across the top, then everything waiting on somebody,
@@ -116,8 +122,6 @@ const ASK: string[] = [
   "Give me a summary of open approvals.",
 ];
 
-type Area = "main" | "side";
-
 type CardId = "summary" | "trend" | "asset-classes" | "lifecycle" | "operations" | "approvals" | "upcoming"
   | "attention" | "activity" | "health" | "tasks" | "by-rm" | "by-pm" | "assistant" | "quick" | "links";
 
@@ -125,7 +129,7 @@ type CardId = "summary" | "trend" | "asset-classes" | "lifecycle" | "operations"
  * Every card the dashboard can show, in the firm's own order. The assistant and the Admin's shortcuts sit down
  * the side; everything else two to a row, the wide ones taking the whole row.
  */
-const CARD: Record<CardId, { title: string; area: Area; wide?: boolean }> = {
+const CARD: Record<CardId, CardMeta> = {
   summary: { title: "Firm summary", area: "main", wide: true },
   trend: { title: "AUM trend", area: "main" },
   "asset-classes": { title: "AUM by asset class", area: "main" },
@@ -148,73 +152,6 @@ const CARD_IDS = Object.keys(CARD) as CardId[];
 
 /** What the dashboard opens on until the Admin changes it: the firm's own choice, 4 Nov 2026. */
 const DEFAULT_CARDS: CardId[] = ["summary", "asset-classes", "operations", "approvals", "upcoming", "assistant"];
-
-const KEPT_AT = "atomprive.dashboard-cards.v1.admin";
-
-function readCards(): CardId[] {
-  try {
-    const found = window.localStorage.getItem(KEPT_AT);
-    if (!found) return DEFAULT_CARDS;
-    const parsed: unknown = JSON.parse(found);
-    return Array.isArray(parsed)
-      ? [...new Set(parsed.filter((one): one is CardId => CARD_IDS.includes(one as CardId)))]
-      : DEFAULT_CARDS;
-  } catch {
-    return DEFAULT_CARDS;
-  }
-}
-
-/**
- * The cards on the Admin's dashboard, in order, kept in this browser. One dashboard and no named views, at the
- * firm's request: whatever is ticked in Edit view is simply what the dashboard shows from then on.
- */
-function useDashboardCards() {
-  const [cards, setCards] = useState<CardId[]>(readCards);
-  const change = (next: CardId[]) => {
-    setCards(next);
-    try {
-      window.localStorage.setItem(KEPT_AT, JSON.stringify(next));
-    } catch {
-      // A browser that keeps nothing still shows the change; it lasts until the page is left.
-    }
-  };
-  return {
-    cards,
-    change,
-    changed: cards.join("|") !== DEFAULT_CARDS.join("|"),
-    reset: () => change(DEFAULT_CARDS),
-  };
-}
-
-/** Closes a pop-over when somebody clicks anywhere outside it, or presses Escape. */
-function useDismiss(open: boolean, close: () => void) {
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const outside = (event: MouseEvent) => {
-      if (box.current && !box.current.contains(event.target as Node)) close();
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
-    };
-    document.addEventListener("mousedown", outside);
-    document.addEventListener("keydown", escape);
-    return () => {
-      document.removeEventListener("mousedown", outside);
-      document.removeEventListener("keydown", escape);
-    };
-  }, [open, close]);
-  return box;
-}
-
-/** What a card's ⋮ offers, handed down to whichever card is drawn inside it. */
-type CardControls = { earlier?: () => void; later?: () => void; remove: () => void; title: string };
-
-const CardContext = createContext<CardControls | null>(null);
-
-function money(amount: number, currency: string) {
-  return `${currency} ${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(amount)}`;
-}
 
 export function AdminDashboard() {
   const user = useStaffUser();
@@ -240,7 +177,7 @@ export function AdminDashboard() {
   const data = firm.data;
   const cur = data?.currency ?? currency;
 
-  const view = useDashboardCards();
+  const view = useDashboardCards("admin", CARD_IDS, DEFAULT_CARDS);
   const [editing, setEditing] = useState(false);
   const openItems = data ? data.headline.openApprovals + data.headline.openRequests : undefined;
 
@@ -302,13 +239,13 @@ export function AdminDashboard() {
     approvals: (
       <Panel icon={ListChecks} title={`Approvals & queues${data ? ` (${data.headline.openApprovals})` : ""}`}
         to={goTo("/approvals")}>
-        <Counts rows={[...(data?.approvals ?? []), ...(data?.requests ?? [])]} linkFor={linkFor} limit={5}
+        <Counts rows={[...(data?.approvals ?? []), ...(data?.requests ?? [])]} linkFor={linkFor} iconFor={ICON_FOR} limit={5}
           more={goTo("/approvals")} />
       </Panel>
     ),
     upcoming: (
       <Panel icon={CalendarDays} title="Upcoming & due" to={goTo("/staff-declarations", "/kyc")}>
-        <Counts rows={data?.upcoming ?? []} linkFor={linkFor} countFirst />
+        <Counts rows={data?.upcoming ?? []} linkFor={linkFor} iconFor={ICON_FOR} countFirst />
         <ul className="mt-1 divide-y divide-line border-t border-line text-sm">
           <li className="flex items-center gap-3 py-2 text-ink-muted"><Landmark className="size-4 shrink-0" aria-hidden="true" />
             <span className="flex-1">Regulatory reports</span><SoonTag /></li>
@@ -358,7 +295,7 @@ export function AdminDashboard() {
         <Managers rows={data?.byPortfolioManager} currency={cur} />
       </Panel>
     ),
-    assistant: <AskTheAssistant />,
+    assistant: <AskTheAssistant questions={ASK} blurb="Ask about operations, clients, compliance or how to use the portal." />,
     quick: (
       <Panel icon={Zap} title="Quick actions">
         <div className="grid auto-rows-fr grid-cols-2 gap-2">
@@ -389,56 +326,6 @@ export function AdminDashboard() {
   };
 
   const shown = view.cards;
-  const inArea = (area: Area) => shown.filter((id) => CARD[id].area === area);
-  // Past its neighbour in the same part of the page, whatever sits between them elsewhere.
-  const nudge = (id: CardId, step: -1 | 1) => {
-    const mates = inArea(CARD[id].area);
-    const neighbour = mates[mates.indexOf(id) + step];
-    if (!neighbour) return;
-    const next = [...shown];
-    const from = next.indexOf(id);
-    const to = next.indexOf(neighbour);
-    next[from] = neighbour;
-    next[to] = id;
-    view.change(next);
-  };
-  const card = (id: CardId) => {
-    const mates = inArea(CARD[id].area);
-    const controls: CardControls = {
-      title: CARD[id].title,
-      earlier: mates[0] === id ? undefined : () => nudge(id, -1),
-      later: mates[mates.length - 1] === id ? undefined : () => nudge(id, 1),
-      remove: () => view.change(shown.filter((one) => one !== id)),
-    };
-    return (
-      <CardContext.Provider key={id} value={controls}>
-        <div className={cn("flex min-w-0 flex-col [&>*]:flex-1", (CARD[id].wide || fullRow.has(id)) && "@2xl:col-span-2",
-          editing && "rounded-2xl outline-2 outline-offset-2 outline-primary-300 outline-dashed")}>
-          {cards[id]}
-        </div>
-      </CardContext.Provider>
-    );
-  };
-  // A card that would sit alone in its row — the last of an odd run, or one just before a full-width card —
-  // takes the whole row, so no row is left half empty.
-  const fullRow = new Set<CardId>();
-  {
-    let column = 0;
-    const main = inArea("main");
-    main.forEach((id, index) => {
-      if (CARD[id].wide) {
-        column = 0;
-        return;
-      }
-      const next = main[index + 1];
-      if (column === 0 && (!next || CARD[next].wide)) {
-        fullRow.add(id);
-        return;
-      }
-      column = (column + 1) % 2;
-    });
-  }
-  const side = inArea("side");
 
   return (
     <div className="space-y-4">
@@ -453,7 +340,7 @@ export function AdminDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards shown={shown} editing={editing} onEditing={setEditing} onChange={view.change}
+          <EditCards meta={CARD} shown={shown} editing={editing} onEditing={setEditing} onChange={view.change}
             changed={view.changed} onReset={view.reset} />
           <SelectInput id="firm-period" aria-label="Period the changes are measured over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
@@ -476,126 +363,7 @@ export function AdminDashboard() {
         </Alert>
       )}
 
-      {shown.length === 0 && (
-        <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
-          Nothing on this view yet. Use Add card to put cards on it.
-        </p>
-      )}
-
-      <div className={cn("grid gap-5", side.length > 0 && "xl:grid-cols-[minmax(0,1fr)_20rem]")}>
-        {/* Two cards to a row whenever the column is wide enough for two, read off the column itself rather
-            than the window. The two in a row are one height; a long list shows its first few and leaves the
-            rest to View all, so neither card stands half empty beside the other. */}
-        <div className="@container min-w-0">
-          <div className="grid gap-5 @2xl:grid-cols-2">{inArea("main").map(card)}</div>
-        </div>
-        {side.length > 0 && <aside className="space-y-5">{side.map(card)}</aside>}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Edit view: every card, ticked where it is on the dashboard. Ticking one puts it on straight away and unticking
- * takes it off; nothing waits on a button. Reset puts back the firm's own six.
- */
-function EditCards({ shown, editing, onEditing, onChange, changed, onReset }: {
-  shown: CardId[];
-  editing: boolean;
-  onEditing: (editing: boolean) => void;
-  onChange: (cards: CardId[]) => void;
-  changed: boolean;
-  onReset: () => void;
-}) {
-  const [query, setQuery] = useState("");
-  const close = useCallback(() => onEditing(false), [onEditing]);
-  const box = useDismiss(editing, close);
-  const listed = CARD_IDS.filter((id) => CARD[id].title.toLowerCase().includes(query.trim().toLowerCase()));
-  const flip = (id: CardId) => onChange(shown.includes(id) ? shown.filter((one) => one !== id) : [...shown, id]);
-  return (
-    <div ref={box} className="relative">
-      <Button variant={editing ? "primary" : "secondary"} onClick={() => { setQuery(""); onEditing(!editing); }}
-        aria-expanded={editing}>
-        <Pencil aria-hidden="true" />
-        Edit view
-      </Button>
-      {editing && (
-        <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-line bg-white p-3 shadow-lg">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold">Cards on your dashboard</p>
-            <button type="button" aria-label="Close" onClick={close} className="rounded p-1 text-ink-muted hover:bg-slate-100">
-              <X className="size-4" aria-hidden="true" />
-            </button>
-          </div>
-          <p className="mt-0.5 text-2xs text-ink-muted">Tick to add a card, untick to take it off. Kept in this browser.</p>
-          <div className="relative mt-2">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
-            <input aria-label="Search cards" value={query} onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search cards…"
-              className="w-full rounded-xl border border-line bg-white py-1.5 pr-3 pl-8 text-sm focus:border-primary-400 focus:outline-none" />
-          </div>
-          <ul className="mt-2 max-h-80 space-y-0.5 overflow-y-auto">
-            {listed.map((id) => (
-              <li key={id}>
-                <label className={cn("flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50",
-                  shown.includes(id) && "bg-primary-50/60")}>
-                  <input type="checkbox" checked={shown.includes(id)} onChange={() => flip(id)}
-                    className="size-4 accent-primary-600" />
-                  {CARD[id].title}
-                </label>
-              </li>
-            ))}
-            {listed.length === 0 && <li className="px-2 py-3 text-sm text-ink-muted">No card is called that.</li>}
-          </ul>
-          <div className="mt-3 flex justify-between gap-2">
-            <Button variant="secondary" size="sm" onClick={onReset} disabled={!changed}>
-              <RotateCcw aria-hidden="true" />
-              Reset to default
-            </Button>
-            <Button size="sm" onClick={close}>Done</Button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** A card's ⋮: move it either way, open the screen behind it, or take it off this view. */
-function CardMenu({ to }: { to?: string }) {
-  const controls = useContext(CardContext);
-  const [open, setOpen] = useState(false);
-  const close = useCallback(() => setOpen(false), []);
-  const box = useDismiss(open, close);
-  if (!controls) return null;
-  const item = "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-slate-50 disabled:opacity-40 [&_svg]:size-4";
-  const act = (run?: () => void) => () => {
-    run?.();
-    setOpen(false);
-  };
-  return (
-    <div ref={box} className="relative">
-      <button type="button" aria-label={`Options for ${controls.title}`} aria-expanded={open} onClick={() => setOpen((now) => !now)}
-        className="grid size-7 place-items-center rounded-lg text-ink-muted hover:bg-slate-100 hover:text-ink">
-        <MoreVertical className="size-4" aria-hidden="true" />
-      </button>
-      {open && (
-        <div className="absolute right-0 z-30 mt-1 w-52 rounded-xl border border-line bg-white p-1.5 shadow-lg">
-          <button type="button" className={item} onClick={act(controls.earlier)} disabled={!controls.earlier}>
-            <ArrowLeft aria-hidden="true" />Move earlier
-          </button>
-          <button type="button" className={item} onClick={act(controls.later)} disabled={!controls.later}>
-            <ArrowRight aria-hidden="true" />Move later
-          </button>
-          {to && (
-            <Link to={to} className={item}>
-              <ExternalLink aria-hidden="true" />Open full screen
-            </Link>
-          )}
-          <button type="button" className={cn(item, "text-red-600 hover:bg-red-50")} onClick={act(controls.remove)}>
-            <X aria-hidden="true" />Remove from this view
-          </button>
-        </div>
-      )}
+      <CardGrid meta={CARD} shown={shown} render={cards} editing={editing} onChange={view.change} />
     </div>
   );
 }
@@ -658,54 +426,6 @@ function OpsRow({ icon: Icon, label, state, value, tone, to }: {
   );
 }
 
-function Panel({ icon: Icon, title, to, children }: {
-  icon: LucideIcon;
-  title: string;
-  /** Where the whole card leads: its title opens it, and so does "View all" beside it. */
-  to?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white">
-      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
-        <h2 className="flex items-center gap-2 text-base font-bold">
-          <Icon className="size-4.5 text-primary-600" aria-hidden="true" />
-          {to ? <Link to={to} className="hover:text-primary-700 hover:underline">{title}</Link> : title}
-        </h2>
-        <div className="flex items-center gap-1">
-          {to && (
-            <Link to={to} className="inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-primary-700 hover:underline">
-              View all
-              <ChevronRight className="size-3.5" aria-hidden="true" />
-            </Link>
-          )}
-          <CardMenu to={to} />
-        </div>
-      </div>
-      <div className="flex-1 px-5 pb-4">{children}</div>
-    </section>
-  );
-}
-
-function Loading() {
-  return <p className="py-10 text-center text-sm text-ink-muted">Loading…</p>;
-}
-
-function SoonTag() {
-  return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-2xs font-semibold text-ink-muted">Coming soon</span>;
-}
-
-function ComingSoon({ children }: { children: ReactNode }) {
-  return (
-    <div className="grid h-full min-h-32 place-items-center rounded-xl border border-dashed border-line px-4 py-6 text-center">
-      <div>
-        <SoonTag />
-        <p className="mt-2 text-sm text-ink-muted">{children}</p>
-      </div>
-    </div>
-  );
-}
-
 /** The firm's money as columns and its client count as a line, month by month. */
 function GrowthChart({ data }: { data: FirmDashboard }) {
   const option = useMemo(() => {
@@ -739,61 +459,6 @@ function GrowthChart({ data }: { data: FirmDashboard }) {
   return <Chart option={option} height={220} label="AUM and number of clients at the end of each of the last six months" />;
 }
 
-const SLICE_COLOURS = ["#1d6ee8", "#0f9d8a", "#f2a01c", "#8b5cf6", "#e5484d", "#64748b", "#0ea5e9", "#a3a3a3"];
-
-/** A ring of what makes up a whole, with each part listed beside it. */
-function Breakdown({ rows, centre, centreLabel, currency }: {
-  rows: { name: string; value: number; share?: number; apart?: boolean }[];
-  centre: string;
-  centreLabel: string;
-  currency?: string;
-}) {
-  const ringed = rows.filter((one) => !one.apart);
-  const option = useMemo(() => {
-    const c = ink();
-    return {
-      textStyle: { fontFamily: c.font },
-      tooltip: { trigger: "item", valueFormatter: (value: number) => currency ? money(value, currency) : String(value) },
-      series: [{
-        type: "pie", radius: ["62%", "88%"], avoidLabelOverlap: true, label: { show: false },
-        itemStyle: { borderColor: c.surface, borderWidth: 2 },
-        data: ringed.map((one, index) => ({ name: one.name, value: Number(one.value),
-          itemStyle: { color: SLICE_COLOURS[index % SLICE_COLOURS.length] } })),
-      }],
-    };
-  }, [ringed, currency]);
-  if (rows.length === 0) {
-    return <p className="py-10 text-center text-sm text-ink-muted">Nothing on file yet.</p>;
-  }
-  return (
-    // The ring on the left and what makes it up beside it; one above the other when narrow.
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-      <div className="relative mx-auto w-40 shrink-0 sm:mx-0">
-        <Chart option={option} height={160} label={`${centreLabel}: ${ringed.map((one) => `${one.name} ${one.value}`).join(", ")}`} />
-        <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
-          <span>
-            <span className="block text-2xs text-ink-muted">{centreLabel}</span>
-            <span className="block text-sm font-bold tabular-nums">{centre.replace(`${currency ?? ""} `, "")}</span>
-          </span>
-        </div>
-      </div>
-      <ul className="min-w-0 flex-1 space-y-2 text-sm">
-        {rows.map((one, index) => (
-          <li key={one.name} className={cn("flex items-center gap-2", one.apart && "mt-2 border-t border-line pt-2")}>
-            <span className="size-2.5 shrink-0 rounded-full"
-              style={{ background: one.apart ? "var(--color-slate-300)" : SLICE_COLOURS[index % SLICE_COLOURS.length] }} />
-            <span className="min-w-0 flex-1 leading-tight">{one.name}</span>
-            {one.share !== undefined && <span className="text-xs text-ink-muted tabular-nums">{one.share}%</span>}
-            <span className="font-semibold tabular-nums">
-              {currency ? new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(one.value) : one.value}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 /** The icon each waiting thing is drawn with, so a list of counts can be read at a glance. */
 const ICON_FOR: Record<string, LucideIcon> = {
   proposals: Users,
@@ -808,58 +473,6 @@ const ICON_FOR: Record<string, LucideIcon> = {
   "aml-reviews": ShieldCheck,
   "staff-declarations": FileText,
 };
-
-function Counts({ rows, linkFor, countFirst = false, limit, more }: {
-  rows: Waiting[];
-  linkFor: (key: string) => string | undefined;
-  /** "21 KYC renewals due" rather than "KYC renewals due … 21", where the number is the point of the line. */
-  countFirst?: boolean;
-  /** How many lines the card shows: the ones with something waiting first, the rest left to View all. */
-  limit?: number;
-  /** Where the lines left out are read. */
-  more?: string;
-}) {
-  const ordered = limit === undefined ? rows
-    : [...rows.filter((one) => one.count > 0), ...rows.filter((one) => one.count === 0)];
-  const shown = limit === undefined ? ordered : ordered.slice(0, limit);
-  const left = ordered.length - shown.length;
-  return (
-    <>
-    <ul className="divide-y divide-line text-sm">
-      {shown.map((one) => {
-        const to = linkFor(one.key);
-        const Icon = ICON_FOR[one.key] ?? FileText;
-        const count = (
-          <span className={cn("font-bold tabular-nums", one.count === 0 && "font-normal text-ink-muted")}>{one.count}</span>
-        );
-        const inner = (
-          <>
-            <Icon className="size-4 shrink-0 text-primary-600" aria-hidden="true" />
-            {countFirst && count}
-            <span className="min-w-0 flex-1 leading-tight">{one.label}</span>
-            {!countFirst && count}
-            {to && <ChevronRight className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />}
-          </>
-        );
-        return (
-          <li key={one.label}>
-            {to ? <Link to={to} className="flex items-center gap-3 py-2 hover:text-primary-700">{inner}</Link>
-              : <div className="flex items-center gap-3 py-2">{inner}</div>}
-          </li>
-        );
-      })}
-    </ul>
-    {left > 0 && (
-      more ? (
-        <Link to={more} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline">
-          {left} more in View all
-          <ChevronRight className="size-3.5" aria-hidden="true" />
-        </Link>
-      ) : <p className="mt-1 text-xs text-ink-muted">{left} more</p>
-    )}
-    </>
-  );
-}
 
 function Attention({ rows, linkFor, loaded }: { rows: Waiting[]; linkFor: (key: string) => string | undefined; loaded: boolean }) {
   if (loaded && rows.length === 0) {
@@ -968,15 +581,6 @@ function FirmActivity({ platform, attention, linkFor, to }: {
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3 py-2.5">
-      <dt className="text-ink-muted">{label}</dt>
-      <dd className="font-semibold">{children}</dd>
-    </div>
-  );
-}
-
 function Managers({ rows, currency }: { rows: ManagerAum[] | undefined; currency: string }) {
   if (rows && rows.length === 0) {
     return <p className="py-8 text-center text-sm text-ink-muted">No assigned clients hold anything yet.</p>;
@@ -1001,50 +605,3 @@ function Managers({ rows, currency }: { rows: ManagerAum[] | undefined; currency
   );
 }
 
-/** A way into the Firm Assistant from here: a suggested question, or one typed, opens it already asked. */
-function AskTheAssistant() {
-  const navigate = useNavigate();
-  const [draft, setDraft] = useState("");
-  const ask = (question: string) => {
-    if (!question.trim()) return;
-    void navigate(`/assistant?ask=${encodeURIComponent(question.trim())}`);
-  };
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    ask(draft);
-  };
-  return (
-    <section className="rounded-2xl border border-violet-200 bg-violet-500/5 p-4">
-      <div className="flex items-start gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-600">
-          <Sparkles className="size-5" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-bold">AI Assistant</h2>
-          <p className="text-xs text-ink-muted">Ask about operations, clients, compliance or how to use the portal.</p>
-        </div>
-        <CardMenu to="/assistant" />
-      </div>
-      <ul className="mt-3 space-y-1.5">
-        {ASK.map((question) => (
-          <li key={question}>
-            <button type="button" onClick={() => ask(question)}
-              className="w-full rounded-xl border border-line bg-white px-3 py-2 text-left text-xs font-medium hover:border-violet-300">
-              {question}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <form onSubmit={onSubmit} className="mt-3 flex gap-2">
-        <label htmlFor="dashboard-ask" className="sr-only">Ask the assistant</label>
-        <input id="dashboard-ask" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Ask anything…"
-          className="min-w-0 flex-1 rounded-xl border border-line bg-white px-3 py-2 text-sm focus:border-violet-400 focus:outline-none" />
-        <button type="submit" disabled={!draft.trim()}
-          className="grid size-9 shrink-0 place-items-center rounded-xl bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40">
-          <SendHorizontal className="size-4" aria-hidden="true" />
-          <span className="sr-only">Ask</span>
-        </button>
-      </form>
-    </section>
-  );
-}

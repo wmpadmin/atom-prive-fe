@@ -172,10 +172,16 @@ const allNavigation: {
    */
   at?: (path: string, search: string) => boolean;
 }[] = [
-  // The Dashboard was off every role's menu at the firm's request; it is back for the Admin, whose firm-wide
-  // dashboard the firm asked for on 4 Nov 2026. Other roles' dashboards come back one at a time as each is
+  // The Dashboard was off every role's menu at the firm's request; it is back for the Admin and for Compliance,
+  // whose dashboards the firm asked for on 4 Nov 2026. Other roles' dashboards come back one at a time as each is
   // agreed, by adding their role here.
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, authority: "MANAGE_USERS_AND_ROLES:VIEW", onlyFor: ["ADMIN"] },
+  {
+    to: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    authority: ["MANAGE_USERS_AND_ROLES:VIEW", "APPROVE_ONBOARDING:VIEW", "APPROVE_ONBOARDING:CHANGE"],
+    onlyFor: ["ADMIN", "COMPLIANCE"],
+  },
   {
     // Prospects and clients as one section. The heading is the overview itself, and the lists sit under it.
     to: "/client-management",

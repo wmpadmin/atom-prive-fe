@@ -25,6 +25,8 @@
  * worked, and could be reached by nothing but a typed address.
  */
 export const MENU_ORDER: string[] = [
+  "/dashboard",
+
   // The portfolio desk's own book, in the order the desk works it: who is on a plan, what the plans are,
   // how they are doing, who has wandered off one, and putting them back.
   "/book", "/portfolio-clients", "/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing",

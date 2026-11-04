@@ -2,7 +2,7 @@ import { Card } from "@atomprive/ui";
 import { Navigate } from "react-router";
 import { useStaffUser } from "../auth/session";
 import { roleLabels } from "../lib/labels";
-import { advisesClients, hasAuthority } from "../lib/permissions";
+import { advisesClients, hasAnyAuthority, hasAuthority } from "../lib/permissions";
 
 export function HomePage() {
   const user = useStaffUser();
@@ -34,8 +34,10 @@ export function HomePage() {
   // screen as well: an Admin may take APPROVE_ONBOARDING away from the role, and a first screen that
   // refuses the person it was chosen for is worse than the plain one below. Without it they fall through
   // to the audit log exactly as before.
-  if (user.activeRole === "COMPLIANCE" && hasAuthority(user, "APPROVE_ONBOARDING:CHANGE")) {
-    return <Navigate to="/kyc" replace />;
+  // Compliance open on their own dashboard since 4 Nov 2026: the KYC queue is one click from it, alongside the
+  // AML, the lapsing papers and the staff trail the queue alone does not show.
+  if (user.activeRole === "COMPLIANCE" && hasAnyAuthority(user, "APPROVE_ONBOARDING:VIEW", "APPROVE_ONBOARDING:CHANGE")) {
+    return <Navigate to="/dashboard" replace />;
   }
   if (hasAuthority(user, "VIEW_AUDIT_LOG:VIEW")) {
     return <Navigate to="/audit-log" replace />;
