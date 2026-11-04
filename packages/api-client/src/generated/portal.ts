@@ -832,6 +832,69 @@ export interface PortfolioInsights {
   holdings: HoldingGroup[];
 }
 
+/**
+ * @nullable
+ */
+export type KycRequirementKind = typeof KycRequirementKind[keyof typeof KycRequirementKind] | null;
+
+
+export const KycRequirementKind = {
+  PASSPORT: 'PASSPORT',
+  NATIONAL_ID: 'NATIONAL_ID',
+  PROOF_OF_ADDRESS: 'PROOF_OF_ADDRESS',
+  SOURCE_OF_FUNDS: 'SOURCE_OF_FUNDS',
+  SOURCE_OF_WEALTH: 'SOURCE_OF_WEALTH',
+  TRADE_LICENCE: 'TRADE_LICENCE',
+  CERTIFICATE_OF_INCUMBENCY: 'CERTIFICATE_OF_INCUMBENCY',
+  BOARD_RESOLUTION: 'BOARD_RESOLUTION',
+  AUDITED_ACCOUNTS: 'AUDITED_ACCOUNTS',
+  SHAREHOLDER_REGISTER: 'SHAREHOLDER_REGISTER',
+  OTHER: 'OTHER',
+} as const;
+
+export type KycRequirementStands = typeof KycRequirementStands[keyof typeof KycRequirementStands];
+
+
+export const KycRequirementStands = {
+  NOT_SENT: 'NOT_SENT',
+  AWAITING_REVIEW: 'AWAITING_REVIEW',
+  RE_UPLOAD_REQUESTED: 'RE_UPLOAD_REQUESTED',
+  REJECTED: 'REJECTED',
+  APPROVED: 'APPROVED',
+  EXPIRED: 'EXPIRED',
+} as const;
+
+export interface KycRequirement {
+  paperId: string;
+  /** @nullable */
+  kind: KycRequirementKind;
+  kindTitle: string;
+  exceptional: boolean;
+  settled: boolean;
+  stands: KycRequirementStands;
+  /** @nullable */
+  expiresOn: string | null;
+  /** @nullable */
+  documentId: string | null;
+  /** @nullable */
+  fileName: string | null;
+  /** @nullable */
+  reason: string | null;
+  /** @nullable */
+  receivedAt: string | null;
+  /** @nullable */
+  decidedAt: string | null;
+}
+
+export interface MyKyc {
+  kycStatus: string;
+  papers: KycRequirement[];
+  /** @nullable */
+  remindedAt: string | null;
+  /** @nullable */
+  relationshipManager: string | null;
+}
+
 export interface Invitation {
   email: string;
   clientName: string;
@@ -5655,6 +5718,101 @@ export function useMe<TData = Awaited<ReturnType<typeof me>>, TError = unknown>(
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getMeQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMyKycUrl = () => {
+
+
+
+
+  return `/api/portal/kyc`
+}
+
+export const myKyc = async ( options?: Parameters<typeof http>[1]): Promise<MyKyc> => {
+
+  return http<MyKyc>(getMyKycUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyKycQueryKey = () => {
+    return [
+    `/api/portal/kyc`
+    ] as const;
+    }
+
+
+export const getMyKycQueryOptions = <TData = Awaited<ReturnType<typeof myKyc>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myKyc>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyKycQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myKyc>>> = ({ signal }) => myKyc({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myKyc>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyKycQueryResult = NonNullable<Awaited<ReturnType<typeof myKyc>>>
+export type MyKycQueryError = unknown
+
+
+export function useMyKyc<TData = Awaited<ReturnType<typeof myKyc>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myKyc>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myKyc>>,
+          TError,
+          Awaited<ReturnType<typeof myKyc>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyKyc<TData = Awaited<ReturnType<typeof myKyc>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myKyc>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myKyc>>,
+          TError,
+          Awaited<ReturnType<typeof myKyc>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyKyc<TData = Awaited<ReturnType<typeof myKyc>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myKyc>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyKyc<TData = Awaited<ReturnType<typeof myKyc>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myKyc>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyKycQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

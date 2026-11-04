@@ -4844,6 +4844,16 @@ export interface KycRequirement {
   stands: KycRequirementStands;
   /** @nullable */
   expiresOn: string | null;
+  /** @nullable */
+  documentId: string | null;
+  /** @nullable */
+  fileName: string | null;
+  /** @nullable */
+  reason: string | null;
+  /** @nullable */
+  receivedAt: string | null;
+  /** @nullable */
+  decidedAt: string | null;
 }
 
 /**
