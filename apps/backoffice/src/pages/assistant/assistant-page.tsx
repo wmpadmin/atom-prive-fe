@@ -97,7 +97,16 @@ export function AssistantPage() {
             className="h-[calc(100vh-17rem)] min-h-[32rem]"
           >
             {which === "firm" ? (
-              <FirmAssistantChat customerId={customerId} portfolioDesk={portfolioDesk} />
+              <FirmAssistantChat
+                customerId={customerId}
+                portfolioDesk={portfolioDesk}
+                asked={params.get("ask")}
+                onAsked={() => setParams((now) => {
+                  const next = new URLSearchParams(now);
+                  next.delete("ask");
+                  return next;
+                }, { replace: true })}
+              />
             ) : (
               <MarketAssistantChat />
             )}

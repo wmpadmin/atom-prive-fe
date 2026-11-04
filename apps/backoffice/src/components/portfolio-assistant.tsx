@@ -111,7 +111,13 @@ export function AssistantButton() {
  * @param customerId the client the questions are about, when the page was opened from theirs
  * @param portfolioDesk whether the asker may write proposals, which is what opens the portfolio questions
  */
-export function FirmAssistantChat({ customerId, portfolioDesk }: { customerId: string | null; portfolioDesk: boolean }) {
+export function FirmAssistantChat({ customerId, portfolioDesk, asked = null, onAsked }: {
+  customerId: string | null;
+  portfolioDesk: boolean;
+  /** A question somebody brought with them from another screen, asked once the chat so far is back. */
+  asked?: string | null;
+  onAsked?: () => void;
+}) {
   const status = useGetAssistantStatus();
   const user = useStaffUser();
   const [conversationId] = useState(() => conversationFor(user.id));
@@ -170,6 +176,15 @@ export function FirmAssistantChat({ customerId, portfolioDesk }: { customerId: s
     event.preventDefault();
     send(draft);
   };
+  // After the chat so far is read back, so the question lands below the earlier ones rather than above them.
+  const askedOnce = useRef(false);
+  useEffect(() => {
+    if (!asked || askedOnce.current || !restored.current || !status.data) return;
+    askedOnce.current = true;
+    send(asked);
+    onAsked?.();
+  });
+
   const lastReply = [...said].reverse().find((one) => one.who === "assistant");
   const off = status.data && !status.data.available;
   const suggested = portfolioDesk
