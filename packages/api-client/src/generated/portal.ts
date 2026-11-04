@@ -47,6 +47,15 @@ export interface NewTicket {
      * @nullable
      */
   userAgent: string | null;
+  /** @nullable */
+  category: string | null;
+}
+
+export interface TicketActivity {
+  at: string;
+  /** @nullable */
+  by: string | null;
+  what: string;
 }
 
 export interface TicketRow {
@@ -59,6 +68,10 @@ export interface TicketRow {
   createdAt: string;
   updatedAt: string;
   messages: number;
+  category: string;
+  priority: string;
+  slaDueAt: string;
+  overdue: boolean;
 }
 
 export interface TicketMessage {
@@ -93,6 +106,7 @@ export interface TicketDetail {
   canReopen: boolean;
   messages: TicketMessage[];
   files: TicketFile[];
+  activity: TicketActivity[];
 }
 
 export interface ShareWealthRequest {
@@ -1221,6 +1235,9 @@ if(newTicket?.pageUrl !== undefined && newTicket.pageUrl !== null) {
  }
 if(newTicket?.userAgent !== undefined && newTicket.userAgent !== null) {
  formData.append(`userAgent`, newTicket.userAgent);
+ }
+if(newTicket?.category !== undefined && newTicket.category !== null) {
+ formData.append(`category`, newTicket.category);
  }
 
   return http<TicketDetail>(getRaiseTicketUrl(),
