@@ -48,9 +48,9 @@ function yearsFromToday(years: number) {
   return new Date(now.getFullYear() + years, now.getMonth(), now.getDate());
 }
 
-const SEND: RailStep = { id: "send", group: "—", label: "Send to the client", complete: false };
+const SEND: RailStep = { id: "send", group: "—", label: "Send to the relationship manager", complete: false };
 
-const READ_IT_OVER = "Check the details it needs, then send it to the client to sign in the portal.";
+const READ_IT_OVER = "Check the details it needs, then send it to the relationship manager to sign.";
 
 /**
  * What a part of the document is called, with the gaps its name leaves filled in as the wording itself fills
@@ -502,7 +502,7 @@ export function DocumentPage() {
               {!writable
                 ? "This is the document as it went out."
                 : missing.length === 0
-                  ? "Every detail it asks for is in. It is ready to go to the client to sign in the portal."
+                  ? "Every detail it asks for is in. It is ready to go to the relationship manager to sign."
                   : `${missing.length} detail${missing.length === 1 ? "" : "s"} still to fill in, over ${asked} part${asked === 1 ? "" : "s"}${answered > 0 ? ` (${answered} done)` : ""}.`}
             </p>
             <div className="flex gap-2">
@@ -632,7 +632,7 @@ function SendPart({
               the copy the client signs. */}
           <Button disabled={!dueOn || busy || missing.length > 0} onClick={() => onSend(dueOn)}>
             <Send aria-hidden="true" />
-            {sent ? "Send to the client again" : "Send to the client to sign"}
+            {sent ? "Send to the relationship manager again" : "Send to the relationship manager to sign"}
           </Button>
           {missing.length > 0 && (
             <p className="text-sm text-ink-muted">

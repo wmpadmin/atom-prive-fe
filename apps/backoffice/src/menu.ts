@@ -1,10 +1,8 @@
 import {
   Archive,
-  LayoutDashboard,
   ArrowLeftRight,
   BellRing,
   ClipboardCheck,
-  UserMinus,
   Clock,
   Contact,
   Eye,
@@ -14,23 +12,20 @@ import {
   FileSpreadsheet,
   FileText,
   FolderOpen,
-  LifeBuoy,
   Landmark,
   Layers,
   ListChecks,
   Mail,
+  PenLine,
   Radio,
   Scale,
   Settings,
-  ShieldAlert,
   ShieldCheck,
-  Sparkles,
   SlidersHorizontal,
   Stamp,
   TrendingUp,
   TriangleAlert,
   UserX,
-  UserPlus,
   Users,
   UsersRound,
 } from "lucide-react";
@@ -40,9 +35,9 @@ import {
   hasAuthority,
   ANSWERS_MOVE_PLANS,
   ONBOARDS_EVERY_CLIENT,
-  READS_AML_RISK,
   READS_CLIENT_PORTFOLIOS,
   READS_PROPOSALS,
+  SIGNS_CLIENT_FORMS,
   UPLOADS_CLIENT_DOCUMENTS,
   type Authority,
 } from "./lib/permissions";
@@ -112,22 +107,17 @@ const A_CLIENT_KYC = /^\/kyc\/[^/]+(\/documents\/[^/]+)?$/;
  * narrowing the matrix narrows this too.
  */
 const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
-  { to: "/dashboard" },
   { to: "/users" },
-  // Prospects and clients together, as one section: its overview, the prospects being followed up, and
-  // the client directory below them.
-  { to: "/client-management" },
-  { to: "/prospective-clients", under: "/client-management" },
   // The client directory, the same screen Operations and Compliance read, under the name they read it by.
   // It was called "Assign relationship managers" after the one job an Admin was given it for; an entry
   // naming one job on a screen that does all of them sends a reader looking for a second entry that does
   // not exist. The screen is theirs in full - putting a relationship manager on a client is one of the
   // things done on it, not the whole of it.
-  { to: "/clients", under: "/client-management" },
+  { to: "/clients" },
   // Deciding whether the firm stops acting for a client, and the clients it has stopped acting for. Both
   // are the Admin's alone: nobody else may answer a request, and nobody else may see an archived client.
-  { to: "/deactivation-requests", under: "/client-management" },
-  { to: "/archived-clients", under: "/client-management" },
+  { to: "/deactivation-requests" },
+  { to: "/archived-clients" },
   // What the firm may do and what it runs on, before the people who do it: the Admin's own order puts
   // the permission matrix and the configuration above the staff they apply to.
   { to: "/roles" },
@@ -138,20 +128,12 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   { to: "/staff-declarations", under: "/staff-tracker" },
   // The narrower read before the wider one: family access is one question asked of the trail, and the
   // audit log is every question at once.
-  // Asked for on 4 Nov 2026 so the dashboard's links have somewhere to go: the approval queues, the portfolio
-  // reports and the bank feeds, each opened as the screen the desk that works it already uses.
-  { to: "/approvals" },
-  { to: "/reports" },
-  { to: "/ingestion", label: "Bank feeds" },
   { to: "/family-access-trail" },
   { to: "/audit-log" },
   // An Admin signs the same nine as everybody else. Their menu is written out rather than filtered down, so
   // their own declarations had to be written into it or they had no way to them at all — the screen was
   // open to them the whole time, with nothing on the menu pointing at it.
-  { to: "/my-clearances", under: "/client-management" },
   { to: "/my-declarations" },
-  { to: "/support" },
-  { to: "/assistant" },
   { to: "/settings" },
 ];
 
@@ -175,52 +157,19 @@ const allNavigation: {
    */
   at?: (path: string, search: string) => boolean;
 }[] = [
-  // The Dashboard was off every role's menu at the firm's request; it is back for every desk, whose dashboards the firm asked for on 4 Nov 2026. Other roles' dashboards come back one at a time as each is
-  // agreed, by adding their role here.
-  {
-    to: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    // Each role's dashboard asks the server only for what that role reads, so the entry itself asks for nothing.
-    authority: null,
-    onlyFor: ["ADMIN", "COMPLIANCE", "OPERATIONS", "ADVISOR", "PORTFOLIO_MANAGER", "IT_ADMIN"],
-  },
-  {
-    // Prospects and clients as one section. The heading is the overview itself, and the lists sit under it.
-    to: "/client-management",
-    label: "Client Management",
-    icon: UsersRound,
-    authority: ["PROSPECTIVE_CLIENTS:VIEW", "PROSPECTIVE_CLIENTS:OWN_CLIENTS"],
-    at: (path) => path === "/client-management" || path === "/client-management/overview",
-  },
-  {
-    to: "/prospective-clients",
-    label: "Prospective Clients",
-    icon: UserPlus,
-    authority: ["PROSPECTIVE_CLIENTS:VIEW", "PROSPECTIVE_CLIENTS:OWN_CLIENTS"],
-    under: "/client-management",
-  },
+  // The Dashboard is off every role's menu at the firm's request. Taken off the menu rather than out of
+  // the codebase: the screen and its route are untouched, so putting it back is this entry and nothing
+  // else. Nobody lands on it — HomePage sends each role to its own first screen and falls through to a
+  // welcome card, never here — so hiding it strands no one.
   {
     to: "/clients",
     label: "All clients",
     icon: Contact,
     authority: "VIEW_ALL_CLIENTS:VIEW",
-    // In the Client Management section for whoever has it; a reader who does not work with prospects keeps
-    // it at the top level, where it always was.
-    under: "/client-management",
     // A relationship manager onboards from the whole book, but reads in full only the clients assigned to
     // them, which is My clients. A second screen onto every client would say otherwise.
     notFor: ["ADMIN", "ADVISOR", "PORTFOLIO_MANAGER"],
     at: (path) => (path === "/clients" || path.startsWith("/clients/")) && !NOTICE_OF_TREATMENT.test(path),
-  },
-  {
-    // The portfolio manager's own clients, starred first, each opening on an overview of their money.
-    to: "/book",
-    label: "Client list",
-    icon: UsersRound,
-    authority: READS_CLIENT_PORTFOLIOS,
-    onlyFor: ["PORTFOLIO_MANAGER"],
-    at: (path) => path === "/book" || path.startsWith("/book/"),
   },
   {
     // The same clients, set out for portfolio work rather than for servicing the account.
@@ -324,7 +273,7 @@ const allNavigation: {
     notFor: ["ADMIN"],
     at: (path) => path === "/post-onboarding" || NOTICE_OF_TREATMENT.test(path),
   },
-  // No "To sign": the relationship manager signed for the client only while the client had no portal to sign in.
+  { to: "/to-sign", label: "To sign", icon: PenLine, authority: SIGNS_CLIENT_FORMS },
   // The queue is where a client's KYC is signed off, which is Compliance's alone. The papers themselves the
   // Admin reads too, so the document review sits on both menus.
   {
@@ -380,19 +329,15 @@ const allNavigation: {
     to: "/deactivation-requests",
     label: "Deactivation requests",
     icon: UserX,
-    // Whoever may answer one, which is the Admin and nobody else, and Operations, who read where each stands
-    // without answering (4 Nov 2026).
-    authority: ["MANAGE_USERS_AND_ROLES:CHANGE", "ONBOARD_CLIENTS:CHANGE"],
-    onlyFor: ["ADMIN", "OPERATIONS"],
-    // With the rest of the client lifecycle, in the Client Management section.
-    under: "/client-management",
+    // Whoever may answer one, which is the Admin and nobody else — the same authority the API's approve
+    // and reject endpoints ask for, so the menu offers exactly what the screen admits.
+    authority: "MANAGE_USERS_AND_ROLES:CHANGE",
   },
   {
     to: "/archived-clients",
     label: "Archived clients",
     icon: Archive,
     authority: "MANAGE_USERS_AND_ROLES:CHANGE",
-    under: "/client-management",
   },
   // Client risk (AML) is off every role's menu at the firm's request, with the risk matrix that sat
   // under it. Taken off the menu rather than out of the codebase: both screens, their routes and the
@@ -432,9 +377,6 @@ const allNavigation: {
   },
   { to: "/sync-errors", label: "Sync errors", icon: TriangleAlert, authority: "MANAGE_BANK_FEEDS:CHANGE" },
   { to: "/notifications", label: "Notification log", icon: Mail, authority: "MANAGE_CONFIGURATION:VIEW" },
-  // The firm's AML sheet and where each client sits on it. On Compliance's menu since 4 Nov 2026: their
-  // dashboard counts what is due on it, and a figure with no way to its screen is no use to them.
-  { to: "/aml-risk", label: "AML risk", icon: ShieldAlert, authority: READS_AML_RISK, onlyFor: ["COMPLIANCE"] },
   { to: "/audit-log", label: "Audit log", icon: Landmark, authority: "VIEW_AUDIT_LOG:VIEW" },
   // Beside the audit log rather than inside it. "Who has been reading whose money" is a question somebody
   // comes to the screen already holding, and finding it meant knowing to filter the whole trail by a
@@ -442,11 +384,6 @@ const allNavigation: {
   { to: "/family-access-trail", label: "Family access trail", icon: Eye, authority: "VIEW_AUDIT_LOG:VIEW" },
   // Four trails that were four places, or in two cases no place at all.
   { to: "/trails", label: "Trails", icon: UsersRound, authority: "VIEW_AUDIT_LOG:VIEW" },
-  // Everybody's, because what it holds is decided by which desks somebody sits at rather than by a
-  // permission: a reader who holds none of the desks asked sees an empty list, which is the truth about
-  // them. Beside their own declarations, which is the other thing on this menu that is theirs alone.
-  // In the Client Management section for whoever has it; at the top level for everybody else.
-  { to: "/my-clearances", label: "My clearance requests", icon: UserMinus, authority: null, under: "/client-management" },
   { to: "/my-declarations", label: "My declarations", icon: FileCheck, authority: null },
   // The clients assigned to this relationship manager: the whole book is not theirs, and this is the part that is.
   {
@@ -454,7 +391,6 @@ const allNavigation: {
     label: "Assigned customers",
     icon: Contact,
     authority: "VIEW_CUSTOMER_PROFILE:OWN_CLIENTS",
-    under: "/client-management",
   },
   // Somebody's own account, which everybody signed in has one of.
   {
@@ -465,16 +401,10 @@ const allNavigation: {
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
   },
-  // Somebody's own account, which everybody signed in has one of — the portfolio desk included. It was off
-  // their menu for a while, and a portfolio manager then had no way to their profile, notifications or
-  // preferences short of typing the address.
-  // One Support for everybody since 4 Nov 2026: their own tickets and New ticket, and for the IT Admin every
-  // ticket and the SLA monitor. It replaced the IT Admin's "Support tickets" and everybody else's "Report an issue".
-  { to: "/support", label: "Support", icon: LifeBuoy, authority: null },
-  { to: "/sign-in-as", label: "Sign in as", icon: Eye, authority: "SIGN_IN_AS:CHANGE" },
-  // Everybody's: the Firm Assistant answers only from what the asker may already see.
-  { to: "/assistant", label: "AI Assistant", icon: Sparkles, authority: null },
-  { to: "/settings", label: "Settings", icon: Settings, authority: null },
+  // Somebody's own account. Off the portfolio desk's menu at the firm's asking; switching role, changing
+  // a password and signing out are all on the profile menu at the top of every screen, so nothing they
+  // need has gone with it.
+  { to: "/settings", label: "Settings", icon: Settings, authority: null, notFor: ["PORTFOLIO_MANAGER"] },
 ];
 
 
@@ -506,11 +436,9 @@ export function menuFor(user: StaffProfile) {
             permitted(item),
         );
 
-  // An entry and whatever sits under it, so the menu is drawn as the sections it actually has. An entry
-  // whose section this reader does not have stays at the top level rather than disappearing with it.
-  const present = new Set(navigation.map((item) => item.to));
+  // An entry and whatever sits under it, so the menu is drawn as the sections it actually has.
   const sections = navigation
-    .filter((item) => !item.under || !present.has(item.under))
+    .filter((item) => !item.under)
     .map((item) => ({ ...item, below: navigation.filter((under) => under.under === item.to) }));
 
   /*

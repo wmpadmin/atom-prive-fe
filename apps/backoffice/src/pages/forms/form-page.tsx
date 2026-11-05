@@ -32,7 +32,6 @@ import type { FieldFor } from "../../components/form-fields";
 import { FirmContext } from "./firm-name";
 import { toFormErrors } from "../../lib/api-errors";
 import { formatDate } from "../../lib/labels";
-import { SignatureMark } from "../../components/signature-mark";
 import type { FormStep } from "./account-opening-entity";
 import { ConfirmDialog } from "../config/confirm-dialog";
 import { formStatus } from "./form-labels";
@@ -420,7 +419,7 @@ function FilledForm<T>({
             taken back for one correction is sent from wherever that correction was made. */}
         {!locked && detail.summary.takenBack && current.id !== "review" && (
           <Button size="sm" disabled={busy || sendAgain.isPending || dirty} onClick={sendItAgain}>
-            {sendAgain.isPending ? "Sending…" : "Send to the client to sign"}
+            {sendAgain.isPending ? "Sending…" : "Send for signature"}
           </Button>
         )}
       </div>
@@ -432,26 +431,11 @@ function FilledForm<T>({
       <div className="space-y-6">
         {header}
         {signed ? (
-          <>
-            <Alert tone="success">
-              {detail.clientSignature
-                ? `${detail.summary.clientName} signed this in the portal on ${formatDate(detail.clientSignature.signedAt)}.`
-                : `${detail.summary.clientName}'s signed copy is on file${detail.summary.submittedAt ? `, from ${formatDate(detail.summary.submittedAt)}` : ""}.`}{" "}
-              This is the record of what they signed.
-            </Alert>
-            {detail.clientSignature && (
-              <div className="max-w-sm">
-                <SignatureMark
-                  made={{
-                    kind: detail.clientSignature.signatureKind,
-                    signature: detail.clientSignature.signature ?? "",
-                    signerName: detail.clientSignature.signerName,
-                    at: detail.clientSignature.signedAt,
-                  }}
-                />
-              </div>
-            )}
-          </>
+          <Alert tone="success">
+            {detail.summary.clientName}'s signed copy is on file
+            {detail.summary.submittedAt ? `, from ${formatDate(detail.summary.submittedAt)}` : ""}. This is the record of
+            what they signed.
+          </Alert>
         ) : withTheAdvisor ? (
           <Alert tone="info">
             Every part is answered, so this has gone to {detail.summary.clientName}'s relationship manager to
@@ -517,7 +501,7 @@ function FilledForm<T>({
       {detail.summary.takenBack && (
         <Alert tone="info">
           You took this back from {detail.summary.clientName}'s relationship manager, and every answer is
-          still in it. Go through it, put right what is wrong, and press Send to the client to sign when you are done
+          still in it. Go through it, put right what is wrong, and press Send for signature when you are done
           — it will need signing afresh. Until then nobody is waiting on it.
         </Alert>
       )}
@@ -617,7 +601,7 @@ function FilledForm<T>({
                   {/* Answering the last question used to be the send. Putting it on a button of its own is
                       what lets somebody finish a form on Friday and read it again on Monday. */}
                   <Button onClick={sendItAgain} disabled={busy || sendAgain.isPending || dirty || !everythingDone}>
-                    {sendAgain.isPending ? "Sending…" : "Send to the client to sign"}
+                    {sendAgain.isPending ? "Sending…" : "Send for signature"}
                   </Button>
                 </>
               ) : (

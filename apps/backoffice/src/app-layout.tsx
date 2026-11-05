@@ -24,7 +24,6 @@ import {
 import { ThemeToggle } from "./components/theme-toggle";
 import { TopSearch } from "./components/top-search";
 import { NotificationBell } from "./components/notification-bell";
-import { AssistantButton } from "./components/portfolio-assistant";
 import {
   ChevronDown,
   KeyRound,
@@ -44,9 +43,6 @@ import {
 } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
-import { currentSupportView } from "@atomprive/support/support-view";
-import { SupportViewBanner } from "@atomprive/support/support-view-banner";
-import { rememberPage } from "./lib/last-page";
 import { menuFor } from "./menu";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
@@ -118,12 +114,6 @@ const MY_DECLARATIONS = "/my-declarations";
 const SETTINGS = "/settings";
 
 /**
- * The person's own, not a desk's: the tickets they raised are theirs whichever workspace they are in, so Support
- * sits once, outside every workspace, rather than under each.
- */
-const SUPPORT = "/support";
-
-/**
  * The menu, grouped by the workspaces this person holds.
  *
  * <p>One open at a time, and the open one is always the workspace they are working in — because the menu
@@ -161,8 +151,7 @@ function RoleGroups({ user, items, pathname, search }: {
 
   const declarations = items.find((item) => item.to === MY_DECLARATIONS);
   const settings = items.find((item) => item.to === SETTINGS);
-  const support = items.find((item) => item.to === SUPPORT);
-  const desk = items.filter((item) => item.to !== MY_DECLARATIONS && item.to !== SETTINGS && item.to !== SUPPORT);
+  const desk = items.filter((item) => item.to !== MY_DECLARATIONS && item.to !== SETTINGS);
   /**
    * The workspace this person calls home — the Admin's choice, or their own from Settings.
    *
@@ -246,13 +235,6 @@ function RoleGroups({ user, items, pathname, search }: {
       <div className="mt-2 shrink-0 space-y-1 border-t border-line/50 pt-2">
         {user.roles.filter((role) => role !== active).map((role) => header(role as StaffRole, false))}
       </div>
-
-      {/* Outside every workspace, because it is the person's and not the desk's. */}
-      {support && (
-        <ul className="mt-2 shrink-0 border-t border-line/50 pt-2">
-          <NavEntry item={support} pathname={pathname} search={search} />
-        </ul>
-      )}
     </div>
   );
 }
@@ -280,17 +262,7 @@ function NavEntry({
   locked?: boolean;
 }) {
   const Icon = item.icon;
-  const { preferences, change } = usePreferences();
-  // A section with screens under it can be closed, and stays as the reader left it.
-  const closes = item.below.length > 0;
-  const closed = closes && preferences.closedSections.includes(item.to);
-  const toggle = () =>
-    change("closedSections", closed
-      ? preferences.closedSections.filter((one) => one !== item.to)
-      : [...preferences.closedSections, item.to]);
-  // Closed over the screen the reader is on, the heading lights up instead, so they still see where they are.
-  const here = isHere(item, pathname, search)
-    || (closed && item.below.some((under) => isHere(under, pathname, search)));
+  const here = isHere(item, pathname, search);
   const waiting = useWaitingOn(item.to);
 
   if (locked) {
@@ -316,9 +288,6 @@ function NavEntry({
             out where they are themselves, and both the highlight and what is announced follow that. */}
         <Link
           to={item.to}
-          // A section's heading opens and closes it as well as opening its own screen.
-          onClick={closes ? toggle : undefined}
-          aria-expanded={closes ? !closed : undefined}
           aria-current={here ? "page" : undefined}
           className={cn(
             ENTRY_CLASS,
@@ -336,16 +305,9 @@ function NavEntry({
               {waiting}
             </span>
           )}
-          {/* The arrow says whether the section is open; the heading itself opens and closes it. */}
-          {closes && (
-            <ChevronDown
-              className={cn("size-4 shrink-0 text-ink-muted transition-transform", !closed && "rotate-180")}
-              aria-hidden="true"
-            />
-          )}
         </Link>
       </div>
-      {item.below.length > 0 && !closed && (
+      {item.below.length > 0 && (
         <ul className="mt-1 space-y-1 border-l border-line pl-3 ml-5">
           {item.below.map((under) => {
             const UnderIcon = under.icon;
@@ -486,14 +448,7 @@ function SidebarEdge({
 export function AppLayout() {
   const user = useStaffUser();
   const { pathname, search } = useLocation();
-  const { signOut } = useSession();
   const items = menuFor(user);
-  // Where somebody was before Report an issue, so a ticket can say which page the problem was on.
-  useEffect(() => {
-    if (!pathname.startsWith("/my-tickets") && !pathname.startsWith("/support")) {
-      rememberPage(window.location.href);
-    }
-  }, [pathname, search]);
   const { preferences, change } = usePreferences();
   // Live while a drag is in flight; what is on file otherwise. Reading straight from preferences would
   // mean a storage write per pointer move, and holding only local state would forget it on the next screen.
@@ -537,11 +492,7 @@ export function AppLayout() {
     [change, held],
   );
 
-  const view = currentSupportView();
-
   return (
-    <>
-    {view && <SupportViewBanner view={view} onEnd={() => void signOut()} />}
     <div className="flex min-h-screen bg-canvas font-sans text-ink">
       {/* Put away rather than narrowed to nothing: a sidebar of zero width still takes its border and its
           padding, which draws a stripe down the page that nothing explains. The width it had is kept, so
@@ -585,7 +536,6 @@ export function AppLayout() {
           <div className="flex items-center gap-3">
             <TopSearch />
             <div className="flex items-center gap-1">
-              <AssistantButton />
               <ThemeToggle />
               <NotificationBell />
               <UserMenu />
@@ -597,7 +547,6 @@ export function AppLayout() {
         </main>
       </div>
     </div>
-    </>
   );
 }
 

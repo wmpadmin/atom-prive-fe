@@ -1,27 +1,24 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useCancelFamilyInvitation,
-  useDeclineFamilyInviteAsk,
-  useFamilyInviteAsks,
   useGetClientPortfolio,
   useInviteFamilyMember,
   useListProposals,
   useRemoveFamilyMember,
+  useRenameFamily,
   useResendFamilyInvitation,
-  useSendFamilyInviteAsk,
   type ClientEvent,
   type CustomerDetail,
   type FamilyGroupSummary,
   type FamilyInvitationRow,
   type FamilyMember,
-  type InviteAsk,
   type PortfolioStanding,
   type ProposalPage,
   type ProposalRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Dialog, Field, SelectInput, TextArea, TextInput, cn } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
-import { FileSignature, Landmark, Plus, ReceiptText, ScrollText, Wallet } from "lucide-react";
+import { FileSignature, Landmark, LayoutGrid, PencilLine, ReceiptText, Rows3, ScrollText, UsersRound, Wallet } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -33,8 +30,7 @@ import { hasAnyAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions"
 import { useRelationshipTypes } from "../../lib/relationship-types";
 import { useTableView } from "../../lib/table-view";
 import { ClassStandingTable } from "../portfolios/class-standing-table";
-import { FamilyStructure, FamilyTiles, FamilyTree } from "./family-group-view";
-import { amount, roleOf, useFamilyValues } from "./family-values";
+import { FamilyChart } from "./family-overview";
 import { downTheTree, treeOf, whoCanBeInvitedUnder } from "./family-tree";
 import { TemporaryPassword } from "./temporary-password";
 import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
@@ -357,6 +353,7 @@ export function FamilyPanel({
   // Only the ones still waiting. A cancelled invitation stays on the record and is read in the trail, not
   // kept on the family group as though somebody were still expected.
   const waiting = invitations.filter((one) => one.status === "INVITED");
+  const [drawn, setDrawn] = useState<"chart" | "list">("chart");
   // Whose branch the next invitation hangs off, chosen by pressing Invite under somebody on the chart.
   // Null means the client whose file this is, which is where an invitation landed before families had
   // generations and is still the right answer for the button at the top of the panel.
@@ -371,23 +368,46 @@ export function FamilyPanel({
   const mine = location.pathname.startsWith("/my-clients");
   const mayAdd = hasAnyAuthority(user, ...ONBOARDS_CLIENTS_CHANGE) && client.type === "INDIVIDUAL";
   const openTheir = (id: string) => `${mine ? "/my-clients" : "/clients"}/${id}`;
-  const values = useFamilyValues(client.id);
 
   // Inviting, and nothing else. Adding an account holder stood here too and has been taken off: somebody
   // does not join an account because a desk typed their name on this screen. They are invited, they come
   // in, and they are onboarded — with their own papers, their own checks and their own file.
   const addThem = mayAdd ? (
     <Button
-      variant="secondary"
+      size="lg"
       onClick={() => {
         setInviteUnder(null);
         setInviting(true);
       }}
     >
-      <Plus aria-hidden="true" />
       Invite family member
     </Button>
   ) : null;
+
+  // Two ways of reading the same people. The chart answers who they are to each other, which is what
+  // somebody opening this tab wants first; the table answers what is true of each, which is what they want
+  // once they have found the person. Neither is a subset of the other, so neither replaces the other.
+  const howToRead = (
+    <span className="flex rounded-lg border border-line bg-white p-0.5 text-xs font-semibold">
+      {([["chart", "Chart", <LayoutGrid key="c" />], ["list", "List", <Rows3 key="l" />]] as const).map(
+        ([which, label, icon]) => (
+          <button
+            key={which}
+            type="button"
+            aria-pressed={drawn === which}
+            onClick={() => setDrawn(which)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 [&_svg]:size-3.5",
+              drawn === which ? "bg-slate-100 text-ink" : "text-ink-muted hover:text-ink",
+            )}
+          >
+            {icon}
+            {label}
+          </button>
+        ),
+      )}
+    </span>
+  );
 
   const takeOut = (
     <RemoveFromFamily
@@ -436,118 +456,256 @@ export function FamilyPanel({
     );
   }
 
-  const roots = treeOf(family, []);
   return (
-    <div className="space-y-5">
+    <section aria-labelledby="family-title" className="rounded-2xl border border-line bg-white">
       {invite}
       {takeOut}
-      <FamilyTiles clientId={client.id} group={group} family={family} mayEdit={mayAdd} />
-
-      <FamilyStructure
-        tree={<FamilyTree roots={roots} currency={values.wealth?.currency ?? null} valueOf={values.valueOf} openTheir={openTheir} clientId={client.id} />}
-        list={
-          <ul className="divide-y divide-line">
-            {downTheTree(roots).map(({ branch, depth }) => (
-              <li key={branch.member.id} className="flex items-center gap-3 py-2.5" style={{ paddingLeft: `${depth * 1.75}rem` }}>
-                <Avatar name={branch.member.fullName} photo={branch.member.photo} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{branch.member.fullName}</span>
-                  <span className="block truncate text-xs text-ink-muted">{roleOf(branch.member, labelFor)} · {branch.member.code}</span>
-                </span>
-                {values.wealth && (
-                  <span className="text-sm font-semibold tabular-nums">{amount(values.wealth.currency, values.valueOf(branch.member.id)) ?? "No portfolio"}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        }
-      />
-
-      <section aria-labelledby="family-title" className="rounded-2xl border border-line bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-          <h2 id="family-title" className="text-lg font-bold">
-            Family members ({family.length})
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-6 py-5">
+        <div>
+          <h2 id="family-title" className="text-base font-bold">
+            Family group
           </h2>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            Everyone holding this account, and anyone asked to join it.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {howToRead}
           {addThem}
         </div>
-        <div className="overflow-x-auto px-2 pb-2">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-slate-50 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                <th className="rounded-l-lg px-4 py-2.5 text-left">Member</th>
-                <th className="px-4 py-2.5 text-left">Relationship</th>
-                <th className="px-4 py-2.5 text-left">Client code</th>
-                <th className="px-4 py-2.5 text-left">Portfolio value</th>
-                <th className="px-4 py-2.5 text-left">Access</th>
-                <th className="px-4 py-2.5 text-left">KYC</th>
-                <th className="rounded-r-lg px-4 py-2.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {downTheTree(roots).map(({ branch }) => {
-                const member = branch.member;
-                const theirs = member.id !== client.id;
-                const holds = member.primaryHolder || member.accountHolder;
-                return (
-                  <tr
-                    key={member.id}
-                    onClick={theirs ? () => void navigate(openTheir(member.id), { state: { from: backTo } }) : undefined}
-                    className={cn("border-b border-line last:border-0", theirs && "cursor-pointer hover:bg-slate-50/60")}
-                  >
-                    <td className="px-4 py-3">
-                      <span className="flex items-center gap-3">
-                        <Avatar name={member.fullName} photo={member.photo} />
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-semibold">{member.fullName}</span>
-                          {!theirs && <span className="block text-xs text-ink-muted">This client</span>}
+      </div>
+
+      {drawn === "chart" ? (
+        <FamilyChart
+          client={client}
+          family={family}
+          invitations={waiting}
+          group={group}
+          openTheir={openTheir}
+          backTo={backTo}
+          mayInvite={mayAdd}
+          onInviteUnder={(memberId) => {
+            setInviteUnder(memberId);
+            setInviting(true);
+          }}
+        >
+          {group && <GroupSummary clientId={client.id} group={group} mayEdit={mayAdd} />}
+        </FamilyChart>
+      ) : (
+        <>
+      {group && <GroupSummary clientId={client.id} group={group} mayEdit={mayAdd} />}
+
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-y border-line bg-slate-50 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+              <th className="px-6 py-2.5 text-left">Name</th>
+              <th className="px-4 py-2.5 text-left">Relationship</th>
+              <th className="px-4 py-2.5 text-left">Joined</th>
+              <th className="px-4 py-2.5 text-left">Bank accounts</th>
+              <th className="px-4 py-2.5 text-left">KYC</th>
+              <th className="px-4 py-2.5" />
+            </tr>
+          </thead>
+          <tbody>
+            {downTheTree(treeOf(family, [])).map(({ branch, depth }) => {
+              const member = branch.member;
+              const theirs = member.id !== client.id;
+              return (
+                // The whole line opens them, not the name alone: everybody on an application is a client in
+                // their own right, with the same file behind them.
+                <tr
+                  key={member.id}
+                  onClick={theirs ? () => void navigate(openTheir(member.id), { state: { from: backTo } }) : undefined}
+                  className={cn("border-b border-line last:border-0", theirs && "cursor-pointer hover:bg-slate-50/60")}
+                >
+                  <td className="px-6 py-3">
+                    <span
+                      className="flex items-center gap-3"
+                      style={{ paddingLeft: `${depth * 1.5}rem` }}
+                    >
+                      <Avatar name={member.fullName} photo={member.photo} />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold">
+                          {theirs ? (
+                            <Link
+                              to={openTheir(member.id)}
+                              state={{ from: backTo }}
+                              className="hover:text-primary-700"
+                            >
+                              {member.fullName}
+                            </Link>
+                          ) : (
+                            member.fullName
+                          )}
+                        </span>
+                        <span className="block truncate text-xs text-ink-muted">
+                          {member.code}
+                          {!theirs && " · this client"}
                         </span>
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {roleOf(member, labelFor)}
-                      {member.parentName && member.relationshipToPrimary && !member.relationshipToPrimary.includes(member.parentName) && (
-                        <span className="block text-2xs text-ink-muted">under {member.parentName}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-sm">{member.code}</td>
-                    <td className="px-4 py-3 text-sm font-semibold whitespace-nowrap tabular-nums">
-                      {values.wealth ? (amount(values.wealth.currency, values.valueOf(member.id)) ?? <span className="font-normal text-ink-muted">No portfolio</span>)
-                        : <span className="font-normal text-ink-muted">{values.sees ? "…" : "Not shown"}</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {/* Holders act on the account; anybody else in the family has their own file and no say over it. */}
-                      <Badge tone={holds ? "info" : "neutral"}>{holds ? "Full access" : "Own account"}</Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge tone={kycStatusTones[member.kycStatus]}>{kycStatusLabels[member.kycStatus]}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right" onClick={(event) => event.stopPropagation()}>
-                      <RowActions
-                        actions={[
-                          ...(theirs
-                            ? [{
-                                label: "Open their file",
-                                go: () => void navigate(openTheir(member.id), { state: { from: backTo } }),
-                              }]
-                            : []),
-                          ...(mayAdd && !member.primaryHolder
-                            ? [{ label: "Remove from family", go: () => setRemoving(member) }]
-                            : []),
-                        ]}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-              {waiting.map((one) => (
-                <InvitedRow key={one.id} clientId={client.id} invitation={one} mayAct={mayAdd} />
-              ))}
-            </tbody>
-          </table>
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge tone="neutral">
+                      {member.primaryHolder
+                        ? "Primary holder"
+                        : member.accountHolder
+                          ? "Joint holder"
+                          : (member.relationshipToPrimary ?? labelFor(member.relationship))}
+                    </Badge>
+                    {/* A co-holder is a peer of the holder, so the badge says what they hold. What they
+                        are to the holder is still worth having, and goes underneath as the chart does. */}
+                    {!member.primaryHolder && member.accountHolder && (
+                      <span className="mt-0.5 block text-2xs text-ink-muted">
+                        {labelFor(member.relationship)}
+                      </span>
+                    )}
+                    {/* Said only where the tree makes it different from the line above. */}
+                    {member.parentName && member.relationshipToPrimary && (
+                      <span className="mt-0.5 block text-2xs text-ink-muted">under {member.parentName}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm whitespace-nowrap">{formatDate(member.joinedOn)}</td>
+                  <td className="px-4 py-3 text-sm tabular-nums">{member.bankAccounts}</td>
+                  <td className="px-4 py-3">
+                    <Badge tone={kycStatusTones[member.kycStatus]}>{kycStatusLabels[member.kycStatus]}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <RowActions
+                      actions={[
+                        ...(theirs
+                          ? [{
+                              label: "Open their file",
+                              go: () => void navigate(openTheir(member.id), { state: { from: backTo } }),
+                            }]
+                          : []),
+                        // Not offered on the holder: the family is their application, and a group without
+                        // the person it belongs to has no owner and no tier to hang anybody off.
+                        ...(mayAdd && !member.primaryHolder
+                          ? [{ label: "Remove from family", go: () => setRemoving(member) }]
+                          : []),
+                      ]}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+            {/* Asked, and not here yet. Under the people rather than among them: an invitation is an
+                address, and a member is a client with a file behind them. */}
+            {waiting.map((one) => (
+              <InvitedRow key={one.id} clientId={client.id} invitation={one} mayAct={mayAdd} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Invitations clientId={client.id} invitations={invitations} mayAct={mayAdd} />
+        </>
+      )}
+    </section>
+  );
+}
+
+/**
+ * What the firm calls this group, and the handful of facts a reader wants above the people.
+ *
+ * <p>The name is worked out from the first holder's surname until somebody disagrees. Shown as editable
+ * either way, and the pencil is the only hint that it was a guess — a screen that announced "we guessed
+ * this" on every family group would be shouting about a thing that is right most of the time.
+ */
+function GroupSummary({
+  clientId,
+  group,
+  mayEdit,
+}: {
+  clientId: string;
+  group: FamilyGroupSummary;
+  mayEdit: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(group.name);
+  const queryClient = useQueryClient();
+  const rename = useRenameFamily<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries();
+        setEditing(false);
+      },
+    },
+  });
+
+  return (
+    <div className="m-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-slate-50/60 px-5 py-4">
+      <div className="flex min-w-0 items-center gap-4">
+        <span
+          aria-hidden="true"
+          className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-600 [&_svg]:size-5"
+        >
+          <UsersRound />
+        </span>
+        <div className="min-w-0">
+          {editing ? (
+            <span className="flex flex-wrap items-center gap-2">
+              <TextInput
+                id="family-name"
+                aria-label="What the firm calls this family"
+                className="h-9 w-56"
+                value={name}
+                maxLength={120}
+                onChange={(event) => setName(event.target.value)}
+              />
+              <Button
+                size="sm"
+                disabled={rename.isPending}
+                onClick={() => rename.mutate({ id: clientId, data: { name: name.trim() || null } })}
+              >
+                {rename.isPending ? "Saving…" : "Save"}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={rename.isPending}
+                onClick={() => {
+                  setName(group.name);
+                  rename.reset();
+                  setEditing(false);
+                }}
+              >
+                Cancel
+              </Button>
+              {/* Emptying it is not leaving the group nameless — it puts the worked-out name back. */}
+              <span className="text-xs text-ink-muted">Leave it empty to go back to {group.name}.</span>
+            </span>
+          ) : (
+            <p className="flex items-center gap-2 text-base font-bold">
+              {group.name}
+              {mayEdit && (
+                <button
+                  type="button"
+                  aria-label="Rename this family group"
+                  onClick={() => setEditing(true)}
+                  className="text-ink-muted hover:text-primary-700"
+                >
+                  <PencilLine aria-hidden="true" className="size-4" />
+                </button>
+              )}
+            </p>
+          )}
+          {rename.error && <p className="mt-1 text-xs text-red-600">{rename.error.message}</p>}
+          <p className="mt-0.5 text-xs text-ink-muted">
+            Primary holder: {group.primaryHolderName}
+            {group.primaryHolderCode && ` · ${group.primaryHolderCode}`}
+          </p>
+          {group.openedOn && (
+            <p className="text-xs text-ink-muted">Account opened {formatDate(group.openedOn)}</p>
+          )}
         </div>
-        <ClientInviteAsks clientId={client.id} mayAct={mayAdd} />
-        <Invitations clientId={client.id} invitations={invitations} mayAct={mayAdd} />
-      </section>
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Members</p>
+        <p className="text-2xl font-bold tabular-nums">{group.members}</p>
+        {group.invited > 0 && <p className="text-xs text-ink-muted">+{group.invited} invited</p>}
+      </div>
     </div>
   );
 }
@@ -631,7 +789,7 @@ function InvitedRow({
   // and piled them into the first cell.
   return (
     <tr className="border-b border-line bg-amber-50/30 last:border-0">
-      <td className="px-4 py-3">
+      <td className="px-6 py-3">
         <span className="flex items-center gap-3">
           <span
             aria-hidden="true"
@@ -652,10 +810,9 @@ function InvitedRow({
       <td className="px-4 py-3">
         <Badge tone="neutral">{invitation.relationship}</Badge>
       </td>
-      {/* Nothing to say yet: they have not joined, so they have no code, no portfolio and no access. */}
-      <td className="px-4 py-3 text-sm text-ink-muted">Not yet</td>
-      <td className="px-4 py-3 text-sm text-ink-muted">Not yet</td>
-      <td className="px-4 py-3 text-sm text-ink-muted">Not yet</td>
+      {/* Nothing to say yet: they have not joined, so they have no joining date and no accounts. */}
+      <td className="px-4 py-3 text-sm text-ink-muted">—</td>
+      <td className="px-4 py-3 text-sm text-ink-muted">—</td>
       <td className="px-4 py-3">
         <Badge tone="warning">Invited</Badge>
       </td>
@@ -745,130 +902,6 @@ function Invitations({
     </section>
   );
 }
-
-/**
- * Who the client's holder asked the firm to invite from the portal.
- *
- * <p>The client never sends an invitation: they say who, and the desk checks the person and sends it from
- * here exactly as it sends one of its own, or declines and says why — the client reads that reason.
- */
-function ClientInviteAsks({ clientId, mayAct }: { clientId: string; mayAct: boolean }) {
-  const asks = useFamilyInviteAsks<InviteAsk[], ApiError>(clientId);
-  const queryClient = useQueryClient();
-  const [declining, setDeclining] = useState<InviteAsk | null>(null);
-  const [reason, setReason] = useState("");
-  const done = { mutation: { onSuccess: () => void queryClient.invalidateQueries() } };
-  const send = useSendFamilyInviteAsk<ApiError>(done);
-  const decline = useDeclineFamilyInviteAsk<ApiError>({
-    mutation: {
-      onSuccess: () => {
-        void queryClient.invalidateQueries();
-        setDeclining(null);
-        setReason("");
-      },
-    },
-  });
-  const shown = asks.data ?? [];
-  if (shown.length === 0) {
-    return null;
-  }
-  return (
-    <section className="border-t border-line px-6 py-5">
-      <h3 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Asked by the client</h3>
-      {send.error && (
-        <div className="mt-2">
-          <Alert tone="danger">{send.error.message}</Alert>
-        </div>
-      )}
-      <div className="mt-2 overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-line text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-              <th className="py-2 pr-4 text-left">Person</th>
-              <th className="px-4 py-2 text-left">Relationship</th>
-              <th className="px-4 py-2 text-left">Asked</th>
-              <th className="px-4 py-2 text-left">Status</th>
-              <th className="px-4 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((one) => (
-              <tr key={one.id} className="border-b border-line text-sm last:border-0">
-                <td className="py-2.5 pr-4">
-                  <span className="block font-semibold">{one.fullName}</span>
-                  <span className="block text-xs text-ink-muted">{one.email}</span>
-                  {one.personalMessage && <span className="block text-xs text-ink-muted italic">“{one.personalMessage}”</span>}
-                </td>
-                <td className="px-4 py-2.5">{one.relationship}</td>
-                <td className="px-4 py-2.5 whitespace-nowrap">{formatDate(one.askedAt.slice(0, 10))}</td>
-                <td className="px-4 py-2.5">
-                  <Badge tone={askTones[one.status] ?? "neutral"}>{askLabels[one.status] ?? one.status}</Badge>
-                  {one.answeredByName && <span className="mt-0.5 block text-xs text-ink-muted">by {one.answeredByName}</span>}
-                  {one.reason && <span className="mt-0.5 block max-w-64 text-xs text-ink-muted">{one.reason}</span>}
-                </td>
-                <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                  {mayAct && one.status === "ASKED" && (
-                    <span className="inline-flex gap-2">
-                      <Button size="sm" disabled={send.isPending} onClick={() => send.mutate({ id: clientId, askId: one.id })}>
-                        {send.isPending ? "Sending…" : "Send invitation"}
-                      </Button>
-                      <Button variant="secondary" size="sm" onClick={() => setDeclining(one)}>
-                        Decline
-                      </Button>
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <Dialog
-        open={declining !== null}
-        title={declining ? `Decline inviting ${declining.fullName}?` : ""}
-        description="Nothing is sent to them. The client sees your reason."
-        onClose={() => {
-          setDeclining(null);
-          setReason("");
-          decline.reset();
-        }}
-      >
-        <div className="space-y-4">
-          {decline.error && <Alert tone="danger">{decline.error.message}</Alert>}
-          <Field id="decline-ask-reason" label="Why" required>
-            <TextArea id="decline-ask-reason" rows={3} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
-          </Field>
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" disabled={decline.isPending} onClick={() => setDeclining(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              disabled={decline.isPending || !reason.trim() || !declining}
-              onClick={() => declining && decline.mutate({ id: clientId, askId: declining.id, data: { reason: reason.trim() } })}
-            >
-              {decline.isPending ? "Declining…" : "Decline"}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
-    </section>
-  );
-}
-
-const askLabels: Record<string, string> = {
-  ASKED: "Waiting for you",
-  SENT: "Invitation sent",
-  DECLINED: "Declined",
-  WITHDRAWN: "Withdrawn by the client",
-};
-
-const askTones: Record<string, "warning" | "success" | "neutral" | "danger"> = {
-  ASKED: "warning",
-  SENT: "success",
-  DECLINED: "danger",
-  WITHDRAWN: "neutral",
-};
 
 /** How each outcome is coloured, in the firm's own words for them. */
 const invitationTones: Record<FamilyInvitationRow["status"], "warning" | "success" | "neutral" | "danger"> = {

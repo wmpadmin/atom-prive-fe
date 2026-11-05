@@ -12,7 +12,6 @@ import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
-import { BackToOverview } from "../../components/back-to-overview";
 import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { formatDate } from "../../lib/labels";
 
@@ -52,7 +51,6 @@ export function ArchivedClientsPage() {
 
   return (
     <div className="space-y-5">
-      <BackToOverview />
       <header>
         <h1 className="text-[1.625rem] font-bold">Archived clients</h1>
         <p className="mt-1 max-w-[84ch] text-sm text-ink-muted">

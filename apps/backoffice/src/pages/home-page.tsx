@@ -2,7 +2,7 @@ import { Card } from "@atomprive/ui";
 import { Navigate } from "react-router";
 import { useStaffUser } from "../auth/session";
 import { roleLabels } from "../lib/labels";
-import { advisesClients, hasAnyAuthority, hasAuthority } from "../lib/permissions";
+import { advisesClients, hasAuthority } from "../lib/permissions";
 
 export function HomePage() {
   const user = useStaffUser();
@@ -10,23 +10,14 @@ export function HomePage() {
   // what they may reach: an administrator can reach these screens too, and sending them here would take
   // them off their own first screen. Somebody signing in as a portfolio manager came to read clients
   // against their plans.
-  // Every desk opens on its own dashboard since 4 Nov 2026, the IT Admin's included.
-  if (user.activeRole === "PORTFOLIO_MANAGER" || user.activeRole === "IT_ADMIN") {
-    return <Navigate to="/dashboard" replace />;
-  }
-  // The Admin opens on the firm as a whole, the dashboard the firm asked for; staff users is one click away.
-  if (user.activeRole === "ADMIN" && hasAuthority(user, "MANAGE_USERS_AND_ROLES:VIEW")) {
-    return <Navigate to="/dashboard" replace />;
+  if (user.activeRole === "PORTFOLIO_MANAGER") {
+    return <Navigate to="/portfolio-clients" replace />;
   }
   if (hasAuthority(user, "MANAGE_USERS_AND_ROLES:VIEW")) {
     return <Navigate to="/users" replace />;
   }
   // Whoever onboards clients opens on the clients list, which is where onboarding is now read and
   // started from. It used to be a list of cases of its own; that list is gone.
-  // Operations open on their own dashboard since 4 Nov 2026; the clients list is one click from it.
-  if (user.activeRole === "OPERATIONS" && hasAnyAuthority(user, "ONBOARD_CLIENTS:VIEW", "ONBOARD_CLIENTS:CHANGE")) {
-    return <Navigate to="/dashboard" replace />;
-  }
   if (hasAuthority(user, "ONBOARD_CLIENTS:VIEW")) {
     return <Navigate to="/clients" replace />;
   }
@@ -39,17 +30,11 @@ export function HomePage() {
   // screen as well: an Admin may take APPROVE_ONBOARDING away from the role, and a first screen that
   // refuses the person it was chosen for is worse than the plain one below. Without it they fall through
   // to the audit log exactly as before.
-  // Compliance open on their own dashboard since 4 Nov 2026: the KYC queue is one click from it, alongside the
-  // AML, the lapsing papers and the staff trail the queue alone does not show.
-  if (user.activeRole === "COMPLIANCE" && hasAnyAuthority(user, "APPROVE_ONBOARDING:VIEW", "APPROVE_ONBOARDING:CHANGE")) {
-    return <Navigate to="/dashboard" replace />;
+  if (user.activeRole === "COMPLIANCE" && hasAuthority(user, "APPROVE_ONBOARDING:CHANGE")) {
+    return <Navigate to="/kyc" replace />;
   }
   if (hasAuthority(user, "VIEW_AUDIT_LOG:VIEW")) {
     return <Navigate to="/audit-log" replace />;
-  }
-  // Relationship managers open on their own dashboard since 4 Nov 2026; their clients are one click from it.
-  if (user.activeRole === "ADVISOR") {
-    return <Navigate to="/dashboard" replace />;
   }
   if (advisesClients(user)) {
     return <Navigate to="/my-clients" replace />;

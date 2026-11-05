@@ -1,19 +1,10 @@
 import { ApiError } from "@atomprive/api-client";
 import { useLogin, type SignedIn } from "@atomprive/api-client/portal";
 import { Alert, Button, Field, TextInput } from "@atomprive/ui";
-import { useCallback, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { useSession } from "../auth/session-context";
 import { AuthLayout } from "./auth-layout";
-import { PasswordInput } from "./password-input";
-import { AuthenticatorStep, CodeStep, NewPasswordStep } from "./sign-in-steps";
-
-/** Where a client is between their password and the portal. */
-type Stage =
-  | { at: "password" }
-  | { at: "authenticator"; challenge: string }
-  | { at: "code"; challenge: string; justSetUp: boolean }
-  | { at: "newPassword"; challenge: string };
 
 /**
  * The client's front door.
@@ -27,32 +18,6 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [stage, setStage] = useState<Stage>({ at: "password" });
-  const [over, setOver] = useState<string>();
-
-  /** Whatever the server answered: a session, an invitation, or the next step owed. */
-  const follow = useCallback(
-    (answer: SignedIn, justSetUp = false) => {
-      if (answer.accessToken) {
-        began(answer.accessToken);
-        return;
-      }
-      if (answer.challengeToken && answer.next === "SET_UP_AUTHENTICATOR") {
-        setStage({ at: "authenticator", challenge: answer.challengeToken });
-      } else if (answer.challengeToken && answer.next === "ENTER_CODE") {
-        setStage({ at: "code", challenge: answer.challengeToken, justSetUp });
-      } else if (answer.challengeToken && answer.next === "NEW_PASSWORD") {
-        setStage({ at: "newPassword", challenge: answer.challengeToken });
-      }
-    },
-    [began],
-  );
-  const startOver = useCallback((message: string) => {
-    setOver(message);
-    setPassword("");
-    setStage({ at: "password" });
-  }, []);
-
   const signIn = useLogin<ApiError>({
     mutation: {
       onSuccess: (answer: SignedIn) => {
@@ -62,8 +27,9 @@ export function LoginPage() {
           void navigate(`/join/${encodeURIComponent(answer.joinToken)}`);
           return;
         }
-        setOver(undefined);
-        follow(answer);
+        if (answer.accessToken) {
+          began(answer.accessToken);
+        }
       },
     },
   });
@@ -73,48 +39,12 @@ export function LoginPage() {
     signIn.mutate({ data: { email: email.trim(), password } });
   };
 
-  if (stage.at === "authenticator") {
-    return (
-      <AuthLayout heading="Client sign-in">
-        <AuthenticatorStep
-          challengeToken={stage.challenge}
-          onReady={() => setStage({ at: "code", challenge: stage.challenge, justSetUp: true })}
-          onOver={startOver}
-        />
-      </AuthLayout>
-    );
-  }
-  if (stage.at === "code") {
-    return (
-      <AuthLayout heading="Client sign-in">
-        <CodeStep
-          challengeToken={stage.challenge}
-          justSetUp={stage.justSetUp}
-          onAnswer={(answer) => follow(answer)}
-          onShowQrAgain={() => setStage({ at: "authenticator", challenge: stage.challenge })}
-          onOver={startOver}
-        />
-      </AuthLayout>
-    );
-  }
-  if (stage.at === "newPassword") {
-    return (
-      <AuthLayout heading="Client sign-in">
-        <NewPasswordStep challengeToken={stage.challenge} onAnswer={(answer) => follow(answer)} onOver={startOver} />
-      </AuthLayout>
-    );
-  }
-
   return (
     <AuthLayout heading="Client sign-in">
       <form onSubmit={submit} className="w-full max-w-sm space-y-5 rounded-2xl border border-line bg-white px-7 py-8">
         <h2 className="text-xl font-bold">Sign in</h2>
 
-        {signIn.isError ? (
-          <Alert tone="danger">{signIn.error.message}</Alert>
-        ) : (
-          over && <Alert tone="danger">{over}</Alert>
-        )}
+        {signIn.isError && <Alert tone="danger">{signIn.error.message}</Alert>}
 
         <Field id="email" label="Email" required>
           <TextInput
@@ -128,8 +58,9 @@ export function LoginPage() {
         </Field>
 
         <Field id="password" label="Password" required>
-          <PasswordInput
+          <TextInput
             id="password"
+            type="password"
             autoComplete="current-password"
             required
             value={password}

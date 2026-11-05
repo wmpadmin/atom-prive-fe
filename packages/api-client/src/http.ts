@@ -93,13 +93,12 @@ async function readProblem(response: Response): Promise<Problem> {
 
 /**
  * A file from the API — an attached document, say — fetched with the session's token. Generated hooks parse
- * what comes back as JSON or text, which a PDF or a photograph is neither of. A file the API makes from what
- * it is sent, such as an export, is asked for with the request's own method and body.
+ * what comes back as JSON or text, which a PDF or a photograph is neither of.
  */
-export async function httpFile(url: string, options: RequestInit = {}): Promise<Blob> {
-  let response = await send(url, options);
+export async function httpFile(url: string): Promise<Blob> {
+  let response = await send(url, {});
   if (response.status === 401 && (await auth.refreshAccessToken())) {
-    response = await send(url, options);
+    response = await send(url, {});
   }
   if (!response.ok) {
     throw new ApiError(response.status, await readProblem(response));

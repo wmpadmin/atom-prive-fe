@@ -1,5 +1,4 @@
 import { Navigate, createBrowserRouter } from "react-router";
-import { AssistantPage } from "./pages/assistant/assistant-page";
 import { AppLayout } from "./app-layout";
 import { Landing } from "./pages/landing";
 import { RequireAuthority, RequireSignIn } from "./auth/guards";
@@ -10,11 +9,6 @@ import { AmlMatrixPage } from "./pages/aml/aml-matrix-page";
 import { AmlRiskPage } from "./pages/aml/aml-risk-page";
 import { TradeLogsPage } from "./pages/portfolios/trade-logs-page";
 import { AuditLogPage } from "./pages/audit-log/audit-log-page";
-import { MyTicketPage } from "./pages/support/my-ticket-page";
-import { SignInAsPage } from "./pages/support/sign-in-as-page";
-import { SupportViewPage } from "./pages/support/support-view-page";
-import { SupportPage } from "./pages/support/support-page";
-import { SupportTicketPage } from "./pages/support/support-ticket-page";
 import { IngestionMonitoringPage } from "./pages/bank-syncs/ingestion-monitoring-page";
 import { SyncErrorsPage } from "./pages/bank-syncs/sync-errors-page";
 import { SyncRunsPage } from "./pages/bank-syncs/sync-runs-page";
@@ -59,8 +53,6 @@ import { ForgotPasswordPage } from "./pages/sign-in/forgot-password-page";
 import { LoginPage } from "./pages/sign-in/login-page";
 import { ResetPasswordPage } from "./pages/sign-in/reset-password-page";
 import { OnboardingCasePage } from "./pages/onboarding/onboarding-case-page";
-import { ClientManagementOverviewPage } from "./pages/prospects/client-management-overview-page";
-import { ProspectiveClientsPage } from "./pages/prospects/prospective-clients-page";
 import { PostOnboardingPage } from "./pages/onboarding/post-onboarding-page";
 import { ModelDetailPage } from "./pages/portfolios/model-detail-page";
 import { ManagementInformationPage } from "./pages/portfolios/management-information-page";
@@ -70,8 +62,6 @@ import { ModelPerformancePage } from "./pages/portfolios/model-performance-page"
 import { BulkRebalancingPage } from "./pages/portfolios/bulk-rebalancing-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
-import { ClientListPage } from "./pages/book/book-page";
-import { LazyClientViewPage } from "./pages/book/client-view-lazy";
 import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
 import { DailyTrackerChangePage, DailyTrackerDayPage } from "./pages/portfolios/daily-tracker-day-page";
 import { ClientMovesPage } from "./pages/portfolios/client-moves-page";
@@ -81,14 +71,14 @@ import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
 import { UsersPage } from "./pages/users/users-page";
 import { WorkspacePage } from "./pages/workspace-page";
+import { SignaturePackPage } from "./pages/to-sign/signature-pack-page";
+import { ToSignPage } from "./pages/to-sign/to-sign-page";
 import { ClientDocumentsPage } from "./pages/client-documents/client-documents-page";
 import { ArchivedClientsPage } from "./pages/clients/archived-clients-page";
-import { MyClearancesPage } from "./pages/deactivation/my-clearances-page";
 import { DeactivationRequestsPage } from "./pages/clients/deactivation-requests-page";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
-  { path: "/support-view", element: <SupportViewPage /> },
   { path: "/forgot-password", element: <ForgotPasswordPage /> },
   { path: "/reset-password", element: <ResetPasswordPage /> },
   {
@@ -102,27 +92,10 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Landing /> },
           // Everyone at the firm signs the same nine, so their own need no permission beyond being signed in.
-          // Everybody's, like their own declarations: what it shows is decided by which desks the
-          // reader holds, so a permission on top would be a second rule saying the same thing.
-          { path: "my-clearances", element: <MyClearancesPage /> },
           { path: "my-declarations", element: <MyDeclarationsPage /> },
-          // Support is everybody's: whoever raises sees their own tickets, the IT Admin every ticket. The page
-          // decides which from the reader's permissions, and the server holds each list to the same rule.
-          { path: "support", element: <SupportPage /> },
-          // Where "Report an issue" used to be, so a bookmark or an old link still lands on Support.
-          { path: "my-tickets", element: <Navigate to="/support" replace /> },
-          { path: "my-tickets/:id", element: <MyTicketPage /> },
-          // The IT Admin's, at whichever desk they are working; the server refuses anybody else the ticket.
-          { path: "support/:id", element: <SupportTicketPage /> },
-          {
-            element: <RequireAuthority authority="SIGN_IN_AS:CHANGE" />,
-            children: [{ path: "sign-in-as", element: <SignInAsPage /> }],
-          },
           { path: "my-declarations/:kind", element: <MyDeclarationPage /> },
           // Somebody's own account, so it asks for nothing beyond being signed in.
           { path: "settings", element: <SettingsPage /> },
-          // Everybody's: what the Firm Assistant answers is decided by the server, from the asker's own permissions.
-          { path: "assistant", element: <AssistantPage /> },
           // Whoever runs the platform gets the firm's figures here; everybody else gets their own day.
           { path: "dashboard", element: <DashboardPage /> },
           {
@@ -168,16 +141,6 @@ export const router = createBrowserRouter([
               { path: "clients/:clientId", element: <ClientPage /> },
             ],
           },
-          {
-            // Prospective clients and the Client Management overview: Operations and Admin for every prospect,
-            // a relationship manager for their own.
-            element: <RequireAuthority authority={["PROSPECTIVE_CLIENTS:VIEW", "PROSPECTIVE_CLIENTS:OWN_CLIENTS"]} />,
-            children: [
-              { path: "client-management", element: <Navigate to="/client-management/overview" replace /> },
-              { path: "client-management/overview", element: <ClientManagementOverviewPage /> },
-              { path: "prospective-clients", element: <ProspectiveClientsPage /> },
-            ],
-          },
           // Adding an account holder by hand is gone, screen and address both. Somebody does not join an
           // account because a desk typed their name on a form: they are invited from the client's family
           // tab, they come in, and they are onboarded with their own papers and their own checks. The API
@@ -212,13 +175,10 @@ export const router = createBrowserRouter([
             // Answering a deactivation and reading the archive are the same authority, because they are the
             // same job: deciding whether the firm acts for somebody. The Admin's alone.
             element: <RequireAuthority authority="MANAGE_USERS_AND_ROLES:CHANGE" />,
-            children: [{ path: "archived-clients", element: <ArchivedClientsPage /> }],
-          },
-          {
-            // Operations read the requests too since 4 Nov 2026 — where each stands, read-only — while the
-            // answering stays the Admin's: the screen draws the queue and its buttons only for whoever answers.
-            element: <RequireAuthority authority={["MANAGE_USERS_AND_ROLES:CHANGE", "ONBOARD_CLIENTS:CHANGE"]} />,
-            children: [{ path: "deactivation-requests", element: <DeactivationRequestsPage /> }],
+            children: [
+              { path: "deactivation-requests", element: <DeactivationRequestsPage /> },
+              { path: "archived-clients", element: <ArchivedClientsPage /> },
+            ],
           },
           {
             // A client's papers are opened both by Compliance, who decide on them, and by the relationship manager who
@@ -393,13 +353,6 @@ export const router = createBrowserRouter([
             element: <RequireAuthority authority={READS_CLIENT_PORTFOLIOS} />,
             children: [
               { path: "model-portfolios", element: <ModelPortfoliosPage /> },
-              // The portfolio manager's client list and one client at a glance, laid out the way the firm
-              // asked for after seeing Canopy's.
-              { path: "book", element: <ClientListPage /> },
-              {
-                path: "book/:customerId",
-                element: <LazyClientViewPage />,
-              },
               { path: "drift", element: <DriftBreachesPage /> },
               { path: "bulk-rebalancing", element: <BulkRebalancingPage /> },
               { path: "model-changes", element: <Navigate to="/approvals?queue=model-changes" replace /> },
@@ -432,9 +385,8 @@ export const router = createBrowserRouter([
             // Signing is the relationship manager's half of a pack; Operations follow the same packs from a client's file.
             element: <RequireAuthority authority={ONBOARDS_CLIENTS} />,
             children: [
-              // The relationship manager no longer signs for the client: the client signs in the portal.
-              { path: "to-sign", element: <Navigate to="/" replace /> },
-              { path: "to-sign/:packId", element: <Navigate to="/" replace /> },
+              { path: "to-sign", element: <ToSignPage /> },
+              { path: "to-sign/:packId", element: <SignaturePackPage /> },
             ],
           },
           {
