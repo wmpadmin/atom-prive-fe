@@ -1,398 +1,276 @@
 import { ApiError } from "@atomprive/api-client";
 import {
-  useListDrift,
-  useListModelPortfolios,
-  useListProposals,
-  type DriftPage,
-  type ModelsPage,
-  type ProposalPage,
+  useGetPortfolioManagerDashboard,
+  useListCurrencies,
+  type Currency,
+  type PortfolioManagerDashboard as Figures,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, cn } from "@atomprive/ui";
-import { useState } from "react";
-import { Link, useNavigate } from "react-router";
-import { useStaffUser } from "../../auth/session";
-import { PagedFooter } from "../../lib/paged-rows";
-import { DEFAULT_PAGE_SIZE } from "../../lib/page-sizes";
+import { Alert, SelectInput, cn } from "@atomprive/ui";
+import { keepPreviousData } from "@tanstack/react-query";
 import {
-  averageDriftLabel,
-  driftLabel,
-  standingLabels,
-  standingTones,
-  underManagementLabel,
-  type DriftStanding,
-  riskProfileLabel,
-} from "./portfolio-labels";
-
-/** Everything off plan: within band is not work, and nothing written down is not an answer. */
-const WANDERED: DriftStanding[] = ["BREACHED"];
+  Activity,
+  ArrowLeftRight,
+  BarChart3,
+  CircleCheck,
+  CircleX,
+  FileText,
+  Hourglass,
+  Layers,
+  PieChart,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router";
+import { useStaffUser } from "../../auth/session";
+import { menuFor } from "../../menu";
+import {
+  AskTheAssistant,
+  Breakdown,
+  CardGrid,
+  Counts,
+  EditCards,
+  Loading,
+  Panel,
+  Strip,
+  money,
+  useDashboardCards,
+  type CardMeta,
+} from "../dashboard/dashboard-kit";
 
 /**
- * Enough of the queue to see the shape of the day without turning the dashboard into the queue itself.
- *
- * <p>The portal's own page size, now that the footer under the table offers the rows per page: a figure of
- * its own would leave "Rows per page" showing a number that is not one of the choices. How much of the
- * queue to read is the reader's from here — the rest of it is a page away rather than only on Drift.
+ * A portfolio manager's dashboard: the clients assigned to them — what they hold, how far each sits from plan,
+ * the models they are on, the furthest from plan, and what this manager has raised. One dashboard with Edit view
+ * to tick cards on and off, the same as every other role's.
  */
-const NEEDS_ME = DEFAULT_PAGE_SIZE;
 
-/**
- * Where the portfolio manager's day starts: how much is under the firm's models, what has wandered off them,
- * and what has gone out to clients. Each figure is counted from the screen it links to, so the dashboard
- * never says something that screen would contradict.
- */
+const PERIODS = [
+  { days: 7, label: "Last 7 days" },
+  { days: 30, label: "Last 30 days" },
+  { days: 90, label: "Last 90 days" },
+  { days: 365, label: "Last 12 months" },
+];
+
+type CardId = "overview" | "health" | "proposals" | "models" | "deviations" | "assistant";
+
+const CARD: Record<CardId, CardMeta> = {
+  overview: { title: "AUM & portfolio overview", area: "main" },
+  health: { title: "Portfolio health", area: "main" },
+  proposals: { title: "Proposals & rebalancing", area: "main" },
+  models: { title: "Model portfolios", area: "main" },
+  deviations: { title: "Top deviations", area: "main" },
+  assistant: { title: "AI Assistant", area: "side" },
+};
+
+const CARD_IDS = Object.keys(CARD) as CardId[];
+
+/** What the dashboard opens on, as the firm drew it on 4 Nov 2026. */
+const DEFAULT_CARDS: CardId[] = ["overview", "health", "proposals", "models", "deviations", "assistant"];
+
+/** Which screen each counted line is worked from. A line whose screen the reader's menu lacks has no link. */
+const WORKED_FROM: Record<string, string[]> = {
+  raised: ["/approvals?queue=proposals"],
+  waiting: ["/approvals?queue=proposals"],
+  approved: ["/approvals?queue=proposals"],
+  declined: ["/approvals?queue=proposals"],
+  moves: ["/trade-logs", "/approvals"],
+};
+
+const ICON_FOR: Record<string, LucideIcon> = {
+  raised: FileText,
+  waiting: Hourglass,
+  approved: CircleCheck,
+  declined: CircleX,
+  moves: ArrowLeftRight,
+};
+
+const ASK = [
+  "Which of my clients are furthest from their model?",
+  "Summarise my portfolios against their models.",
+  "Which proposals are waiting on a relationship manager?",
+  "How do I raise a rebalance?",
+  "How do I move a client to another model?",
+];
+
+/** A drift in points, signed, with its colour: within a point reads as fine, past two as far out. */
+function driftTone(drift: number) {
+  const size = Math.abs(drift);
+  return size >= 2 ? "bg-red-50 text-red-700" : size >= 1 ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700";
+}
+
+function points(drift: number | null | undefined) {
+  return drift == null ? "—" : `${Number(drift).toFixed(2)}%`;
+}
+
 export function PortfolioManagerDashboard() {
-  const navigate = useNavigate();
   const user = useStaffUser();
-  const models = useListModelPortfolios<ModelsPage, ApiError>();
-  // Worst first, as the queue itself orders them; totalItems counts the whole queue, not this page of it.
-  // Which page is asked for is the reader's now, so the server is asked again rather than the page being
-  // cut out of a page it already sent.
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState<number>(NEEDS_ME);
-  const queue = useListDrift<DriftPage, ApiError>({ standing: WANDERED, page, size });
-  // One row, asked for only to read the counts off it.
-  const proposals = useListProposals<ProposalPage, ApiError>({ size: 1 });
+  const [days, setDays] = useState(30);
+  const [currency, setCurrency] = useState("USD");
+  const figures = useGetPortfolioManagerDashboard<Figures, ApiError>(
+    { currency, days },
+    { query: { placeholderData: keepPreviousData, refetchInterval: 60_000 } },
+  );
+  const currencies = useListCurrencies<Currency[], ApiError>();
+  const view = useDashboardCards("portfolio-manager", CARD_IDS, DEFAULT_CARDS);
+  const [editing, setEditing] = useState(false);
+  // Every screen on the reader's menu, the ones drawn under a section heading included.
+  const reachable = useMemo(
+    () => new Set(menuFor(user).flatMap((one) => [one.to, ...(one.below ?? []).map((under) => under.to)])),
+    [user],
+  );
+  const goTo = (...screens: string[]) => screens.find((one) => reachable.has(one.split("?")[0]!));
+  const linkFor = (key: string) => goTo(...(WORKED_FROM[key] ?? []));
+  const data = figures.data;
+  const cur = data?.currency ?? currency;
+  const clientLink = (customerId: string) => (reachable.has("/portfolio-clients") ? `/portfolio-clients/${customerId}` : undefined);
 
-  const rows = models.data?.items ?? [];
-  const onModels = rows.filter((model) => model.clients > 0);
-  // Every model's total is already in the firm's reporting currency, so these add up to something real.
-  const underManagement = rows.reduce((total, model) => total + model.aumTracked, 0);
-  const reportingCurrency = rows[0]?.aumCurrency ?? "USD";
-  const unconverted = rows.reduce((total, model) => total + model.aumUnconverted, 0);
-  const clients = rows.reduce((total, model) => total + model.clients, 0);
-  const counts = proposals.data?.counts;
-  const first = user.fullName.split(" ")[0];
-
-  return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-[1.625rem] font-bold">Good to see you, {first}</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          How much is on the firm's models, what has wandered off them, and what has gone out to clients.
-        </p>
-      </header>
-
-      {models.isError && <Alert tone="danger">{models.error.message}</Alert>}
-
-      {/* A figure that could not be converted is left out, not added in at face value. The tile says so
-          rather than quietly being short by a client. */}
-      {unconverted > 0 && (
-        <Alert tone="warning">
-          {unconverted === 1
-            ? "One client is held in a currency with no rate on file, so they are not in the figure above."
-            : `${unconverted} clients are held in a currency with no rate on file, so they are not in the figure above.`}{" "}
-          Ask an Admin to put the rate on file and they will be counted.
-        </Alert>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <Tile
-          label="Under the firm's models"
-          value={models.data ? underManagementLabel(underManagement, reportingCurrency) : undefined}
-          failed={models.isError}
-          to="/model-portfolios"
-        />
-        <Tile
-          label="Clients on a model"
-          value={models.data ? String(clients) : undefined}
-          failed={models.isError}
-          to="/portfolio-clients"
-        />
-        <Tile
-          label="Off plan"
-          value={queue.data ? String(queue.data.totalItems) : undefined}
-          failed={queue.isError}
-          to="/drift"
-          urgent={(queue.data?.totalItems ?? 0) > 0}
-        />
-        <Tile
-          label="Deviations"
-          value={queue.data ? String(queue.data.breached) : undefined}
-          failed={queue.isError}
-          to="/drift"
-          urgent={(queue.data?.breached ?? 0) > 0}
-        />
-      </div>
-
-      <section aria-labelledby="needs-me-title" className="rounded-2xl border border-line bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-6 py-5">
-          <div>
-            <h2 id="needs-me-title" className="text-base font-bold">
-              Needs me today
-            </h2>
-            <p className="mt-0.5 text-xs text-ink-muted">
-              The worst of the queue. One client is one row, whichever asset class carried it here.
-            </p>
+  const render: Record<CardId, ReactNode> = {
+    overview: (
+      <Panel icon={Layers} title="AUM & portfolio overview" to={goTo("/portfolio-clients", "/book")}>
+        {data ? (
+          <div className="space-y-4">
+            {data.byAssetClass.length === 0 ? (
+              <p className="py-6 text-center text-sm text-ink-muted">None of your clients holds anything yet.</p>
+            ) : (
+              <Breakdown currency={cur} centre={money(data.book.aum, cur)} centreLabel={`${cur} AUM`}
+                rows={data.byAssetClass.map((one) => ({ name: one.name, value: one.amount, share: one.sharePercent }))} />
+            )}
+            <Strip figures={[
+              { label: "Assigned clients", value: data.book.clients, to: goTo("/portfolio-clients") },
+              { label: "Portfolios", value: data.book.portfolios },
+              { label: `AUM vs ${days} days ago`, value: money(data.book.aum, cur), change: data.book.aumChangePercent },
+            ]} />
           </div>
-          <Link
-            to="/drift"
-            className="shrink-0 text-sm font-semibold whitespace-nowrap text-primary-600 hover:text-primary-700"
-          >
-            Drift &amp; deviations
-          </Link>
-        </div>
-
-        {queue.isError ? (
-          <p className="px-6 py-10 text-center text-sm text-ink-muted">The queue couldn't be read.</p>
-        ) : queue.isPending ? (
-          <p className="px-6 py-10 text-center text-sm text-ink-muted">Reading the queue…</p>
-        ) : queue.data.items.length === 0 ? (
-          <p className="px-6 py-10 text-center text-sm text-ink-muted">
-            Nothing is off plan. Clients appear here as their portfolios wander from the model they are measured
-            against.
-          </p>
+        ) : <Loading />}
+      </Panel>
+    ),
+    health: (
+      <Panel icon={Activity} title="Portfolio health" to={goTo("/drift")}>
+        {data ? (
+          <div className="space-y-4">
+            <Breakdown centre={`${data.health.onPlanPercent}%`} centreLabel="On plan"
+              rows={[
+                { name: "On plan", value: data.health.onPlan, colour: "#16a34a" },
+                { name: "Off plan", value: data.health.offPlan, colour: "#dc2626" },
+                { name: "No model", value: data.health.noModel, colour: "#cbd5e1" },
+              ]} />
+            <Strip figures={[
+              { label: "Model drift (avg.)", value: points(data.health.averageDrift) },
+              { label: "Off plan", value: data.health.offPlan, danger: data.health.offPlan > 0, to: goTo("/drift") },
+              { label: "Model switches", value: data.health.switchesWaiting, to: goTo("/approvals?queue=model-changes") },
+            ]} />
+          </div>
+        ) : <Loading />}
+      </Panel>
+    ),
+    proposals: (
+      <Panel icon={FileText} title="Proposals & rebalancing" to={goTo("/approvals?queue=proposals")}>
+        {data ? <Counts rows={data.proposals} linkFor={linkFor} iconFor={ICON_FOR} /> : <Loading />}
+      </Panel>
+    ),
+    models: (
+      <Panel icon={BarChart3} title="Model portfolios" to={goTo("/model-portfolios")}>
+        {!data ? <Loading /> : data.models.length === 0 ? (
+          <p className="py-6 text-center text-sm text-ink-muted">None of your clients is on a model yet.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                  <th scope="col" className="py-3 pr-4 pl-6">Client</th>
-                  <th scope="col" className="px-4 py-3">Model</th>
-                  <th scope="col" className="px-4 py-3 text-right">Value</th>
-                  <th scope="col" className="px-4 py-3 text-right">Worst drift</th>
-                  <th scope="col" className="px-4 py-3">Standing</th>
-                  <th scope="col" className="py-3 pr-6 pl-4">
-                    <span className="sr-only">Open</span>
-                  </th>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-ink-muted">
+                <th scope="col" className="py-1.5 font-medium">Model</th>
+                <th scope="col" className="py-1.5 text-right font-medium">AUM</th>
+                <th scope="col" className="py-1.5 text-right font-medium">Clients</th>
+                <th scope="col" className="py-1.5 text-right font-medium">Drift</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {data.models.map((one) => (
+                <tr key={one.modelId}>
+                  <td className="py-2 font-medium">{one.name}</td>
+                  <td className="py-2 text-right tabular-nums">{money(one.aum, cur).replace(`${cur} `, "")}</td>
+                  <td className="py-2 text-right tabular-nums">{one.clients}</td>
+                  <td className="py-2 text-right">
+                    {one.averageDrift == null ? "—" : (
+                      <span className={cn("rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums", driftTone(one.averageDrift))}>
+                        {points(one.averageDrift)}
+                      </span>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {queue.data.items.map((row) => (
-                  // The row opens the portfolio, the same as Open does: the queue is worked down by
-                  // clicking the line you are reading.
-                  <tr
-                    key={row.customerId}
-                    onClick={() => void navigate(`/portfolio-clients/${row.customerId}?from=dashboard`)}
-                    className="cursor-pointer hover:bg-slate-50/60"
-                  >
-                    <td className="py-3 pr-4 pl-6">
-                      <div className="flex items-center gap-3">
-                        <Avatar name={row.clientName} photo={row.clientPhoto} />
-                        <div className="min-w-0">
-                          <span className="block truncate font-semibold">{row.clientName}</span>
-                          <span className="block truncate text-xs text-ink-muted">{row.clientCode}</span>
-                        </div>
-                      </div>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Panel>
+    ),
+    deviations: (
+      <Panel icon={TriangleAlert} title="Top deviations" to={goTo("/drift")}>
+        {!data ? <Loading /> : data.deviations.length === 0 ? (
+          <p className="py-6 text-center text-sm text-ink-muted">No portfolio of yours has a drift to read.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-ink-muted">
+                <th scope="col" className="py-1.5 font-medium">Client</th>
+                <th scope="col" className="py-1.5 font-medium">Model</th>
+                <th scope="col" className="py-1.5 text-right font-medium">Deviation</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {data.deviations.map((one) => {
+                const to = clientLink(one.customerId);
+                return (
+                  <tr key={one.customerId}>
+                    <td className="py-2 font-medium">
+                      {to ? <Link to={to} className="hover:text-primary-700 hover:underline">{one.clientName}</Link> : one.clientName}
                     </td>
-                    <td className="px-4 py-3 text-ink-soft">{row.modelName}</td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
-                      {underManagementLabel(row.underManagement, row.currency)}
-                    </td>
-                    <td
-                      className={cn(
-                        "px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums",
-                        row.standing === "BREACHED" ? "text-rose-700" : "text-ink",
-                      )}
-                    >
-                      {driftLabel(row.drift)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge tone={standingTones[row.standing]}>{standingLabels[row.standing]}</Badge>
-                    </td>
-                    <td className="py-3 pr-6 pl-4 text-right">
-                      <Link
-                        to={`/portfolio-clients/${row.customerId}?from=dashboard`}
-                        className="text-sm font-medium text-primary-700 hover:underline"
-                      >
-                        Open
-                      </Link>
+                    <td className="py-2 text-ink-soft">{one.modelName ?? "—"}</td>
+                    <td className="py-2 text-right">
+                      <span className={cn("rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums", driftTone(one.drift))}>
+                        {points(one.drift)}
+                      </span>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
         )}
-        {/* The server sends this one a page at a time and counts the whole queue for the tile above, so
-            the footer reads its page and its total rather than slicing what arrived a second time. */}
-        {queue.data && (
-          <PagedFooter
-            paged={{
-              page,
-              size,
-              total: queue.data.totalItems,
-              onPage: setPage,
-              onSize: (next) => {
-                setSize(next);
-                setPage(0);
-              },
-            }}
-            noun={["client", "clients"]}
-          />
-        )}
-      </section>
+      </Panel>
+    ),
+    assistant: <AskTheAssistant questions={ASK} blurb="Get insights on your portfolios, deviations, models and proposals." />,
+  };
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <section aria-labelledby="models-title" className="rounded-2xl border border-line bg-white lg:col-span-2">
-          <div className="flex items-center justify-between gap-4 border-b border-line px-6 py-5">
-            <div className="min-w-0">
-              <h2 id="models-title" className="text-base font-bold">
-                Models at a glance
-              </h2>
-              <p className="mt-0.5 text-xs text-ink-muted">
-                Only the models somebody is measured against. Average drift ignores which side of the target a
-                client sits on.
-              </p>
-            </div>
-            <Link
-              to="/model-portfolios"
-              className="shrink-0 text-sm font-semibold whitespace-nowrap text-primary-600 hover:text-primary-700"
-            >
-              Model portfolios
-            </Link>
-          </div>
-
-          {models.isPending ? (
-            <p className="px-6 py-10 text-center text-sm text-ink-muted">Reading the models…</p>
-          ) : onModels.length === 0 ? (
-            <p className="px-6 py-10 text-center text-sm text-ink-muted">
-              No client is measured against a model yet.
-            </p>
-          ) : (
-            <ul className="divide-y divide-line">
-              {onModels.map((model) => (
-                <li key={model.id}>
-                  {/* The whole line opens the plan: a list of models is read by clicking the model. */}
-                  <Link
-                    to={`/model-portfolios/${model.id}`}
-                    className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-6 py-3 hover:bg-slate-50/60"
-                  >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{model.name}</p>
-                    <p className="text-xs text-ink-muted">
-                      {model.clients} {model.clients === 1 ? "client" : "clients"} · {riskProfileLabel(model.riskProfile)}
-                    </p>
-                  </div>
-                  <div className="flex items-baseline gap-6 text-sm whitespace-nowrap tabular-nums">
-                    <span className="font-semibold">
-                      {underManagementLabel(model.aumTracked, model.aumCurrency)}
-                    </span>
-                    <span className="text-ink-muted">
-                      {model.averageDrift === null ? "—" : `${averageDriftLabel(model.averageDrift)} average drift`}
-                    </span>
-                  </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section aria-labelledby="sent-title" className="rounded-2xl border border-line bg-white">
-          <div className="flex items-center justify-between border-b border-line px-6 py-5">
-            <h2 id="sent-title" className="text-base font-bold">
-              What I sent
-            </h2>
-            <Link
-              to="/proposals"
-              className="shrink-0 text-sm font-semibold whitespace-nowrap text-primary-600 hover:text-primary-700"
-            >
-              Proposals
-            </Link>
-          </div>
-          <div className="divide-y divide-line">
-            <Sent
-              label="Waiting on a relationship manager"
-              value={counts?.pending}
-              to="/approvals?queue=proposals&tab=pending"
-              failed={proposals.isError}
-            />
-            <Sent
-              label="Approved in the last week"
-              value={counts?.approvedLately}
-              to="/approvals?queue=proposals&tab=approved"
-              failed={proposals.isError}
-            />
-            {/* Not a failure to hide: a relationship manager said no on their client's behalf, which is
-                the answer working rather than the answer going wrong. */}
-            <Sent
-              label="Turned down"
-              value={counts?.rejected}
-              to="/approvals?queue=proposals&tab=rejected"
-              failed={proposals.isError}
-            />
-          </div>
-        </section>
-      </div>
-
-    </div>
-  );
-}
-
-/** One figure. It links to the screen it was counted from, because a number alone is not an answer. */
-function Tile({
-  label,
-  value,
-  to,
-  failed = false,
-  urgent = false,
-}: {
-  label: string;
-  value: string | undefined;
-  to: string;
-  /** A figure that could not be counted says so, rather than counting for ever. */
-  failed?: boolean;
-  urgent?: boolean;
-}) {
   return (
-    <Link
-      to={to}
-      className={cn(
-        "block rounded-2xl border bg-white px-5 py-4 transition-colors hover:border-primary-300",
-        urgent ? "border-amber-300" : "border-line",
-      )}
-    >
-      <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
-      <p className={cn("mt-1 text-2xl font-bold tabular-nums", urgent ? "text-amber-700" : "text-ink")}>
-        {failed ? (
-          <span className="text-base font-normal text-ink-muted">Couldn't be counted</span>
-        ) : value === undefined ? (
-          <span className="text-base font-normal text-ink-muted">Counting…</span>
-        ) : (
-          value
-        )}
-      </p>
-    </Link>
-  );
-}
+    <div className="space-y-4">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="grid size-11 place-items-center rounded-2xl bg-primary-50 text-primary-600">
+            <PieChart className="size-6" aria-hidden="true" />
+          </span>
+          <div>
+            <h1 className="text-[1.625rem] leading-tight font-bold">Portfolio manager dashboard</h1>
+            <p className="text-sm text-ink-muted">Portfolio performance, model alignment, proposals and rebalancing.</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <EditCards meta={CARD} shown={view.cards} editing={editing} onEditing={setEditing} onChange={view.change}
+            changed={view.changed} onReset={view.reset} />
+          <SelectInput id="pm-period" aria-label="Period the changes are measured over" value={String(days)}
+            onChange={(event) => setDays(Number(event.target.value))} className="w-40">
+            {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
+          </SelectInput>
+          <SelectInput id="pm-currency" aria-label="Currency the figures are shown in" value={currency}
+            onChange={(event) => setCurrency(event.target.value)} className="w-28">
+            {(currencies.data ?? [{ code: "USD", name: "US dollar" }]).map((one) => (
+              <option key={one.code} value={one.code}>{one.code}</option>
+            ))}
+          </SelectInput>
+        </div>
+      </header>
 
-/**
- * One count of what was sent, which opens the proposals it counted. A figure on a dashboard that cannot be
- * opened is one somebody has to go and find the list for themselves — the same reason {@link Tile} links.
- *
- * <p>A count that could not be read is not a link: there is nothing behind it to show.
- */
-function Sent({
-  label,
-  value,
-  to,
-  failed,
-}: {
-  label: string;
-  value: number | undefined;
-  to: string;
-  failed: boolean;
-}) {
-  const figure = (
-    <>
-      <span className="text-sm text-ink-soft">{label}</span>
-      <span className="text-lg font-bold tabular-nums">
-        {failed ? (
-          <span className="text-sm font-normal text-ink-muted">—</span>
-        ) : value === undefined ? (
-          <span className="text-sm font-normal text-ink-muted">…</span>
-        ) : (
-          value
-        )}
-      </span>
-    </>
-  );
-  const laidOut = "flex items-baseline justify-between gap-4 px-6 py-3";
-  return failed ? (
-    <div className={laidOut}>{figure}</div>
-  ) : (
-    <Link to={to} className={`${laidOut} hover:bg-slate-50/60`}>
-      {figure}
-    </Link>
+      {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
+
+      <CardGrid meta={CARD} shown={view.cards} render={render} editing={editing} onChange={view.change} />
+    </div>
   );
 }

@@ -33,6 +33,16 @@ export type Preferences = {
   /** Whether the reader has put the sidebar away. The width is remembered separately, so bringing it
    * back brings it back the width they had it. */
   sidebarAway: boolean;
+  /** How wide the reader has drawn the portfolio assistant, in pixels. Held between
+   * {@link ASSISTANT_NARROWEST} and {@link ASSISTANT_WIDEST} for the same reason as the sidebar. */
+  assistantWidth: number;
+  /** The model the reader picked to answer them, or null for the firm's default. Checked against the models the
+   * server offers before it is used, since the firm may stop offering one. */
+  assistantModel: string | null;
+  /** How wide the reader has drawn a prospect's panel, in pixels, held like the assistant's. */
+  prospectPanelWidth: number;
+  /** The menu sections the reader has closed, by the path of their heading, such as /client-management. */
+  closedSections: string[];
 };
 
 /** The sidebar at its narrowest still shows a label; at its widest it still leaves the page the most room. */
@@ -43,6 +53,21 @@ export const SIDEBAR_WIDEST = 420;
 /** What it has always been: w-64, which is 16rem. */
 export const SIDEBAR_DEFAULT = 256;
 
+/** The assistant at its narrowest still fits its rebalancing table; at its widest it is most of a laptop. */
+export const ASSISTANT_NARROWEST = 400;
+
+export const ASSISTANT_WIDEST = 1100;
+
+/** What it opened at before it could be resized: w-[44rem]. */
+export const ASSISTANT_DEFAULT = 704;
+
+/** A prospect's panel: narrow enough to keep the list beside it, wide enough for the email box. */
+export const PROSPECT_PANEL_NARROWEST = 420;
+
+export const PROSPECT_PANEL_WIDEST = 1000;
+
+export const PROSPECT_PANEL_DEFAULT = 544;
+
 export const DEFAULTS: Preferences = {
   landing: "home",
   pageSize: 10,
@@ -51,6 +76,10 @@ export const DEFAULTS: Preferences = {
   density: "comfortable",
   sidebarWidth: SIDEBAR_DEFAULT,
   sidebarAway: false,
+  assistantWidth: ASSISTANT_DEFAULT,
+  assistantModel: null,
+  prospectPanelWidth: PROSPECT_PANEL_DEFAULT,
+  closedSections: [],
 };
 
 const KEY = "atomprive.preferences";
@@ -73,6 +102,13 @@ function withinReach(value: unknown) {
   return Math.min(Math.max(Math.round(value), SIDEBAR_NARROWEST), SIDEBAR_WIDEST);
 }
 
+function assistantWithinReach(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULTS.assistantWidth;
+  }
+  return Math.min(Math.max(Math.round(value), ASSISTANT_NARROWEST), ASSISTANT_WIDEST);
+}
+
 function where() {
   return `${KEY}.v${SHAPE}`;
 }
@@ -92,6 +128,14 @@ export function readPreferences(): Preferences {
       landing: typeof parsed.landing === "string" ? parsed.landing : DEFAULTS.landing,
       sidebarWidth: withinReach(parsed.sidebarWidth),
       sidebarAway: typeof parsed.sidebarAway === "boolean" ? parsed.sidebarAway : DEFAULTS.sidebarAway,
+      closedSections: Array.isArray(parsed.closedSections)
+        ? parsed.closedSections.filter((one): one is string => typeof one === "string")
+        : DEFAULTS.closedSections,
+      assistantWidth: assistantWithinReach(parsed.assistantWidth),
+      assistantModel: typeof parsed.assistantModel === "string" ? parsed.assistantModel : DEFAULTS.assistantModel,
+      prospectPanelWidth: typeof parsed.prospectPanelWidth === "number" && Number.isFinite(parsed.prospectPanelWidth)
+        ? Math.min(Math.max(Math.round(parsed.prospectPanelWidth), PROSPECT_PANEL_NARROWEST), PROSPECT_PANEL_WIDEST)
+        : DEFAULTS.prospectPanelWidth,
       pageSize: PAGE_CHOICES.includes(parsed.pageSize as number) ? (parsed.pageSize as number) : DEFAULTS.pageSize,
       dateFormat: DATE_CHOICES.includes(parsed.dateFormat as DateFormat)
         ? (parsed.dateFormat as DateFormat)

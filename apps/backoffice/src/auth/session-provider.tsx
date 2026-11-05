@@ -1,14 +1,19 @@
 import { configureAuth } from "@atomprive/api-client";
-import { getCurrentStaff, logout, refresh, type SignInResponse, type StaffProfile } from "@atomprive/api-client/backoffice";
+import { endStaffView, getCurrentStaff, logout, refresh, type SignInResponse, type StaffProfile } from "@atomprive/api-client/backoffice";
+import { currentSupportView, forgetSupportView } from "@atomprive/support/support-view";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { forgetGoogleAccount } from "../pages/sign-in/google-identity";
+import { forgetAssistantConversation } from "../lib/assistant-conversation";
 import { SessionContext, type SessionState } from "./session";
 
 // Kept in memory only: never in localStorage, where injected scripts could read it.
 let accessToken: string | null = null;
 // Refresh tokens are single-use, so parallel 401s must share one refresh call.
 let refreshInFlight: Promise<boolean> | null = null;
+// Whether this tab is a support view: never renewed, and never signing out anybody but the view itself, because
+// the refresh cookie this browser holds belongs to the IT Admin's own session.
+let viewing = false;
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -21,11 +26,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const clearSession = useCallback(() => {
     accessToken = null;
+    // Signed out, or the session ran out: the next sign-in starts a new chat with the portfolio assistant.
+    forgetAssistantConversation();
     queryClient.clear();
     setState({ status: "signedOut" });
   }, [queryClient]);
 
   const refreshAccessToken = useCallback(() => {
+    if (viewing) {
+      return Promise.resolve().then(() => {
+        forgetSupportView();
+        clearSession();
+        return false;
+      });
+    }
     refreshInFlight ??= refresh()
       .then((response) => {
         applySignIn(response);
@@ -55,11 +69,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     configureAuth({ getAccessToken: () => accessToken, refreshAccessToken, onForbidden: () => void reloadUser() });
+    const view = currentSupportView();
+    if (view) {
+      viewing = true;
+      accessToken = view.token;
+      void getCurrentStaff()
+        .then((user) => setState({ status: "signedIn", user }))
+        .catch(() => {
+          forgetSupportView();
+          clearSession();
+        });
+      return;
+    }
     // After a page reload the access token is gone; the refresh cookie restores the session.
     void refreshAccessToken();
-  }, [refreshAccessToken, reloadUser]);
+  }, [refreshAccessToken, reloadUser, clearSession]);
 
   const signOut = useCallback(async () => {
+    if (viewing) {
+      try {
+        await endStaffView();
+      } finally {
+        forgetSupportView();
+        window.close();
+        clearSession();
+      }
+      return;
+    }
     try {
       await logout();
     } finally {

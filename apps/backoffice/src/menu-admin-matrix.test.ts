@@ -29,20 +29,28 @@ describe("an Admin's menu", () => {
     // from appearing on their menu on its own. These are screens the ADMIN role has permission for and
     // is still deliberately not given.
     const where = menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to);
-    for (const notTheirs of ["/approvals", "/forms", "/ingestion", "/trade-logs", "/kyc", "/kyc-checklist",
+    for (const notTheirs of ["/forms", "/trade-logs", "/kyc", "/kyc-checklist",
       "/kyc-documents", "/post-onboarding", "/trails", "/notifications", "/client-documents", "/sync-errors"]) {
       expect(where).not.toContain(notTheirs);
     }
   });
 
-  it("is the eleven screens the firm gives an Admin, and no more", () => {
+  it("is the eighteen screens the firm gives an Admin, and no more", () => {
     expect(menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to)).toEqual([
-      "/users", "/clients", "/deactivation-requests", "/archived-clients", "/roles", "/config",
-      "/staff-tracker", "/family-access-trail", "/audit-log", "/my-declarations", "/settings",
+      "/dashboard", "/users", "/clients", "/deactivation-requests", "/archived-clients", "/roles", "/config",
+      "/staff-tracker", "/approvals", "/reports", "/ingestion", "/family-access-trail", "/audit-log", "/my-clearances", "/my-declarations",
+      "/support", "/assistant", "/settings",
     ]);
   });
 
-  it("keeps the firm's order, staff users first", () => {
-    expect(menuFor(anAdmin(ADMIN_PERMISSIONS))[0]?.to).toBe("/users");
+  /*
+   * My clearance requests is on the Admin's menu even though the Admin desk is never one of the four a
+   * client's clearance is put to. It is there because it follows the person rather than the desk: every
+   * administrator at this firm also sits at Compliance, Operations and the rest, so their list has rows
+   * in it. An administrator who holds nothing else sees an empty list, which is the truth about them.
+   */
+
+  it("keeps the firm's order, the dashboard first and staff users after it", () => {
+    expect(menuFor(anAdmin(ADMIN_PERMISSIONS)).slice(0, 2).map((item) => item.to)).toEqual(["/dashboard", "/users"]);
   });
 });

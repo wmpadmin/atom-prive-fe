@@ -1,8 +1,11 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  getListExpiredClientsQueryKey,
   useListClientsForReview,
+  useListExpiredClients,
   useListOnboardingCases,
   type CasePage,
+  type ExpiredClient,
   type ReviewQueue,
   type ReviewRow,
 } from "@atomprive/api-client/backoffice";
@@ -11,6 +14,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { ChevronRight, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useStaffUser } from "../../auth/session";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
@@ -25,6 +29,7 @@ import { clientTypeLabels } from "../clients/client-labels";
 import { countryName } from "../../lib/countries";
 import { standingLabels, standings } from "./kyc-labels-review";
 import { reviewStateLabels, reviewStateTones } from "./kyc-labels";
+import { remindedWhen, SendKycReminder } from "./send-kyc-reminder";
 
 /**
  * The queue Compliance work through: the clients whose KYC is pending.
@@ -87,7 +92,12 @@ const MOVABLE: Column[] = [
       <ul className="space-y-0.5">
         {row.papers.map((paper, at) => (
           <li key={`${paper.kindTitle}-${at}`}>
-            <Badge tone={reviewStateTones[paper.reviewState]}>{reviewStateLabels[paper.reviewState]}</Badge>
+            {/* Approved but past its date: it no longer counts as in, so it must not read as plain Approved. */}
+            {paper.reviewState === "APPROVED" && paper.expired ? (
+              <Badge tone="danger">Approved · expired</Badge>
+            ) : (
+              <Badge tone={reviewStateTones[paper.reviewState]}>{reviewStateLabels[paper.reviewState]}</Badge>
+            )}
           </li>
         ))}
       </ul>
@@ -175,6 +185,10 @@ export function KycReviewQueuePage() {
     { query: { enabled: decides, placeholderData: keepPreviousData } },
   );
   const awaiting = signing.data?.items ?? [];
+  // Clients who were approved and whose paper has since run out. Not pending, so not in the queue below, and
+  // no longer settled either: without this box they were on no list anywhere.
+  const expired = useListExpiredClients<ExpiredClient[], ApiError>();
+  const lapsed = expired.data ?? [];
 
   const rows = queue.data?.items ?? [];
   const found = queue.data?.totalItems ?? 0;
@@ -280,6 +294,23 @@ export function KycReviewQueuePage() {
                 </Link>
               </li>
             ))}
+          </ul>
+        </section>
+      )}
+
+      {expired.isError && <Alert tone="danger">{expired.error.message}</Alert>}
+      {lapsed.length > 0 && (
+        <section className="rounded-2xl border border-red-200 bg-red-50/60">
+          <div className="px-5 pt-5">
+            <h2 className="text-base font-bold">KYC expired</h2>
+            <p className="mt-0.5 text-xs text-ink-soft">
+              {lapsed.length === 1
+                ? "One client was fully approved, but a paper has since passed its expiry date. They need a current copy before their KYC is valid again."
+                : `${lapsed.length} clients were fully approved, but a paper has since passed its expiry date. They need a current copy before their KYC is valid again.`}
+            </p>
+          </div>
+          <ul className="mt-3 divide-y divide-red-200/70">
+            {lapsed.map((one) => <Lapsed key={one.customerId} client={one} />)}
           </ul>
         </section>
       )}
@@ -394,6 +425,81 @@ export function KycReviewQueuePage() {
 }
 
 /** One count the queue is read by: what it is, how many, and what that means. */
+/** How long ago a paper ran out, in days, read against today here. */
+function daysSince(day: string) {
+  const [year, month, date] = day.split("-").map(Number);
+  const then = new Date(year, month - 1, date);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((today.getTime() - then.getTime()) / 86_400_000);
+  return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+}
+
+function formatDay(day: string) {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(year, month - 1, date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** One lapsed client: who, what ran out and when, whether they have been chased, and the chase itself. */
+function Lapsed({ client }: { client: ExpiredClient }) {
+  const queryClient = useQueryClient();
+  const first = client.lapsed[0];
+  return (
+    <li className="flex flex-wrap items-center gap-x-5 gap-y-3 px-5 py-3">
+      <div className="flex min-w-0 items-center gap-3 sm:w-80">
+        <Avatar name={client.clientName} photo={client.clientPhoto} />
+        <div className="min-w-0">
+          <span className="block truncate font-semibold">{client.clientName}</span>
+          <span className="block truncate text-xs text-ink-muted">
+            {clientTypeLabels[client.clientType]}
+            {client.countryCode && ` · ${countryName(client.countryCode)}`}
+            {client.advisorName && ` · RM ${client.advisorName}`}
+          </span>
+        </div>
+      </div>
+      <div className="min-w-48 flex-1 text-sm">
+        {client.lapsed.length === 0 ? (
+          <span className="text-ink-muted">A paper on file has expired</span>
+        ) : (
+          <>
+            {client.lapsed.map((paper, index) => (
+              <span key={paper.kindTitle}>
+                {index > 0 && ", "}
+                <span className="font-semibold text-red-700">{paper.kindTitle}</span>
+              </span>
+            ))}
+            {first?.expiredOn && (
+              <>
+                {` expired ${formatDay(first.expiredOn)}`}
+                <span className="block text-xs text-ink-muted">{daysSince(first.expiredOn)}</span>
+              </>
+            )}
+          </>
+        )}
+      </div>
+      <p className="text-xs text-ink-muted sm:w-52">
+        {client.lastReminder
+          ? `Reminded ${remindedWhen(client.lastReminder.sentAt)} by ${client.lastReminder.sentByName}`
+          : "Not reminded yet"}
+      </p>
+      <SendKycReminder
+        compact
+        customerId={client.customerId}
+        clientName={client.clientName}
+        last={client.lastReminder ?? null}
+        onSent={() => void queryClient.invalidateQueries({ queryKey: getListExpiredClientsQueryKey() })}
+      />
+      <Link
+        to={`/kyc/${client.customerId}?from=queue`}
+        className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline"
+      >
+        Open
+        <ChevronRight aria-hidden="true" className="size-3.5" />
+      </Link>
+    </li>
+  );
+}
+
 function Tile({ label, count, hint }: { label: string; count?: number; hint: string }) {
   return (
     <div className="rounded-2xl border border-line bg-white px-5 py-4">

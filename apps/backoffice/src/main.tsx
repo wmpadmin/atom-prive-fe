@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";
 import { SessionProvider } from "./auth/session-provider";
 import "./index.css";
+import "./forms-setup";
 import { applyDensity, preference } from "./lib/preferences";
 import { router } from "./router";
 

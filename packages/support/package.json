@@ -1,0 +1,32 @@
+{
+  "name": "@atomprive/support",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./ticket-list": "./src/ticket-list.tsx",
+    "./ticket-view": "./src/ticket-view.tsx",
+    "./raise-ticket-dialog": "./src/raise-ticket-dialog.tsx",
+    "./ticket-status": "./src/ticket-status.tsx",
+    "./ticket-status-label": "./src/ticket-status-label.ts",
+    "./ticket-fields": "./src/ticket-fields.ts",
+    "./support-view": "./src/support-view.ts",
+    "./support-view-banner": "./src/support-view-banner.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@atomprive/api-client": "workspace:*",
+    "@atomprive/ui": "workspace:*",
+    "lucide-react": "^1.46.0"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0",
+    "typescript": "~6.0.2"
+  }
+}
