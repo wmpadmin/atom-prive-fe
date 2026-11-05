@@ -12,7 +12,24 @@ import { ReportsPage } from "./pages/reports-page";
 import { RequestsPage } from "./pages/requests-page";
 import { SentAccessPage } from "./pages/sent-access-page";
 import { SettingsPage } from "./pages/settings-page";
-import { OnlySignedIn, OnlySignedOut } from "./auth/guards";
+import { OnlySignedIn, OnlySignedInNewLook, OnlySignedOut } from "./auth/guards";
+import { DashboardPage } from "./wealth/dashboard-page";
+import { AccountPage as NewAccountPage } from "./wealth/account-page";
+import { AccountsPage as NewAccountsPage } from "./wealth/accounts-page";
+import { DocumentsPage } from "./wealth/documents-page";
+import { KycPage } from "./wealth/kyc-page";
+import { FormSignPage } from "./wealth/form-sign-page";
+import { SupportViewPage } from "./wealth/support-view-page";
+import { SupportPage } from "./wealth/support-page";
+import { SupportTicketPage } from "./wealth/support-ticket-page";
+import { AuditLogPage } from "./wealth/audit-log-page";
+import { ActivityPage } from "./wealth/activity-page";
+import { AccessRequestsPage } from "./wealth/access-requests-page";
+import { FamilyAccessPage } from "./wealth/family-access-page";
+import { FamilyWealthPage } from "./wealth/family-wealth-page";
+import { FormsPage } from "./wealth/forms-page";
+import { HoldingsPage } from "./wealth/holdings-page";
+import { PortfolioPage } from "./wealth/portfolio-page";
 
 /**
  * Signed out, there is one screen; signed in, there is the rest.
@@ -23,9 +40,35 @@ import { OnlySignedIn, OnlySignedOut } from "./auth/guards";
  */
 export const router = createBrowserRouter([
   { path: "/login", element: <OnlySignedOut /> },
+  { path: "/support-view", element: <SupportViewPage /> },
   // Open to anybody holding a link, signed in or not: the person arriving has no account yet, which
   // is the entire point of an invitation.
   { path: "/join/:token", element: <JoinPage /> },
+  // The new look of the portal, at its own address beside the classic one so the two can be compared. Its
+  // screens arrive one at a time; the menu shows the rest greyed until they do.
+  {
+    path: "/new",
+    element: <OnlySignedInNewLook />,
+    children: [
+      { index: true, element: <DashboardPage /> },
+      { path: "portfolio", element: <PortfolioPage /> },
+      { path: "holdings", element: <HoldingsPage /> },
+      { path: "accounts", element: <NewAccountsPage /> },
+      { path: "accounts/:id", element: <NewAccountPage /> },
+      { path: "documents", element: <DocumentsPage /> },
+      { path: "forms", element: <FormsPage /> },
+      { path: "kyc", element: <KycPage /> },
+      { path: "family-wealth", element: <FamilyWealthPage /> },
+      { path: "family-access", element: <FamilyAccessPage /> },
+      { path: "access-requests", element: <AccessRequestsPage /> },
+      { path: "activity", element: <ActivityPage /> },
+      { path: "audit-log", element: <AuditLogPage /> },
+      { path: "support", element: <SupportPage /> },
+      { path: "support/:id", element: <SupportTicketPage /> },
+      { path: "forms/pack/:kind", element: <FormSignPage /> },
+      { path: "forms/:id", element: <FormSignPage /> },
+    ],
+  },
   {
     path: "/",
     element: <OnlySignedIn />,

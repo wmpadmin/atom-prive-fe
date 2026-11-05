@@ -1,7 +1,9 @@
 import type { Address } from "@atomprive/api-client/backoffice";
 import { cn, DateInput, describedBy, Field, TextArea, TextInput } from "@atomprive/ui";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { CountriesPicker, CountrySelect } from "./country-select";
+import { useAddressSuggestions } from "./address-suggestions";
+import { SuggestInput, type Offered } from "./suggest-input";
 
 /** A field's message, shown once someone has been to the field, and the handler that marks the visit. */
 export interface FieldState {
@@ -140,7 +142,45 @@ export function CountriesField({ id, label, value, onChange, field, optional, cl
   );
 }
 
-/** Address line 1 and 2, city, state, postal code and country; every one is required unless the block itself is optional. */
+/** A text box that offers what is known as it is typed in, and still takes anything typed. */
+function SuggestField({ id, label, value, onChange, field, offered, placeholder, optional, disabled, className }: {
+  id: string;
+  label: string;
+  value: string | null;
+  onChange: (value: string) => void;
+  field: FieldFor;
+  offered: Offered[];
+  placeholder?: string;
+  optional?: boolean;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const { error, onBlur } = field(id);
+  return (
+    <Field id={id} label={label} required={!optional && !disabled} error={error} className={className}>
+      <SuggestInput
+        {...describedBy(id, error)}
+        id={id}
+        value={value ?? ""}
+        onChange={onChange}
+        onBlur={onBlur}
+        offered={offered}
+        placeholder={placeholder}
+        disabled={disabled}
+        required={!optional && !disabled}
+      />
+    </Field>
+  );
+}
+
+/**
+ * Address line 1 and 2, country, state, city and postal code; every one is required unless the block itself is
+ * optional.
+ *
+ * <p>The country comes first, because what is offered after it depends on it: its states, then the towns of the
+ * state chosen, then — where a postal service knows them — the town's postal codes. All of them can still be
+ * typed, for a town too small to be listed or a country the services do not cover.
+ */
 export function AddressFields({
   at,
   value,
@@ -165,14 +205,56 @@ export function AddressFields({
   insistOnState?: boolean;
 }) {
   const set = (patch: Partial<Address>) => onChange({ ...value, ...patch });
+  const country = value.country ?? "";
+  const offered = useAddressSuggestions(value);
+  // A town with one postal code has it filled in; a town with several has them offered to pick from.
+  useEffect(() => {
+    if (offered.postalCodes.length === 1 && !value.postalCode) set({ postalCode: offered.postalCodes[0].value });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offered.postalCodesAnswer]);
   return (
     <>
       <TextField id={`${at}line1`} label="Address Line 1" value={value.line1} onChange={(line1) => set({ line1 })} field={field} optional={optional} placeholder="House or flat number and street" className="sm:col-span-2" />
       <TextField id={`${at}line2`} label="Address Line 2" value={value.line2} onChange={(line2) => set({ line2 })} field={field} optional={optional || !insistOnLine2} placeholder="Building, area or district" className="sm:col-span-2" />
-      <TextField id={`${at}city`} label="City" value={value.city} onChange={(city) => set({ city })} field={field} optional={optional} />
-      <TextField id={`${at}state`} label="State" value={value.state} onChange={(state) => set({ state })} field={field} optional={optional || !insistOnState} />
-      <TextField id={`${at}postalCode`} label="Postal Code" value={value.postalCode} onChange={(postalCode) => set({ postalCode })} field={field} optional={optional} />
-      <CountryField id={`${at}country`} label="Country" value={value.country} onChange={(country) => set({ country })} field={field} optional={optional} />
+      {/* A new country starts the rest again: the old state, town and code belong to the country before. */}
+      <CountryField
+        id={`${at}country`}
+        label="Country"
+        value={value.country}
+        onChange={(next) => set(next === value.country ? { country: next } : { country: next, state: "", city: "", postalCode: "" })}
+        field={field}
+        optional={optional}
+      />
+      <SuggestField
+        id={`${at}state`}
+        label="State"
+        value={value.state}
+        onChange={(next) => set({ state: next })}
+        field={field}
+        offered={offered.states}
+        placeholder={country ? "Choose or type the state" : "Choose the country first"}
+        optional={optional || !insistOnState}
+      />
+      <SuggestField
+        id={`${at}city`}
+        label="City"
+        value={value.city}
+        onChange={(next) => set({ city: next })}
+        field={field}
+        offered={offered.cities}
+        placeholder={value.state ? "Choose or type the city" : "Choose the state first"}
+        optional={optional}
+      />
+      <SuggestField
+        id={`${at}postalCode`}
+        label="Postal Code"
+        value={value.postalCode}
+        onChange={(next) => set({ postalCode: next })}
+        field={field}
+        offered={offered.postalCodes}
+        placeholder={offered.lookingUpPostalCodes ? "Looking up postal codes…" : offered.postalCodes.length > 0 ? "Choose or type the postal code" : undefined}
+        optional={optional}
+      />
     </>
   );
 }

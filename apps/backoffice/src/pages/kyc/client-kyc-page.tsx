@@ -7,6 +7,7 @@ import {
   type ClientKycFile,
   type ClientPaperRow,
   type KycDocumentRow,
+  type KycReminder,
   type KycRequirement,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Dialog, Field, TextArea, cn } from "@atomprive/ui";
@@ -26,6 +27,7 @@ import { clientLine, fileMark, pageCount, reviewStateLabels, reviewStateTones } 
 import { paperLabels, paperWaitsOn } from "./kyc-labels-review";
 import { DecidedBy, PutOnFileBy } from "./kyc-who";
 import { UploadKycDialog } from "./upload-kyc-dialog";
+import { ReminderSent, SendKycReminder } from "./send-kyc-reminder";
 import { hasAnyAuthority, hasAuthority, UPLOADS_CLIENT_DOCUMENTS } from "../../lib/permissions";
 
 /** Where a client's file can be opened from, so Back returns to the screen the reader actually left. */
@@ -129,6 +131,7 @@ export function ClientKycPage() {
   const from = search.get("from");
   const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
+  const [reminded, setReminded] = useState<KycReminder>();
   // Putting a paper on file is Compliance's for any client and a relationship manager's for their own.
   const mayAdd = hasAnyAuthority(useStaffUser(), ...UPLOADS_CLIENT_DOCUMENTS);
   // Departing from the firm's own checklist for one client is Compliance's, like signing the KYC off: the
@@ -177,6 +180,13 @@ export function ClientKycPage() {
           {/* Reading a client's papers and adding to them are different permissions: Operations read
               every client's to service them and add to none. A button that only ever came back refused
               is worse than no button. */}
+          {/* Anybody who may open this file may remind the client of what it still lacks. */}
+          <SendKycReminder
+            customerId={file.data.customerId}
+            clientName={file.data.clientName}
+            last={file.data.lastReminder}
+            onSent={setReminded}
+          />
           {mayAdd && (
             // No plus before the word. "Add" already says what the button does, and the glyph beside it
             // says it a second time.
@@ -184,6 +194,8 @@ export function ClientKycPage() {
           )}
         </div>
       </header>
+
+      {reminded && <ReminderSent clientName={file.data.clientName} reminder={reminded} />}
 
       <UploadKycDialog
         customerId={customerId}

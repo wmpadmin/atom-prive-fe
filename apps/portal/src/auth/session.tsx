@@ -1,5 +1,6 @@
 import { configureAuth } from "@atomprive/api-client";
 import { refresh } from "@atomprive/api-client/portal";
+import { currentSupportView, forgetSupportView } from "@atomprive/support/support-view";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { SessionContext, type Session } from "./session-context";
 
@@ -17,6 +18,9 @@ import { SessionContext, type Session } from "./session-context";
 /** One refresh at a time. Six requests expiring together must not become six sign-ins. */
 let refreshInFlight: Promise<boolean> | null = null;
 
+/** Whether this tab opened as a support view, which once it ends is not renewed into anybody's session. */
+let viewing = false;
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -25,6 +29,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const ended = useCallback(() => setAccessToken(null), []);
 
   const refreshAccessToken = useCallback(() => {
+    // A support view is never renewed: it ends with its token, and the refresh cookie is somebody else's.
+    if (currentSupportView() || viewing) {
+      forgetSupportView();
+      setAccessToken(null);
+      return Promise.resolve(false);
+    }
     refreshInFlight ??= refresh()
       .then((answer) => {
         if (!answer.accessToken) return false;
@@ -48,6 +58,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // The access token is gone after a reload; the refresh cookie is what brings the session back. Tried
   // once on the way in, and a failure just means nobody is signed in.
   useEffect(() => {
+    const view = currentSupportView();
+    if (view) {
+      viewing = true;
+      setAccessToken(view.token);
+      setReady(true);
+      return;
+    }
     void refreshAccessToken().finally(() => setReady(true));
     // Once, on the way in.
     // eslint-disable-next-line react-hooks/exhaustive-deps
