@@ -72,7 +72,7 @@ export function SendToSignBar({
             : `${chosen.length} ${chosen.length === 1 ? "form" : "forms"} chosen.`}
         </p>
         <Button size="sm" disabled={chosen.length === 0} onClick={() => setAsking(true)}>
-          Send to the client to sign
+          Send to sign
         </Button>
       </div>
 
@@ -115,7 +115,8 @@ export function SendToSignBar({
           </Field>
 
           <p className="text-xs text-ink-muted">
-            They go to the client, who reads and signs them in the portal.
+            They go to the client and to the relationship manager who looks after them. The relationship
+            manager signs their half here.
           </p>
 
           <div className="flex justify-end gap-2">

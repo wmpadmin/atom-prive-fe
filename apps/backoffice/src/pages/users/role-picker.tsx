@@ -1,6 +1,6 @@
 import { cn, RequiredMark } from "@atomprive/ui";
 import { useStaffUser } from "../../auth/session";
-import { assignableRoles as everyRole, roleLabels, type StaffRole } from "../../lib/labels";
+import { roleLabels, roles as everyRole, type StaffRole } from "../../lib/labels";
 
 interface RolePickerProps {
   value: StaffRole[];

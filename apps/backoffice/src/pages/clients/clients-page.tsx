@@ -17,7 +17,6 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { Briefcase, Download, UserRoundCog } from "lucide-react";
 import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
-import { BackToOverview } from "../../components/back-to-overview";
 import { useStaffUser } from "../../auth/session";
 import { ColumnPicker } from "../../components/column-picker";
 import { ClearFiltersLink, ListPageHeader, RecordList } from "../../components/record-list";
@@ -32,7 +31,8 @@ import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
 import { AssignAdvisorDialog, type ClientToAssign } from "./assign-advisor-dialog";
 import { AssignPortfolioManagerDialog } from "./assign-portfolio-manager-dialog";
-import { assignmentNotice, clientKindLabels, clientTypeLabels, managerAssignmentNotice } from "./client-labels";
+import { assignmentNotice, clientKindLabels, clientTypeLabels, kycStatuses, kycStatusLabels,
+  kycStatusTones, managerAssignmentNotice, type KycStatus } from "./client-labels";
 import { ClientSearch } from "./client-search";
 import { StaffStack } from "./staff-stack";
 
@@ -187,6 +187,16 @@ function movableFor({ mine, newestProposal }: {
       cell: (customer) => formatDate(customer.registeredAt),
     },
     {
+      id: "kyc",
+      label: "KYC status",
+      // This client's own, and nobody else's. A row on this list is one client; stacking every other
+      // holder's KYC into their cell made a joint account four badges tall and pushed the rows it was
+      // trying to inform off the screen. Each holder has a row and a file of their own to be read in.
+      cell: (customer) => (
+        <Badge tone={kycStatusTones[customer.kycStatus]}>{kycStatusLabels[customer.kycStatus]}</Badge>
+      ),
+    },
+    {
       id: "banks",
       label: "Linked banks",
       tone: "tabular-nums",
@@ -227,6 +237,7 @@ function movableFor({ mine, newestProposal }: {
 
 interface Filters {
   query: string;
+  kycStatus: KycStatus | "";
   advisorId: string;
   /** Registered on or after this day, yyyy-mm-dd. */
   from: string;
@@ -236,12 +247,14 @@ interface Filters {
   page: number;
 }
 
-/** The search, filters and page live in the address (?q=kapoor&from=2026-09-01), so they can be shared. */
+/** The search, filters and page live in the address (?q=kapoor&kyc=PENDING&from=2026-09-01), so they can be shared. */
 function readFilters(params: URLSearchParams): Filters {
   const size = Number(params.get("size"));
   const page = Number(params.get("page"));
+  const kycStatus = params.get("kyc") as KycStatus | null;
   return {
     query: params.get("q")?.trim() ?? "",
+    kycStatus: kycStatus && kycStatuses.includes(kycStatus) ? kycStatus : "",
     advisorId: params.get("advisor") ?? "",
     from: dayParam(params.get("from")),
     to: dayParam(params.get("to")),
@@ -280,7 +293,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { params, update } = useListAddress();
-  const { query, advisorId, from, to, size, page } = readFilters(params);
+  const { query, kycStatus, advisorId, from, to, size, page } = readFilters(params);
   const typed = useTypedSearch(query, update);
 
   // Clients ticked for assigning a relationship manager or a portfolio manager, on the page shown;
@@ -297,6 +310,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const [notice, setNotice] = useState<string>();
 
   const filters = {
+    kycStatus: kycStatus || undefined,
     advisorId: advisorId || undefined,
     registeredFrom: from ? localDay(from).toISOString() : undefined,
     registeredTo: to ? localDay(to, 1).toISOString() : undefined,
@@ -307,7 +321,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   );
   // The relationship manager's own list is the same list, narrowed by the API to the clients assigned to them.
   const myClients = useListMyClients<CustomerPage, ApiError>(
-    { registeredFrom: filters.registeredFrom,
+    { kycStatus: filters.kycStatus, registeredFrom: filters.registeredFrom,
       registeredTo: filters.registeredTo, query: query || undefined, page, size },
     { query: { enabled: mine, placeholderData: keepPreviousData } },
   );
@@ -340,7 +354,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const rows = customers.data?.items ?? [];
   const total = customers.data?.totalItems ?? 0;
   const lastPage = Math.max(0, Math.ceil(total / size) - 1);
-  const filtered = query !== "" || advisorId !== "" || from !== "" || to !== "";
+  const filtered = query !== "" || kycStatus !== "" || advisorId !== "" || from !== "" || to !== "";
   const canExport = hasAuthority(user, "EXPORT_CUSTOMER_DATA:CHANGE");
   const canOnboard = hasAnyAuthority(user, ...ONBOARDS_CLIENTS_CHANGE);
   const [exporting, setExporting] = useState(false);
@@ -397,13 +411,12 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
 
   return (
     <div className="space-y-6">
-      <BackToOverview />
       <ListPageHeader
         title={mine ? "My clients" : "All clients"}
         lead={
           mine
-            ? "The clients assigned to you, with their code, relationship managers and last login."
-            : "Every client registered with the firm, with their code, where their onboarding stands and last login."
+            ? "The clients assigned to you, with their code, KYC status, relationship managers and last login."
+            : "Every client registered with the firm, with their code, where their onboarding stands, KYC status and last login."
         }
       >
         <div className="flex flex-wrap items-center gap-2">
@@ -458,20 +471,36 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         }
         filters={
           <>
+            {/* On both lists. A relationship manager narrowing to their own clients still wants the ones
+                whose papers are outstanding, and that is the same question Compliance asks of the firm. */}
+            <label>
+              <span className="sr-only">KYC status</span>
+              <SelectInput id="client-kyc" value={kycStatus} onChange={(event) => update({ kyc: event.target.value })} className="w-auto">
+                <option value="">All KYC statuses</option>
+                {kycStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {kycStatusLabels[status]}
+                  </option>
+                ))}
+              </SelectInput>
+            </label>
             {!mine && (
               <label>
-                  <span className="sr-only">Relationship manager</span>
-                  <SelectInput id="client-advisor" value={advisorId} onChange={(event) => update({ advisor: event.target.value })} className="w-auto">
-                    <option value="">All relationship managers</option>
-                    {(advisors.data ?? []).map((advisor) => (
-                      <option key={advisor.id} value={advisor.id}>
-                        {advisor.fullName}
-                      </option>
-                    ))}
-                  </SelectInput>
+                <span className="sr-only">Relationship manager</span>
+                <SelectInput id="client-advisor" value={advisorId} onChange={(event) => update({ advisor: event.target.value })} className="w-auto">
+                  <option value="">All relationship managers</option>
+                  {(advisors.data ?? []).map((advisor) => (
+                    <option key={advisor.id} value={advisor.id}>
+                      {advisor.fullName}
+                    </option>
+                  ))}
+                </SelectInput>
               </label>
             )}
             <div role="group" aria-label="Registration date" className="flex items-center gap-2">
+              <span className="text-sm text-ink-muted" aria-hidden="true">
+                Registered
+              </span>
               <label htmlFor="client-registered-from" className="sr-only">
                 Registered from
               </label>
@@ -487,6 +516,9 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                   onChange={(day) => update({ from: day })}
                 />
               </div>
+              <span className="text-sm text-ink-muted" aria-hidden="true">
+                to
+              </span>
               <label htmlFor="client-registered-to" className="sr-only">
                 Registered to
               </label>
@@ -529,6 +561,8 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
               </div>
             </div>
           )}
+        filtered={filtered}
+        onClear={clearFilters}
         head={
           <>
                 {canSelect && (

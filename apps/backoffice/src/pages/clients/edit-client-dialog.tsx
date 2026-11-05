@@ -11,9 +11,7 @@ import {
 import { Alert, Button, describedBy, Dialog, Field, Note, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
-import { useAddressSuggestions } from "../../components/address-suggestions";
 import { CountrySelect } from "../../components/country-select";
-import { SuggestInput, type Offered } from "../../components/suggest-input";
 import { MobileNumberInput } from "../../components/mobile-number-input";
 import { PhotoField } from "../../components/photo-field";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
@@ -132,7 +130,6 @@ function Details({ client, onClose, onSaved }: { client: Client } & Omit<EditCli
   }
 
   const set = (patch: Partial<typeof address>) => setAddress((was) => ({ ...was, ...patch }));
-  const offered = useAddressSuggestions(address);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -156,27 +153,17 @@ function Details({ client, onClose, onSaved }: { client: Client } & Omit<EditCli
         <div className="grid gap-4 sm:grid-cols-3">
           <Line id="line1" label="Address Line 1" placeholder="House or flat number and street" value={address.line1} onChange={(line1) => set({ line1 })} error={errors.fields.line1} wholeRow />
           <Line id="line2" label="Address Line 2" placeholder="Building, area or district" value={address.line2} onChange={(line2) => set({ line2 })} error={errors.fields.line2} wholeRow />
+          <Line id="city" label="City" value={address.city} onChange={(city) => set({ city })} error={errors.fields.city} />
+          <Line id="state" label="State" value={address.state} onChange={(state) => set({ state })} error={errors.fields.state} />
+          <Line id="postalCode" label="Postal Code" value={address.postalCode} onChange={(postalCode) => set({ postalCode })} error={errors.fields.postalCode} />
         </div>
-        {/* The country first, as on the onboarding form: its states are offered once it is chosen, then the
-            state's towns, then the town's postal codes. A new country starts the rest again. */}
+        {/* Country and mobile share a line, half each. Country sat alone on a row of three with two
+            empty cells beside it, and the mobile sat alone further up — two short fields each taking a
+            whole row to say one thing. */}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field id="country" label="Country" error={errors.fields.country}>
-            <CountrySelect
-              {...describedBy("country", errors.fields.country)}
-              id="country"
-              value={address.country}
-              onChange={(country) => set(country === address.country ? { country } : { country, state: "", city: "", postalCode: "" })}
-            />
+            <CountrySelect {...describedBy("country", errors.fields.country)} id="country" value={address.country} onChange={(country) => set({ country })} />
           </Field>
-          <Suggested id="state" label="State" value={address.state} onChange={(state) => set({ state })} error={errors.fields.state}
-            offered={offered.states} placeholder={address.country ? "Choose or type the state" : "Choose the country first"} />
-          <Suggested id="city" label="City" value={address.city} onChange={(city) => set({ city })} error={errors.fields.city}
-            offered={offered.cities} placeholder={address.state ? "Choose or type the city" : "Choose the state first"} />
-          <Suggested id="postalCode" label="Postal Code" value={address.postalCode} onChange={(postalCode) => set({ postalCode })}
-            error={errors.fields.postalCode} offered={offered.postalCodes}
-            placeholder={offered.lookingUpPostalCodes ? "Looking up postal codes…" : offered.postalCodes.length > 0 ? "Choose or type the postal code" : undefined} />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
           <Field id="phone" label="Mobile" error={errors.fields.phone} hint="How the firm reaches the client.">
             <MobileNumberInput
               {...describedBy("phone", errors.fields.phone)}
@@ -244,23 +231,6 @@ function withOne(fields: FormErrors["fields"], name: string, message: string | u
 }
 
 /** One line of the address, starting from what the file says today so only what moved has to be retyped. */
-/** An address box that offers what is known as it is typed in, and still takes anything typed. */
-function Suggested({ id, label, value, onChange, error, offered, placeholder }: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  offered: Offered[];
-  placeholder?: string;
-}) {
-  return (
-    <Field id={id} label={label} error={error}>
-      <SuggestInput {...describedBy(id, error)} id={id} value={value} onChange={onChange} offered={offered} placeholder={placeholder} />
-    </Field>
-  );
-}
-
 function Line({
   id,
   label,

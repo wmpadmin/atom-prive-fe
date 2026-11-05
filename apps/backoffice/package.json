@@ -13,18 +13,14 @@
   },
   "dependencies": {
     "@atomprive/api-client": "workspace:*",
-    "@atomprive/forms": "workspace:*",
-    "@atomprive/support": "workspace:*",
     "@atomprive/ui": "workspace:*",
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "@tanstack/react-query": "^5.100.0",
-    "echarts": "5.5.0",
     "libphonenumber-js": "^1.13.13",
     "lucide-react": "^1.46.0",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-grid-layout": "2.2.4",
     "react-router": "^8.3.0"
   },
   "devDependencies": {

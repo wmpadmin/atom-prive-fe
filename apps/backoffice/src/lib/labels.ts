@@ -11,13 +11,9 @@ export const roleLabels: Record<StaffRole, string> = {
   COMPLIANCE: "Compliance",
   OPERATIONS: "Operations",
   PORTFOLIO_MANAGER: "Portfolio Manager",
-  IT_ADMIN: "IT Admin",
 };
 
 export const roles = Object.keys(roleLabels) as StaffRole[];
-
-/** The roles the Users screen may give. The IT Admin is set up by the platform, never here. */
-export const assignableRoles = roles.filter((role) => role !== "IT_ADMIN");
 
 /** Every role someone holds, e.g. "Relationship Manager, Compliance". */
 export function roleList(held: StaffRole[]) {

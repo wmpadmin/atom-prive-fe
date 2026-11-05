@@ -31,20 +31,6 @@ export async function saveApiFile(url: string, filename: string): Promise<void> 
   setTimeout(() => URL.revokeObjectURL(href), 1_000);
 }
 
-/** Saves a file the API makes from what it is sent — an Excel export of a screen — under the given name. */
-export async function saveApiPost(url: string, body: unknown, filename: string): Promise<void> {
-  const blob = await httpFile(url, { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
-  const href = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = href;
-  link.download = filename;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  // Revoking straight away can cancel the download in some browsers.
-  setTimeout(() => URL.revokeObjectURL(href), 1_000);
-}
-
 /**
  * Opens a file the API holds — a client's passport, an attached document — in a new tab. The API is behind
  * the session's token, which a plain link in a new tab does not carry, so the file is fetched here and the
