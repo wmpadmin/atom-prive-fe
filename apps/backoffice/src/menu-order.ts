@@ -25,9 +25,11 @@
  * worked, and could be reached by nothing but a typed address.
  */
 export const MENU_ORDER: string[] = [
+  "/dashboard",
+
   // The portfolio desk's own book, in the order the desk works it: who is on a plan, what the plans are,
   // how they are doing, who has wandered off one, and putting them back.
-  "/portfolio-clients", "/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing",
+  "/book", "/portfolio-clients", "/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing",
   "/mis",
 
   // What follows is one order serving three desks at once, written from the firm's own list for each.
@@ -42,7 +44,7 @@ export const MENU_ORDER: string[] = [
   //
   // Each desk's first screen first: the queue Compliance works every morning, the book a relationship
   // manager opens on, and the queue Operations answers.
-  "/kyc", "/my-clients", "/approvals",
+  "/client-management", "/kyc", "/my-clients", "/approvals",
 
   // Then the client, and the two reviews that decide whether the firm may act for them at all.
   "/clients", "/kyc-documents", "/kyc-checklist",
@@ -65,6 +67,6 @@ export const MENU_ORDER: string[] = [
   "/config", "/roles", "/users", "/notifications",
   "/staff-declarations", "/staff-tracker", "/portfolio-settings",
 
-  // A person's own account, which is nobody's work and everybody's last two entries.
-  "/my-declarations", "/settings",
+  // A person's own account, which is nobody's work and everybody's last entries.
+  "/my-clearances", "/my-declarations", "/assistant", "/settings",
 ];
