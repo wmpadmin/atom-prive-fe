@@ -110,7 +110,7 @@ function Toggle<T extends string>({ value, options, onChange, label }: { value: 
 
 const pct = (value: number) => percent(value);
 const pctTick = (value: number) => `${value.toFixed(Math.abs(value) < 1 && value !== 0 ? 2 : 1)}%`;
-const moneyTick = (value: number) => compact(value);
+const moneyTick = (value: number, step: number) => compact(value, undefined, step);
 
 function Overview({ data, period, onPeriod }: { data: PortfolioInsights; period: string; onPeriod: (next: string) => void }) {
   const [view, setView] = useState<"twr" | "value">("twr");
