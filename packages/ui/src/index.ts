@@ -12,3 +12,4 @@ export { Pagination } from "./pagination";
 export { PasswordChecklist } from "./password-checklist";
 export { PasswordInput, SecretArea } from "./password-input";
 export { isStrongPassword, passwordRules } from "./password-rules";
+export { HumanCheck, useHumanCheck } from "./human-check";

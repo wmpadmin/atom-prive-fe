@@ -1,6 +1,6 @@
 import { ApiError } from "@atomprive/api-client";
 import { sendPasswordResetLink, useGetSignInOptions, type SignInOptions } from "@atomprive/api-client/backoffice";
-import { Alert, Button, Field, TextInput } from "@atomprive/ui";
+import { Alert, Button, Field, HumanCheck, TextInput, useHumanCheck } from "@atomprive/ui";
 import { MailCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router";
@@ -14,6 +14,8 @@ export function ForgotPasswordPage() {
   const [sent, setSent] = useState<string>();
   const [error, setError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
+  // Asked for once reset links have been asked for too often (S12).
+  const human = useHumanCheck();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -21,9 +23,11 @@ export function ForgotPasswordPage() {
     setSubmitting(true);
     setError(undefined);
     try {
-      await sendPasswordResetLink({ email });
+      await sendPasswordResetLink({ email, humanCheckToken: human.token });
+      human.heard();
       setSent(email);
     } catch (caught) {
+      human.heard(caught);
       setError(caught instanceof ApiError ? caught.message : "Couldn't reach the server. Check your connection and try again.");
     } finally {
       setSubmitting(false);
@@ -67,7 +71,8 @@ export function ForgotPasswordPage() {
           <Field id="email" label="Email">
             <TextInput id="email" name="email" type="email" autoComplete="username" required autoFocus />
           </Field>
-          <Button type="submit" className="w-full" disabled={submitting}>
+          {human.siteKey && <HumanCheck key={human.round} siteKey={human.siteKey} onToken={human.setToken} />}
+          <Button type="submit" className="w-full" disabled={submitting || human.waiting}>
             {submitting ? "Sending…" : "Send the link"}
           </Button>
           <Link to="/login" className="block text-center text-sm font-medium text-primary-600 hover:text-primary-700">

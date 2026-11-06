@@ -886,6 +886,12 @@ export interface SignInRequest {
   email: string;
   /** @minLength 1 */
   password: string;
+  /**
+     * @minLength 0
+     * @maxLength 4096
+     * @nullable
+     */
+  humanCheckToken: string | null;
 }
 
 export interface CodeRequest {
@@ -901,6 +907,12 @@ export interface CodeRequest {
 export interface ChallengeRequest {
   /** @minLength 1 */
   challengeToken: string;
+  /**
+     * @minLength 0
+     * @maxLength 4096
+     * @nullable
+     */
+  humanCheckToken: string | null;
 }
 
 export interface EmailedCode {
