@@ -59,7 +59,9 @@ export function HoldingsCheckClientPage() {
             {summary.asOf && ` · bank's statement of ${formatDate(summary.asOf)}`}
           </p>
         </div>
-        <Badge tone="info">Compared, not used</Badge>
+        {check.data.inUse.length > 0
+          ? <Badge tone="success">{check.data.inUse.join(", ")} in use</Badge>
+          : <Badge tone="info">Compared, not used</Badge>}
       </header>
 
       <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -137,7 +139,7 @@ export function HoldingsCheckClientPage() {
                     <td colSpan={9} className="px-5 py-2 text-xs font-bold text-ink-soft">{group}</td>
                   </tr>
                   {shown.filter((line) => line.group === group).map((line) => (
-                    <Line key={(line.isin ?? line.name) + line.status} line={line} />
+                    <Line key={(line.isin ?? line.name) + line.status} line={line} waitingToBePlaced={check.data.inUse.length > 0} />
                   ))}
                 </Fragment>
               ))}
@@ -149,8 +151,11 @@ export function HoldingsCheckClientPage() {
   );
 }
 
-function Line({ line }: { line: HoldingLine }) {
-  const status = STATUS[line.status];
+function Line({ line, waitingToBePlaced }: { line: HoldingLine; waitingToBePlaced: boolean }) {
+  // At a bank in use, a holding still only at the bank is one Operations have to place by hand.
+  const status = line.status === "ONLY_AT_BANK" && waitingToBePlaced
+    ? { label: "Waiting to be placed", tone: "warning" as const }
+    : STATUS[line.status];
   return (
     <tr className="border-b border-line align-top last:border-b-0">
       <td className="py-3 pr-4 pl-5">
