@@ -2,6 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import {
   getPrintProposalUrl,
   useCreateProposal,
+  useGetCustomer,
   useGetProposal,
   useListClientHoldings,
   useListMovesCarryingOut,
@@ -12,6 +13,7 @@ import {
   useUpdateProposal,
   type ClientHoldings,
   type Currency,
+  type CustomerDetail,
   type CustomerPage,
   type MovePlanRow,
   type ProposalDetail,
@@ -66,7 +68,10 @@ export function ProposalPage() {
   // client's own file, were both being sent on to the proposals list, which is neither the list they were
   // working nor one they had been on. The client's file needs no id in the address — the proposal names its
   // own client.
-  const cameFrom = useSearchParams()[0].get("from");
+  const [address] = useSearchParams();
+  const cameFrom = address.get("from");
+  // The client a new proposal is for, where it was started from their portfolio: chosen already.
+  const startedFor = writing ? address.get("client") : null;
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   // A refusal takes the reader to it: on a form this long the first bad field is a screen above Send.
   useShowFirstError(errors, form);
@@ -87,7 +92,7 @@ export function ProposalPage() {
   const [typedLegs, setTypedLegs] = useState<TypedLeg[] | null>(null);
   // Which client the legs are picked from, held rather than read off the form at save time: the pickers
   // list that client's own allocation, so they have to change the moment the choice does.
-  const [chosenClient, setChosenClient] = useState<string | null>(null);
+  const [chosenClient, setChosenClient] = useState<string | null>(startedFor);
   const [exporting, setExporting] = useState(false);
 
   /**
@@ -124,6 +129,11 @@ export function ProposalPage() {
   // the writer was held to a set of clients; nobody who is still writes one.
   const clients = useListCustomers<CustomerPage, ApiError>({ size: 100 }, { query: { enabled: writes } });
   const noClients = clients.isSuccess && (clients.data?.items?.length ?? 0) === 0;
+  // Read on its own as well: the list stops at a hundred, and the client somebody came from may be past it.
+  const startedForClient = useGetCustomer<CustomerDetail, ApiError>(startedFor ?? "", {
+    query: { enabled: startedFor !== null },
+  });
+  const listed = (clients.data?.items ?? []).some((one) => one.id === startedFor);
 
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
   const create = useCreateProposal<ApiError>({
@@ -306,7 +316,12 @@ export function ProposalPage() {
             to: clientFileHref(user, proposal.summary.customerId),
             label: `Back to ${proposal.summary.customerName}`,
           }
-        : { to: "/proposals", label: "Back to sent proposals" };
+        : cameFrom === "portfolio" && startedFor
+          ? {
+              to: `/portfolio-clients/${startedFor}`,
+              label: `Back to ${startedForClient.data?.client.fullName ?? "the client"}`,
+            }
+          : { to: "/proposals", label: "Back to sent proposals" };
 
   return (
     <div className="space-y-6">
@@ -435,6 +450,11 @@ export function ProposalPage() {
             <option value="" disabled>
               {noClients ? "No clients are assigned to you" : "Choose a client"}
             </option>
+            {startedFor && !listed && startedForClient.data && (
+              <option value={startedFor}>
+                {startedForClient.data.client.fullName} · {startedForClient.data.client.code}
+              </option>
+            )}
             {(clients.data?.items ?? []).map((client) => (
               <option key={client.id} value={client.id}>
                 {client.fullName} · {client.code}
