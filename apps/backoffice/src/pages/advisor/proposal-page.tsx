@@ -134,8 +134,15 @@ export function ProposalPage() {
   });
   const submit = useSubmitProposal<ApiError>({
     mutation: {
+      // A rebalance goes to the relationship manager; everything else goes to the client, in their portal.
       onSuccess: (saved) =>
-        moved(`Sent to ${saved.summary.customerName}'s relationship manager.`),
+        moved(
+          saved.summary.toClient
+            ? `Sent to ${saved.summary.customerName} to approve or reject in their portal${
+                saved.summary.answerBy ? ` by ${formatDate(saved.summary.answerBy)}` : ""
+              }.`
+            : `Sent to ${saved.summary.customerName}'s relationship manager.`,
+        ),
       onError,
     },
   });
