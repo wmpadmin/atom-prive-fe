@@ -42,7 +42,7 @@ export function SecurityPage() {
   const others = (data?.signedIn ?? []).filter((one) => !one.current).length;
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="space-y-4">
       <div>
         <h1 className="text-[1.625rem] font-bold text-balance text-ink">Security</h1>
         <p className="mt-1 text-sm text-ink-muted">Your password, your authenticator, and everywhere you're signed in.</p>
