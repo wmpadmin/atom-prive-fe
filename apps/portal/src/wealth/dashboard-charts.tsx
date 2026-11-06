@@ -1,5 +1,5 @@
 import type { LinePoint, ValueSlice } from "@atomprive/api-client/portal";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { INK, compact, monthOf } from "./figures";
 
 const WIDTH = 640;
@@ -8,6 +8,35 @@ const LEFT = 48;
 const RIGHT = 12;
 const TOP = 12;
 const BOTTOM = 28;
+
+/**
+ * Draws a chart at the width it is actually shown at, so its labels stay the size they are written at. Drawn at a
+ * fixed width and scaled to fit, a chart on a phone shrank its 11px labels to half that (S64).
+ *
+ * @returns where to measure, the width and height to draw at, and the label size
+ */
+function useDrawing() {
+  const [box, setBox] = useState<HTMLDivElement | null>(null);
+  const [measured, setMeasured] = useState(WIDTH);
+  useEffect(() => {
+    if (!box) return;
+    const read = () => {
+      const now = Math.round(box.getBoundingClientRect().width);
+      if (now > 0) setMeasured(Math.max(240, now));
+    };
+    read();
+    const watch = new ResizeObserver(read);
+    watch.observe(box);
+    return () => watch.disconnect();
+  }, [box]);
+  const narrow = measured < 480;
+  // As tall as before at the usual width, and never so flat on a phone that the ticks run together.
+  const height = Math.round(Math.min(280, Math.max(190, measured * (HEIGHT / WIDTH))));
+  return { box: setBox, w: measured, h: height, size: narrow ? 12 : 11 };
+}
+
+/** Roughly how wide a label is drawn, for margins: the face's figures average a little over half its size. */
+const widthOf = (text: string, size: number) => text.length * size * 0.6;
 
 /** A scale whose ticks land on round numbers, four or five of them, covering every value drawn. */
 function ticks(low: number, high: number) {
@@ -44,12 +73,13 @@ export function LineChart({
   series: Series[];
   /** A value as the tooltip writes it. */
   format: (value: number) => string;
-  /** A value as the axis writes it. */
-  tick: (value: number) => string;
+  /** A value as the axis writes it, given how far apart the ticks are. */
+  tick: (value: number, step: number) => string;
   label: string;
   empty: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  const { box, w, h, size } = useDrawing();
   const drawn = series.filter((one) => one.points.length > 0);
   const main = drawn[0];
 
@@ -62,10 +92,13 @@ export function LineChart({
   const scale = ticks(Math.min(...values), Math.max(...values));
   const low = scale[0] ?? 0;
   const high = scale[scale.length - 1] ?? 1;
+  const step = (scale[1] ?? high) - (scale[0] ?? 0);
+  // Room for the widest tick label, so "-0.50%" is not cut off on a narrow chart.
+  const left = Math.max(LEFT, Math.ceil(Math.max(...scale.map((value) => widthOf(tick(value, step), size))) + 14));
   const first = Math.min(...all.map((one) => time(one.on)));
   const last = Math.max(...all.map((one) => time(one.on)));
-  const x = (day: string) => LEFT + ((time(day) - first) / (last - first || 1)) * (WIDTH - LEFT - RIGHT);
-  const y = (value: number) => TOP + (1 - (value - low) / (high - low || 1)) * (HEIGHT - TOP - BOTTOM);
+  const x = (day: string) => left + ((time(day) - first) / (last - first || 1)) * (w - left - RIGHT);
+  const y = (value: number) => TOP + (1 - (value - low) / (high - low || 1)) * (h - TOP - BOTTOM);
   const path = (points: LinePoint[]) =>
     points.map((one, index) => `${index === 0 ? "M" : "L"}${x(one.on).toFixed(1)},${y(one.value).toFixed(1)}`).join(" ");
 
@@ -87,15 +120,15 @@ export function LineChart({
   const shown = hover === null ? null : main.points[hover];
 
   return (
-    <div className="relative">
+    <div ref={box} className="relative">
       <svg
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        viewBox={`0 0 ${w} ${h}`}
         role="img"
         aria-label={label}
         className="h-auto w-full touch-none"
         onPointerMove={(event) => {
           const box = event.currentTarget.getBoundingClientRect();
-          const at = first + ((((event.clientX - box.left) / box.width) * WIDTH - LEFT) / (WIDTH - LEFT - RIGHT)) * (last - first);
+          const at = first + ((((event.clientX - box.left) / box.width) * w - left) / (w - left - RIGHT)) * (last - first);
           const closest = near(main.points, at);
           setHover(main.points.indexOf(closest));
         }}
@@ -109,14 +142,14 @@ export function LineChart({
         </defs>
         {scale.map((value) => (
           <g key={value}>
-            <line x1={LEFT} x2={WIDTH - RIGHT} y1={y(value)} y2={y(value)} stroke="var(--color-line)" strokeWidth="1" />
-            <text x={LEFT - 8} y={y(value) + 4} textAnchor="end" fontSize="11" fill="var(--color-ink-muted)">
-              {tick(value)}
+            <line x1={left} x2={w - RIGHT} y1={y(value)} y2={y(value)} stroke="var(--color-line)" strokeWidth="1" />
+            <text x={left - 8} y={y(value) + 4} textAnchor="end" fontSize={size} fill="var(--color-ink-muted)">
+              {tick(value, step)}
             </text>
           </g>
         ))}
         {marks.map((one) => (
-          <text key={one.on} x={x(one.on)} y={HEIGHT - 8} textAnchor="middle" fontSize="11" fill="var(--color-ink-muted)">
+          <text key={one.on} x={x(one.on)} y={h - 8} textAnchor="middle" fontSize={size} fill="var(--color-ink-muted)">
             {long ? new Date(one.on).getFullYear() : monthOf(one.on)}
           </text>
         ))}
@@ -124,7 +157,7 @@ export function LineChart({
           one.area ? (
             <path
               key={`${one.name}-area`}
-              d={`${path(one.points)} L${x(one.points[one.points.length - 1]!.on).toFixed(1)},${HEIGHT - BOTTOM} L${x(one.points[0]!.on).toFixed(1)},${HEIGHT - BOTTOM} Z`}
+              d={`${path(one.points)} L${x(one.points[one.points.length - 1]!.on).toFixed(1)},${h - BOTTOM} L${x(one.points[0]!.on).toFixed(1)},${h - BOTTOM} Z`}
               fill="url(#line-fill)"
             />
           ) : null,
@@ -134,7 +167,7 @@ export function LineChart({
         ))}
         {shown && (
           <g>
-            <line x1={x(shown.on)} x2={x(shown.on)} y1={TOP} y2={HEIGHT - BOTTOM} stroke="var(--color-ink-muted)" strokeDasharray="3 3" />
+            <line x1={x(shown.on)} x2={x(shown.on)} y1={TOP} y2={h - BOTTOM} stroke="var(--color-ink-muted)" strokeDasharray="3 3" />
             {drawn.map((one) => {
               const point = near(one.points, time(shown.on));
               return <circle key={one.name} cx={x(point.on)} cy={y(point.value)} r="4.5" fill={one.colour} stroke="white" strokeWidth="2" />;
@@ -146,7 +179,7 @@ export function LineChart({
         <div
           className="pointer-events-none absolute top-0 min-w-36 rounded-lg border border-line bg-white px-3 py-2 text-xs shadow-md"
           style={{
-            left: `${(x(shown.on) / WIDTH) * 100}%`,
+            left: `${(x(shown.on) / w) * 100}%`,
             transform: hover > main.points.length / 2 ? "translateX(calc(-100% - 10px))" : "translateX(10px)",
           }}
         >
@@ -173,7 +206,7 @@ export function ValueChart({ points, currency, empty }: { points: LinePoint[]; c
     <LineChart
       series={[{ name: "Portfolio value", colour: "var(--color-primary-600)", points, area: true }]}
       format={(value) => new Intl.NumberFormat("en-GB", { style: "currency", currency, maximumFractionDigits: 0 }).format(value)}
-      tick={(value) => compact(value)}
+      tick={(value, step) => compact(value, undefined, step)}
       label={`Portfolio value, from ${compact(values[0] ?? 0, currency)} to ${compact(values[values.length - 1] ?? 0, currency)}`}
       empty={empty ?? "Your portfolio's performance appears here once it has been valued this year."}
     />
@@ -298,13 +331,14 @@ export function BarChart({
 }: {
   bars: Bar[];
   format: (value: number) => string;
-  tick: (value: number) => string;
+  tick: (value: number, step: number) => string;
   label: string;
   empty: string;
   /** Each bar starts where the one before ended, as an explainer reads; bars marked total stand from nought. */
   waterfall?: { totals: number[] };
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  const { box, w, h, size } = useDrawing();
   if (bars.length === 0 || bars.every((one) => one.value === null)) {
     return <p className="flex h-52 items-center justify-center px-6 text-center text-sm text-ink-muted">{empty}</p>;
   }
@@ -324,39 +358,48 @@ export function BarChart({
   const scale = ticks(Math.min(0, ...spans.map((one) => one.low)), Math.max(0, ...spans.map((one) => one.high)));
   const low = scale[0] ?? 0;
   const high = scale[scale.length - 1] ?? 1;
-  const tilted = bars.length > 6;
-  const bottom = tilted ? 64 : BOTTOM;
-  const y = (value: number) => TOP + (1 - (value - low) / (high - low || 1)) * (HEIGHT - TOP - bottom);
-  const band = (WIDTH - LEFT - RIGHT) / bars.length;
+  const step = (scale[1] ?? high) - (scale[0] ?? 0);
+  const cut = w < 480 ? 14 : 18;
+  const named = bars.map((one) => (one.label.length > cut ? `${one.label.slice(0, cut - 1)}…` : one.label));
+  const longest = Math.max(...named.map((one) => widthOf(one, size)));
+  const axis = Math.max(LEFT, Math.ceil(Math.max(...scale.map((value) => widthOf(tick(value, step), size))) + 14));
+  // Tilted where there are many bars, or where a label is wider than the room under its own bar.
+  const tilted = bars.length > 6 || longest > (w - axis - RIGHT) / bars.length - 6;
+  // A tilted label reaches down and back to the left; the margins grow to hold it rather than cut it off.
+  const reach = tilted ? longest * Math.cos(Math.PI / 180 * 35) : 0;
+  const bottom = tilted ? Math.min(Math.round(h * 0.45), Math.ceil(longest * Math.sin(Math.PI / 180 * 35) + 24)) : BOTTOM;
+  const left = Math.max(axis, Math.ceil(reach - (w - axis - RIGHT) / bars.length / 2 + 4));
+  const y = (value: number) => TOP + (1 - (value - low) / (high - low || 1)) * (h - TOP - bottom);
+  const band = (w - left - RIGHT) / bars.length;
   const width = Math.min(32, band * 0.55);
 
   return (
-    <div className="relative">
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={label} className="h-auto w-full" onPointerLeave={() => setHover(null)}>
+    <div ref={box} className="relative">
+      <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label={label} className="h-auto w-full" onPointerLeave={() => setHover(null)}>
         {scale.map((value) => (
           <g key={value}>
             <line
-              x1={LEFT}
-              x2={WIDTH - RIGHT}
+              x1={left}
+              x2={w - RIGHT}
               y1={y(value)}
               y2={y(value)}
               stroke={value === 0 ? "var(--color-ink-muted)" : "var(--color-line)"}
               strokeWidth="1"
               strokeDasharray={value === 0 ? undefined : "3 3"}
             />
-            <text x={LEFT - 8} y={y(value) + 4} textAnchor="end" fontSize="11" fill="var(--color-ink-muted)">
-              {tick(value)}
+            <text x={left - 8} y={y(value) + 4} textAnchor="end" fontSize={size} fill="var(--color-ink-muted)">
+              {tick(value, step)}
             </text>
           </g>
         ))}
         {bars.map((one, index) => {
-          const centre = LEFT + band * index + band / 2;
+          const centre = left + band * index + band / 2;
           const span = spans[index]!;
           const value = one.value ?? 0;
           const colour = one.colour ?? (value < 0 ? "#f97316" : "var(--color-brand-900)");
           return (
             <g key={`${one.label}-${index}`} onPointerEnter={() => setHover(index)}>
-              <rect x={centre - band / 2} y={TOP} width={band} height={HEIGHT - TOP - bottom} fill="transparent" />
+              <rect x={centre - band / 2} y={TOP} width={band} height={h - TOP - bottom} fill="transparent" />
               {one.value !== null && (
                 <rect
                   x={centre - width / 2}
@@ -370,13 +413,13 @@ export function BarChart({
               )}
               <text
                 x={centre}
-                y={HEIGHT - bottom + 16}
+                y={h - bottom + 16}
                 textAnchor={tilted ? "end" : "middle"}
-                fontSize="11"
+                fontSize={size}
                 fill="var(--color-ink-muted)"
-                transform={tilted ? `rotate(-35 ${centre} ${HEIGHT - bottom + 16})` : undefined}
+                transform={tilted ? `rotate(-35 ${centre} ${h - bottom + 16})` : undefined}
               >
-                {one.label.length > 18 ? `${one.label.slice(0, 17)}…` : one.label}
+                {named[index]}
               </text>
             </g>
           );
@@ -386,7 +429,7 @@ export function BarChart({
         <div
           className="pointer-events-none absolute top-0 rounded-lg border border-line bg-white px-3 py-2 text-xs shadow-md"
           style={{
-            left: `${((LEFT + band * hover + band / 2) / WIDTH) * 100}%`,
+            left: `${((left + band * hover + band / 2) / w) * 100}%`,
             transform: hover > bars.length / 2 ? "translateX(calc(-100% - 10px))" : "translateX(10px)",
           }}
         >
