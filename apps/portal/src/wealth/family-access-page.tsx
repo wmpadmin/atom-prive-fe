@@ -38,6 +38,7 @@ import { accountKind, initialsOf } from "../lib/money";
 import { AccessPill } from "./access-pill";
 import { GrantDialog } from "./accounts-page";
 import { ShareDialog } from "./family-wealth-page";
+import { writeDate } from "../lib/display";
 
 /**
  * Who is in the client's family, who may see what of whose, and who has been invited. Every member gives and
@@ -400,7 +401,7 @@ function RelationshipDialog({ now, holderName, onClose, onSent }: {
 }
 
 function stamp(at: string) {
-  return new Date(at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return writeDate(at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 function askStatus(ask: InviteAsk) {

@@ -20,6 +20,7 @@ import { Alert, Button, Dialog, Field, isStrongPassword, PasswordChecklist, Pass
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { day } from "./figures";
+import { writeDate } from "../lib/display";
 
 /**
  * The client's own Security page (S19, S7): their password, their authenticator, everywhere they are signed in,
@@ -211,7 +212,7 @@ function Row({ title, lead, action }: { title: ReactNode; lead: string; action?:
 }
 
 function when(at: string) {
-  return new Date(at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return writeDate(at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 /** Current password first; a new one that meets the rules, typed twice; every other device signed out after. */

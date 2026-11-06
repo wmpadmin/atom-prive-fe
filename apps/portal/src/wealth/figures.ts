@@ -1,3 +1,5 @@
+import { writeDate, writeDay } from "../lib/display";
+
 /**
  * The colours an asset class is drawn in, in the order the firm lists its classes — the same hues the firm's
  * own overview draws them in, so a client and their manager see one picture. A slice is never told apart by
@@ -38,10 +40,10 @@ export function percent(value: number) {
 
 /** The short name of the month a day falls in: Jan, Feb. */
 export function monthOf(day: string) {
-  return new Date(day).toLocaleDateString("en-GB", { month: "short" });
+  return writeDate(day, { month: "short" });
 }
 
-/** A day as the firm writes it: 5 Nov 2026. */
+/** A day as the client asked for it; as the firm writes it, 5 Nov 2026, unless they chose otherwise. */
 export function day(at: string | null | undefined) {
-  return at ? new Date(at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  return at ? writeDay(at) : "—";
 }

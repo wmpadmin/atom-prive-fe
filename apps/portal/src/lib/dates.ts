@@ -1,11 +1,13 @@
+import { dayOf, writeDay, writeMoment } from "./display";
+
 /**
- * A date as the firm writes them: 26 Oct 2026.
+ * A date as the client asked for it — as the firm writes them, 26 Oct 2026, unless they chose otherwise.
  *
  * <p>Its own file, small as it is, because the screens that use it are components and a module that
  * exports both a component and a plain function loses hot reloading for the whole file.
  */
 export function when(at: string) {
-  return new Date(at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return writeDay(at);
 }
 
 /**
@@ -16,20 +18,10 @@ export function when(at: string) {
  * same day are two rows, and without the clock they read as one thing recorded twice.
  */
 export function exactly(at: string) {
-  return new Date(at).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  return writeMoment(at);
 }
 
 /** Just the day, as yyyy-mm-dd, for comparing against a date input's value. */
 export function asDay(at: string) {
-  const on = new Date(at);
-  const month = String(on.getMonth() + 1).padStart(2, "0");
-  const day = String(on.getDate()).padStart(2, "0");
-  return `${on.getFullYear()}-${month}-${day}`;
+  return dayOf(at);
 }

@@ -32,6 +32,8 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { when } from "../lib/dates";
 import { Card } from "./card";
+import { RestatedNote } from "./restated-note";
+import { shownDashboard, type Shown } from "./shown";
 import { AllocationRing, ValueChart } from "./dashboard-charts";
 import { percent, whole } from "./figures";
 
@@ -179,7 +181,7 @@ function Recent({ activity }: { activity: Happening[] }) {
 
 export function DashboardPage() {
   const me = useMe<Me, ApiError>();
-  const dashboard = useDashboard<PortalDashboard, ApiError>();
+  const dashboard = useDashboard<Shown<PortalDashboard>, ApiError>({ query: { select: shownDashboard } });
   const accounts = useAccounts<AccountRow[], ApiError>();
   const firstName = me.data?.fullName.split(/\s+/)[0] ?? "";
 
@@ -188,6 +190,7 @@ export function DashboardPage() {
       <div>
         <h1 className="text-[1.625rem] font-bold text-balance text-ink">Welcome{firstName ? `, ${firstName}` : ""}</h1>
         <p className="mt-1 text-sm text-ink-muted">Here's your wealth overview and key updates.</p>
+        <RestatedNote heldIn={dashboard.data?.heldIn} shownIn={dashboard.data?.currency} />
       </div>
 
       {dashboard.isError ? (
