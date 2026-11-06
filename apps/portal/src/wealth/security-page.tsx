@@ -19,6 +19,8 @@ import {
 import { Alert, Button, Dialog, Field, isStrongPassword, PasswordChecklist, PasswordInput, TextArea } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
+import { ChevronLeft } from "lucide-react";
+import { Link } from "react-router";
 import { day } from "./figures";
 import { writeDate } from "../lib/display";
 
@@ -43,6 +45,10 @@ export function SecurityPage() {
 
   return (
     <div className="space-y-4">
+      <Link to="/new/settings" className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline">
+        <ChevronLeft aria-hidden="true" className="size-4" />
+        Back to Settings
+      </Link>
       <div>
         <h1 className="text-[1.625rem] font-bold text-balance text-ink">Security</h1>
         <p className="mt-1 text-sm text-ink-muted">Your password, your authenticator, and everywhere you're signed in.</p>
