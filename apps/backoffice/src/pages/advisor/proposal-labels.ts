@@ -1,4 +1,6 @@
-import type { ProposalRowStatus } from "@atomprive/api-client/backoffice";
+import type { ProposalRowClientInstruction, ProposalRowStatus } from "@atomprive/api-client/backoffice";
+
+type ClientInstruction = NonNullable<ProposalRowClientInstruction>;
 import { formatDate } from "../../lib/labels";
 
 /**
@@ -13,6 +15,7 @@ export const proposalStatusLabels: Record<ProposalRowStatus, string> = {
   PENDING: "Waiting on the relationship manager",
   APPROVED: "Approved",
   REJECTED: "Rejected",
+  EXPIRED: "Expired",
 };
 
 /**
@@ -22,7 +25,10 @@ export const proposalStatusLabels: Record<ProposalRowStatus, string> = {
  * two, and the manager who raised it is not one of them — so the name has to come from the proposal
  * rather than from the name beside it on the row, which is whoever wrote it.
  */
-export function proposalStanding(status: ProposalRowStatus, waitingOn: string | null | undefined) {
+export function proposalStanding(status: ProposalRowStatus, waitingOn: string | null | undefined,
+  answerBy?: string | null) {
+  // Sent to the client, it waits on them by name, until a day.
+  if (status === "PENDING" && answerBy) return `Waiting on ${waitingOn ?? "the client"} until ${formatDate(answerBy)}`;
   return status === "PENDING" && waitingOn
     ? `Waiting on ${waitingOn}`
     : proposalStatusLabels[status];
@@ -33,6 +39,7 @@ export const proposalStatusTones: Record<ProposalRowStatus, "neutral" | "info" |
   PENDING: "info",
   APPROVED: "success",
   REJECTED: "danger",
+  EXPIRED: "neutral",
 };
 
 /**
@@ -55,13 +62,26 @@ export function sentLabel(sentAt: string | null) {
  * there first.
  */
 export function answeredLabel(status: ProposalRowStatus, answeredByName: string | null, decidedAt: string | null,
-  fromRebalance = false) {
+  fromRebalance = false, byClient?: { answeredByClient: boolean; clientInstruction: ClientInstruction | null }) {
+  if (status === "EXPIRED") return decidedAt ? `Expired ${formatDate(decidedAt)}, unanswered` : "Expired, unanswered";
   // Agreed, not approved, where agreeing moved nothing. A rebalance says only what to sell; the money
   // moves as the portfolio desk places it, so "approved" over one of these reads as work already done.
   const said = status !== "APPROVED" ? "Rejected" : fromRebalance ? "Agreed" : "Approved";
-  const who = `${said} by ${answeredByName ?? "their relationship manager"}`;
+  // The client's own answer, given in the portal or told to their manager, who wrote it down.
+  const who = byClient?.clientInstruction
+    ? `${said} by the client, ${INSTRUCTION_LABELS[byClient.clientInstruction]} — recorded by ${answeredByName ?? "their relationship manager"}`
+    : byClient?.answeredByClient
+      ? `${said} by the client, ${answeredByName ?? ""}, in the portal`
+      : `${said} by ${answeredByName ?? "their relationship manager"}`;
   return decidedAt ? `${who} on ${formatDate(decidedAt)}` : who;
 }
+
+/** How a client gave their answer to their manager, as a sentence goes on. */
+export const INSTRUCTION_LABELS: Record<ClientInstruction, string> = {
+  CALL: "by phone",
+  EMAIL: "by email",
+  MEETING: "in a meeting",
+};
 
 /**
  * Where it stands in time: waiting, or what was decided and when.
@@ -72,6 +92,7 @@ export function answeredLabel(status: ProposalRowStatus, answeredByName: string 
  */
 export function standingLabel(status: ProposalRowStatus, sentAt: string | null, decidedAt: string | null,
   fromRebalance = false, openForPlacing = false) {
+  if (status === "EXPIRED") return decidedAt ? `Expired ${formatDate(decidedAt)}` : "Expired";
   if (status === "APPROVED" || status === "REJECTED") {
     // A rebalance still being placed is not finished work, and a column that called it Approved put it
     // beside proposals whose money had actually moved.

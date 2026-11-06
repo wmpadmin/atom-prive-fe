@@ -25,3 +25,8 @@ export function percent(value: number) {
 export function monthOf(day: string) {
   return new Date(day).toLocaleDateString("en-GB", { month: "short" });
 }
+
+/** A day as the firm writes it: 5 Nov 2026. */
+export function day(at: string | null | undefined) {
+  return at ? new Date(at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
+}

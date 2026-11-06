@@ -397,6 +397,19 @@ export const ProposalRowStatus = {
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
+  EXPIRED: 'EXPIRED',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ProposalRowClientInstruction = typeof ProposalRowClientInstruction[keyof typeof ProposalRowClientInstruction] | null;
+
+
+export const ProposalRowClientInstruction = {
+  CALL: 'CALL',
+  EMAIL: 'EMAIL',
+  MEETING: 'MEETING',
 } as const;
 
 export interface ProposalRow {
@@ -431,6 +444,14 @@ export interface ProposalRow {
   waitingOn: string | null;
   fromRebalance: boolean;
   openForPlacing: boolean;
+  toClient: boolean;
+  /** @nullable */
+  answerBy: string | null;
+  /** @nullable */
+  clientOpenedAt: string | null;
+  answeredByClient: boolean;
+  /** @nullable */
+  clientInstruction: ProposalRowClientInstruction;
 }
 
 export interface TrailEntry {
@@ -501,6 +522,12 @@ export interface SettingsRequest {
   digestEnabled: boolean | null;
   /** @nullable */
   digestAt: string | null;
+  /**
+     * @minimum 1
+     * @maximum 90
+     * @nullable
+     */
+  proposalAnswerDays: number | null;
 }
 
 export type SettingsViewSellOrder = typeof SettingsViewSellOrder[keyof typeof SettingsViewSellOrder];
@@ -546,6 +573,7 @@ export interface SettingsView {
   updatedAt: string;
   /** @nullable */
   updatedBy: string | null;
+  proposalAnswerDays: number;
 }
 
 export type ScheduleRowKind = typeof ScheduleRowKind[keyof typeof ScheduleRowKind];
@@ -1801,14 +1829,14 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  floatingPointNumber?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -3695,6 +3723,18 @@ export interface Converted {
   onboardingCaseId: string;
 }
 
+/**
+ * @nullable
+ */
+export type DecisionRequestInstruction = typeof DecisionRequestInstruction[keyof typeof DecisionRequestInstruction] | null;
+
+
+export const DecisionRequestInstruction = {
+  CALL: 'CALL',
+  EMAIL: 'EMAIL',
+  MEETING: 'MEETING',
+} as const;
+
 export interface DecisionRequest {
   approved: boolean;
   /**
@@ -3703,6 +3743,8 @@ export interface DecisionRequest {
      * @nullable
      */
   note: string | null;
+  /** @nullable */
+  instruction: DecisionRequestInstruction;
 }
 
 export interface PlaceRequest {
@@ -6114,6 +6156,7 @@ export interface ProposalCounts {
   approved: number;
   rejected: number;
   approvedLately: number;
+  expired: number;
 }
 
 export interface ProposalPage {
@@ -8295,6 +8338,7 @@ export const ListProposalsStatus = {
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
+  EXPIRED: 'EXPIRED',
 } as const;
 
 export type ListModelChangesParams = {

@@ -36,6 +36,7 @@ import { somethingElseLandsHere, wouldBreakAband } from "../portfolios/what-it-w
 import { APPROVES_PROPOSALS, clientFileHref, hasAnyAuthority, WRITES_PROPOSALS } from "../../lib/permissions";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/labels";
 import { figure, named } from "../portfolios/money-words";
+import type { DecisionRequestInstruction as ClientInstruction } from "@atomprive/api-client/backoffice";
 import { answeredLabel, formatValue, proposalStanding, proposalStatusTones, sentLabel, standingLabel } from "./proposal-labels";
 
 /** One of the four facts above a proposal: what it was advised against, and the dates it turns on. */
@@ -74,6 +75,8 @@ export function ProposalPage() {
   const moments = useRef<HTMLDivElement>(null);
   /** Whether the answer dialog is open, and which way it is being answered. */
   const [answering, setAnswering] = useState<"approve" | "reject" | null>(null);
+  /** How the client told them, where the proposal went to the client and the manager is writing it down. */
+  const [instruction, setInstruction] = useState<string>("");
   const [note, setNote] = useState("");
   // Typed rather than native: a number box takes "e" as scientific notation and then reports itself empty,
   // so a figure somebody fumbled would be dropped on the way out instead of questioned.
@@ -164,7 +167,9 @@ export function ProposalPage() {
               // A rebalance says only what to sell. Where it lands is the portfolio desk's judgement, so
               // agreeing moves nothing and telling the manager it had would be telling them wrong.
               ? "Agreed. Nothing has moved yet — the portfolio desk will put this client back."
-              : "Approved on the client's behalf, and the money has moved.",
+              : saved.summary.toClient
+                ? "Recorded the client's approval, and the money has moved."
+                : "Approved on the client's behalf, and the money has moved.",
         ),
       onError,
     },
@@ -207,6 +212,9 @@ export function ProposalPage() {
   // proposal, the one person who may never answer it, and would have drawn them for a manager the API
   // then refused. Being able to press a button that cannot work is worse than not having one.
   const toAnswer = !writing && (proposal?.summary.mayAnswer ?? false);
+  // Sent to the client, it is theirs to answer in the portal. Their manager may still write down an answer the
+  // client gave them, and says how it came.
+  const toClient = !writing && (proposal?.summary.toClient ?? false);
   // What the legs would do to the lines they name, worked out by the server against the figures as they
   // stand now — not here, where it would be a second reading of a band the platform already states.
   const weighed = proposal?.weighed ?? [];
@@ -223,6 +231,7 @@ export function ProposalPage() {
   /** Opens the answer dialog on an empty box, so neither way of answering inherits the other's note. */
   function asking(which: "approve" | "reject" | null) {
     setNote("");
+    setInstruction("");
     setErrors(noErrors);
     setAnswering(which);
   }
@@ -349,7 +358,7 @@ export function ProposalPage() {
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {pastAband && <Badge tone="warning">Past a band</Badge>}
                   {somethingElseLandsHere(weighed) && <Badge tone="warning">Another ask lands here</Badge>}
-                  <Badge tone={proposalStatusTones[status]}>{proposalStanding(status, proposal!.summary.waitingOn)}</Badge>
+                  <Badge tone={proposalStatusTones[status]}>{proposalStanding(status, proposal!.summary.waitingOn, proposal!.summary.answerBy)}</Badge>
                 </div>
                 <p className="mt-1 text-xs text-ink-muted">
                   {formatRelative(proposal!.summary.sentAt ?? proposal!.summary.createdAt)}
@@ -627,9 +636,9 @@ export function ProposalPage() {
               ? "Saved as a draft first. It reaches nobody until you send it."
               : proposal!.summary.sentAt
                 ? `Sent ${formatDate(proposal!.summary.sentAt)} · ${
-                  status === "APPROVED" || status === "REJECTED"
+                  status === "APPROVED" || status === "REJECTED" || status === "EXPIRED"
                     ? answeredLabel(status, proposal!.summary.answeredByName, proposal!.summary.decidedAt,
-                        proposal!.summary.fromRebalance)
+                        proposal!.summary.fromRebalance, proposal!.summary)
                     : standingLabel(status, proposal!.summary.sentAt, proposal!.summary.decidedAt,
                         proposal!.summary.fromRebalance, proposal!.summary.openForPlacing)}`
                 : `Draft, last saved ${formatDateTime(proposal!.summary.createdAt)}`}
@@ -640,10 +649,10 @@ export function ProposalPage() {
             {toAnswer && (
               <>
                 <Button variant="secondary" disabled={deciding} onClick={() => asking("reject")}>
-                  Reject
+                  {toClient ? "Record the client's rejection" : "Reject"}
                 </Button>
                 <Button disabled={deciding} onClick={() => asking("approve")}>
-                  Approve
+                  {toClient ? "Record the client's approval" : "Approve"}
                 </Button>
               </>
             )}
@@ -678,12 +687,20 @@ export function ProposalPage() {
 
       <Dialog
         open={answering !== null}
-        title={answering === "approve" ? "Approve on the client's behalf?" : "Turn this down?"}
+        title={toClient
+          ? answering === "approve" ? "Record the client's approval?" : "Record the client's rejection?"
+          : answering === "approve" ? "Approve on the client's behalf?" : "Turn this down?"}
         onClose={() => asking(null)}
       >
         <div className="space-y-4">
           <p className="text-sm text-ink-muted">
-            {answering !== "approve"
+            {toClient
+              ? answering === "approve"
+                ? "Only once the client has told you they approve. This was sent to them to answer in the portal; "
+                  + "recording their approval moves the money now, and the record says it was on their instruction."
+                : "Only once the client has told you they reject it. Nothing changes for them, and whoever wrote it "
+                  + "sees the reason you write here."
+              : answering !== "approve"
               ? "Nothing changes for the client. Whoever wrote it sees what you write here."
               : proposal?.summary.fromRebalance
                 ? "You are answering for this client, and saying yes moves nothing by itself. It lets the "
@@ -701,6 +718,20 @@ export function ProposalPage() {
             </Alert>
           )}
           {errors.form && <Alert tone="danger">{errors.form}</Alert>}
+          {toClient && (
+            <Field id="answer-instruction" label="How did the client tell you?" required error={errors.fields.instruction}>
+              <SelectInput
+                id="answer-instruction"
+                value={instruction}
+                onChange={(event) => setInstruction(event.target.value)}
+              >
+                <option value="">Choose…</option>
+                <option value="CALL">Phone call</option>
+                <option value="EMAIL">Email</option>
+                <option value="MEETING">Meeting</option>
+              </SelectInput>
+            </Field>
+          )}
           <Field
             id="answer-note"
             label={answering === "approve" ? "Anything to say about it" : "Why?"}
@@ -721,11 +752,15 @@ export function ProposalPage() {
             </Button>
             <Button
               // A refusal owes a reason, so the button waits for one. An agreement does not.
-              disabled={deciding || (answering === "reject" && note.trim() === "")}
+              disabled={deciding || (answering === "reject" && note.trim() === "") || (toClient && instruction === "")}
               onClick={() =>
                 answer.mutate({
                   id: proposalId!,
-                  data: { approved: answering === "approve", note: note.trim() || null },
+                  data: {
+                    approved: answering === "approve",
+                    note: note.trim() || null,
+                    instruction: toClient ? (instruction as ClientInstruction) : null,
+                  },
                 })
               }
             >
