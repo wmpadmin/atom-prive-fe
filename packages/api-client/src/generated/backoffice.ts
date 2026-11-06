@@ -7976,6 +7976,7 @@ export interface FirmDashboard {
   upcoming: FirmWaiting[];
   byRelationshipManager: ManagerAum[];
   byPortfolioManager: ManagerAum[];
+  everyRelationshipManager: ManagerAum[];
   unconverted: number;
 }
 
