@@ -1,3 +1,5 @@
+import { ApiError } from "@atomprive/api-client";
+import { useListEntries, type EntryRow } from "@atomprive/api-client/backoffice";
 import { Alert, SelectInput, cn } from "@atomprive/ui";
 import { X } from "lucide-react";
 import {
@@ -19,7 +21,6 @@ import {
   profileMeans,
   questionnaireText,
   scored,
-  sectors,
   settled,
   toleranceQuestions,
   toleranceRanges,
@@ -255,7 +256,9 @@ function Total({ label, score, of, band }: { label: string; score: number; of: n
 /** III to V: countries and sectors picked from lists, and anything else in the client's own words. */
 export function ExclusionsStep({ value, onChange, field }: { value: RiskQuestionnaire; onChange: Change; field: FieldFor }) {
   const change = useChange(value, onChange);
-  const left = sectors.filter((one) => !value.excludedSectors.includes(one));
+  // The firm's own list, kept in Config → Excludable sectors.
+  const kept = useListEntries<EntryRow[], ApiError>("EXCLUDABLE_SECTOR").data ?? [];
+  const left = kept.map((one) => one.name).filter((one) => !value.excludedSectors.includes(one));
   return (
     <div className="space-y-6">
       <Alert tone="info">{questionnaireText.exclusionsNote}</Alert>

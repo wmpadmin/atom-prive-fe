@@ -27,6 +27,12 @@ const LISTS = [
     about: "How somebody on a joint account is related to the first holder.",
     one: "relationship type",
   },
+  {
+    kind: "EXCLUDABLE_SECTOR" as const,
+    title: "Excludable sectors",
+    about: "The sectors and industries a client may exclude on their risk questionnaire. A holding whose sector has the same name is flagged.",
+    one: "sector",
+  },
 ];
 
 /**
