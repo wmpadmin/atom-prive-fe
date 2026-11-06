@@ -33,6 +33,7 @@ import {
   Users,
   UsersRound,
   Scale,
+  KeyRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -474,6 +475,14 @@ const allNavigation: {
   // ticket and the SLA monitor. It replaced the IT Admin's "Support tickets" and everybody else's "Report an issue".
   { to: "/support", label: "Support", icon: LifeBuoy, authority: null },
   { to: "/sign-in-as", label: "Sign in as", icon: Eye, authority: "SIGN_IN_AS:CHANGE" },
+  // The IT Admin's alone: Admin sets credentials on Config, beside the rest of a bank's details.
+  {
+    to: "/bank-credentials",
+    label: "Bank credentials",
+    icon: KeyRound,
+    authority: "MANAGE_BANK_CREDENTIALS:CHANGE",
+    onlyFor: ["IT_ADMIN"],
+  },
   // Everybody's: the Firm Assistant answers only from what the asker may already see.
   { to: "/assistant", label: "AI Assistant", icon: Sparkles, authority: null },
   { to: "/settings", label: "Settings", icon: Settings, authority: null },

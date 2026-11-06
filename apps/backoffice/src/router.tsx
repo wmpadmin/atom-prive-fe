@@ -74,6 +74,7 @@ import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
 import { ClientListPage } from "./pages/book/book-page";
 import { LazyClientViewPage } from "./pages/book/client-view-lazy";
+import { BankCredentialsPage } from "./pages/config/bank-credentials-page";
 import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
 import { DailyTrackerChangePage, DailyTrackerDayPage } from "./pages/portfolios/daily-tracker-day-page";
 import { ClientMovesPage } from "./pages/portfolios/client-moves-page";
@@ -119,6 +120,11 @@ export const router = createBrowserRouter([
           {
             element: <RequireAuthority authority="SIGN_IN_AS:CHANGE" />,
             children: [{ path: "sign-in-as", element: <SignInAsPage /> }],
+          },
+          // The IT Admin's way to bank credentials; Admin sets them on Config, which the IT Admin does not open.
+          {
+            element: <RequireAuthority authority="MANAGE_BANK_CREDENTIALS:CHANGE" />,
+            children: [{ path: "bank-credentials", element: <BankCredentialsPage /> }],
           },
           { path: "my-declarations/:kind", element: <MyDeclarationPage /> },
           // Somebody's own account, so it asks for nothing beyond being signed in.
