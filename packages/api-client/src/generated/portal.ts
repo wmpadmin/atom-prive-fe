@@ -476,6 +476,32 @@ export interface MyNotifications {
   accountActivity: boolean;
 }
 
+export interface AskToClose {
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  reason: string | null;
+}
+
+export type MyClosureStanding = typeof MyClosureStanding[keyof typeof MyClosureStanding];
+
+
+export const MyClosureStanding = {
+  NONE: 'NONE',
+  ASKED: 'ASKED',
+  BEING_CLOSED: 'BEING_CLOSED',
+} as const;
+
+export interface MyClosure {
+  standing: MyClosureStanding;
+  /** @nullable */
+  askedAt: string | null;
+  /** @nullable */
+  managerName: string | null;
+}
+
 export interface JoinRequest {
   /**
      * @minLength 0
@@ -3655,6 +3681,251 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getChooseNotificationsMutationOptions(options), queryClient);
+    }
+
+export const getMyClosureUrl = () => {
+
+
+
+
+  return `/api/portal/me/closure`
+}
+
+export const myClosure = async ( options?: Parameters<typeof http>[1]): Promise<MyClosure> => {
+
+  return http<MyClosure>(getMyClosureUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyClosureQueryKey = () => {
+    return [
+    `/api/portal/me/closure`
+    ] as const;
+    }
+
+
+export const getMyClosureQueryOptions = <TData = Awaited<ReturnType<typeof myClosure>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myClosure>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyClosureQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myClosure>>> = ({ signal }) => myClosure({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myClosure>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyClosureQueryResult = NonNullable<Awaited<ReturnType<typeof myClosure>>>
+export type MyClosureQueryError = unknown
+
+
+export function useMyClosure<TData = Awaited<ReturnType<typeof myClosure>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myClosure>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myClosure>>,
+          TError,
+          Awaited<ReturnType<typeof myClosure>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyClosure<TData = Awaited<ReturnType<typeof myClosure>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myClosure>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myClosure>>,
+          TError,
+          Awaited<ReturnType<typeof myClosure>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyClosure<TData = Awaited<ReturnType<typeof myClosure>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myClosure>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyClosure<TData = Awaited<ReturnType<typeof myClosure>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myClosure>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyClosureQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAskToCloseUrl = () => {
+
+
+
+
+  return `/api/portal/me/closure`
+}
+
+export const askToClose = async (askToCloseBody: AskToClose, options?: Parameters<typeof http>[1]): Promise<MyClosure> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MyClosure>(getAskToCloseUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(askToCloseBody)
+  }
+);}
+
+
+
+
+
+export const getAskToCloseMutationKey = () => ['askToClose'] as const;
+
+export const getAskToCloseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToClose>>, TError,AskToCloseMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof askToClose>>, TError,AskToCloseMutationVariables, TContext> => {
+
+const mutationKey = getAskToCloseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askToClose>>, AskToCloseMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  askToClose(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskToCloseMutationResult = NonNullable<Awaited<ReturnType<typeof askToClose>>>
+    export type AskToCloseMutationBody = AskToClose
+    export type AskToCloseMutationError = unknown
+    export type AskToCloseMutationVariables = {data: AskToClose}
+
+    export const useAskToClose = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askToClose>>, TError,AskToCloseMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askToClose>>,
+        TError,
+        AskToCloseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskToCloseMutationOptions(options), queryClient);
+    }
+
+export const getWithdrawMyClosureUrl = () => {
+
+
+
+
+  return `/api/portal/me/closure/withdraw`
+}
+
+export const withdrawMyClosure = async ( options?: Parameters<typeof http>[1]): Promise<MyClosure> => {
+
+  return http<MyClosure>(getWithdrawMyClosureUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getWithdrawMyClosureMutationKey = () => ['withdrawMyClosure'] as const;
+
+export const getWithdrawMyClosureMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawMyClosure>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawMyClosure>>, TError,void, TContext> => {
+
+const mutationKey = getWithdrawMyClosureMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawMyClosure>>, void> = () => {
+
+
+          return  withdrawMyClosure(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawMyClosureMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawMyClosure>>>
+
+    export type WithdrawMyClosureMutationError = unknown
+
+
+    export const useWithdrawMyClosure = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawMyClosure>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawMyClosure>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getWithdrawMyClosureMutationOptions(options), queryClient);
     }
 
 export const getOpenUrl = (token: string,) => {
