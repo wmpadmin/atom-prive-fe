@@ -549,8 +549,8 @@ export function ModelDialog({
                 onChange={(event) => setName(event.target.value)}
               />
             </Field>
-            {/* The five the Investment Risk Profile questionnaire derives, because a client's answer comes
-                from there. A line to type in let a model be written for "Balanced" and a client come out
+            {/* The three the firm's Risk Profile questionnaire gives, because a client's answer comes from
+                there. A line to type in let a model be written for "Balanced" and a client come out
                 "BALANCE", which is the same thing and matches on nothing. */}
             <Field
               id="model-risk"

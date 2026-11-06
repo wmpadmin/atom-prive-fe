@@ -128,6 +128,24 @@ import {
 } from "./investment-risk-profile-steps";
 import { RiskProfileSummary } from "./investment-risk-profile-summary";
 import {
+  questionnaireDescriptions,
+  questionnaireGuidance,
+  reviewQuestionnaire,
+  stepOfQuestionnaireField,
+  toQuestionnaire,
+  type RiskQuestionnaire,
+} from "@atomprive/forms/risk-questionnaire";
+import { RiskQuestionnaireSummary } from "@atomprive/forms/risk-questionnaire-summary";
+import {
+  AgreementStep,
+  ExclusionsStep,
+  KnowledgeStep,
+  LeverageStep,
+  QuestionnaireCustomerStep,
+  ResultStep,
+  ScoredStep,
+} from "./risk-questionnaire-steps";
+import {
   classificationDescriptions,
   classificationGuidance,
   reviewClientClassification,
@@ -610,6 +628,39 @@ export const clientClassificationKit: FormKit<ClientClassificationEntity> = {
   },
 };
 
+/** The firm's own Risk Profile questionnaire (5 Nov 2026): three profiles from Risk Ability and Risk Tolerance. */
+export const riskQuestionnaireKit: FormKit<RiskQuestionnaire> = {
+  toValue: toQuestionnaire,
+  review: reviewQuestionnaire,
+  stepOfField: stepOfQuestionnaireField,
+  descriptions: questionnaireDescriptions,
+  guidance: questionnaireGuidance,
+  summary: (value) => <RiskQuestionnaireSummary value={value} />,
+  step: ({ id, value, change, field, goTo }) => {
+    switch (id) {
+      case "customer":
+        return <QuestionnaireCustomerStep value={value} onChange={change} field={field} />;
+      case "knowledge":
+        return <KnowledgeStep value={value} onChange={change} field={field} />;
+      case "ability":
+        return <ScoredStep part="ability" value={value} onChange={change} field={field} />;
+      case "tolerance":
+        return <ScoredStep part="tolerance" value={value} onChange={change} field={field} />;
+      case "result":
+        return <ResultStep value={value} />;
+      case "exclusions":
+        return <ExclusionsStep value={value} onChange={change} field={field} />;
+      case "agreement":
+        return <AgreementStep value={value} onChange={change} field={field} />;
+      case "leverage":
+        return <LeverageStep value={value} onChange={change} field={field} />;
+      default:
+        return <RiskQuestionnaireSummary value={value} onEdit={goTo} />;
+    }
+  },
+};
+
+/** The platform's earlier questionnaire: only ever opened now to read a form already sent or signed on it. */
 export const riskProfileKit: FormKit<InvestmentRiskProfileEntity> = {
   toValue: toRiskProfile,
   review: reviewRiskProfile,

@@ -35,6 +35,8 @@
     "./professional-client-confirmation": "./src/professional-client-confirmation.ts",
     "./professional-client-confirmation-summary": "./src/professional-client-confirmation-summary.tsx",
     "./read-back": "./src/read-back.tsx",
+    "./risk-questionnaire": "./src/risk-questionnaire.ts",
+    "./risk-questionnaire-summary": "./src/risk-questionnaire-summary.tsx",
     "./signature-mark": "./src/signature-mark.tsx",
     "./signature-pad": "./src/signature-pad.tsx"
   },

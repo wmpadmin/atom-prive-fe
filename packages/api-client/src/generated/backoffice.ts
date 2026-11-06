@@ -823,9 +823,7 @@ export type ModelRequestRiskProfile = typeof ModelRequestRiskProfile[keyof typeo
 
 export const ModelRequestRiskProfile = {
   CONSERVATIVE: 'CONSERVATIVE',
-  MODERATE: 'MODERATE',
-  BALANCE: 'BALANCE',
-  GROWTH: 'GROWTH',
+  BALANCED: 'BALANCED',
   AGGRESSIVE: 'AGGRESSIVE',
 } as const;
 
@@ -920,9 +918,7 @@ export type ModelRowRiskProfile = typeof ModelRowRiskProfile[keyof typeof ModelR
 
 export const ModelRowRiskProfile = {
   CONSERVATIVE: 'CONSERVATIVE',
-  MODERATE: 'MODERATE',
-  BALANCE: 'BALANCE',
-  GROWTH: 'GROWTH',
+  BALANCED: 'BALANCED',
   AGGRESSIVE: 'AGGRESSIVE',
 } as const;
 
@@ -952,6 +948,8 @@ export interface ModelRow {
   description: string | null;
   /** @nullable */
   riskProfile: ModelRowRiskProfile;
+  /** @nullable */
+  riskProfileWas: string | null;
   status: ModelRowStatus;
   targets: ModelRowTargets;
   breachAt: number;
@@ -1203,9 +1201,7 @@ export type RiskMatchModelProfile = typeof RiskMatchModelProfile[keyof typeof Ri
 
 export const RiskMatchModelProfile = {
   CONSERVATIVE: 'CONSERVATIVE',
-  MODERATE: 'MODERATE',
-  BALANCE: 'BALANCE',
-  GROWTH: 'GROWTH',
+  BALANCED: 'BALANCED',
   AGGRESSIVE: 'AGGRESSIVE',
 } as const;
 
@@ -1832,11 +1828,11 @@ export interface JsonNode {
   number?: boolean;
   container?: boolean;
   floatingPointNumber?: boolean;
-  nodeType?: JsonNodeNodeType;
   string?: boolean;
-  integralNumber?: boolean;
-  missingNode?: boolean;
+  nodeType?: JsonNodeNodeType;
   valueNode?: boolean;
+  missingNode?: boolean;
+  integralNumber?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;

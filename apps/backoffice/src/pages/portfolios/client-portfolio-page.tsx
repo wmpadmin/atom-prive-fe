@@ -33,6 +33,7 @@ import { DailyTrackerPanel } from "./daily-tracker-panel";
 import {
   anchorFor,
   driftLabel,
+  isEarlierProfile,
   riskProfileLabel,
   standingLabels,
   standingTones,
@@ -563,6 +564,17 @@ function RiskMatchNote({ match }: { match: RiskMatch | null }) {
     );
   }
   const client = riskProfileLabel(match.clientProfile);
+  // A client profiled on the earlier five-profile questionnaire matches no model until they are profiled again.
+  if (isEarlierProfile(match.clientProfile)) {
+    return (
+      <div className="mt-3">
+        <Alert tone="warning">
+          This client was profiled <strong className="font-semibold">{client}</strong>. That profile no longer exists,
+          so no model can match it. Redo their risk profile on the new questionnaire.
+        </Alert>
+      </div>
+    );
+  }
   if (!match.modelProfile) {
     return (
       <p className="mt-3 text-xs text-ink-muted">

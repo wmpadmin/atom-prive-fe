@@ -66,10 +66,12 @@ type Range = (typeof RANGES)[number];
 
 const PROFILES: Record<string, string> = {
   CONSERVATIVE: "Conservative",
-  MODERATE: "Moderate",
-  BALANCE: "Balanced",
-  GROWTH: "Growth",
+  BALANCED: "Balanced",
   AGGRESSIVE: "Aggressive",
+  // A client profiled on the earlier questionnaire keeps the word they signed until they are profiled again.
+  MODERATE: "Moderate (earlier questionnaire)",
+  BALANCE: "Balance (earlier questionnaire)",
+  GROWTH: "Growth (earlier questionnaire)",
 };
 
 /** A whole figure with the currency in front, the way the tiles across the top read: AUD 12,450,000. */
