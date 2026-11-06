@@ -9703,7 +9703,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getChangeRiskProfileReviewSettingsMutationOptions(options), queryClient);
     }
 
-export const getRenameEntryUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+export const getRenameEntryUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     code: string,) => {
 
 
@@ -9712,7 +9712,7 @@ export const getRenameEntryUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
   return `/api/backoffice/reference-lists/${kind}/${code}`
 }
 
-export const renameEntry = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+export const renameEntry = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     code: string,
     entryRequest: EntryRequest, options?: Parameters<typeof http>[1]): Promise<EntryRow[]> => {
 
@@ -9775,7 +9775,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RenameEntryMutationResult = NonNullable<Awaited<ReturnType<typeof renameEntry>>>
     export type RenameEntryMutationBody = EntryRequest
     export type RenameEntryMutationError = unknown
-    export type RenameEntryMutationVariables = {kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE';code: string;data: EntryRequest}
+    export type RenameEntryMutationVariables = {kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR';code: string;data: EntryRequest}
 
     export const useRenameEntry = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameEntry>>, TError,RenameEntryMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -9788,7 +9788,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRenameEntryMutationOptions(options), queryClient);
     }
 
-export const getSetStillUsedUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+export const getSetStillUsedUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     code: string,) => {
 
 
@@ -9797,7 +9797,7 @@ export const getSetStillUsedUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
   return `/api/backoffice/reference-lists/${kind}/${code}/still-used`
 }
 
-export const setStillUsed = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+export const setStillUsed = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     code: string,
     stillUsedRequest: StillUsedRequest, options?: Parameters<typeof http>[1]): Promise<EntryRow[]> => {
 
@@ -9860,7 +9860,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SetStillUsedMutationResult = NonNullable<Awaited<ReturnType<typeof setStillUsed>>>
     export type SetStillUsedMutationBody = StillUsedRequest
     export type SetStillUsedMutationError = unknown
-    export type SetStillUsedMutationVariables = {kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE';code: string;data: StillUsedRequest}
+    export type SetStillUsedMutationVariables = {kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR';code: string;data: StillUsedRequest}
 
     export const useSetStillUsed = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setStillUsed>>, TError,SetStillUsedMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -16573,7 +16573,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getSendFormBackMutationOptions(options), queryClient);
     }
 
-export const getListEntriesUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+export const getListEntriesUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     params?: ListEntriesParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -16589,7 +16589,7 @@ export const getListEntriesUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
   return stringifiedParams.length > 0 ? `/api/backoffice/reference-lists/${kind}?${stringifiedParams}` : `/api/backoffice/reference-lists/${kind}`
 }
 
-export const listEntries = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+export const listEntries = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     params?: ListEntriesParams, options?: Parameters<typeof http>[1]): Promise<EntryRow[]> => {
 
   return http<EntryRow[]>(getListEntriesUrl(kind,params),
@@ -16605,7 +16605,7 @@ export const listEntries = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
 
 
 
-export const getListEntriesQueryKey = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+export const getListEntriesQueryKey = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     params?: ListEntriesParams,) => {
     return [
     `/api/backoffice/reference-lists/${kind}`, ...(params ? [params] : [])
@@ -16613,7 +16613,7 @@ export const getListEntriesQueryKey = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE
     }
 
 
-export const getListEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listEntries>>, TError = unknown>(kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+export const getListEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listEntries>>, TError = unknown>(kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     params?: ListEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEntries>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
@@ -16637,7 +16637,7 @@ export type ListEntriesQueryError = unknown
 
 
 export function useListEntries<TData = Awaited<ReturnType<typeof listEntries>>, TError = unknown>(
- kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+ kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     params: undefined |  ListEntriesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEntries>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listEntries>>,
@@ -16648,7 +16648,7 @@ export function useListEntries<TData = Awaited<ReturnType<typeof listEntries>>, 
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListEntries<TData = Awaited<ReturnType<typeof listEntries>>, TError = unknown>(
- kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+ kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     params?: ListEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEntries>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listEntries>>,
@@ -16659,13 +16659,13 @@ export function useListEntries<TData = Awaited<ReturnType<typeof listEntries>>, 
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListEntries<TData = Awaited<ReturnType<typeof listEntries>>, TError = unknown>(
- kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+ kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     params?: ListEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEntries>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useListEntries<TData = Awaited<ReturnType<typeof listEntries>>, TError = unknown>(
- kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+ kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     params?: ListEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEntries>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -16683,7 +16683,7 @@ export function useListEntries<TData = Awaited<ReturnType<typeof listEntries>>, 
 
 
 
-export const getAddEntryUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',) => {
+export const getAddEntryUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',) => {
 
 
 
@@ -16691,7 +16691,7 @@ export const getAddEntryUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',) => {
   return `/api/backoffice/reference-lists/${kind}`
 }
 
-export const addEntry = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE',
+export const addEntry = async (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
     entryRequest: EntryRequest, options?: Parameters<typeof http>[1]): Promise<EntryRow[]> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -16753,7 +16753,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type AddEntryMutationResult = NonNullable<Awaited<ReturnType<typeof addEntry>>>
     export type AddEntryMutationBody = EntryRequest
     export type AddEntryMutationError = unknown
-    export type AddEntryMutationVariables = {kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE';data: EntryRequest}
+    export type AddEntryMutationVariables = {kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR';data: EntryRequest}
 
     export const useAddEntry = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addEntry>>, TError,AddEntryMutationVariables, TContext>, request?: SecondParameter<typeof http>}

@@ -275,27 +275,6 @@ export const knowledgeNote = {
   experience: "You have conducted at least 5 trades on the product class, with any financial institution.",
 };
 
-/** IV. The sectors and industries a client can exclude; anything else goes in the box beside them. */
-export const sectors = [
-  "Alcohol",
-  "Adult entertainment",
-  "Coal, oil and gas",
-  "Communication services",
-  "Consumer discretionary",
-  "Consumer staples",
-  "Energy",
-  "Financials",
-  "Gambling",
-  "Health care",
-  "Industrials",
-  "Information technology",
-  "Materials",
-  "Real estate",
-  "Tobacco",
-  "Utilities",
-  "Weapons and defence",
-];
-
 /** VII. What leverage may be used for, as the form lists it. */
 export const leveragePurposes: { value: string; text: string }[] = [
   { value: "EQUITIES_BONDS", text: "To invest in equities and/or bonds" },
