@@ -144,6 +144,9 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   { to: "/approvals" },
   { to: "/reports" },
   { to: "/ingestion", label: "Bank feeds" },
+  // Beside the feeds, as on Operations' menu: what the banks say each client holds, and where an Admin
+  // switches a bank over to writing it.
+  { to: "/holdings-check" },
   { to: "/family-access-trail" },
   { to: "/audit-log" },
   // An Admin signs the same nine as everybody else. Their menu is written out rather than filtered down, so
