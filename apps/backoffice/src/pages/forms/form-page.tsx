@@ -1,4 +1,5 @@
 import { ApiError } from "@atomprive/api-client";
+import { isQuestionnaire } from "@atomprive/forms/risk-questionnaire";
 import {
   getGetFormQueryKey,
   getListFormsQueryKey,
@@ -49,6 +50,7 @@ import {
   professionalClientConfirmationKit,
   fatcaCrsKit,
   riskProfileKit,
+  riskQuestionnaireKit,
   type FormKit,
 } from "./form-kits";
 
@@ -107,8 +109,14 @@ export function FormPage() {
       return <FilledForm key={key} kit={customerIdentificationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     case "PROFESSIONAL_CLIENT_CONFIRMATION_JOINT":
       return <FilledForm key={key} kit={professionalClientConfirmationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
+    // A draft is always filled on the firm's own questionnaire; one already sent or signed on the earlier one is
+    // read as it was.
     case "INVESTMENT_RISK_PROFILE":
-      return <FilledForm key={key} kit={riskProfileKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
+      return detail.data.summary.status === "DRAFT" || isQuestionnaire(detail.data.answers) ? (
+        <FilledForm key={key} kit={riskQuestionnaireKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />
+      ) : (
+        <FilledForm key={key} kit={riskProfileKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />
+      );
     case "CLIENT_CLASSIFICATION":
       return <FilledForm key={key} kit={clientClassificationKit} detail={detail.data} caseId={cameFromCase} clientId={cameFromClient} fromKyc={fromKyc} />;
     case "DFSA_ONBOARDING_CHECKLIST_ENTITY":

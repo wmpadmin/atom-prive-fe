@@ -20,6 +20,8 @@ import { FatcaCrsIndividualSummary } from "./fatca-crs-individual-summary";
 import { FatcaCrsSummary } from "./fatca-crs-summary";
 import { toRiskProfile } from "./investment-risk-profile";
 import { RiskProfileSummary } from "./investment-risk-profile-summary";
+import { isQuestionnaire, toQuestionnaire } from "./risk-questionnaire";
+import { RiskQuestionnaireSummary } from "./risk-questionnaire-summary";
 import { toProfessionalClientConfirmation } from "./professional-client-confirmation";
 import { ProfessionalClientConfirmationSummary } from "./professional-client-confirmation-summary";
 
@@ -46,7 +48,8 @@ export function readBack(kind: string, answers: FormDetailAnswers | undefined, a
     case "PROFESSIONAL_CLIENT_CONFIRMATION_JOINT":
       return <ProfessionalClientConfirmationSummary value={toProfessionalClientConfirmation(answers)} />;
     case "INVESTMENT_RISK_PROFILE":
-      return <RiskProfileSummary value={toRiskProfile(answers)} />;
+      // The firm's own questionnaire, or the platform's earlier one for a form sent or signed on it.
+      return isQuestionnaire(answers) ? <RiskQuestionnaireSummary value={toQuestionnaire(answers)} /> : <RiskProfileSummary value={toRiskProfile(answers)} />;
     case "CLIENT_CLASSIFICATION":
       return <ClientClassificationSummary value={toClientClassification(answers)} />;
     case "DFSA_ONBOARDING_CHECKLIST_ENTITY":

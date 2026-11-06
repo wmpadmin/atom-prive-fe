@@ -74,21 +74,34 @@ export function averageDriftLabel(drift: number) {
 }
 
 /**
- * The five profiles the Investment Risk Profile questionnaire derives, least to most that a client can be
- * asked to bear — the order the questionnaire itself prints them in. A model says which it is written for,
- * and a client is matched to it by the one their questionnaire came out as, so both sides read from here.
+ * The three profiles the firm's Risk Profile questionnaire gives, least to most that a client can be asked to
+ * bear — the order the questionnaire itself prints them in. A model says which it is written for, and a client is
+ * matched to it by the one their questionnaire came out as, so both sides read from here.
  */
 export const RISK_PROFILES = [
   { value: "CONSERVATIVE", label: "Conservative" },
-  { value: "MODERATE", label: "Moderate" },
-  { value: "BALANCE", label: "Balance" },
-  { value: "GROWTH", label: "Growth" },
+  { value: "BALANCED", label: "Balanced" },
   { value: "AGGRESSIVE", label: "Aggressive" },
 ] as const;
 
-/** What a model's risk profile is called on screen; a model nobody has set one on says so. */
+/** The words of the platform's earlier five-profile questionnaire, for a client or model still carrying one. */
+const EARLIER: Record<string, string> = { MODERATE: "Moderate", BALANCE: "Balance", GROWTH: "Growth" };
+
+/** Whether a profile is one of the earlier questionnaire's, which no model can match. */
+export function isEarlierProfile(profile: string | null | undefined) {
+  return Boolean(profile && EARLIER[profile]);
+}
+
+/** What a risk profile is called on screen; one from the earlier questionnaire says so; a missing one says so. */
 export function riskProfileLabel(profile: string | null | undefined) {
+  if (profile && EARLIER[profile]) return `${EARLIER[profile]} (earlier questionnaire)`;
   return RISK_PROFILES.find((one) => one.value === profile)?.label ?? "Not set";
+}
+
+/** A model's profile in the list: its own, or what it was before the three came in while the PM has still to choose. */
+export function modelRiskLabel(profile: string | null | undefined, was: string | null | undefined) {
+  if (!profile && was && EARLIER[was]) return `Was ${EARLIER[was]} · choose a profile`;
+  return riskProfileLabel(profile);
 }
 
 /**

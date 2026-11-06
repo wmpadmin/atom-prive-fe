@@ -30,6 +30,7 @@ import {
   modelStatusTones,
   underManagementLabel,
   type ModelStatus,
+  modelRiskLabel,
   riskProfileLabel,
 } from "./portfolio-labels";
 
@@ -53,7 +54,12 @@ const MOVABLE: {
     id: "risk",
     label: "Risk profile",
     align: "left",
-    cell: ({ model }) => riskProfileLabel(model.riskProfile),
+    cell: ({ model }) =>
+      !model.riskProfile && model.riskProfileWas ? (
+        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">{modelRiskLabel(null, model.riskProfileWas)}</span>
+      ) : (
+        riskProfileLabel(model.riskProfile)
+      ),
   },
   {
     id: "clients",
