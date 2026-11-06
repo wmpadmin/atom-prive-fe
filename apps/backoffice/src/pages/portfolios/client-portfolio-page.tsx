@@ -15,7 +15,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Field, SelectInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, FilePlus } from "lucide-react";
 import { useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -288,6 +288,16 @@ export function ClientPortfolioPage() {
             down yet and opens the portfolio once they have — so the moment a client was set up, the one
             screen that shows the working became unreachable. */}
         <div className="flex items-center gap-3">
+          {/* Advice starts from the client it is about, with them already chosen. Not on the proposals
+              queue, where it was taken off: that screen is what waits on somebody, not where advice begins. */}
+          {hasAnyAuthority(user, ...WRITES_PROPOSALS) && (
+            <Link to={`/proposals/new?client=${customerId}&from=portfolio`}>
+              <Button variant="secondary" size="lg">
+                <FilePlus aria-hidden="true" />
+                Write a proposal
+              </Button>
+            </Link>
+          )}
           {/* Said where it was opened from. The calculator is a dialog over the clients list, so closing
               it puts somebody back on that list unless the address says otherwise — and a reader who
               opened it from a client's own screen had the screen they were working on taken away. */}
