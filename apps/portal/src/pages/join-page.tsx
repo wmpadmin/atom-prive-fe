@@ -1,13 +1,11 @@
 import { ApiError } from "@atomprive/api-client";
 import { useDeclineFromLink, useJoin, useOpen, type Invitation, type SignedUp } from "@atomprive/api-client/portal";
+import { isStrongPassword, PasswordChecklist } from "@atomprive/ui";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { useSession } from "../auth/session-context";
 import { Household } from "./household";
 import { InvitationCard, Joined } from "./invitation-card";
-
-/** The firm's own rule for a password, said in the order somebody fills one in. */
-const LEAST = 12;
 
 /**
  * Answering an invitation, and setting yourself up if the answer is yes.
@@ -134,9 +132,9 @@ export function JoinPage() {
     );
   }
 
-  const tooShort = password.length > 0 && password.length < LEAST;
+  // The same rule as every other password on the platform, ticked off as it is typed.
   const mismatched = again.length > 0 && again !== password;
-  const canFinish = password.length >= LEAST && again === password && !join.isPending;
+  const canFinish = isStrongPassword(password) && again === password && !join.isPending;
 
   return (
     <div className="grid min-h-screen place-items-center bg-slate-100 px-4 py-10">
@@ -250,12 +248,13 @@ export function JoinPage() {
               autoComplete="new-password"
               required
               value={password}
+              aria-describedby="join-password-rules"
               onChange={(event) => setPassword(event.target.value)}
               className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             />
-            <p className={`mt-1 text-xs ${tooShort ? "text-red-600" : "text-slate-400"}`}>
-              At least {LEAST} characters.
-            </p>
+            <div className="mt-2">
+              <PasswordChecklist id="join-password-rules" password={password} showMissing={password.length > 0} />
+            </div>
 
             <Label htmlFor="join-again" className="mt-4">
               And again
