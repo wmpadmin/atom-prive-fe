@@ -1,6 +1,6 @@
 import { ApiError } from "@atomprive/api-client";
 import { useLogin, type SignedIn } from "@atomprive/api-client/portal";
-import { Alert, Button, Field, TextInput } from "@atomprive/ui";
+import { Alert, Button, Field, HumanCheck, TextInput, useHumanCheck } from "@atomprive/ui";
 import { useCallback, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { useSession } from "../auth/session-context";
@@ -29,6 +29,8 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [stage, setStage] = useState<Stage>({ at: "password" });
   const [over, setOver] = useState<string>();
+  // "Confirm you're a person", once the server has asked for it after too many wrong tries (S12).
+  const human = useHumanCheck();
 
   /** Whatever the server answered: a session, an invitation, or the next step owed. */
   const follow = useCallback(
@@ -55,6 +57,7 @@ export function LoginPage() {
 
   const signIn = useLogin<ApiError>({
     mutation: {
+      onSettled: (_answer, error) => human.heard(error),
       onSuccess: (answer: SignedIn) => {
         // An invited person's password is not an account's: there is no account yet. What comes back is
         // the link they would have had out of their inbox, and this is where it gets followed.
@@ -70,7 +73,7 @@ export function LoginPage() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    signIn.mutate({ data: { email: email.trim(), password } });
+    signIn.mutate({ data: { email: email.trim(), password, humanCheckToken: human.token } });
   };
 
   if (stage.at === "authenticator") {
@@ -111,7 +114,10 @@ export function LoginPage() {
         <h2 className="text-xl font-bold">Sign in</h2>
 
         {signIn.isError ? (
-          <Alert tone="danger">{signIn.error.message}</Alert>
+          <Alert tone="danger">
+            {signIn.error.message}
+            {signIn.error.status === 401 && signIn.error.problem.humanCheckSiteKey && " Before you try again, confirm you're a person."}
+          </Alert>
         ) : (
           over && <Alert tone="danger">{over}</Alert>
         )}
@@ -140,7 +146,8 @@ export function LoginPage() {
         {/* No "Forgot your password?" here. The back-office has one because staff have a reset flow behind
             it; clients do not yet, and a link that leads nowhere is worse on this screen than on any
             other — it is read by somebody already locked out. */}
-        <Button type="submit" size="lg" className="w-full" disabled={signIn.isPending}>
+        {human.siteKey && <HumanCheck key={human.round} siteKey={human.siteKey} onToken={human.setToken} theme="light" />}
+        <Button type="submit" size="lg" className="w-full" disabled={signIn.isPending || human.waiting}>
           {signIn.isPending ? "Signing in…" : "Continue"}
         </Button>
 

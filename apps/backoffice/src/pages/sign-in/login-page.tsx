@@ -7,7 +7,7 @@ import {
   type SignInOptions,
   type SignInResponse,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, Field, TextInput } from "@atomprive/ui";
+import { Alert, Button, Field, HumanCheck, TextInput, useHumanCheck } from "@atomprive/ui";
 import { useCallback, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useSession } from "../../auth/session";
@@ -35,6 +35,8 @@ export function LoginPage() {
   const justReset = (location.state as { passwordReset?: boolean } | null)?.passwordReset === true;
   const [error, setError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
+  // "Confirm you're a person", once the server has asked for it after too many wrong tries (S12).
+  const human = useHumanCheck();
   // "Continue with Google" is only offered once an Admin has set up a Google client ID.
   const options = useGetSignInOptions<SignInOptions, ApiError>();
   const googleClientId = options.data?.googleClientId;
@@ -98,9 +100,16 @@ export function LoginPage() {
     setSubmitting(true);
     setError(undefined);
     try {
-      afterPassword(await login({ email: String(form.get("email")), password: String(form.get("password")) }));
+      afterPassword(
+        await login({ email: String(form.get("email")), password: String(form.get("password")), humanCheckToken: human.token }),
+      );
+      human.heard();
     } catch (caught) {
+      human.heard(caught);
       signInFailed(caught);
+      if (caught instanceof ApiError && caught.status === 401 && caught.problem.humanCheckSiteKey) {
+        setError(`${caught.message} Before you try again, confirm you're a person.`);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -133,7 +142,8 @@ export function LoginPage() {
               Forgot your password?
             </Link>
           )}
-          <Button type="submit" className="w-full" disabled={submitting}>
+          {human.siteKey && <HumanCheck key={human.round} siteKey={human.siteKey} onToken={human.setToken} />}
+          <Button type="submit" className="w-full" disabled={submitting || human.waiting}>
             {submitting ? "Signing in…" : "Continue"}
           </Button>
           {googleClientId && (
