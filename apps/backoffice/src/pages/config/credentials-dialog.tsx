@@ -21,7 +21,13 @@ import { formatDate, formatDateTime } from "../../lib/labels";
  * password, key or secret it signs in with. The secret is never shown back — only that one is set, when and by
  * whom — and saving tries the details at once. A credential that works is replaced only by one that connects.
  */
-export function CredentialsDialog({ bank, onClose }: { bank: BankView; onClose: () => void }) {
+export function CredentialsDialog({
+  bank,
+  onClose,
+}: {
+  bank: Pick<BankView, "id" | "name" | "connectionType">;
+  onClose: () => void;
+}) {
   // Nothing on file comes back as an empty answer, which is "not set" rather than a failure to read.
   const held = useQuery<CredentialView | null, ApiError>({
     queryKey: getBankCredentialsQueryKey(bank.id),

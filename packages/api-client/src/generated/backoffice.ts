@@ -1853,9 +1853,9 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  floatingPointNumber?: boolean;
   valueNode?: boolean;
   missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
@@ -8259,6 +8259,20 @@ export interface Overview {
 
 export interface SseEmitter {
   timeout?: number;
+}
+
+export interface BankSigningIn {
+  bankId: string;
+  name: string;
+  countryCode: string;
+  bic: string;
+  connectionType: string;
+  enabled: boolean;
+  set: boolean;
+  /** @nullable */
+  testedAt: string | null;
+  /** @nullable */
+  testOk: boolean | null;
 }
 
 export interface SignInOptions {
@@ -41124,6 +41138,101 @@ export function useStreamMyNotifications<TData = Awaited<ReturnType<typeof strea
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getStreamMyNotificationsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListBanksSigningInUrl = () => {
+
+
+
+
+  return `/api/backoffice/bank-credentials`
+}
+
+export const listBanksSigningIn = async ( options?: Parameters<typeof http>[1]): Promise<BankSigningIn[]> => {
+
+  return http<BankSigningIn[]>(getListBanksSigningInUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBanksSigningInQueryKey = () => {
+    return [
+    `/api/backoffice/bank-credentials`
+    ] as const;
+    }
+
+
+export const getListBanksSigningInQueryOptions = <TData = Awaited<ReturnType<typeof listBanksSigningIn>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBanksSigningIn>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBanksSigningInQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBanksSigningIn>>> = ({ signal }) => listBanksSigningIn({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBanksSigningIn>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListBanksSigningInQueryResult = NonNullable<Awaited<ReturnType<typeof listBanksSigningIn>>>
+export type ListBanksSigningInQueryError = unknown
+
+
+export function useListBanksSigningIn<TData = Awaited<ReturnType<typeof listBanksSigningIn>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBanksSigningIn>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBanksSigningIn>>,
+          TError,
+          Awaited<ReturnType<typeof listBanksSigningIn>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBanksSigningIn<TData = Awaited<ReturnType<typeof listBanksSigningIn>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBanksSigningIn>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBanksSigningIn>>,
+          TError,
+          Awaited<ReturnType<typeof listBanksSigningIn>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBanksSigningIn<TData = Awaited<ReturnType<typeof listBanksSigningIn>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBanksSigningIn>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListBanksSigningIn<TData = Awaited<ReturnType<typeof listBanksSigningIn>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBanksSigningIn>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListBanksSigningInQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
