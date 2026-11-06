@@ -23,6 +23,8 @@ import { when } from "../lib/dates";
 import { initialsOf } from "../lib/money";
 import { treeOf, type Branch } from "../pages/family-tree";
 import { Card } from "./card";
+import { RestatedNote } from "./restated-note";
+import { shownFamilyWealth } from "./shown";
 import { AllocationRing, LineChart } from "./dashboard-charts";
 import { compact, percent, whole } from "./figures";
 
@@ -281,7 +283,7 @@ export function FamilyWealthPage() {
   const [picked, setPicked] = useState<string>(FAMILY);
   const [sharing, setSharing] = useState(false);
   const family = useFamily<MyFamily, ApiError>();
-  const wealth = useFamilyWealth<PortalFamilyWealth, ApiError>({ period });
+  const wealth = useFamilyWealth<PortalFamilyWealth, ApiError>({ period }, { query: { select: shownFamilyWealth } });
 
   const people = family.data?.people ?? [];
   const data = wealth.data;
@@ -332,6 +334,7 @@ export function FamilyWealthPage() {
         <div>
           <h1 className="text-[1.625rem] font-bold text-balance text-ink">Family Wealth</h1>
           <p className="mt-1 text-sm text-ink-muted">Your wealth, and that of family members who have shared theirs with you.</p>
+          <RestatedNote heldIn={wealth.data?.wealth.heldIn} shownIn={wealth.data?.wealth.currency} />
         </div>
         <Button onClick={() => setSharing(true)} disabled={!family.data}>
           <Share2 aria-hidden="true" />

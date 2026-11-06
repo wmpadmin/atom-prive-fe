@@ -4,8 +4,11 @@ import { ChevronRight } from "lucide-react";
 import { Fragment, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { Card } from "./card";
+import { RestatedNote } from "./restated-note";
+import { shownInsights, type Shown } from "./shown";
 import { AllocationRing, BarChart, LineChart, ValueChart } from "./dashboard-charts";
 import { INK, compact, percent } from "./figures";
+import { writeDate } from "../lib/display";
 
 /**
  * The client's portfolio, in the sections of the firm's reference wealth report — Overview, Asset Allocation,
@@ -112,7 +115,7 @@ const pct = (value: number) => percent(value);
 const pctTick = (value: number) => `${value.toFixed(Math.abs(value) < 1 && value !== 0 ? 2 : 1)}%`;
 const moneyTick = (value: number, step: number) => compact(value, undefined, step);
 
-function Overview({ data, period, onPeriod }: { data: PortfolioInsights; period: string; onPeriod: (next: string) => void }) {
+function Overview({ data, period, onPeriod }: { data: Shown<PortfolioInsights>; period: string; onPeriod: (next: string) => void }) {
   const [view, setView] = useState<"twr" | "value">("twr");
   const c = data.currency;
   return (
@@ -121,7 +124,7 @@ function Overview({ data, period, onPeriod }: { data: PortfolioInsights; period:
         <Stat label={`Market Value (${c})`} value={compact(data.marketValue)} />
         <Stat label={`Assets (${c})`} value={compact(data.assets)} />
         <Stat label={`Liabilities (${c})`} value={compact(data.liabilities)} />
-        <Stat label={`TWR (${c}) (YTD)`} value={data.twrYearToDate === null ? null : pct(data.twrYearToDate)} tone={data.twrYearToDate} why="Not valued this year yet" />
+        <Stat label={`TWR (${data.heldIn}) (YTD)`} value={data.twrYearToDate === null ? null : pct(data.twrYearToDate)} tone={data.twrYearToDate} why="Not valued this year yet" />
       </Stats>
       <section className="rounded-2xl border border-line bg-white p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -152,7 +155,7 @@ function Overview({ data, period, onPeriod }: { data: PortfolioInsights; period:
   );
 }
 
-function Allocation({ data }: { data: PortfolioInsights }) {
+function Allocation({ data }: { data: Shown<PortfolioInsights> }) {
   const [picked, setPicked] = useState<string | null>(null);
   const positive = data.byAssetClass.filter((one) => one.value > 0).map((one) => ({ key: one.key, name: one.name, value: one.value, share: one.share }));
   const pick = (key: string) => setPicked((was) => (was === key ? null : key));
@@ -242,14 +245,14 @@ function Allocation({ data }: { data: PortfolioInsights }) {
   );
 }
 
-function Performance({ data }: { data: PortfolioInsights }) {
+function Performance({ data }: { data: Shown<PortfolioInsights> }) {
   const c = data.currency;
   return (
     <div className="space-y-5">
       <Stats>
-        <Stat label={`TWR (${c}) (MTD)`} value={data.twrMonthToDate === null ? null : pct(data.twrMonthToDate)} tone={data.twrMonthToDate} why="Not valued this month yet" />
-        <Stat label={`TWR (${c}) (YTD)`} value={data.twrYearToDate === null ? null : pct(data.twrYearToDate)} tone={data.twrYearToDate} why="Not valued this year yet" />
-        <Stat label={`TWR (${c}) (Since start)`} value={data.twrSinceStart === null ? null : pct(data.twrSinceStart)} tone={data.twrSinceStart} why="Not valued yet" />
+        <Stat label={`TWR (${data.heldIn}) (MTD)`} value={data.twrMonthToDate === null ? null : pct(data.twrMonthToDate)} tone={data.twrMonthToDate} why="Not valued this month yet" />
+        <Stat label={`TWR (${data.heldIn}) (YTD)`} value={data.twrYearToDate === null ? null : pct(data.twrYearToDate)} tone={data.twrYearToDate} why="Not valued this year yet" />
+        <Stat label={`TWR (${data.heldIn}) (Since start)`} value={data.twrSinceStart === null ? null : pct(data.twrSinceStart)} tone={data.twrSinceStart} why="Not valued yet" />
         <Stat label={`Total Trading Profit (${c})`} value={null} why={NOT_SENT} />
       </Stats>
       <Flow>
@@ -284,7 +287,7 @@ function monthEnds(points: PortfolioInsights["valueLine"]) {
   return points.filter((one, index) => index === points.length - 1 || one.on.slice(0, 7) !== points[index + 1]!.on.slice(0, 7));
 }
 
-function Attribution({ data }: { data: PortfolioInsights }) {
+function Attribution({ data }: { data: Shown<PortfolioInsights> }) {
   const c = data.currency;
   const told = data.explained;
   return (
@@ -340,7 +343,7 @@ function MetricRow({ row, level = 0 }: { row: Row; level?: number }) {
   );
 }
 
-function Explainer({ data }: { data: PortfolioInsights }) {
+function Explainer({ data }: { data: Shown<PortfolioInsights> }) {
   const told = data.explained;
   if (!told) {
     return (
@@ -456,8 +459,8 @@ function Explainer({ data }: { data: PortfolioInsights }) {
   );
 }
 
-function CashFlow({ data }: { data: PortfolioInsights }) {
-  const month = (key: string) => new Date(`${key}-01`).toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
+function CashFlow({ data }: { data: Shown<PortfolioInsights> }) {
+  const month = (key: string) => writeDate(`${key}-01`, { month: "short", year: "2-digit" });
   return (
     <Flow>
       <Card title="Net Cash Flow by Month">
@@ -472,7 +475,7 @@ function CashFlow({ data }: { data: PortfolioInsights }) {
       <Card title="Top Cash Flow Movers">
         <BarChart
           bars={data.topFlows.map((one) => ({
-            label: new Date(one.on).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }),
+            label: writeDate(one.on, { day: "2-digit", month: "short", year: "2-digit" }),
             value: one.amount,
             colour: one.amount >= 0 ? GAIN : LOSS,
           }))}
@@ -494,7 +497,7 @@ function CashFlow({ data }: { data: PortfolioInsights }) {
   );
 }
 
-function Holdings({ data }: { data: PortfolioInsights }) {
+function Holdings({ data }: { data: Shown<PortfolioInsights> }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (key: string) =>
     setOpen((was) => {
@@ -567,7 +570,7 @@ export function PortfolioPage() {
   const [params, setParams] = useSearchParams();
   const period = (PERIODS as readonly string[]).includes(params.get("period") ?? "") ? params.get("period")! : "YTD";
   const tab: TabId = TABS.some((one) => one.id === params.get("tab")) ? (params.get("tab") as TabId) : "overview";
-  const insights = useInsights<PortfolioInsights, ApiError>({ period });
+  const insights = useInsights<Shown<PortfolioInsights>, ApiError>({ period }, { query: { select: shownInsights } });
 
   const change = (key: string, value: string) =>
     setParams(
@@ -585,6 +588,7 @@ export function PortfolioPage() {
         <div>
           <h1 className="text-[1.625rem] font-bold text-balance text-ink">Portfolio</h1>
           <p className="mt-1 text-sm text-ink-muted">View performance, returns and portfolio allocation.</p>
+          <RestatedNote heldIn={insights.data?.heldIn} shownIn={insights.data?.currency} />
         </div>
         {tab !== "overview" && (
           <Toggle label="Period" value={period} onChange={(next) => change("period", next)} options={PERIODS.map((one) => ({ id: one, label: one }))} />
