@@ -367,6 +367,25 @@ export interface ProposalRequest {
   lines: MoveLegRequest[];
 }
 
+export interface ExcludedHolding {
+  positionId: string;
+  name: string;
+  assetClass: string;
+  /** @nullable */
+  subClass: string | null;
+  /** @nullable */
+  subSubClass: string | null;
+  kind: string;
+  what: string;
+  value: number;
+}
+
+export interface LandingExclusion {
+  holdings: ExcludedHolding[];
+  heldInLine: number;
+  unchecked: boolean;
+}
+
 export interface PlannedLeg {
   fromAssetClass: string;
   /** @nullable */
@@ -387,6 +406,7 @@ export interface PlannedLeg {
   /** @nullable */
   landsOnMayHold: number | null;
   landsOnAskedByOthers: number;
+  landingExclusion: LandingExclusion | null;
 }
 
 export type ProposalRowStatus = typeof ProposalRowStatus[keyof typeof ProposalRowStatus];
@@ -1178,6 +1198,13 @@ export interface ClientReturn {
   flows: number;
 }
 
+export interface HeldExclusions {
+  countries: string[];
+  sectors: string[];
+  holdings: ExcludedHolding[];
+  unchecked: number;
+}
+
 export type PortfolioStandingShares = {[key: string]: number};
 
 export type PortfolioStandingHoldings = {[key: string]: number};
@@ -1234,6 +1261,7 @@ export interface PortfolioStanding {
   lastRebalancedOn: string | null;
   customModel: boolean;
   riskMatch: RiskMatch | null;
+  exclusions: HeldExclusions | null;
   earned: ClientReturn | null;
 }
 
@@ -1828,10 +1856,10 @@ export interface JsonNode {
   number?: boolean;
   container?: boolean;
   floatingPointNumber?: boolean;
-  string?: boolean;
-  nodeType?: JsonNodeNodeType;
   valueNode?: boolean;
   missingNode?: boolean;
+  nodeType?: JsonNodeNodeType;
+  string?: boolean;
   integralNumber?: boolean;
   pojo?: boolean;
   short?: boolean;

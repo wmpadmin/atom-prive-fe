@@ -28,6 +28,7 @@ import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
 import { AnalyticsPanel } from "./analytics-panel";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
+import { ExcludedHoldingsCard } from "./excluded-holdings-card";
 import { ClientReturnPanel } from "./client-return-panel";
 import { DailyTrackerPanel } from "./daily-tracker-panel";
 import {
@@ -404,6 +405,8 @@ export function ClientPortfolioPage() {
         )}
         <RiskMatchNote match={standing.data?.riskMatch ?? null} />
       </section>
+
+      <ExcludedHoldingsCard exclusions={standing.data?.exclusions} currency={currency} />
 
       {/* Asking is not moving. A relationship manager who thinks their client is on the wrong plan says so
           here, and whoever may move them answers it. Directly under the plan rather than further down the
