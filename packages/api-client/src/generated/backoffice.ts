@@ -1832,11 +1832,11 @@ export interface JsonNode {
   number?: boolean;
   container?: boolean;
   floatingPointNumber?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -5243,6 +5243,14 @@ export interface RejectDeactivationRequest {
   note: string;
 }
 
+export interface KeepingTheAccount {
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  note: string;
+}
+
 export interface StartClearanceRequest {
   deadline: string;
   /**
@@ -7614,6 +7622,13 @@ export interface MyClearanceRow {
 export interface MyClearances {
   items: MyClearanceRow[];
   waiting: number;
+}
+
+export interface ClientAsk {
+  id: string;
+  /** @nullable */
+  reason: string | null;
+  askedAt: string;
 }
 
 export interface DashboardTiles {
@@ -24062,6 +24077,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRejectDeactivationMutationOptions(options), queryClient);
     }
 
+export const getKeepTheAccountUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/deactivations/clients/${customerId}/client-ask/kept`
+}
+
+export const keepTheAccount = async (customerId: string,
+    keepingTheAccount: KeepingTheAccount, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<void>(getKeepTheAccountUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(keepingTheAccount)
+  }
+);}
+
+
+
+
+
+export const getKeepTheAccountMutationKey = () => ['keepTheAccount'] as const;
+
+export const getKeepTheAccountMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof keepTheAccount>>, TError,KeepTheAccountMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof keepTheAccount>>, TError,KeepTheAccountMutationVariables, TContext> => {
+
+const mutationKey = getKeepTheAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof keepTheAccount>>, KeepTheAccountMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  keepTheAccount(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type KeepTheAccountMutationResult = NonNullable<Awaited<ReturnType<typeof keepTheAccount>>>
+    export type KeepTheAccountMutationBody = KeepingTheAccount
+    export type KeepTheAccountMutationError = unknown
+    export type KeepTheAccountMutationVariables = {customerId: string;data: KeepingTheAccount}
+
+    export const useKeepTheAccount = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof keepTheAccount>>, TError,KeepTheAccountMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof keepTheAccount>>,
+        TError,
+        KeepTheAccountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getKeepTheAccountMutationOptions(options), queryClient);
+    }
+
 export const getReadClearanceUrl = (customerId: string,) => {
 
 
@@ -37764,6 +37862,101 @@ export function useReadMyClearances<TData = Awaited<ReturnType<typeof readMyClea
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getReadMyClearancesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReadClientAskUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/deactivations/clients/${customerId}/client-ask`
+}
+
+export const readClientAsk = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientAsk> => {
+
+  return http<ClientAsk>(getReadClientAskUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReadClientAskQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/deactivations/clients/${customerId}/client-ask`
+    ] as const;
+    }
+
+
+export const getReadClientAskQueryOptions = <TData = Awaited<ReturnType<typeof readClientAsk>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClientAsk>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReadClientAskQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readClientAsk>>> = ({ signal }) => readClientAsk(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readClientAsk>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReadClientAskQueryResult = NonNullable<Awaited<ReturnType<typeof readClientAsk>>>
+export type ReadClientAskQueryError = unknown
+
+
+export function useReadClientAsk<TData = Awaited<ReturnType<typeof readClientAsk>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClientAsk>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readClientAsk>>,
+          TError,
+          Awaited<ReturnType<typeof readClientAsk>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadClientAsk<TData = Awaited<ReturnType<typeof readClientAsk>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClientAsk>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readClientAsk>>,
+          TError,
+          Awaited<ReturnType<typeof readClientAsk>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadClientAsk<TData = Awaited<ReturnType<typeof readClientAsk>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClientAsk>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useReadClientAsk<TData = Awaited<ReturnType<typeof readClientAsk>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readClientAsk>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReadClientAskQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
