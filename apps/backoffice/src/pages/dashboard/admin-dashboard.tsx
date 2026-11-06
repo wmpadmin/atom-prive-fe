@@ -123,7 +123,8 @@ const ASK: string[] = [
 ];
 
 type CardId = "summary" | "trend" | "asset-classes" | "lifecycle" | "operations" | "approvals" | "upcoming"
-  | "attention" | "activity" | "health" | "tasks" | "by-rm" | "by-pm" | "assistant" | "quick" | "links";
+  | "attention" | "activity" | "health" | "tasks" | "by-rm" | "by-pm" | "rm-count" | "rm-book" | "assistant" | "quick"
+  | "links";
 
 /**
  * Every card the dashboard can show, in the firm's own order. The assistant and the Admin's shortcuts sit down
@@ -143,6 +144,8 @@ const CARD: Record<CardId, CardMeta> = {
   tasks: { title: "Task summary", area: "main" },
   "by-rm": { title: "AUM by RM", area: "main" },
   "by-pm": { title: "AUM by PM", area: "main" },
+  "rm-count": { title: "Relationship managers", area: "main" },
+  "rm-book": { title: "AUM by relationship manager", area: "main" },
   assistant: { title: "AI Assistant", area: "side" },
   quick: { title: "Quick actions", area: "side" },
   links: { title: "Key links", area: "side" },
@@ -293,6 +296,21 @@ export function AdminDashboard() {
     "by-pm": (
       <Panel icon={Users} title="AUM by PM (top 5)" to={goTo("/users")}>
         <Managers rows={data?.byPortfolioManager} currency={cur} />
+      </Panel>
+    ),
+    "rm-count": (
+      <Panel icon={Users} title="Relationship managers" to={goTo("/users")}>
+        {data?.everyRelationshipManager ? (
+          <div className="py-2">
+            <p className="text-3xl font-bold tabular-nums">{data.everyRelationshipManager.length}</p>
+            <p className="mt-1 text-sm text-ink-muted">with at least one client</p>
+          </div>
+        ) : <Loading />}
+      </Panel>
+    ),
+    "rm-book": (
+      <Panel icon={Users} title="AUM by relationship manager" to={goTo("/users")}>
+        <RelationshipBook rows={data?.everyRelationshipManager} currency={cur} />
       </Panel>
     ),
     assistant: <AskTheAssistant questions={ASK} blurb="Ask about operations, clients, compliance or how to use the portal." />,
@@ -605,3 +623,51 @@ function Managers({ rows, currency }: { rows: ManagerAum[] | undefined; currency
   );
 }
 
+/**
+ * Every relationship manager with a client: how many clients, what they hold and their share of the firm. A
+ * client with two RMs counts in full for each, so the shares can add up to more than the whole.
+ */
+function RelationshipBook({ rows, currency }: { rows: ManagerAum[] | undefined; currency: string }) {
+  if (!rows) {
+    return <Loading />;
+  }
+  if (rows.length === 0) {
+    return <p className="py-8 text-center text-sm text-ink-muted">No relationship manager has a client yet.</p>;
+  }
+  const overlap = rows.reduce((sum, one) => sum + Number(one.sharePercent), 0) > 100;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs text-ink-muted">
+            <th className="py-1.5 pr-3 font-medium">Relationship manager</th>
+            <th className="py-1.5 pr-3 text-right font-medium">Clients</th>
+            <th className="py-1.5 pr-3 text-right font-medium">AUM</th>
+            <th className="py-1.5 font-medium">Share of firm AUM</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {rows.map((one) => (
+            <tr key={one.staffId}>
+              <td className="py-2 pr-3">{one.name}</td>
+              <td className="py-2 pr-3 text-right tabular-nums">{one.clients}</td>
+              <td className="py-2 pr-3 text-right whitespace-nowrap tabular-nums">{money(one.amount, currency)}</td>
+              <td className="py-2">
+                <span className="flex items-center gap-2">
+                  <span className="h-2 flex-1 rounded-full bg-slate-100">
+                    <span className="block h-2 rounded-full bg-primary-600"
+                      style={{ width: `${Math.min(100, Number(one.sharePercent))}%` }} />
+                  </span>
+                  <span className="w-12 text-right text-xs text-ink-muted tabular-nums">{one.sharePercent}%</span>
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {overlap && (
+        <p className="mt-2 text-xs text-ink-muted">Shares add up to more than 100% because a client can have more than one RM.</p>
+      )}
+    </div>
+  );
+}

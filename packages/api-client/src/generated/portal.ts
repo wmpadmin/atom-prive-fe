@@ -535,8 +535,8 @@ export interface JoinRequest {
      */
   phone: string | null;
   /**
-     * @minLength 12
-     * @maxLength 200
+     * @minLength 0
+     * @maxLength 128
      */
   password: string;
 }
