@@ -1832,11 +1832,11 @@ export interface JsonNode {
   number?: boolean;
   container?: boolean;
   floatingPointNumber?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -5762,6 +5762,12 @@ export interface ForgotPasswordRequest {
      * @maxLength 320
      */
   email: string;
+  /**
+     * @minLength 0
+     * @maxLength 4096
+     * @nullable
+     */
+  humanCheckToken: string | null;
 }
 
 export interface PasswordResetRequest {
@@ -5827,6 +5833,12 @@ export interface LoginRequest {
      * @maxLength 128
      */
   password: string;
+  /**
+     * @minLength 0
+     * @maxLength 4096
+     * @nullable
+     */
+  humanCheckToken: string | null;
 }
 
 export interface MfaChallengeResponse {

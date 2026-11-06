@@ -8,6 +8,8 @@ export interface Problem {
   attemptsLeft?: number;
   /** When a locked sign-in can be tried again. */
   lockedUntil?: string;
+  /** Present when the next try must pass "confirm you're a person" first: the key to draw it with. */
+  humanCheckSiteKey?: string;
 }
 
 /** Thrown for any non-2xx response so TanStack Query treats it as an error. */

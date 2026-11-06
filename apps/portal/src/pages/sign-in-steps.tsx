@@ -9,7 +9,7 @@ import {
   type AuthenticatorSetup,
   type SignedIn,
 } from "@atomprive/api-client/portal";
-import { Alert, Button, Field, isStrongPassword, PasswordChecklist } from "@atomprive/ui";
+import { Alert, Button, Field, HumanCheck, isStrongPassword, PasswordChecklist, useHumanCheck } from "@atomprive/ui";
 import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { PasswordInput } from "./password-input";
@@ -54,7 +54,7 @@ export function AuthenticatorStep({
   useEffect(() => {
     let current = true;
     if (asked.current?.token !== challengeToken) {
-      asked.current = { token: challengeToken, setup: setUpAuthenticator({ challengeToken }) };
+      asked.current = { token: challengeToken, setup: setUpAuthenticator({ challengeToken, humanCheckToken: null }) };
     }
     asked.current.setup
       .then((answer) => current && setSetup(answer))
@@ -76,7 +76,7 @@ export function AuthenticatorStep({
     setError(undefined);
     setCopied(false);
     try {
-      const fresh = await setUpAuthenticatorAgain({ challengeToken });
+      const fresh = await setUpAuthenticatorAgain({ challengeToken, humanCheckToken: null });
       asked.current = { token: challengeToken, setup: Promise.resolve(fresh) };
       setSetup(fresh);
     } catch (caught) {
@@ -169,6 +169,8 @@ export function CodeStep({
   const [emailedTo, setEmailedTo] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [waitFor, setWaitFor] = useState(0);
+  // Asked for once the emailed code has been asked for too often (S12).
+  const human = useHumanCheck();
 
   useEffect(() => {
     if (waitFor <= 0) return;
@@ -181,11 +183,13 @@ export function CodeStep({
     setSending(true);
     setError(undefined);
     try {
-      const sent = await emailCode({ challengeToken });
+      const sent = await emailCode({ challengeToken, humanCheckToken: human.token });
+      human.heard();
       setEmailedTo(sent.sentTo);
       setCode("");
       setWaitFor(45);
     } catch (caught) {
+      human.heard(caught);
       if (!(caught instanceof ApiError)) setError(OFFLINE);
       else if (isOver(caught)) onOver(caught.message);
       else setError(caught.message);
@@ -256,13 +260,16 @@ export function CodeStep({
           {emailedTo ? "Didn't get it? " : "Can't use your authenticator? "}
           <button
             type="button"
-            disabled={sending || waitFor > 0}
+            disabled={sending || waitFor > 0 || human.waiting}
             onClick={() => void askByEmail()}
             className="font-semibold text-primary-700 underline underline-offset-2 disabled:no-underline disabled:opacity-60"
           >
             {sending ? "Sending…" : emailedTo ? (waitFor > 0 ? `Send another in ${waitFor} s` : "Send another") : "Email me a code instead"}
           </button>
         </p>
+      )}
+      {!justSetUp && human.siteKey && (
+        <HumanCheck key={human.round} siteKey={human.siteKey} onToken={human.setToken} theme="light" />
       )}
       {justSetUp && (
         <button
