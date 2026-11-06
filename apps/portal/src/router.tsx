@@ -32,6 +32,7 @@ import { HoldingsPage } from "./wealth/holdings-page";
 import { PortfolioPage } from "./wealth/portfolio-page";
 import { ProposalPage } from "./wealth/proposal-page";
 import { ProposalsPage } from "./wealth/proposals-page";
+import { SecurityPage } from "./wealth/security-page";
 
 /**
  * Signed out, there is one screen; signed in, there is the rest.
@@ -67,6 +68,7 @@ export const router = createBrowserRouter([
       { path: "audit-log", element: <AuditLogPage /> },
       { path: "proposals", element: <ProposalsPage /> },
       { path: "proposals/:id", element: <ProposalPage /> },
+      { path: "security", element: <SecurityPage /> },
       { path: "support", element: <SupportPage /> },
       { path: "support/:id", element: <SupportTicketPage /> },
       { path: "forms/pack/:kind", element: <FormSignPage /> },

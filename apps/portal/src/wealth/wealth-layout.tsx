@@ -229,6 +229,27 @@ function Account({ me }: { me: Me | undefined }) {
         >
           <Link
             role="menuitem"
+            to="/settings"
+            className="block rounded-lg px-3 py-2 text-sm font-medium text-ink-soft hover:bg-sidebar"
+          >
+            My profile
+          </Link>
+          <Link
+            role="menuitem"
+            to="/new/security"
+            className="block rounded-lg px-3 py-2 text-sm font-medium text-ink-soft hover:bg-sidebar"
+          >
+            Security
+          </Link>
+          <Link
+            role="menuitem"
+            to="/settings"
+            className="block rounded-lg px-3 py-2 text-sm font-medium text-ink-soft hover:bg-sidebar"
+          >
+            Notification preferences
+          </Link>
+          <Link
+            role="menuitem"
             to="/family"
             className="block rounded-lg px-3 py-2 text-sm font-medium text-ink-soft hover:bg-sidebar"
           >
