@@ -146,11 +146,6 @@ export function IngestionMonitoringPage() {
 
       {start.error && <Alert tone="danger">{start.error.message}</Alert>}
 
-      {/* No transport is built, so a run fetches nothing. Said once, plainly, rather than left to be guessed. */}
-      <Alert tone="info">
-        No bank's feed is connected yet — SFTP, a bank's API and uploaded files are all configured but not built.
-        A sync asked for now is recorded as an attempt and comes back with nothing, saying so.
-      </Alert>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card
