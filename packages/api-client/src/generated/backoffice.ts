@@ -7305,6 +7305,82 @@ export interface CustomerPage {
   totalItems: number;
 }
 
+export interface ClientComparison {
+  customerId: string;
+  clientName: string;
+  clientCode: string;
+  banks: string[];
+  currency: string;
+  bankTotal: number;
+  fileTotal: number;
+  difference: number;
+  matching: number;
+  differing: number;
+  onlyAtBank: number;
+  notAtBank: number;
+  withoutIsin: number;
+  /** @nullable */
+  asOf: string | null;
+}
+
+export interface HoldingsOverview {
+  clients: number;
+  banks: number;
+  linesMatching: number;
+  linesCompared: number;
+  linesDiffering: number;
+  onlyAtBank: number;
+  notAtBank: number;
+  /** @nullable */
+  asOf: string | null;
+  rows: ClientComparison[];
+}
+
+export type HoldingLineStatus = typeof HoldingLineStatus[keyof typeof HoldingLineStatus];
+
+
+export const HoldingLineStatus = {
+  MATCHES: 'MATCHES',
+  UNITS_DIFFER: 'UNITS_DIFFER',
+  VALUE_DIFFERS: 'VALUE_DIFFERS',
+  ONLY_AT_BANK: 'ONLY_AT_BANK',
+  NOT_AT_BANK: 'NOT_AT_BANK',
+} as const;
+
+export interface HoldingLine {
+  group: string;
+  name: string;
+  /** @nullable */
+  isin: string | null;
+  accounts: string[];
+  /** @nullable */
+  bankUnits: number | null;
+  /** @nullable */
+  bankPrice: number | null;
+  /** @nullable */
+  bankValue: number | null;
+  /** @nullable */
+  bankCurrency: string | null;
+  /** @nullable */
+  bankValueConverted: number | null;
+  /** @nullable */
+  fileUnits: number | null;
+  /** @nullable */
+  fileValue: number | null;
+  /** @nullable */
+  unitsDifference: number | null;
+  valueDifference: number;
+  status: HoldingLineStatus;
+  /** @nullable */
+  filePricedOn: string | null;
+}
+
+export interface ClientHoldingsCheck {
+  summary: ClientComparison;
+  accounts: string[];
+  lines: HoldingLine[];
+}
+
 export interface FormPage {
   items: FormRow[];
   page: number;
@@ -8874,6 +8950,10 @@ export const ListClientFilesKycStatus = {
   REJECTED: 'REJECTED',
   EXPIRED: 'EXPIRED',
 } as const;
+
+export type CheckHoldingsParams = {
+bankId?: string;
+};
 
 export type GetDocumentTextParams = {
 customerId?: string;
@@ -36125,6 +36205,203 @@ export function useGetKycChecklist<TData = Awaited<ReturnType<typeof getKycCheck
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetKycChecklistQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCheckHoldingsUrl = (params?: CheckHoldingsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/holdings-check?${stringifiedParams}` : `/api/backoffice/holdings-check`
+}
+
+export const checkHoldings = async (params?: CheckHoldingsParams, options?: Parameters<typeof http>[1]): Promise<HoldingsOverview> => {
+
+  return http<HoldingsOverview>(getCheckHoldingsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckHoldingsQueryKey = (params?: CheckHoldingsParams,) => {
+    return [
+    `/api/backoffice/holdings-check`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getCheckHoldingsQueryOptions = <TData = Awaited<ReturnType<typeof checkHoldings>>, TError = unknown>(params?: CheckHoldingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCheckHoldingsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof checkHoldings>>> = ({ signal }) => checkHoldings(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof checkHoldings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type CheckHoldingsQueryResult = NonNullable<Awaited<ReturnType<typeof checkHoldings>>>
+export type CheckHoldingsQueryError = unknown
+
+
+export function useCheckHoldings<TData = Awaited<ReturnType<typeof checkHoldings>>, TError = unknown>(
+ params: undefined |  CheckHoldingsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkHoldings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof checkHoldings>>,
+          TError,
+          Awaited<ReturnType<typeof checkHoldings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCheckHoldings<TData = Awaited<ReturnType<typeof checkHoldings>>, TError = unknown>(
+ params?: CheckHoldingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkHoldings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof checkHoldings>>,
+          TError,
+          Awaited<ReturnType<typeof checkHoldings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCheckHoldings<TData = Awaited<ReturnType<typeof checkHoldings>>, TError = unknown>(
+ params?: CheckHoldingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useCheckHoldings<TData = Awaited<ReturnType<typeof checkHoldings>>, TError = unknown>(
+ params?: CheckHoldingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getCheckHoldingsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCheckClientHoldingsUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/holdings-check/clients/${customerId}`
+}
+
+export const checkClientHoldings = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientHoldingsCheck> => {
+
+  return http<ClientHoldingsCheck>(getCheckClientHoldingsUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckClientHoldingsQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/holdings-check/clients/${customerId}`
+    ] as const;
+    }
+
+
+export const getCheckClientHoldingsQueryOptions = <TData = Awaited<ReturnType<typeof checkClientHoldings>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkClientHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCheckClientHoldingsQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof checkClientHoldings>>> = ({ signal }) => checkClientHoldings(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof checkClientHoldings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type CheckClientHoldingsQueryResult = NonNullable<Awaited<ReturnType<typeof checkClientHoldings>>>
+export type CheckClientHoldingsQueryError = unknown
+
+
+export function useCheckClientHoldings<TData = Awaited<ReturnType<typeof checkClientHoldings>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkClientHoldings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof checkClientHoldings>>,
+          TError,
+          Awaited<ReturnType<typeof checkClientHoldings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCheckClientHoldings<TData = Awaited<ReturnType<typeof checkClientHoldings>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkClientHoldings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof checkClientHoldings>>,
+          TError,
+          Awaited<ReturnType<typeof checkClientHoldings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCheckClientHoldings<TData = Awaited<ReturnType<typeof checkClientHoldings>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkClientHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useCheckClientHoldings<TData = Awaited<ReturnType<typeof checkClientHoldings>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkClientHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getCheckClientHoldingsQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
