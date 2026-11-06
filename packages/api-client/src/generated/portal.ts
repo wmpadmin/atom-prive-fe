@@ -404,6 +404,51 @@ export interface ClientProposalDetail {
   weighed: PlannedLeg[];
 }
 
+export interface PasswordChange {
+  /** @minLength 1 */
+  currentPassword: string;
+  /**
+     * @minLength 0
+     * @maxLength 128
+     */
+  newPassword: string;
+}
+
+export interface NewPhoneStart {
+  /** @minLength 1 */
+  password: string;
+  /**
+     * @minLength 0
+     * @maxLength 12
+     * @nullable
+     */
+  code: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 12
+     * @nullable
+     */
+  emailedCode: string | null;
+}
+
+export interface NewPhone {
+  secret: string;
+  otpauthUri: string;
+  qrSvg: string;
+}
+
+export interface NewPhoneFinish {
+  /**
+     * @minLength 0
+     * @maxLength 12
+     */
+  code: string;
+}
+
+export interface CodeSent {
+  sentTo: string;
+}
+
 export interface Me {
   id: string;
   fullName: string;
@@ -832,6 +877,10 @@ export interface ChallengeRequest {
   challengeToken: string;
 }
 
+export interface EmailedCode {
+  sentTo: string;
+}
+
 export interface AuthenticatorSetup {
   secret: string;
   otpauthUri: string;
@@ -964,6 +1013,36 @@ export interface PortfolioInsights {
   cashByMonth: MonthFlow[];
   topFlows: Flow[];
   holdings: HoldingGroup[];
+}
+
+export interface Happened {
+  what: string;
+  /** @nullable */
+  place: string | null;
+  at: string;
+  ok: boolean;
+}
+
+export interface SignedInOn {
+  id: string;
+  device: string;
+  /** @nullable */
+  place: string | null;
+  /** @nullable */
+  address: string | null;
+  signedInAt: string;
+  lastActiveAt: string;
+  current: boolean;
+}
+
+export interface SecurityView {
+  passwordChangedAt: string;
+  authenticatorOn: boolean;
+  /** @nullable */
+  authenticatorSince: string | null;
+  email: string;
+  signedIn: SignedInOn[];
+  history: Happened[];
 }
 
 /**
@@ -2877,6 +2956,388 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAnswerMyProposalMutationOptions(options), queryClient);
+    }
+
+export const getSignOutMyOtherDevicesUrl = () => {
+
+
+
+
+  return `/api/portal/me/security/sessions/sign-out-others`
+}
+
+export const signOutMyOtherDevices = async ( options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getSignOutMyOtherDevicesUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSignOutMyOtherDevicesMutationKey = () => ['signOutMyOtherDevices'] as const;
+
+export const getSignOutMyOtherDevicesMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signOutMyOtherDevices>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof signOutMyOtherDevices>>, TError,void, TContext> => {
+
+const mutationKey = getSignOutMyOtherDevicesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof signOutMyOtherDevices>>, void> = () => {
+
+
+          return  signOutMyOtherDevices(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SignOutMyOtherDevicesMutationResult = NonNullable<Awaited<ReturnType<typeof signOutMyOtherDevices>>>
+
+    export type SignOutMyOtherDevicesMutationError = unknown
+
+
+    export const useSignOutMyOtherDevices = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signOutMyOtherDevices>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof signOutMyOtherDevices>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSignOutMyOtherDevicesMutationOptions(options), queryClient);
+    }
+
+export const getChangeMyPasswordUrl = () => {
+
+
+
+
+  return `/api/portal/me/security/password`
+}
+
+export const changeMyPassword = async (passwordChange: PasswordChange, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<void>(getChangeMyPasswordUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(passwordChange)
+  }
+);}
+
+
+
+
+
+export const getChangeMyPasswordMutationKey = () => ['changeMyPassword'] as const;
+
+export const getChangeMyPasswordMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeMyPassword>>, TError,ChangeMyPasswordMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeMyPassword>>, TError,ChangeMyPasswordMutationVariables, TContext> => {
+
+const mutationKey = getChangeMyPasswordMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeMyPassword>>, ChangeMyPasswordMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  changeMyPassword(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeMyPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof changeMyPassword>>>
+    export type ChangeMyPasswordMutationBody = PasswordChange
+    export type ChangeMyPasswordMutationError = unknown
+    export type ChangeMyPasswordMutationVariables = {data: PasswordChange}
+
+    export const useChangeMyPassword = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeMyPassword>>, TError,ChangeMyPasswordMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeMyPassword>>,
+        TError,
+        ChangeMyPasswordMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeMyPasswordMutationOptions(options), queryClient);
+    }
+
+export const getStartMyNewPhoneUrl = () => {
+
+
+
+
+  return `/api/portal/me/security/new-phone`
+}
+
+export const startMyNewPhone = async (newPhoneStart: NewPhoneStart, options?: Parameters<typeof http>[1]): Promise<NewPhone> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<NewPhone>(getStartMyNewPhoneUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(newPhoneStart)
+  }
+);}
+
+
+
+
+
+export const getStartMyNewPhoneMutationKey = () => ['startMyNewPhone'] as const;
+
+export const getStartMyNewPhoneMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startMyNewPhone>>, TError,StartMyNewPhoneMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof startMyNewPhone>>, TError,StartMyNewPhoneMutationVariables, TContext> => {
+
+const mutationKey = getStartMyNewPhoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startMyNewPhone>>, StartMyNewPhoneMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startMyNewPhone(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartMyNewPhoneMutationResult = NonNullable<Awaited<ReturnType<typeof startMyNewPhone>>>
+    export type StartMyNewPhoneMutationBody = NewPhoneStart
+    export type StartMyNewPhoneMutationError = unknown
+    export type StartMyNewPhoneMutationVariables = {data: NewPhoneStart}
+
+    export const useStartMyNewPhone = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startMyNewPhone>>, TError,StartMyNewPhoneMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof startMyNewPhone>>,
+        TError,
+        StartMyNewPhoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartMyNewPhoneMutationOptions(options), queryClient);
+    }
+
+export const getFinishMyNewPhoneUrl = () => {
+
+
+
+
+  return `/api/portal/me/security/new-phone/finish`
+}
+
+export const finishMyNewPhone = async (newPhoneFinish: NewPhoneFinish, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<void>(getFinishMyNewPhoneUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(newPhoneFinish)
+  }
+);}
+
+
+
+
+
+export const getFinishMyNewPhoneMutationKey = () => ['finishMyNewPhone'] as const;
+
+export const getFinishMyNewPhoneMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof finishMyNewPhone>>, TError,FinishMyNewPhoneMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof finishMyNewPhone>>, TError,FinishMyNewPhoneMutationVariables, TContext> => {
+
+const mutationKey = getFinishMyNewPhoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof finishMyNewPhone>>, FinishMyNewPhoneMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  finishMyNewPhone(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FinishMyNewPhoneMutationResult = NonNullable<Awaited<ReturnType<typeof finishMyNewPhone>>>
+    export type FinishMyNewPhoneMutationBody = NewPhoneFinish
+    export type FinishMyNewPhoneMutationError = unknown
+    export type FinishMyNewPhoneMutationVariables = {data: NewPhoneFinish}
+
+    export const useFinishMyNewPhone = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof finishMyNewPhone>>, TError,FinishMyNewPhoneMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof finishMyNewPhone>>,
+        TError,
+        FinishMyNewPhoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getFinishMyNewPhoneMutationOptions(options), queryClient);
+    }
+
+export const getEmailMyNewPhoneCodeUrl = () => {
+
+
+
+
+  return `/api/portal/me/security/new-phone/email-code`
+}
+
+export const emailMyNewPhoneCode = async ( options?: Parameters<typeof http>[1]): Promise<CodeSent> => {
+
+  return http<CodeSent>(getEmailMyNewPhoneCodeUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEmailMyNewPhoneCodeMutationKey = () => ['emailMyNewPhoneCode'] as const;
+
+export const getEmailMyNewPhoneCodeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof emailMyNewPhoneCode>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof emailMyNewPhoneCode>>, TError,void, TContext> => {
+
+const mutationKey = getEmailMyNewPhoneCodeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof emailMyNewPhoneCode>>, void> = () => {
+
+
+          return  emailMyNewPhoneCode(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EmailMyNewPhoneCodeMutationResult = NonNullable<Awaited<ReturnType<typeof emailMyNewPhoneCode>>>
+
+    export type EmailMyNewPhoneCodeMutationError = unknown
+
+
+    export const useEmailMyNewPhoneCode = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof emailMyNewPhoneCode>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof emailMyNewPhoneCode>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getEmailMyNewPhoneCodeMutationOptions(options), queryClient);
     }
 
 export const getUploadMyPhotoUrl = () => {
@@ -4834,6 +5295,88 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getLoginMutationOptions(options), queryClient);
     }
 
+export const getEnterEmailedCodeUrl = () => {
+
+
+
+
+  return `/api/portal/auth/emailed-code`
+}
+
+export const enterEmailedCode = async (codeRequest: CodeRequest, options?: Parameters<typeof http>[1]): Promise<SignedIn> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<SignedIn>(getEnterEmailedCodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(codeRequest)
+  }
+);}
+
+
+
+
+
+export const getEnterEmailedCodeMutationKey = () => ['enterEmailedCode'] as const;
+
+export const getEnterEmailedCodeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enterEmailedCode>>, TError,EnterEmailedCodeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof enterEmailedCode>>, TError,EnterEmailedCodeMutationVariables, TContext> => {
+
+const mutationKey = getEnterEmailedCodeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enterEmailedCode>>, EnterEmailedCodeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  enterEmailedCode(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnterEmailedCodeMutationResult = NonNullable<Awaited<ReturnType<typeof enterEmailedCode>>>
+    export type EnterEmailedCodeMutationBody = CodeRequest
+    export type EnterEmailedCodeMutationError = unknown
+    export type EnterEmailedCodeMutationVariables = {data: CodeRequest}
+
+    export const useEnterEmailedCode = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enterEmailedCode>>, TError,EnterEmailedCodeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof enterEmailedCode>>,
+        TError,
+        EnterEmailedCodeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEnterEmailedCodeMutationOptions(options), queryClient);
+    }
+
 export const getEnterCodeUrl = () => {
 
 
@@ -4914,6 +5457,88 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getEnterCodeMutationOptions(options), queryClient);
+    }
+
+export const getEmailCodeUrl = () => {
+
+
+
+
+  return `/api/portal/auth/code/email`
+}
+
+export const emailCode = async (challengeRequest: ChallengeRequest, options?: Parameters<typeof http>[1]): Promise<EmailedCode> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<EmailedCode>(getEmailCodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(challengeRequest)
+  }
+);}
+
+
+
+
+
+export const getEmailCodeMutationKey = () => ['emailCode'] as const;
+
+export const getEmailCodeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof emailCode>>, TError,EmailCodeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof emailCode>>, TError,EmailCodeMutationVariables, TContext> => {
+
+const mutationKey = getEmailCodeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof emailCode>>, EmailCodeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  emailCode(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EmailCodeMutationResult = NonNullable<Awaited<ReturnType<typeof emailCode>>>
+    export type EmailCodeMutationBody = ChallengeRequest
+    export type EmailCodeMutationError = unknown
+    export type EmailCodeMutationVariables = {data: ChallengeRequest}
+
+    export const useEmailCode = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof emailCode>>, TError,EmailCodeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof emailCode>>,
+        TError,
+        EmailCodeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEmailCodeMutationOptions(options), queryClient);
     }
 
 export const getSetUpAuthenticatorUrl = () => {
@@ -6223,6 +6848,101 @@ export function useMe<TData = Awaited<ReturnType<typeof me>>, TError = unknown>(
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getMeQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMySecurityUrl = () => {
+
+
+
+
+  return `/api/portal/me/security`
+}
+
+export const mySecurity = async ( options?: Parameters<typeof http>[1]): Promise<SecurityView> => {
+
+  return http<SecurityView>(getMySecurityUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMySecurityQueryKey = () => {
+    return [
+    `/api/portal/me/security`
+    ] as const;
+    }
+
+
+export const getMySecurityQueryOptions = <TData = Awaited<ReturnType<typeof mySecurity>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof mySecurity>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMySecurityQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof mySecurity>>> = ({ signal }) => mySecurity({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof mySecurity>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MySecurityQueryResult = NonNullable<Awaited<ReturnType<typeof mySecurity>>>
+export type MySecurityQueryError = unknown
+
+
+export function useMySecurity<TData = Awaited<ReturnType<typeof mySecurity>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof mySecurity>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof mySecurity>>,
+          TError,
+          Awaited<ReturnType<typeof mySecurity>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMySecurity<TData = Awaited<ReturnType<typeof mySecurity>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof mySecurity>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof mySecurity>>,
+          TError,
+          Awaited<ReturnType<typeof mySecurity>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMySecurity<TData = Awaited<ReturnType<typeof mySecurity>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof mySecurity>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMySecurity<TData = Awaited<ReturnType<typeof mySecurity>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof mySecurity>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMySecurityQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -7895,3 +8615,77 @@ export function useAccount<TData = Awaited<ReturnType<typeof account>>, TError =
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
+export const getSignOutMyDeviceUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/portal/me/security/sessions/${sessionId}`
+}
+
+export const signOutMyDevice = async (sessionId: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getSignOutMyDeviceUrl(sessionId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getSignOutMyDeviceMutationKey = () => ['signOutMyDevice'] as const;
+
+export const getSignOutMyDeviceMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signOutMyDevice>>, TError,SignOutMyDeviceMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof signOutMyDevice>>, TError,SignOutMyDeviceMutationVariables, TContext> => {
+
+const mutationKey = getSignOutMyDeviceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof signOutMyDevice>>, SignOutMyDeviceMutationVariables> = (props) => {
+          const {sessionId} = props ?? {};
+
+          return  signOutMyDevice(sessionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SignOutMyDeviceMutationResult = NonNullable<Awaited<ReturnType<typeof signOutMyDevice>>>
+
+    export type SignOutMyDeviceMutationError = unknown
+    export type SignOutMyDeviceMutationVariables = {sessionId: string}
+
+    export const useSignOutMyDevice = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signOutMyDevice>>, TError,SignOutMyDeviceMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof signOutMyDevice>>,
+        TError,
+        SignOutMyDeviceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSignOutMyDeviceMutationOptions(options), queryClient);
+    }

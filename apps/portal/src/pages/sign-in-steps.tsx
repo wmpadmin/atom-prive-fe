@@ -1,7 +1,9 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   choosePassword,
+  emailCode,
   enterCode,
+  enterEmailedCode,
   setUpAuthenticator,
   setUpAuthenticatorAgain,
   type AuthenticatorSetup,
@@ -22,7 +24,7 @@ const OFFLINE = "Couldn't reach the server. Check your connection and try again.
 
 /** A refusal that means the whole sign-in is over and has to start again from the password. */
 function isOver(caught: ApiError) {
-  return caught.status === 401 && !/code is wrong/i.test(caught.message);
+  return caught.status === 401 && !/code is wrong|run out|ask for a new one/i.test(caught.message);
 }
 
 /** The secret in blocks of four, so it can be typed in by hand without losing your place. */
@@ -163,13 +165,41 @@ export function CodeStep({
   const [code, setCode] = useState("");
   const [error, setError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
+  /** Where the emailed code went, once the client has asked for one instead of the app's. */
+  const [emailedTo, setEmailedTo] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [waitFor, setWaitFor] = useState(0);
+
+  useEffect(() => {
+    if (waitFor <= 0) return;
+    const tick = setTimeout(() => setWaitFor((left) => left - 1), 1000);
+    return () => clearTimeout(tick);
+  }, [waitFor]);
+
+  /** A code by email instead, for a client whose phone is out of reach. */
+  async function askByEmail() {
+    setSending(true);
+    setError(undefined);
+    try {
+      const sent = await emailCode({ challengeToken });
+      setEmailedTo(sent.sentTo);
+      setCode("");
+      setWaitFor(45);
+    } catch (caught) {
+      if (!(caught instanceof ApiError)) setError(OFFLINE);
+      else if (isOver(caught)) onOver(caught.message);
+      else setError(caught.message);
+    } finally {
+      setSending(false);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError(undefined);
     try {
-      onAnswer(await enterCode({ challengeToken, code }));
+      onAnswer(await (emailedTo ? enterEmailedCode({ challengeToken, code }) : enterCode({ challengeToken, code })));
     } catch (caught) {
       if (!(caught instanceof ApiError)) {
         setError(OFFLINE);
@@ -189,11 +219,13 @@ export function CodeStep({
   return (
     <form onSubmit={submit} className={CARD}>
       <div>
-        <h2 className="text-xl font-bold">Enter your code</h2>
+        <h2 className="text-xl font-bold">{emailedTo ? "Check your email" : "Enter your code"}</h2>
         <p className="mt-1 text-sm text-ink-muted">
-          {justSetUp
-            ? "Type the 6-digit code your authenticator app is showing for Atom Privé."
-            : "Open your authenticator app and type the 6-digit code it shows for Atom Privé."}
+          {emailedTo
+            ? `We've sent a 6-digit code to ${emailedTo}. It works once, for 10 minutes.`
+            : justSetUp
+              ? "Type the 6-digit code your authenticator app is showing for Atom Privé."
+              : "Open your authenticator app and type the 6-digit code it shows for Atom Privé."}
         </p>
       </div>
       {error && <Alert tone="danger">{error}</Alert>}
@@ -212,11 +244,26 @@ export function CodeStep({
         />
       </Field>
       <p id="code-help" className="text-xs text-ink-muted">
-        The code changes every 30 seconds. Five wrong codes lock sign-in for an hour.
+        {emailedTo
+          ? "Signing in this way is shown on your Security page, and your relationship manager is told."
+          : "The code changes every 30 seconds. Five wrong codes lock sign-in for an hour."}
       </p>
       <Button type="submit" className="w-full" disabled={submitting || code.length < 6}>
         {submitting ? "Checking…" : "Continue"}
       </Button>
+      {!justSetUp && (
+        <p className="text-center text-sm text-ink-muted">
+          {emailedTo ? "Didn't get it? " : "Can't use your authenticator? "}
+          <button
+            type="button"
+            disabled={sending || waitFor > 0}
+            onClick={() => void askByEmail()}
+            className="font-semibold text-primary-700 underline underline-offset-2 disabled:no-underline disabled:opacity-60"
+          >
+            {sending ? "Sending…" : emailedTo ? (waitFor > 0 ? `Send another in ${waitFor} s` : "Send another") : "Email me a code instead"}
+          </button>
+        </p>
+      )}
       {justSetUp && (
         <button
           type="button"
