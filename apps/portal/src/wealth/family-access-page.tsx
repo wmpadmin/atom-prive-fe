@@ -7,6 +7,8 @@ import {
   getFamilyWealthQueryKey,
   getAccountsQueryKey,
   useAccounts,
+  useAnswerRelationshipRequest,
+  useAskToBeCalled,
   useAskToInvite,
   useFamily,
   useGiveBackWealth,
@@ -23,6 +25,7 @@ import {
   type InviteAsk,
   type MyFamily,
   type MyPermissions,
+  type RelationshipAsk,
   type WealthGrant,
 } from "@atomprive/api-client/portal";
 import { Alert, Button, Dialog } from "@atomprive/ui";
@@ -236,13 +239,20 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function Members({ people, wealth }: { people: FamilyPerson[]; wealth: WealthGrant[] }) {
+function Members({ people, wealth, asks, onChangeMine }: {
+  people: FamilyPerson[];
+  wealth: WealthGrant[];
+  asks: RelationshipAsk[];
+  onChangeMine: () => void;
+}) {
   const me = people.find((one) => one.you);
+  const holder = people.find((one) => one.primaryHolder);
   return (
     <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {people.map((one) => {
         const showsMe = wealth.some((grant) => !grant.mine && grant.ownerId === one.id);
         const seesMine = wealth.some((grant) => grant.mine && grant.granteeId === one.id);
+        const asked = asks.find((ask) => ask.customerId === one.id);
         return (
           <li key={one.id} className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-5">
             <div className="flex items-center gap-3">
@@ -255,9 +265,29 @@ function Members({ people, wealth }: { people: FamilyPerson[]; wealth: WealthGra
                 </p>
                 <p className="text-xs text-ink-muted">
                   {one.relationshipToPrimary ?? one.relationship ?? (one.primaryHolder ? "Account holder" : "Family member")} · joined {when(one.joinedOn)}
+                  {one.you && !one.primaryHolder && !asked && (
+                    <>
+                      {" · "}
+                      <button type="button" onClick={onChangeMine} className="font-semibold text-primary-700 hover:underline">
+                        Change
+                      </button>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
+            {asked && (
+              <p className="flex flex-wrap items-center gap-2 text-xs">
+                <Pill tone="waiting">
+                  {one.you ? `Asked to be ${asked.to} · waiting on ${holder?.fullName ?? "the account holder"}` : `Asks to be ${asked.to}`}
+                </Pill>
+                {one.you && (
+                  <button type="button" onClick={onChangeMine} className="font-semibold text-primary-700 hover:underline">
+                    Change
+                  </button>
+                )}
+              </p>
+            )}
             {!one.you && me && (
               <dl className="grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-xl bg-sidebar px-3 py-2">
@@ -283,6 +313,94 @@ function Members({ people, wealth }: { people: FamilyPerson[]; wealth: WealthGra
       })}
     </ul>
   );
+}
+
+/** The holder's queue: members asking to be described differently. Nothing changes until they agree. */
+function WaitingOnYou({ asks, onDone }: { asks: RelationshipAsk[]; onDone: () => void }) {
+  const answer = useAnswerRelationshipRequest<ApiError>({ mutation: { onSuccess: onDone } });
+  return (
+    <section className="overflow-hidden rounded-2xl border border-amber-200 bg-white">
+      <h2 className="bg-access-view-soft px-5 py-3 text-sm font-bold text-access-view-ink">Waiting on you ({asks.length})</h2>
+      {answer.error && <div className="px-5 pt-3"><Alert tone="danger">{answer.error.message}</Alert></div>}
+      <ul>
+        {asks.map((ask) => (
+          <li key={ask.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
+            <div className="min-w-0 text-sm">
+              <p>
+                <b>{ask.fullName}</b> asks to be shown as <b>{ask.to}</b>
+                {ask.from && <> instead of <b>{ask.from}</b></>}.
+              </p>
+              <p className="text-xs text-ink-muted">Asked {stamp(ask.askedAt)}. Nothing changes until you agree.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="danger-soft" disabled={answer.isPending} onClick={() => answer.mutate({ id: ask.id, answer: "reject" })}>
+                Refuse
+              </Button>
+              <Button disabled={answer.isPending} onClick={() => answer.mutate({ id: ask.id, answer: "approve" })}>
+                Agree
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** A member asks for their own relationship to be changed; the account holder agrees it before it shows. */
+function RelationshipDialog({ now, holderName, onClose, onSent }: {
+  now: string | null;
+  holderName: string;
+  onClose: () => void;
+  onSent: () => void;
+}) {
+  const nowCode = RELATIONSHIPS.find((one) => one.name.toLowerCase() === now?.toLowerCase())?.code;
+  const [code, setCode] = useState<string>("");
+  const ask = useAskToBeCalled<ApiError>({ mutation: { onSuccess: onSent } });
+  return (
+    <Dialog
+      open
+      title={`What are you to ${holderName}?`}
+      description={now ? `We have you down as ${now}. ${holderName} agrees the change before it shows anywhere.` : `${holderName} agrees it before it shows anywhere.`}
+      onClose={onClose}
+    >
+      <div className="space-y-4">
+        {ask.error && <Alert tone="danger">{ask.error.message}</Alert>}
+        <div role="radiogroup" aria-label="Relationship" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {RELATIONSHIPS.map((one) => {
+            const current = one.code === nowCode;
+            const chosen = one.code === code;
+            return (
+              <button
+                key={one.code}
+                type="button"
+                role="radio"
+                aria-checked={chosen}
+                disabled={current}
+                onClick={() => setCode(one.code)}
+                className={`rounded-xl border px-3 py-2.5 text-left text-sm font-semibold ${
+                  chosen ? "border-primary-600 bg-primary-50 text-primary-700" : current ? "border-line bg-sidebar text-ink-muted" : "border-line bg-white text-ink hover:bg-sidebar"
+                }`}
+              >
+                {one.name}
+                {current && " · now"}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex justify-end gap-2.5">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button disabled={!code || ask.isPending} onClick={() => ask.mutate({ data: { relationshipCode: code } })}>
+            {ask.isPending ? "Sending…" : `Send to ${holderName}`}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+function stamp(at: string) {
+  return new Date(at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 function askStatus(ask: InviteAsk) {
@@ -391,7 +509,7 @@ export function FamilyAccessPage() {
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const tab: TabId = TABS.some((one) => one.id === params.get("tab")) ? (params.get("tab") as TabId) : "members";
-  const [dialog, setDialog] = useState<"grant" | "share" | "invite" | null>(null);
+  const [dialog, setDialog] = useState<"grant" | "share" | "invite" | "relationship" | null>(null);
 
   const family = useFamily<MyFamily, ApiError>();
   const permissions = usePermissions<MyPermissions, ApiError>();
@@ -411,6 +529,7 @@ export function FamilyAccessPage() {
   const withdraw = useWithdrawInviteAsk<ApiError>({ mutation: { onSuccess: refresh } });
 
   const people = family.data?.people ?? [];
+  const relationshipAsks = family.data?.relationshipAsks ?? [];
   const person = (id: string) => people.find((one) => one.id === id);
   const grants = wealth.data ?? [];
   const accountLine = (one: GrantRow, given: boolean): Line => ({
@@ -515,7 +634,12 @@ export function FamilyAccessPage() {
       ) : !family.data || !permissions.data || !wealth.data || !asks.data ? (
         <div className="h-60 animate-pulse rounded-2xl bg-white/60" />
       ) : tab === "members" ? (
-        <Members people={people} wealth={grants} />
+        <div className="space-y-4">
+          {family.data.youArePrimary && relationshipAsks.some((ask) => !ask.mine) && (
+            <WaitingOnYou asks={relationshipAsks.filter((ask) => !ask.mine)} onDone={refresh} />
+          )}
+          <Members people={people} wealth={grants} asks={relationshipAsks} onChangeMine={() => setDialog("relationship")} />
+        </div>
       ) : (
         <section className="rounded-2xl border border-line bg-white p-5">
           {tab === "given" && <Lines lines={given} whoHead="Shared with" empty="You haven't shared anything with your family." />}
@@ -527,6 +651,17 @@ export function FamilyAccessPage() {
       {dialog === "grant" && <GrantDialog own={(accounts.data ?? []).filter((one) => one.mine)} onClose={() => setDialog(null)} />}
       {dialog === "share" && <ShareDialog people={people} onClose={() => setDialog(null)} />}
       {dialog === "invite" && <InviteDialog onClose={() => setDialog(null)} />}
+      {dialog === "relationship" && (
+        <RelationshipDialog
+          now={people.find((one) => one.you)?.relationship ?? null}
+          holderName={people.find((one) => one.primaryHolder)?.fullName ?? "the account holder"}
+          onClose={() => setDialog(null)}
+          onSent={() => {
+            setDialog(null);
+            refresh();
+          }}
+        />
+      )}
     </div>
   );
 }
