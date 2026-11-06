@@ -12,6 +12,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
+import { BankUse } from "./bank-use";
 import { money, signed } from "./holdings-words";
 
 /**
@@ -56,6 +57,12 @@ export function HoldingsCheckPage() {
         <Card label="Only at the bank" value={data?.onlyAtBank} tone="warning" note="not on the firm's file" />
         <Card label="Not at the bank" value={data?.notAtBank} tone="warning" note="on file with an ISIN, no bank has it" />
       </div>
+
+      {bankId ? (
+        <BankUse bankId={bankId} />
+      ) : (
+        <p className="text-xs text-ink-muted">Choose a bank to see whether its holdings are in use, and to switch it over.</p>
+      )}
 
       <section className="rounded-2xl border border-line bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
