@@ -56,7 +56,7 @@ import { day } from "./figures";
  */
 export function SettingsPage() {
   return (
-    <div className="max-w-6xl space-y-5">
+    <div className="space-y-5">
       <div>
         <h1 className="text-[1.625rem] font-bold text-balance text-ink">Settings</h1>
         <p className="mt-1 text-sm text-ink-muted">Your details, your preferences and what we tell you about.</p>
