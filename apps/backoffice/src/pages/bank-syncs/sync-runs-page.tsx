@@ -194,11 +194,6 @@ export function SyncRunsPage() {
         </Alert>
       )}
 
-      {/* Nobody should read a run of nothing as a run that worked. */}
-      <Alert tone="info">
-        No bank's feed is connected yet — SFTP, a bank's API and uploaded files are all configured but not built. A
-        sync asked for now is recorded as an attempt and comes back with nothing, saying so.
-      </Alert>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Count label="Runs in 24 hours" value={counts?.runsToday} />
