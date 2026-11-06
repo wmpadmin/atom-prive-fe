@@ -17,6 +17,8 @@ import { SupportPage } from "./pages/support/support-page";
 import { SupportTicketPage } from "./pages/support/support-ticket-page";
 import { IngestionMonitoringPage } from "./pages/bank-syncs/ingestion-monitoring-page";
 import { SyncErrorsPage } from "./pages/bank-syncs/sync-errors-page";
+import { HoldingsCheckClientPage } from "./pages/bank-syncs/holdings-check-client-page";
+import { HoldingsCheckPage } from "./pages/bank-syncs/holdings-check-page";
 import { SyncRunsPage } from "./pages/bank-syncs/sync-runs-page";
 import { DashboardPage } from "./pages/dashboard/dashboard-page";
 import { DeliveriesPage } from "./pages/notifications/deliveries-page";
@@ -344,6 +346,9 @@ export const router = createBrowserRouter([
               { path: "bank-syncs", element: <SyncRunsPage /> },
               // What has gone wrong, on its own: the part of the log somebody has to act on.
               { path: "sync-errors", element: <SyncErrorsPage /> },
+              // What the banks say each client holds, beside the firm's file.
+              { path: "holdings-check", element: <HoldingsCheckPage /> },
+              { path: "holdings-check/:customerId", element: <HoldingsCheckClientPage /> },
             ],
           },
           {

@@ -20,7 +20,6 @@ import {
   ListChecks,
   Mail,
   Radio,
-  Scale,
   Settings,
   ShieldAlert,
   ShieldCheck,
@@ -33,6 +32,7 @@ import {
   UserPlus,
   Users,
   UsersRound,
+  Scale,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -431,6 +431,8 @@ const allNavigation: {
     at: (path) => path.startsWith("/ingestion") || path.startsWith("/bank-syncs"),
   },
   { to: "/sync-errors", label: "Sync errors", icon: TriangleAlert, authority: "MANAGE_BANK_FEEDS:CHANGE" },
+  // What the banks say each client holds, beside the firm's file: the feeds' other half, read by the same desk.
+  { to: "/holdings-check", label: "Holdings check", icon: Scale, authority: "MANAGE_BANK_FEEDS:CHANGE" },
   { to: "/notifications", label: "Notification log", icon: Mail, authority: "MANAGE_CONFIGURATION:VIEW" },
   // The firm's AML sheet and where each client sits on it. On Compliance's menu since 4 Nov 2026: their
   // dashboard counts what is due on it, and a figure with no way to its screen is no use to them.
