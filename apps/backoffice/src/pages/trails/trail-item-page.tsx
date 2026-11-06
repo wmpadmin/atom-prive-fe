@@ -183,7 +183,7 @@ function OneProposal({ itemId }: { itemId: string }) {
           <Fact
             label="Sent"
             value={summary.sentAt ? formatDateTime(summary.sentAt) : "Not sent"}
-            under={summary.sentAt ? "to the client's relationship manager" : undefined}
+            under={summary.sentAt ? (summary.toClient ? "to the client" : "to the client's relationship manager") : undefined}
           />
           <Fact
             label="Answered by"
