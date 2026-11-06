@@ -4,8 +4,10 @@ import {
   getListSupportedBanksQueryKey,
   useDisableSupportedBank,
   useEnableSupportedBank,
+  useListCredentialStandings,
   useListSupportedBanks,
   type BankList,
+  type CredentialStanding,
   type BankView,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, cn, Pagination, SelectInput } from "@atomprive/ui";
@@ -19,8 +21,11 @@ import { useTableView } from "../../lib/table-view";
 import { countryName } from "../../lib/countries";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { usePagedRows } from "../../lib/paged-rows";
-import { formatRelative } from "../../lib/labels";
+import { formatDate, formatRelative } from "../../lib/labels";
 import { BankDialog } from "./bank-dialog";
+import { CredentialsDialog } from "./credentials-dialog";
+import { useStaffUser } from "../../auth/session";
+import { hasAuthority } from "../../lib/permissions";
 import { connectionLabels, scheduleLabels } from "./config-labels";
 import { ConfirmDialog } from "./confirm-dialog";
 
@@ -98,6 +103,11 @@ export function BanksTab() {
   const [editing, setEditing] = useState<BankView | "new" | null>(null);
   const [disabling, setDisabling] = useState<BankView | null>(null);
   const [notice, setNotice] = useState<Notice>();
+  const [credentialsOf, setCredentialsOf] = useState<BankView | null>(null);
+  // Only Admin and IT Admin see or set a bank's credentials, so only they are shown where each stands.
+  const managesCredentials = hasAuthority(useStaffUser(), "MANAGE_BANK_CREDENTIALS:CHANGE");
+  const standings = useListCredentialStandings<CredentialStanding[], ApiError>({ query: { enabled: managesCredentials } });
+  const standingOf = new Map((standings.data ?? []).map((one) => [one.bankId, one]));
   const banks = useListSupportedBanks<BankList, ApiError>(
     { enabled: filter === "" ? undefined : filter === "live" },
     { query: { placeholderData: keepPreviousData } },
@@ -249,18 +259,19 @@ export function BanksTab() {
                   </span>
                 </th>
               ))}
+              {managesCredentials && <th scope="col" className="px-4 py-3">Credentials</th>}
               <th scope="col" className="py-3 pr-5 pl-4 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {banks.isPending && (
               <tr>
-                <td colSpan={shownColumns.length + 2} className="px-5 py-8 text-center text-ink-muted">Loading banks…</td>
+                <td colSpan={shownColumns.length + (managesCredentials ? 3 : 2)} className="px-5 py-8 text-center text-ink-muted">Loading banks…</td>
               </tr>
             )}
             {!banks.isPending && rows.length === 0 && (
               <tr>
-                <td colSpan={shownColumns.length + 2} className="px-5 py-8 text-center text-ink-muted">
+                <td colSpan={shownColumns.length + (managesCredentials ? 3 : 2)} className="px-5 py-8 text-center text-ink-muted">
                   {filter ? "No banks match this filter." : "No banks yet. Add the first one with Add bank."}
                 </td>
               </tr>
@@ -292,8 +303,18 @@ export function BanksTab() {
                     {column.cell(bank)}
                   </td>
                 ))}
+                {managesCredentials && (
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <CredentialBadge bank={bank} standing={standingOf.get(bank.id)} />
+                  </td>
+                )}
                 <td className="py-3 pr-5 pl-4">
                   <div className="flex justify-end gap-2">
+                    {managesCredentials && bank.connectionType !== "MANUAL_UPLOAD" && (
+                      <Button size="sm" variant="ghost" onClick={() => setCredentialsOf(bank)}>
+                        Credentials
+                      </Button>
+                    )}
                     {bank.enabled ? (
                       <Button size="sm" variant="secondary" onClick={() => setDisabling(bank)}>
                         Disable
@@ -340,6 +361,7 @@ export function BanksTab() {
           setNotice({ tone: "success", message: added ? `${bank.name} is added and live.` : `${bank.name} is updated.` });
         }}
       />
+      {credentialsOf && <CredentialsDialog bank={credentialsOf} onClose={() => setCredentialsOf(null)} />}
       <ConfirmDialog
         open={disabling !== null}
         title={`Disable ${disabling?.name ?? "bank"}?`}
@@ -352,6 +374,15 @@ export function BanksTab() {
       />
     </section>
   );
+}
+
+/** Where a bank's credentials stand, in a word: not needed, not set, or how the last test went. */
+function CredentialBadge({ bank, standing }: { bank: BankView; standing: CredentialStanding | undefined }) {
+  if (bank.connectionType === "MANUAL_UPLOAD") return <Badge tone="neutral">Not needed</Badge>;
+  if (!standing) return <Badge tone="warning">Not set</Badge>;
+  if (standing.testOk === false) return <Badge tone="danger">Set · not connecting</Badge>;
+  if (standing.testOk && standing.testedAt) return <Badge tone="success">Set · tested {formatDate(standing.testedAt)}</Badge>;
+  return <Badge tone="info">Set · not tested</Badge>;
 }
 
 function Stat({ label, value, children }: { label: string; value: ReactNode; children: ReactNode }) {

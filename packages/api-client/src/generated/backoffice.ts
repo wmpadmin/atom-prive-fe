@@ -1832,11 +1832,11 @@ export interface JsonNode {
   number?: boolean;
   container?: boolean;
   floatingPointNumber?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -2607,6 +2607,7 @@ export type FieldChoiceStandardField = typeof FieldChoiceStandardField[keyof typ
 
 export const FieldChoiceStandardField = {
   ACCOUNT_NUMBER: 'ACCOUNT_NUMBER',
+  BANK_REFERENCE: 'BANK_REFERENCE',
   INSTRUMENT_ID: 'INSTRUMENT_ID',
   INSTRUMENT_NAME: 'INSTRUMENT_NAME',
   ASSET_CLASS: 'ASSET_CLASS',
@@ -2663,6 +2664,7 @@ export type MappedFieldStandardField = typeof MappedFieldStandardField[keyof typ
 
 export const MappedFieldStandardField = {
   ACCOUNT_NUMBER: 'ACCOUNT_NUMBER',
+  BANK_REFERENCE: 'BANK_REFERENCE',
   INSTRUMENT_ID: 'INSTRUMENT_ID',
   INSTRUMENT_NAME: 'INSTRUMENT_NAME',
   ASSET_CLASS: 'ASSET_CLASS',
@@ -2836,6 +2838,115 @@ export interface BankView {
   linkedAccounts: number;
   /** @nullable */
   lastSyncAt: string | null;
+}
+
+export type CredentialRequestSignIn = typeof CredentialRequestSignIn[keyof typeof CredentialRequestSignIn];
+
+
+export const CredentialRequestSignIn = {
+  PASSWORD: 'PASSWORD',
+  SSH_KEY: 'SSH_KEY',
+  OAUTH_CLIENT: 'OAUTH_CLIENT',
+  API_KEY: 'API_KEY',
+} as const;
+
+export interface CredentialRequest {
+  signIn: CredentialRequestSignIn;
+  /**
+     * @minLength 0
+     * @maxLength 255
+     * @nullable
+     */
+  host: string | null;
+  /**
+     * @minimum 1
+     * @maximum 65535
+     * @nullable
+     */
+  port: number | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  username: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  hostKeyFingerprint: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  remoteFolder: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  apiBaseUrl: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  tokenUrl: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  clientId: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 20000
+     * @nullable
+     */
+  secret: string | null;
+}
+
+export type CredentialViewSignIn = typeof CredentialViewSignIn[keyof typeof CredentialViewSignIn];
+
+
+export const CredentialViewSignIn = {
+  PASSWORD: 'PASSWORD',
+  SSH_KEY: 'SSH_KEY',
+  OAUTH_CLIENT: 'OAUTH_CLIENT',
+  API_KEY: 'API_KEY',
+} as const;
+
+export interface CredentialView {
+  bankId: string;
+  connection: string;
+  signIn: CredentialViewSignIn;
+  /** @nullable */
+  host: string | null;
+  /** @nullable */
+  port: number | null;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  hostKeyFingerprint: string | null;
+  /** @nullable */
+  remoteFolder: string | null;
+  /** @nullable */
+  apiBaseUrl: string | null;
+  /** @nullable */
+  tokenUrl: string | null;
+  /** @nullable */
+  clientId: string | null;
+  secretSet: boolean;
+  setAt: string;
+  setBy: string;
+  /** @nullable */
+  testedAt: string | null;
+  /** @nullable */
+  testOk: boolean | null;
+  /** @nullable */
+  testDetail: string | null;
 }
 
 export type FactorRequestGroup = typeof FactorRequestGroup[keyof typeof FactorRequestGroup];
@@ -3300,6 +3411,7 @@ export const PermissionGrantPermission = {
   RATE_AML_RISK: 'RATE_AML_RISK',
   ASSIGN_WORK: 'ASSIGN_WORK',
   MANAGE_BANK_FEEDS: 'MANAGE_BANK_FEEDS',
+  MANAGE_BANK_CREDENTIALS: 'MANAGE_BANK_CREDENTIALS',
   MANAGE_USERS_AND_ROLES: 'MANAGE_USERS_AND_ROLES',
   VIEW_STAFF_DECLARATIONS: 'VIEW_STAFF_DECLARATIONS',
   MANAGE_CONFIGURATION: 'MANAGE_CONFIGURATION',
@@ -7845,6 +7957,7 @@ export type StandardFieldOptionField = typeof StandardFieldOptionField[keyof typ
 
 export const StandardFieldOptionField = {
   ACCOUNT_NUMBER: 'ACCOUNT_NUMBER',
+  BANK_REFERENCE: 'BANK_REFERENCE',
   INSTRUMENT_ID: 'INSTRUMENT_ID',
   INSTRUMENT_NAME: 'INSTRUMENT_NAME',
   ASSET_CLASS: 'ASSET_CLASS',
@@ -7925,6 +8038,14 @@ export interface BankCounts {
 export interface BankList {
   items: BankView[];
   counts: BankCounts;
+}
+
+export interface CredentialStanding {
+  bankId: string;
+  /** @nullable */
+  testedAt: string | null;
+  /** @nullable */
+  testOk: boolean | null;
 }
 
 export interface Activity {
@@ -8222,6 +8343,7 @@ export const PermissionOptionPermission = {
   RATE_AML_RISK: 'RATE_AML_RISK',
   ASSIGN_WORK: 'ASSIGN_WORK',
   MANAGE_BANK_FEEDS: 'MANAGE_BANK_FEEDS',
+  MANAGE_BANK_CREDENTIALS: 'MANAGE_BANK_CREDENTIALS',
   MANAGE_USERS_AND_ROLES: 'MANAGE_USERS_AND_ROLES',
   VIEW_STAFF_DECLARATIONS: 'VIEW_STAFF_DECLARATIONS',
   MANAGE_CONFIGURATION: 'MANAGE_CONFIGURATION',
@@ -8276,6 +8398,10 @@ on: boolean;
 
 export type ListClientHoldingsParams = {
 against?: string;
+};
+
+export type UploadStatementsBody = {
+  files: (Blob | File)[];
 };
 
 export type AnswerTicketParams = {
@@ -13882,6 +14008,184 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateSupportedBankMutationOptions(options), queryClient);
     }
 
+export const getBankCredentialsUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/config/banks/${bankId}/credentials`
+}
+
+export const bankCredentials = async (bankId: string, options?: Parameters<typeof http>[1]): Promise<CredentialView> => {
+
+  return http<CredentialView>(getBankCredentialsUrl(bankId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getBankCredentialsQueryKey = (bankId: string,) => {
+    return [
+    `/api/backoffice/config/banks/${bankId}/credentials`
+    ] as const;
+    }
+
+
+export const getBankCredentialsQueryOptions = <TData = Awaited<ReturnType<typeof bankCredentials>>, TError = unknown>(bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankCredentials>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getBankCredentialsQueryKey(bankId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof bankCredentials>>> = ({ signal }) => bankCredentials(bankId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bankId !== null && bankId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof bankCredentials>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type BankCredentialsQueryResult = NonNullable<Awaited<ReturnType<typeof bankCredentials>>>
+export type BankCredentialsQueryError = unknown
+
+
+export function useBankCredentials<TData = Awaited<ReturnType<typeof bankCredentials>>, TError = unknown>(
+ bankId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankCredentials>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof bankCredentials>>,
+          TError,
+          Awaited<ReturnType<typeof bankCredentials>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useBankCredentials<TData = Awaited<ReturnType<typeof bankCredentials>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankCredentials>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof bankCredentials>>,
+          TError,
+          Awaited<ReturnType<typeof bankCredentials>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useBankCredentials<TData = Awaited<ReturnType<typeof bankCredentials>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankCredentials>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useBankCredentials<TData = Awaited<ReturnType<typeof bankCredentials>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankCredentials>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getBankCredentialsQueryOptions(bankId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetBankCredentialsUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/config/banks/${bankId}/credentials`
+}
+
+export const setBankCredentials = async (bankId: string,
+    credentialRequest: CredentialRequest, options?: Parameters<typeof http>[1]): Promise<CredentialView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<CredentialView>(getSetBankCredentialsUrl(bankId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(credentialRequest)
+  }
+);}
+
+
+
+
+
+export const getSetBankCredentialsMutationKey = () => ['setBankCredentials'] as const;
+
+export const getSetBankCredentialsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setBankCredentials>>, TError,SetBankCredentialsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof setBankCredentials>>, TError,SetBankCredentialsMutationVariables, TContext> => {
+
+const mutationKey = getSetBankCredentialsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setBankCredentials>>, SetBankCredentialsMutationVariables> = (props) => {
+          const {bankId,data} = props ?? {};
+
+          return  setBankCredentials(bankId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetBankCredentialsMutationResult = NonNullable<Awaited<ReturnType<typeof setBankCredentials>>>
+    export type SetBankCredentialsMutationBody = CredentialRequest
+    export type SetBankCredentialsMutationError = unknown
+    export type SetBankCredentialsMutationVariables = {bankId: string;data: CredentialRequest}
+
+    export const useSetBankCredentials = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setBankCredentials>>, TError,SetBankCredentialsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setBankCredentials>>,
+        TError,
+        SetBankCredentialsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetBankCredentialsMutationOptions(options), queryClient);
+    }
+
 export const getChangeAmlFactorUrl = (id: string,) => {
 
 
@@ -14376,7 +14680,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     }
 
 export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG' | 'SUPPORT_TICKETS' | 'SIGN_IN_AS',) => {
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_BANK_CREDENTIALS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG' | 'SUPPORT_TICKETS' | 'SIGN_IN_AS',) => {
 
 
 
@@ -14385,7 +14689,7 @@ export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIAN
 }
 
 export const updateRolePermission = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN',
-    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG' | 'SUPPORT_TICKETS' | 'SIGN_IN_AS',
+    permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_BANK_CREDENTIALS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG' | 'SUPPORT_TICKETS' | 'SIGN_IN_AS',
     updateRolePermissionRequest: UpdateRolePermissionRequest, options?: Parameters<typeof http>[1]): Promise<RoleAccessView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -14447,7 +14751,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateRolePermissionMutationResult = NonNullable<Awaited<ReturnType<typeof updateRolePermission>>>
     export type UpdateRolePermissionMutationBody = UpdateRolePermissionRequest
     export type UpdateRolePermissionMutationError = unknown
-    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG' | 'SUPPORT_TICKETS' | 'SIGN_IN_AS';data: UpdateRolePermissionRequest}
+    export type UpdateRolePermissionMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN';permission: 'VIEW_CUSTOMER_PROFILE' | 'EXPORT_CUSTOMER_DATA' | 'SEND_PROPOSALS' | 'VIEW_ALL_CLIENTS' | 'VIEW_FAMILY_WEALTH' | 'ASSIGN_ADVISORS' | 'ASSIGN_PORTFOLIO_MANAGERS' | 'ONBOARD_CLIENTS' | 'PROSPECTIVE_CLIENTS' | 'CONVERT_PROSPECTS' | 'CLIENT_SIGN_IN' | 'APPROVE_ONBOARDING' | 'FILL_CLIENT_FORMS' | 'UPLOAD_CLIENT_DOCUMENTS' | 'APPROVE_PROPOSALS' | 'APPROVE_PORTFOLIO_CHANGES' | 'APPROVE_CLIENT_REQUESTS' | 'MANAGE_AML_MATRIX' | 'RATE_AML_RISK' | 'ASSIGN_WORK' | 'MANAGE_BANK_FEEDS' | 'MANAGE_BANK_CREDENTIALS' | 'MANAGE_USERS_AND_ROLES' | 'VIEW_STAFF_DECLARATIONS' | 'MANAGE_CONFIGURATION' | 'MANAGE_ASSET_CLASSES' | 'VIEW_AUDIT_LOG' | 'SUPPORT_TICKETS' | 'SIGN_IN_AS';data: UpdateRolePermissionRequest}
 
     export const useUpdateRolePermission = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRolePermission>>, TError,UpdateRolePermissionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -14775,6 +15079,79 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getStartSyncNowMutationOptions(options), queryClient);
+    }
+
+export const getUploadStatementsUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/sync-runs/banks/${bankId}/statements`
+}
+
+export const uploadStatements = async (bankId: string,
+    uploadStatementsBody?: UploadStatementsBody, options?: Parameters<typeof http>[1]): Promise<SyncRunRow> => {
+    const formData = new FormData();
+if(uploadStatementsBody?.files !== undefined) {
+ uploadStatementsBody?.files.forEach(value => formData.append(`files`, value));
+ }
+
+  return http<SyncRunRow>(getUploadStatementsUrl(bankId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadStatementsMutationKey = () => ['uploadStatements'] as const;
+
+export const getUploadStatementsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadStatements>>, TError,UploadStatementsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadStatements>>, TError,UploadStatementsMutationVariables, TContext> => {
+
+const mutationKey = getUploadStatementsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadStatements>>, UploadStatementsMutationVariables> = (props) => {
+          const {bankId,data} = props ?? {};
+
+          return  uploadStatements(bankId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadStatementsMutationResult = NonNullable<Awaited<ReturnType<typeof uploadStatements>>>
+    export type UploadStatementsMutationBody = UploadStatementsBody | undefined
+    export type UploadStatementsMutationError = unknown
+    export type UploadStatementsMutationVariables = {bankId: string;data?: UploadStatementsBody}
+
+    export const useUploadStatements = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadStatements>>, TError,UploadStatementsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof uploadStatements>>,
+        TError,
+        UploadStatementsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadStatementsMutationOptions(options), queryClient);
     }
 
 export const getTriageTicketUrl = (id: string,) => {
@@ -26099,6 +26476,74 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDisableSupportedBankMutationOptions(options), queryClient);
+    }
+
+export const getTestBankConnectionUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/config/banks/${bankId}/credentials/test`
+}
+
+export const testBankConnection = async (bankId: string, options?: Parameters<typeof http>[1]): Promise<CredentialView> => {
+
+  return http<CredentialView>(getTestBankConnectionUrl(bankId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTestBankConnectionMutationKey = () => ['testBankConnection'] as const;
+
+export const getTestBankConnectionMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testBankConnection>>, TError,TestBankConnectionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof testBankConnection>>, TError,TestBankConnectionMutationVariables, TContext> => {
+
+const mutationKey = getTestBankConnectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testBankConnection>>, TestBankConnectionMutationVariables> = (props) => {
+          const {bankId} = props ?? {};
+
+          return  testBankConnection(bankId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestBankConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof testBankConnection>>>
+
+    export type TestBankConnectionMutationError = unknown
+    export type TestBankConnectionMutationVariables = {bankId: string}
+
+    export const useTestBankConnection = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testBankConnection>>, TError,TestBankConnectionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof testBankConnection>>,
+        TError,
+        TestBankConnectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTestBankConnectionMutationOptions(options), queryClient);
     }
 
 export const getReadNotificationUrl = (id: string,) => {
@@ -39503,6 +39948,101 @@ export function useExportSupportedBanks<TData = Awaited<ReturnType<typeof export
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getExportSupportedBanksQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListCredentialStandingsUrl = () => {
+
+
+
+
+  return `/api/backoffice/config/bank-credentials`
+}
+
+export const listCredentialStandings = async ( options?: Parameters<typeof http>[1]): Promise<CredentialStanding[]> => {
+
+  return http<CredentialStanding[]>(getListCredentialStandingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCredentialStandingsQueryKey = () => {
+    return [
+    `/api/backoffice/config/bank-credentials`
+    ] as const;
+    }
+
+
+export const getListCredentialStandingsQueryOptions = <TData = Awaited<ReturnType<typeof listCredentialStandings>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCredentialStandings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCredentialStandingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCredentialStandings>>> = ({ signal }) => listCredentialStandings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCredentialStandings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCredentialStandingsQueryResult = NonNullable<Awaited<ReturnType<typeof listCredentialStandings>>>
+export type ListCredentialStandingsQueryError = unknown
+
+
+export function useListCredentialStandings<TData = Awaited<ReturnType<typeof listCredentialStandings>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCredentialStandings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCredentialStandings>>,
+          TError,
+          Awaited<ReturnType<typeof listCredentialStandings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCredentialStandings<TData = Awaited<ReturnType<typeof listCredentialStandings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCredentialStandings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCredentialStandings>>,
+          TError,
+          Awaited<ReturnType<typeof listCredentialStandings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCredentialStandings<TData = Awaited<ReturnType<typeof listCredentialStandings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCredentialStandings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListCredentialStandings<TData = Awaited<ReturnType<typeof listCredentialStandings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCredentialStandings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCredentialStandingsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

@@ -11,7 +11,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, cn } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
-import { Play } from "lucide-react";
+import { Play, Upload } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -23,6 +23,7 @@ import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { hasAuthority } from "../../lib/permissions";
 import { useTableView } from "../../lib/table-view";
 import { connectionLabels, feedStanding, scheduleLabels } from "./feed-labels";
+import { UploadStatementDialog } from "./upload-statement-dialog";
 
 type Only = "all" | "failed" | "off";
 
@@ -102,6 +103,8 @@ export function IngestionMonitoringPage() {
   const user = useStaffUser();
   const canRun = hasAuthority(user, "MANAGE_BANK_FEEDS:CHANGE");
   const queryClient = useQueryClient();
+  /** The bank whose statement is being uploaded, while the dialog is open. */
+  const [uploading, setUploading] = useState<BankFeed | null>(null);
   const start = useStartSyncNow<ApiError>({
     mutation: {
       onSuccess: () => {
@@ -285,7 +288,8 @@ export function IngestionMonitoringPage() {
                   ))}
                   <td className="py-3 pr-5 pl-4">
                     <div className="flex justify-end gap-3">
-                      {canRun && feed.enabled && (
+                      {/* A bank that delivers by upload has nothing to run: its files come from somebody. */}
+                      {canRun && feed.enabled && feed.connectionType !== "MANUAL_UPLOAD" && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -294,6 +298,12 @@ export function IngestionMonitoringPage() {
                         >
                           <Play aria-hidden="true" />
                           Run now
+                        </Button>
+                      )}
+                      {canRun && feed.enabled && (
+                        <Button variant="ghost" size="sm" onClick={() => setUploading(feed)}>
+                          <Upload aria-hidden="true" />
+                          Upload statement
                         </Button>
                       )}
                       <Link
@@ -314,6 +324,18 @@ export function IngestionMonitoringPage() {
             table: a count of nothing under a row saying there is nothing says it twice. */}
         {feeds.data && rows.length > 0 && <PagedFooter paged={paged} noun={["feed", "feeds"]} />}
       </section>
+
+      {uploading && (
+        <UploadStatementDialog
+          feed={uploading}
+          onClose={() => setUploading(null)}
+          onTaken={() => {
+            void queryClient.invalidateQueries({ queryKey: getListBankFeedsQueryKey() });
+            void queryClient.invalidateQueries({ queryKey: getSummariseFeedsQueryKey() });
+            void queryClient.invalidateQueries({ queryKey: getListSyncRunsQueryKey() });
+          }}
+        />
+      )}
     </div>
   );
 }

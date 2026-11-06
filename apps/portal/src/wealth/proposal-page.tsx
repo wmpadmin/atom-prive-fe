@@ -366,7 +366,7 @@ function AnswerDialog({
       }
       onClose={onClose}
     >
-      <div className="space-y-4 p-6">
+      <div className="space-y-4">
         {answer.error && <Alert tone="danger">{answer.error.message}</Alert>}
         <Field
           id="proposal-answer-note"
