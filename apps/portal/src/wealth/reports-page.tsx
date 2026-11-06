@@ -122,8 +122,8 @@ export function ReportsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3">
-            <SelectInput id="reports-member" aria-label="Family member" value={member} onChange={(event) => setMember(event.target.value)} className="w-60">
-              <option value="ALL">Family member: Everyone</option>
+            <SelectInput id="reports-member" aria-label="Family member" value={member} onChange={(event) => setMember(event.target.value)} className="w-48">
+              <option value="ALL">Everyone</option>
               {members.map(([id, name]) => (
                 <option key={id} value={id}>
                   {name}
@@ -133,7 +133,7 @@ export function ReportsPage() {
             <SelectInput id="reports-kind" aria-label="Event" value={tab === "reads" ? "access.data_read" : kind} disabled={tab === "reads"} onChange={(event) => setKind(event.target.value)} className="w-48">
               {KINDS.map(([code, said]) => (
                 <option key={code} value={code}>
-                  {code === "ALL" ? "Event: Every event" : said}
+                  {said}
                 </option>
               ))}
             </SelectInput>
