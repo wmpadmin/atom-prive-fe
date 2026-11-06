@@ -271,7 +271,41 @@ export function DocumentsPage() {
         ) : shown.length === 0 ? (
           <p className="py-10 text-center text-sm text-ink-muted">{all.length > 0 && wanted ? "No documents match your search." : "None yet."}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* On a phone, one card per document with its status, View and Download in view (S64). */}
+          <ul className="divide-y divide-line border-y border-line sm:hidden">
+            {shown.map((one) => {
+              const status = one.status ? STATUS[one.status] : undefined;
+              return (
+                <li key={`${one.source}-${one.id}`} className="px-1 py-3">
+                  <div className="flex justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink">{one.name}</p>
+                      <p className="truncate text-sm text-ink-muted">
+                        {one.fileName} · {sizeOf(one.sizeBytes)}
+                      </p>
+                      <p className="text-sm text-ink-muted">
+                        {CATEGORY_LABEL[one.category] ?? one.category} · {when(one.uploadedAt)} · {one.byYou ? "You" : "Atom Privé"}
+                      </p>
+                    </div>
+                    {status && <span className={`h-fit shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${status.tone}`}>{status.label}</span>}
+                  </div>
+                  {one.reason && <p className="mt-1 text-sm text-ink-muted">{one.reason}</p>}
+                  <div className="mt-2 flex gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => void view(one)} aria-label={`View ${one.name}`}>
+                      <Eye aria-hidden="true" />
+                      View
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => void save(one)} aria-label={`Download ${one.name}`}>
+                      <Download aria-hidden="true" />
+                      Download
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
                 <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
@@ -331,6 +365,7 @@ export function DocumentsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
       {uploading && <UploadDialog onClose={() => setUploading(false)} />}

@@ -242,7 +242,21 @@ function Proposal({ detail, onAnswer }: { detail: ClientProposalDetail; onAnswer
           </h2>
           <p className="mt-0.5 text-xs text-ink-muted">Immutable record. A sent proposal is never altered — a change is issued as a new one.</p>
         </div>
-        <div className="overflow-x-auto">
+        {/* On a phone, the event leads with who and when under it (S64). */}
+        <ul className="divide-y divide-line sm:hidden">
+          {detail.trail.map((entry, index) => (
+            <li key={index} className="flex justify-between gap-3 px-6 py-3">
+              <span className="min-w-0">
+                <span className="block font-semibold text-ink">{entry.event}</span>
+                <span className="block text-sm text-ink-muted tabular-nums">
+                  {entry.actor} · {when(entry.at)}
+                </span>
+              </span>
+              <span className="shrink-0 font-mono text-xs text-ink-muted">{entry.reference}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto sm:block">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -283,7 +297,22 @@ function History({ detail, answeredBy }: { detail: ClientProposalDetail; answere
   return (
     <section>
       <h2 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">What has moved under this proposal</h2>
-      <div className="mt-3 overflow-x-auto">
+      <ul className="mt-3 divide-y divide-line sm:hidden">
+        {detail.legs.map((leg, index) => (
+          <li key={index} className="py-3">
+            <div className="flex justify-between gap-3">
+              <p className="min-w-0 font-semibold text-ink">
+                {leg.from} → {leg.to}
+              </p>
+              <p className="shrink-0 font-semibold tabular-nums">{row.currency ? whole(leg.amount, row.currency) : leg.amount}</p>
+            </div>
+            <p className="text-sm text-ink-muted">
+              {day(row.decidedAt)} · {answeredBy === "you" ? "Your approval" : answeredBy}
+            </p>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 hidden overflow-x-auto sm:block">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">

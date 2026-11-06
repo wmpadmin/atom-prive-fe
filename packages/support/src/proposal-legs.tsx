@@ -115,7 +115,46 @@ export function ProposalMoves({ legs, currency }: { legs: PlannedLeg[]; currency
   const total = legs.reduce((sum, leg) => sum + leg.amount, 0);
   return (
     <>
-      <div className="overflow-x-auto">
+      {/* On a phone, one card per move: the same figures and warnings, without five columns to scroll (S64). */}
+      <ul className="divide-y divide-line sm:hidden">
+        {legs.map((leg, at) => {
+          const from = named(leg.fromSubClass, leg.fromAssetClass, leg.fromSubSubClass);
+          const source = byName.get(from);
+          const into = byName.get(named(leg.toSubClass, leg.toAssetClass, leg.toSubSubClass));
+          const past = into === undefined ? 0 : overItsBand(into);
+          return (
+            <li key={at} className="py-3">
+              <div className="flex justify-between gap-3">
+                <p className="min-w-0 font-semibold text-ink">
+                  {from} →{" "}
+                  {waitingToBePlaced(leg) ? <span className="font-normal text-ink-muted">Nothing decided yet</span> : named(leg.toSubClass, leg.toAssetClass, leg.toSubSubClass)}
+                </p>
+                <p className="shrink-0 font-semibold tabular-nums">{money(leg.amount, currency)}</p>
+              </div>
+              <p className="text-sm text-ink-muted tabular-nums">
+                Holds now {figure(leg.heldNow)} · would hold{" "}
+                <span className={source !== undefined && overItsBand(source) > 0 ? "font-semibold text-amber-700" : undefined}>
+                  {figure(source?.wouldHold ?? leg.heldNow - leg.amount)}
+                </span>
+              </p>
+              {source?.heldWhenRaised != null && (
+                <p className="text-sm text-amber-700">{from} held {figure(source.heldWhenRaised)} when this was written</p>
+              )}
+              {past > 0 && <p className="text-sm text-amber-700">{figure(past)} past the {figure(into?.mayHold ?? 0)} allowed</p>}
+              {into !== undefined && into.askedByOthers >= 1 && (
+                <p className="text-sm text-amber-700">another waiting ask would add {figure(into.askedByOthers)} here too</p>
+              )}
+            </li>
+          );
+        })}
+        {legs.length > 1 && (
+          <li className="flex justify-between py-3 font-semibold text-ink">
+            <span>In all</span>
+            <span className="tabular-nums">{money(total, currency)}</span>
+          </li>
+        )}
+      </ul>
+      <div className="hidden overflow-x-auto sm:block">
         <table className="min-w-full text-sm">
           <caption className="sr-only">
             Each leg: where the money leaves, where it lands, what that line holds now, how much moves and

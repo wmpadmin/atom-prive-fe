@@ -94,7 +94,29 @@ export function SecurityPage() {
                 </Button>
               )}
             />
-            <div className="overflow-x-auto">
+            {/* On a phone, one card per device with its own Sign out in view (S64). */}
+            <ul className="divide-y divide-line border-t border-line sm:hidden">
+              {data.signedIn.map((one) => (
+                <li key={one.id} className="px-5 py-3">
+                  <p className="font-semibold text-ink">
+                    {one.device}
+                    {one.current && (
+                      <span className="ml-2 rounded-full bg-access-full-soft px-2 py-0.5 text-xs font-bold text-access-full-ink">This device</span>
+                    )}
+                  </p>
+                  {(one.place || one.address) && <p className="text-sm text-ink-muted">{[one.place, one.address].filter(Boolean).join(" · ")}</p>}
+                  <p className="text-sm text-ink-muted">
+                    Signed in {when(one.signedInAt)} · {one.current ? "active now" : `active ${when(one.lastActiveAt)}`}
+                  </p>
+                  {!one.current && (
+                    <Button variant="secondary" className="mt-2 w-full" disabled={signOutOne.isPending} onClick={() => signOutOne.mutate({ sessionId: one.id })}>
+                      Sign out
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
