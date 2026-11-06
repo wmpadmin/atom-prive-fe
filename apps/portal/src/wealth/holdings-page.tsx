@@ -332,7 +332,33 @@ export function HoldingsPage() {
           <div className="h-72 animate-pulse rounded-xl bg-sidebar" />
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* On a phone, one card per holding with its value in view; the table's columns would not fit (S64). */}
+            <ul className="divide-y divide-line border-y border-line sm:hidden">
+              {shown.length === 0 ? (
+                <li className="py-10 text-center text-sm text-ink-muted">
+                  {data.rows.length === 0 ? "No holdings recorded yet." : "No holdings match your search."}
+                </li>
+              ) : (
+                shown.map((one) => (
+                  <li key={one.id}>
+                    <button type="button" onClick={() => setOpen(one)} className="flex w-full justify-between gap-3 px-1 py-3 text-left">
+                      <span className="min-w-0">
+                        <span className="block font-semibold text-ink">{one.name}</span>
+                        <span className="block text-sm text-ink-muted">{one.assetClassName}</span>
+                        {one.units != null && <span className="block text-sm text-ink-muted">{quantity(one.units)} units</span>}
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className={`block font-semibold tabular-nums ${one.value < 0 ? "text-orange-600" : "text-ink"}`}>
+                          {data.currency} {amount(one.value)}
+                        </span>
+                        <span className="block text-sm text-ink-muted tabular-nums">{one.share.toFixed(1)}%</span>
+                      </span>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full min-w-[820px] text-left text-sm">
                 <thead>
                   <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">

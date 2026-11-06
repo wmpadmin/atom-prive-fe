@@ -67,7 +67,34 @@ export function ProposalsPage() {
             <p className="text-sm text-ink-muted">{all.length === 0 ? "No proposals have been sent to you yet." : "Nothing here."}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* On a phone, one card per proposal with its status and answer-by date in view (S64). */}
+          <ul className="divide-y divide-line sm:hidden">
+            {shown.map((row) => (
+              <li key={row.id}>
+                <Link to={`/new/proposals/${row.id}`} className="flex justify-between gap-3 px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2 font-bold text-ink">
+                      {!row.opened && row.status === "PENDING" && <span aria-label="Not opened yet" className="size-2 shrink-0 rounded-full bg-primary-600" />}
+                      {row.title}
+                    </span>
+                    <span className="block text-sm text-ink-muted tabular-nums">
+                      {row.reference} · {row.moves} {row.moves === 1 ? "move" : "moves"}
+                      {row.currency ? ` · ${whole(row.total, row.currency)}` : ""}
+                    </span>
+                    <span className="block text-sm text-ink-muted">
+                      From {row.writtenBy} · {day(row.sentAt)}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <StatusPill row={row} />
+                    {row.status === "PENDING" && <span className="text-sm text-ink-muted tabular-nums">by {day(row.answerBy)}</span>}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -117,6 +144,7 @@ export function ProposalsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
     </div>
