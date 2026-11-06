@@ -17,6 +17,7 @@ import {
   Bell,
   ChevronRight,
   FileBarChart2,
+  Clock,
   Gauge,
   Layers,
   LayoutDashboard,
@@ -67,6 +68,7 @@ const DEFAULTS = {
   breachAlertEvery: "DAY" as AlertEvery,
   digestEnabled: true,
   digestAt: "07:00",
+  proposalAnswerDays: "14",
 };
 
 const WHO: Record<AlertTo, string> = {
@@ -145,6 +147,7 @@ export function PortfolioSettingsPage() {
         breachAlertEvery: typed.breachAlertEvery,
         digestEnabled: typed.digestEnabled,
         digestAt: `${typed.digestAt}:00`,
+        proposalAnswerDays: Number(typed.proposalAnswerDays),
       },
     });
   }
@@ -230,6 +233,17 @@ export function PortfolioSettingsPage() {
                 <Radio checked={false} disabled label="Auto-create a rebalance transaction (requires approval)" />
               </div>
               <NotYet>Alerts are what the platform does today; a rebalance is raised by hand from Bulk rebalancing.</NotYet>
+            </Box>
+            <Box icon={<Clock />} title="Proposals" lead="How long a client has to approve or reject a proposal sent to them.">
+              <Field id="set-answer-days" label="Days to answer" error={errors.fields.proposalAnswerDays}>
+                <span className="relative block max-w-48">
+                  <TextInput {...describedBy("set-answer-days", errors.fields.proposalAnswerDays)} id="set-answer-days"
+                    inputMode="numeric" disabled={!mayChange} value={typed.proposalAnswerDays} className="pr-12"
+                    onChange={(event) => set({ proposalAnswerDays: event.target.value.replace(/[^0-9]/g, "") })} />
+                  <span aria-hidden="true" className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-ink-muted">days</span>
+                </span>
+              </Field>
+              <p className="mt-2 text-xs text-ink-muted">An unanswered proposal expires after this, and nothing moves. Between 1 and 90.</p>
             </Box>
           </div>
         </Card>
@@ -659,6 +673,8 @@ interface Typed {
   digestEnabled: boolean;
   /** HH:mm, as the time box reads and writes it. */
   digestAt: string;
+  /** Whole days, as typed. */
+  proposalAnswerDays: string;
 }
 
 /** What the firm has settled, as boxes. Blank until it has been read, rather than a guess at the defaults. */
@@ -673,5 +689,6 @@ function asTyped(held: SettingsView | undefined): Typed {
     breachAlertEvery: held?.breachAlertEvery ?? "DAY",
     digestEnabled: held?.digestEnabled ?? true,
     digestAt: held?.digestAt?.slice(0, 5) ?? "07:00",
+    proposalAnswerDays: held ? String(held.proposalAnswerDays) : "14",
   };
 }

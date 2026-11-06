@@ -284,6 +284,103 @@ export interface GrantRequest {
   expiresOn: string | null;
 }
 
+export interface ClientAnswer {
+  approved: boolean;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  note: string | null;
+}
+
+export interface ClassShift {
+  assetClass: string;
+  name: string;
+  before: number;
+  after: number;
+}
+
+export interface ClientLeg {
+  fromClass: string;
+  from: string;
+  toClass: string;
+  to: string;
+  amount: number;
+}
+
+export type ClientProposalRowStatus = typeof ClientProposalRowStatus[keyof typeof ClientProposalRowStatus];
+
+
+export const ClientProposalRowStatus = {
+  DRAFT: 'DRAFT',
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  EXPIRED: 'EXPIRED',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ClientProposalRowClientInstruction = typeof ClientProposalRowClientInstruction[keyof typeof ClientProposalRowClientInstruction] | null;
+
+
+export const ClientProposalRowClientInstruction = {
+  CALL: 'CALL',
+  EMAIL: 'EMAIL',
+  MEETING: 'MEETING',
+} as const;
+
+export interface ClientProposalRow {
+  id: string;
+  reference: string;
+  title: string;
+  /** @nullable */
+  summary: string | null;
+  writtenBy: string;
+  /** @nullable */
+  sentAt: string | null;
+  /** @nullable */
+  answerBy: string | null;
+  status: ClientProposalRowStatus;
+  /** @nullable */
+  decidedAt: string | null;
+  opened: boolean;
+  moves: number;
+  total: number;
+  /** @nullable */
+  currency: string | null;
+  /** @nullable */
+  answeredByName: string | null;
+  /** @nullable */
+  clientInstruction: ClientProposalRowClientInstruction;
+  /** @nullable */
+  answerNote: string | null;
+}
+
+export interface TrailEntry {
+  at: string;
+  actor: string;
+  event: string;
+  reference: string;
+}
+
+export interface ClientProposalDetail {
+  summary: ClientProposalRow;
+  body: string;
+  /** @nullable */
+  objective: string | null;
+  legs: ClientLeg[];
+  after: ClassShift[];
+  /** @nullable */
+  portfolioValue: number | null;
+  /** @nullable */
+  portfolioCurrency: string | null;
+  relationshipManagers: string[];
+  trail: TrailEntry[];
+}
+
 export interface Me {
   id: string;
   fullName: string;
@@ -2674,6 +2771,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getGrantMutationOptions(options), queryClient);
+    }
+
+export const getAnswerMyProposalUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/proposals/${id}/answer`
+}
+
+export const answerMyProposal = async (id: string,
+    clientAnswer: ClientAnswer, options?: Parameters<typeof http>[1]): Promise<ClientProposalDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ClientProposalDetail>(getAnswerMyProposalUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(clientAnswer)
+  }
+);}
+
+
+
+
+
+export const getAnswerMyProposalMutationKey = () => ['answerMyProposal'] as const;
+
+export const getAnswerMyProposalMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerMyProposal>>, TError,AnswerMyProposalMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerMyProposal>>, TError,AnswerMyProposalMutationVariables, TContext> => {
+
+const mutationKey = getAnswerMyProposalMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerMyProposal>>, AnswerMyProposalMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  answerMyProposal(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerMyProposalMutationResult = NonNullable<Awaited<ReturnType<typeof answerMyProposal>>>
+    export type AnswerMyProposalMutationBody = ClientAnswer
+    export type AnswerMyProposalMutationError = unknown
+    export type AnswerMyProposalMutationVariables = {id: string;data: ClientAnswer}
+
+    export const useAnswerMyProposal = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerMyProposal>>, TError,AnswerMyProposalMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answerMyProposal>>,
+        TError,
+        AnswerMyProposalMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerMyProposalMutationOptions(options), queryClient);
     }
 
 export const getUploadMyPhotoUrl = () => {
@@ -5538,6 +5718,291 @@ export function useAccessReport<TData = Awaited<ReturnType<typeof accessReport>>
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getAccessReportQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMyProposalsUrl = () => {
+
+
+
+
+  return `/api/portal/proposals`
+}
+
+export const myProposals = async ( options?: Parameters<typeof http>[1]): Promise<ClientProposalRow[]> => {
+
+  return http<ClientProposalRow[]>(getMyProposalsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyProposalsQueryKey = () => {
+    return [
+    `/api/portal/proposals`
+    ] as const;
+    }
+
+
+export const getMyProposalsQueryOptions = <TData = Awaited<ReturnType<typeof myProposals>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposals>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyProposalsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myProposals>>> = ({ signal }) => myProposals({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myProposals>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyProposalsQueryResult = NonNullable<Awaited<ReturnType<typeof myProposals>>>
+export type MyProposalsQueryError = unknown
+
+
+export function useMyProposals<TData = Awaited<ReturnType<typeof myProposals>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposals>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myProposals>>,
+          TError,
+          Awaited<ReturnType<typeof myProposals>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyProposals<TData = Awaited<ReturnType<typeof myProposals>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposals>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myProposals>>,
+          TError,
+          Awaited<ReturnType<typeof myProposals>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyProposals<TData = Awaited<ReturnType<typeof myProposals>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposals>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyProposals<TData = Awaited<ReturnType<typeof myProposals>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposals>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyProposalsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMyProposalUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/proposals/${id}`
+}
+
+export const myProposal = async (id: string, options?: Parameters<typeof http>[1]): Promise<ClientProposalDetail> => {
+
+  return http<ClientProposalDetail>(getMyProposalUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyProposalQueryKey = (id: string,) => {
+    return [
+    `/api/portal/proposals/${id}`
+    ] as const;
+    }
+
+
+export const getMyProposalQueryOptions = <TData = Awaited<ReturnType<typeof myProposal>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposal>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyProposalQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myProposal>>> = ({ signal }) => myProposal(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myProposal>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyProposalQueryResult = NonNullable<Awaited<ReturnType<typeof myProposal>>>
+export type MyProposalQueryError = unknown
+
+
+export function useMyProposal<TData = Awaited<ReturnType<typeof myProposal>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposal>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myProposal>>,
+          TError,
+          Awaited<ReturnType<typeof myProposal>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyProposal<TData = Awaited<ReturnType<typeof myProposal>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposal>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myProposal>>,
+          TError,
+          Awaited<ReturnType<typeof myProposal>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyProposal<TData = Awaited<ReturnType<typeof myProposal>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposal>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyProposal<TData = Awaited<ReturnType<typeof myProposal>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposal>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyProposalQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPrintMyProposalUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/proposals/${id}/pdf`
+}
+
+export const printMyProposal = async (id: string, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getPrintMyProposalUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPrintMyProposalQueryKey = (id: string,) => {
+    return [
+    `/api/portal/proposals/${id}/pdf`
+    ] as const;
+    }
+
+
+export const getPrintMyProposalQueryOptions = <TData = Awaited<ReturnType<typeof printMyProposal>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof printMyProposal>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPrintMyProposalQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof printMyProposal>>> = ({ signal }) => printMyProposal(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof printMyProposal>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type PrintMyProposalQueryResult = NonNullable<Awaited<ReturnType<typeof printMyProposal>>>
+export type PrintMyProposalQueryError = unknown
+
+
+export function usePrintMyProposal<TData = Awaited<ReturnType<typeof printMyProposal>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof printMyProposal>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof printMyProposal>>,
+          TError,
+          Awaited<ReturnType<typeof printMyProposal>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePrintMyProposal<TData = Awaited<ReturnType<typeof printMyProposal>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof printMyProposal>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof printMyProposal>>,
+          TError,
+          Awaited<ReturnType<typeof printMyProposal>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePrintMyProposal<TData = Awaited<ReturnType<typeof printMyProposal>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof printMyProposal>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function usePrintMyProposal<TData = Awaited<ReturnType<typeof printMyProposal>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof printMyProposal>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getPrintMyProposalQueryOptions(id,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

@@ -5,10 +5,12 @@ import {
   useReceived,
   useRequests,
   endClientView,
+  useMyProposals,
   useMyTickets,
   useSent,
   useWealthRequests,
   type FamilyRequest,
+  type ClientProposalRow,
   type Me,
   type RequestRow,
   type TicketRow,
@@ -20,6 +22,7 @@ import {
   ChevronDown,
   FileSignature,
   FileText,
+  Inbox,
   KeyRound,
   Layers,
   LayoutDashboard,
@@ -50,13 +53,14 @@ import { lastSeen } from "./requests-seen";
  * yet are greyed and cannot be pressed: the menu shows where the portal is going without leading anybody to an
  * empty page.
  */
-type Place = { label: string; icon: LucideIcon; to?: string };
+type Place = { label: string; icon: LucideIcon; to?: string; count?: number };
 
 const PLACES: Place[] = [
   { label: "Dashboard", icon: LayoutDashboard, to: "/new" },
   { label: "Portfolio", icon: LineChart, to: "/new/portfolio" },
   { label: "Holdings", icon: Layers, to: "/new/holdings" },
   { label: "Accounts", icon: Wallet, to: "/new/accounts" },
+  { label: "Proposals", icon: Inbox, to: "/new/proposals" },
   { label: "Documents", icon: FileText, to: "/new/documents" },
   { label: "Forms & Signatures", icon: FileSignature, to: "/new/forms" },
   { label: "KYC", icon: ShieldCheck, to: "/new/kyc" },
@@ -102,13 +106,19 @@ function NavItem({ place, onGo }: { place: Place; onGo: () => void }) {
         }
       >
         <Icon aria-hidden="true" className="size-4.5 shrink-0" />
-        <span className="truncate">{place.label}</span>
+        <span className="min-w-0 flex-1 truncate">{place.label}</span>
+        {place.count ? (
+          <span aria-label={`${place.count} waiting for you`} className="rounded-full bg-primary-600 px-1.5 text-3xs leading-4 font-bold text-on-accent">
+            {place.count}
+          </span>
+        ) : null}
       </NavLink>
     </li>
   );
 }
 
 function Sidebar({ onGo }: { onGo: () => void }) {
+  const waiting = proposalsWaiting(useMyProposals<ClientProposalRow[], ApiError>().data);
   return (
     <div className="flex h-full flex-col">
       <Link to="/new" onClick={onGo} className="flex items-center gap-2.5 px-3 pb-6">
@@ -119,7 +129,7 @@ function Sidebar({ onGo }: { onGo: () => void }) {
       </Link>
       <ul className="space-y-0.5">
         {PLACES.map((place) => (
-          <NavItem key={place.label} place={place} onGo={onGo} />
+          <NavItem key={place.label} place={place.to === "/new/proposals" ? { ...place, count: waiting } : place} onGo={onGo} />
         ))}
       </ul>
       <ul className="mt-auto border-t border-line pt-3">
@@ -147,11 +157,12 @@ function Waiting() {
   const onJoins = (joins.data ?? []).length;
   const tickets = useMyTickets<TicketRow[], ApiError>();
   const onTickets = (tickets.data ?? []).filter((one) => one.status === "WAITING").length;
-  const total = onAccess + answered + onJoins + onTickets;
+  const onProposals = proposalsWaiting(useMyProposals<ClientProposalRow[], ApiError>().data);
+  const total = onAccess + answered + onJoins + onTickets + onProposals;
 
   return (
     <Link
-      to={onAccess > 0 ? "/new/access-requests?tab=incoming" : answered > 0 ? "/new/access-requests?tab=history" : onJoins > 0 ? "/requests" : onTickets > 0 ? "/new/support" : "/new"}
+      to={onProposals > 0 ? "/new/proposals?tab=waiting" : onAccess > 0 ? "/new/access-requests?tab=incoming" : answered > 0 ? "/new/access-requests?tab=history" : onJoins > 0 ? "/requests" : onTickets > 0 ? "/new/support" : "/new"}
       aria-label={total > 0 ? `${total} waiting on you` : "Nothing waiting on you"}
       className="relative flex size-9 items-center justify-center rounded-lg text-ink-soft hover:bg-sidebar"
     >
@@ -163,6 +174,11 @@ function Waiting() {
       )}
     </Link>
   );
+}
+
+/** Proposals the client has still to answer. */
+function proposalsWaiting(rows: ClientProposalRow[] | undefined) {
+  return (rows ?? []).filter((one) => one.status === "PENDING").length;
 }
 
 function Account({ me }: { me: Me | undefined }) {

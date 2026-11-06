@@ -42,7 +42,7 @@ import {
  * filter. There were ten of these when a proposal travelled between three desks with a clock on the last
  * leg; six of them named steps that no longer happen.
  */
-type Tab = "waitingOnMe" | "all" | "draft" | "pending" | "approved" | "rejected";
+type Tab = "waitingOnMe" | "all" | "draft" | "pending" | "approved" | "rejected" | "expired";
 
 /** The one that is answered rather than watched, so it is offered first and only to whoever answers. */
 const WAITING_ON_ME: Tab = "waitingOnMe";
@@ -51,9 +51,10 @@ const TABS: { id: Tab; label: string; status?: ListProposalsStatus }[] = [
   { id: "waitingOnMe", label: "Waiting on me" },
   { id: "all", label: "All" },
   { id: "draft", label: "Drafts", status: "DRAFT" },
-  { id: "pending", label: "Waiting on the relationship manager", status: "PENDING" },
+  { id: "pending", label: "Waiting for an answer", status: "PENDING" },
   { id: "approved", label: "Approved", status: "APPROVED" },
   { id: "rejected", label: "Rejected", status: "REJECTED" },
+  { id: "expired", label: "Expired", status: "EXPIRED" },
 ];
 
 /** One column of the queue: its heading, and what it draws on a row. */
@@ -162,7 +163,7 @@ function movableFor({ showAdvisor, openedFrom, onMe, reader, theirPart }: {
         return (
           <>
             <Badge tone={proposalStatusTones[proposal.status as ProposalRowStatus]}>
-              {proposalStanding(proposal.status as ProposalRowStatus, proposal.waitingOn)}
+              {proposalStanding(proposal.status as ProposalRowStatus, proposal.waitingOn, proposal.answerBy)}
             </Badge>
             {/* Who answered it sits under the answer, where it belongs. It used to sit in the last
                 column — the one the Review button is in — so on an answered row it was a sentence
@@ -314,6 +315,7 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
     pending: counts?.pending,
     approved: counts?.approved,
     rejected: counts?.rejected,
+    expired: counts?.expired,
   };
   const total = proposals.data?.totalItems ?? 0;
   const rows = proposals.data?.items ?? [];
@@ -342,11 +344,11 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
     // column beside this one carries it — and a proposal answered before the firm recorded the name
     // says nothing here rather than "by their relationship manager", which is a column's width of
     // words for no fact at all.
-    if (row.status === "APPROVED" || row.status === "REJECTED") {
+    if (row.status === "APPROVED" || row.status === "REJECTED" || row.status === "EXPIRED") {
       return {
         review: false,
-        said: row.answeredByName
-          ? answeredLabel(row.status, row.answeredByName, null, row.fromRebalance) : null,
+        said: row.answeredByName || row.status === "EXPIRED"
+          ? answeredLabel(row.status, row.answeredByName, null, row.fromRebalance, row) : null,
       };
     }
     if (row.status !== "PENDING" || !answers) {
@@ -354,7 +356,8 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
     }
     return {
       review: false,
-      said: row.advisorId === user.id ? "You wrote this one" : "Waiting on their relationship manager",
+      said: row.toClient ? "Waiting on the client"
+        : row.advisorId === user.id ? "You wrote this one" : "Waiting on their relationship manager",
     };
   }
   const shown: FilterOption<Tab>[] = TABS
