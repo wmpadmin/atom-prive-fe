@@ -423,7 +423,7 @@ export function FamilyWealthPage() {
               <LineChart
                 series={[{ name: "Net worth", colour: "var(--color-primary-600)", points: shown.line, area: true }]}
                 format={(value) => whole(value, currency)}
-                tick={(value) => compact(value)}
+                tick={(value, step) => compact(value, undefined, step)}
                 label={`Net worth of ${shown.name}`}
                 empty="Net worth appears here once the portfolio has been valued in this period."
               />
