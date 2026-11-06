@@ -1,16 +1,16 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  bankCredentials,
   getBankCredentialsQueryKey,
   getListCredentialStandingsQueryKey,
-  useBankCredentials,
   useSetBankCredentials,
   useTestBankConnection,
   type BankView,
   type CredentialRequestSignIn,
   type CredentialView,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, cn, describedBy, Dialog, Field, TextArea, TextInput } from "@atomprive/ui";
-import { useQueryClient } from "@tanstack/react-query";
+import { Alert, Button, cn, describedBy, Dialog, Field, PasswordInput, SecretArea, TextInput } from "@atomprive/ui";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
@@ -22,7 +22,11 @@ import { formatDate, formatDateTime } from "../../lib/labels";
  * whom — and saving tries the details at once. A credential that works is replaced only by one that connects.
  */
 export function CredentialsDialog({ bank, onClose }: { bank: BankView; onClose: () => void }) {
-  const held = useBankCredentials<CredentialView | undefined, ApiError>(bank.id);
+  // Nothing on file comes back as an empty answer, which is "not set" rather than a failure to read.
+  const held = useQuery<CredentialView | null, ApiError>({
+    queryKey: getBankCredentialsQueryKey(bank.id),
+    queryFn: async ({ signal }) => (await bankCredentials(bank.id, { signal })) ?? null,
+  });
   const sftp = bank.connectionType === "SFTP";
   return (
     <Dialog
@@ -73,6 +77,8 @@ function CredentialsForm({ bank, held, onClose }: { bank: BankView; held: Creden
   const [tokenUrl, setTokenUrl] = useState(held?.tokenUrl ?? "");
   const [clientId, setClientId] = useState(held?.clientId ?? "");
   const [secret, setSecret] = useState("");
+  // Typed twice, so a slip of the finger is caught here rather than as a bank refusing the sign-in.
+  const [again, setAgain] = useState("");
   // A secret on file is kept unless somebody chooses to replace it; changing how the platform signs in needs a new one.
   const [replacing, setReplacing] = useState(held === null);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
@@ -83,6 +89,7 @@ function CredentialsForm({ bank, held, onClose }: { bank: BankView; held: Creden
     setShown(fresh);
     setReplacing(false);
     setSecret("");
+    setAgain("");
     setFingerprint(fresh.hostKeyFingerprint ?? "");
     queryClient.setQueryData(getBankCredentialsQueryKey(bank.id), fresh);
     void queryClient.invalidateQueries({ queryKey: getListCredentialStandingsQueryKey() });
@@ -93,8 +100,15 @@ function CredentialsForm({ bank, held, onClose }: { bank: BankView; held: Creden
   const busy = save.isPending || test.isPending;
   const needsNewSecret = replacing || signIn !== held?.signIn;
 
+  // Compared as typed but for the spaces round a pasted key, which are not part of it.
+  const mismatch = needsNewSecret && again !== "" && again.trim() !== secret.trim();
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (needsNewSecret && again.trim() !== secret.trim()) {
+      setErrors({ form: undefined, fields: { again: `The two ${SECRET_LABELS[signIn].toLowerCase()}s are not the same.` } });
+      return;
+    }
     save.mutate({
       bankId: bank.id,
       data: {
@@ -198,16 +212,30 @@ function CredentialsForm({ bank, held, onClose }: { bank: BankView; held: Creden
               </Button>
             </div>
           ) : signIn === "SSH_KEY" ? (
-            <TextArea {...describedBy("cred-secret", errors.fields.secret)} id="cred-secret" rows={5} value={secret}
-              autoComplete="off" spellCheck={false} className="font-mono text-xs"
+            <SecretArea {...describedBy("cred-secret", errors.fields.secret)} id="cred-secret" rows={5} value={secret}
+              what="private key" autoComplete="off" spellCheck={false} className="font-mono text-xs"
               placeholder={"-----BEGIN OPENSSH PRIVATE KEY-----\n…\n-----END OPENSSH PRIVATE KEY-----"}
               onChange={(event) => setSecret(event.target.value)} />
           ) : (
-            <TextInput {...describedBy("cred-secret", errors.fields.secret)} id="cred-secret" type="password" value={secret}
-              autoComplete="new-password" placeholder={`Paste the ${SECRET_LABELS[signIn].toLowerCase()}`}
-              onChange={(event) => setSecret(event.target.value)} />
+            <PasswordInput {...describedBy("cred-secret", errors.fields.secret)} id="cred-secret" value={secret}
+              what={SECRET_LABELS[signIn].toLowerCase()} autoComplete="new-password"
+              placeholder={`Paste the ${SECRET_LABELS[signIn].toLowerCase()}`} onChange={(event) => setSecret(event.target.value)} />
           )}
         </Field>
+        {needsNewSecret && (
+          <Field id="cred-again" label={`Confirm ${SECRET_LABELS[signIn].toLowerCase()}`}
+            error={errors.fields.again ?? (mismatch ? "Not the same as above yet." : undefined)} className="sm:col-span-2">
+            {signIn === "SSH_KEY" ? (
+              <SecretArea {...describedBy("cred-again", errors.fields.again)} id="cred-again" rows={5} value={again}
+                what="private key" autoComplete="off" spellCheck={false} className="font-mono text-xs"
+                placeholder="Paste the same key again" onChange={(event) => setAgain(event.target.value)} />
+            ) : (
+              <PasswordInput {...describedBy("cred-again", errors.fields.again)} id="cred-again" value={again}
+                what={SECRET_LABELS[signIn].toLowerCase()} autoComplete="new-password"
+                placeholder={`Type the ${SECRET_LABELS[signIn].toLowerCase()} again`} onChange={(event) => setAgain(event.target.value)} />
+            )}
+          </Field>
+        )}
 
         {sftp && (
           <>
@@ -240,7 +268,7 @@ function CredentialsForm({ bank, held, onClose }: { bank: BankView; held: Creden
             {test.isPending ? "Testing…" : "Test connection"}
           </Button>
         )}
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy || mismatch}>
           {save.isPending ? "Saving and testing…" : "Save"}
         </Button>
       </div>
