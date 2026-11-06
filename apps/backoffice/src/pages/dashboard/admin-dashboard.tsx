@@ -8,7 +8,7 @@ import {
   type Dashboard,
   type FirmDashboard,
   type ManagerAum,
-  type Waiting,
+  type FirmWaiting,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
@@ -474,7 +474,7 @@ const ICON_FOR: Record<string, LucideIcon> = {
   "staff-declarations": FileText,
 };
 
-function Attention({ rows, linkFor, loaded }: { rows: Waiting[]; linkFor: (key: string) => string | undefined; loaded: boolean }) {
+function Attention({ rows, linkFor, loaded }: { rows: FirmWaiting[]; linkFor: (key: string) => string | undefined; loaded: boolean }) {
   if (loaded && rows.length === 0) {
     return <p className="py-8 text-center text-sm text-ink-muted">Nothing needs attention right now.</p>;
   }
@@ -505,7 +505,7 @@ const ACTIVITY_TABS = ["Firm activity (recent)", "Stuck items", "Key changes", "
 
 function FirmActivity({ platform, attention, linkFor, to }: {
   platform: Dashboard | undefined;
-  attention: Waiting[];
+  attention: FirmWaiting[];
   linkFor: (key: string) => string | undefined;
   /** Where the whole record is read: the audit log. */
   to?: string;

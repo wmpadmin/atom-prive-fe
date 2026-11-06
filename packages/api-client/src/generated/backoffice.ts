@@ -1832,11 +1832,11 @@ export interface JsonNode {
   number?: boolean;
   container?: boolean;
   floatingPointNumber?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -7694,7 +7694,7 @@ export interface MyPortfolios {
   modelChanges: number;
 }
 
-export interface Waiting {
+export interface RmWaiting {
   key: string;
   label: string;
   count: number;
@@ -7706,8 +7706,8 @@ export interface RelationshipManagerDashboard {
   clients: MyClients;
   kyc: MyKyc;
   portfolios: MyPortfolios;
-  approvals: Waiting[];
-  chase: Waiting[];
+  approvals: RmWaiting[];
+  chase: RmWaiting[];
 }
 
 export interface ClassSlice {
@@ -7802,13 +7802,19 @@ export interface OperationsFeeds {
   successPercent: number | null;
 }
 
+export interface OperationsWaiting {
+  key: string;
+  label: string;
+  count: number;
+}
+
 export interface OperationsDashboard {
   days: number;
   onboarding: OperationsOnboarding;
   pipeline: OperationsPipeline;
   feeds: OperationsFeeds;
-  requests: Waiting[];
-  toDo: Waiting[];
+  requests: OperationsWaiting[];
+  toDo: OperationsWaiting[];
 }
 
 export interface ItTickets {
@@ -7891,6 +7897,12 @@ export interface Operations {
   bankFeedsFailed: number;
 }
 
+export interface FirmWaiting {
+  key: string;
+  label: string;
+  count: number;
+}
+
 export interface ManagerAum {
   staffId: string;
   name: string;
@@ -7907,10 +7919,10 @@ export interface FirmDashboard {
   byAssetClass: ClassSlice[];
   lifecycle: Lifecycle;
   operations: Operations;
-  approvals: Waiting[];
-  requests: Waiting[];
-  attention: Waiting[];
-  upcoming: Waiting[];
+  approvals: FirmWaiting[];
+  requests: FirmWaiting[];
+  attention: FirmWaiting[];
+  upcoming: FirmWaiting[];
   byRelationshipManager: ManagerAum[];
   byPortfolioManager: ManagerAum[];
   unconverted: number;
@@ -7940,6 +7952,12 @@ export interface KycOverview {
   compliantPercent: number;
 }
 
+export interface ComplianceWaiting {
+  key: string;
+  label: string;
+  count: number;
+}
+
 export interface Expiring {
   within30: number;
   within60: number;
@@ -7951,9 +7969,9 @@ export interface ComplianceDashboard {
   days: number;
   kyc: KycOverview;
   aml: AmlOverview;
-  queue: Waiting[];
+  queue: ComplianceWaiting[];
   expiring: Expiring;
-  declarations: Waiting[];
+  declarations: ComplianceWaiting[];
 }
 
 export interface SecurityActivity {
