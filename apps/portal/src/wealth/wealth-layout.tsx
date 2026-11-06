@@ -7,17 +7,20 @@ import {
   endClientView,
   useMyProposals,
   useMyTickets,
+  usePreferences,
   useSent,
   useWealthRequests,
   type FamilyRequest,
   type ClientProposalRow,
   type Me,
+  type MyPreferences,
   type RequestRow,
   type TicketRow,
   type WealthRequestRow,
 } from "@atomprive/api-client/portal";
 import {
   Activity,
+  BarChart3,
   Bell,
   ChevronDown,
   FileSignature,
@@ -31,6 +34,7 @@ import {
   Menu,
   Network,
   ScrollText,
+  Settings,
   ShieldCheck,
   Users,
   Wallet,
@@ -40,6 +44,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useSession } from "../auth/session-context";
+import { AS_THE_FIRM_WRITES, displayFrom, displayKey, setDisplay } from "../lib/display";
 import { initialsOf } from "../lib/money";
 import { rememberPage } from "./last-page";
 import { currentSupportView, forgetSupportView } from "@atomprive/support/support-view";
@@ -69,6 +74,8 @@ const PLACES: Place[] = [
   { label: "Access Requests", icon: KeyRound, to: "/new/access-requests" },
   { label: "Activity", icon: Activity, to: "/new/activity" },
   { label: "Audit Log", icon: ScrollText, to: "/new/audit-log" },
+  { label: "Reports", icon: BarChart3, to: "/new/reports" },
+  { label: "Settings", icon: Settings, to: "/new/settings" },
 ];
 
 const HELP: Place = { label: "Help & Support", icon: LifeBuoy, to: "/new/support" };
@@ -229,7 +236,7 @@ function Account({ me }: { me: Me | undefined }) {
         >
           <Link
             role="menuitem"
-            to="/settings"
+            to="/new/settings"
             className="block rounded-lg px-3 py-2 text-sm font-medium text-ink-soft hover:bg-sidebar"
           >
             My profile
@@ -243,7 +250,7 @@ function Account({ me }: { me: Me | undefined }) {
           </Link>
           <Link
             role="menuitem"
-            to="/settings"
+            to="/new/settings"
             className="block rounded-lg px-3 py-2 text-sm font-medium text-ink-soft hover:bg-sidebar"
           >
             Notification preferences
@@ -271,6 +278,14 @@ function Account({ me }: { me: Me | undefined }) {
 
 export function WealthLayout() {
   const me = useMe<Me, ApiError>();
+  // How the client asked for figures and dates to be written. Set before the page under it is drawn, so the page
+  // is never drawn once the firm's way and then again theirs; a failed read leaves it the firm's way rather than
+  // holding every screen back.
+  const preferences = usePreferences<MyPreferences, ApiError>();
+  const display = preferences.data ? displayFrom(preferences.data) : AS_THE_FIRM_WRITES;
+  setDisplay(display);
+  // The classic portal writes things the firm's way; leaving for it puts that back.
+  useEffect(() => () => setDisplay(AS_THE_FIRM_WRITES), []);
   const [menuOpen, setMenuOpen] = useState(false);
   const where = useLocation();
 
@@ -347,8 +362,8 @@ export function WealthLayout() {
             <Account me={me.data} />
           </div>
         </header>
-        <main className="flex-1 px-4 pb-10 sm:px-8">
-          <Outlet />
+        <main key={displayKey(display)} className="flex-1 px-4 pb-10 sm:px-8">
+          {preferences.isPending ? <div className="h-64 animate-pulse rounded-2xl bg-white/60" /> : <Outlet />}
         </main>
       </div>
     </div>

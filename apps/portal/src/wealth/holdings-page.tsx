@@ -5,6 +5,8 @@ import { Building2, ChevronDown, Download, HandCoins, LineChart, Search, X, type
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { PanelEdge } from "./panel-edge";
+import { RestatedNote } from "./restated-note";
+import { shownHoldings, type Shown } from "./shown";
 
 /**
  * Everything the client holds and owes, one line each: investments, things owned outright and loans. Searched and
@@ -235,7 +237,7 @@ function HoldingPanel({ row, currency, onClose }: { row: HoldingRow; currency: s
 
 export function HoldingsPage() {
   const [params, setParams] = useSearchParams();
-  const holdings = useHoldings<PortalHoldings, ApiError>();
+  const holdings = useHoldings<Shown<PortalHoldings>, ApiError>({ query: { select: shownHoldings } });
   const [search, setSearch] = useState(params.get("q") ?? "");
   const assetClass = params.get("class") ?? "";
   const [page, setPage] = useState(0);
@@ -292,6 +294,7 @@ export function HoldingsPage() {
         <div>
           <h1 className="text-[1.625rem] font-bold text-balance text-ink">Holdings</h1>
           <p className="mt-1 text-sm text-ink-muted">View your investments and asset holdings.</p>
+          <RestatedNote heldIn={holdings.data?.heldIn} shownIn={holdings.data?.currency} />
         </div>
       </div>
 

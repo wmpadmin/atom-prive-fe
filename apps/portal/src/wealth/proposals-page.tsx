@@ -3,6 +3,7 @@ import { useMyProposals, type ClientProposalRow } from "@atomprive/api-client/po
 import { Inbox } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import { day, whole } from "./figures";
+import { writeDate } from "../lib/display";
 
 /**
  * Proposals: the changes the firm suggests to the client's portfolio, for them to approve or reject (S91). Newest
@@ -152,7 +153,7 @@ export function ProposalsPage() {
 }
 
 function shortDay(at: string | null | undefined) {
-  return at ? new Date(at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
+  return at ? writeDate(at, { day: "numeric", month: "short" }) : "";
 }
 
 /** Where a proposal has got to, in a word and a colour, with the day it ended where it has. */

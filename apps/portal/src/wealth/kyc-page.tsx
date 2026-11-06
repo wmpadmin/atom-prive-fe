@@ -11,6 +11,7 @@ import { Alert, Button, Dialog, SelectInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, CircleAlert, CircleX, Clock, FileText, Upload, type LucideIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { writeDay } from "../lib/display";
 
 /**
  * The client's KYC: every paper the firm asks them for and where each stands, read from the same checklist
@@ -27,7 +28,7 @@ function groupOf(paper: KycRequirement): Group {
 }
 
 function day(at: string | null | undefined) {
-  return at ? new Date(at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
+  return at ? writeDay(at) : "";
 }
 
 /** What a paper the client still owes says under its name. */

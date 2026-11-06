@@ -469,6 +469,49 @@ export interface CodeSent {
   sentTo: string;
 }
 
+export interface PreferenceChoiceRequest {
+  /**
+     * @minLength 0
+     * @maxLength 3
+     * @nullable
+     */
+  reportingCurrency: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 20
+     */
+  dateFormat: string;
+  /**
+     * @minLength 0
+     * @maxLength 64
+     * @nullable
+     */
+  timeZone: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 8
+     */
+  language: string;
+}
+
+export interface CurrencyOption {
+  code: string;
+  name: string;
+}
+
+export type MyPreferencesRates = {[key: string]: number};
+
+export interface MyPreferences {
+  /** @nullable */
+  reportingCurrency: string | null;
+  dateFormat: string;
+  /** @nullable */
+  timeZone: string | null;
+  language: string;
+  currencies: CurrencyOption[];
+  rates: MyPreferencesRates;
+}
+
 export interface Me {
   id: string;
   fullName: string;
@@ -1101,6 +1144,26 @@ export interface SecurityView {
   email: string;
   signedIn: SignedInOn[];
   history: Happened[];
+}
+
+export interface MyParticulars {
+  kind: string;
+  /** @nullable */
+  relationshipManager: string | null;
+  /** @nullable */
+  dateOfBirth: string | null;
+  /** @nullable */
+  nationality: string | null;
+  /** @nullable */
+  address: string | null;
+  /** @nullable */
+  organisation: string | null;
+  /** @nullable */
+  countryOfIncorporation: string | null;
+  /** @nullable */
+  incorporatedOn: string | null;
+  /** @nullable */
+  registrationNumber: string | null;
 }
 
 /**
@@ -3396,6 +3459,183 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getEmailMyNewPhoneCodeMutationOptions(options), queryClient);
+    }
+
+export const getPreferencesUrl = () => {
+
+
+
+
+  return `/api/portal/me/preferences`
+}
+
+export const preferences = async ( options?: Parameters<typeof http>[1]): Promise<MyPreferences> => {
+
+  return http<MyPreferences>(getPreferencesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPreferencesQueryKey = () => {
+    return [
+    `/api/portal/me/preferences`
+    ] as const;
+    }
+
+
+export const getPreferencesQueryOptions = <TData = Awaited<ReturnType<typeof preferences>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof preferences>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPreferencesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof preferences>>> = ({ signal }) => preferences({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof preferences>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type PreferencesQueryResult = NonNullable<Awaited<ReturnType<typeof preferences>>>
+export type PreferencesQueryError = unknown
+
+
+export function usePreferences<TData = Awaited<ReturnType<typeof preferences>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof preferences>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof preferences>>,
+          TError,
+          Awaited<ReturnType<typeof preferences>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePreferences<TData = Awaited<ReturnType<typeof preferences>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof preferences>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof preferences>>,
+          TError,
+          Awaited<ReturnType<typeof preferences>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePreferences<TData = Awaited<ReturnType<typeof preferences>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof preferences>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function usePreferences<TData = Awaited<ReturnType<typeof preferences>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof preferences>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getPreferencesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getChoosePreferencesUrl = () => {
+
+
+
+
+  return `/api/portal/me/preferences`
+}
+
+export const choosePreferences = async (preferenceChoiceRequest: PreferenceChoiceRequest, options?: Parameters<typeof http>[1]): Promise<MyPreferences> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<MyPreferences>(getChoosePreferencesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(preferenceChoiceRequest)
+  }
+);}
+
+
+
+
+
+export const getChoosePreferencesMutationKey = () => ['choosePreferences'] as const;
+
+export const getChoosePreferencesMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof choosePreferences>>, TError,ChoosePreferencesMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof choosePreferences>>, TError,ChoosePreferencesMutationVariables, TContext> => {
+
+const mutationKey = getChoosePreferencesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof choosePreferences>>, ChoosePreferencesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  choosePreferences(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChoosePreferencesMutationResult = NonNullable<Awaited<ReturnType<typeof choosePreferences>>>
+    export type ChoosePreferencesMutationBody = PreferenceChoiceRequest
+    export type ChoosePreferencesMutationError = unknown
+    export type ChoosePreferencesMutationVariables = {data: PreferenceChoiceRequest}
+
+    export const useChoosePreferences = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof choosePreferences>>, TError,ChoosePreferencesMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof choosePreferences>>,
+        TError,
+        ChoosePreferencesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChoosePreferencesMutationOptions(options), queryClient);
     }
 
 export const getUploadMyPhotoUrl = () => {
@@ -7246,6 +7486,101 @@ export function useMySecurity<TData = Awaited<ReturnType<typeof mySecurity>>, TE
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getMySecurityQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getParticularsUrl = () => {
+
+
+
+
+  return `/api/portal/me/particulars`
+}
+
+export const particulars = async ( options?: Parameters<typeof http>[1]): Promise<MyParticulars> => {
+
+  return http<MyParticulars>(getParticularsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getParticularsQueryKey = () => {
+    return [
+    `/api/portal/me/particulars`
+    ] as const;
+    }
+
+
+export const getParticularsQueryOptions = <TData = Awaited<ReturnType<typeof particulars>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof particulars>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getParticularsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof particulars>>> = ({ signal }) => particulars({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof particulars>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ParticularsQueryResult = NonNullable<Awaited<ReturnType<typeof particulars>>>
+export type ParticularsQueryError = unknown
+
+
+export function useParticulars<TData = Awaited<ReturnType<typeof particulars>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof particulars>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof particulars>>,
+          TError,
+          Awaited<ReturnType<typeof particulars>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useParticulars<TData = Awaited<ReturnType<typeof particulars>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof particulars>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof particulars>>,
+          TError,
+          Awaited<ReturnType<typeof particulars>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useParticulars<TData = Awaited<ReturnType<typeof particulars>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof particulars>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useParticulars<TData = Awaited<ReturnType<typeof particulars>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof particulars>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getParticularsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

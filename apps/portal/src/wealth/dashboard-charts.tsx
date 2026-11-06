@@ -1,6 +1,7 @@
 import type { LinePoint, ValueSlice } from "@atomprive/api-client/portal";
 import { useEffect, useState } from "react";
 import { INK, compact, monthOf } from "./figures";
+import { writeDay } from "../lib/display";
 
 const WIDTH = 640;
 const HEIGHT = 240;
@@ -184,7 +185,7 @@ export function LineChart({
           }}
         >
           <p className="text-ink-muted">
-            {new Date(shown.on).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+            {writeDay(shown.on)}
           </p>
           {drawn.map((one) => (
             <p key={one.name} className="flex items-center gap-1.5 font-semibold text-ink tabular-nums">

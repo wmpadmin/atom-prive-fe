@@ -14,6 +14,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { compact, day, whole } from "./figures";
 import { StatusPill } from "./proposals-page";
+import { writeMoment } from "../lib/display";
 
 /**
  * One proposal, as the client answers it (S90).
@@ -343,7 +344,7 @@ function History({ detail, answeredBy }: { detail: ClientProposalDetail; answere
 }
 
 function when(at: string) {
-  return new Date(at).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return writeMoment(at);
 }
 
 /** How long ago, as the staff page says it: Just now, 46 min ago, 3 hr ago, Yesterday. */

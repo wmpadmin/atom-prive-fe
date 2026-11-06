@@ -5,6 +5,7 @@ import { Building2, Search } from "lucide-react";
 import { useState } from "react";
 import { initialsOf } from "../lib/money";
 import { ExportMenu, type Format } from "./holdings-page";
+import { writeMoment } from "../lib/display";
 
 /**
  * Who did what about the client's accounts, wealth, family and sign-in: only events they did or that were done
@@ -31,7 +32,7 @@ function dayOf(at: string) {
 }
 
 function stamp(at: string) {
-  return new Date(at).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return writeMoment(at);
 }
 
 function Who({ name, photo, firm }: { name: string; photo: string | null; firm: boolean }) {

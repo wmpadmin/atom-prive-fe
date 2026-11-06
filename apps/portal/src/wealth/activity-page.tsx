@@ -3,6 +3,7 @@ import { useActivity, type Happening } from "@atomprive/api-client/portal";
 import { FileSignature, FileText, KeyRound, LineChart, Mail, Search, ShieldCheck, Users, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
+import { dayOf as dayOnClientClock, writeDate } from "../lib/display";
 
 /**
  * Everything that happened on the client's record, newest first, under the day it happened: their papers and
@@ -24,8 +25,7 @@ const PAGE = 40;
 
 /** The local calendar day an instant falls on, as yyyy-mm-dd, for grouping and for the date filters. */
 function dayOf(at: string) {
-  const date = new Date(at);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return dayOnClientClock(at);
 }
 
 function heading(day: string) {
@@ -33,11 +33,11 @@ function heading(day: string) {
   const yesterday = dayOf(new Date(Date.now() - 86_400_000).toISOString());
   if (day === today) return "Today";
   if (day === yesterday) return "Yesterday";
-  return new Date(`${day}T12:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  return writeDate(day, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 }
 
 function timeOf(at: string) {
-  return new Date(at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return writeDate(at, { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 export function ActivityPage() {
