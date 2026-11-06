@@ -366,6 +366,25 @@ export interface TrailEntry {
   reference: string;
 }
 
+export interface ExcludedHolding {
+  positionId: string;
+  name: string;
+  assetClass: string;
+  /** @nullable */
+  subClass: string | null;
+  /** @nullable */
+  subSubClass: string | null;
+  kind: string;
+  what: string;
+  value: number;
+}
+
+export interface LandingExclusion {
+  holdings: ExcludedHolding[];
+  heldInLine: number;
+  unchecked: boolean;
+}
+
 export interface PlannedLeg {
   fromAssetClass: string;
   /** @nullable */
@@ -386,6 +405,7 @@ export interface PlannedLeg {
   /** @nullable */
   landsOnMayHold: number | null;
   landsOnAskedByOthers: number;
+  landingExclusion: LandingExclusion | null;
 }
 
 export interface ClientProposalDetail {

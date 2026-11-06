@@ -107,6 +107,42 @@ function waitingToBePlaced(leg: PlannedLeg) {
  * them comes out of. Where two legs draw on one line, both rows report what that line is finally left
  * with rather than each doing half the sum.
  */
+const regionNames = new Intl.DisplayNames(["en-GB"], { type: "region" });
+
+function placeOf(kind: string, what: string) {
+  if (kind !== "COUNTRY") return what;
+  try {
+    return regionNames.of(what) ?? what;
+  } catch {
+    return what;
+  }
+}
+
+/**
+ * What the line the money lands in holds that the client excluded on their risk questionnaire, or that nothing
+ * in it says where it is. Nothing where there is nothing to say.
+ */
+function LandingNote({ leg }: { leg: PlannedLeg }) {
+  const note = leg.landingExclusion;
+  if (!note) return null;
+  if (note.unchecked) {
+    return (
+      <span className="mt-1 block text-xs font-normal text-ink-muted">
+        The client excludes some countries and sectors. Nothing in this line says where it is, so it can't be checked.
+      </span>
+    );
+  }
+  const reasons = [...new Set(note.holdings.map((one) => placeOf(one.kind, one.what)))];
+  const named = note.holdings.map((one) => `${one.name}, ${figure(one.value)}`).join("; ");
+  return (
+    <span className="mt-1 block rounded-lg bg-access-none-soft px-2.5 py-1.5 text-xs font-normal text-access-none-ink">
+      <strong className="font-semibold">The client excludes {reasons.join(", ")}.</strong> {note.holdings.length} of the {note.heldInLine}{" "}
+      {note.heldInLine === 1 ? "holding" : "holdings"} in this line {note.holdings.length === 1 ? "is" : "are"} there ({named}). Money placed in
+      this line could go there too.
+    </span>
+  );
+}
+
 export function ProposalMoves({ legs, currency }: { legs: PlannedLeg[]; currency: string | null }) {
   // All three read the whole list, and have to. Netting is what lets two legs drawing on one line each
   // report what that line is finally left with, and a page of legs would net only against itself.
@@ -144,6 +180,7 @@ export function ProposalMoves({ legs, currency }: { legs: PlannedLeg[]; currency
               {into !== undefined && into.askedByOthers >= 1 && (
                 <p className="text-sm text-amber-700">another waiting ask would add {figure(into.askedByOthers)} here too</p>
               )}
+              <LandingNote leg={leg} />
             </li>
           );
         })}
@@ -204,6 +241,7 @@ export function ProposalMoves({ legs, currency }: { legs: PlannedLeg[]; currency
                         another waiting ask would add {figure(into.askedByOthers)} here too
                       </span>
                     )}
+                    <LandingNote leg={leg} />
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap text-ink-muted">
                     {figure(leg.heldNow)}
