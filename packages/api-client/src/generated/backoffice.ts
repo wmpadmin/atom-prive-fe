@@ -5082,6 +5082,24 @@ export interface ChecklistPaperRequest {
   paperId: string;
 }
 
+export interface UseRequest {
+  checked: boolean;
+}
+
+export interface InUse {
+  bankId: string;
+  bankName: string;
+  inUse: boolean;
+  /** @nullable */
+  since: string | null;
+  /** @nullable */
+  by: string | null;
+  clients: number;
+  linesCompared: number;
+  linesMatching: number;
+  openDifferences: number;
+}
+
 export type StartFormRequestKind = typeof StartFormRequestKind[keyof typeof StartFormRequestKind];
 
 
@@ -7379,6 +7397,7 @@ export interface ClientHoldingsCheck {
   summary: ClientComparison;
   accounts: string[];
   lines: HoldingLine[];
+  inUse: string[];
 }
 
 export interface FormPage {
@@ -22734,6 +22753,252 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAskForPaperMutationOptions(options), queryClient);
+    }
+
+export const getBankHoldingsStandingUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/holdings-check/banks/${bankId}/use`
+}
+
+export const bankHoldingsStanding = async (bankId: string, options?: Parameters<typeof http>[1]): Promise<InUse> => {
+
+  return http<InUse>(getBankHoldingsStandingUrl(bankId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getBankHoldingsStandingQueryKey = (bankId: string,) => {
+    return [
+    `/api/backoffice/holdings-check/banks/${bankId}/use`
+    ] as const;
+    }
+
+
+export const getBankHoldingsStandingQueryOptions = <TData = Awaited<ReturnType<typeof bankHoldingsStanding>>, TError = unknown>(bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankHoldingsStanding>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getBankHoldingsStandingQueryKey(bankId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof bankHoldingsStanding>>> = ({ signal }) => bankHoldingsStanding(bankId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bankId !== null && bankId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof bankHoldingsStanding>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type BankHoldingsStandingQueryResult = NonNullable<Awaited<ReturnType<typeof bankHoldingsStanding>>>
+export type BankHoldingsStandingQueryError = unknown
+
+
+export function useBankHoldingsStanding<TData = Awaited<ReturnType<typeof bankHoldingsStanding>>, TError = unknown>(
+ bankId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankHoldingsStanding>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof bankHoldingsStanding>>,
+          TError,
+          Awaited<ReturnType<typeof bankHoldingsStanding>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useBankHoldingsStanding<TData = Awaited<ReturnType<typeof bankHoldingsStanding>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankHoldingsStanding>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof bankHoldingsStanding>>,
+          TError,
+          Awaited<ReturnType<typeof bankHoldingsStanding>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useBankHoldingsStanding<TData = Awaited<ReturnType<typeof bankHoldingsStanding>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankHoldingsStanding>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useBankHoldingsStanding<TData = Awaited<ReturnType<typeof bankHoldingsStanding>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankHoldingsStanding>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getBankHoldingsStandingQueryOptions(bankId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUseBankHoldingsUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/holdings-check/banks/${bankId}/use`
+}
+
+export const useBankHoldings = async (bankId: string,
+    useRequest: UseRequest, options?: Parameters<typeof http>[1]): Promise<InUse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<InUse>(getUseBankHoldingsUrl(bankId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(useRequest)
+  }
+);}
+
+
+
+
+
+export const getUseBankHoldingsMutationKey = () => ['useBankHoldings'] as const;
+
+export const getUseBankHoldingsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof useBankHoldings>>, TError,UseBankHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof useBankHoldings>>, TError,UseBankHoldingsMutationVariables, TContext> => {
+
+const mutationKey = getUseBankHoldingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof useBankHoldings>>, UseBankHoldingsMutationVariables> = (props) => {
+          const {bankId,data} = props ?? {};
+
+          return  useBankHoldings(bankId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UseBankHoldingsMutationResult = NonNullable<Awaited<ReturnType<typeof useBankHoldings>>>
+    export type UseBankHoldingsMutationBody = UseRequest
+    export type UseBankHoldingsMutationError = unknown
+    export type UseBankHoldingsMutationVariables = {bankId: string;data: UseRequest}
+
+    export const useUseBankHoldings = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof useBankHoldings>>, TError,UseBankHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof useBankHoldings>>,
+        TError,
+        UseBankHoldingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUseBankHoldingsMutationOptions(options), queryClient);
+    }
+
+export const getStopUsingBankHoldingsUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/holdings-check/banks/${bankId}/use`
+}
+
+export const stopUsingBankHoldings = async (bankId: string, options?: Parameters<typeof http>[1]): Promise<InUse> => {
+
+  return http<InUse>(getStopUsingBankHoldingsUrl(bankId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getStopUsingBankHoldingsMutationKey = () => ['stopUsingBankHoldings'] as const;
+
+export const getStopUsingBankHoldingsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopUsingBankHoldings>>, TError,StopUsingBankHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof stopUsingBankHoldings>>, TError,StopUsingBankHoldingsMutationVariables, TContext> => {
+
+const mutationKey = getStopUsingBankHoldingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof stopUsingBankHoldings>>, StopUsingBankHoldingsMutationVariables> = (props) => {
+          const {bankId} = props ?? {};
+
+          return  stopUsingBankHoldings(bankId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StopUsingBankHoldingsMutationResult = NonNullable<Awaited<ReturnType<typeof stopUsingBankHoldings>>>
+
+    export type StopUsingBankHoldingsMutationError = unknown
+    export type StopUsingBankHoldingsMutationVariables = {bankId: string}
+
+    export const useStopUsingBankHoldings = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopUsingBankHoldings>>, TError,StopUsingBankHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof stopUsingBankHoldings>>,
+        TError,
+        StopUsingBankHoldingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStopUsingBankHoldingsMutationOptions(options), queryClient);
     }
 
 export const getListFormsUrl = (params?: ListFormsParams,) => {
