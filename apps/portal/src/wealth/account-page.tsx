@@ -75,13 +75,13 @@ export function AccountPage() {
                 className="h-10 w-full rounded-xl border border-line bg-white pr-3 pl-10 text-sm focus-visible:border-primary-600 focus-visible:outline-2 focus-visible:outline-primary-600"
               />
             </label>
-            <label className="flex items-center gap-2 text-xs text-ink-muted">
-              From
-              <input id="transaction-from" type="date" value={from} max={to || undefined} onChange={(event) => setFrom(event.target.value)} className="h-10 rounded-xl border border-line bg-white px-3 text-sm text-ink" />
+            <label className="flex w-full items-center gap-2 text-xs text-ink-muted sm:w-auto">
+              <span className="w-9 shrink-0 sm:w-auto">From</span>
+              <input id="transaction-from" type="date" value={from} max={to || undefined} onChange={(event) => setFrom(event.target.value)} className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-white px-3 text-sm text-ink sm:flex-none" />
             </label>
-            <label className="flex items-center gap-2 text-xs text-ink-muted">
-              To
-              <input id="transaction-to" type="date" value={to} min={from || undefined} onChange={(event) => setTo(event.target.value)} className="h-10 rounded-xl border border-line bg-white px-3 text-sm text-ink" />
+            <label className="flex w-full items-center gap-2 text-xs text-ink-muted sm:w-auto">
+              <span className="w-9 shrink-0 sm:w-auto">To</span>
+              <input id="transaction-to" type="date" value={to} min={from || undefined} onChange={(event) => setTo(event.target.value)} className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-white px-3 text-sm text-ink sm:flex-none" />
             </label>
           </div>
           {shown.length === 0 ? (
