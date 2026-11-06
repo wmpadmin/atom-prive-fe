@@ -164,7 +164,7 @@ function Waiting() {
     <Link
       to={onProposals > 0 ? "/new/proposals?tab=waiting" : onAccess > 0 ? "/new/access-requests?tab=incoming" : answered > 0 ? "/new/access-requests?tab=history" : onJoins > 0 ? "/requests" : onTickets > 0 ? "/new/support" : "/new"}
       aria-label={total > 0 ? `${total} waiting on you` : "Nothing waiting on you"}
-      className="relative flex size-9 items-center justify-center rounded-lg text-ink-soft hover:bg-sidebar"
+      className="relative flex size-11 items-center justify-center rounded-lg text-ink-soft hover:bg-sidebar lg:size-9"
     >
       <Bell aria-hidden="true" className="size-5" />
       {total > 0 && (
@@ -338,7 +338,7 @@ export function WealthLayout() {
             type="button"
             aria-label="Open menu"
             onClick={() => setMenuOpen(true)}
-            className="rounded-lg p-2 text-ink-soft hover:bg-sidebar lg:hidden"
+            className="flex size-11 items-center justify-center rounded-lg text-ink-soft hover:bg-sidebar lg:hidden"
           >
             <Menu aria-hidden="true" className="size-5" />
           </button>

@@ -15,6 +15,25 @@
   body {
     font-size: var(--text-base);
   }
+
+  /* A phone gets the size phones are read at, not the smallest step of the desktop scale (S64). */
+  @media (max-width: 639.98px) {
+    html {
+      font-size: 16px;
+    }
+  }
+}
+
+/*
+ * Outside the layers so it outranks the text-sm on the fields themselves: below 16px an iPhone zooms the whole page
+ * in whenever a box is tapped, and leaves it zoomed.
+ */
+@media (max-width: 639.98px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 @theme {
