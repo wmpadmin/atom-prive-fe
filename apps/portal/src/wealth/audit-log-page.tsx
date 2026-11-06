@@ -179,7 +179,32 @@ export function AuditLogPage() {
           <p className="py-12 text-center text-sm text-ink-muted">{filtered ? "Nothing matches these filters." : "Nothing has been recorded yet."}</p>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* On a phone, what happened leads, with who, when and the outcome under it (S64). */}
+            <ul className="divide-y divide-line border-y border-line sm:hidden">
+              {shown.map((one) => {
+                const affected = one.byYou ? (one.memberId ? one.memberName : "You") : "You";
+                return (
+                  <li key={one.id} className="flex justify-between gap-3 px-1 py-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink">{one.said}</p>
+                      <p className="text-sm text-ink-muted">
+                        {one.byYou ? "You" : one.memberName} · {stamp(one.at)}
+                      </p>
+                      <p className="text-sm text-ink-muted">
+                        {affected}
+                        {one.about ? ` · ${one.about}` : ""}
+                      </p>
+                    </div>
+                    {one.outcome === "SUCCESS" ? (
+                      <span className="h-fit shrink-0 rounded-full bg-access-full-soft px-2.5 py-0.5 text-xs font-semibold text-access-full-ink">Done</span>
+                    ) : (
+                      <span className="h-fit shrink-0 rounded-full bg-access-none-soft px-2.5 py-0.5 text-xs font-semibold text-access-none-ink">Refused</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full min-w-[860px] text-left text-sm">
                 <thead>
                   <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">

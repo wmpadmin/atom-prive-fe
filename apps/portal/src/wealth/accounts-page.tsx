@@ -176,7 +176,32 @@ export function AccountsPage() {
             <p className="text-sm text-ink-muted">Your accounts appear here once the firm has linked them.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* On a phone, one card per account with its balance in view (S64). */}
+          <ul className="divide-y divide-line sm:hidden">
+            {accounts.data.map((one) => (
+              <li key={one.id}>
+                <button type="button" onClick={() => void navigate(`/new/accounts/${one.id}`)} className="flex w-full justify-between gap-3 px-1 py-3 text-left">
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-ink">{accountName(one)}</span>
+                    <span className="block text-sm text-ink-muted">{one.bankName} · •••• {one.lastFour}</span>
+                    <span className="block text-sm text-ink-muted">{accountKind(one.accountType)} · {one.currency}</span>
+                    {!one.mine && one.sharedBy && (
+                      <span className="block text-sm text-ink-muted">
+                        Shared by {one.sharedBy}
+                        {one.sharedByRelationship ? ` (${one.sharedByRelationship})` : ""}
+                      </span>
+                    )}
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="font-semibold text-ink tabular-nums">{balance(one.balance, one.currency)}</span>
+                    <AccessPill mine={one.mine} />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
                 <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
@@ -215,6 +240,7 @@ export function AccountsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
       {granting && <GrantDialog own={own} onClose={() => setGranting(false)} />}
