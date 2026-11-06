@@ -11,7 +11,9 @@
     "./ticket-status-label": "./src/ticket-status-label.ts",
     "./ticket-fields": "./src/ticket-fields.ts",
     "./support-view": "./src/support-view.ts",
-    "./support-view-banner": "./src/support-view-banner.tsx"
+    "./support-view-banner": "./src/support-view-banner.tsx",
+    "./money-words": "./src/money-words.ts",
+    "./proposal-legs": "./src/proposal-legs.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

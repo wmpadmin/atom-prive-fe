@@ -366,6 +366,28 @@ export interface TrailEntry {
   reference: string;
 }
 
+export interface PlannedLeg {
+  fromAssetClass: string;
+  /** @nullable */
+  fromSubClass: string | null;
+  /** @nullable */
+  fromSubSubClass: string | null;
+  toAssetClass: string;
+  /** @nullable */
+  toSubClass: string | null;
+  /** @nullable */
+  toSubSubClass: string | null;
+  amount: number;
+  /** @nullable */
+  heldWhenRaised: number | null;
+  heldNow: number;
+  figuresMoved: boolean;
+  landsOnHeldNow: number;
+  /** @nullable */
+  landsOnMayHold: number | null;
+  landsOnAskedByOthers: number;
+}
+
 export interface ClientProposalDetail {
   summary: ClientProposalRow;
   body: string;
@@ -379,6 +401,7 @@ export interface ClientProposalDetail {
   portfolioCurrency: string | null;
   relationshipManagers: string[];
   trail: TrailEntry[];
+  weighed: PlannedLeg[];
 }
 
 export interface Me {
