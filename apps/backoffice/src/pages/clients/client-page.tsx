@@ -1,6 +1,10 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  getReadClientAskQueryKey,
+  readClientAsk,
   useAskToDeactivate,
+  useKeepTheAccount,
+  type ClientAsk,
   getGetCustomerQueryKey,
   getListCustomersQueryKey,
   useGetCustomer,
@@ -10,7 +14,7 @@ import {
   type StaffMember,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, cn, Dialog, Field, TextArea } from "@atomprive/ui";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Briefcase, ChevronDown, ChevronLeft, LayoutGrid, PencilLine, UserRoundCog, UserX } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
@@ -127,6 +131,8 @@ export function ClientPage() {
   const [editing, setEditing] = useState(false);
   const [arranging, setArranging] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
+  // What the deactivation dialog opens with: empty from the header, the client's own words from their ask.
+  const [deactivateWhy, setDeactivateWhy] = useState("");
   /*
    * Off-boarding is offered again, and the other way round from how it was built. V75 wrote it as the
    * client's own asking, with thirty days they kept before the firm might act — and because nobody had
@@ -210,7 +216,7 @@ export function ClientPage() {
                 was never anywhere else. */}
             <GenerateReport detail={detail.data} />
             {canAskToDeactivate && (
-              <Button variant="secondary" size="sm" onClick={() => setDeactivating(true)}>
+              <Button variant="secondary" size="sm" onClick={() => { setDeactivateWhy(""); setDeactivating(true); }}>
                 <UserX aria-hidden="true" />
                 Request deactivation
               </Button>
@@ -228,6 +234,16 @@ export function ClientPage() {
             </div>
           </div>
         </div>
+        {canAskToDeactivate && (
+          <ClientAskBanner
+            clientId={client.id}
+            clientName={client.fullName}
+            onRaise={(why) => {
+              setDeactivateWhy(why);
+              setDeactivating(true);
+            }}
+          />
+        )}
         {/* Scrolls rather than wraps: a second row would break the line the tabs sit on. */}
         <div role="tablist" aria-label="Client file" className="flex gap-1 overflow-x-auto border-b border-line">
           {tabs.map((option) => (
@@ -341,6 +357,8 @@ export function ClientPage() {
       {tab === "deactivation" && <DeactivationTab customerId={client.id} clientName={client.fullName} />}
 
       <AskToDeactivate
+        key={deactivateWhy}
+        initialReason={deactivateWhy}
         open={deactivating}
         clientId={client.id}
         clientName={client.fullName}
@@ -482,14 +500,16 @@ function AskToDeactivate({
   open,
   clientId,
   clientName,
+  initialReason = "",
   onClose,
 }: {
   open: boolean;
   clientId: string;
   clientName: string;
+  initialReason?: string;
   onClose: () => void;
 }) {
-  const [why, setWhy] = useState("");
+  const [why, setWhy] = useState(initialReason);
   const queryClient = useQueryClient();
   const ask = useAskToDeactivate<ApiError>({
     mutation: {
@@ -548,5 +568,68 @@ function AskToDeactivate({
         </div>
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * The client asked, from their portal, for their account to be closed (S20). It waits here for whoever looks
+ * after them: raise the deactivation through the usual dialog, with their words carried in, or write down
+ * that they have changed their mind.
+ */
+function ClientAskBanner({ clientId, clientName, onRaise }: { clientId: string; clientName: string; onRaise: (why: string) => void }) {
+  const queryClient = useQueryClient();
+  const asked = useQuery<ClientAsk | null, ApiError>({
+    queryKey: getReadClientAskQueryKey(clientId),
+    queryFn: async ({ signal }) => (await readClientAsk(clientId, { signal })) ?? null,
+  });
+  const [keeping, setKeeping] = useState(false);
+  const [note, setNote] = useState("");
+  const keep = useKeepTheAccount<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        setKeeping(false);
+        setNote("");
+        void queryClient.invalidateQueries({ queryKey: getReadClientAskQueryKey(clientId) });
+      },
+    },
+  });
+  const ask = asked.data;
+  if (!ask) return null;
+  const on = new Date(ask.askedAt);
+  const day = on.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3.5">
+      <div className="min-w-0 text-sm">
+        <p>
+          <b>{clientName} asked to close their account</b>
+          <span className="text-ink-muted"> · {on.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}, from the portal</span>
+        </p>
+        {ask.reason && <p className="text-ink-muted">“{ask.reason}”</p>}
+      </div>
+      <div className="flex gap-2">
+        <Button variant="secondary" size="sm" onClick={() => setKeeping(true)}>They&rsquo;ve changed their mind</Button>
+        <Button size="sm" onClick={() => onRaise(`Client asked on ${day}${ask.reason ? `: ${ask.reason}` : "."}`)}>Ask for deactivation</Button>
+      </div>
+      <Dialog
+        open={keeping}
+        title={`${clientName} is keeping their account`}
+        description="Their request to close is taken off. Say in a line what was agreed; it stays on their record."
+        onClose={() => setKeeping(false)}
+      >
+        <div className="space-y-3">
+          {keep.error && <Alert tone="danger">{keep.error.message}</Alert>}
+          <Field id="keep-note" label="Note" required>
+            <TextArea id="keep-note" rows={3} maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Spoke to them on the phone; staying with the firm." />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setKeeping(false)}>Cancel</Button>
+            <Button disabled={!note.trim() || keep.isPending} onClick={() => keep.mutate({ customerId: clientId, data: { note: note.trim() } })}>
+              {keep.isPending ? "Saving…" : "Record it"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+    </div>
   );
 }

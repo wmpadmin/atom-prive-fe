@@ -1,17 +1,22 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  getMyClosureQueryKey,
   getMySecurityQueryKey,
+  useAskToClose,
   useChangeMyPassword,
   useEmailMyNewPhoneCode,
   useFinishMyNewPhone,
+  useMyClosure,
   useMySecurity,
   useSignOutMyDevice,
   useSignOutMyOtherDevices,
   useStartMyNewPhone,
+  useWithdrawMyClosure,
+  type MyClosure,
   type NewPhone,
   type SecurityView,
 } from "@atomprive/api-client/portal";
-import { Alert, Button, Dialog, Field, isStrongPassword, PasswordChecklist, PasswordInput } from "@atomprive/ui";
+import { Alert, Button, Dialog, Field, isStrongPassword, PasswordChecklist, PasswordInput, TextArea } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { day } from "./figures";
@@ -145,6 +150,8 @@ export function SecurityPage() {
               </table>
             )}
           </Panel>
+
+          <CloseAccount />
         </>
       )}
 
@@ -303,6 +310,85 @@ function NewPhoneDialog({ email, onClose, onMoved }: { email: string; onClose: (
             </div>
           </form>
         )}
+      </div>
+    </Dialog>
+  );
+}
+
+/**
+ * Asking the firm to close the account (S20). It goes to the client's relationship manager, who talks it
+ * through and raises it, so nothing closes from here; the client may take it back until it has been raised.
+ */
+function CloseAccount() {
+  const queryClient = useQueryClient();
+  const closure = useMyClosure<MyClosure, ApiError>();
+  const [asking, setAsking] = useState(false);
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: getMyClosureQueryKey() });
+  const withdraw = useWithdrawMyClosure<ApiError>({ mutation: { onSuccess: refresh } });
+  const data = closure.data;
+  if (!data) return null;
+  const manager = data.managerName ?? "your relationship manager";
+
+  return (
+    <section className={`overflow-hidden rounded-2xl border bg-white ${data.standing === "BEING_CLOSED" ? "border-line" : "border-red-200"}`}>
+      {withdraw.error && <div className="px-5 pt-4"><Alert tone="danger">{withdraw.error.message}</Alert></div>}
+      {data.standing === "NONE" && (
+        <Row
+          title="Close your account"
+          lead="Ask the firm to close your account. Your relationship manager will talk it through with you first."
+          action={<Button variant="danger-soft" onClick={() => setAsking(true)}>Ask to close my account</Button>}
+        />
+      )}
+      {data.standing === "ASKED" && (
+        <Row
+          title={<span className="flex items-center gap-2">Close your account <Waiting>Asked {data.askedAt ? day(data.askedAt) : ""}</Waiting></span>}
+          lead={data.managerName ? `With ${data.managerName}, your relationship manager, who will be in touch.` : "With your relationship manager, who will be in touch."}
+          action={<Button variant="secondary" disabled={withdraw.isPending} onClick={() => withdraw.mutate()}>Withdraw my request</Button>}
+        />
+      )}
+      {data.standing === "BEING_CLOSED" && (
+        <Row
+          title={<span className="flex items-center gap-2">Close your account <Waiting>Being closed</Waiting></span>}
+          lead={`${data.managerName ?? "Your relationship manager"} has asked the firm to close it. To stop it now, contact ${manager}.`}
+        />
+      )}
+      {asking && <CloseAccountDialog manager={data.managerName} onClose={() => setAsking(false)} onSent={() => { setAsking(false); refresh(); }} />}
+    </section>
+  );
+}
+
+function Waiting({ children }: { children: ReactNode }) {
+  return <span className="rounded-full bg-access-view-soft px-2 py-0.5 text-xs font-bold text-access-view-ink">{children}</span>;
+}
+
+function CloseAccountDialog({ manager, onClose, onSent }: { manager: string | null; onClose: () => void; onSent: () => void }) {
+  const [why, setWhy] = useState("");
+  const ask = useAskToClose<ApiError>({ mutation: { onSuccess: onSent } });
+  const who = manager ?? "your relationship manager";
+  return (
+    <Dialog
+      open
+      title="Ask to close your account?"
+      description={`This goes to ${manager ? `${manager}, your relationship manager` : "your relationship manager"}. Nothing closes yet.`}
+      onClose={onClose}
+    >
+      <div className="space-y-4">
+        {ask.error && <Alert tone="danger">{ask.error.message}</Alert>}
+        <ul className="list-disc space-y-1 pl-5 text-sm text-ink-soft">
+          <li>{manager ?? "Your relationship manager"} will contact you to talk it through.</li>
+          <li>You keep full access to your portal until the firm has closed the account.</li>
+          <li>Your records are kept, as the firm is required to.</li>
+        </ul>
+        <Field id="close-why" label="Why are you leaving? (optional)">
+          <TextArea id="close-why" rows={3} maxLength={2000} value={why} onChange={(event) => setWhy(event.target.value)} />
+        </Field>
+        <p className="text-xs text-ink-muted">You can take this back at any time before your relationship manager acts on it.</p>
+        <div className="flex justify-end gap-2.5">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="danger" disabled={ask.isPending} onClick={() => ask.mutate({ data: { reason: why.trim() || null } })}>
+            {ask.isPending ? "Sending…" : `Send to ${who}`}
+          </Button>
+        </div>
       </div>
     </Dialog>
   );
