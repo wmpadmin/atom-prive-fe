@@ -70,7 +70,7 @@ const SECRET_LABELS: Record<CredentialRequestSignIn, string> = {
   API_KEY: "API key",
 };
 
-function CredentialsForm({ bank, held, onClose }: { bank: BankView; held: CredentialView | null; onClose: () => void }) {
+function CredentialsForm({ bank, held, onClose }: { bank: Pick<BankView, "id" | "name" | "connectionType">; held: CredentialView | null; onClose: () => void }) {
   const sftp = bank.connectionType === "SFTP";
   const queryClient = useQueryClient();
   const [signIn, setSignIn] = useState<CredentialRequestSignIn>(held?.signIn ?? (sftp ? "SSH_KEY" : "OAUTH_CLIENT"));
