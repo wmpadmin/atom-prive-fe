@@ -10,7 +10,6 @@ import {
   type FamilyPerson,
   type LinePoint,
   type MyFamily,
-  type PortalFamilyWealth,
   type TopHolding,
   type ValueSlice,
   type WealthGrant,
@@ -283,7 +282,7 @@ export function FamilyWealthPage() {
   const [picked, setPicked] = useState<string>(FAMILY);
   const [sharing, setSharing] = useState(false);
   const family = useFamily<MyFamily, ApiError>();
-  const wealth = useFamilyWealth<PortalFamilyWealth, ApiError>({ period }, { query: { select: shownFamilyWealth } });
+  const wealth = useFamilyWealth<ReturnType<typeof shownFamilyWealth>, ApiError>({ period }, { query: { select: shownFamilyWealth } });
 
   const people = family.data?.people ?? [];
   const data = wealth.data;
