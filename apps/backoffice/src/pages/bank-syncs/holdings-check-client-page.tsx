@@ -113,6 +113,7 @@ export function HoldingsCheckClientPage() {
                 <th scope="col" className="px-3 py-3 text-right">Bank: units</th>
                 <th scope="col" className="px-3 py-3 text-right">Bank: price</th>
                 <th scope="col" className="px-3 py-3 text-right">Bank: value</th>
+                <th scope="col" className="px-3 py-3 text-right">Bank: accrued</th>
                 <th scope="col" className="px-3 py-3 text-right">File: units</th>
                 <th scope="col" className="px-3 py-3 text-right">File: value</th>
                 <th scope="col" className="px-3 py-3 text-right">Difference</th>
@@ -122,7 +123,7 @@ export function HoldingsCheckClientPage() {
             <tbody>
               {shown.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-5 py-8 text-center text-ink-muted">
+                  <td colSpan={10} className="px-5 py-8 text-center text-ink-muted">
                     {only === "differences" ? "No differences: every line the banks state matches the firm's file." : "Nothing here."}
                   </td>
                 </tr>
@@ -130,7 +131,7 @@ export function HoldingsCheckClientPage() {
               {groups.map((group) => (
                 <Fragment key={group}>
                   <tr className="border-b border-line bg-slate-50">
-                    <td colSpan={9} className="px-5 py-2 text-xs font-bold text-ink-soft">{group}</td>
+                    <td colSpan={10} className="px-5 py-2 text-xs font-bold text-ink-soft">{group}</td>
                   </tr>
                   {shown.filter((line) => line.group === group).map((line) => (
                     <Line key={(line.isin ?? line.name) + line.status} line={line} waitingToBePlaced={check.data.inUse.length > 0} />
@@ -162,6 +163,10 @@ function Line({ line, waitingToBePlaced }: { line: HoldingLine; waitingToBePlace
       <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
         {asSent(line.bankValue)}
         {line.bankCurrency && line.bankValue != null && <span className="ml-1 text-xs text-ink-muted">{line.bankCurrency}</span>}
+      </td>
+      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
+        {asSent(line.bankAccruedInterest)}
+        {line.bankCurrency && line.bankAccruedInterest != null && <span className="ml-1 text-xs text-ink-muted">{line.bankCurrency}</span>}
       </td>
       <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{figure(line.fileUnits)}</td>
       <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{line.fileValue == null ? "—" : whole(line.fileValue)}</td>
