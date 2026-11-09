@@ -41,7 +41,6 @@ export function HoldingsCheckClientPage() {
   const shown = only === "differences" ? differences : only === "matching" ? lines.filter((line) => line.status === "MATCHES") : lines;
   // Shown in groups, as the file groups them; a group is named once, above its first line.
   const groups = [...new Set(shown.map((line) => line.group))];
-  const share = summary.fileTotal === 0 ? null : (100 * summary.difference) / summary.fileTotal;
 
   return (
     <div className="space-y-5">
@@ -64,14 +63,9 @@ export function HoldingsCheckClientPage() {
           : <Badge tone="info">Compared, not used</Badge>}
       </header>
 
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Fact label="Bank says">{money(summary.bankTotal, summary.currency)}</Fact>
+      {/* No total of the bank's side: its holdings are each in their own currency, as the bank sent them. */}
+      <dl className="grid gap-3 sm:grid-cols-2">
         <Fact label="Firm's file">{money(summary.fileTotal, summary.currency)}</Fact>
-        <Fact label="Difference">
-          <span className={summary.difference === 0 ? "" : "text-red-600"}>
-            {summary.difference === 0 ? "None" : `${signed(summary.difference)}${share === null ? "" : ` (${Math.abs(share).toFixed(2)}%)`}`}
-          </span>
-        </Fact>
         <Fact label="Lines">
           {[`${summary.matching} match`, summary.differing && `${summary.differing} differ`,
             summary.onlyAtBank && `${summary.onlyAtBank} only at bank`, summary.notAtBank && `${summary.notAtBank} not at bank`]
@@ -163,10 +157,10 @@ function Line({ line, waitingToBePlaced }: { line: HoldingLine; waitingToBePlace
         {line.isin && <div className="font-mono text-xs text-ink-muted">{line.isin}</div>}
       </td>
       <td className="px-3 py-3 whitespace-nowrap">{line.accounts.join(", ") || "—"}</td>
-      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{figure(line.bankUnits)}</td>
-      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{figure(line.bankPrice, 2)}</td>
+      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{asSent(line.bankUnits)}</td>
+      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{asSent(line.bankPrice)}</td>
       <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
-        {line.bankValue == null ? "—" : whole(line.bankValue)}
+        {asSent(line.bankValue)}
         {line.bankCurrency && line.bankValue != null && <span className="ml-1 text-xs text-ink-muted">{line.bankCurrency}</span>}
       </td>
       <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{figure(line.fileUnits)}</td>
@@ -175,7 +169,10 @@ function Line({ line, waitingToBePlaced }: { line: HoldingLine; waitingToBePlace
         {line.unitsDifference != null && line.unitsDifference !== 0 && (
           <div>{signed(line.unitsDifference)} units</div>
         )}
-        {line.valueDifference === 0 ? "—" : signed(line.valueDifference)}
+        {line.status === "ONLY_AT_BANK" && line.bankValue != null
+          // Nothing on the file to set it against: the difference is the bank's own figure, in its own currency.
+          ? <>{line.bankValue > 0 ? "+" : ""}{asSent(line.bankValue)}<span className="ml-1 text-xs">{line.bankCurrency}</span></>
+          : line.valueDifference === 0 ? "—" : signed(line.valueDifference)}
       </td>
       <td className="py-3 pr-5 pl-3">
         <Badge tone={status.tone}>{status.label}</Badge>
@@ -188,6 +185,11 @@ function Line({ line, waitingToBePlaced }: { line: HoldingLine; waitingToBePlace
 /** A value as the rest of the screen writes it: whole units of money. */
 function whole(value: number) {
   return value.toLocaleString("en-US", { maximumFractionDigits: 0 });
+}
+
+/** A bank's figure exactly as it sent it: every decimal it gave, none added, nothing rounded. */
+function asSent(value: number | null | undefined) {
+  return value == null ? "—" : value.toLocaleString("en-US", { maximumFractionDigits: 8 });
 }
 
 function figure(value: number | null | undefined, places = 0) {
