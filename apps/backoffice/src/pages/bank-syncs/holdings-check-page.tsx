@@ -13,7 +13,7 @@ import { Link, useSearchParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { BankUse } from "./bank-use";
-import { money, signed } from "./holdings-words";
+import { money } from "./holdings-words";
 
 /**
  * Holdings check (P10): what each bank says a client holds, beside the firm's file. Compared, never used — clients
@@ -109,9 +109,8 @@ export function HoldingsCheckPage() {
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-3 pr-4 pl-5">Client</th>
                 <th scope="col" className="px-4 py-3">Bank</th>
-                <th scope="col" className="px-4 py-3 text-right">Bank says</th>
+                {/* No total of the bank's side: its holdings are each in their own currency, as the bank sent them. */}
                 <th scope="col" className="px-4 py-3 text-right">Firm's file</th>
-                <th scope="col" className="px-4 py-3 text-right">Difference</th>
                 <th scope="col" className="px-4 py-3">Lines</th>
                 <th scope="col" className="px-4 py-3">As of</th>
                 <th scope="col" className="py-3 pr-5 pl-4" />
@@ -120,12 +119,12 @@ export function HoldingsCheckPage() {
             <tbody className="divide-y divide-line">
               {!data && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-ink-muted">Comparing holdings…</td>
+                  <td colSpan={6} className="px-5 py-8 text-center text-ink-muted">Comparing holdings…</td>
                 </tr>
               )}
               {data && rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-ink-muted">
+                  <td colSpan={6} className="px-5 py-8 text-center text-ink-muted">
                     {all.length === 0
                       ? "No bank has sent a client's holdings yet. They arrive with a bank's statement of positions."
                       : "Nothing here."}
@@ -141,12 +140,7 @@ export function HoldingsCheckPage() {
                     <div className="text-xs text-ink-muted">{row.clientCode}</div>
                   </td>
                   <td className="px-4 py-3">{row.banks.join(", ")}</td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{money(row.bankTotal, row.currency)}</td>
                   <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{money(row.fileTotal, row.currency)}</td>
-                  <td className={cn("px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums",
-                    row.difference === 0 ? "text-ink-muted" : "text-red-600")}>
-                    {row.difference === 0 ? "—" : signed(row.difference)}
-                  </td>
                   <td className="px-4 py-3">
                     <LineCounts row={row} />
                   </td>
