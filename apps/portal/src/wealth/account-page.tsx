@@ -36,7 +36,7 @@ export function AccountPage() {
   const sees = (permissions.data?.given ?? []).filter((one) => one.live && one.bankAccountId === account.id);
   const wanted = search.trim().toLowerCase();
   const shown = lines.filter(
-    (one) => (!wanted || one.description.toLowerCase().includes(wanted)) && (!from || one.bookedOn >= from) && (!to || one.bookedOn <= to),
+    (one) => (!wanted || `${one.type ?? ""} ${one.description}`.toLowerCase().includes(wanted)) && (!from || one.bookedOn >= from) && (!to || one.bookedOn <= to),
   );
   const moneyIn = shown.filter((one) => one.amount > 0).reduce((sum, one) => sum + one.amount, 0);
   const moneyOut = shown.filter((one) => one.amount < 0).reduce((sum, one) => sum + one.amount, 0);
@@ -93,6 +93,7 @@ export function AccountPage() {
                   <thead>
                     <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
                       <th scope="col" className="py-3 pr-4 pl-3">Date</th>
+                      <th scope="col" className="px-4 py-3">Type</th>
                       <th scope="col" className="px-4 py-3">Description</th>
                       <th scope="col" className="py-3 pr-3 pl-4 text-right">Amount</th>
                     </tr>
@@ -104,6 +105,7 @@ export function AccountPage() {
                       return (
                         <tr key={`${one.bookedOn}-${index}`}>
                           <td className="px-3 py-2.5 whitespace-nowrap text-ink-soft">{when(one.bookedOn)}</td>
+                          <td className="px-3 py-2.5 whitespace-nowrap text-ink-soft">{one.type ?? "—"}</td>
                           <td className="px-3 py-2.5">
                             <span className="flex items-center gap-2 text-ink">
                               <Icon aria-hidden="true" className={`size-4 shrink-0 ${into ? "text-access-full-ink" : "text-orange-600"}`} />

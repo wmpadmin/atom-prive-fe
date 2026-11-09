@@ -2864,6 +2864,24 @@ export interface BankView {
   lastSyncAt: string | null;
 }
 
+export interface BankKeyRequest {
+  /**
+     * @minLength 0
+     * @maxLength 20000
+     */
+  publicKey: string;
+}
+
+export interface FileKeysView {
+  bankId: string;
+  publicKey: string;
+  keyFingerprint: string;
+  /** @nullable */
+  bankKeyFingerprint: string | null;
+  setAt: string;
+  setBy: string;
+}
+
 export type CredentialRequestSignIn = typeof CredentialRequestSignIn[keyof typeof CredentialRequestSignIn];
 
 
@@ -7423,6 +7441,8 @@ export interface HoldingLine {
   bankValue: number | null;
   /** @nullable */
   bankCurrency: string | null;
+  /** @nullable */
+  bankAccruedInterest: number | null;
   /** @nullable */
   bankValueConverted: number | null;
   /** @nullable */
@@ -14189,6 +14209,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdateSupportedBankMutationOptions(options), queryClient);
+    }
+
+export const getSetBankSigningKeyUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/config/banks/${bankId}/file-keys/bank-key`
+}
+
+export const setBankSigningKey = async (bankId: string,
+    bankKeyRequest: BankKeyRequest, options?: Parameters<typeof http>[1]): Promise<FileKeysView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<FileKeysView>(getSetBankSigningKeyUrl(bankId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bankKeyRequest)
+  }
+);}
+
+
+
+
+
+export const getSetBankSigningKeyMutationKey = () => ['setBankSigningKey'] as const;
+
+export const getSetBankSigningKeyMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setBankSigningKey>>, TError,SetBankSigningKeyMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof setBankSigningKey>>, TError,SetBankSigningKeyMutationVariables, TContext> => {
+
+const mutationKey = getSetBankSigningKeyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setBankSigningKey>>, SetBankSigningKeyMutationVariables> = (props) => {
+          const {bankId,data} = props ?? {};
+
+          return  setBankSigningKey(bankId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetBankSigningKeyMutationResult = NonNullable<Awaited<ReturnType<typeof setBankSigningKey>>>
+    export type SetBankSigningKeyMutationBody = BankKeyRequest
+    export type SetBankSigningKeyMutationError = unknown
+    export type SetBankSigningKeyMutationVariables = {bankId: string;data: BankKeyRequest}
+
+    export const useSetBankSigningKey = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setBankSigningKey>>, TError,SetBankSigningKeyMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setBankSigningKey>>,
+        TError,
+        SetBankSigningKeyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetBankSigningKeyMutationOptions(options), queryClient);
     }
 
 export const getBankCredentialsUrl = (bankId: string,) => {
@@ -26988,6 +27091,169 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDisableSupportedBankMutationOptions(options), queryClient);
+    }
+
+export const getBankFileKeysUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/config/banks/${bankId}/file-keys`
+}
+
+export const bankFileKeys = async (bankId: string, options?: Parameters<typeof http>[1]): Promise<FileKeysView> => {
+
+  return http<FileKeysView>(getBankFileKeysUrl(bankId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getBankFileKeysQueryKey = (bankId: string,) => {
+    return [
+    `/api/backoffice/config/banks/${bankId}/file-keys`
+    ] as const;
+    }
+
+
+export const getBankFileKeysQueryOptions = <TData = Awaited<ReturnType<typeof bankFileKeys>>, TError = unknown>(bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankFileKeys>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getBankFileKeysQueryKey(bankId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof bankFileKeys>>> = ({ signal }) => bankFileKeys(bankId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bankId !== null && bankId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof bankFileKeys>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type BankFileKeysQueryResult = NonNullable<Awaited<ReturnType<typeof bankFileKeys>>>
+export type BankFileKeysQueryError = unknown
+
+
+export function useBankFileKeys<TData = Awaited<ReturnType<typeof bankFileKeys>>, TError = unknown>(
+ bankId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankFileKeys>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof bankFileKeys>>,
+          TError,
+          Awaited<ReturnType<typeof bankFileKeys>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useBankFileKeys<TData = Awaited<ReturnType<typeof bankFileKeys>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankFileKeys>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof bankFileKeys>>,
+          TError,
+          Awaited<ReturnType<typeof bankFileKeys>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useBankFileKeys<TData = Awaited<ReturnType<typeof bankFileKeys>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankFileKeys>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useBankFileKeys<TData = Awaited<ReturnType<typeof bankFileKeys>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bankFileKeys>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getBankFileKeysQueryOptions(bankId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMakeBankFileKeysUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/config/banks/${bankId}/file-keys`
+}
+
+export const makeBankFileKeys = async (bankId: string, options?: Parameters<typeof http>[1]): Promise<FileKeysView> => {
+
+  return http<FileKeysView>(getMakeBankFileKeysUrl(bankId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMakeBankFileKeysMutationKey = () => ['makeBankFileKeys'] as const;
+
+export const getMakeBankFileKeysMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof makeBankFileKeys>>, TError,MakeBankFileKeysMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof makeBankFileKeys>>, TError,MakeBankFileKeysMutationVariables, TContext> => {
+
+const mutationKey = getMakeBankFileKeysMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof makeBankFileKeys>>, MakeBankFileKeysMutationVariables> = (props) => {
+          const {bankId} = props ?? {};
+
+          return  makeBankFileKeys(bankId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MakeBankFileKeysMutationResult = NonNullable<Awaited<ReturnType<typeof makeBankFileKeys>>>
+
+    export type MakeBankFileKeysMutationError = unknown
+    export type MakeBankFileKeysMutationVariables = {bankId: string}
+
+    export const useMakeBankFileKeys = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof makeBankFileKeys>>, TError,MakeBankFileKeysMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof makeBankFileKeys>>,
+        TError,
+        MakeBankFileKeysMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMakeBankFileKeysMutationOptions(options), queryClient);
     }
 
 export const getTestBankConnectionUrl = (bankId: string,) => {

@@ -1362,6 +1362,8 @@ export interface PortalDashboard {
 
 export interface StatementLine {
   bookedOn: string;
+  /** @nullable */
+  type: string | null;
   description: string;
   amount: number;
   currency: string;

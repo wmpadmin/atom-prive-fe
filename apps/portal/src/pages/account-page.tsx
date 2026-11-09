@@ -75,6 +75,7 @@ export function AccountPage() {
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-2xs font-semibold tracking-wider text-slate-500 uppercase">
                 <th className="px-6 py-2.5 text-left">Date</th>
+                <th className="px-4 py-2.5 text-left">Type</th>
                 <th className="px-4 py-2.5 text-left">Description</th>
                 <th className="px-6 py-2.5 text-right">Amount</th>
               </tr>
@@ -83,6 +84,7 @@ export function AccountPage() {
               {lines.map((line, at) => (
                 <tr key={`${line.bookedOn}-${at}`} className="border-b border-slate-50 text-sm last:border-0">
                   <td className="px-6 py-3 whitespace-nowrap text-slate-500">{when(line.bookedOn)}</td>
+                  <td className="px-4 py-3 text-slate-500">{line.type ?? "—"}</td>
                   <td className="px-4 py-3 text-slate-800">{line.description}</td>
                   <td
                     className={`px-6 py-3 text-right font-semibold tabular-nums ${
