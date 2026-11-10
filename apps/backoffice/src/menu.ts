@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   LayoutGrid,
   ArrowLeftRight,
+  BookUser,
   BellRing,
   ClipboardCheck,
   UserMinus,
@@ -225,6 +226,16 @@ const allNavigation: {
     to: "/book-overview",
     label: "Book Overview",
     icon: LayoutGrid,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
+  },
+  {
+    // The same clients as the Book Overview, one by one: a card or a row each, with filters, and the book broken
+    // down by segment, region, mandate and relationship manager. Its own name, because "Clients" is already
+    // the portfolio desk's list of portfolios further down.
+    to: "/client-directory",
+    label: "Client Directory",
+    icon: BookUser,
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
   },

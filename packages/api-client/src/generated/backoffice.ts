@@ -1263,6 +1263,9 @@ export interface PortfolioStanding {
   riskMatch: RiskMatch | null;
   exclusions: HeldExclusions | null;
   earned: ClientReturn | null;
+  /** @nullable */
+  bandUsedPercent: number | null;
+  nearEdge: boolean;
 }
 
 export type LoanRequestSecuredOn = typeof LoanRequestSecuredOn[keyof typeof LoanRequestSecuredOn];
@@ -1853,14 +1856,13 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
-  string?: boolean;
   nodeType?: JsonNodeNodeType;
+  string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1872,6 +1874,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -8046,6 +8049,126 @@ export interface ComplianceDashboard {
   declarations: ComplianceWaiting[];
 }
 
+export interface BookAumPoint {
+  on: string;
+  amount: number;
+}
+
+export interface BookCurrencyAmount {
+  currency: string;
+  amount: number;
+}
+
+export interface DirectorySegmentCount {
+  /** @nullable */
+  segment: string | null;
+  clients: number;
+}
+
+export interface DirectoryKpis {
+  clients: number;
+  segments: DirectorySegmentCount[];
+  totalAum: number;
+  /** @nullable */
+  averageAum: number | null;
+  /** @nullable */
+  medianAum: number | null;
+  outperforming: number;
+  measured: number;
+  reviewsOverdue: number;
+  reviewsScheduled: number;
+  deviations: number;
+  nearEdge: number;
+  prospects: number;
+  prospectValue: number;
+  prospectsValued: number;
+}
+
+export interface DirectoryNamed {
+  customerId: string;
+  name: string;
+  count: number;
+  /** @nullable */
+  on: string | null;
+}
+
+export interface DirectoryAttention {
+  deviations: DirectoryNamed[];
+  reviewsOverdue: DirectoryNamed[];
+  dataDelayed: DirectoryNamed[];
+  kycDue: DirectoryNamed[];
+}
+
+export interface DirectoryBankFile {
+  banks: string[];
+  /** @nullable */
+  asOf: string | null;
+  holdings: BookCurrencyAmount[];
+}
+
+export interface DirectoryClient {
+  customerId: string;
+  code: string;
+  name: string;
+  customerType: string;
+  /** @nullable */
+  segment: string | null;
+  /** @nullable */
+  city: string | null;
+  /** @nullable */
+  country: string | null;
+  region: string;
+  /** @nullable */
+  status: string | null;
+  /** @nullable */
+  aum: number | null;
+  trend: BookAumPoint[];
+  /** @nullable */
+  yearToDate: number | null;
+  /** @nullable */
+  versusBenchmark: number | null;
+  entities: number;
+  /** @nullable */
+  mandate: string | null;
+  portfolioManagers: string[];
+  /** @nullable */
+  relationshipManager: string | null;
+  /** @nullable */
+  nextReviewOn: string | null;
+  bankFile: DirectoryBankFile | null;
+}
+
+export interface DirectorySlice {
+  key: string;
+  name: string;
+  clients: number;
+  aum: number;
+  sharePercent: number;
+}
+
+export interface DirectoryMandate {
+  name: string;
+  clients: number;
+  aum: number;
+  /** @nullable */
+  averageYearToDate: number | null;
+  /** @nullable */
+  averageVersusBenchmark: number | null;
+}
+
+export interface ClientDirectory {
+  currency: string;
+  asOf: string;
+  kpis: DirectoryKpis;
+  attention: DirectoryAttention;
+  clients: DirectoryClient[];
+  bySegment: DirectorySlice[];
+  byRegion: DirectorySlice[];
+  byMandate: DirectoryMandate[];
+  byRelationshipManager: DirectorySlice[];
+  bankFileClients: string[];
+}
+
 export interface BookAccountsKpi {
   entities: number;
   accounts: number;
@@ -8075,16 +8198,6 @@ export interface BookAumKpi {
   yearToDateChange: number | null;
   counted: number;
   clients: number;
-}
-
-export interface BookAumPoint {
-  on: string;
-  amount: number;
-}
-
-export interface BookCurrencyAmount {
-  currency: string;
-  amount: number;
 }
 
 export interface BookBankFile {
@@ -9338,6 +9451,10 @@ days?: number;
 
 export type GetComplianceDashboardParams = {
 days?: number;
+};
+
+export type GetClientDirectoryParams = {
+currency?: string;
 };
 
 export type GetBookOverviewParams = {
@@ -39277,6 +39394,108 @@ export function useGetComplianceDashboard<TData = Awaited<ReturnType<typeof getC
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetComplianceDashboardQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientDirectoryUrl = (params?: GetClientDirectoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/dashboard/client-directory?${stringifiedParams}` : `/api/backoffice/dashboard/client-directory`
+}
+
+export const getClientDirectory = async (params?: GetClientDirectoryParams, options?: Parameters<typeof http>[1]): Promise<ClientDirectory> => {
+
+  return http<ClientDirectory>(getGetClientDirectoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientDirectoryQueryKey = (params?: GetClientDirectoryParams,) => {
+    return [
+    `/api/backoffice/dashboard/client-directory`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetClientDirectoryQueryOptions = <TData = Awaited<ReturnType<typeof getClientDirectory>>, TError = unknown>(params?: GetClientDirectoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientDirectory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientDirectoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientDirectory>>> = ({ signal }) => getClientDirectory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientDirectory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientDirectoryQueryResult = NonNullable<Awaited<ReturnType<typeof getClientDirectory>>>
+export type GetClientDirectoryQueryError = unknown
+
+
+export function useGetClientDirectory<TData = Awaited<ReturnType<typeof getClientDirectory>>, TError = unknown>(
+ params: undefined |  GetClientDirectoryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientDirectory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientDirectory>>,
+          TError,
+          Awaited<ReturnType<typeof getClientDirectory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientDirectory<TData = Awaited<ReturnType<typeof getClientDirectory>>, TError = unknown>(
+ params?: GetClientDirectoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientDirectory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientDirectory>>,
+          TError,
+          Awaited<ReturnType<typeof getClientDirectory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientDirectory<TData = Awaited<ReturnType<typeof getClientDirectory>>, TError = unknown>(
+ params?: GetClientDirectoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientDirectory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientDirectory<TData = Awaited<ReturnType<typeof getClientDirectory>>, TError = unknown>(
+ params?: GetClientDirectoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientDirectory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientDirectoryQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
