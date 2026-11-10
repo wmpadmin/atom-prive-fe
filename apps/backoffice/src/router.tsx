@@ -68,6 +68,8 @@ import { ModelDetailPage } from "./pages/portfolios/model-detail-page";
 import { ManagementInformationPage } from "./pages/portfolios/management-information-page";
 import { BookOverviewPage } from "./pages/portfolios/book-overview-page";
 import { ClientDirectoryPage } from "./pages/portfolios/client-directory-page";
+import { ClientWorkspaceLayout } from "./pages/client-workspace/client-workspace-layout";
+import { ClientOverviewPage } from "./pages/client-workspace/client-overview-page";
 import { PortfolioReportsPage } from "./pages/portfolios/reports-page";
 import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-page";
 import { ModelPerformancePage } from "./pages/portfolios/model-performance-page";
@@ -412,6 +414,12 @@ export const router = createBrowserRouter([
               { path: "book-overview", element: <BookOverviewPage /> },
               // The same clients one by one, as a directory.
               { path: "client-directory", element: <ClientDirectoryPage /> },
+              // One client's workspace: its own side menu of the screens built for it, opened on the Overview.
+              {
+                path: "client-workspace/:customerId",
+                element: <ClientWorkspaceLayout />,
+                children: [{ index: true, element: <ClientOverviewPage /> }],
+              },
               { path: "book", element: <ClientListPage /> },
               {
                 path: "book/:customerId",

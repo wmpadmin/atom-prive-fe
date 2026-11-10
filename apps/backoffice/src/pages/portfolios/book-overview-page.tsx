@@ -404,7 +404,7 @@ function ClientBookCard({ data }: { data: BookOverview }) {
   );
   const largestShare = Math.max(1, ...rows.map((one) => one.sharePercent ?? 0));
   const on = (id: ColumnId) => !hidden.has(id);
-  const open = (row: BookOverviewClient) => navigate(`/book/${row.customerId}`);
+  const open = (row: BookOverviewClient) => navigate(`/client-workspace/${row.customerId}`);
 
   return (
     <Card title="Client Book" lead={`Showing ${shown.length} of ${rows.length} clients · sorted by AUM`}
@@ -466,7 +466,7 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                         {row.name.charAt(0)}
                       </span>
                       <span>
-                        <Link to={`/book/${row.customerId}`} onClick={(event) => event.stopPropagation()}
+                        <Link to={`/client-workspace/${row.customerId}`} onClick={(event) => event.stopPropagation()}
                           className="font-semibold whitespace-nowrap hover:text-primary-700 hover:underline">
                           {row.name}
                         </Link>
@@ -634,7 +634,7 @@ function AlertQueue({ alerts }: { alerts: BookAlert[] }) {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">
                   {one.customerId ? (
-                    <Link to={`/book/${one.customerId}`} className="hover:text-primary-700 hover:underline">{one.subject}</Link>
+                    <Link to={`/client-workspace/${one.customerId}`} className="hover:text-primary-700 hover:underline">{one.subject}</Link>
                   ) : one.subject}
                 </p>
                 <p className="text-xs text-ink-muted">{one.detail}</p>
@@ -667,7 +667,7 @@ function NextThirtyDays({ upcoming }: { upcoming: BookUpcoming[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">
                     {one.title} ·{" "}
-                    <Link to={`/book/${one.customerId}`} className="hover:text-primary-700 hover:underline">{one.clientName}</Link>
+                    <Link to={`/client-workspace/${one.customerId}`} className="hover:text-primary-700 hover:underline">{one.clientName}</Link>
                   </p>
                   {one.detail && <p className="truncate text-xs text-ink-muted">{one.detail}</p>}
                 </div>
