@@ -70,6 +70,7 @@ import { BookOverviewPage } from "./pages/portfolios/book-overview-page";
 import { ClientDirectoryPage } from "./pages/portfolios/client-directory-page";
 import { ClientWorkspaceLayout } from "./pages/client-workspace/client-workspace-layout";
 import { ClientOverviewPage } from "./pages/client-workspace/client-overview-page";
+import { ClientStructurePage } from "./pages/client-workspace/client-structure-page";
 import { PortfolioReportsPage } from "./pages/portfolios/reports-page";
 import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-page";
 import { ModelPerformancePage } from "./pages/portfolios/model-performance-page";
@@ -418,7 +419,10 @@ export const router = createBrowserRouter([
               {
                 path: "client-workspace/:customerId",
                 element: <ClientWorkspaceLayout />,
-                children: [{ index: true, element: <ClientOverviewPage /> }],
+                children: [
+                  { index: true, element: <ClientOverviewPage /> },
+                  { path: "structure", element: <ClientStructurePage /> },
+                ],
               },
               { path: "book", element: <ClientListPage /> },
               {

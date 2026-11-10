@@ -60,15 +60,23 @@ export function ClientOverviewPage() {
             <BandsCard data={data} />
             <PerformanceCard data={data} />
           </div>
-          <div className="grid gap-4 xl:grid-cols-[1fr_1.4fr]">
+          {/* Paired by height, as the design pairs them: two short cards, two long ones, then two lists. */}
+          <div className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
             <LiquidityCard data={data} />
-            <TopPositionsCard data={data} />
+            <HoldingEntitiesCard data={data} />
           </div>
-          <CashFlowCard data={data} />
+          <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+            <TopPositionsCard data={data} />
+            <CashFlowCard data={data} />
+          </div>
+          <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+            <LookThroughCard data={data} />
+            <AlertsAndNotes data={data} />
+          </div>
         </>
       )}
 
-      <AlertsAndNotes data={data} />
+      {file && <AlertsAndNotes data={data} />}
 
       <p className="text-xs text-ink-muted">
         {file
@@ -244,14 +252,15 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
 }
 
 function AllocationCard({ data }: { data: ClientWorkspace }) {
-  const [by, setBy] = useState<"class" | "currency">("class");
-  const slices = by === "class" ? data.byAssetClass : data.byCurrency;
+  const [by, setBy] = useState<"class" | "entity" | "currency">("class");
+  const slices = by === "class" ? data.byAssetClass : by === "entity" ? data.byEntity : data.byCurrency;
   const total = slices.reduce((sum, one) => sum + one.amount, 0);
   return (
     <Card title="Asset Allocation"
-      action={<Toggle label="Broken down by" value={by} onChange={setBy} options={[["class", "Asset class"], ["currency", "Currency"]]} />}>
+      action={<Toggle label="Broken down by" value={by} onChange={setBy} options={[["class", "Asset class"], ["entity", "Entity"], ["currency", "Currency"]]} />}>
       <Donut slices={slices} currency={data.currency} centre={compact(total, data.currency)}
-        centreLabel={by === "class" ? "Gross assets" : "Holdings"} />
+        centreLabel={by === "currency" ? "Holdings" : "Gross assets"} />
+      {by === "entity" && <p className="mt-2 text-3xs text-ink-muted italic">Each top-level entity at look-through value; what no entity holds is a slice of its own.</p>}
       {by === "currency" && <p className="mt-2 text-3xs text-ink-muted italic">The portfolio's lines by the currency each is exposed to; what is owned outright is not in it.</p>}
     </Card>
   );
@@ -517,7 +526,7 @@ function CashFlowCard({ data }: { data: ClientWorkspace }) {
   }, [data.cashFlowMonths, data.currency]);
   return (
     <Card title="Projected Cash Flows · 12 Months" lead="Coupons, dividends, distributions, maturities, capital calls, running costs">
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+      <div className="space-y-3">
         {data.cashFlows.length === 0 ? <Empty>Nothing expected in the next twelve months.</Empty> : (
           <Chart option={option} height={220} label="Money expected in and out each month for the next twelve" />
         )}
@@ -531,6 +540,65 @@ function CashFlowCard({ data }: { data: ClientWorkspace }) {
           ))}
         </ul>
       </div>
+    </Card>
+  );
+}
+
+function HoldingEntitiesCard({ data }: { data: ClientWorkspace }) {
+  const largest = Math.max(1, ...data.holdingEntities.map((one) => one.value));
+  return (
+    <Card title="Holding Entities" lead="Top-level ownership · subsidiaries rolled up"
+      action={<Link to={`/client-workspace/${data.customerId}/structure`} className="text-xs font-semibold text-primary-700 hover:underline">Structure</Link>}>
+      {data.holdingEntities.length === 0 ? <Empty>No entity is on file for this client yet.</Empty> : (
+        <ul className="divide-y divide-line">
+          {data.holdingEntities.map((one) => (
+            <li key={one.id} className="grid grid-cols-[1fr_6rem_5rem] items-center gap-3 py-2.5">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{one.name}</p>
+                <p className="truncate text-xs text-ink-muted">{one.jurisdiction}{one.description && ` · ${one.description}`}</p>
+              </div>
+              <span className="block h-1.5 rounded-full bg-slate-100" aria-hidden="true">
+                <span className="block h-full rounded-full bg-primary-600" style={{ width: `${(one.value / largest) * 100}%` }} />
+              </span>
+              <span className="text-right text-sm font-semibold tabular-nums">{compact(one.value, data.currency)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function LookThroughCard({ data }: { data: ClientWorkspace }) {
+  const people = data.beneficialLookThrough;
+  return (
+    <Card title="Beneficial Look-through" lead="Economic interest after trust and entity look-through">
+      {people.length === 0 ? <Empty>No beneficiary is on file for this client yet.</Empty> : (
+        <>
+          <div className="flex h-3 w-full overflow-hidden rounded-sm bg-slate-100" aria-hidden="true">
+            {people.map((one, at) => (
+              <span key={one.id} style={{ width: `${one.sharePercent}%`, background: INK[at % INK.length] }} />
+            ))}
+          </div>
+          <ul className="mt-3 divide-y divide-line">
+            {people.map((one) => (
+              <li key={one.id} className="flex items-center gap-3 py-2">
+                <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary-50 text-sm font-bold text-primary-700" aria-hidden="true">
+                  {one.name.charAt(0)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{one.name}</p>
+                  <p className="text-xs text-ink-muted">{one.generation ?? (one.kind === "CHARITY" ? "Charitable" : "—")}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold tabular-nums">{compact(one.value, data.currency)}</p>
+                  <p className="text-xs text-ink-muted tabular-nums">{one.sharePercent.toFixed(1)}%</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </Card>
   );
 }

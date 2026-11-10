@@ -1,9 +1,9 @@
-import { LayoutDashboard, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Network, type LucideIcon } from "lucide-react";
 
 /**
  * The screens of a client's workspace, in the order its side menu lists them.
  *
- * <p>Only the screens that are built. The firm's design has ten — Entity Structure, IPS Monitoring, Consolidated
+ * <p>Only the screens that are built. The firm's design has ten — IPS Monitoring, Consolidated
  * Holdings, Performance & Attribution, Risk & Exposure, Equity, Fixed Income, Private Markets, Collectibles — and
  * each joins this list, and the router, the day it is built: a menu entry that leads nowhere is worse than none.
  *
@@ -14,6 +14,7 @@ export type WorkspaceScreen = { id: string; label: string; path: string; icon: L
 
 export const WORKSPACE_SCREENS: WorkspaceScreen[] = [
   { id: "overview", label: "Overview", path: "", icon: LayoutDashboard },
+  { id: "structure", label: "Entity Structure", path: "structure", icon: Network },
 ];
 
 /** Where one client's workspace opens. */

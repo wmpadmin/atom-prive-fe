@@ -8743,6 +8743,27 @@ export interface WorkspaceBankFile {
   movements: WorkspaceFileMovement[];
 }
 
+export interface WorkspaceEntity {
+  id: string;
+  name: string;
+  type: string;
+  jurisdiction: string;
+  /** @nullable */
+  description: string | null;
+  value: number;
+  sharePercent: number;
+}
+
+export interface StructureBeneficiary {
+  id: string;
+  name: string;
+  /** @nullable */
+  generation: string | null;
+  kind: string;
+  value: number;
+  sharePercent: number;
+}
+
 export interface ClientWorkspace {
   customerId: string;
   code: string;
@@ -8769,6 +8790,143 @@ export interface ClientWorkspace {
   alerts: WorkspaceAlert[];
   notes: WorkspaceNote[];
   bankFile: WorkspaceBankFile | null;
+  holdingEntities: WorkspaceEntity[];
+  beneficialLookThrough: StructureBeneficiary[];
+  byEntity: WorkspaceSlice[];
+}
+
+export interface StructureCount {
+  name: string;
+  count: number;
+}
+
+export interface StructureGovernance {
+  dueOn: string;
+  kind: string;
+  title: string;
+  /** @nullable */
+  entity: string | null;
+  status: string;
+}
+
+export interface StructureKpis {
+  legalEntities: number;
+  byType: StructureCount[];
+  jurisdictions: string[];
+  beneficiaries: number;
+  generations: number;
+  charities: number;
+  trusteesAndDirectors: number;
+  corporateTrustees: number;
+  directors: number;
+  refreshDue: StructureGovernance[];
+  kycPapersExpiring: number;
+}
+
+export interface StructureOfficer {
+  name: string;
+  role: string;
+  corporate: boolean;
+}
+
+export interface StructureNode {
+  id: string;
+  name: string;
+  type: string;
+  jurisdiction: string;
+  /** @nullable */
+  ownedPercent: number | null;
+  /** @nullable */
+  taxClassification: string | null;
+  /** @nullable */
+  description: string | null;
+  value: number;
+  direct: number;
+  custodians: string[];
+  officers: StructureOfficer[];
+  children: StructureNode[];
+}
+
+export interface StructureSlice {
+  key: string;
+  name: string;
+  value: number;
+  sharePercent: number;
+}
+
+export interface StructureHoldings {
+  value: number;
+  byClass: StructureSlice[];
+}
+
+export interface StructureRegisterRow {
+  id: string;
+  name: string;
+  type: string;
+  jurisdiction: string;
+  /** @nullable */
+  parent: string | null;
+  /** @nullable */
+  ownedPercent: number | null;
+  /** @nullable */
+  taxClassification: string | null;
+  officers: StructureOfficer[];
+  custodians: string[];
+  value: number;
+  depth: number;
+}
+
+export interface StructureInterestRow {
+  entityId: string;
+  entity: string;
+  cells: number[];
+  value: number;
+}
+
+export interface StructureMix {
+  entityId: string;
+  entity: string;
+  slices: StructureSlice[];
+}
+
+export interface StructureDocument {
+  title: string;
+  /** @nullable */
+  entity: string | null;
+  /** @nullable */
+  executedOn: string | null;
+  /** @nullable */
+  amendedOn: string | null;
+  /** @nullable */
+  note: string | null;
+}
+
+export interface StructureFileAccount {
+  bank: string;
+  lastFour: string;
+  accountCurrency: string;
+  /** @nullable */
+  asOf: string | null;
+  holdings: BookCurrencyAmount[];
+}
+
+export interface ClientStructure {
+  customerId: string;
+  name: string;
+  currency: string;
+  asOf: string;
+  kpis: StructureKpis;
+  total: number;
+  entities: StructureNode[];
+  unassigned: StructureHoldings | null;
+  register: StructureRegisterRow[];
+  beneficiaries: StructureBeneficiary[];
+  interests: StructureInterestRow[];
+  assetMix: StructureMix[];
+  governance: StructureGovernance[];
+  documents: StructureDocument[];
+  /** @nullable */
+  bankFile: StructureFileAccount[] | null;
 }
 
 export interface Activity {
@@ -42136,6 +42294,101 @@ export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClien
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientWorkspaceQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientStructureUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/structure`
+}
+
+export const getClientStructure = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientStructure> => {
+
+  return http<ClientStructure>(getGetClientStructureUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientStructureQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/structure`
+    ] as const;
+    }
+
+
+export const getGetClientStructureQueryOptions = <TData = Awaited<ReturnType<typeof getClientStructure>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientStructureQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientStructure>>> = ({ signal }) => getClientStructure(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientStructureQueryResult = NonNullable<Awaited<ReturnType<typeof getClientStructure>>>
+export type GetClientStructureQueryError = unknown
+
+
+export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClientStructure>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientStructure>>,
+          TError,
+          Awaited<ReturnType<typeof getClientStructure>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClientStructure>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientStructure>>,
+          TError,
+          Awaited<ReturnType<typeof getClientStructure>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClientStructure>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClientStructure>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientStructureQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
