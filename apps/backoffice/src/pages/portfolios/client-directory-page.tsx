@@ -204,7 +204,7 @@ function DirectoryCard({ data }: { data: ClientDirectory }) {
 
   const pageRows = shown.slice(page * PAGE, (page + 1) * PAGE);
   const reset = () => setPage(0);
-  const open = (one: DirectoryClient) => navigate(`/book/${one.customerId}`);
+  const open = (one: DirectoryClient) => navigate(`/client-workspace/${one.customerId}`);
 
   return (
     <section className="rounded-2xl border border-line bg-white p-5">
@@ -276,7 +276,7 @@ function ClientTile({ one, currency, onOpen }: { one: DirectoryClient; currency:
           {one.name.charAt(0)}
         </span>
         <div className="min-w-0 flex-1">
-          <Link to={`/book/${one.customerId}`} onClick={(event) => event.stopPropagation()}
+          <Link to={`/client-workspace/${one.customerId}`} onClick={(event) => event.stopPropagation()}
             className="block truncate text-base font-bold hover:text-primary-700 hover:underline">
             {one.name}
           </Link>
@@ -355,7 +355,7 @@ function ClientTable({ rows, currency, onOpen }: { rows: DirectoryClient[]; curr
             return (
               <tr key={one.customerId} onClick={() => onOpen(one)} className="cursor-pointer align-top hover:bg-slate-50">
                 <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-normal">
-                  <Link to={`/book/${one.customerId}`} onClick={(event) => event.stopPropagation()}
+                  <Link to={`/client-workspace/${one.customerId}`} onClick={(event) => event.stopPropagation()}
                     className="font-semibold whitespace-nowrap hover:text-primary-700 hover:underline">{one.name}</Link>
                   <span className="block text-xs whitespace-nowrap text-ink-muted">{[one.code, place(one)].filter(Boolean).join(" · ")}</span>
                 </th>
@@ -581,7 +581,7 @@ function AttentionTile({ icon: Icon, tone, label, named, noun = ["client", "clie
             {named.map((one, at) => (
               <span key={one.customerId}>
                 {at > 0 && " · "}
-                <Link to={`/book/${one.customerId}`} className="hover:text-primary-700 hover:underline">{one.name}</Link>
+                <Link to={`/client-workspace/${one.customerId}`} className="hover:text-primary-700 hover:underline">{one.name}</Link>
                 {extra?.(one)}
               </span>
             ))}
