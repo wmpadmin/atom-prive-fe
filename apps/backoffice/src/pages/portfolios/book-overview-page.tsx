@@ -267,7 +267,7 @@ function AumCard({ data }: { data: BookOverview }) {
           {RANGES.map((one) => (
             <button key={one.id} type="button" onClick={() => setRange(one.id)} aria-pressed={range === one.id}
               className={cn("rounded-md px-2.5 py-1 text-xs font-semibold",
-                range === one.id ? "bg-ink text-white" : "text-ink-soft hover:bg-slate-50")}>
+                range === one.id ? "bg-primary-50 text-primary-700 ring-1 ring-primary-200" : "text-ink-soft hover:bg-slate-50")}>
               {one.id}
             </button>
           ))}
@@ -419,7 +419,7 @@ function ClientBookCard({ data }: { data: BookOverview }) {
             ] as const).map(([id, label]) => (
               <button key={id} type="button" onClick={() => setChip(id)} aria-pressed={chip === id}
                 className={cn("rounded-md px-2.5 py-1 text-xs font-semibold whitespace-nowrap",
-                  chip === id ? "bg-ink text-white" : "text-ink-soft hover:bg-slate-50")}>
+                  chip === id ? "bg-primary-50 text-primary-700 ring-1 ring-primary-200" : "text-ink-soft hover:bg-slate-50")}>
                 {label} {counts[id]}
               </button>
             ))}
@@ -462,7 +462,7 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                   className={cn("cursor-pointer align-top hover:bg-slate-50", row.deviating && "bg-red-50/40")}>
                   <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-normal">
                     <span className="flex items-start gap-2.5">
-                      <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-ink text-xs font-bold text-white" aria-hidden="true">
+                      <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-primary-50 text-xs font-bold text-primary-700" aria-hidden="true">
                         {row.name.charAt(0)}
                       </span>
                       <span>
