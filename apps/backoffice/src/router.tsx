@@ -67,6 +67,7 @@ import { PostOnboardingPage } from "./pages/onboarding/post-onboarding-page";
 import { ModelDetailPage } from "./pages/portfolios/model-detail-page";
 import { ManagementInformationPage } from "./pages/portfolios/management-information-page";
 import { BookOverviewPage } from "./pages/portfolios/book-overview-page";
+import { ClientDirectoryPage } from "./pages/portfolios/client-directory-page";
 import { PortfolioReportsPage } from "./pages/portfolios/reports-page";
 import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-page";
 import { ModelPerformancePage } from "./pages/portfolios/model-performance-page";
@@ -409,6 +410,8 @@ export const router = createBrowserRouter([
               // asked for after seeing Canopy's.
               // The whole book on one page, laid out the way the firm's own design draws it.
               { path: "book-overview", element: <BookOverviewPage /> },
+              // The same clients one by one, as a directory.
+              { path: "client-directory", element: <ClientDirectoryPage /> },
               { path: "book", element: <ClientListPage /> },
               {
                 path: "book/:customerId",
