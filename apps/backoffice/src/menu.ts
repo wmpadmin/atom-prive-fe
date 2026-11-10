@@ -238,6 +238,8 @@ const allNavigation: {
     icon: BookUser,
     authority: READS_CLIENT_PORTFOLIOS,
     onlyFor: ["PORTFOLIO_MANAGER"],
+    // A client's workspace is opened from here, and from the Book Overview beside it.
+    at: (path) => path === "/client-directory" || path.startsWith("/client-workspace/"),
   },
   {
     // The portfolio manager's own clients, starred first, each opening on an overview of their money.

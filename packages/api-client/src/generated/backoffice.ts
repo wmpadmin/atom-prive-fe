@@ -1185,6 +1185,7 @@ export interface ClassStanding {
   band: BandRequest;
   /** @nullable */
   subAssetBreached: boolean | null;
+  allowance: number;
 }
 
 export interface ClientReturn {
@@ -5702,6 +5703,21 @@ export interface Preview {
   unknownPlaceholders: string[];
 }
 
+export interface NoteRequest {
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  body: string;
+}
+
+export interface WorkspaceNote {
+  id: string;
+  body: string;
+  writtenBy: string;
+  writtenAt: string;
+}
+
 export interface BellItem {
   id: string;
   kind: string;
@@ -8541,6 +8557,218 @@ export interface CredentialStanding {
   testedAt: string | null;
   /** @nullable */
   testOk: boolean | null;
+}
+
+export interface WorkspaceClient {
+  customerId: string;
+  code: string;
+  name: string;
+}
+
+export interface WorkspaceClients {
+  clients: WorkspaceClient[];
+}
+
+export interface WorkspaceHeadline {
+  /** @nullable */
+  netWorth: number | null;
+  /** @nullable */
+  investable: number | null;
+  /** @nullable */
+  ownedOutright: number | null;
+  /** @nullable */
+  liabilities: number | null;
+  /** @nullable */
+  investableChangeYearToDate: number | null;
+  accounts: number;
+  custodians: number;
+  /** @nullable */
+  liquidWithin30Days: number | null;
+  /** @nullable */
+  liquidShareOfNetWorth: number | null;
+  /** @nullable */
+  unfunded: number | null;
+  vehicles: number;
+  /** @nullable */
+  liquidCover: number | null;
+  /** @nullable */
+  incomeNext12Months: number | null;
+}
+
+export interface WorkspaceFacts {
+  /** @nullable */
+  relationshipManager: string | null;
+  /** @nullable */
+  mandate: string | null;
+  /** @nullable */
+  benchmark: string | null;
+  /** @nullable */
+  benchmarkComposition: string | null;
+  /** @nullable */
+  baseCurrency: string | null;
+  /** @nullable */
+  clientSince: string | null;
+  /** @nullable */
+  lastReview: string | null;
+  /** @nullable */
+  nextReview: string | null;
+  /** @nullable */
+  riskProfile: string | null;
+  /** @nullable */
+  ipsStatus: string | null;
+}
+
+export interface WorkspaceSlice {
+  key: string;
+  name: string;
+  amount: number;
+  sharePercent: number;
+}
+
+export interface WorkspaceBand {
+  assetClass: string;
+  name: string;
+  actual: number;
+  target: number;
+  lower: number;
+  upper: number;
+  deviation: number;
+  /** @nullable */
+  usedPercent: number | null;
+  deviating: boolean;
+}
+
+export interface WorkspacePeriod {
+  key: string;
+  name: string;
+  /** @nullable */
+  portfolio: number | null;
+  /** @nullable */
+  benchmark: number | null;
+  /** @nullable */
+  excess: number | null;
+}
+
+export interface WorkspacePerformance {
+  periods: WorkspacePeriod[];
+  /** @nullable */
+  since: string | null;
+}
+
+export interface WorkspaceLiquidity {
+  buckets: WorkspaceSlice[];
+  /** @nullable */
+  buffer: number | null;
+  /** @nullable */
+  floor: number | null;
+}
+
+export interface WorkspacePosition {
+  name: string;
+  kind: string;
+  /** @nullable */
+  identifier: string | null;
+  value: number;
+  weightPercent: number;
+}
+
+export interface WorkspaceMonth {
+  month: string;
+  inflows: number;
+  outflows: number;
+}
+
+export interface WorkspaceFlow {
+  on: string;
+  kind: string;
+  title: string;
+  /** @nullable */
+  detail: string | null;
+  amount: number;
+  currency: string;
+}
+
+export interface WorkspaceAlert {
+  kind: string;
+  text: string;
+  /** @nullable */
+  on: string | null;
+}
+
+export interface WorkspaceFileLine {
+  name: string;
+  /** @nullable */
+  identifier: string | null;
+  /** @nullable */
+  assetClass: string | null;
+  /** @nullable */
+  quantity: number | null;
+  /** @nullable */
+  price: number | null;
+  value: number;
+  currency: string;
+  /** @nullable */
+  accruedInterest: number | null;
+}
+
+export interface WorkspaceFileCurrency {
+  currency: string;
+  total: number;
+  lines: WorkspaceFileLine[];
+}
+
+export interface WorkspaceFileAccount {
+  bank: string;
+  lastFour: string;
+  currency: string;
+  accountType: string;
+}
+
+export interface WorkspaceFileMovement {
+  bookedOn: string;
+  /** @nullable */
+  type: string | null;
+  description: string;
+  amount: number;
+  currency: string;
+}
+
+export interface WorkspaceBankFile {
+  banks: string[];
+  /** @nullable */
+  asOf: string | null;
+  holdings: BookCurrencyAmount[];
+  byCurrency: WorkspaceFileCurrency[];
+  accounts: WorkspaceFileAccount[];
+  movements: WorkspaceFileMovement[];
+}
+
+export interface ClientWorkspace {
+  customerId: string;
+  code: string;
+  name: string;
+  customerType: string;
+  /** @nullable */
+  city: string | null;
+  /** @nullable */
+  country: string | null;
+  currency: string;
+  asOf: string;
+  headline: WorkspaceHeadline;
+  facts: WorkspaceFacts;
+  worth: BookAumPoint[];
+  benchmarkEquivalent: BookAumPoint[];
+  byAssetClass: WorkspaceSlice[];
+  byCurrency: WorkspaceSlice[];
+  bands: WorkspaceBand[];
+  performance: WorkspacePerformance | null;
+  liquidity: WorkspaceLiquidity | null;
+  topPositions: WorkspacePosition[];
+  cashFlowMonths: WorkspaceMonth[];
+  cashFlows: WorkspaceFlow[];
+  alerts: WorkspaceAlert[];
+  notes: WorkspaceNote[];
+  bankFile: WorkspaceBankFile | null;
 }
 
 export interface Activity {
@@ -27642,6 +27870,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getTestBankConnectionMutationOptions(options), queryClient);
     }
 
+export const getAddClientNoteUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/notes`
+}
+
+export const addClientNote = async (customerId: string,
+    noteRequest: NoteRequest, options?: Parameters<typeof http>[1]): Promise<WorkspaceNote> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<WorkspaceNote>(getAddClientNoteUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(noteRequest)
+  }
+);}
+
+
+
+
+
+export const getAddClientNoteMutationKey = () => ['addClientNote'] as const;
+
+export const getAddClientNoteMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addClientNote>>, TError,AddClientNoteMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof addClientNote>>, TError,AddClientNoteMutationVariables, TContext> => {
+
+const mutationKey = getAddClientNoteMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addClientNote>>, AddClientNoteMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  addClientNote(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddClientNoteMutationResult = NonNullable<Awaited<ReturnType<typeof addClientNote>>>
+    export type AddClientNoteMutationBody = NoteRequest
+    export type AddClientNoteMutationError = unknown
+    export type AddClientNoteMutationVariables = {customerId: string;data: NoteRequest}
+
+    export const useAddClientNote = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addClientNote>>, TError,AddClientNoteMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addClientNote>>,
+        TError,
+        AddClientNoteMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddClientNoteMutationOptions(options), queryClient);
+    }
+
 export const getReadNotificationUrl = (id: string,) => {
 
 
@@ -41635,6 +41946,196 @@ export function useListCredentialStandings<TData = Awaited<ReturnType<typeof lis
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListCredentialStandingsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListWorkspaceClientsUrl = () => {
+
+
+
+
+  return `/api/backoffice/client-workspace`
+}
+
+export const listWorkspaceClients = async ( options?: Parameters<typeof http>[1]): Promise<WorkspaceClients> => {
+
+  return http<WorkspaceClients>(getListWorkspaceClientsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWorkspaceClientsQueryKey = () => {
+    return [
+    `/api/backoffice/client-workspace`
+    ] as const;
+    }
+
+
+export const getListWorkspaceClientsQueryOptions = <TData = Awaited<ReturnType<typeof listWorkspaceClients>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkspaceClients>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWorkspaceClientsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkspaceClients>>> = ({ signal }) => listWorkspaceClients({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWorkspaceClients>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListWorkspaceClientsQueryResult = NonNullable<Awaited<ReturnType<typeof listWorkspaceClients>>>
+export type ListWorkspaceClientsQueryError = unknown
+
+
+export function useListWorkspaceClients<TData = Awaited<ReturnType<typeof listWorkspaceClients>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkspaceClients>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWorkspaceClients>>,
+          TError,
+          Awaited<ReturnType<typeof listWorkspaceClients>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListWorkspaceClients<TData = Awaited<ReturnType<typeof listWorkspaceClients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkspaceClients>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWorkspaceClients>>,
+          TError,
+          Awaited<ReturnType<typeof listWorkspaceClients>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListWorkspaceClients<TData = Awaited<ReturnType<typeof listWorkspaceClients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkspaceClients>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListWorkspaceClients<TData = Awaited<ReturnType<typeof listWorkspaceClients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkspaceClients>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListWorkspaceClientsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientWorkspaceUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}`
+}
+
+export const getClientWorkspace = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientWorkspace> => {
+
+  return http<ClientWorkspace>(getGetClientWorkspaceUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientWorkspaceQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}`
+    ] as const;
+    }
+
+
+export const getGetClientWorkspaceQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspace>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspace>>> = ({ signal }) => getClientWorkspace(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientWorkspaceQueryResult = NonNullable<Awaited<ReturnType<typeof getClientWorkspace>>>
+export type GetClientWorkspaceQueryError = unknown
+
+
+export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClientWorkspace>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspace>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspace>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClientWorkspace>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspace>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspace>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClientWorkspace>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClientWorkspace>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientWorkspaceQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
