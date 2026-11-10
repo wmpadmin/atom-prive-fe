@@ -71,6 +71,7 @@ import { ClientDirectoryPage } from "./pages/portfolios/client-directory-page";
 import { ClientWorkspaceLayout } from "./pages/client-workspace/client-workspace-layout";
 import { ClientOverviewPage } from "./pages/client-workspace/client-overview-page";
 import { ClientStructurePage } from "./pages/client-workspace/client-structure-page";
+import { ClientIpsPage } from "./pages/client-workspace/client-ips-page";
 import { PortfolioReportsPage } from "./pages/portfolios/reports-page";
 import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-page";
 import { ModelPerformancePage } from "./pages/portfolios/model-performance-page";
@@ -422,6 +423,7 @@ export const router = createBrowserRouter([
                 children: [
                   { index: true, element: <ClientOverviewPage /> },
                   { path: "structure", element: <ClientStructurePage /> },
+                  { path: "ips", element: <ClientIpsPage /> },
                 ],
               },
               { path: "book", element: <ClientListPage /> },

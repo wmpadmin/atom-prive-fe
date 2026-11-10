@@ -8929,6 +8929,152 @@ export interface ClientStructure {
   bankFile: StructureFileAccount[] | null;
 }
 
+export interface IpsSummary {
+  title: string;
+  /** @nullable */
+  version: string | null;
+  /** @nullable */
+  signedOn: string | null;
+  /** @nullable */
+  signedBy: string | null;
+  /** @nullable */
+  scope: string | null;
+  /** @nullable */
+  discretion: string | null;
+  /** @nullable */
+  nextReview: string | null;
+  /** @nullable */
+  riskProfile: string | null;
+  /** @nullable */
+  returnObjective: string | null;
+  /** @nullable */
+  benchmark: string | null;
+  /** @nullable */
+  maxDrawdownPercent: number | null;
+  /** @nullable */
+  volatilityBudgetPercent: number | null;
+  /** @nullable */
+  liquidityTerms: string | null;
+  /** @nullable */
+  illiquidCeilingPercent: number | null;
+  /** @nullable */
+  incomeNeed: string | null;
+  /** @nullable */
+  exclusions: string | null;
+}
+
+export interface IpsScorecard {
+  rules: number;
+  compliant: number;
+  nearLimit: number;
+  warning: number;
+  deviation: number;
+  notMeasured: number;
+}
+
+export interface IpsCheck {
+  key: string;
+  label: string;
+  bound: string;
+  limit: string;
+  /** @nullable */
+  current: number | null;
+  /** @nullable */
+  currentText: string | null;
+  /** @nullable */
+  usedPercent: number | null;
+  status: string;
+  /** @nullable */
+  note: string | null;
+}
+
+export interface IpsAllocationRow {
+  key: string;
+  name: string;
+  assetClass: boolean;
+  /** @nullable */
+  parent: string | null;
+  /** @nullable */
+  min: number | null;
+  /** @nullable */
+  target: number | null;
+  /** @nullable */
+  max: number | null;
+  actual: number;
+  actualOfTotal: number;
+  value: number;
+  /** @nullable */
+  deviationPoints: number | null;
+  /** @nullable */
+  deviationValue: number | null;
+  status: string;
+}
+
+export interface IpsSubDeviation {
+  name: string;
+  assetClass: string;
+  deviationPoints: number;
+}
+
+export interface IpsPoint {
+  on: string;
+  deviation: number;
+}
+
+export interface IpsDeviationSeries {
+  assetClass: string;
+  name: string;
+  band: number;
+  points: IpsPoint[];
+}
+
+export interface IpsObjective {
+  /** @nullable */
+  fiveYearsAnnualised: number | null;
+  /** @nullable */
+  objective: string | null;
+  /** @nullable */
+  objectivePercent: number | null;
+  /** @nullable */
+  margin: number | null;
+  /** @nullable */
+  firstClose: string | null;
+}
+
+export interface IpsLogEntry {
+  on: string;
+  rule: string;
+  observed: string;
+  status: string;
+  /** @nullable */
+  resolution: string | null;
+  /** @nullable */
+  approvedBy: string | null;
+  source: string;
+}
+
+export interface ClientIps {
+  customerId: string;
+  name: string;
+  currency: string;
+  asOf: string;
+  bankFile: boolean;
+  summary: IpsSummary | null;
+  scorecard: IpsScorecard;
+  gauges: IpsCheck[];
+  allocation: IpsAllocationRow[];
+  /** @nullable */
+  investable: number | null;
+  /** @nullable */
+  ownedOutright: number | null;
+  subDeviations: IpsSubDeviation[];
+  history: IpsDeviationSeries[];
+  objective: IpsObjective | null;
+  checks: IpsCheck[];
+  log: IpsLogEntry[];
+  bandRule: string;
+}
+
 export interface Activity {
   kind: string;
   subject: string;
@@ -42389,6 +42535,101 @@ export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClien
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientStructureQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientIpsUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/ips`
+}
+
+export const getClientIps = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientIps> => {
+
+  return http<ClientIps>(getGetClientIpsUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientIpsQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/ips`
+    ] as const;
+    }
+
+
+export const getGetClientIpsQueryOptions = <TData = Awaited<ReturnType<typeof getClientIps>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientIpsQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientIps>>> = ({ signal }) => getClientIps(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientIpsQueryResult = NonNullable<Awaited<ReturnType<typeof getClientIps>>>
+export type GetClientIpsQueryError = unknown
+
+
+export function useGetClientIps<TData = Awaited<ReturnType<typeof getClientIps>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientIps>>,
+          TError,
+          Awaited<ReturnType<typeof getClientIps>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientIps<TData = Awaited<ReturnType<typeof getClientIps>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientIps>>,
+          TError,
+          Awaited<ReturnType<typeof getClientIps>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientIps<TData = Awaited<ReturnType<typeof getClientIps>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientIps<TData = Awaited<ReturnType<typeof getClientIps>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientIpsQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
