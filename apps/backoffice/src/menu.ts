@@ -1,6 +1,7 @@
 import {
   Archive,
   LayoutDashboard,
+  LayoutGrid,
   ArrowLeftRight,
   BellRing,
   ClipboardCheck,
@@ -216,6 +217,16 @@ const allNavigation: {
     // them, which is My clients. A second screen onto every client would say otherwise.
     notFor: ["ADMIN", "ADVISOR", "PORTFOLIO_MANAGER"],
     at: (path) => (path === "/clients" || path.startsWith("/clients/")) && !NOTICE_OF_TREATMENT.test(path),
+  },
+  {
+    // The portfolio manager's whole book on one page, as the firm's own design lays it out: what it is worth,
+    // how it is invested, every client in it, what needs looking at and what is coming up. Read only, and held
+    // to the clients assigned to them like every other screen of theirs.
+    to: "/book-overview",
+    label: "Book Overview",
+    icon: LayoutGrid,
+    authority: READS_CLIENT_PORTFOLIOS,
+    onlyFor: ["PORTFOLIO_MANAGER"],
   },
   {
     // The portfolio manager's own clients, starred first, each opening on an overview of their money.

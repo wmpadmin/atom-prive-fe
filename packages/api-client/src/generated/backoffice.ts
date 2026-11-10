@@ -1858,8 +1858,8 @@ export interface JsonNode {
   container?: boolean;
   valueNode?: boolean;
   missingNode?: boolean;
-  nodeType?: JsonNodeNodeType;
   string?: boolean;
+  nodeType?: JsonNodeNodeType;
   integralNumber?: boolean;
   pojo?: boolean;
   short?: boolean;
@@ -8046,6 +8046,203 @@ export interface ComplianceDashboard {
   declarations: ComplianceWaiting[];
 }
 
+export interface BookAccountsKpi {
+  entities: number;
+  accounts: number;
+  custodians: number;
+}
+
+export interface BookAlert {
+  severity: string;
+  /** @nullable */
+  customerId: string | null;
+  subject: string;
+  detail: string;
+  /** @nullable */
+  at: string | null;
+}
+
+export interface BookAlertsKpi {
+  total: number;
+  critical: number;
+  warning: number;
+  info: number;
+}
+
+export interface BookAumKpi {
+  total: number;
+  /** @nullable */
+  yearToDateChange: number | null;
+  counted: number;
+  clients: number;
+}
+
+export interface BookAumPoint {
+  on: string;
+  amount: number;
+}
+
+export interface BookCurrencyAmount {
+  currency: string;
+  amount: number;
+}
+
+export interface BookBankFile {
+  banks: string[];
+  /** @nullable */
+  asOf: string | null;
+  lines: number;
+  accounts: number;
+  holdings: BookCurrencyAmount[];
+}
+
+export interface BookCallsKpi {
+  total: number;
+  clients: number;
+  notices: number;
+  dueThisWeek: number;
+}
+
+export interface BookCustodianFeed {
+  bankId: string;
+  bank: string;
+  connection: string;
+  accounts: number;
+  holdings: BookCurrencyAmount[];
+  /** @nullable */
+  lastFileAt: string | null;
+  /** @nullable */
+  lastOutcome: string | null;
+  /** @nullable */
+  lastRunAt: string | null;
+}
+
+export interface BookFlowsKpi {
+  inflows: number;
+  outflows: number;
+  net: number;
+  cumulative: BookAumPoint[];
+}
+
+export interface BookMandateDispersion {
+  mandate: string;
+  lowest: number;
+  median: number;
+  highest: number;
+  /** @nullable */
+  benchmark: number | null;
+  clients: number;
+}
+
+export interface BookMandateFrontierPoint {
+  mandate: string;
+  volatility: number;
+  yearToDate: number;
+}
+
+export interface BookMandateSlice {
+  /** @nullable */
+  modelPortfolioId: string | null;
+  name: string;
+  amount: number;
+  sharePercent: number;
+  clients: number;
+}
+
+export interface BookReturnKpi {
+  /** @nullable */
+  yearToDate: number | null;
+  /** @nullable */
+  blendedBenchmark: number | null;
+  /** @nullable */
+  versusBenchmark: number | null;
+  measured: number;
+  clients: number;
+}
+
+export interface BookOverviewKpis {
+  aum: BookAumKpi;
+  netFlows: BookFlowsKpi;
+  bookReturn: BookReturnKpi;
+  entitiesAccounts: BookAccountsKpi;
+  openAlerts: BookAlertsKpi;
+  capitalCalls: BookCallsKpi;
+}
+
+export interface BookUpcoming {
+  on: string;
+  kind: string;
+  customerId: string;
+  clientName: string;
+  title: string;
+  /** @nullable */
+  detail: string | null;
+  /** @nullable */
+  amount: number | null;
+  /** @nullable */
+  currency: string | null;
+}
+
+export interface BookOverviewClient {
+  customerId: string;
+  code: string;
+  name: string;
+  customerType: string;
+  /** @nullable */
+  city: string | null;
+  /** @nullable */
+  mandate: string | null;
+  /** @nullable */
+  aum: number | null;
+  /** @nullable */
+  sharePercent: number | null;
+  /** @nullable */
+  monthToDate: number | null;
+  /** @nullable */
+  yearToDate: number | null;
+  /** @nullable */
+  versusBenchmark: number | null;
+  /** @nullable */
+  maxDeviation: number | null;
+  deviating: boolean;
+  /** @nullable */
+  ipsStatus: string | null;
+  /** @nullable */
+  ipsWarning: string | null;
+  reviewDue: boolean;
+  /** @nullable */
+  nextReviewOn: string | null;
+  nextEvent: BookUpcoming | null;
+  bankFile: BookBankFile | null;
+}
+
+export interface BookRiskReturnPoint {
+  customerId: string;
+  name: string;
+  /** @nullable */
+  mandate: string | null;
+  volatility: number;
+  yearToDate: number;
+  aum: number;
+}
+
+export interface BookOverview {
+  currency: string;
+  asOf: string;
+  kpis: BookOverviewKpis;
+  aumHistory: BookAumPoint[];
+  assetMix: ClassSlice[];
+  byMandate: BookMandateSlice[];
+  clients: BookOverviewClient[];
+  alerts: BookAlert[];
+  upcoming: BookUpcoming[];
+  custodians: BookCustodianFeed[];
+  riskReturn: BookRiskReturnPoint[];
+  frontier: BookMandateFrontierPoint[];
+  dispersion: BookMandateDispersion[];
+  bankFileClients: string[];
+}
+
 export interface SecurityActivity {
   at: string;
   action: string;
@@ -9141,6 +9338,10 @@ days?: number;
 
 export type GetComplianceDashboardParams = {
 days?: number;
+};
+
+export type GetBookOverviewParams = {
+currency?: string;
 };
 
 export type ListCustomersParams = {
@@ -39076,6 +39277,108 @@ export function useGetComplianceDashboard<TData = Awaited<ReturnType<typeof getC
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetComplianceDashboardQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBookOverviewUrl = (params?: GetBookOverviewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/dashboard/book-overview?${stringifiedParams}` : `/api/backoffice/dashboard/book-overview`
+}
+
+export const getBookOverview = async (params?: GetBookOverviewParams, options?: Parameters<typeof http>[1]): Promise<BookOverview> => {
+
+  return http<BookOverview>(getGetBookOverviewUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookOverviewQueryKey = (params?: GetBookOverviewParams,) => {
+    return [
+    `/api/backoffice/dashboard/book-overview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetBookOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getBookOverview>>, TError = unknown>(params?: GetBookOverviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookOverview>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookOverviewQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookOverview>>> = ({ signal }) => getBookOverview(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookOverview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetBookOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getBookOverview>>>
+export type GetBookOverviewQueryError = unknown
+
+
+export function useGetBookOverview<TData = Awaited<ReturnType<typeof getBookOverview>>, TError = unknown>(
+ params: undefined |  GetBookOverviewParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookOverview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBookOverview>>,
+          TError,
+          Awaited<ReturnType<typeof getBookOverview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBookOverview<TData = Awaited<ReturnType<typeof getBookOverview>>, TError = unknown>(
+ params?: GetBookOverviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookOverview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBookOverview>>,
+          TError,
+          Awaited<ReturnType<typeof getBookOverview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBookOverview<TData = Awaited<ReturnType<typeof getBookOverview>>, TError = unknown>(
+ params?: GetBookOverviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookOverview>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetBookOverview<TData = Awaited<ReturnType<typeof getBookOverview>>, TError = unknown>(
+ params?: GetBookOverviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookOverview>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetBookOverviewQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
