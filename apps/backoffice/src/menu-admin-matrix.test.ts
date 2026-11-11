@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { menuFor } from "./menu";
-import { groupMenu } from "./menu-groups";
+import { arrangeMenu } from "./menu-groups";
 
 /** The permissions the ADMIN role holds at FULL, as the firm's matrix grants them. */
 const ADMIN_PERMISSIONS = [
@@ -53,30 +53,27 @@ describe("an Admin's menu", () => {
    * in it. An administrator who holds nothing else sees an empty list, which is the truth about them.
    */
 
-  it("keeps the firm's order, the dashboard first and staff users heading the first section", () => {
-    const { groups } = groupMenu(menuFor(anAdmin(ADMIN_PERMISSIONS)), "ADMIN");
-    expect(groups[0].items[0].to).toBe("/dashboard");
-    expect(groups[1].label).toBe("Staff & access");
-    expect(groups[1].items[0].to).toBe("/users");
+  it("keeps the firm's order, the dashboard first and staff users first after the top block", () => {
+    const { list } = arrangeMenu(menuFor(anAdmin(ADMIN_PERMISSIONS)), "ADMIN");
+    expect(list.slice(0, 4).map((item) => item.to)).toEqual(["/dashboard", "/approvals", "/assistant", "/users"]);
   });
 });
 
-describe("the sidebar's headings", () => {
-  it("draw every screen the menu gives, and only those, a screen nobody filed going under More", () => {
+describe("the sidebar's list", () => {
+  it("draws every screen the menu gives, and only those, once, a screen nobody filed after the desk's own", () => {
     const items = menuFor(anAdmin(ADMIN_PERMISSIONS));
     const unfiled = { ...items[0], to: "/somewhere-new", label: "Somewhere new" };
-    const { groups, footer } = groupMenu([...items, unfiled], "ADMIN");
-    const drawn = [...groups.flatMap((group) => group.items), ...footer].map((item) => item.to);
-    expect(drawn.sort()).toEqual([...items.map((item) => item.to), "/somewhere-new"].sort());
-    expect(groups.find((group) => group.key === "more")?.items.map((item) => item.to)).toEqual(["/somewhere-new"]);
+    const { list, footer } = arrangeMenu([...items, unfiled], "ADMIN");
+    const drawn = [...list, ...footer].map((item) => item.to);
+    expect([...drawn].sort()).toEqual([...items.map((item) => item.to), "/somewhere-new"].sort());
+    // After the runs, before the person's own.
+    expect(drawn.indexOf("/somewhere-new")).toBe(drawn.indexOf("/my-clearances") - 1);
   });
 
-  it("keep the menu's own order under each heading", () => {
+  it("is, for an Admin, the order ADMINS_MENU writes", () => {
     const items = menuFor(anAdmin(ADMIN_PERMISSIONS));
-    const order = items.map((item) => item.to);
-    for (const group of groupMenu(items, "ADMIN").groups) {
-      const at = group.items.map((item) => order.indexOf(item.to));
-      expect(at).toEqual([...at].sort((a, b) => a - b));
-    }
+    const { list, footer } = arrangeMenu(items, "ADMIN");
+    const footed = new Set(footer.map((item) => item.to));
+    expect(list.map((item) => item.to)).toEqual(items.map((item) => item.to).filter((to) => !footed.has(to)));
   });
 });
