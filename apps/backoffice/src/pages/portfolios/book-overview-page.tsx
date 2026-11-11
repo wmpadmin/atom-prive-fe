@@ -722,7 +722,7 @@ function CustodianFeeds({ data }: { data: BookOverview }) {
                   </th>
                   <td className="px-2 py-2 text-right tabular-nums">{one.accounts}</td>
                   <td className="px-2 py-2 text-right text-xs whitespace-nowrap tabular-nums">
-                    {one.holdings.length === 0 ? <span className="inline-block max-w-16 text-3xs leading-tight text-ink-muted">no holdings in file</span> : one.holdings.map((amount) => (
+                    {one.holdings.length === 0 ? <span className="inline-block max-w-16 text-3xs leading-tight whitespace-normal text-ink-muted">no holdings in file</span> : one.holdings.map((amount) => (
                       <span key={amount.currency} className="block">{compact(amount.amount, amount.currency)}</span>
                     ))}
                   </td>
