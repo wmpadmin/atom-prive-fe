@@ -27,6 +27,7 @@ import { NotificationBell } from "./components/notification-bell";
 import { AssistantButton } from "./components/portfolio-assistant";
 import {
   Check,
+  ChevronDown,
   ChevronsUpDown,
   KeyRound,
   LogOut,
@@ -155,7 +156,11 @@ function RailTip({ label, show, children }: { label: string; show: boolean; chil
         <span
           role="tooltip"
           style={{ top: at.top + at.height / 2, left: at.right + 8 }}
-          className="pointer-events-none fixed z-50 -translate-y-1/2 rounded-md bg-slate-900 px-2 py-1 text-xs font-medium whitespace-nowrap text-white shadow-lg ring-1 ring-white/10"
+          // Ink on canvas: near-black with light text in the light theme, light with dark text in the dark one —
+          // both theme tokens, so it inverts with the page. (It was slate-900 and white, and the dark theme
+          // redefines white as its own panel colour, which left dark text on a dark chip.) Opaque, above
+          // everything, with a ring and a shadow to lift it off whatever is under it.
+          className="pointer-events-none fixed z-[1000] -translate-y-1/2 rounded-md bg-ink px-2.5 py-1 text-[13px] leading-5 font-semibold whitespace-nowrap text-canvas opacity-100 shadow-lg ring-1 ring-black/20"
         >
           {label}
         </span>,
@@ -174,16 +179,14 @@ type Entry = {
 };
 
 /**
- * The top of the sidebar: who the platform is, which workspace this is, and the button that folds the sidebar to a
- * rail. Somebody who holds more than one role switches workspace here, from the role under the name.
+ * Entering another of this person's workspaces, for now rather than from now on: where they open is their own
+ * choice in Settings.
  */
-function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boolean; onFold: () => void }) {
+function useEnterRole(onEntered?: () => void) {
   const queryClient = useQueryClient();
   const { applyProfile } = useSession();
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  const enter = useEnterWorkspace<ApiError>({
+  return useEnterWorkspace<ApiError>({
     mutation: {
       onSuccess: (profile) => {
         // Three things, and leaving any one of them out leaves the screen lying. The cache belongs to the
@@ -192,11 +195,53 @@ function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boo
         // walked out of, which the API will now refuse them.
         queryClient.clear();
         applyProfile(profile);
-        setOpen(false);
+        onEntered?.();
         navigate("/", { replace: true });
       },
     },
   });
+}
+
+/**
+ * A workspace's heading. The open one sits above its screens; the others are held at the foot, and pressing one
+ * enters it — the menu that comes back is that role's, because the API only ever sends the active role's
+ * permissions and the browser cannot know what another role would see.
+ */
+function RoleHeader({ role, here, enter }: {
+  role: StaffRole;
+  here: boolean;
+  enter: ReturnType<typeof useEnterRole>;
+}) {
+  return (
+    <button
+      type="button"
+      aria-expanded={here}
+      disabled={enter.isPending}
+      onClick={() => {
+        if (here) return;
+        enter.mutate({ data: { role, fromNowOn: false } });
+      }}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-2xs font-bold tracking-wider uppercase",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
+        here ? "text-ink" : "text-ink-muted hover:bg-white/60 hover:text-ink",
+        enter.isPending && !here && "cursor-wait",
+      )}
+    >
+      <ChevronDown aria-hidden="true" className={cn("size-3 shrink-0 transition-transform", here ? "" : "-rotate-90")} />
+      <span className="min-w-0 flex-1 truncate">{roleLabels[role]}</span>
+    </button>
+  );
+}
+
+/**
+ * The top of the sidebar: the platform's mark and name, and the button that folds the sidebar to a rail. On the
+ * rail, where the workspace headings have no room, the mark opens the list of this person's workspaces instead.
+ */
+function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boolean; onFold: () => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const enter = useEnterRole(() => setOpen(false));
   useEffect(() => {
     if (!open) return;
     const close = (event: MouseEvent | KeyboardEvent) => {
@@ -212,8 +257,6 @@ function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boo
     };
   }, [open]);
 
-  // Somebody holding one role has nothing to switch to, so their role is a name and not a control.
-  const switches = user.roles.length > 1;
   const role = user.activeRole ? roleLabels[user.activeRole] : "";
   const fold = (
     <button
@@ -228,44 +271,35 @@ function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boo
       {rail ? <PanelLeftOpen className="size-4" aria-hidden="true" /> : <PanelLeftClose className="size-4" aria-hidden="true" />}
     </button>
   );
-  const mark = (
-    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-600 text-sm font-bold text-on-accent" aria-hidden="true">A</span>
-  );
+  const markClass = "grid size-8 shrink-0 place-items-center rounded-lg bg-primary-600 text-sm font-bold text-on-accent";
 
-  if (rail) {
+  if (!rail) {
     return (
-      <div className="flex flex-col items-center gap-2">
-        <RailTip label={`Atom Privé · ${role}`} show>{mark}</RailTip>
+      <div className="flex items-center gap-2.5">
+        <span className={markClass} aria-hidden="true">A</span>
+        <p className="min-w-0 flex-1 truncate text-sm font-bold">Atom Privé</p>
         {fold}
       </div>
     );
   }
+  // Somebody holding one role has nothing to switch to, so on the rail their mark is a name and not a control.
+  const switches = user.roles.length > 1;
   return (
-    <div ref={box} className="relative flex items-center gap-2.5">
-      {mark}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold">Atom Privé</p>
+    <div ref={box} className="relative flex flex-col items-center gap-2">
+      <RailTip label={switches ? `${role} · switch workspace` : `Atom Privé · ${role}`} show={!open}>
         {switches ? (
-          <button
-            type="button"
-            aria-haspopup="menu"
-            aria-expanded={open}
-            onClick={() => setOpen((current) => !current)}
-            className="flex max-w-full items-center gap-1 rounded text-xs text-ink-muted hover:text-ink
-              focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-          >
-            <span className="truncate">{role}</span>
-            <ChevronsUpDown className="size-3 shrink-0" aria-hidden="true" />
+          <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={`${role}, switch workspace`}
+            onClick={() => setOpen((current) => !current)} className={cn(markClass, "hover:opacity-90")}>
+            A
           </button>
         ) : (
-          <p className="truncate text-xs text-ink-muted">{role}</p>
+          <span className={markClass} aria-hidden="true">A</span>
         )}
-      </div>
+      </RailTip>
       {fold}
       {open && (
-        <div role="menu" aria-label="Switch workspace"
-          className="absolute top-full right-0 left-0 z-30 mt-2 rounded-xl border border-line bg-white p-1.5 shadow-lg">
-          <p className="px-2.5 pt-1 pb-1.5 text-3xs font-bold tracking-wider text-ink-muted uppercase">Switch workspace</p>
+        <div role="menu" aria-label="Workspaces"
+          className="absolute top-0 left-full z-30 ml-3 w-56 rounded-xl border border-line bg-white p-1.5 shadow-lg">
           {user.roles.map((one) => {
             const here = one === user.activeRole;
             return (
@@ -280,7 +314,6 @@ function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boo
                     setOpen(false);
                     return;
                   }
-                  // For now, not from now on: where they open is their own choice in Settings.
                   enter.mutate({ data: { role: one as StaffRole, fromNowOn: false } });
                 }}
                 className={cn("flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
@@ -593,6 +626,9 @@ export function AppLayout() {
   const home = user.opensIn ?? (user.roles.length === 1 ? user.roles[0] : null);
   const shown = items.filter((item) => item.to !== MY_DECLARATIONS || user.roles.length < 2 || user.activeRole === home);
   const { list, footer } = arrangeMenu(shown, user.activeRole as StaffRole | null);
+  // Workspace headings where there is more than one workspace and room to name them.
+  const sections = !rail && user.roles.length > 1 && user.activeRole !== null;
+  const enter = useEnterRole();
 
   const view = currentSupportView();
 
@@ -613,11 +649,24 @@ export function AppLayout() {
       >
         {!rail && <SidebarEdge width={width} onDrag={onDrag} onNudge={onNudge} onSettled={onSettled} />}
         <WorkspaceHeader user={user} rail={rail} onFold={() => change("sidebarAway", !rail)} />
-        {/* Only the menu scrolls: the header and the foot are held still, so the workspace, the search and the
-            account stay on screen however long a desk's list runs. */}
-        <nav aria-label="Back-office" className="mt-4 min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
+        {/* The open workspace's heading is held above its screens and the others at the foot, so however long a
+            desk's list runs, both the desk you are at and the way to every other one stay on screen. Only the
+            screens between them scroll. Somebody holding one role has no headings at all, and on the rail the
+            mark opens the workspaces instead. */}
+        {sections && <div className="mt-4 shrink-0"><RoleHeader role={user.activeRole as StaffRole} here enter={enter} /></div>}
+        <nav aria-label="Back-office"
+          // Never squeezed to nothing: on a short window the other workspaces' headings give way first.
+          className={cn("min-h-24 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain",
+            sections ? "mt-1 ml-[1.0625rem] border-l border-line pl-2" : "mt-4")}>
           <MenuList items={list} rail={rail} pathname={pathname} search={search} />
         </nav>
+        {sections && (
+          <div className="mt-2 min-h-0 space-y-0.5 overflow-y-auto border-t border-line/50 pt-2">
+            {user.roles.filter((role) => role !== user.activeRole).map((role) => (
+              <RoleHeader key={role} role={role as StaffRole} here={false} enter={enter} />
+            ))}
+          </div>
+        )}
         <div className="mt-3 shrink-0 space-y-0.5 border-t border-line pt-3">
           <ul className="space-y-0.5">
             {footer.map((item) => (
