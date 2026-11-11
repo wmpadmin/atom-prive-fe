@@ -202,6 +202,7 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
     one.on >= from && (at === points.length - 1 || [3, 6, 9, 12].includes(Number(one.on.slice(5, 7)))));
   const worth = cut(data.worth);
   const bench = cut(data.benchmarkEquivalent);
+  const total = cut(data.totalWorth ?? []);
   const flows = data.externalFlows.filter((one) => one.on >= from).reduce((sum, one) => sum + one.amount, 0);
   const option = useMemo(() => {
     const colours = ink();
@@ -209,6 +210,7 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
     // A single reading is drawn as a marked, labelled point rather than an empty box.
     const single = worth.length === 1;
     const benchOn = new Map(bench.map((one) => [one.on, one.amount]));
+    const totalOn = new Map(total.map((one) => [one.on, one.amount]));
     return {
       textStyle: { fontFamily: colours.font },
       grid: { left: 8, right: 16, top: 28, bottom: 8, containLabel: true },
@@ -225,7 +227,7 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
         type: "value",
         scale: true,
         splitNumber: 4,
-        axisLabel: { color: colours.muted, formatter: axisMoney([...worth, ...bench].map((one) => one.amount), data.currency) },
+        axisLabel: { color: colours.muted, formatter: axisMoney([...worth, ...bench, ...total].map((one) => one.amount), data.currency) },
         splitLine: { lineStyle: { color: colours.line } },
       },
       series: [
@@ -234,13 +236,17 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
           label: { show: single, position: "top", color: colours.text, formatter: ({ value }: { value: number }) => compact(value, data.currency) },
           lineStyle: { color: colours.text, width: 1.5 }, itemStyle: { color: colours.text }, areaStyle: { color: colours.canvas },
         },
+        ...(total.length > 1 ? [{
+          type: "line", name: "Total net worth", data: days.map((day) => totalOn.get(day) ?? null), connectNulls: true,
+          showSymbol: false, lineStyle: { color: colours.primary, width: 1.5 }, itemStyle: { color: colours.primary },
+        }] : []),
         ...(bench.length > 1 ? [{
           type: "line", name: "Benchmark-equivalent (after flows)", data: days.map((day) => benchOn.get(day) ?? null),
           showSymbol: false, lineStyle: { color: colours.danger, type: "dashed", width: 1.5 }, itemStyle: { color: colours.danger },
         }] : []),
       ],
     };
-  }, [worth, bench, data.currency]);
+  }, [worth, bench, total, data.currency]);
   return (
     <Card title="Net Worth Evolution"
       lead={data.bankFile ? undefined : `Quarter-end values, ${data.currency} · after net external flows of ${signedCompact(flows, data.currency)}`}
@@ -252,7 +258,9 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
           )}
           <p className="mt-2 text-3xs text-ink-muted italic">
             {worth.length === 1 && "One reading on file so far: it is marked as a point, and the line starts with the next. "}
-            Total net worth is not drawn: what is owned outright and what is owed have no history on file.
+            {total.length > 1
+              ? "Total net worth adds what is owned outright, valued at each month end between its appraisals (demo history), and loans at today's balance. "
+              : "Total net worth is not drawn: what is owned outright and what is owed have no history on file."}
             {worth.length > 1 && data.benchmarkEquivalent.length < 2 && " No benchmark history is on file for this mandate."}
           </p>
         </>

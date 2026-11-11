@@ -130,7 +130,11 @@ function OwnershipCard({ data }: { data: ClientStructure }) {
                       ...((one.children.length === 0 || one.direct > 0) ? [(
                         <NodeRow key="direct" className="rounded-lg border border-line"
                           name={<p className="line-clamp-2 text-sm font-semibold break-words">{one.children.length === 0 ? "Accounts and holdings" : "Held directly"}</p>}
-                          line={one.custodians.join(" · ") || "No account linked"} figure={compact(one.direct, cur)} />
+                          // Not an entity: what the parent holds in its own name. It has no ownership share or tax
+                          // status of its own, so those views say so rather than repeat its value.
+                          line={show === "tax" ? `Taxed with ${one.name}` : one.custodians.join(" · ") || "No account linked"}
+                          figure={show === "value" ? compact(one.direct, cur) : show === "owned" ? "Direct" : ""}
+                          figureTone={show === "value" ? undefined : "font-medium text-ink-muted"} />
                       )] : []),
                     ]} />
                   )}
@@ -218,8 +222,8 @@ const SHORT_FIGURE = 14;
  * right-aligned and vertically centred beside them. A long tax status replaces the line under the name and the right
  * slot stays empty, so the name is never squeezed to a word a line.
  */
-function NodeRow({ name, line, figure: value, className, children }: {
-  name: ReactNode; line: ReactNode; figure: string; className?: string; children?: ReactNode;
+function NodeRow({ name, line, figure: value, figureTone, className, children }: {
+  name: ReactNode; line: ReactNode; figure: string; figureTone?: string; className?: string; children?: ReactNode;
 }) {
   const long = value.length > SHORT_FIGURE;
   return (
@@ -229,7 +233,7 @@ function NodeRow({ name, line, figure: value, className, children }: {
           {name}
           <p className="text-2xs break-words text-ink-muted">{long ? value : line}</p>
         </div>
-        {!long && <p className="shrink-0 text-right text-sm font-bold tabular-nums">{value}</p>}
+        {!long && value !== "" && <p className={cn("shrink-0 text-right text-sm tabular-nums", figureTone ?? "font-bold")}>{value}</p>}
       </div>
       {children}
     </div>

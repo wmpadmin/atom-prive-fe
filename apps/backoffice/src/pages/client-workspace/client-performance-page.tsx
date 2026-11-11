@@ -1,6 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useGetClientPerformance,
+  type AttributionPeriod,
   type ClientPerformance,
   type PerformanceGrowth,
   type PerformanceMonth,
@@ -96,12 +97,16 @@ function Board({ data }: { data: ClientPerformance }) {
       </div>
       <ClassCard data={data} />
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card title="Excess Return Bridge · YTD" lead="Benchmark to portfolio, investable assets">
-          <NotMeasured reason={data.brinson.reason} />
-        </Card>
-        <Card title="Brinson-Fachler Attribution · YTD" lead="Average weights · effects in basis points · investable assets, owned outright excluded">
-          <NotMeasured reason={data.brinson.reason} />
-        </Card>
+        {data.attribution ? <BridgeCard data={data} /> : (
+          <Card title="Excess Return Bridge · YTD" lead="Benchmark to portfolio, investable assets">
+            <NotMeasured reason={data.brinson.reason} />
+          </Card>
+        )}
+        {data.attribution ? <BrinsonCard data={data} /> : (
+          <Card title="Brinson-Fachler Attribution · YTD" lead="Average weights · effects in basis points · investable assets, owned outright excluded">
+            <NotMeasured reason={data.brinson.reason} />
+          </Card>
+        )}
       </div>
       <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
         <YearsCard data={data} />
@@ -266,6 +271,155 @@ function GrowthCard({ data, weighting, setWeighting, basis, setBasis }: {
   );
 }
 
+/**
+ * Benchmark to portfolio in one walk: the benchmark the page shows, each Brinson effect, what the effects leave
+ * unexplained, and the portfolio's own time-weighted return. The server's figures; nothing is added up here.
+ */
+function BridgeCard({ data }: { data: ClientPerformance }) {
+  const period = data.attribution?.periods.find((one) => one.key === "YTD") ?? data.attribution?.periods[0];
+  const option = useMemo(() => {
+    if (!period) return {};
+    const colours = ink();
+    const steps: { name: string; value: number; total?: boolean }[] = [
+      { name: "Benchmark", value: period.benchmark, total: true },
+      { name: "Allocation", value: period.allocation },
+      { name: "Selection", value: period.selection },
+      { name: "Interaction", value: period.interaction },
+      ...(Math.abs(period.residual) >= 0.01 ? [{ name: "Residual", value: period.residual }] : []),
+      { name: "Portfolio", value: period.portfolio, total: true },
+    ];
+    // Each step floats from where the walk stood; the totals stand on zero.
+    let running = 0;
+    const base: number[] = [];
+    const bar: { value: number; itemStyle: { color: string } }[] = [];
+    for (const step of steps) {
+      if (step.total) {
+        base.push(Math.min(0, step.value));
+        bar.push({ value: Math.abs(step.value), itemStyle: { color: colours.text } });
+        running = step.value;
+      } else {
+        const next = running + step.value;
+        base.push(Math.min(running, next));
+        bar.push({ value: Math.abs(step.value), itemStyle: { color: step.value >= 0 ? colours.primary : colours.danger } });
+        running = next;
+      }
+    }
+    return {
+      textStyle: { fontFamily: colours.font },
+      grid: { left: 8, right: 12, top: 24, bottom: 8, containLabel: true },
+      tooltip: { trigger: "axis", axisPointer: { type: "shadow" },
+        formatter: (items: { dataIndex: number }[]) => {
+          const step = steps[items[0]?.dataIndex ?? 0];
+          return `${step.name}: ${step.total ? signed(step.value) : `${step.value >= 0 ? "+" : ""}${step.value.toFixed(2)} pp`}`;
+        } },
+      xAxis: { type: "category", data: steps.map((one) => one.name), axisLabel: { color: colours.muted, fontSize: 11 },
+        axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
+      yAxis: { type: "value", axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
+      series: [
+        { type: "bar", stack: "walk", data: base, itemStyle: { color: "transparent" }, emphasis: { disabled: true }, silent: true, tooltip: { show: false } },
+        { type: "bar", stack: "walk", data: bar, barMaxWidth: 44,
+          label: { show: true, position: "top", color: colours.text, fontSize: 11,
+            formatter: ({ dataIndex }: { dataIndex: number }) => {
+              const step = steps[dataIndex];
+              return step.total ? `${step.value.toFixed(2)}%` : `${step.value >= 0 ? "+" : ""}${step.value.toFixed(2)}`;
+            } } },
+      ],
+    };
+  }, [period]);
+  if (!period) return null;
+  const largest = period.rows.reduce<{ name: string; bp: number } | null>(
+    (best, row) => (best == null || Math.abs(row.totalBp) > Math.abs(best.bp) ? { name: row.name, bp: row.totalBp } : best), null);
+  return (
+    <Card title={`Excess Return Bridge · ${period.label}`} lead="Benchmark to portfolio, investable assets · percentage points">
+      <div className="relative min-h-[240px] flex-1">
+        <div className="absolute inset-0">
+          <Chart option={option} label="From the benchmark's return to the portfolio's, through allocation, selection, interaction and the residual" />
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-ink-muted">
+        {largest && `${largest.name} is the largest single driver (${largest.bp >= 0 ? "+" : ""}${largest.bp} bp). `}
+        The residual, {period.residual >= 0 ? "+" : ""}{period.residual.toFixed(2)} pp, is what month-by-month linking leaves unexplained.
+      </p>
+      <p className="mt-1 text-3xs text-ink-muted italic">{data.attribution?.note}</p>
+    </Card>
+  );
+}
+
+function BrinsonCard({ data }: { data: ClientPerformance }) {
+  const periods = data.attribution?.periods ?? [];
+  const [key, setKey] = useState(periods[0]?.key ?? "YTD");
+  const period: AttributionPeriod | undefined = periods.find((one) => one.key === key) ?? periods[0];
+  if (!period) return null;
+  const totals = period.rows.reduce((sum, row) => ({
+    allocation: sum.allocation + row.allocationBp, selection: sum.selection + row.selectionBp,
+    interaction: sum.interaction + row.interactionBp, total: sum.total + row.totalBp,
+  }), { allocation: 0, selection: 0, interaction: 0, total: 0 });
+  const excess = period.portfolio - period.benchmark;
+  return (
+    <Card title={`Brinson-Fachler Attribution · ${period.label}`}
+      lead="Average weights · effects in basis points · investable assets, owned outright excluded"
+      action={periods.length > 1 && <Toggle label="Period" value={period.key} onChange={setKey} options={periods.map((one) => [one.key, one.key])} />}>
+      <div className="-mx-5 overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
+              <th scope="col" className="py-2 pr-2 pl-5">Sleeve</th>
+              <th scope="col" className="px-2 py-2 text-right">Port. wt</th>
+              <th scope="col" className="px-2 py-2 text-right">Bench wt</th>
+              <th scope="col" className="px-2 py-2 text-right">Port. ret</th>
+              <th scope="col" className="px-2 py-2 text-right">Bench ret</th>
+              <th scope="col" className="px-2 py-2 text-right">Allocation</th>
+              <th scope="col" className="px-2 py-2 text-right">Selection</th>
+              <th scope="col" className="px-2 py-2 text-right">Interaction</th>
+              <th scope="col" className="py-2 pr-5 pl-2 text-right">Total bp</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {period.rows.map((row) => (
+              <tr key={row.key}>
+                <th scope="row" className="py-2 pr-2 pl-5 text-left font-medium">{row.name}</th>
+                <td className="px-2 py-2 text-right tabular-nums">{row.portfolioWeight.toFixed(1)}%</td>
+                <td className="px-2 py-2 text-right tabular-nums">{row.benchmarkWeight.toFixed(1)}%</td>
+                <td className="px-2 py-2 text-right tabular-nums">{signed(row.portfolioReturn)}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{signed(row.benchmarkReturn)}</td>
+                <Bp value={row.allocationBp} />
+                <Bp value={row.selectionBp} />
+                <Bp value={row.interactionBp} />
+                <Bp value={row.totalBp} last />
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-line bg-slate-50 font-semibold">
+              <th scope="row" className="py-2 pr-2 pl-5 text-left">Total (investable)</th>
+              <td className="px-2 py-2 text-right tabular-nums">100.0%</td>
+              <td className="px-2 py-2 text-right tabular-nums">100.0%</td>
+              <td className="px-2 py-2 text-right tabular-nums">{signed(period.portfolio)}</td>
+              <td className="px-2 py-2 text-right tabular-nums">{signed(period.benchmark)}</td>
+              <Bp value={totals.allocation} />
+              <Bp value={totals.selection} />
+              <Bp value={totals.interaction} />
+              <Bp value={totals.total} last />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p className="mt-2 text-3xs text-ink-muted italic">
+        {data.attribution?.note}. The portfolio is the time-weighted return and the benchmark the page's; of the {excess >= 0 ? "+" : ""}{excess.toFixed(2)} pp
+        between them, {period.residual >= 0 ? "+" : ""}{period.residual.toFixed(2)} pp is the residual month-by-month linking leaves.
+      </p>
+    </Card>
+  );
+}
+
+function Bp({ value, last }: { value: number; last?: boolean }) {
+  return (
+    <td className={cn("py-2 text-right tabular-nums", last ? "pr-5 pl-2 font-semibold" : "px-2", value > 0 ? "text-emerald-700" : value < 0 ? "text-red-700" : "")}>
+      {value > 0 ? "+" : ""}{value}
+    </td>
+  );
+}
+
 const PERIODS = ["MTD", "QTD", "YTD", "1Y", "3Y ann.", "5Y ann.", "ITD ann."];
 
 function ClassCard({ data }: { data: ClientPerformance }) {
@@ -291,7 +445,7 @@ function ClassCard({ data }: { data: ClientPerformance }) {
                   {row.figures.map((figure, at) => (
                     <td key={at} className="px-2 py-2 text-right tabular-nums">
                       <span className={cn("block", toneOf(figure))}>{figure == null ? "—" : signed(figure)}</span>
-                      <span className="block text-3xs font-normal text-ink-muted">{row.total && row.benchmark[at] != null ? signed(row.benchmark[at] as number) : "—"}</span>
+                      <span className="block text-3xs font-normal text-ink-muted">{row.benchmark[at] != null ? signed(row.benchmark[at] as number) : "—"}</span>
                     </td>
                   ))}
                 </tr>
@@ -301,7 +455,7 @@ function ClassCard({ data }: { data: ClientPerformance }) {
         </div>
       )}
       <p className="mt-2 text-3xs text-ink-muted italic">
-        No benchmark is recorded for each asset class, so the line beneath a class is a dash; the total's is the policy benchmark. Class figures count money moved in or out of a class as change.
+        {data.classNote ?? "No benchmark is recorded for each asset class, so the line beneath a class is a dash; the total's is the policy benchmark. Class figures count money moved in or out of a class as change."}
       </p>
     </Card>
   );

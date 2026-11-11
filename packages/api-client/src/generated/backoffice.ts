@@ -8884,6 +8884,7 @@ export interface ClientWorkspace {
   jurisdictions: string[];
   externalFlows: BookAumPoint[];
   subClasses: number;
+  totalWorth: BookAumPoint[];
 }
 
 export interface StructureCount {
@@ -9072,6 +9073,8 @@ export interface RiskKpis {
   /** @nullable */
   worstAmount: number | null;
   diversification: RiskNotMeasured;
+  /** @nullable */
+  diversificationRatio: number | null;
 }
 
 export interface RiskScenario {
@@ -9121,6 +9124,28 @@ export interface RiskLadderRow {
   total: number;
 }
 
+export interface RiskClassShare {
+  key: string;
+  name: string;
+  capitalPercent: number;
+  riskPercent: number;
+  volatilityPercent: number;
+}
+
+export interface RiskFactor {
+  key: string;
+  label: string;
+  loading: number;
+  /** @nullable */
+  benchmarkLoading: number | null;
+}
+
+export interface RiskCorrelation {
+  names: string[];
+  values: number[][];
+  months: number;
+}
+
 export interface ClientRisk {
   customerId: string;
   name: string;
@@ -9158,6 +9183,9 @@ export interface ClientRisk {
   liquidityTotals: RiskSlice[];
   /** @nullable */
   liquidityNote: string | null;
+  classRisk: RiskClassShare[];
+  factors: RiskFactor[];
+  correlationMatrix: RiskCorrelation | null;
 }
 
 export interface PmKpi {
@@ -9338,6 +9366,31 @@ export interface ClientPrivateMarkets {
   note: string | null;
 }
 
+export interface AttributionRow {
+  key: string;
+  name: string;
+  portfolioWeight: number;
+  benchmarkWeight: number;
+  portfolioReturn: number;
+  benchmarkReturn: number;
+  allocationBp: number;
+  selectionBp: number;
+  interactionBp: number;
+  totalBp: number;
+}
+
+export interface AttributionPeriod {
+  key: string;
+  label: string;
+  portfolio: number;
+  benchmark: number;
+  allocation: number;
+  selection: number;
+  interaction: number;
+  residual: number;
+  rows: AttributionRow[];
+}
+
 export interface PerformanceKpis {
   /** @nullable */
   ytd: number | null;
@@ -9495,6 +9548,11 @@ export interface PerformanceYearsSummary {
   negative: number;
 }
 
+export interface PerformanceAttribution {
+  note: string;
+  periods: AttributionPeriod[];
+}
+
 export interface ClientPerformance {
   customerId: string;
   name: string;
@@ -9515,6 +9573,9 @@ export interface ClientPerformance {
   risk: PerformanceRisk | null;
   fees: PerformanceFees | null;
   yearsSummary: PerformanceYearsSummary | null;
+  attribution: PerformanceAttribution | null;
+  /** @nullable */
+  classNote: string | null;
 }
 
 export interface IpsSummary {

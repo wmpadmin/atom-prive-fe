@@ -40,16 +40,16 @@ export function ClientRiskPage() {
       <Kpis data={data} />
       <div className="grid gap-4 xl:grid-cols-[1.1fr_1fr]">
         <Card title="Risk Contribution vs Capital" lead="Ex-ante, investable assets, private assets de-smoothed">
-          <Missing data={data} reason={data.riskContribution.reason} />
+          {data.classRisk.length > 0 ? <ClassRisk data={data} /> : <Missing data={data} reason={data.riskContribution.reason} />}
         </Card>
         <Card title="Factor Exposures" lead="Barra-style standardised loadings vs policy benchmark">
-          <Missing data={data} reason={data.factorExposures.reason} />
+          {data.factors.length > 0 ? <Factors data={data} /> : <Missing data={data} reason={data.factorExposures.reason} />}
         </Card>
       </div>
       <div className="grid gap-4 xl:grid-cols-[1.55fr_1fr]">
         <Stress data={data} />
-        <Card title="Correlation Matrix" lead="5Y monthly · private assets de-smoothed">
-          <Missing data={data} reason={data.correlation.reason} />
+        <Card title="Correlation Matrix" lead={data.correlationMatrix ? "Monthly class returns, last 3 years · private assets de-smoothed" : "5Y monthly · private assets de-smoothed"}>
+          {data.correlationMatrix ? <Correlation data={data} /> : <Missing data={data} reason={data.correlation.reason} />}
         </Card>
       </div>
       <div className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
@@ -110,8 +110,9 @@ function Kpis({ data }: { data: ClientRisk }) {
       <Kpi label={`Worst stress${k.worstScenario ? ` · ${k.worstScenario}` : ""}`}
         value={k.worstPercent == null ? "—" : signed(k.worstPercent)} tone={toneOf(k.worstPercent)}
         note={file ? <NotInFile /> : k.worstAmount == null ? "No scenario run" : `${signedMoney(k.worstAmount, data.currency)} on total net worth`} />
-      <Kpi label="Diversification ratio" value="—"
-        note={file ? <NotInFile /> : <NotMeasuredTag title={k.diversification.reason} />} />
+      <Kpi label="Diversification ratio" value={k.diversificationRatio == null ? "—" : k.diversificationRatio.toFixed(2)}
+        note={file ? <NotInFile /> : k.diversificationRatio == null ? <NotMeasuredTag title={k.diversification.reason} />
+          : "Weighted class volatilities over the portfolio's · demo class returns"} />
     </div>
   );
 }
@@ -382,6 +383,117 @@ function Ladder({ data }: { data: ClientRisk }) {
 }
 
 /* ------------------------------------------------------------------------------------------------------------ */
+
+/** Each class's share of capital beside its share of risk, both as bars on one scale. */
+function ClassRisk({ data }: { data: ClientRisk }) {
+  const rows = data.classRisk;
+  const largest = Math.max(1, ...rows.flatMap((one) => [one.capitalPercent, one.riskPercent]));
+  return (
+    <>
+      <ul className="divide-y divide-line">
+        {rows.map((one) => (
+          <li key={one.key} className="grid grid-cols-[minmax(0,11rem)_1fr_7.5rem] items-center gap-3 py-2 text-sm">
+            <span className="leading-snug break-words">
+              {one.name}
+              <span className="block text-3xs text-ink-muted">vol {one.volatilityPercent.toFixed(1)}%</span>
+            </span>
+            <span className="space-y-1" aria-hidden="true">
+              <span className="block h-2 rounded-full bg-slate-100">
+                <span className="block h-full rounded-full bg-slate-400" style={{ width: `${(one.capitalPercent / largest) * 100}%` }} />
+              </span>
+              <span className="block h-2 rounded-full bg-slate-100">
+                <span className={cn("block h-full rounded-full", one.riskPercent > one.capitalPercent ? "bg-red-500" : "bg-primary-600")}
+                  style={{ width: `${(Math.max(0, one.riskPercent) / largest) * 100}%` }} />
+              </span>
+            </span>
+            <span className="text-right text-xs tabular-nums">
+              <span className="block">{one.capitalPercent.toFixed(1)}% capital</span>
+              <span className="block font-semibold">{one.riskPercent.toFixed(1)}% risk</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
+        <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-slate-400" aria-hidden="true" />Share of capital</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-primary-600" aria-hidden="true" />Share of risk</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-red-500" aria-hidden="true" />Risk above capital</span>
+      </p>
+      <p className="mt-1 text-3xs text-ink-muted italic">{data.riskContribution.reason}</p>
+    </>
+  );
+}
+
+/** Each factor's loading, the client's beside the policy benchmark's, about a centred zero line. */
+function Factors({ data }: { data: ClientRisk }) {
+  const largest = Math.max(0.1, ...data.factors.flatMap((one) => [Math.abs(one.loading), Math.abs(one.benchmarkLoading ?? 0)]));
+  const bar = (value: number, tone: string) => (
+    <span className="relative block h-2" aria-hidden="true">
+      <span className="absolute -top-0.5 left-1/2 h-3 w-px bg-ink-muted/40" />
+      <span className={cn("absolute top-0 h-2", tone, value >= 0 ? "left-1/2 rounded-r-sm" : "right-1/2 rounded-l-sm")}
+        style={{ width: `${(Math.abs(value) / largest) * 50}%` }} />
+    </span>
+  );
+  return (
+    <>
+      <ul className="divide-y divide-line">
+        {data.factors.map((one) => (
+          <li key={one.key} className="grid grid-cols-[minmax(0,10rem)_1fr_6.5rem] items-center gap-3 py-2 text-sm">
+            <span className="leading-snug break-words">{one.label}</span>
+            <span className="space-y-1">
+              {bar(one.loading, "bg-primary-600")}
+              {one.benchmarkLoading != null && bar(one.benchmarkLoading, "bg-slate-400")}
+            </span>
+            <span className="text-right text-xs tabular-nums">
+              <span className="block font-semibold">{one.loading > 0 ? "+" : ""}{one.loading.toFixed(2)}</span>
+              <span className="block text-ink-muted">bench {one.benchmarkLoading == null ? "—" : `${one.benchmarkLoading > 0 ? "+" : ""}${one.benchmarkLoading.toFixed(2)}`}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
+        <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm bg-primary-600" aria-hidden="true" />Portfolio</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm bg-slate-400" aria-hidden="true" />Policy benchmark</span>
+      </p>
+      <p className="mt-1 text-3xs text-ink-muted italic">{data.factorExposures.reason}</p>
+    </>
+  );
+}
+
+/** Class by class, a soft tint for how closely each pair moves: blue together, red apart. */
+function Correlation({ data }: { data: ClientRisk }) {
+  const matrix = data.correlationMatrix;
+  if (!matrix) return null;
+  return (
+    <>
+      <div className="-mx-5 overflow-x-auto">
+        <table className="min-w-full text-xs">
+          <thead>
+            <tr className="text-left text-3xs font-semibold tracking-wider text-ink-muted uppercase">
+              <th scope="col" className="py-1.5 pr-2 pl-5"><span className="sr-only">Class</span></th>
+              {matrix.names.map((name) => <th key={name} scope="col" className="px-1.5 py-1.5 text-center">{name}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {matrix.values.map((row, at) => (
+              <tr key={matrix.names[at]}>
+                <th scope="row" className="py-1 pr-2 pl-5 text-left font-medium whitespace-nowrap">{matrix.names[at]}</th>
+                {row.map((value, col) => (
+                  <td key={col} className="px-0.5 py-0.5">
+                    <span className="block rounded-md px-1.5 py-2 text-center text-ink tabular-nums"
+                      style={{ background: `color-mix(in srgb, var(${value >= 0 ? "--color-primary-600" : "--color-red-500"}) ${Math.round(Math.abs(value) * (at === col ? 30 : 55))}%, transparent)` }}>
+                      {value.toFixed(2)}
+                    </span>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-3xs text-ink-muted italic">{matrix.months} monthly class returns · {data.correlation.reason}</p>
+    </>
+  );
+}
 
 function Card({ title, lead, foot, flush, children }: { title: string; lead?: string; foot?: ReactNode; flush?: boolean; children: ReactNode }) {
   return (
