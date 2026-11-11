@@ -435,19 +435,19 @@ function ClientBookCard({ data }: { data: BookOverview }) {
       <div className="-mx-5 overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
-              <th scope="col" className="py-2.5 pr-3 pl-5">Client</th>
-              {on("mandate") && <th scope="col" className="px-3 py-2.5">Mandate</th>}
-              {on("aum") && <th scope="col" className="px-3 py-2.5 text-right">AUM</th>}
-              {on("share") && <th scope="col" className="px-3 py-2.5">Share</th>}
-              {on("mtd") && <th scope="col" className="px-3 py-2.5 text-right">MTD</th>}
-              {on("ytd") && <th scope="col" className="px-3 py-2.5 text-right">YTD</th>}
-              {on("bench") && <th scope="col" className="px-3 py-2.5 text-right">vs Bench</th>}
-              {on("deviation") && <th scope="col" className="px-3 py-2.5 text-right">Max deviation</th>}
-              {on("ips") && <th scope="col" className="px-3 py-2.5">IPS status</th>}
-              {on("next") && <th scope="col" className="px-3 py-2.5">Next event</th>}
-              {on("review") && <th scope="col" className="px-3 py-2.5">Last review</th>}
-              {on("data") && <th scope="col" className="py-2.5 pr-5 pl-3">Data</th>}
+            <tr className="border-y border-line text-left text-2xs font-semibold tracking-wide whitespace-nowrap text-ink-muted uppercase">
+              <th scope="col" className="py-2.5 pr-2 pl-5">Client</th>
+              {on("mandate") && <th scope="col" className="px-2 py-2.5">Mandate</th>}
+              {on("aum") && <th scope="col" className="px-2 py-2.5 text-right">AUM</th>}
+              {on("share") && <th scope="col" className="px-2 py-2.5">Share</th>}
+              {on("mtd") && <th scope="col" className="px-2 py-2.5 text-right">MTD</th>}
+              {on("ytd") && <th scope="col" className="px-2 py-2.5 text-right">YTD</th>}
+              {on("bench") && <th scope="col" className="px-2 py-2.5 text-right">vs Bench</th>}
+              {on("deviation") && <th scope="col" className="px-2 py-2.5 text-right">Max deviation</th>}
+              {on("ips") && <th scope="col" className="px-2 py-2.5">IPS status</th>}
+              {on("next") && <th scope="col" className="px-2 py-2.5">Next event</th>}
+              {on("review") && <th scope="col" className="px-2 py-2.5">Last review</th>}
+              {on("data") && <th scope="col" className="py-2.5 pr-5 pl-2">Data</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -463,17 +463,17 @@ function ClientBookCard({ data }: { data: BookOverview }) {
               return (
                 <tr key={row.customerId} onClick={() => open(row)}
                   className={cn("cursor-pointer align-top hover:bg-slate-50", row.deviating && "bg-red-50/40")}>
-                  <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-normal">
+                  <th scope="row" className="py-2.5 pr-2 pl-5 text-left font-normal">
                     <span className="flex items-start gap-2.5">
                       <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-primary-50 text-xs font-bold text-primary-700" aria-hidden="true">
                         {row.name.charAt(0)}
                       </span>
                       <span>
                         <Link to={`/client-workspace/${row.customerId}`} onClick={(event) => event.stopPropagation()}
-                          className="font-semibold whitespace-nowrap hover:text-primary-700 hover:underline">
+                          className="font-semibold hover:text-primary-700 hover:underline">
                           {row.name}
                         </Link>
-                        <span className="block text-xs whitespace-nowrap text-ink-muted">
+                        <span className="block max-w-48 truncate text-xs text-ink-muted">
                           {[row.code, typeLabel(row.customerType), row.city].filter(Boolean).join(" · ")}
                         </span>
                         {file && (
@@ -485,17 +485,17 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                       </span>
                     </span>
                   </th>
-                  {on("mandate") && <td className="px-3 py-2.5 whitespace-nowrap">{file ? <NotInFile /> : row.mandate ?? <Muted>No model</Muted>}</td>}
+                  {on("mandate") && <td className="px-2 py-2.5 whitespace-nowrap">{file ? <NotInFile /> : row.mandate ?? <Muted>No model</Muted>}</td>}
                   {on("aum") && (
-                    <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap tabular-nums">
+                    <td className="px-2 py-2.5 text-right font-semibold whitespace-nowrap tabular-nums">
                       {file ? <InTheirCurrencies amounts={file.holdings} /> : row.aum == null ? <Muted>—</Muted> : compact(row.aum, data.currency)}
                     </td>
                   )}
                   {on("share") && (
-                    <td className="px-3 py-2.5">
+                    <td className="px-2 py-2.5">
                       {file ? <Marker>not converted</Marker> : row.sharePercent == null ? <Muted>—</Muted> : (
                         <span className="flex items-center gap-2" title={`${row.sharePercent.toFixed(1)}% of the book`}>
-                          <span className="block h-1.5 w-20 rounded-full bg-slate-100" aria-hidden="true">
+                          <span className="block h-1.5 w-12 rounded-full bg-slate-100" aria-hidden="true">
                             <span className="block h-full rounded-full bg-primary-600"
                               style={{ width: `${(row.sharePercent / largestShare) * 100}%` }} />
                           </span>
@@ -504,17 +504,17 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                       )}
                     </td>
                   )}
-                  {on("mtd") && <td className="px-3 py-2.5 text-right tabular-nums">{file ? <NotInFile /> : <Percent value={row.monthToDate} />}</td>}
-                  {on("ytd") && <td className="px-3 py-2.5 text-right tabular-nums">{file ? <NotInFile /> : <Percent value={row.yearToDate} />}</td>}
+                  {on("mtd") && <td className="px-2 py-2.5 text-right tabular-nums">{file ? <NotInFile /> : <Percent value={row.monthToDate} />}</td>}
+                  {on("ytd") && <td className="px-2 py-2.5 text-right tabular-nums">{file ? <NotInFile /> : <Percent value={row.yearToDate} />}</td>}
                   {on("bench") && (
-                    <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
+                    <td className="px-2 py-2.5 text-right whitespace-nowrap tabular-nums">
                       {file ? <NotInFile /> : row.versusBenchmark == null ? <Muted>—</Muted> : (
                         <span className={toneOf(row.versusBenchmark)}>{signedPoints(row.versusBenchmark)}</span>
                       )}
                     </td>
                   )}
                   {on("deviation") && (
-                    <td className="px-3 py-2.5 text-right">
+                    <td className="px-2 py-2.5 text-right">
                       {file ? <NotInFile /> : row.maxDeviation == null ? <Muted>—</Muted> : (
                         <span className={cn("rounded-md px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap tabular-nums",
                           row.deviating ? "bg-red-50 text-red-700" : "bg-slate-100 text-ink-soft")}>
@@ -523,22 +523,22 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                       )}
                     </td>
                   )}
-                  {on("ips") && <td className="px-3 py-2.5">{file ? <NotInFile /> : <IpsStatus row={row} />}</td>}
+                  {on("ips") && <td className="px-2 py-2.5">{file ? <NotInFile /> : <IpsStatus row={row} />}</td>}
                   {on("next") && (
-                    <td className="px-3 py-2.5 text-xs">
+                    <td className="px-2 py-2.5 text-xs">
                       {file ? <NotInFile /> : row.nextEvent ? (
-                        <span className="block max-w-56 truncate" title={eventLine(row.nextEvent)}>
+                        <span className="block max-w-36 truncate" title={eventLine(row.nextEvent)}>
                           {row.nextEvent.title} {formatDate(row.nextEvent.on)}
                         </span>
                       ) : <Muted>—</Muted>}
                     </td>
                   )}
                   {on("review") && (
-                    <td className="px-3 py-2.5 text-xs whitespace-nowrap">
+                    <td className="px-2 py-2.5 text-xs whitespace-nowrap">
                       {file ? <NotInFile /> : row.lastReviewOn ? shortDay(row.lastReviewOn) : <Muted>—</Muted>}
                     </td>
                   )}
-                  {on("data") && <td className="py-2.5 pr-5 pl-3"><DataStatus status={row.data} hours={row.delayedHours} /></td>}
+                  {on("data") && <td className="py-2.5 pr-5 pl-2"><DataStatus status={row.data} hours={row.delayedHours} /></td>}
                 </tr>
               );
             })}
@@ -705,31 +705,31 @@ function CustodianFeeds({ data }: { data: BookOverview }) {
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                <th scope="col" className="py-2 pr-3 pl-5">Custodian</th>
-                <th scope="col" className="px-3 py-2 text-right">Accts</th>
-                <th scope="col" className="px-3 py-2 text-right">AUM</th>
-                <th scope="col" className="px-3 py-2 text-right">Last file</th>
-                <th scope="col" className="py-2 pr-5 pl-3">Status</th>
+              <tr className="border-y border-line text-left text-2xs font-semibold tracking-wide text-ink-muted uppercase">
+                <th scope="col" className="py-2 pr-2 pl-5">Custodian</th>
+                <th scope="col" className="px-2 py-2 text-right">Accts</th>
+                <th scope="col" className="px-2 py-2 text-right">AUM</th>
+                <th scope="col" className="px-2 py-2 text-right">Last file</th>
+                <th scope="col" className="py-2 pr-5 pl-2">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {data.custodians.map((one) => (
                 <tr key={one.bankId} className="align-top">
-                  <th scope="row" className="py-2 pr-3 pl-5 text-left font-medium">
+                  <th scope="row" className="py-2 pr-2 pl-5 text-left font-medium">
                     {one.bank}
                     {one.lastOutcome === "FAILED" && <span className="block text-3xs font-semibold text-red-700">Latest run failed</span>}
                   </th>
-                  <td className="px-3 py-2 text-right tabular-nums">{one.accounts}</td>
-                  <td className="px-3 py-2 text-right text-xs whitespace-nowrap tabular-nums">
-                    {one.holdings.length === 0 ? <Marker>no holdings in file</Marker> : one.holdings.map((amount) => (
+                  <td className="px-2 py-2 text-right tabular-nums">{one.accounts}</td>
+                  <td className="px-2 py-2 text-right text-xs whitespace-nowrap tabular-nums">
+                    {one.holdings.length === 0 ? <span className="inline-block max-w-16 text-3xs leading-tight text-ink-muted">no holdings in file</span> : one.holdings.map((amount) => (
                       <span key={amount.currency} className="block">{compact(amount.amount, amount.currency)}</span>
                     ))}
                   </td>
-                  <td className="px-3 py-2 text-right text-xs whitespace-nowrap text-ink-muted">
-                    {one.lastFileAt ? formatDate(one.lastFileAt) : "—"}
+                  <td className="px-2 py-2 text-right text-xs whitespace-nowrap text-ink-muted">
+                    {one.lastFileAt ? shortDay(one.lastFileAt) : "—"}
                   </td>
-                  <td className="py-2 pr-5 pl-3"><DataStatus status={one.status} /></td>
+                  <td className="py-2 pr-5 pl-2"><DataStatus status={one.status} /></td>
                 </tr>
               ))}
             </tbody>
@@ -859,8 +859,13 @@ function DispersionCard({ data }: { data: BookOverview }) {
 /* Small pieces                                                                                                  */
 
 /** Where a bank-file client's files hold nothing: left blank, and said so, rather than shown as a nought. */
+/** Wraps onto two short lines, so a narrow figure column is not widened by the bank-file client's row. */
 function NotInFile() {
-  return <Marker>not in bank file</Marker>;
+  return (
+    <span className="inline-block max-w-14 rounded-sm border border-dashed border-line px-1 text-3xs leading-tight font-medium text-ink-muted">
+      not in bank file
+    </span>
+  );
 }
 
 function Marker({ children }: { children: ReactNode }) {

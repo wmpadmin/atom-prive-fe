@@ -323,22 +323,22 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
           <thead>
             <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
               <th scope="col" className="py-2 pr-3 pl-5">Position</th>
-              {on("identifier") && <th scope="col" className="px-2 py-2">Identifier</th>}
-              {on("entity") && <th scope="col" className="px-2 py-2">Entity</th>}
-              {on("custodian") && <th scope="col" className="px-2 py-2">Custodian</th>}
-              {on("currency") && <th scope="col" className="px-2 py-2">Ccy</th>}
-              {on("quantity") && <th scope="col" className="px-2 py-2 text-right">Quantity</th>}
-              {on("price") && <th scope="col" className="px-2 py-2 text-right">Price</th>}
-              {on("value") && <th scope="col" className="px-2 py-2 text-right">Market value</th>}
-              {on("weight") && <th scope="col" className="px-2 py-2 text-right">Weight</th>}
-              {on("cost") && <th scope="col" className="px-2 py-2 text-right">Cost basis</th>}
-              {on("unrealised") && <th scope="col" className="px-2 py-2 text-right">Unrealised P&amp;L</th>}
-              {on("pnl") && <th scope="col" className="px-2 py-2 text-right">P&amp;L %</th>}
-              {on("oneDay") && <th scope="col" className="px-2 py-2 text-right">1D</th>}
-              {on("ytd") && <th scope="col" className="px-2 py-2 text-right">YTD</th>}
-              {on("accrued") && <th scope="col" className="px-2 py-2 text-right">Accrued</th>}
-              {on("bankCostPrice") && <th scope="col" className="px-2 py-2 text-right">Bank's cost price</th>}
-              {on("bankCostTotal") && <th scope="col" className="py-2 pr-5 pl-2 text-right">Bank's total cost</th>}
+              {on("identifier") && <th scope="col" className="px-1.5 py-2">Identifier</th>}
+              {on("entity") && <th scope="col" className="px-1.5 py-2">Entity</th>}
+              {on("custodian") && <th scope="col" className="px-1.5 py-2">Custodian</th>}
+              {on("currency") && <th scope="col" className="px-1.5 py-2">Ccy</th>}
+              {on("quantity") && <th scope="col" className="px-1.5 py-2 text-right">Quantity</th>}
+              {on("price") && <th scope="col" className="px-1.5 py-2 text-right">Price</th>}
+              {on("value") && <th scope="col" className="px-1.5 py-2 text-right">Market value</th>}
+              {on("weight") && <th scope="col" className="px-1.5 py-2 text-right">Weight</th>}
+              {on("cost") && <th scope="col" className="px-1.5 py-2 text-right">Cost basis</th>}
+              {on("unrealised") && <th scope="col" className="px-1.5 py-2 text-right">Unrealised P&amp;L</th>}
+              {on("pnl") && <th scope="col" className="px-1.5 py-2 text-right">P&amp;L %</th>}
+              {on("oneDay") && <th scope="col" className="px-1.5 py-2 text-right">1D</th>}
+              {on("ytd") && <th scope="col" className="px-1.5 py-2 text-right">YTD</th>}
+              {on("accrued") && <th scope="col" className="px-1.5 py-2 text-right">Accrued</th>}
+              {on("bankCostPrice") && <th scope="col" className="px-1.5 py-2 text-right whitespace-normal">Bank's cost price</th>}
+              {on("bankCostTotal") && <th scope="col" className="py-2 pr-5 pl-2 text-right whitespace-normal">Bank's total cost</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -357,30 +357,30 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
                     <tr key={one.id} onClick={() => onPick(one)}
                       className={cn("cursor-pointer hover:bg-slate-50", picked?.id === one.id && "bg-primary-50")}>
                       <td className="py-2 pr-3 pl-8 font-medium">{one.name}{one.subClass && <span className="block text-xs font-normal text-ink-muted">{one.subClass}</span>}</td>
-                      {on("identifier") && <td className="px-2 py-2 font-mono text-xs text-ink-muted">{one.identifier ?? (file ? <NotInFile /> : "—")}</td>}
-                      {on("entity") && <td className="px-2 py-2 text-xs">{file ? <NotInFile /> : one.entity ?? "—"}</td>}
-                      {on("custodian") && <td className="px-2 py-2 text-xs">{one.custodian ?? "—"}</td>}
-                      {on("currency") && <td className="px-2 py-2 text-xs">{one.currency ?? "—"}</td>}
-                      {on("quantity") && <td className="px-2 py-2 text-right tabular-nums">{one.quantity == null ? (file ? <NotInFile /> : "—") : plain(one.quantity)}</td>}
-                      {on("price") && <td className="px-2 py-2 text-right tabular-nums">{one.price == null ? (file ? <NotInFile /> : "—") : plain(one.price)}</td>}
+                      {on("identifier") && <td className="px-1.5 py-2 font-mono text-xs text-ink-muted">{one.identifier ?? (file ? <NotInFile /> : "—")}</td>}
+                      {on("entity") && <td className="px-1.5 py-2 text-xs">{file ? <NotInFile /> : one.entity ?? "—"}</td>}
+                      {on("custodian") && <td className="px-1.5 py-2 text-xs">{one.custodian ?? "—"}</td>}
+                      {on("currency") && <td className="px-1.5 py-2 text-xs">{one.currency ?? "—"}</td>}
+                      {on("quantity") && <td className="px-1.5 py-2 text-right tabular-nums">{one.quantity == null ? (file ? <NotInFile /> : "—") : plain(one.quantity)}</td>}
+                      {on("price") && <td className="px-1.5 py-2 text-right tabular-nums">{one.price == null ? (file ? <NotInFile /> : "—") : plain(one.price)}</td>}
                       {on("value") && (
-                        <td className="px-2 py-2 text-right font-semibold whitespace-nowrap tabular-nums">
+                        <td className="px-1.5 py-2 text-right font-semibold whitespace-nowrap tabular-nums">
                           {file ? exact(one.value, one.currency ?? "") : compact(one.value, data.currency)}
                         </td>
                       )}
-                      {on("weight") && <td className="px-2 py-2 text-right tabular-nums">{file ? <NotInFile /> : one.weight == null ? "—" : `${one.weight.toFixed(2)}%`}</td>}
-                      {on("cost") && <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{file ? <NotInFile /> : one.cost == null ? "—" : compact(one.cost, data.currency)}</td>}
+                      {on("weight") && <td className="px-1.5 py-2 text-right tabular-nums">{file ? <NotInFile /> : one.weight == null ? "—" : `${one.weight.toFixed(2)}%`}</td>}
+                      {on("cost") && <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">{file ? <NotInFile /> : one.cost == null ? "—" : compact(one.cost, data.currency)}</td>}
                       {on("unrealised") && (
-                        <td className={cn("px-2 py-2 text-right whitespace-nowrap tabular-nums", toneOf(one.unrealised ?? 0))}>
+                        <td className={cn("px-1.5 py-2 text-right whitespace-nowrap tabular-nums", toneOf(one.unrealised ?? 0))}>
                           {file ? <NotInFile /> : one.unrealised == null ? "—" : signedCompact(one.unrealised, data.currency)}
                         </td>
                       )}
-                      {on("pnl") && <td className={cn("px-2 py-2 text-right tabular-nums", toneOf(one.unrealisedPercent ?? 0))}>{file ? <NotInFile /> : signedPct(one.unrealisedPercent)}</td>}
-                      {on("oneDay") && <td className={cn("px-2 py-2 text-right tabular-nums", toneOf(one.oneDay ?? 0))}>{file ? <NotInFile /> : signedPct(one.oneDay)}</td>}
-                      {on("ytd") && <td className={cn("px-2 py-2 text-right tabular-nums", toneOf(one.yearToDate ?? 0))}>{file ? <NotInFile /> : signedPct(one.yearToDate)}</td>}
-                      {on("accrued") && <td className="px-2 py-2 text-right tabular-nums">{one.accruedInterest == null ? (file ? <NotInFile /> : "—") : exact(one.accruedInterest, one.currency ?? "")}</td>}
+                      {on("pnl") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf(one.unrealisedPercent ?? 0))}>{file ? <NotInFile /> : signedPct(one.unrealisedPercent)}</td>}
+                      {on("oneDay") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf(one.oneDay ?? 0))}>{file ? <NotInFile /> : signedPct(one.oneDay)}</td>}
+                      {on("ytd") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf(one.yearToDate ?? 0))}>{file ? <NotInFile /> : signedPct(one.yearToDate)}</td>}
+                      {on("accrued") && <td className="px-1.5 py-2 text-right tabular-nums">{one.accruedInterest == null ? (file ? <NotInFile /> : "—") : exact(one.accruedInterest, one.currency ?? "")}</td>}
                       {on("bankCostPrice") && (
-                        <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
+                        <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">
                           {one.bankCostPrice == null ? (file ? <NotInFile /> : "—") : exact(one.bankCostPrice, one.currency ?? "")}
                         </td>
                       )}
@@ -415,7 +415,7 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
               <tr className="border-t border-line font-semibold">
                 <th scope="row" className="py-2 pr-3 pl-5 text-left">Total · {data.positions.length} positions</th>
                 {COLUMNS.filter(([id]) => on(id)).map(([id]) => (
-                  <td key={id} className={cn("px-2 py-2 text-right whitespace-nowrap tabular-nums",
+                  <td key={id} className={cn("px-1.5 py-2 text-right whitespace-nowrap tabular-nums",
                     id === "unrealised" && toneOf(data.total!.unrealised ?? 0))}>
                     {id === "value" ? compact(data.total!.value, data.currency)
                       : id === "weight" ? "100.00%"
@@ -462,7 +462,7 @@ function GroupRow({ group, lines, closed, file, currency, on, summary, onToggle 
   const perCurrency = () => {
     const sums = new Map<string, number>();
     lines.forEach((one) => sums.set(one.currency ?? "", (sums.get(one.currency ?? "") ?? 0) + one.value));
-    return [...sums.entries()].map(([ccy, sum]) => exact(sum, ccy)).join(" · ");
+    return [...sums.entries()].map(([ccy, sum]) => <span key={ccy} className="block">{exact(sum, ccy)}</span>);
   };
   const g = summary;
   return (
@@ -474,7 +474,7 @@ function GroupRow({ group, lines, closed, file, currency, on, summary, onToggle 
         </button>
       </th>
       {COLUMNS.filter(([id]) => on(id)).map(([id]) => (
-        <td key={id} className={cn("px-2 py-2 text-right whitespace-nowrap tabular-nums", id === "unrealised" && g && toneOf(g.unrealised ?? 0))}>
+        <td key={id} className={cn("px-1.5 py-2 text-right whitespace-nowrap tabular-nums", id === "unrealised" && g && toneOf(g.unrealised ?? 0))}>
           {file ? (id === "value" ? perCurrency() : "")
             : !g ? ""
             : id === "value" ? compact(g.value, currency)
@@ -761,8 +761,13 @@ function Marker({ children }: { children: ReactNode }) {
   );
 }
 
+/** Wraps onto two short lines, so the bank-file client's many unfilled columns do not widen the table. */
 function NotInFile() {
-  return <Marker>not in bank file</Marker>;
+  return (
+    <span className="inline-block max-w-14 rounded-sm border border-dashed border-line px-1 text-left text-3xs leading-tight font-medium text-ink-muted">
+      not in bank file
+    </span>
+  );
 }
 
 function Empty({ children }: { children: ReactNode }) {

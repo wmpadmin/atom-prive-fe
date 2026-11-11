@@ -222,7 +222,8 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
       yAxis: {
         type: "value",
         scale: true,
-        axisLabel: { color: colours.muted, formatter: (value: number) => compact(value, data.currency) },
+        splitNumber: 4,
+        axisLabel: { color: colours.muted, formatter: axisMoney([...worth, ...bench].map((one) => one.amount), data.currency) },
         splitLine: { lineStyle: { color: colours.line } },
       },
       series: [
@@ -561,7 +562,8 @@ function CashFlowCard({ data }: { data: ClientWorkspace }) {
         axisLabel: { color: colours.muted }, axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false },
       },
       yAxis: {
-        type: "value", axisLabel: { color: colours.muted, formatter: (value: number) => compact(value, data.currency) },
+        type: "value", splitNumber: 4,
+        axisLabel: { color: colours.muted, formatter: axisMoney(data.cashFlowMonths.flatMap((one) => [one.inflows, one.outflows, 0]), data.currency) },
         splitLine: { lineStyle: { color: colours.line } },
       },
       series: [
@@ -911,6 +913,26 @@ function subtitle(data: ClientWorkspace) {
     : data.entityCount === 0 ? "no entities on file"
     : `${data.entityCount} ${data.entityCount === 1 ? "entity" : "entities"}${places ? ` across ${places}` : ""}`;
   return [kind, entities, "consolidated net worth view"].filter(Boolean).join(" · ");
+}
+
+/**
+ * A money axis whose labels tell the ticks apart: compact, with as many decimals as the spread of the figures needs,
+ * so a narrow range does not print the same label four times.
+ */
+function axisMoney(values: number[], currency: string) {
+  const finite = values.filter((one) => Number.isFinite(one));
+  const largest = Math.max(1, ...finite.map((one) => Math.abs(one)));
+  const spread = finite.length === 0 ? largest : Math.max(...finite) - Math.min(...finite);
+  const ratio = spread / largest;
+  const digits = ratio < 0.02 ? 3 : ratio < 0.2 ? 2 : 1;
+  return (value: number) => {
+    try {
+      return new Intl.NumberFormat("en-US", { style: "currency", currency, notation: "compact", minimumFractionDigits: value === 0 ? 0 : digits,
+        maximumFractionDigits: digits }).format(value);
+    } catch {
+      return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: digits }).format(value);
+    }
+  };
 }
 
 function shiftMonths(day: string, months: number) {
