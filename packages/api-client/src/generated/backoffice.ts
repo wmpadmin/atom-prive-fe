@@ -548,6 +548,12 @@ export interface SettingsRequest {
      * @nullable
      */
   proposalAnswerDays: number | null;
+  /**
+     * @minimum -5
+     * @maximum 50
+     * @nullable
+     */
+  riskFreePercent: number | null;
 }
 
 export type SettingsViewSellOrder = typeof SettingsViewSellOrder[keyof typeof SettingsViewSellOrder];
@@ -594,6 +600,8 @@ export interface SettingsView {
   /** @nullable */
   updatedBy: string | null;
   proposalAnswerDays: number;
+  /** @nullable */
+  riskFreePercent: number | null;
 }
 
 export type ScheduleRowKind = typeof ScheduleRowKind[keyof typeof ScheduleRowKind];
@@ -1857,13 +1865,14 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1875,7 +1884,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -8930,6 +8938,178 @@ export interface ClientStructure {
   documents: StructureDocument[];
   /** @nullable */
   bankFile: StructureFileAccount[] | null;
+}
+
+export interface PerformanceKpis {
+  /** @nullable */
+  ytd: number | null;
+  /** @nullable */
+  ytdGross: number | null;
+  /** @nullable */
+  ytdBenchmark: number | null;
+  /** @nullable */
+  ytdExcess: number | null;
+  /** @nullable */
+  ytdMoneyWeighted: number | null;
+  /** @nullable */
+  netFlowsYtd: number | null;
+  /** @nullable */
+  itd: number | null;
+  itdAnnualised: boolean;
+  /** @nullable */
+  itdBenchmark: number | null;
+  /** @nullable */
+  since: string | null;
+  /** @nullable */
+  window: string | null;
+  /** @nullable */
+  sharpe: number | null;
+  /** @nullable */
+  sharpeBenchmark: number | null;
+  /** @nullable */
+  sortino: number | null;
+  /** @nullable */
+  informationRatio: number | null;
+  /** @nullable */
+  trackingError: number | null;
+  /** @nullable */
+  riskWhyNot: string | null;
+  /** @nullable */
+  maxDrawdown: number | null;
+  /** @nullable */
+  drawdownPeak: string | null;
+  /** @nullable */
+  drawdownTrough: string | null;
+  /** @nullable */
+  recoveredOn: string | null;
+  /** @nullable */
+  upCapture: number | null;
+  /** @nullable */
+  downCapture: number | null;
+  /** @nullable */
+  valueAdded: number | null;
+}
+
+export interface PerformanceGrowth {
+  on: string;
+  portfolio: number;
+  /** @nullable */
+  portfolioGross: number | null;
+  /** @nullable */
+  benchmark: number | null;
+  /** @nullable */
+  objective: number | null;
+}
+
+export interface PerformanceBenchmark {
+  /** @nullable */
+  name: string | null;
+  /** @nullable */
+  composition: string | null;
+  /** @nullable */
+  mandate: string | null;
+  /** @nullable */
+  ytdPortfolio: number | null;
+  /** @nullable */
+  ytdBenchmark: number | null;
+  /** @nullable */
+  ytdExcess: number | null;
+  ytdLine: PerformanceGrowth[];
+}
+
+export interface PerformanceClassRow {
+  key: string;
+  name: string;
+  total: boolean;
+  /** @nullable */
+  value: number | null;
+  figures: number[];
+  benchmark: number[];
+}
+
+export interface PerformanceNotMeasured {
+  measured: boolean;
+  reason: string;
+}
+
+export interface PerformanceYear {
+  year: number;
+  portfolio: number;
+  /** @nullable */
+  benchmark: number | null;
+  partial: boolean;
+}
+
+export interface PerformancePoint {
+  on: string;
+  portfolio: number;
+  /** @nullable */
+  benchmark: number | null;
+}
+
+export interface PerformanceMonth {
+  month: string;
+  value: number;
+  partial: boolean;
+}
+
+export interface PerformanceMeasure {
+  key: string;
+  label: string;
+  /** @nullable */
+  portfolio: number | null;
+  /** @nullable */
+  benchmark: number | null;
+  percent: boolean;
+  /** @nullable */
+  note: string | null;
+}
+
+export interface PerformanceRisk {
+  /** @nullable */
+  window: string | null;
+  /** @nullable */
+  whyNot: string | null;
+  measures: PerformanceMeasure[];
+}
+
+export interface PerformanceFee {
+  type: string;
+  label: string;
+  ytdPercent: number;
+  annualBp: number;
+}
+
+export interface PerformanceFees {
+  /** @nullable */
+  gross: number | null;
+  totalPercent: number;
+  /** @nullable */
+  net: number | null;
+  totalAmount: number;
+  annualPercent: number;
+  byType: PerformanceFee[];
+}
+
+export interface ClientPerformance {
+  customerId: string;
+  name: string;
+  currency: string;
+  asOf: string;
+  bankFile: boolean;
+  months: number;
+  /** @nullable */
+  riskFreePercent: number | null;
+  kpis: PerformanceKpis | null;
+  benchmark: PerformanceBenchmark | null;
+  growth: PerformanceGrowth[];
+  byClass: PerformanceClassRow[];
+  brinson: PerformanceNotMeasured;
+  calendarYears: PerformanceYear[];
+  rolling: PerformancePoint[];
+  monthly: PerformanceMonth[];
+  risk: PerformanceRisk | null;
+  fees: PerformanceFees | null;
 }
 
 export interface IpsSummary {
@@ -42766,6 +42946,101 @@ export function useReconcileClientHoldings<TData = Awaited<ReturnType<typeof rec
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getReconcileClientHoldingsQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientPerformanceUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/performance`
+}
+
+export const getClientPerformance = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientPerformance> => {
+
+  return http<ClientPerformance>(getGetClientPerformanceUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientPerformanceQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/performance`
+    ] as const;
+    }
+
+
+export const getGetClientPerformanceQueryOptions = <TData = Awaited<ReturnType<typeof getClientPerformance>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientPerformanceQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientPerformance>>> = ({ signal }) => getClientPerformance(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientPerformanceQueryResult = NonNullable<Awaited<ReturnType<typeof getClientPerformance>>>
+export type GetClientPerformanceQueryError = unknown
+
+
+export function useGetClientPerformance<TData = Awaited<ReturnType<typeof getClientPerformance>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientPerformance>>,
+          TError,
+          Awaited<ReturnType<typeof getClientPerformance>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientPerformance<TData = Awaited<ReturnType<typeof getClientPerformance>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientPerformance>>,
+          TError,
+          Awaited<ReturnType<typeof getClientPerformance>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientPerformance<TData = Awaited<ReturnType<typeof getClientPerformance>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientPerformance<TData = Awaited<ReturnType<typeof getClientPerformance>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientPerformanceQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

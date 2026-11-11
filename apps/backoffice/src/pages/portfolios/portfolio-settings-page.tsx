@@ -148,6 +148,8 @@ export function PortfolioSettingsPage() {
         digestEnabled: typed.digestEnabled,
         digestAt: `${typed.digestAt}:00`,
         proposalAnswerDays: Number(typed.proposalAnswerDays),
+        // Left blank, the rate stays as it is.
+        riskFreePercent: typed.riskFreePercent.trim() === "" ? null : Number(typed.riskFreePercent),
       },
     });
   }
@@ -244,6 +246,17 @@ export function PortfolioSettingsPage() {
                 </span>
               </Field>
               <p className="mt-2 text-xs text-ink-muted">An unanswered proposal expires after this, and nothing moves. Between 1 and 90.</p>
+            </Box>
+            <Box icon={<Clock />} title="Performance" lead="The risk-free rate every excess-over-cash figure is read against.">
+              <Field id="set-risk-free" label="Risk-free rate (3-month T-bill)" error={errors.fields.riskFreePercent}>
+                <span className="relative block max-w-48">
+                  <TextInput {...describedBy("set-risk-free", errors.fields.riskFreePercent)} id="set-risk-free"
+                    inputMode="decimal" disabled={!mayChange} value={typed.riskFreePercent} className="pr-16" placeholder="Not set"
+                    onChange={(event) => set({ riskFreePercent: event.target.value.replace(/[^0-9.-]/g, "") })} />
+                  <span aria-hidden="true" className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-ink-muted">% a year</span>
+                </span>
+              </Field>
+              <p className="mt-2 text-xs text-ink-muted">Sharpe, Sortino and Jensen's alpha are read against it; while it is not set, none of them is shown.</p>
             </Box>
           </div>
         </Card>
@@ -675,6 +688,8 @@ interface Typed {
   digestAt: string;
   /** Whole days, as typed. */
   proposalAnswerDays: string;
+  /** The firm's risk-free rate, percent a year, as typed; blank where none is set. */
+  riskFreePercent: string;
 }
 
 /** What the firm has settled, as boxes. Blank until it has been read, rather than a guess at the defaults. */
@@ -690,5 +705,6 @@ function asTyped(held: SettingsView | undefined): Typed {
     digestEnabled: held?.digestEnabled ?? true,
     digestAt: held?.digestAt?.slice(0, 5) ?? "07:00",
     proposalAnswerDays: held ? String(held.proposalAnswerDays) : "14",
+    riskFreePercent: held?.riskFreePercent == null ? "" : String(held.riskFreePercent),
   };
 }

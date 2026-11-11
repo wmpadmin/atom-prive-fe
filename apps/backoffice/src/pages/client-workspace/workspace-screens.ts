@@ -1,9 +1,9 @@
-import { LayoutDashboard, List, Network, ShieldCheck, type LucideIcon } from "lucide-react";
+import { ChartNoAxesCombined, LayoutDashboard, List, Network, ShieldCheck, type LucideIcon } from "lucide-react";
 
 /**
  * The screens of a client's workspace, in the order its side menu lists them.
  *
- * <p>Only the screens that are built. The firm's design has ten — Performance & Attribution, Risk & Exposure, Equity, Fixed Income, Private Markets, Collectibles — and
+ * <p>Only the screens that are built. The firm's design has ten — Risk & Exposure, Equity, Fixed Income, Private Markets, Collectibles — and
  * each joins this list, and the router, the day it is built: a menu entry that leads nowhere is worse than none.
  *
  * @property path under /client-workspace/:customerId; empty for the screen the workspace opens on
@@ -16,6 +16,7 @@ export const WORKSPACE_SCREENS: WorkspaceScreen[] = [
   { id: "structure", label: "Entity Structure", path: "structure", icon: Network },
   { id: "ips", label: "IPS Monitoring", path: "ips", icon: ShieldCheck },
   { id: "holdings", label: "Consolidated Holdings", path: "holdings", icon: List },
+  { id: "performance", label: "Performance & Attribution", path: "performance", icon: ChartNoAxesCombined },
 ];
 
 /** Where one client's workspace opens. */
