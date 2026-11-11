@@ -318,7 +318,9 @@ function FundsCard({ data }: { data: ClientPrivateMarkets }) {
   const total = data.totals.find((one) => one.tab === tab);
   return (
     <Card title="Fund Commitments" flush
-      lead={data.bankFile ? undefined : "Quartile not measured: no Cambridge Associates vintage benchmarks on file · IRR not meaningful (n.m.) under 3 years"}
+      lead={data.bankFile ? undefined : data.funds.some((one) => one.quartile)
+        ? "Quartile on TVPI against demo vintage break-points by strategy and vintage · IRR not meaningful (n.m.) under 3 years"
+        : "Quartile not measured: no vintage benchmarks on file · IRR not meaningful (n.m.) under 3 years"}
       action={!data.bankFile && (
         <div className="flex rounded-lg border border-line p-0.5 text-xs font-semibold" role="tablist">
           {TABS.map(([key, label]) => (
