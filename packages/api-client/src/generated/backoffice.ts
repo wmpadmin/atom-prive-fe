@@ -9636,6 +9636,169 @@ export interface ClientHoldingsBook {
   groups: HoldingsGroup[];
 }
 
+export interface EquityStrip {
+  /** @nullable */
+  value: number | null;
+  /** @nullable */
+  netWorthPercent: number | null;
+  /** @nullable */
+  ytd: number | null;
+  /** @nullable */
+  benchmarkYtd: number | null;
+  positions: number;
+  fileValues: BookCurrencyAmount[];
+}
+
+export interface EquityKpi {
+  key: string;
+  label: string;
+  /** @nullable */
+  value: number | null;
+  unit: string;
+  /** @nullable */
+  delta: number | null;
+  deltaUnit: string;
+  /** @nullable */
+  benchmark: number | null;
+  /** @nullable */
+  reason: string | null;
+}
+
+export interface EquityActive {
+  key: string;
+  name: string;
+  portfolio: number;
+  /** @nullable */
+  benchmark: number | null;
+  /** @nullable */
+  active: number | null;
+}
+
+export interface EquityStyleCell {
+  size: string;
+  style: string;
+  portfolio: number;
+  /** @nullable */
+  benchmark: number | null;
+}
+
+export interface EquityHolding {
+  name: string;
+  /** @nullable */
+  ticker: string | null;
+  kind: string;
+  /** @nullable */
+  sector: string | null;
+  /** @nullable */
+  country: string | null;
+  /** @nullable */
+  value: number | null;
+  /** @nullable */
+  weight: number | null;
+  /** @nullable */
+  marketCap: number | null;
+  /** @nullable */
+  pe: number | null;
+  /** @nullable */
+  forwardPe: number | null;
+  /** @nullable */
+  pb: number | null;
+  /** @nullable */
+  roe: number | null;
+  /** @nullable */
+  dividendYield: number | null;
+  /** @nullable */
+  epsGrowth: number | null;
+  /** @nullable */
+  netDebtEbitda: number | null;
+  /** @nullable */
+  beta: number | null;
+  /** @nullable */
+  oneDay: number | null;
+  /** @nullable */
+  ytd: number | null;
+  /** @nullable */
+  contribution: number | null;
+  count: number;
+}
+
+export interface EquityPoint {
+  name: string;
+  label: string;
+  forwardPe: number;
+  roe: number;
+  capped: boolean;
+  weight: number;
+  group: string;
+}
+
+export interface EquityContribution {
+  label: string;
+  basisPoints: number;
+}
+
+export interface EquityConcentration {
+  cumulative: number[];
+  topTen: number;
+  effectiveNames: number;
+  largest: string;
+  largestWeight: number;
+  hhi: number;
+}
+
+export interface EquityPePoint {
+  on: string;
+  /** @nullable */
+  portfolio: number | null;
+  /** @nullable */
+  benchmark: number | null;
+}
+
+export interface EquityFileLine {
+  name: string;
+  /** @nullable */
+  identifier: string | null;
+  value: number;
+  currency: string;
+}
+
+export interface ClientEquity {
+  customerId: string;
+  name: string;
+  currency: string;
+  asOf: string;
+  bankFile: boolean;
+  view: string;
+  benchmark: string;
+  strip: EquityStrip;
+  kpis: EquityKpi[];
+  segments: IpsAllocationRow[];
+  /** @nullable */
+  segmentsNote: string | null;
+  sectors: EquityActive[];
+  regions: EquityActive[];
+  styleBox: EquityStyleCell[];
+  holdings: EquityHolding[];
+  portfolio: EquityHolding | null;
+  benchmarkRow: EquityHolding | null;
+  scatter: EquityPoint[];
+  /** @nullable */
+  benchmarkForwardPe: number | null;
+  /** @nullable */
+  benchmarkRoe: number | null;
+  contributions: EquityContribution[];
+  capBuckets: EquityActive[];
+  concentration: EquityConcentration | null;
+  valuationHistory: EquityPePoint[];
+  /** @nullable */
+  premiumNow: number | null;
+  /** @nullable */
+  premiumAverage: number | null;
+  fileLines: EquityFileLine[];
+  /** @nullable */
+  note: string | null;
+}
+
 export interface Activity {
   kind: string;
   subject: string;
@@ -10627,6 +10790,10 @@ code?: string;
 
 export type ListEmailPlaceholdersParams = {
 template?: string;
+};
+
+export type GetClientEquityParams = {
+view?: string;
 };
 
 export type ListMyNotificationsParams = {
@@ -43571,6 +43738,116 @@ export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getCl
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientHoldingsBookQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientEquityUrl = (customerId: string,
+    params?: GetClientEquityParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/equity?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/equity`
+}
+
+export const getClientEquity = async (customerId: string,
+    params?: GetClientEquityParams, options?: Parameters<typeof http>[1]): Promise<ClientEquity> => {
+
+  return http<ClientEquity>(getGetClientEquityUrl(customerId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientEquityQueryKey = (customerId: string,
+    params?: GetClientEquityParams,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/equity`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetClientEquityQueryOptions = <TData = Awaited<ReturnType<typeof getClientEquity>>, TError = unknown>(customerId: string,
+    params?: GetClientEquityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientEquity>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientEquityQueryKey(customerId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientEquity>>> = ({ signal }) => getClientEquity(customerId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientEquity>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientEquityQueryResult = NonNullable<Awaited<ReturnType<typeof getClientEquity>>>
+export type GetClientEquityQueryError = unknown
+
+
+export function useGetClientEquity<TData = Awaited<ReturnType<typeof getClientEquity>>, TError = unknown>(
+ customerId: string,
+    params: undefined |  GetClientEquityParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientEquity>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientEquity>>,
+          TError,
+          Awaited<ReturnType<typeof getClientEquity>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientEquity<TData = Awaited<ReturnType<typeof getClientEquity>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientEquityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientEquity>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientEquity>>,
+          TError,
+          Awaited<ReturnType<typeof getClientEquity>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientEquity<TData = Awaited<ReturnType<typeof getClientEquity>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientEquityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientEquity>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientEquity<TData = Awaited<ReturnType<typeof getClientEquity>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientEquityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientEquity>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientEquityQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
