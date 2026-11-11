@@ -60,14 +60,14 @@ function Monitoring({ data }: { data: ClientIps }) {
         <Budget data={data} />
       </div>
       <AllocationCard data={data} />
-      <div className="grid gap-4 xl:grid-cols-[1fr_1.3fr]">
+      {/* Objective Tracking sits beside the deviations and the twelve-month history, whose height it shares;
+          Constraint Checks, the long table, has the full width to itself rather than an empty card beside it. */}
+      <div className="grid gap-4 xl:grid-cols-3">
         <SubDeviations data={data} />
         <HistoryCard data={data} />
-      </div>
-      <div className="grid gap-4 xl:grid-cols-[1fr_1.6fr]">
         <ObjectiveCard data={data} />
-        <ChecksCard data={data} />
       </div>
+      <ChecksCard data={data} />
       <LogCard data={data} />
     </>
   );
@@ -150,7 +150,9 @@ function Scorecard({ data }: { data: ClientIps }) {
       textStyle: { fontFamily: colours.font },
       tooltip: { trigger: "item" },
       series: [{
-        type: "pie", radius: ["68%", "88%"], label: { show: false }, itemStyle: { borderColor: colours.surface, borderWidth: 2 },
+        // Held on one circle: a hovered segment does not grow out of the ring, which read as segments out of line.
+        type: "pie", radius: ["68%", "88%"], label: { show: false }, emphasis: { scale: false },
+        itemStyle: { borderColor: colours.surface, borderWidth: 2 },
         data: rows.filter(([, count]) => count > 0).map(([key, count]) => ({ name: STATUS[key]![0], value: count, itemStyle: { color: STATUS[key]![2] } })),
       }],
     };

@@ -294,8 +294,9 @@ function YearsCard({ data }: { data: ClientPerformance }) {
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
       yAxis: { type: "value", axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
-        { type: "bar", name: "Portfolio", data: data.calendarYears.map((one) => one.portfolio), itemStyle: { color: colours.text } },
-        { type: "bar", name: "Policy benchmark", data: data.calendarYears.map((one) => one.benchmark), itemStyle: { color: colours.neutral } },
+        // Capped, so a single year reads as an ordinary pair of bars in the middle rather than two slabs.
+        { type: "bar", name: "Portfolio", barMaxWidth: 40, data: data.calendarYears.map((one) => one.portfolio), itemStyle: { color: colours.text } },
+        { type: "bar", name: "Policy benchmark", barMaxWidth: 40, data: data.calendarYears.map((one) => one.benchmark), itemStyle: { color: colours.neutral } },
       ],
     };
   }, [data.calendarYears]);

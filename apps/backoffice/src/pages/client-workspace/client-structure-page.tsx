@@ -109,71 +109,43 @@ function OwnershipCard({ data }: { data: ClientStructure }) {
       }>
       {data.entities.length === 0 && !data.unassigned ? <Empty>No entity is on file for this client yet.</Empty> : view === "tree" ? (
         <div className="overflow-x-auto">
-          <div className="flex min-w-[52rem] items-center gap-0">
+          <div className="flex min-w-[52rem] items-center">
             <div className="w-52 shrink-0 rounded-xl border-2 border-ink p-3">
               <p className="text-3xs font-semibold tracking-wider text-red-700 uppercase">Settlors{data.settlors.length > 0 && " · G1"}</p>
-              <p className="text-base font-bold">{data.settlors.length > 0 ? settlorNames(data.settlors) : data.name}</p>
+              <p className="text-base font-bold break-words">{data.settlors.length > 0 ? settlorNames(data.settlors) : data.name}</p>
               <p className="text-2xs text-ink-muted">Consolidated net worth</p>
               <p className="text-lg font-bold tabular-nums">{data.netWorth == null ? "—" : compact(data.netWorth, cur)}</p>
             </div>
-            <div className="w-6 shrink-0 border-t border-line" aria-hidden="true" />
-            <div className="flex-1 space-y-3 border-l border-line pl-0">
-              {data.entities.map((one) => (
-                <div key={one.id} className="flex items-center">
-                  <div className="w-6 shrink-0 border-t border-line" aria-hidden="true" />
+            <Branches gap="lg" items={[
+              ...data.entities.map((one) => (
+                <div key={one.id} className="flex flex-1 items-center">
                   <TopBox node={one} show={show} currency={cur} />
                   {(one.children.length > 0 || one.direct > 0) && (
-                    <>
-                      <div className="w-6 shrink-0 border-t border-line" aria-hidden="true" />
-                      <div className="flex-1 space-y-2 border-l border-line">
-                        {one.children.map((child) => (
-                          <div key={child.id} className="flex items-center">
-                            <div className="w-4 shrink-0 border-t border-line" aria-hidden="true" />
-                            <ChildBox node={child} show={show} currency={cur} />
+                    <Branches gap="sm" items={[
+                      ...one.children.map((child) => <ChildBox key={child.id} node={child} show={show} currency={cur} />),
+                      ...((one.children.length === 0 || one.direct > 0) ? [(
+                        <div key="direct" className="flex min-h-12 flex-1 items-center justify-between gap-3 rounded-lg border border-line px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold">{one.children.length === 0 ? "Accounts and holdings" : "Held directly"}</p>
+                            <p className="text-2xs break-words text-ink-muted">{one.custodians.join(" · ") || "No account linked"}</p>
                           </div>
-                        ))}
-                        {one.children.length > 0 && one.direct > 0 && (
-                          <div className="flex items-center">
-                            <div className="w-4 shrink-0 border-t border-line" aria-hidden="true" />
-                            <div className="flex flex-1 items-center justify-between rounded-lg border border-line px-3 py-2">
-                              <div>
-                                <p className="text-sm font-semibold">Held directly</p>
-                                <p className="text-2xs text-ink-muted">{one.custodians.join(" · ") || "No account linked"}</p>
-                              </div>
-                              <span className="text-sm font-bold tabular-nums">{compact(one.direct, cur)}</span>
-                            </div>
-                          </div>
-                        )}
-                        {one.children.length === 0 && (
-                          <div className="flex items-center">
-                            <div className="w-4 shrink-0 border-t border-line" aria-hidden="true" />
-                            <div className="flex flex-1 items-center justify-between rounded-lg border border-line px-3 py-2">
-                              <div>
-                                <p className="text-sm font-semibold">Accounts and holdings</p>
-                                <p className="text-2xs text-ink-muted">{one.custodians.join(" · ") || "No account linked"}</p>
-                              </div>
-                              <span className="text-sm font-bold tabular-nums">{compact(one.direct, cur)}</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </>
+                          <span className="shrink-0 text-sm font-bold tabular-nums">{compact(one.direct, cur)}</span>
+                        </div>
+                      )] : []),
+                    ]} />
                   )}
                 </div>
-              ))}
-              {data.unassigned && (
-                <div className="flex items-center">
-                  <div className="w-6 shrink-0 border-t border-dashed border-line" aria-hidden="true" />
-                  <div className="flex w-64 shrink-0 items-center justify-between rounded-xl border border-dashed border-line px-3 py-2.5">
-                    <div>
-                      <p className="text-sm font-semibold">Not assigned to an entity</p>
-                      <p className="text-2xs text-ink-muted">Holdings no entity has been linked to</p>
-                    </div>
-                    <span className="text-sm font-bold tabular-nums">{compact(data.unassigned.value, cur)}</span>
+              )),
+              ...(data.unassigned ? [(
+                <div key="unassigned" className="flex min-h-14 w-64 shrink-0 items-center justify-between gap-3 rounded-xl border border-dashed border-line px-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">Not assigned to an entity</p>
+                    <p className="text-2xs text-ink-muted">Holdings no entity has been linked to</p>
                   </div>
+                  <span className="shrink-0 text-sm font-bold tabular-nums">{compact(data.unassigned.value, cur)}</span>
                 </div>
-              )}
-            </div>
+              )] : []),
+            ]} />
           </div>
           <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
             <li className="flex items-center gap-1.5"><span className="size-3 rounded-sm border-2 border-ink" aria-hidden="true" />Settlors</li>
@@ -208,6 +180,33 @@ function OwnershipCard({ data }: { data: ClientStructure }) {
   );
 }
 
+/**
+ * A parent's children, joined to it by connectors drawn per row: a stub from the trunk to each box at its
+ * mid-height, and the trunk itself running only between the first and last child's mid-heights, so no line runs
+ * past a box above or below it.
+ */
+function Branches({ items, gap }: { items: ReactNode[]; gap: "sm" | "lg" }) {
+  const half = gap === "lg" ? "0.375rem" : "0.25rem";
+  const many = items.length > 1;
+  return (
+    <div className={cn("relative flex flex-1 flex-col", gap === "lg" ? "gap-3" : "gap-2")}>
+      {/* From the parent to the trunk, level with the parent, which sits at the middle of its children. */}
+      {many && <span className="absolute top-1/2 left-0 h-px w-5 bg-line" aria-hidden="true" />}
+      {items.map((item, at) => (
+        <div key={at} className="relative flex items-center pl-10">
+          {many && (
+            <span className="absolute left-5 w-px bg-line" aria-hidden="true"
+              style={{ top: at === 0 ? "50%" : `-${half}`, bottom: at === items.length - 1 ? "50%" : `-${half}` }} />
+          )}
+          {/* To the box, at its mid-height; with one child, straight across from the parent. */}
+          <span className={cn("absolute top-1/2 h-px bg-line", many ? "left-5 w-5" : "left-0 w-10")} aria-hidden="true" />
+          {item}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** What a box says on its right: its value, how much of it its parent owns, or its tax status. */
 function figure(node: Pick<StructureNode, "value" | "ownedPercent" | "taxClassification">, show: Show, currency: string): ReactNode {
   if (show === "owned") return node.ownedPercent == null ? "—" : `${node.ownedPercent}%`;
@@ -217,10 +216,10 @@ function figure(node: Pick<StructureNode, "value" | "ownedPercent" | "taxClassif
 
 function TopBox({ node, show, currency }: { node: StructureNode; show: Show; currency: string }) {
   return (
-    <div className="flex w-64 shrink-0 items-center justify-between gap-3 rounded-xl bg-primary-50 px-3 py-2.5 ring-1 ring-primary-200">
+    <div className="flex min-h-14 w-64 shrink-0 items-center justify-between gap-3 rounded-xl bg-primary-50 px-3 py-2.5 ring-1 ring-primary-200">
       <div className="min-w-0">
-        <p className="truncate text-sm font-bold text-primary-700">{node.name}</p>
-        <p className="truncate text-2xs text-ink-soft">{node.jurisdiction} · {node.description ?? typeName(node.type)}</p>
+        <p className="text-sm font-bold break-words text-primary-700">{node.name}</p>
+        <p className="text-2xs break-words text-ink-soft">{node.jurisdiction} · {node.description ?? typeName(node.type)}</p>
       </div>
       <span className="shrink-0 text-right text-sm font-bold tabular-nums">{figure(node, show, currency)}</span>
     </div>
@@ -229,13 +228,13 @@ function TopBox({ node, show, currency }: { node: StructureNode; show: Show; cur
 
 function ChildBox({ node, show, currency }: { node: StructureNode; show: Show; currency: string }) {
   return (
-    <div className="flex-1 rounded-lg border border-line px-3 py-2">
-      <div className="flex items-center justify-between gap-3">
+    <div className="flex min-h-12 flex-1 items-center rounded-lg border border-line px-3 py-2">
+      <div className="flex w-full items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">
+          <p className="text-sm font-semibold break-words">
             {node.name} <span className="ml-1 rounded-sm bg-slate-100 px-1 text-3xs font-semibold text-ink-muted uppercase">{shortType(node.type)}</span>
           </p>
-          <p className="truncate text-2xs text-ink-muted">
+          <p className="text-2xs break-words text-ink-muted">
             {[node.ownedPercent == null ? null : `${node.ownedPercent}%`, node.jurisdiction, node.description, node.custodians.join(" · ")]
               .filter(Boolean).join(" · ")}
           </p>
@@ -387,8 +386,9 @@ function MixCard({ data }: { data: ClientStructure }) {
         <>
           <ul className="space-y-2.5">
             {data.assetMix.map((row) => (
-              <li key={row.entityId} className="grid grid-cols-[8rem_1fr] items-center gap-3 text-sm">
-                <span className="truncate">{row.entity}</span>
+              <li key={row.entityId} className="grid grid-cols-[9rem_1fr] items-center gap-3 text-sm">
+                {/* Wrapped rather than cut: an entity's name is how it is told apart from the next. */}
+                <span className="leading-snug break-words">{row.entity}</span>
                 <span className="flex h-3 overflow-hidden rounded-sm bg-slate-100" aria-hidden="true">
                   {row.slices.map((one) => (
                     <span key={one.key} title={`${one.name} ${one.sharePercent}%`} style={{ width: `${one.sharePercent}%`, background: colour(one.name) }} />
