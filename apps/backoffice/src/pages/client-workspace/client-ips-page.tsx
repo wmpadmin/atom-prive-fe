@@ -150,9 +150,11 @@ function Scorecard({ data }: { data: ClientIps }) {
       textStyle: { fontFamily: colours.font },
       tooltip: { trigger: "item" },
       series: [{
-        // Held on one circle: a hovered segment does not grow out of the ring, which read as segments out of line.
-        type: "pie", radius: ["68%", "88%"], label: { show: false }, emphasis: { scale: false },
-        itemStyle: { borderColor: colours.surface, borderWidth: 2 },
+        // One circle: every segment the same radii, no border (a border drawn in the panel colour stepped the joins),
+        // an equal small gap at every join instead, square ends, and no growing on hover.
+        type: "pie", radius: ["70%", "92%"], center: ["50%", "50%"], label: { show: false }, labelLine: { show: false },
+        emphasis: { scale: false }, padAngle: 2, minAngle: 4, avoidLabelOverlap: false,
+        itemStyle: { borderWidth: 0, borderRadius: 0 },
         data: rows.filter(([, count]) => count > 0).map(([key, count]) => ({ name: STATUS[key]![0], value: count, itemStyle: { color: STATUS[key]![2] } })),
       }],
     };
@@ -161,8 +163,10 @@ function Scorecard({ data }: { data: ClientIps }) {
     <Card title="Compliance Scorecard" lead={data.bankFile ? undefined : `${s.rules} rules monitored${s.notMeasured > 0 ? ` · ${s.notMeasured} could not be measured` : ""}`}>
       {data.bankFile ? <FileBlock /> : (<>
       <div className="flex flex-wrap items-center gap-5">
-        <div className="relative size-40 shrink-0">
-          <Chart option={option} height={160} label="Rules by status" />
+        {/* A square box in pixels, the chart exactly its size: the ring was drawn 160 high in a box 120 high, so it
+            spilled over the footer's rule. */}
+        <div className="relative shrink-0" style={{ width: 132, height: 132 }}>
+          <Chart option={option} height={132} label="Rules by status" />
           <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
             <div>
               <p className="text-xl font-bold tabular-nums">{s.compliant + s.nearLimit}/{s.rules}</p>
@@ -182,7 +186,7 @@ function Scorecard({ data }: { data: ClientIps }) {
           ))}
         </ul>
       </div>
-      <p className="mt-2 border-t border-line pt-2 text-3xs text-ink-muted">
+      <p className="mt-4 border-t border-line pt-2 text-3xs text-ink-muted">
         Checked {formatDateTime(data.checkedAt)} IST · read live each time this page opens
       </p>
       </>)}
@@ -357,18 +361,21 @@ function HistoryCard({ data }: { data: ClientIps }) {
     const band = equity?.band ?? 0;
     const flagged = days.filter((day) => series.some((one) => one.points.some((point) => point.on === day && point.outside)));
     const marked = flagged[flagged.length - 1];
-    // Symmetric about the target, wide enough for the furthest class and the band, so no line is pressed flat.
-    const furthest = Math.max(band, ...series.flatMap((one) => one.points.map((point) => Math.abs(point.deviation))));
-    const edge = Math.max(2, Math.ceil((furthest * 1.15) / 2) * 2);
+    // Symmetric about the target in round steps — at most three each side, e.g. −10, −5, 0, +5, +10 — wide enough for
+    // the furthest class and the band, so no line is pressed flat and no odd extra tick crowds the axis.
+    const furthest = Math.max(2, band, ...series.flatMap((one) => one.points.map((point) => Math.abs(point.deviation))));
+    const step = [1, 2, 5, 10, 20, 50, 100].find((one) => Math.ceil(furthest / one) <= 3) ?? 100;
+    const edge = step * Math.ceil(furthest / step);
     const bandName = band > 0 && equity ? `${equity.name} band ±${band} pp` : null;
     return {
       textStyle: { fontFamily: colours.font },
-      grid: { left: 8, right: 16, top: 16, bottom: 36, containLabel: true },
-      legend: { bottom: 0, data: [...series.map((one) => one.name), ...(bandName ? [bandName] : [])], textStyle: { color: colours.muted, fontSize: 11 } },
+      // The key is the page's own list under the chart, so it wraps below the month labels at any width.
+      grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
+      legend: { show: false },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => (value == null ? "—" : `${value.toFixed(2)} pp`) },
       xAxis: { type: "category", data: days, axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
-      yAxis: { type: "value", min: -edge, max: edge, splitNumber: 4, axisLabel: { color: colours.muted, formatter: (value: number) => `${value > 0 ? "+" : ""}${value}` },
+      yAxis: { type: "value", min: -edge, max: edge, interval: step, axisLabel: { color: colours.muted, formatter: (value: number) => `${value > 0 ? "+" : ""}${value}` },
         splitLine: { lineStyle: { color: colours.line } } },
       series: [
         ...series.map((one, at) => {
@@ -380,7 +387,9 @@ function HistoryCard({ data }: { data: ClientIps }) {
           { type: "line", name: bandName, data: days.map(() => band), showSymbol: false,
             lineStyle: { color: colours.danger, type: "dashed", width: 1 }, itemStyle: { color: colours.danger },
             ...(marked ? { markLine: { symbol: "none", silent: true, lineStyle: { color: colours.danger, type: "solid", width: 1 },
-              label: { formatter: `${monthLabel(marked)} deviation`, color: colours.danger, fontSize: 10 }, data: [{ xAxis: marked }] } } : {}) },
+              // Drawn leftwards from the line, so on the last month it is not cut off at the plot's right edge.
+              label: { formatter: `${monthLabel(marked)} deviation`, color: colours.danger, fontSize: 10, position: "end", align: "right" },
+              data: [{ xAxis: marked }] } } : {}) },
           { type: "line", name: "", data: days.map(() => -band), showSymbol: false,
             lineStyle: { color: colours.danger, type: "dashed", width: 1 }, itemStyle: { color: colours.danger } },
         ] : []),
@@ -388,10 +397,31 @@ function HistoryCard({ data }: { data: ClientIps }) {
     };
   }, [series]);
   const hasPoints = series.some((one) => one.points.length > 1);
+  const equityRow = series.find((one) => one.assetClass === "EQUITIES") ?? series[0];
+  const bandLabel = equityRow && (equityRow.band ?? 0) > 0 ? `${equityRow.name} band ±${equityRow.band} pp` : null;
   return (
     <Card title="Deviation from Target · 12 Months" lead="Percentage points vs strategic target · month-end">
       {data.bankFile ? <FileBlock /> : !hasPoints ? <Empty>Not enough month-end valuations to draw yet.</Empty> : (
-        <Chart option={option} height={260} label="Each class's distance from target at each month end" />
+        <>
+          <Chart option={option} height={220} label="Each class's distance from target at each month end" />
+          <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
+            {series.map((one, at) => (
+              <li key={one.name} className="flex items-center gap-1.5">
+                <span className="relative inline-block h-2 w-4" aria-hidden="true">
+                  <span className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full" style={{ background: INK[at % INK.length] }} />
+                  <span className="absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: INK[at % INK.length] }} />
+                </span>
+                {one.name}
+              </li>
+            ))}
+            {bandLabel && (
+              <li className="flex items-center gap-1.5">
+                <span className="inline-block w-4 border-t border-dashed border-red-500" aria-hidden="true" />
+                {bandLabel}
+              </li>
+            )}
+          </ul>
+        </>
       )}
     </Card>
   );
