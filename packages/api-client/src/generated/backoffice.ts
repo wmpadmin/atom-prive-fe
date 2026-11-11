@@ -9112,6 +9112,184 @@ export interface ClientRisk {
   liquidityNote: string | null;
 }
 
+export interface PmKpi {
+  key: string;
+  label: string;
+  /** @nullable */
+  value: number | null;
+  unit: string;
+  /** @nullable */
+  text: string | null;
+  /** @nullable */
+  detail: string | null;
+  /** @nullable */
+  extra: string | null;
+  /** @nullable */
+  extraTone: string | null;
+  /** @nullable */
+  bar: number | null;
+}
+
+export interface IpsAllocationRow {
+  key: string;
+  name: string;
+  assetClass: boolean;
+  /** @nullable */
+  parent: string | null;
+  /** @nullable */
+  min: number | null;
+  /** @nullable */
+  target: number | null;
+  /** @nullable */
+  max: number | null;
+  actual: number;
+  actualOfTotal: number;
+  value: number;
+  /** @nullable */
+  deviationPoints: number | null;
+  /** @nullable */
+  deviationValue: number | null;
+  status: string;
+}
+
+export interface PmYear {
+  year: string;
+  calls: number;
+  distributions: number;
+  cumulativeNet: number;
+  valueCreated: number;
+}
+
+export interface PmSlice {
+  key: string;
+  label: string;
+  value: number;
+  /** @nullable */
+  percent: number | null;
+}
+
+export interface PmFund {
+  name: string;
+  /** @nullable */
+  administrator: string | null;
+  tab: string;
+  strategy: string;
+  /** @nullable */
+  vintage: number | null;
+  committed: number;
+  paidIn: number;
+  /** @nullable */
+  calledPercent: number | null;
+  distributed: number;
+  nav: number;
+  /** @nullable */
+  navDate: string | null;
+  stale: boolean;
+  unfunded: number;
+  /** @nullable */
+  tvpi: number | null;
+  /** @nullable */
+  dpi: number | null;
+  /** @nullable */
+  irr: number | null;
+  /** @nullable */
+  irrText: string | null;
+  /** @nullable */
+  quartile: string | null;
+  total: boolean;
+}
+
+export interface PmScore {
+  name: string;
+  irr: number;
+  tvpi: number;
+  committed: number;
+  /** @nullable */
+  pme: number | null;
+  abovePme: boolean;
+}
+
+export interface PmQuarter {
+  label: string;
+  distributions: number;
+  calls: number;
+}
+
+export interface PmNotice {
+  fund: string;
+  kind: string;
+  on: string;
+  amount: number;
+  status: string;
+}
+
+export interface PmHedgeFund {
+  name: string;
+  /** @nullable */
+  strategy: string | null;
+  value: number;
+  /** @nullable */
+  liquidity: string | null;
+  /** @nullable */
+  lockup: string | null;
+  /** @nullable */
+  ytd: number | null;
+  /** @nullable */
+  threeYear: number | null;
+  /** @nullable */
+  volatility: number | null;
+  /** @nullable */
+  sharpe: number | null;
+  /** @nullable */
+  correlation: number | null;
+}
+
+export interface ClientPrivateMarkets {
+  customerId: string;
+  name: string;
+  currency: string;
+  asOf: string;
+  bankFile: boolean;
+  kpis: PmKpi[];
+  multiples: PmKpi[];
+  segments: IpsAllocationRow[];
+  /** @nullable */
+  segmentsNote: string | null;
+  years: PmYear[];
+  /** @nullable */
+  cumulativeNet: number | null;
+  /** @nullable */
+  valueCreated: number | null;
+  /** @nullable */
+  nav: number | null;
+  strategies: PmSlice[];
+  vintages: PmSlice[];
+  funds: PmFund[];
+  totals: PmFund[];
+  scorecard: PmScore[];
+  /** @nullable */
+  scorecardPme: number | null;
+  /** @nullable */
+  scorecardNote: string | null;
+  pacing: PmQuarter[];
+  /** @nullable */
+  pacingDistributions: number | null;
+  /** @nullable */
+  pacingCalls: number | null;
+  /** @nullable */
+  positiveFrom: string | null;
+  notices: PmNotice[];
+  hedgeFunds: PmHedgeFund[];
+  hedgeSleeve: PmHedgeFund | null;
+  /** @nullable */
+  hedgeNote: string | null;
+  unattributed: number;
+  /** @nullable */
+  unattributedNote: string | null;
+  /** @nullable */
+  note: string | null;
+}
+
 export interface PerformanceKpis {
   /** @nullable */
   ytd: number | null;
@@ -9350,28 +9528,6 @@ export interface IpsCheck {
   note: string | null;
   /** @nullable */
   measuredOn: string | null;
-}
-
-export interface IpsAllocationRow {
-  key: string;
-  name: string;
-  assetClass: boolean;
-  /** @nullable */
-  parent: string | null;
-  /** @nullable */
-  min: number | null;
-  /** @nullable */
-  target: number | null;
-  /** @nullable */
-  max: number | null;
-  actual: number;
-  actualOfTotal: number;
-  value: number;
-  /** @nullable */
-  deviationPoints: number | null;
-  /** @nullable */
-  deviationValue: number | null;
-  status: string;
 }
 
 export interface IpsSubDeviation {
@@ -43635,6 +43791,101 @@ export function useReconcileClientHoldings<TData = Awaited<ReturnType<typeof rec
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getReconcileClientHoldingsQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientWorkspacePrivateMarketsUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/private-markets`
+}
+
+export const getClientWorkspacePrivateMarkets = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientPrivateMarkets> => {
+
+  return http<ClientPrivateMarkets>(getGetClientWorkspacePrivateMarketsUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientWorkspacePrivateMarketsQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/private-markets`
+    ] as const;
+    }
+
+
+export const getGetClientWorkspacePrivateMarketsQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspacePrivateMarketsQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>> = ({ signal }) => getClientWorkspacePrivateMarkets(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientWorkspacePrivateMarketsQueryResult = NonNullable<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>>
+export type GetClientWorkspacePrivateMarketsQueryError = unknown
+
+
+export function useGetClientWorkspacePrivateMarkets<TData = Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspacePrivateMarkets<TData = Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspacePrivateMarkets<TData = Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientWorkspacePrivateMarkets<TData = Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientWorkspacePrivateMarketsQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
