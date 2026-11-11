@@ -345,10 +345,14 @@ function InterestCard({ data }: { data: ClientStructure }) {
                 <tr key={row.entityId}>
                   <th scope="row" className="py-1 pr-3 pl-5 text-left font-medium">{row.entity}</th>
                   {(row.cells as (number | null)[]).map((cell, at) => (
-                    <td key={at} className="p-0.5">
-                      <span className={cn("block rounded-md px-2 py-2 text-center text-xs font-semibold tabular-nums",
-                        cell == null ? "bg-slate-50 text-ink-muted" : cell / largest > 0.5 ? "bg-primary-600 text-on-accent" : "bg-primary-100 text-primary-700")}>
-                        {cell == null ? "—" : compact(cell, cur)}
+                    <td key={at} className="px-1 py-1">
+                      {/* A tint of the theme's blue, from faint for the smallest share to a third for the largest, under
+                          the page's own ink: a heat map read as cells, never a solid block that looks like a button. */}
+                      <span className="flex h-9 w-full items-center justify-center rounded-md text-xs font-semibold text-ink tabular-nums"
+                        style={{ background: cell == null
+                          ? "var(--color-slate-50)"
+                          : `color-mix(in srgb, var(--color-primary-600) ${Math.round(8 + 27 * (cell / largest))}%, transparent)` }}>
+                        {cell == null ? <span className="text-ink-muted">—</span> : compact(cell, cur)}
                       </span>
                     </td>
                   ))}
