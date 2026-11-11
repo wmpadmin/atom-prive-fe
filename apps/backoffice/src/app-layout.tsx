@@ -1,7 +1,9 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useEnterWorkspace,
+  useGetClientWorkspaceCard,
   useGetRecentClientWorkspaces,
+  useListWorkspaceClients,
   useListClientRequests,
   useListModelChanges,
   useListProposalsAwaitingMyAnswer,
@@ -15,6 +17,7 @@ import {
   type RecentClient,
   type RecentClientList,
   type StaffProfile,
+  type WorkspaceClients,
 } from "@atomprive/api-client/backoffice";
 import { cn, StaffAvatar } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -29,6 +32,7 @@ import { TopSearch } from "./components/top-search";
 import { NotificationBell } from "./components/notification-bell";
 import { AssistantButton } from "./components/portfolio-assistant";
 import {
+  ArrowLeft,
   Check,
   ChevronDown,
   ChevronsUpDown,
@@ -43,6 +47,7 @@ import {
   useEffect,
   useRef,
   useState,
+  Fragment,
   type ReactNode,
   // Aliased: the bare name is the DOM's own KeyboardEvent, which a listener further down this file needs.
   type KeyboardEvent as ReactKeyboardEvent,
@@ -53,6 +58,7 @@ import { currentSupportView } from "@atomprive/support/support-view";
 import { SupportViewBanner } from "@atomprive/support/support-view-banner";
 import { rememberPage } from "./lib/last-page";
 import { menuFor } from "./menu";
+import { WORKSPACE_SCREENS, workspaceOf } from "./pages/client-workspace/workspace-screens";
 import { arrangeMenu, type MenuEntry } from "./menu-groups";
 import { createPortal } from "react-dom";
 import logoLight from "./assets/brand/atom-prive-logo.png";
@@ -80,6 +86,121 @@ const ENTRY_CLASS = "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transi
  * draws the browser's own blue one.
  */
 const FOCUS_CLASS = "outline-none focus-visible:ring-2 focus-visible:ring-ink-muted/40";
+
+/** The client workspace a path is in, and which of its screens; nothing outside one. */
+function workspaceIn(pathname: string) {
+  const match = /^\/client-workspace\/([^/]+)(?:\/([^/]+))?/.exec(pathname);
+  return match ? { id: match[1], screen: match[2] ?? "" } : null;
+}
+
+/**
+ * An open client's menu, inside the main sidebar as the firm's design draws it: back to all clients, the client's
+ * card — which opens the switcher to another client — and the workspace's screens, the analytics under their own
+ * small label. Under the Client Directory, drawn with the same rule and indent as any entry's sub-entries.
+ */
+function ClientMenu({ customerId, screen, rail }: { customerId: string; screen: string; rail: boolean }) {
+  const navigate = useNavigate();
+  const [switching, setSwitching] = useState(false);
+  const card = useGetClientWorkspaceCard<RecentClient, ApiError>(customerId, { query: { staleTime: 60_000 } });
+  const listed = useListWorkspaceClients<WorkspaceClients, ApiError>({ query: { staleTime: 60_000, enabled: switching } });
+  const one = card.data;
+  const worth = one ? recentWorth(one) : null;
+  const name = one?.name ?? "This client";
+  const groups = [...new Set(WORKSPACE_SCREENS.map((each) => each.group ?? ""))];
+
+  if (rail) {
+    return (
+      <>
+        <li>
+          <RailTip label={worth ? `${name} · ${worth.full}` : name} show>
+            <Link to={workspaceOf(customerId)} aria-label={worth ? `${name}, ${worth.full}` : name}
+              className={cn("mx-auto grid size-10 place-items-center rounded-xl transition-colors", FOCUS_CLASS, IDLE_CLASS)}>
+              <span className="grid size-6 place-items-center rounded-sm bg-slate-100 text-xs font-semibold text-ink" aria-hidden="true">
+                {one?.initial ?? "·"}
+              </span>
+            </Link>
+          </RailTip>
+        </li>
+        {WORKSPACE_SCREENS.map((each) => {
+          const onIt = screen === each.path;
+          return (
+            <li key={each.id}>
+              <RailTip label={each.label} show>
+                <Link to={workspaceOf(customerId, each.path)} aria-label={each.label} aria-current={onIt ? "page" : undefined}
+                  className={cn("mx-auto grid size-10 place-items-center rounded-xl transition-colors", FOCUS_CLASS,
+                    onIt ? HERE_CLASS : IDLE_CLASS)}>
+                  <each.icon className="size-4" aria-hidden="true" />
+                </Link>
+              </RailTip>
+            </li>
+          );
+        })}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <li>
+        <Link to="/client-directory" className={cn(ENTRY_CLASS, FOCUS_CLASS, IDLE_CLASS)}>
+          <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+          All clients
+        </Link>
+      </li>
+      <li className="py-1">
+        <RailTip label={worth?.full ?? ""} show={worth != null && worth.full !== worth.short}>
+          <button type="button" aria-haspopup="listbox" aria-expanded={switching} onClick={() => setSwitching((now) => !now)}
+            className={cn("flex w-full items-center gap-2.5 rounded-xl border border-line bg-white px-2.5 py-2 text-left hover:border-ink-muted/40",
+              FOCUS_CLASS)}>
+            <span className="grid size-7 shrink-0 place-items-center rounded-md bg-slate-100 text-sm font-semibold text-ink" aria-hidden="true">
+              {one?.initial ?? "·"}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm leading-tight font-semibold break-words">{name}</span>
+              <span className="block text-2xs text-ink-muted tabular-nums">
+                {one ? `${one.code} · ${worth?.short ?? "—"}` : "…"}
+              </span>
+            </span>
+            <ChevronsUpDown className="size-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
+          </button>
+        </RailTip>
+        {switching && (
+          <ul role="listbox" aria-label="Switch to another client"
+            className="mt-1 max-h-60 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-sm">
+            {(listed.data?.clients ?? []).map((other) => (
+              <li key={other.customerId} role="option" aria-selected={other.customerId === customerId}>
+                <button type="button" onClick={() => { setSwitching(false); navigate(workspaceOf(other.customerId)); }}
+                  className={cn("flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm", FOCUS_CLASS,
+                    other.customerId === customerId ? HERE_CLASS : "text-ink-soft hover:bg-slate-50")}>
+                  <span className="min-w-0 flex-1 truncate">{other.name}</span>
+                  <span className="shrink-0 text-2xs text-ink-muted">{other.code}</span>
+                </button>
+              </li>
+            ))}
+            {listed.isLoading && <li className="px-2.5 py-1.5 text-xs text-ink-muted">Reading clients…</li>}
+          </ul>
+        )}
+      </li>
+      {groups.map((group) => (
+        <Fragment key={group || "main"}>
+          {group && <li className="px-3 pt-2 pb-0.5 text-3xs font-bold tracking-wider text-ink-muted uppercase">{group}</li>}
+          {WORKSPACE_SCREENS.filter((each) => (each.group ?? "") === group).map((each) => {
+            const onIt = screen === each.path;
+            return (
+              <li key={each.id}>
+                <Link to={workspaceOf(customerId, each.path)} aria-current={onIt ? "page" : undefined}
+                  className={cn(ENTRY_CLASS, FOCUS_CLASS, onIt ? HERE_CLASS : IDLE_CLASS)}>
+                  <each.icon className="size-4 shrink-0" aria-hidden="true" />
+                  {each.label}
+                </Link>
+              </li>
+            );
+          })}
+        </Fragment>
+      ))}
+    </>
+  );
+}
 
 /**
  * One entry in the menu, with whatever sits under it.
@@ -357,18 +478,21 @@ function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boo
  * The menu as one list, nested entries indented under the entry they belong to. Whatever {@code extra} holds is
  * drawn under the entry it names, folding with it — the portfolio desk's recent clients, under Book Overview.
  */
-function MenuList({ items, rail, pathname, search, extra }: {
+function MenuList({ items, rail, pathname, search, extras, open }: {
   items: MenuEntry[];
   rail: boolean;
   pathname: string;
   search: string;
-  extra?: { to: string; node: ReactNode };
+  /** What is drawn under an entry beyond its own screens, by the entry it sits under. */
+  extras: Record<string, ReactNode>;
+  /** The entry an open client workspace sits under, which is held open and does not light up itself. */
+  open?: string;
 }) {
   return (
     <ul className="space-y-0.5">
       {items.map((item) => (
         <NavEntry key={item.to} item={item} pathname={pathname} search={search} rail={rail}
-          extra={extra && extra.to === item.to ? extra.node : undefined} />
+          extra={extras[item.to]} holdOpen={open === item.to} />
       ))}
     </ul>
   );
@@ -459,24 +583,30 @@ function NavEntry({
   search,
   rail,
   extra,
+  holdOpen,
 }: {
   item: Entry;
   pathname: string;
   search: string;
   rail: boolean;
   extra?: ReactNode;
+  /**
+   * Held open, with the open client's menu under it: it may not be closed over the workspace being read, and
+   * that menu's own entry lights up rather than this one.
+   */
+  holdOpen?: boolean;
 }) {
   const Icon = item.icon;
   const { preferences, change } = usePreferences();
   // On the rail everything is an icon of its own, so nothing is closed there.
   const closes = !rail && (item.below.length > 0 || extra != null);
-  const closed = closes && preferences.closedSections.includes(item.to);
+  const closed = closes && !holdOpen && preferences.closedSections.includes(item.to);
   const toggle = () =>
     change("closedSections", closed
       ? preferences.closedSections.filter((one) => one !== item.to)
       : [...preferences.closedSections, item.to]);
-  const here = isHere(item, pathname, search)
-    || (closed && item.below.some((under) => isHere(under, pathname, search)));
+  const here = !holdOpen && (isHere(item, pathname, search)
+    || (closed && item.below.some((under) => isHere(under, pathname, search))));
   const waiting = useWaitingOn(item.to);
 
   if (rail) {
@@ -529,7 +659,7 @@ function NavEntry({
       <Link
         to={item.to}
         // A section's heading opens and closes it as well as opening its own screen.
-        onClick={closes ? toggle : undefined}
+        onClick={closes && !holdOpen ? toggle : undefined}
         aria-expanded={closes ? !closed : undefined}
         aria-current={here ? "page" : undefined}
         className={cn(ENTRY_CLASS, FOCUS_CLASS, here ? HERE_CLASS : IDLE_CLASS)}
@@ -764,6 +894,9 @@ export function AppLayout() {
   const manager = user.activeRole === "PORTFOLIO_MANAGER";
   const recent = useGetRecentClientWorkspaces<RecentClientList, ApiError>({ query: { enabled: manager, staleTime: 30_000 } });
   const recentClients = manager ? recent.data?.clients ?? [] : [];
+  // An open client workspace, whose menu sits under the Client Directory, which owns workspace screens.
+  const workspace = workspaceIn(pathname);
+  const clientHome = list.some((item) => item.to === "/client-directory") ? "/client-directory" : null;
   const enter = useEnterRole();
 
   const view = currentSupportView();
@@ -796,10 +929,19 @@ export function AppLayout() {
             sections ? "mt-1 ml-[1.0625rem] border-l border-line pl-2" : "mt-4")}>
           {/* The portfolio desk's recent clients sit right under Book Overview, so all four are in view without
               scrolling. */}
-          <MenuList items={list} rail={rail} pathname={pathname} search={search}
-            extra={recentClients.length > 0
-              ? { to: "/book-overview", node: <RecentClientsList clients={recentClients} rail={rail} pathname={pathname} /> }
-              : undefined} />
+          <MenuList items={list} rail={rail} pathname={pathname} search={search} open={workspace && clientHome ? clientHome : undefined}
+            extras={{
+              ...(recentClients.length > 0
+                ? { "/book-overview": <RecentClientsList clients={recentClients} rail={rail} pathname={pathname} /> } : {}),
+              ...(workspace && clientHome
+                ? { [clientHome]: <ClientMenu key={workspace.id} customerId={workspace.id} screen={workspace.screen} rail={rail} /> } : {}),
+            }} />
+          {/* A desk without the Client Directory that opens a workspace by a link still gets its menu, after its own. */}
+          {workspace && !clientHome && (
+            <ul className={cn("mt-3 space-y-0.5", !rail && "ml-5 border-l border-line pl-3")}>
+              <ClientMenu key={workspace.id} customerId={workspace.id} screen={workspace.screen} rail={rail} />
+            </ul>
+          )}
         </nav>
         {sections && (
           <div className="mt-2 min-h-0 space-y-0.5 overflow-y-auto border-t border-line/50 pt-2">
