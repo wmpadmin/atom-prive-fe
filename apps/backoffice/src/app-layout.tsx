@@ -27,13 +27,11 @@ import { NotificationBell } from "./components/notification-bell";
 import { AssistantButton } from "./components/portfolio-assistant";
 import {
   Check,
-  ChevronDown,
   ChevronsUpDown,
   KeyRound,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
-  Search,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -51,7 +49,7 @@ import { currentSupportView } from "@atomprive/support/support-view";
 import { SupportViewBanner } from "@atomprive/support/support-view-banner";
 import { rememberPage } from "./lib/last-page";
 import { menuFor } from "./menu";
-import { groupMenu, type MenuGroup } from "./menu-groups";
+import { arrangeMenu, type MenuEntry } from "./menu-groups";
 import { createPortal } from "react-dom";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
@@ -120,16 +118,16 @@ function useWaitingOn(to: string) {
 /** Yours rather than a desk's: owed once by the person, so only in the workspace they call home. */
 const MY_DECLARATIONS = "/my-declarations";
 
-/** The selected entry, in the style that reads in both themes. */
-const HERE_CLASS = "bg-primary-50 font-semibold text-primary-700 ring-1 ring-primary-200";
+/**
+ * The selected entry: a quiet neutral fill a step stronger than hover, and stronger text. No blue and no ring,
+ * which in dark mode drew a thick light-blue outline round the entry.
+ */
+const HERE_CLASS = "bg-slate-200/70 font-semibold text-ink";
 
 const IDLE_CLASS = "text-ink-soft hover:bg-white";
 
 /** The collapsed sidebar's width: an icon and its padding. */
 const RAIL = 60;
-
-/** Whether the shortcut key is ⌘ rather than Ctrl here. */
-const ON_A_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 /** Puts the cursor in the top bar's client search, the one search there is. */
 function focusSearch() {
@@ -299,72 +297,19 @@ function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boo
   );
 }
 
-/** The sidebar's search: the top bar's client search, reached from here and by ⌘K or Ctrl+K. */
-function SidebarSearch({ rail }: { rail: boolean }) {
-  const hint = ON_A_MAC ? "⌘K" : "Ctrl K";
-  if (rail) {
-    return (
-      <RailTip label={`Search clients · ${hint}`} show>
-        <button type="button" onClick={focusSearch} aria-label="Search clients"
-          className="mx-auto grid size-10 place-items-center rounded-xl text-ink-soft hover:bg-white">
-          <Search className="size-4.5" aria-hidden="true" />
-        </button>
-      </RailTip>
-    );
-  }
-  return (
-    <button type="button" onClick={focusSearch}
-      className="flex w-full items-center gap-2.5 rounded-xl bg-white/70 px-3 py-2 text-sm text-ink-muted ring-1 ring-line hover:text-ink">
-      <Search className="size-4" aria-hidden="true" />
-      <span className="min-w-0 flex-1 text-left">Search clients</span>
-      <kbd className="rounded border border-line px-1.5 py-0.5 font-sans text-3xs">{hint}</kbd>
-    </button>
-  );
-}
-
-/** The menu under its headings, each heading folding away and remembered folded per person. */
-function MenuGroups({ groups, rail, pathname, search }: {
-  groups: MenuGroup[];
+/** The menu as one list, nested entries indented under the entry they belong to. */
+function MenuList({ items, rail, pathname, search }: {
+  items: MenuEntry[];
   rail: boolean;
   pathname: string;
   search: string;
 }) {
-  const { preferences, change } = usePreferences();
   return (
-    <div className={cn("space-y-4", rail && "space-y-2")}>
-      {groups.map((group, at) => {
-        const key = `heading:${group.key}`;
-        const folded = group.label !== null && !rail && preferences.closedSections.includes(key);
-        // Folded, a heading still shows the screen being read, so nobody loses where they are.
-        const shown = folded
-          ? group.items.filter((item) => isHere(item, pathname, search) || item.below.some((under) => isHere(under, pathname, search)))
-          : group.items;
-        return (
-          <div key={group.key}>
-            {group.label !== null && !rail && (
-              <button
-                type="button"
-                aria-expanded={!folded}
-                onClick={() => change("closedSections", folded
-                  ? preferences.closedSections.filter((one) => one !== key)
-                  : [...preferences.closedSections, key])}
-                className="mb-1 flex w-full items-center gap-2 rounded-md px-3 py-1 text-left text-3xs font-bold tracking-wider text-ink-muted uppercase hover:text-ink
-                  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-              >
-                <span className="min-w-0 flex-1 truncate">{group.label}</span>
-                <ChevronDown className={cn("size-3 shrink-0 transition-transform", folded && "-rotate-90")} aria-hidden="true" />
-              </button>
-            )}
-            {rail && at > 0 && <div className="mx-auto mb-2 h-px w-6 bg-line" aria-hidden="true" />}
-            <ul className="space-y-0.5">
-              {shown.map((item) => (
-                <NavEntry key={item.to} item={item} pathname={pathname} search={search} rail={rail} />
-              ))}
-            </ul>
-          </div>
-        );
-      })}
-    </div>
+    <ul className="space-y-0.5">
+      {items.map((item) => (
+        <NavEntry key={item.to} item={item} pathname={pathname} search={search} rail={rail} />
+      ))}
+    </ul>
   );
 }
 
@@ -380,18 +325,7 @@ function NavEntry({
   rail: boolean;
 }) {
   const Icon = item.icon;
-  const { preferences, change } = usePreferences();
-  // A section with screens under it can be closed, and stays as the reader left it. On the rail everything is an
-  // icon of its own, so nothing is closed there.
-  const closes = item.below.length > 0 && !rail;
-  const closed = closes && preferences.closedSections.includes(item.to);
-  const toggle = () =>
-    change("closedSections", closed
-      ? preferences.closedSections.filter((one) => one !== item.to)
-      : [...preferences.closedSections, item.to]);
-  // Closed over the screen the reader is on, the heading lights up instead, so they still see where they are.
-  const here = isHere(item, pathname, search)
-    || (closed && item.below.some((under) => isHere(under, pathname, search)));
+  const here = isHere(item, pathname, search);
   const waiting = useWaitingOn(item.to);
 
   if (rail) {
@@ -440,9 +374,6 @@ function NavEntry({
           out where they are themselves, and both the highlight and what is announced follow that. */}
       <Link
         to={item.to}
-        // A section's heading opens and closes it as well as opening its own screen.
-        onClick={closes ? toggle : undefined}
-        aria-expanded={closes ? !closed : undefined}
         aria-current={here ? "page" : undefined}
         className={cn(ENTRY_CLASS, here ? HERE_CLASS : IDLE_CLASS)}
       >
@@ -452,14 +383,8 @@ function NavEntry({
             is a queue people stop looking at; the number is what makes somebody open it on the day there
             is something in it, and its absence is what lets them leave it alone on the days there is not. */}
         {waiting > 0 && <span className="shrink-0 text-xs font-semibold text-ink-muted tabular-nums">{waiting}</span>}
-        {closes && (
-          <ChevronDown
-            className={cn("size-4 shrink-0 text-ink-muted transition-transform", !closed && "rotate-180")}
-            aria-hidden="true"
-          />
-        )}
       </Link>
-      {item.below.length > 0 && !closed && (
+      {item.below.length > 0 && (
         <ul className="mt-0.5 ml-5 space-y-0.5 border-l border-line pl-3">
           {item.below.map((under) => {
             const UnderIcon = under.icon;
@@ -649,7 +574,7 @@ export function AppLayout() {
     [change, held],
   );
 
-  // ⌘K on a Mac, Ctrl+K elsewhere: the client search, from wherever somebody is.
+  // ⌘K on a Mac, Ctrl+K elsewhere: the top bar's client search, from wherever somebody is.
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k") {
@@ -667,7 +592,7 @@ export function AppLayout() {
    */
   const home = user.opensIn ?? (user.roles.length === 1 ? user.roles[0] : null);
   const shown = items.filter((item) => item.to !== MY_DECLARATIONS || user.roles.length < 2 || user.activeRole === home);
-  const { groups, footer } = groupMenu(shown, user.activeRole as StaffRole | null);
+  const { list, footer } = arrangeMenu(shown, user.activeRole as StaffRole | null);
 
   const view = currentSupportView();
 
@@ -679,16 +604,19 @@ export function AppLayout() {
           width it had is kept, so unfolding it brings it back as the reader left it. */}
       <aside
         style={{ width: rail ? RAIL : width }}
-        className={cn("sticky top-0 flex h-screen shrink-0 flex-col border-r border-line bg-sidebar py-4 relative",
+        // Held to the window: sticky at the top and exactly the window's height, so however long the page
+        // runs the sidebar runs beside it. (It was also marked relative, which overrode sticky, so on a long
+        // page it scrolled away and its background ended a window's height down.) Sticky is already a
+        // containing block for the resize handle.
+        className={cn("sticky top-0 flex h-screen shrink-0 flex-col self-start border-r border-line bg-sidebar py-4",
           rail ? "px-2" : "px-3")}
       >
         {!rail && <SidebarEdge width={width} onDrag={onDrag} onNudge={onNudge} onSettled={onSettled} />}
         <WorkspaceHeader user={user} rail={rail} onFold={() => change("sidebarAway", !rail)} />
-        <div className="mt-4"><SidebarSearch rail={rail} /></div>
         {/* Only the menu scrolls: the header and the foot are held still, so the workspace, the search and the
             account stay on screen however long a desk's list runs. */}
-        <nav aria-label="Back-office" className="mt-4 min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-          <MenuGroups groups={groups} rail={rail} pathname={pathname} search={search} />
+        <nav aria-label="Back-office" className="mt-4 min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
+          <MenuList items={list} rail={rail} pathname={pathname} search={search} />
         </nav>
         <div className="mt-3 shrink-0 space-y-0.5 border-t border-line pt-3">
           <ul className="space-y-0.5">
