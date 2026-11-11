@@ -126,8 +126,8 @@ function Board({ data }: { data: ClientDirectory }) {
         <AttentionTile icon={CalendarClock} tone="warning" label="Reviews overdue" named={attention.reviewsOverdue}
           extra={(one) => (one.on ? ` (${shortDate(one.on)})` : "")} />
         <AttentionTile icon={Clock} tone="warning" label="Custodian data delayed" named={attention.dataDelayed} />
-        <AttentionTile icon={ShieldCheck} tone="neutral" label="KYC refresh due" named={attention.kycDue}
-          count={attention.kycDue.reduce((sum, one) => sum + one.count, 0)} noun={["paper", "papers"]}
+        <AttentionTile icon={ShieldCheck} tone="neutral" label="KYC / CRS refresh due" named={attention.kycDue}
+          count={attention.kycDue.reduce((sum, one) => sum + one.count, 0)} noun={["entity", "entities"]}
           extra={(one) => ` (${one.count})`} />
       </div>
 
