@@ -38,51 +38,43 @@ export function ClientOverviewPage() {
     <div className="space-y-5">
       <header>
         <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Portfolio management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Client overview
+          Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Client Overview
         </p>
         <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">{data.name}</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          {[data.code, data.customerType === "ENTITY" ? "Entity" : "Individual", [data.city, data.country].filter(Boolean).join(", ")]
-            .filter(Boolean).join(" · ")} · consolidated net worth view · as at {formatDate(data.asOf)}
-        </p>
+        <p className="mt-1 text-sm text-ink-muted">{subtitle(data)}</p>
       </header>
 
       <Headline data={data} />
       <Facts data={data} />
 
-      {file ? <BankFileCards file={file} /> : (
-        <>
-          <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-            <WorthCard data={data} />
-            <AllocationCard data={data} />
-          </div>
-          <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-            <BandsCard data={data} />
-            <PerformanceCard data={data} />
-          </div>
-          {/* Paired by height, as the design pairs them: two short cards, two long ones, then two lists. */}
-          <div className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
-            <LiquidityCard data={data} />
-            <HoldingEntitiesCard data={data} />
-          </div>
-          <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-            <TopPositionsCard data={data} />
-            <CashFlowCard data={data} />
-          </div>
-          <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-            <LookThroughCard data={data} />
-            <AlertsAndNotes data={data} />
-          </div>
-        </>
-      )}
+      {/* Every card in the design's place; a bank-file client's cards say what his file does not hold. */}
+      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+        <WorthCard data={data} />
+        <AllocationCard data={data} />
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+        <BandsCard data={data} />
+        <PerformanceCard data={data} />
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[1.08fr_1fr]">
+        <LiquidityCard data={data} />
+        <HoldingEntitiesCard data={data} />
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[1.66fr_1fr]">
+        <TopPositionsCard data={data} />
+        <CashFlowCard data={data} />
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+        <LookThroughCard data={data} />
+        <AlertsAndNotes data={data} />
+      </div>
 
-      {file && <AlertsAndNotes data={data} />}
-
-      <p className="text-xs text-ink-muted">
-        {file
-          ? "Figures as the bank's files state them, each in its own currency; nothing converted, mapped or filled in."
-          : `Values in ${data.currency}. Liquidity buckets, currency exposure, fund commitments, the benchmark's history and notes are recorded for this screen; everything else is read from the platform's own figures.`}
-      </p>
+      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
+        <span>
+          {file ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+        </span>
+        <span>atom privé · Portfolio Management · Internal use only</span>
+      </footer>
     </div>
   );
 }
@@ -110,8 +102,8 @@ function Headline({ data }: { data: ClientWorkspace }) {
             <span className="text-4xl font-bold tabular-nums">{h.netWorth == null ? "—" : compact(h.netWorth, cur)}</span>
             {h.investableChangeYearToDate != null && (
               <span className={cn("text-sm font-semibold", toneOf(h.investableChangeYearToDate))}>
-                {signedCompact(h.investableChangeYearToDate, cur)} invested YTD
-                {ytd?.portfolio != null && ` · ${signedPercent(ytd.portfolio)} TWR`}
+                {h.investableChangeYearToDate >= 0 ? "▲" : "▼"} {signedCompact(h.investableChangeYearToDate, cur)} investable
+                {ytd?.portfolio != null && ` · ${signedPercent(ytd.portfolio)} YTD`}
               </span>
             )}
           </>
@@ -119,10 +111,14 @@ function Headline({ data }: { data: ClientWorkspace }) {
       </div>
       <p className="mt-1 text-xs text-ink-muted">
         {file ? (
-          <>{h.accounts} accounts · {h.custodians} custodian{h.custodians === 1 ? "" : "s"} · as of {file.asOf ? formatDate(file.asOf) : "—"}</>
+          <>
+            Investable <NotInFile /> · Owned outright <NotInFile /> · Liabilities <NotInFile />
+            {" · "}{h.accounts} accounts · {h.custodians} custodian{h.custodians === 1 ? "" : "s"} · as of {file.asOf ? formatDate(file.asOf) : "—"}
+          </>
         ) : (
           <>
             Investable {money(h.investable, cur)} · Owned outright {money(h.ownedOutright, cur)} · Liabilities {money(h.liabilities, cur)}
+            {" · "}{data.entityCount} {data.entityCount === 1 ? "entity" : "entities"}
             {" · "}{h.accounts} accounts · {h.custodians} custodian{h.custodians === 1 ? "" : "s"}
           </>
         )}
@@ -173,7 +169,7 @@ function Facts({ data }: { data: ClientWorkspace }) {
       <Fact label="Client since" value={f.clientSince ? formatDate(f.clientSince) : <Muted>—</Muted>} />
       <Fact label="Last review" value={fromFile(f.lastReview && formatDate(f.lastReview))} />
       <Fact label="Next review" value={fromFile(f.nextReview && formatDate(f.nextReview))} />
-      <Fact label="Risk profile" value={fromFile(f.riskProfile && titleCase(f.riskProfile))} />
+      <Fact label="Risk profile" value={fromFile(f.riskProfile && `${titleCase(f.riskProfile)}${f.ipsVersion ? ` · Signed IPS ${f.ipsVersion}` : ""}`)} />
     </section>
   );
 }
@@ -198,11 +194,15 @@ const RANGES = [
 ] as const;
 
 function WorthCard({ data }: { data: ClientWorkspace }) {
-  const [range, setRange] = useState<(typeof RANGES)[number]["id"]>("ITD");
+  const [range, setRange] = useState<(typeof RANGES)[number]["id"]>("5Y");
   const months = RANGES.find((one) => one.id === range)?.months ?? null;
-  const cut = (points: BookAumPoint[]) => (months == null ? points : points.slice(-(months + 1)));
+  const from = months == null ? "" : shiftMonths(data.asOf, -months);
+  // Quarter ends within the range, and today's reading last, as the design draws them.
+  const cut = (points: BookAumPoint[]) => points.filter((one, at) =>
+    one.on >= from && (at === points.length - 1 || [3, 6, 9, 12].includes(Number(one.on.slice(5, 7)))));
   const worth = cut(data.worth);
   const bench = cut(data.benchmarkEquivalent);
+  const flows = data.externalFlows.filter((one) => one.on >= from).reduce((sum, one) => sum + one.amount, 0);
   const option = useMemo(() => {
     const colours = ink();
     const days = worth.map((one) => one.on);
@@ -215,7 +215,7 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
       xAxis: {
         type: "category",
         data: days,
-        axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
+        axisLabel: { color: colours.muted, formatter: (value: string, at: number) => (at === days.length - 1 ? monthYear(value) : quarterLabel(value)) },
         axisLine: { lineStyle: { color: colours.line } },
         axisTick: { show: false },
       },
@@ -238,15 +238,20 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
     };
   }, [worth, bench, data.currency]);
   return (
-    <Card title="Net Worth Evolution" lead={`Month-end values of the managed portfolio, ${data.currency}`}
-      action={<Toggle label="Period shown" value={range} onChange={setRange} options={RANGES.map((one) => [one.id, one.id])} />}>
-      {worth.length < 2 ? <Empty>There is no valuation history to draw yet.</Empty> : (
-        <Chart option={option} height={260} label="The portfolio's worth at each month end, beside its benchmark-equivalent" />
+    <Card title="Net Worth Evolution"
+      lead={data.bankFile ? undefined : `Quarter-end values, ${data.currency} · after net external flows of ${signedCompact(flows, data.currency)}`}
+      action={!data.bankFile && <Toggle label="Period shown" value={range} onChange={setRange} options={RANGES.map((one) => [one.id, one.id])} />}>
+      {data.bankFile ? <FileBlock /> : (
+        <>
+          {worth.length < 2 ? <Empty>There is no valuation history to draw yet.</Empty> : (
+            <Chart option={option} height={260} label="The portfolio's worth at each quarter end, beside its benchmark-equivalent" />
+          )}
+          <p className="mt-2 text-3xs text-ink-muted italic">
+            Total net worth is not drawn: what is owned outright and what is owed have no history on file.
+            {data.benchmarkEquivalent.length < 2 && " No benchmark history is on file for this mandate."}
+          </p>
+        </>
       )}
-      <p className="mt-2 text-3xs text-ink-muted italic">
-        What is owned outright and owed has no history on file, so the line is the managed portfolio alone.
-        {data.benchmarkEquivalent.length < 2 && " No benchmark history is on file for this mandate."}
-      </p>
     </Card>
   );
 }
@@ -255,13 +260,33 @@ function AllocationCard({ data }: { data: ClientWorkspace }) {
   const [by, setBy] = useState<"class" | "entity" | "currency">("class");
   const slices = by === "class" ? data.byAssetClass : by === "entity" ? data.byEntity : data.byCurrency;
   const total = slices.reduce((sum, one) => sum + one.amount, 0);
+  const file = data.bankFile;
   return (
     <Card title="Asset Allocation"
       action={<Toggle label="Broken down by" value={by} onChange={setBy} options={[["class", "Asset class"], ["entity", "Entity"], ["currency", "Currency"]]} />}>
-      <Donut slices={slices} currency={data.currency} centre={compact(total, data.currency)}
-        centreLabel={by === "currency" ? "Holdings" : "Gross assets"} />
-      {by === "entity" && <p className="mt-2 text-3xs text-ink-muted italic">Each top-level entity at look-through value; what no entity holds is a slice of its own.</p>}
-      {by === "currency" && <p className="mt-2 text-3xs text-ink-muted italic">The portfolio's lines by the currency each is exposed to; what is owned outright is not in it.</p>}
+      {file ? (
+        by !== "currency" ? <FileBlock /> : (
+          <>
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-line">
+                {file.holdings.map((one) => (
+                  <tr key={one.currency}>
+                    <td className="py-1.5 font-semibold">{one.currency}</td>
+                    <td className="py-1.5 text-right font-semibold tabular-nums">{compact(one.amount, one.currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-3xs text-ink-muted italic">His file's lines summed in each currency the bank used; not converted, so no shares.</p>
+          </>
+        )
+      ) : (
+        <Donut slices={slices} currency={data.currency}
+          centre={compact(by === "currency" || data.headline.netWorth == null ? total : data.headline.netWorth, data.currency)}
+          centreLabel={by === "currency" ? "Holdings" : "Net worth"} />
+      )}
+      {!file && by === "entity" && <p className="mt-2 text-3xs text-ink-muted italic">Each top-level entity at look-through value; what no entity holds is a slice of its own.</p>}
+      {!file && by === "currency" && <p className="mt-2 text-3xs text-ink-muted italic">The portfolio's lines by the currency each is exposed to; what is owned outright is not in it.</p>}
     </Card>
   );
 }
@@ -319,8 +344,14 @@ function BandsCard({ data }: { data: ClientWorkspace }) {
   const scale = Math.max(10, ...bands.map((one) => Math.max(one.upper, one.actual))) * 1.1;
   const at = (value: number) => `${Math.min(100, (value / scale) * 100)}%`;
   return (
-    <Card title="Target vs Actual Allocation" lead="% of the managed portfolio, against the band each class is held to">
-      {bands.length === 0 ? <Empty>No model to measure against yet.</Empty> : (
+    <Card title="Target vs Actual Allocation"
+      lead={data.bankFile ? undefined : `% of investable assets (${money(data.headline.investable, data.currency)}) · owned outright excluded`}
+      action={!data.bankFile && (
+        <Link to={`/client-workspace/${data.customerId}/holdings`} className="text-xs font-semibold text-primary-700 hover:underline">
+          Sub-class detail ({data.subClasses})
+        </Link>
+      )}>
+      {data.bankFile ? <FileBlock /> : bands.length === 0 ? <Empty>No model to measure against yet.</Empty> : (
         <>
           <div className="-mx-5 overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -342,7 +373,7 @@ function BandsCard({ data }: { data: ClientWorkspace }) {
                         title={`Band ${one.lower.toFixed(1)}% – ${one.upper.toFixed(1)}%`}>
                         <span className="absolute top-0 h-3 rounded-sm bg-slate-100"
                           style={{ left: at(one.lower), width: `calc(${at(one.upper)} - ${at(one.lower)})` }} />
-                        <span className={cn("absolute top-1 left-0 h-1 rounded-full", one.deviating ? "bg-red-600" : "bg-primary-600")}
+                        <span className={cn("absolute top-1 left-0 h-1 rounded-full", one.pastNearEdge ? "bg-red-600" : "bg-primary-600")}
                           style={{ width: at(one.actual) }} />
                         <span className="absolute -top-0.5 h-4 w-0.5 bg-ink" style={{ left: at(one.target) }} />
                       </span>
@@ -351,7 +382,7 @@ function BandsCard({ data }: { data: ClientWorkspace }) {
                     <td className="px-3 py-2.5 text-right text-ink-muted tabular-nums">{one.target.toFixed(1)}%</td>
                     <td className="py-2.5 pr-5 pl-3 text-right">
                       <span className={cn("rounded-md px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap tabular-nums",
-                        one.deviating ? "bg-red-50 text-red-700" : "bg-slate-100 text-ink-soft")}
+                        one.pastNearEdge ? "bg-red-50 text-red-700" : "bg-slate-100 text-ink-soft")}
                         title={one.usedPercent == null ? undefined : `${one.usedPercent}% of the band used`}>
                         {signedPoints(one.deviation)}
                       </span>
@@ -363,9 +394,9 @@ function BandsCard({ data }: { data: ClientWorkspace }) {
           </div>
           <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
             <li className="flex items-center gap-1.5"><span className="h-1 w-4 rounded-full bg-primary-600" aria-hidden="true" />Actual</li>
-            <li className="flex items-center gap-1.5"><span className="h-3 w-4 rounded-sm bg-slate-100" aria-hidden="true" />Band in force</li>
+            <li className="flex items-center gap-1.5"><span className="h-3 w-4 rounded-sm bg-slate-100" aria-hidden="true" />Tolerance band</li>
             <li className="flex items-center gap-1.5"><span className="h-3 w-0.5 bg-ink" aria-hidden="true" />Target</li>
-            <li className="flex items-center gap-1.5"><span className="h-1 w-4 rounded-full bg-red-600" aria-hidden="true" />Deviation</li>
+            <li className="flex items-center gap-1.5"><span className="h-1 w-4 rounded-full bg-red-600" aria-hidden="true" />Deviation &gt; 75% of band</li>
           </ul>
         </>
       )}
@@ -375,9 +406,11 @@ function BandsCard({ data }: { data: ClientWorkspace }) {
 
 function PerformanceCard({ data }: { data: ClientWorkspace }) {
   const periods = data.performance?.periods ?? [];
+  const widest = Math.max(0.1, ...periods.map((one) => Math.abs(one.excess ?? 0)));
   return (
-    <Card title="Performance" lead="Time-weighted, from the portfolio's own closes">
-      {periods.length === 0 ? <Empty>Not enough history to measure yet.</Empty> : (
+    <Card title="Performance" lead="Time-weighted, net of fees"
+      action={<Link to={`/client-workspace/${data.customerId}/performance`} className="text-xs font-semibold text-primary-700 hover:underline">Attribution</Link>}>
+      {data.bankFile ? <FileBlock /> : periods.length === 0 ? <Empty>Not enough history to measure yet.</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -385,28 +418,35 @@ function PerformanceCard({ data }: { data: ClientWorkspace }) {
                 <th scope="col" className="py-2 pr-3 pl-5">Period</th>
                 <th scope="col" className="px-3 py-2 text-right">Portfolio</th>
                 <th scope="col" className="px-3 py-2 text-right">Bench</th>
-                <th scope="col" className="py-2 pr-5 pl-3 text-right">Excess</th>
+                <th scope="col" className="px-3 py-2 text-right">Excess pp</th>
+                <th scope="col" className="py-2 pr-5 pl-3"><span className="sr-only">Excess bar</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {periods.map((one) => (
                 <tr key={one.key}>
                   <th scope="row" className="py-2 pr-3 pl-5 text-left font-medium whitespace-nowrap">
-                    {one.name}
-                    {one.key === "ITD" && data.performance?.since && <span className="text-xs text-ink-muted"> ({formatDate(data.performance.since)})</span>}
+                    {one.key === "ITD" && data.performance?.since ? `ITD ann. (${monthYear(data.performance.since)})` : one.name}
                   </th>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {one.portfolio == null ? <Muted>{one.key === "ITD" ? "under a year" : "not enough history"}</Muted> : <Signed value={one.portfolio} unit="%" />}
                   </td>
                   <td className="px-3 py-2 text-right text-ink-soft tabular-nums">{one.benchmark == null ? <Muted>—</Muted> : signedPercent(one.benchmark)}</td>
-                  <td className="py-2 pr-5 pl-3 text-right tabular-nums">{one.excess == null ? <Muted>—</Muted> : <Signed value={one.excess} unit=" pp" />}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{one.excess == null ? <Muted>—</Muted> : <Signed value={one.excess} unit="" />}</td>
+                  <td className="py-2 pr-5 pl-3">
+                    {one.excess != null && (
+                      <span className="relative block h-2 w-16 rounded-xs bg-slate-100" aria-hidden="true">
+                        <span className={cn("absolute top-0 bottom-0 rounded-xs", one.excess < 0 ? "bg-red-500" : "bg-emerald-600")}
+                          style={one.excess < 0 ? { right: "50%", width: `${(Math.abs(one.excess) / widest) * 50}%` } : { left: "50%", width: `${(one.excess / widest) * 50}%` }} />
+                      </span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-      <p className="mt-2 text-3xs text-ink-muted italic">The ITD benchmark is the mandate benchmark's long-run annual figure, not measured from this client's first day.</p>
     </Card>
   );
 }
@@ -419,7 +459,7 @@ function LiquidityCard({ data }: { data: ClientWorkspace }) {
   const largest = Math.max(1, ...(liquidity?.buckets ?? []).map((one) => one.amount));
   return (
     <Card title="Liquidity Profile" lead="Time to convert to cash at fair value">
-      {!liquidity ? <Empty>No holdings written down yet.</Empty> : (
+      {data.bankFile ? <FileBlock /> : !liquidity ? <Empty>No holdings written down yet.</Empty> : (
         <>
           <div className="flex h-3 w-full overflow-hidden rounded-sm" aria-hidden="true">
             {liquidity.buckets.map((one, at) => (
@@ -456,17 +496,19 @@ function TopPositionsCard({ data }: { data: ClientWorkspace }) {
   const total = positions.reduce((sum, one) => sum + one.value, 0);
   const weight = positions.reduce((sum, one) => sum + one.weightPercent, 0);
   return (
-    <Card title="Top 10 Positions" lead="The portfolio's lines and what is owned outright"
+    <Card title="Top 10 Positions" lead="Look-through across all entities"
       action={<Link to={`/client-workspace/${data.customerId}/holdings`} className="text-xs font-semibold text-primary-700 hover:underline">All holdings</Link>}>
-      {positions.length === 0 ? <Empty>No holdings written down yet.</Empty> : (
+      {data.bankFile ? <FilePositions file={data.bankFile} /> : positions.length === 0 ? <Empty>No holdings written down yet.</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-2 pr-2 pl-5">#</th>
                 <th scope="col" className="px-3 py-2">Position</th>
+                <th scope="col" className="px-3 py-2">Held by</th>
                 <th scope="col" className="px-3 py-2 text-right">Value</th>
-                <th scope="col" className="py-2 pr-5 pl-3 text-right">Weight</th>
+                <th scope="col" className="px-3 py-2 text-right">Weight</th>
+                <th scope="col" className="py-2 pr-5 pl-3 text-right">YTD</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -477,8 +519,9 @@ function TopPositionsCard({ data }: { data: ClientWorkspace }) {
                     <span className="font-semibold">{one.name}</span>
                     <span className="block text-xs text-ink-muted">{one.kind}</span>
                   </td>
+                  <td className="px-3 py-2 text-xs">{one.heldBy ?? <Muted>—</Muted>}</td>
                   <td className="px-3 py-2 text-right font-semibold whitespace-nowrap tabular-nums">{compact(one.value, data.currency)}</td>
-                  <td className="py-2 pr-5 pl-3">
+                  <td className="px-3 py-2">
                     <span className="flex items-center justify-end gap-2">
                       <span className="text-xs tabular-nums">{one.weightPercent.toFixed(1)}%</span>
                       <span className="block h-1.5 w-14 rounded-full bg-slate-100" aria-hidden="true">
@@ -486,13 +529,16 @@ function TopPositionsCard({ data }: { data: ClientWorkspace }) {
                       </span>
                     </span>
                   </td>
+                  <td className="py-2 pr-5 pl-3 text-right tabular-nums">{one.yearToDate == null ? <Muted>—</Muted> : <Signed value={one.yearToDate} unit="%" />}</td>
                 </tr>
               ))}
               <tr className="font-semibold">
                 <td />
                 <td className="px-3 py-2">Top {positions.length} total</td>
+                <td />
                 <td className="px-3 py-2 text-right tabular-nums">{compact(total, data.currency)}</td>
-                <td className="py-2 pr-5 pl-3 text-right text-xs tabular-nums">{weight.toFixed(1)}%</td>
+                <td className="px-3 py-2 text-right text-xs tabular-nums">{weight.toFixed(1)}%</td>
+                <td />
               </tr>
             </tbody>
           </table>
@@ -525,7 +571,8 @@ function CashFlowCard({ data }: { data: ClientWorkspace }) {
     };
   }, [data.cashFlowMonths, data.currency]);
   return (
-    <Card title="Projected Cash Flows · 12 Months" lead="Coupons, dividends, distributions, maturities, capital calls, running costs">
+    <Card title="Projected Cash Flows · 12 Months" lead="Coupons, dividends, distributions, calls, running costs">
+      {data.bankFile ? <FileMovements file={data.bankFile} /> : (
       <div className="space-y-3">
         {data.cashFlows.length === 0 ? <Empty>Nothing expected in the next twelve months.</Empty> : (
           <Chart option={option} height={220} label="Money expected in and out each month for the next twelve" />
@@ -540,6 +587,7 @@ function CashFlowCard({ data }: { data: ClientWorkspace }) {
           ))}
         </ul>
       </div>
+      )}
     </Card>
   );
 }
@@ -549,7 +597,7 @@ function HoldingEntitiesCard({ data }: { data: ClientWorkspace }) {
   return (
     <Card title="Holding Entities" lead="Top-level ownership · subsidiaries rolled up"
       action={<Link to={`/client-workspace/${data.customerId}/structure`} className="text-xs font-semibold text-primary-700 hover:underline">Structure</Link>}>
-      {data.holdingEntities.length === 0 ? <Empty>No entity is on file for this client yet.</Empty> : (
+      {data.bankFile ? <FileBlock /> : data.holdingEntities.length === 0 ? <Empty>No entity is on file for this client yet.</Empty> : (
         <ul className="divide-y divide-line">
           {data.holdingEntities.map((one) => (
             <li key={one.id} className="grid grid-cols-[1fr_6rem_5rem] items-center gap-3 py-2.5">
@@ -573,7 +621,7 @@ function LookThroughCard({ data }: { data: ClientWorkspace }) {
   const people = data.beneficialLookThrough;
   return (
     <Card title="Beneficial Look-through" lead="Economic interest after trust and entity look-through">
-      {people.length === 0 ? <Empty>No beneficiary is on file for this client yet.</Empty> : (
+      {data.bankFile ? <FileBlock /> : people.length === 0 ? <Empty>No beneficiary is on file for this client yet.</Empty> : (
         <>
           <div className="flex h-3 w-full overflow-hidden rounded-sm bg-slate-100" aria-hidden="true">
             {people.map((one, at) => (
@@ -606,88 +654,77 @@ function LookThroughCard({ data }: { data: ClientWorkspace }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 /* The bank-file client                                                                                          */
 
-function BankFileCards({ file }: { file: WorkspaceBankFile }) {
+/** A card his bank's files hold nothing for: it stays in its place and says so. */
+function FileBlock() {
+  return <p className="rounded-xl border border-dashed border-line px-4 py-8 text-center"><NotInFile /></p>;
+}
+
+/** His file's lines, ranked within each currency only, since ranking across them would need a rate. */
+function FilePositions({ file }: { file: WorkspaceBankFile }) {
+  if (file.byCurrency.length === 0) return <FileBlock />;
+  return (
+    <div className="-mx-5 overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            <th scope="col" className="py-2 pr-2 pl-5">#</th>
+            <th scope="col" className="px-3 py-2">Position</th>
+            <th scope="col" className="px-3 py-2">Held by</th>
+            <th scope="col" className="px-3 py-2 text-right">Value</th>
+            <th scope="col" className="px-3 py-2 text-right">Weight</th>
+            <th scope="col" className="py-2 pr-5 pl-3 text-right">YTD</th>
+          </tr>
+        </thead>
+        {file.byCurrency.map((group) => (
+          <tbody key={group.currency} className="divide-y divide-line">
+            <tr className="bg-slate-50 text-xs font-semibold">
+              <td colSpan={3} className="py-1.5 pl-5">{group.currency}</td>
+              <td className="px-3 py-1.5 text-right tabular-nums">{compact(group.total, group.currency)}</td>
+              <td colSpan={2} />
+            </tr>
+            {group.lines.slice(0, 10).map((one, at) => (
+              <tr key={`${one.name}-${at}`}>
+                <td className="py-2 pr-2 pl-5 text-xs text-ink-muted tabular-nums">{String(at + 1).padStart(2, "0")}</td>
+                <td className="px-3 py-2">
+                  <span className="font-semibold">{one.name}</span>
+                  <span className="block text-xs text-ink-muted">{one.assetClass ?? "Class not in bank file"}</span>
+                </td>
+                <td className="px-3 py-2"><NotInFile /></td>
+                <td className="px-3 py-2 text-right font-semibold whitespace-nowrap tabular-nums">{exact(one.value, one.currency)}</td>
+                <td className="px-3 py-2 text-right"><NotInFile /></td>
+                <td className="py-2 pr-5 pl-3 text-right"><NotInFile /></td>
+              </tr>
+            ))}
+          </tbody>
+        ))}
+      </table>
+      <p className="mt-2 px-5 text-3xs text-ink-muted italic">
+        {file.banks.join(", ") || "No bank"} · as of {file.asOf ? formatDate(file.asOf) : "—"} · ranked within each currency, not across them: that would need a rate the bank did not send.
+      </p>
+    </div>
+  );
+}
+
+/** What his bank's files say moved, in place of a projection his file cannot give. */
+function FileMovements({ file }: { file: WorkspaceBankFile }) {
   return (
     <>
-      <Card title="Holdings in the Bank File"
-        lead={`${file.banks.join(", ") || "No bank"} · as of ${file.asOf ? formatDate(file.asOf) : "—"} · ranked within each currency`}>
-        {file.byCurrency.length === 0 ? <NotInFile /> : (
-          <div className="space-y-5">
-            {file.byCurrency.map((group) => (
-              <div key={group.currency}>
-                <p className="flex items-baseline justify-between border-b border-line pb-1 text-sm font-bold">
-                  {group.currency}
-                  <span className="tabular-nums">{compact(group.total, group.currency)}</span>
-                </p>
-                <div className="-mx-5 overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                        <th scope="col" className="py-1.5 pr-3 pl-5">Line</th>
-                        <th scope="col" className="px-3 py-1.5">Identifier</th>
-                        <th scope="col" className="px-3 py-1.5">Bank's class</th>
-                        <th scope="col" className="px-3 py-1.5 text-right">Quantity</th>
-                        <th scope="col" className="px-3 py-1.5 text-right">Price</th>
-                        <th scope="col" className="px-3 py-1.5 text-right">Value</th>
-                        <th scope="col" className="py-1.5 pr-5 pl-3 text-right">Accrued</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-line">
-                      {group.lines.map((one, at) => (
-                        <tr key={`${one.name}-${at}`}>
-                          <td className="py-1.5 pr-3 pl-5 font-medium">{one.name}</td>
-                          <td className="px-3 py-1.5 text-xs text-ink-muted">{one.identifier ?? <NotInFile />}</td>
-                          <td className="px-3 py-1.5 text-xs">{one.assetClass ?? <NotInFile />}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">{one.quantity == null ? <NotInFile /> : plain(one.quantity)}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">{one.price == null ? <NotInFile /> : plain(one.price)}</td>
-                          <td className="px-3 py-1.5 text-right font-semibold tabular-nums">{exact(one.value, one.currency)}</td>
-                          <td className="py-1.5 pr-5 pl-3 text-right tabular-nums">{one.accruedInterest == null ? <NotInFile /> : exact(one.accruedInterest, one.currency)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <p className="mt-3 text-3xs text-ink-muted italic">
-          Not ranked across currencies: that would need a rate the bank did not send. Every line counts at the value the bank states.
-        </p>
-      </Card>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Accounts" lead="At the banks whose files state this client's holdings">
-          {file.accounts.length === 0 ? <NotInFile /> : (
-            <ul className="divide-y divide-line text-sm">
-              {file.accounts.map((one, at) => (
-                <li key={`${one.lastFour}-${one.currency}-${at}`} className="flex justify-between py-2">
-                  <span>{one.bank} · ••{one.lastFour}</span>
-                  <span className="text-ink-muted">{one.currency} · {titleCase(one.accountType)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-        <Card title="Movements" lead="As the bank's files state them">
-          {file.movements.length === 0 ? <NotInFile /> : (
-            <ul className="divide-y divide-line text-sm">
-              {file.movements.map((one, at) => (
-                <li key={`${one.bookedOn}-${at}`} className="flex items-start gap-3 py-2">
-                  <span className="w-20 shrink-0 text-xs text-ink-muted">{formatDate(one.bookedOn)}</span>
-                  <span className="min-w-0 flex-1">
-                    {one.type ?? <NotInFile />}
-                    <span className="block truncate text-xs text-ink-muted">{one.description}</span>
-                  </span>
-                  <span className={cn("shrink-0 font-semibold tabular-nums", toneOf(one.amount))}>{exact(one.amount, one.currency)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
-      <p className="text-xs text-ink-muted">
-        Net worth evolution, allocation, bands, performance, liquidity, top positions and projected cash flows: <NotInFile />
-      </p>
+      <p className="mb-2 text-xs font-semibold text-ink-soft">As the bank's files state them</p>
+      {file.movements.length === 0 ? <FileBlock /> : (
+        <ul className="max-h-80 divide-y divide-line overflow-y-auto text-sm">
+          {file.movements.map((one, at) => (
+            <li key={`${one.bookedOn}-${at}`} className="flex items-start gap-3 py-2">
+              <span className="w-14 shrink-0 text-xs text-ink-muted tabular-nums">{dayMonth(one.bookedOn)}</span>
+              <span className="min-w-0 flex-1">
+                {one.type ?? <NotInFile />}
+                <span className="block truncate text-xs text-ink-muted">{one.description}</span>
+              </span>
+              <span className={cn("shrink-0 font-semibold tabular-nums", toneOf(one.amount))}>{exact(one.amount, one.currency)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-3xs text-ink-muted italic">No projection: the bank's file states what has moved, not what is to come.</p>
     </>
   );
 }
@@ -844,10 +881,6 @@ function exact(amount: number, currency: string) {
   return `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function plain(value: number) {
-  return value.toLocaleString("en-US", { maximumFractionDigits: 6 });
-}
-
 function signedCompact(amount: number, currency: string) {
   return `${amount > 0 ? "+" : ""}${compact(amount, currency)}`;
 }
@@ -866,6 +899,34 @@ function toneOf(value: number) {
 
 function titleCase(text: string) {
   return text.toLowerCase().replace(/_/g, " ").replace(/^\w/, (first) => first.toUpperCase());
+}
+
+/** The design's subtitle: what kind of client, and how many entities across which jurisdictions. */
+function subtitle(data: ClientWorkspace) {
+  const kind = [data.customerType === "ENTITY" ? "Entity" : "Individual",
+    data.segment === "HNW_PLUS" ? "HNW+" : data.segment === "FOUNDATION" ? "Foundation" : data.segment].filter(Boolean).join(" · ");
+  const places = data.jurisdictions.length <= 1 ? data.jurisdictions.join("")
+    : `${data.jurisdictions.slice(0, -1).join(", ")} and ${data.jurisdictions[data.jurisdictions.length - 1]}`;
+  const entities = data.bankFile ? null
+    : data.entityCount === 0 ? "no entities on file"
+    : `${data.entityCount} ${data.entityCount === 1 ? "entity" : "entities"}${places ? ` across ${places}` : ""}`;
+  return [kind, entities, "consolidated net worth view"].filter(Boolean).join(" · ");
+}
+
+function shiftMonths(day: string, months: number) {
+  const date = new Date(day);
+  date.setMonth(date.getMonth() + months);
+  return date.toISOString().slice(0, 10);
+}
+
+function monthYear(day: string) {
+  const date = new Date(day);
+  return `${date.toLocaleString("en-GB", { month: "short" })} ${String(date.getFullYear()).slice(2)}`;
+}
+
+function quarterLabel(day: string) {
+  const date = new Date(day);
+  return `Q${Math.floor(date.getMonth() / 3) + 1} ${String(date.getFullYear()).slice(2)}`;
 }
 
 function monthLabel(day: string) {

@@ -8640,6 +8640,8 @@ export interface WorkspaceFacts {
   riskProfile: string | null;
   /** @nullable */
   ipsStatus: string | null;
+  /** @nullable */
+  ipsVersion: string | null;
 }
 
 export interface WorkspaceSlice {
@@ -8660,6 +8662,7 @@ export interface WorkspaceBand {
   /** @nullable */
   usedPercent: number | null;
   deviating: boolean;
+  pastNearEdge: boolean;
 }
 
 export interface WorkspacePeriod {
@@ -8694,6 +8697,10 @@ export interface WorkspacePosition {
   identifier: string | null;
   value: number;
   weightPercent: number;
+  /** @nullable */
+  heldBy: string | null;
+  /** @nullable */
+  yearToDate: number | null;
 }
 
 export interface WorkspaceMonth {
@@ -8817,6 +8824,12 @@ export interface ClientWorkspace {
   holdingEntities: WorkspaceEntity[];
   beneficialLookThrough: StructureBeneficiary[];
   byEntity: WorkspaceSlice[];
+  /** @nullable */
+  segment: string | null;
+  entityCount: number;
+  jurisdictions: string[];
+  externalFlows: BookAumPoint[];
+  subClasses: number;
 }
 
 export interface StructureCount {
