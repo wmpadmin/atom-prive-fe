@@ -17,7 +17,7 @@ export type MenuEntry = ReturnType<typeof menuFor>[number];
  */
 const HEADINGS: Partial<Record<StaffRole, { key: string; routes: string[] }[]>> = {
   PORTFOLIO_MANAGER: [
-    { key: "clients", routes: ["/book-overview", "/client-directory", "/book", "/portfolio-clients"] },
+    { key: "clients", routes: ["/book-overview", "/client-directory"] },
     { key: "portfolios", routes: ["/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing"] },
     { key: "reports", routes: ["/mis", "/reports", "/trade-logs"] },
   ],
@@ -49,6 +49,15 @@ const HEADINGS: Partial<Record<StaffRole, { key: string; routes: string[] }[]>> 
   ],
 };
 
+/**
+ * Screens kept off the sidebar though their pages stay: reached from links on other screens rather than from the
+ * menu. The portfolio desk's Client list (/book) and Clients (/portfolio-clients) were taken off on 11 Nov 2026 at
+ * the user's request — the Book Overview and the Client Directory are the desk's way into its clients now. Their
+ * routes, permissions and inner screens are untouched; an inner screen opened from Drift still lights Drift, and
+ * one opened from anywhere else lights nothing rather than an entry that is not there.
+ */
+export const OFF_THE_SIDEBAR = ["/book", "/portfolio-clients"];
+
 /** What every desk starts from, at the top of the list. */
 export const TOP = ["/dashboard", "/approvals", "/assistant"];
 
@@ -62,7 +71,8 @@ export const FOOTER = ["/portfolio-settings", "/support", "/settings"];
  * The menu as the sidebar draws it: the top block, the desk's runs, anything unplaced, the person's own — one
  * flat list — and the footer apart.
  */
-export function arrangeMenu(items: MenuEntry[], role: StaffRole | null) {
+export function arrangeMenu(everything: MenuEntry[], role: StaffRole | null) {
+  const items = everything.filter((item) => !OFF_THE_SIDEBAR.includes(item.to));
   const runs = (role && HEADINGS[role]) ?? [];
   const placed = new Set([...TOP, ...YOUR_OWN, ...FOOTER, ...runs.flatMap((one) => one.routes)]);
   const pick = (routes: string[]) => items.filter((item) => routes.includes(item.to));
