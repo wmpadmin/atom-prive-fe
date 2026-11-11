@@ -48,13 +48,13 @@ export function BookOverviewPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-            Portfolio management / Book overview
+            Portfolio Management / Book Overview
           </p>
           <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Book Overview</h1>
           <p className="mt-1 text-sm text-ink-muted">
             {data
-              ? `${data.kpis.entitiesAccounts.entities} ${plural(data.kpis.entitiesAccounts.entities, "client", "clients")} · consolidated across ${data.kpis.entitiesAccounts.custodians} ${plural(data.kpis.entitiesAccounts.custodians, "custodian", "custodians")} · as at ${formatDate(data.asOf)}, in ${data.currency}`
-              : "Your assigned clients, read as one book."}
+              ? `${data.readerName ?? "Whole book"} · ${data.kpis.entitiesAccounts.entities} client ${plural(data.kpis.entitiesAccounts.entities, "family", "families")} · consolidated across ${data.kpis.entitiesAccounts.custodians} ${plural(data.kpis.entitiesAccounts.custodians, "custodian", "custodians")}`
+              : "Reading the book…"}
           </p>
         </div>
         <SelectInput id="book-currency" aria-label="Currency the book is shown in" value={currency}
@@ -82,14 +82,14 @@ function Board({ data }: { data: BookOverview }) {
   return (
     <>
       {/* Six figures, as the design's first row. */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+      <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
         <Kpi label="Book AUM" value={compact(aum.total, cur)} spark={data.aumHistory.slice(-13)}
           note={
             <>
               {aum.yearToDateChange != null && (
                 <span className={toneOf(aum.yearToDateChange)}>{signedCompact(aum.yearToDateChange, cur)} YTD · </span>
               )}
-              {aum.counted} of {aum.clients} clients
+              {aum.clients} {plural(aum.clients, "family", "families")}
               {fileNote && <FootNote>{fileNote} unconverted, not in the total.</FootNote>}
             </>
           } />
@@ -132,7 +132,7 @@ function Board({ data }: { data: BookOverview }) {
           note={`${capitalCalls.clients} ${plural(capitalCalls.clients, "client", "clients")} · ${capitalCalls.notices} ${plural(capitalCalls.notices, "notice", "notices")} · ${compact(capitalCalls.dueThisWeek, cur)} due this week`} />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+      <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
         <AumCard data={data} />
         <MandateCard data={data} />
       </div>
@@ -150,10 +150,10 @@ function Board({ data }: { data: BookOverview }) {
         <DispersionCard data={data} />
       </div>
 
-      <p className="text-xs text-ink-muted">
-        Values in {cur} unless stated, converted at the latest rate on file. Capital calls, events, IPS status, mandate
-        benchmarks and volatility are recorded for this screen; everything else is read from the platform's own figures.
-      </p>
+      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
+        <span>Values in {cur} unless stated; market data as of {formatDate(data.asOf)} close.</span>
+        <span>atom privé · Portfolio Management · Internal use only</span>
+      </footer>
     </>
   );
 }
@@ -261,7 +261,7 @@ function AumCard({ data }: { data: BookOverview }) {
   }, [points, data.currency]);
   const mix = data.assetMix;
   return (
-    <Card title="Assets Under Management" lead={`Month-end AUM, your clients, ${data.currency}`}
+    <Card title="Assets Under Management" lead={`Month-end AUM, all client families, ${data.currency}`}
       action={
         <div role="group" aria-label="Period shown" className="flex rounded-lg border border-line p-0.5">
           {RANGES.map((one) => (
@@ -280,7 +280,7 @@ function AumCard({ data }: { data: BookOverview }) {
       )}
       <p className="mt-4 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Book asset mix</p>
       {mix.length === 0 ? (
-        <Empty>None of your clients holds anything yet.</Empty>
+        <Empty>No client family holds anything yet.</Empty>
       ) : (
         <>
           <div className="mt-2 flex h-3 w-full overflow-hidden rounded-sm" aria-hidden="true">
@@ -327,9 +327,9 @@ function MandateCard({ data }: { data: BookOverview }) {
     };
   }, [data.byMandate, data.currency]);
   return (
-    <Card title="AUM by Mandate" lead="The model each client is measured against">
+    <Card title="AUM by Mandate" lead="Model per signed IPS">
       {data.byMandate.length === 0 ? (
-        <Empty>None of your clients is on a model yet.</Empty>
+        <Empty>No client family is on a model yet.</Empty>
       ) : (
         <>
           <div className="relative mx-auto w-full max-w-56">
@@ -349,7 +349,6 @@ function MandateCard({ data }: { data: BookOverview }) {
                     <span className="flex items-center gap-2">
                       <span className="size-2.5 rounded-xs" style={{ background: INK[at % INK.length] }} aria-hidden="true" />
                       {one.name}
-                      <span className="text-xs text-ink-muted">· {one.clients}</span>
                     </span>
                   </td>
                   <td className="py-2 text-right font-semibold tabular-nums">{compact(one.amount, data.currency)}</td>
@@ -384,6 +383,8 @@ const COLUMNS = [
   { id: "deviation", label: "Max deviation" },
   { id: "ips", label: "IPS status" },
   { id: "next", label: "Next event" },
+  { id: "review", label: "Last review" },
+  { id: "data", label: "Data" },
 ] as const;
 
 type ColumnId = (typeof COLUMNS)[number]["id"];
@@ -407,7 +408,7 @@ function ClientBookCard({ data }: { data: BookOverview }) {
   const open = (row: BookOverviewClient) => navigate(`/client-workspace/${row.customerId}`);
 
   return (
-    <Card title="Client Book" lead={`Showing ${shown.length} of ${rows.length} clients · sorted by AUM`}
+    <Card title="Client Book" lead={`Showing ${shown.length} of ${rows.length} client ${plural(rows.length, "family", "families")} · sorted by AUM`}
       action={
         <div className="flex flex-wrap items-center gap-2">
           <div role="group" aria-label="Which clients are listed" className="flex rounded-lg border border-line p-0.5">
@@ -444,7 +445,9 @@ function ClientBookCard({ data }: { data: BookOverview }) {
               {on("bench") && <th scope="col" className="px-3 py-2.5 text-right">vs Bench</th>}
               {on("deviation") && <th scope="col" className="px-3 py-2.5 text-right">Max deviation</th>}
               {on("ips") && <th scope="col" className="px-3 py-2.5">IPS status</th>}
-              {on("next") && <th scope="col" className="py-2.5 pr-5 pl-3">Next event</th>}
+              {on("next") && <th scope="col" className="px-3 py-2.5">Next event</th>}
+              {on("review") && <th scope="col" className="px-3 py-2.5">Last review</th>}
+              {on("data") && <th scope="col" className="py-2.5 pr-5 pl-3">Data</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -522,7 +525,7 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                   )}
                   {on("ips") && <td className="px-3 py-2.5">{file ? <NotInFile /> : <IpsStatus row={row} />}</td>}
                   {on("next") && (
-                    <td className="py-2.5 pr-5 pl-3 text-xs">
+                    <td className="px-3 py-2.5 text-xs">
                       {file ? <NotInFile /> : row.nextEvent ? (
                         <span className="block max-w-56 truncate" title={eventLine(row.nextEvent)}>
                           {row.nextEvent.title} {formatDate(row.nextEvent.on)}
@@ -530,6 +533,12 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                       ) : <Muted>—</Muted>}
                     </td>
                   )}
+                  {on("review") && (
+                    <td className="px-3 py-2.5 text-xs whitespace-nowrap">
+                      {file ? <NotInFile /> : row.lastReviewOn ? shortDay(row.lastReviewOn) : <Muted>—</Muted>}
+                    </td>
+                  )}
+                  {on("data") && <td className="py-2.5 pr-5 pl-3"><DataStatus status={row.data} hours={row.delayedHours} /></td>}
                 </tr>
               );
             })}
@@ -622,8 +631,8 @@ function AlertQueue({ alerts }: { alerts: BookAlert[] }) {
     severity === "CRITICAL" ? "bg-red-50 text-red-700" : severity === "WARNING" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-ink-soft";
   const label = (severity: string) => (severity === "CRITICAL" ? "Critical" : severity === "WARNING" ? "Warning" : "Info");
   return (
-    <Card title="Alert Queue" lead="Deviations, IPS and data-feed monitors"
-      action={<Link to="/drift" className="text-xs font-semibold text-primary-700 hover:underline">Drift & deviations</Link>}>
+    <Card title="Alert Queue" lead="IPS, data-quality and risk monitors"
+      action={<Link to="/drift" className="text-xs font-semibold text-primary-700 hover:underline">View all {alerts.length}</Link>}>
       {alerts.length === 0 ? <Empty>Nothing needs looking at.</Empty> : (
         <ul className="-my-2 max-h-96 divide-y divide-line overflow-y-auto">
           {alerts.map((one, at) => (
@@ -651,7 +660,12 @@ function AlertQueue({ alerts }: { alerts: BookAlert[] }) {
 function NextThirtyDays({ upcoming }: { upcoming: BookUpcoming[] }) {
   return (
     <Card title="Next 30 Days" lead="Cash events and client milestones"
-      action={<CalendarDays className="size-4 text-ink-muted" aria-hidden="true" />}>
+      action={
+        <span className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-ink-soft">
+          <CalendarDays className="size-3.5" aria-hidden="true" />
+          Calendar
+        </span>
+      }>
       {upcoming.length === 0 ? <Empty>Nothing is coming up in the next thirty days.</Empty> : (
         <ul className="-my-2 max-h-96 divide-y divide-line overflow-y-auto">
           {upcoming.map((one, at) => {
@@ -686,8 +700,8 @@ function NextThirtyDays({ upcoming }: { upcoming: BookUpcoming[] }) {
 
 function CustodianFeeds({ data }: { data: BookOverview }) {
   return (
-    <Card title="Custodian Data Feeds" lead="Accounts, holdings as each bank's files state them, and the latest file">
-      {data.custodians.length === 0 ? <Empty>None of your clients has a bank account linked.</Empty> : (
+    <Card title="Custodian Data Feeds" lead="Overnight bank position files · IST">
+      {data.custodians.length === 0 ? <Empty>No client family has a bank account linked.</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -695,7 +709,8 @@ function CustodianFeeds({ data }: { data: BookOverview }) {
                 <th scope="col" className="py-2 pr-3 pl-5">Custodian</th>
                 <th scope="col" className="px-3 py-2 text-right">Accts</th>
                 <th scope="col" className="px-3 py-2 text-right">AUM</th>
-                <th scope="col" className="py-2 pr-5 pl-3 text-right">Last file</th>
+                <th scope="col" className="px-3 py-2 text-right">Last file</th>
+                <th scope="col" className="py-2 pr-5 pl-3">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -711,9 +726,10 @@ function CustodianFeeds({ data }: { data: BookOverview }) {
                       <span key={amount.currency} className="block">{compact(amount.amount, amount.currency)}</span>
                     ))}
                   </td>
-                  <td className="py-2 pr-5 pl-3 text-right text-xs whitespace-nowrap text-ink-muted">
+                  <td className="px-3 py-2 text-right text-xs whitespace-nowrap text-ink-muted">
                     {one.lastFileAt ? formatDate(one.lastFileAt) : "—"}
                   </td>
+                  <td className="py-2 pr-5 pl-3"><DataStatus status={one.status} /></td>
                 </tr>
               ))}
             </tbody>
@@ -785,7 +801,7 @@ function RiskReturnCard({ data }: { data: BookOverview }) {
     };
   }, [data.riskReturn, data.frontier, data.currency, mandates]);
   return (
-    <Card title="Return vs Risk" lead="YTD return against 3-year annualised volatility · bubble size = AUM">
+    <Card title="Return vs Risk — All Clients" lead="YTD return against 3-year annualised volatility · bubble size = AUM">
       {data.riskReturn.length === 0 ? (
         <Empty>No client has both a year-to-date return and a volatility on file yet.</Empty>
       ) : (
@@ -805,7 +821,7 @@ function DispersionCard({ data }: { data: BookOverview }) {
   const high = Math.max(1, ...values);
   const at = (value: number) => `${((value - low) / (high - low || 1)) * 100}%`;
   return (
-    <Card title="YTD Dispersion by Mandate" lead="Lowest to highest client return within each mandate">
+    <Card title="YTD Dispersion by Mandate" lead="Min–max of client returns within each mandate">
       {rows.length === 0 ? <Empty>No client on a mandate has a year-to-date return yet.</Empty> : (
         <>
           <ul className="space-y-3">
@@ -870,7 +886,8 @@ function Percent({ value }: { value: number | null }) {
 
 function exportCsv(rows: BookOverviewClient[], currency: string) {
   const header = ["Client", "Code", "Type", "City", "Mandate", `AUM (${currency})`, "Bank file holdings (as stated, unconverted)",
-    "Share %", "MTD %", "YTD %", "vs Bench (pp)", "Max deviation (pp)", "Deviating", "IPS status", "Next event", "Next event date"];
+    "Share %", "MTD %", "YTD %", "vs Bench (pp)", "Max deviation (pp)", "Deviating", "IPS status", "Next event", "Next event date",
+    "Last review", "Data", "Delayed (hours)"];
   const cell = (value: unknown) => {
     const text = value == null ? "" : String(value);
     return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
@@ -881,8 +898,24 @@ function exportCsv(rows: BookOverviewClient[], currency: string) {
     row.bankFile ? row.bankFile.holdings.map((one) => `${one.currency} ${one.amount}`).join("; ") : "",
     row.sharePercent, row.monthToDate, row.yearToDate, row.versusBenchmark, row.maxDeviation,
     row.bankFile ? "" : row.deviating ? "yes" : "no", row.ipsStatus, row.nextEvent?.title, row.nextEvent?.on,
+    row.bankFile ? "not in bank file" : row.lastReviewOn, row.data, row.delayedHours,
   ].map(cell).join(","));
   downloadTextFile(`book-overview-${new Date().toISOString().slice(0, 10)}.csv`, [header.join(","), ...lines].join("\n"), "text/csv");
+}
+
+/**
+ * Whether a feed's files are current, as the server reads it. A client's shows how long ago, as the design does; a
+ * custodian's just the word. Nothing where no feed stands behind it.
+ */
+function DataStatus({ status, hours }: { status: string | null; hours?: number | null }) {
+  if (status == null) return <Muted>—</Muted>;
+  if (status === "SYNCED") return <span className="text-xs font-semibold whitespace-nowrap text-emerald-700">Synced</span>;
+  const late = hours == null ? "" : hours < 48 ? ` ${hours}h` : ` ${Math.floor(hours / 24)}d`;
+  return <span className="text-xs font-semibold whitespace-nowrap text-amber-700">Delayed{late}</span>;
+}
+
+function shortDay(day: string) {
+  return new Date(day).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }
 
 function bankFileNote(names: string[]) {
