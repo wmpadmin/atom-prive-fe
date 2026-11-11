@@ -8911,6 +8911,12 @@ export interface StructureRegisterRow {
   custodians: string[];
   value: number;
   depth: number;
+  /** @nullable */
+  netWorthPercent: number | null;
+  /** @nullable */
+  refreshKind: string | null;
+  /** @nullable */
+  refreshDue: string | null;
 }
 
 export interface StructureInterestRow {
@@ -8964,6 +8970,11 @@ export interface ClientStructure {
   documents: StructureDocument[];
   /** @nullable */
   bankFile: StructureFileAccount[] | null;
+  /** @nullable */
+  netWorth: number | null;
+  settlors: string[];
+  /** @nullable */
+  jurisdictionNote: string | null;
 }
 
 export interface RiskNotMeasured {
