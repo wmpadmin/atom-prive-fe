@@ -9257,6 +9257,12 @@ export interface PerformanceFees {
   byType: PerformanceFee[];
 }
 
+export interface PerformanceYearsSummary {
+  outperformed: number;
+  periods: number;
+  negative: number;
+}
+
 export interface ClientPerformance {
   customerId: string;
   name: string;
@@ -9276,6 +9282,7 @@ export interface ClientPerformance {
   monthly: PerformanceMonth[];
   risk: PerformanceRisk | null;
   fees: PerformanceFees | null;
+  yearsSummary: PerformanceYearsSummary | null;
 }
 
 export interface IpsSummary {
@@ -9584,6 +9591,23 @@ export interface HoldingsTotal {
   yearToDate: number | null;
 }
 
+export interface HoldingsGroup {
+  grouping: string;
+  key: string;
+  value: number;
+  weight: number;
+  /** @nullable */
+  cost: number | null;
+  /** @nullable */
+  unrealised: number | null;
+  /** @nullable */
+  unrealisedPercent: number | null;
+  /** @nullable */
+  oneDay: number | null;
+  /** @nullable */
+  yearToDate: number | null;
+}
+
 export interface ClientHoldingsBook {
   customerId: string;
   name: string;
@@ -9601,6 +9625,7 @@ export interface ClientHoldingsBook {
   fileTotals: BookCurrencyAmount[];
   fileCostTotals: BookCurrencyAmount[];
   total: HoldingsTotal | null;
+  groups: HoldingsGroup[];
 }
 
 export interface Activity {

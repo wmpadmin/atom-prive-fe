@@ -28,34 +28,55 @@ export function ClientPerformancePage() {
     <div className="space-y-5">
       <header>
         <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Portfolio management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Performance & attribution
+          Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Performance &amp; Attribution
         </p>
         <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Performance &amp; Attribution</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Time- and money-weighted returns and risk-adjusted statistics against the mandate's benchmark · as at {formatDate(data.asOf)}
+          Time- and money-weighted returns, Brinson attribution and risk-adjusted statistics against the IPS policy benchmark
         </p>
       </header>
       {data.bankFile ? <FileClient /> : <Board data={data} />}
+      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
+        <span>
+          {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+        </span>
+        <span>atom privé · Portfolio Management · Internal use only</span>
+      </footer>
     </div>
   );
 }
 
+/** Every card in the design's place, each saying the bank's files hold no returns, statistics or fees. */
 function FileClient() {
-  const parts = ["Returns (TWR, MWR, annualised)", "Risk-adjusted statistics", "Benchmark", "Growth of $100", "Excess return bridge",
-    "Returns by asset class", "Brinson-Fachler attribution", "Calendar-year returns", "Rolling 12-month return", "Monthly returns",
-    "Fee impact"];
+  const kpis = ["Return · YTD (TWR)", "Money-weighted · YTD", "Annualised · ITD", "Sharpe ratio · 3Y", "Information ratio · 3Y",
+    "Max drawdown", "Up / down capture", "Value added · ITD"];
   return (
-    <section className="rounded-2xl border border-line bg-white p-5">
-      <p className="text-sm text-ink-soft">
-        The bank's files hold one day of holdings for this client, so no return, statistic or fee can be measured from them.
-      </p>
-      <ul className="mt-3 divide-y divide-line">
-        {parts.map((one) => (
-          <li key={one} className="flex items-center justify-between py-2 text-sm">{one}<NotInFile /></li>
-        ))}
-      </ul>
-    </section>
+    <>
+      <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+        {kpis.map((label) => <Kpi key={label} label={label} value="—" note={<NotInFile />} />)}
+      </div>
+      <Card title="Benchmark"><FileBlock /></Card>
+      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+        <Card title="Growth of $100 · Since Inception"><FileBlock /></Card>
+        <Card title="Excess Return Bridge · YTD" lead="Benchmark to portfolio, investable assets"><FileBlock /></Card>
+      </div>
+      <Card title="Returns by Asset Class"><FileBlock /></Card>
+      <Card title="Brinson-Fachler Attribution · YTD"><FileBlock /></Card>
+      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+        <Card title="Calendar-year Returns"><FileBlock /></Card>
+        <Card title="Rolling 12-month Return" lead="Monthly observations"><FileBlock /></Card>
+      </div>
+      <Card title="Monthly Returns"><FileBlock /></Card>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card title="Risk-adjusted Statistics"><FileBlock /></Card>
+        <Card title="Fee Impact · YTD" lead="Return drag by fee type"><FileBlock /></Card>
+      </div>
+    </>
   );
+}
+
+function FileBlock() {
+  return <p className="rounded-xl border border-dashed border-line px-4 py-8 text-center"><NotInFile /></p>;
 }
 
 function Board({ data }: { data: ClientPerformance }) {
@@ -72,23 +93,18 @@ function Board({ data }: { data: ClientPerformance }) {
         </Card>
       </div>
       <ClassCard data={data} />
-      <Card title="Brinson-Fachler Attribution" lead="Allocation, selection and interaction against the benchmark's own classes">
+      <Card title="Brinson-Fachler Attribution · YTD" lead="Average weights · effects in basis points · investable assets, owned outright excluded">
         <NotMeasured reason={data.brinson.reason} />
       </Card>
       <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
         <YearsCard data={data} />
         <RollingCard data={data} />
       </div>
-      <MonthlyCard months={data.monthly} />
-      <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+      <MonthlyCard months={data.monthly} asOf={data.asOf} />
+      <div className="grid gap-4 xl:grid-cols-2">
         <RiskCard data={data} />
         <FeesCard data={data} />
       </div>
-      <p className="text-xs text-ink-muted">
-        Returns are the desk's own time-weighted returns from each close, net of fees; the benchmark is the mandate's,
-        from its recorded figures and month-end levels; fees are this client's recorded fees.
-        {data.riskFreePercent != null ? ` Risk-free rate ${data.riskFreePercent}% a year, from Portfolio settings.` : " No risk-free rate is set on Portfolio settings."}
-      </p>
     </>
   );
 }
@@ -101,24 +117,24 @@ function Kpis({ data, weighting, basis }: { data: ClientPerformance; weighting: 
   const ytd = basis === "gross" ? k.ytdGross : k.ytd;
   const window = k.window ?? "3Y";
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
       <Kpi label={`Return · YTD (TWR${basis === "gross" ? ", gross" : ""})`} value={pct(ytd)} tone={toneOf(ytd)}
         note={k.ytdBenchmark == null ? "No benchmark on the mandate" : <>Benchmark {pct(k.ytdBenchmark)}{k.ytdExcess != null && <span className={toneOf(k.ytdExcess)}> · {pp(k.ytdExcess)}</span>}</>} />
       <Kpi label="Money-weighted · YTD" value={pct(k.ytdMoneyWeighted)} tone={toneOf(k.ytdMoneyWeighted)}
         emphasised={weighting === "mwr"}
         note={k.ytdMoneyWeighted == null ? "Nothing to solve over this year" : `IRR incl. timing of ${money(k.netFlowsYtd ?? 0, data.currency)} net flows`} />
       <Kpi label={k.itdAnnualised ? "Annualised · ITD" : "Since inception · ITD"} value={pct(k.itd)} tone={toneOf(k.itd)}
-        note={<>{k.itdAnnualised ? null : "Under a year: not annualised · "}{k.itdBenchmark != null && `Mandate benchmark ${pct(k.itdBenchmark)} long-run`}{k.since && ` · since ${formatDate(k.since)}`}</>} />
+        note={<>{k.itdAnnualised ? null : "Under a year: not annualised · "}{k.itdBenchmark != null && `Benchmark ${pct(k.itdBenchmark)}`}{k.since && ` · since ${monthYear(k.since)}`}</>} />
       <Kpi label={`Sharpe ratio · ${window}`} value={num(k.sharpe)}
         note={k.sharpe == null ? (k.riskWhyNot ?? "—") : <>Benchmark {num(k.sharpeBenchmark)} · Sortino {num(k.sortino)}</>} />
       <Kpi label={`Information ratio · ${window}`} value={num(k.informationRatio)}
         note={k.informationRatio == null ? (k.riskWhyNot ?? "—") : `Tracking error ${pct(k.trackingError, false)}`} />
       <Kpi label="Max drawdown" value={pct(k.maxDrawdown)} tone={k.maxDrawdown != null && k.maxDrawdown < 0 ? "text-red-700" : undefined}
         note={k.drawdownPeak && k.drawdownTrough
-          ? `${formatDate(k.drawdownPeak)} – ${formatDate(k.drawdownTrough)} · ${k.recoveredOn ? `recovered ${formatDate(k.recoveredOn)}` : "not yet recovered"}`
+          ? `${shortMonth(k.drawdownPeak, k.drawdownTrough)}–${monthYear(k.drawdownTrough)} · ${k.recoveredOn ? `recovered in ${monthsBetween(k.drawdownTrough, k.recoveredOn)} months` : "not yet recovered"}`
           : "No fall on month-end values"} />
       <Kpi label="Up / down capture" value={k.upCapture == null ? "—" : `${k.upCapture.toFixed(0)}% / ${k.downCapture == null ? "—" : `${k.downCapture.toFixed(0)}%`}`}
-        note={k.upCapture == null ? (k.riskWhyNot ?? "—") : `vs mandate benchmark, ${window} monthly`} />
+        note={k.upCapture == null ? (k.riskWhyNot ?? "—") : `vs policy benchmark, ${window} monthly`} />
       <Kpi label="Value added · ITD" value={k.valueAdded == null ? "—" : signedMoney(k.valueAdded, data.currency)} tone={toneOf(k.valueAdded)}
         note={k.valueAdded == null ? "No benchmark history on the mandate" : "vs benchmark-equivalent after flows"} />
     </div>
@@ -147,14 +163,12 @@ function BenchmarkCard({ data }: { data: ClientPerformance }) {
   return (
     <Card title="Benchmark" lead="The benchmark on the client's mandate, as recorded · view only">
       <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
-        <dl className="grid gap-4 sm:grid-cols-2">
-          <Term label="Mandate" value={b?.mandate ?? "On no model"} />
-          <Term label="Benchmark" value={b?.name ?? "None recorded for the mandate"} />
-          <Term label="Composition" value={b?.composition ?? "Not recorded"} wide />
-          <Term label="Components & weights" value="Not recorded" />
-          <Term label="Rebalance" value="Not recorded" />
-          <Term label="Effective from" value="Not recorded" />
-        </dl>
+        <div>
+          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Total family · investable</p>
+          <p className="mt-1 text-lg font-bold">{b?.name ?? "No benchmark recorded for the mandate"}</p>
+          {b?.mandate && <p className="text-xs text-ink-muted">Mandate · {b.mandate}</p>}
+          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-ink-soft">{b?.composition ?? "Composition not recorded"}</p>
+        </div>
         <div className="rounded-xl border border-line p-4">
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Live result · YTD {data.asOf.slice(0, 4)}</p>
           <div className="mt-1 grid grid-cols-3 gap-2">
@@ -184,8 +198,8 @@ function GrowthCard({ data, weighting, setWeighting, basis, setBasis }: {
     const portfolio = points.map((one) => (basis === "gross" ? one.portfolioGross : one.portfolio));
     return {
       textStyle: { fontFamily: colours.font },
-      grid: { left: 8, right: 16, top: 28, bottom: 8, containLabel: true },
-      legend: { top: 0, textStyle: { color: colours.muted, fontSize: 11 } },
+      grid: { left: 8, right: 16, top: 12, bottom: 8, containLabel: true },
+      legend: { show: false },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => value?.toFixed(1) },
       xAxis: { type: "category", data: points.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
@@ -193,7 +207,7 @@ function GrowthCard({ data, weighting, setWeighting, basis, setBasis }: {
       series: [
         { type: "line", name: `Portfolio (${basis})`, data: portfolio, showSymbol: false, lineStyle: { color: colours.text, width: 1.5 },
           itemStyle: { color: colours.text }, areaStyle: { color: colours.canvas } },
-        { type: "line", name: "Mandate benchmark", data: points.map((one) => one.benchmark), showSymbol: false,
+        { type: "line", name: "Policy benchmark", data: points.map((one) => one.benchmark), showSymbol: false,
           lineStyle: { color: colours.danger, type: "dashed", width: 1.5 }, itemStyle: { color: colours.danger } },
         { type: "line", name: "IPS objective", data: points.map((one) => one.objective), showSymbol: false,
           lineStyle: { color: colours.muted, type: "dotted", width: 1.5 }, itemStyle: { color: colours.muted } },
@@ -202,7 +216,9 @@ function GrowthCard({ data, weighting, setWeighting, basis, setBasis }: {
   }, [data.growth, basis]);
   return (
     <Card title="Growth of $100 · Since Inception"
-      lead={`${basis === "net" ? "Net" : "Gross"} of fees · time-weighted · from ${data.kpis?.since ? formatDate(data.kpis.since) : "the first close"}`}
+      lead={`${basis === "net" ? "Net" : "Gross"} of fees · inception ${data.kpis?.since ? formatDate(data.kpis.since) : "the first close"}${
+        data.kpis?.itdAnnualised && data.kpis.itd != null && data.kpis.itdBenchmark != null
+          ? ` · annualised ${data.kpis.itd.toFixed(1)}% vs ${data.kpis.itdBenchmark.toFixed(1)}%` : ""}`}
       action={
         <div className="flex flex-wrap gap-2">
           <Toggle label="Return weighting" value={weighting} onChange={setWeighting} options={[["twr", "TWR"], ["mwr", "MWR"]]} />
@@ -210,7 +226,10 @@ function GrowthCard({ data, weighting, setWeighting, basis, setBasis }: {
         </div>
       }>
       {data.growth.length < 2 ? <Empty>Not enough history to draw yet.</Empty> : (
-        <Chart option={option} height={260} label="What 100 put in at inception has grown to, against the benchmark and the objective" />
+        <>
+          <Chart option={option} height={260} label="What 100 put in at inception has grown to, against the benchmark and the objective" />
+          <GrowthLegend data={data} basis={basis} />
+        </>
       )}
       {weighting === "mwr" && (
         <p className="mt-2 text-3xs text-ink-muted italic">
@@ -225,13 +244,13 @@ const PERIODS = ["MTD", "QTD", "YTD", "1Y", "3Y ann.", "5Y ann.", "ITD ann."];
 
 function ClassCard({ data }: { data: ClientPerformance }) {
   return (
-    <Card title="Returns by Asset Class" lead="Total portfolio: time-weighted, net of fees, benchmark beneath · classes: change in value, flows included">
+    <Card title="Returns by Asset Class" lead={`Portfolio return with benchmark beneath · time-weighted, net of fees, ${data.currency}`}>
       {data.byClass.length === 0 ? <Empty>Nothing written down to measure yet.</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
-                <th scope="col" className="py-2 pr-3 pl-5">Sleeve</th>
+                <th scope="col" className="py-2 pr-3 pl-5">Asset class</th>
                 <th scope="col" className="px-2 py-2 text-right">Value</th>
                 {PERIODS.map((one) => <th key={one} scope="col" className="px-2 py-2 text-right">{one}</th>)}
               </tr>
@@ -241,13 +260,12 @@ function ClassCard({ data }: { data: ClientPerformance }) {
                 <tr key={row.key} className={cn(row.total && "bg-slate-50 font-semibold")}>
                   <th scope="row" className="py-2 pr-3 pl-5 text-left">
                     {row.name}
-                    {!row.total && <span className="block text-3xs font-normal text-ink-muted">change in value, flows included</span>}
                   </th>
                   <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{row.value == null ? "—" : money(row.value, data.currency)}</td>
                   {row.figures.map((figure, at) => (
                     <td key={at} className="px-2 py-2 text-right tabular-nums">
                       <span className={cn("block", toneOf(figure))}>{figure == null ? "—" : signed(figure)}</span>
-                      {row.total && <span className="block text-3xs font-normal text-ink-muted">{row.benchmark[at] == null ? "—" : signed(row.benchmark[at] as number)}</span>}
+                      <span className="block text-3xs font-normal text-ink-muted">{row.total && row.benchmark[at] != null ? signed(row.benchmark[at] as number) : "—"}</span>
                     </td>
                   ))}
                 </tr>
@@ -257,7 +275,7 @@ function ClassCard({ data }: { data: ClientPerformance }) {
         </div>
       )}
       <p className="mt-2 text-3xs text-ink-muted italic">
-        A dash is a period the history does not cover. Class figures count money moved into or out of a class as change: nothing records flows by class.
+        No benchmark is recorded for each asset class, so the line beneath a class is a dash; the total's is the policy benchmark. Class figures count money moved in or out of a class as change.
       </p>
     </Card>
   );
@@ -276,7 +294,7 @@ function YearsCard({ data }: { data: ClientPerformance }) {
       yAxis: { type: "value", axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
         { type: "bar", name: "Portfolio", data: data.calendarYears.map((one) => one.portfolio), itemStyle: { color: colours.text } },
-        { type: "bar", name: "Mandate benchmark", data: data.calendarYears.map((one) => one.benchmark), itemStyle: { color: colours.neutral } },
+        { type: "bar", name: "Policy benchmark", data: data.calendarYears.map((one) => one.benchmark), itemStyle: { color: colours.neutral } },
       ],
     };
   }, [data.calendarYears]);
@@ -285,7 +303,7 @@ function YearsCard({ data }: { data: ClientPerformance }) {
       {data.calendarYears.length === 0 ? <Empty>No full month measured yet.</Empty> : (
         <Chart option={option} height={220} label="Each calendar year's return against the benchmark" />
       )}
-      <p className="mt-2 text-3xs text-ink-muted italic">* Part of the year: from the first close, or to date.</p>
+      <p className="mt-2 text-3xs text-ink-muted italic">{yearsNote(data)}</p>
     </Card>
   );
 }
@@ -303,7 +321,7 @@ function RollingCard({ data }: { data: ClientPerformance }) {
       yAxis: { type: "value", axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
         { type: "line", name: "Portfolio", data: data.rolling.map((one) => one.portfolio), showSymbol: false, lineStyle: { color: colours.text, width: 1.5 }, itemStyle: { color: colours.text } },
-        { type: "line", name: "Mandate benchmark", data: data.rolling.map((one) => one.benchmark), showSymbol: false, lineStyle: { color: colours.danger, type: "dashed", width: 1.5 }, itemStyle: { color: colours.danger } },
+        { type: "line", name: "Policy benchmark", data: data.rolling.map((one) => one.benchmark), showSymbol: false, lineStyle: { color: colours.danger, type: "dashed", width: 1.5 }, itemStyle: { color: colours.danger } },
       ],
     };
   }, [data.rolling]);
@@ -316,7 +334,7 @@ function RollingCard({ data }: { data: ClientPerformance }) {
   );
 }
 
-function MonthlyCard({ months }: { months: PerformanceMonth[] }) {
+function MonthlyCard({ months, asOf }: { months: PerformanceMonth[]; asOf: string }) {
   const years = [...new Set(months.map((one) => one.month.slice(0, 4)))].sort();
   const byKey = new Map(months.map((one) => [one.month.slice(0, 7), one]));
   const largest = Math.max(0.5, ...months.map((one) => Math.abs(one.value)));
@@ -325,13 +343,13 @@ function MonthlyCard({ months }: { months: PerformanceMonth[] }) {
     return (of.reduce((grown, one) => grown * (1 + one.value / 100), 1) - 1) * 100;
   };
   return (
-    <Card title="Monthly Returns" lead="Net time-weighted return each month, %">
+    <Card title="Monthly Returns" lead={`Net TWR % · ${new Date(asOf).toLocaleString("en-GB", { month: "short", year: "numeric" })} month-to-date`}>
       {months.length === 0 ? <Empty>No month measured yet.</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-xs">
             <thead>
               <tr className="text-2xs font-semibold text-ink-muted">
-                <th scope="col" className="py-1.5 pr-2 pl-5 text-left">Year</th>
+                <th scope="col" className="py-1.5 pr-2 pl-5 text-left"><span className="sr-only">Year</span></th>
                 {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((one) => (
                   <th key={one} scope="col" className="px-0.5 py-1.5 text-center">{one}</th>
                 ))}
@@ -357,7 +375,12 @@ function MonthlyCard({ months }: { months: PerformanceMonth[] }) {
           </table>
         </div>
       )}
-      <p className="mt-2 text-3xs text-ink-muted italic">A part month (from the first close, or to date) is marked with a dot.</p>
+      <ul className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
+        <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-red-600" aria-hidden="true" />Negative</li>
+        <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-slate-100" aria-hidden="true" />Flat</li>
+        <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-emerald-500" aria-hidden="true" />Positive</li>
+        <li className="text-3xs italic">A part month is marked with a dot.</li>
+      </ul>
     </Card>
   );
 }
@@ -421,7 +444,7 @@ function FeesCard({ data }: { data: ClientPerformance }) {
           </div>
           <ul className="mt-4 space-y-2">
             {f.byType.map((one) => (
-              <li key={one.type} className="grid grid-cols-[1fr_6rem_3.5rem] items-center gap-2 text-sm">
+              <li key={one.type} className="grid grid-cols-[170px_minmax(0,1fr)_54px] items-center gap-2 text-sm">
                 <span className="truncate" title={`${one.annualBp} bp a year`}>{one.label}</span>
                 <span className="block h-2 rounded-full bg-slate-100" aria-hidden="true">
                   <span className="block h-full rounded-full bg-primary-600" style={{ width: `${(one.ytdPercent / largest) * 100}%` }} />
@@ -475,15 +498,6 @@ function Small({ label, value, tone, big }: { label: string; value: string; tone
   );
 }
 
-function Term({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
-  return (
-    <div className={cn(wide && "sm:col-span-2")}>
-      <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
-      <dd className={cn("mt-0.5 text-sm", value === "Not recorded" && "text-ink-muted")}>{value}</dd>
-    </div>
-  );
-}
-
 function Toggle<T extends string>({ label, value, onChange, options }: { label: string; value: T; onChange: (value: T) => void; options: [T, string][] }) {
   return (
     <div role="group" aria-label={label} className="flex rounded-lg border border-line p-0.5">
@@ -514,6 +528,57 @@ function NotInFile() {
 
 function Empty({ children }: { children: ReactNode }) {
   return <p className="py-8 text-center text-sm text-ink-muted">{children}</p>;
+}
+
+/** Their legend under the chart, with where each line ends. */
+function GrowthLegend({ data, basis }: { data: ClientPerformance; basis: "net" | "gross" }) {
+  const last = data.growth[data.growth.length - 1];
+  if (!last) return null;
+  const portfolio = basis === "gross" ? last.portfolioGross : last.portfolio;
+  const items: [string, string, number | null | undefined][] = [
+    ["Portfolio", "bg-ink", portfolio],
+    ["Policy benchmark", "bg-red-500", last.benchmark],
+    ["IPS objective", "bg-slate-400", last.objective],
+  ];
+  return (
+    <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
+      {items.filter(([, , value]) => value != null).map(([name, colour, value]) => (
+        <li key={name} className="flex items-center gap-1.5">
+          <span className={cn("h-0.5 w-4", colour)} aria-hidden="true" />
+          {name} · <b className="text-ink tabular-nums">{Math.round(value as number)}</b>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Their footnote under the calendar years, from the server's reading of them. */
+function yearsNote(data: ClientPerformance) {
+  const first = data.calendarYears[0];
+  const parts: string[] = [];
+  if (first?.partial && data.kpis?.since) parts.push(`* ${first.year} from inception, ${formatDate(data.kpis.since)}.`);
+  const summary = data.yearsSummary;
+  if (summary) {
+    parts.push(`Outperformed benchmark in ${summary.outperformed} of ${summary.periods} periods; ${summary.negative} negative ${summary.negative === 1 ? "year" : "years"}.`);
+  }
+  return parts.join(" ") || "* Part of the year: from the first close, or to date.";
+}
+
+function monthYear(day: string) {
+  const date = new Date(day);
+  return `${date.toLocaleString("en-GB", { month: "short" })} ${date.getFullYear()}`;
+}
+
+/** The peak's month alone where it shares the trough's year, as "Jan–Sep 2022". */
+function shortMonth(peak: string, trough: string) {
+  const from = new Date(peak);
+  return from.getFullYear() === new Date(trough).getFullYear() ? from.toLocaleString("en-GB", { month: "short" }) : monthYear(peak);
+}
+
+function monthsBetween(from: string, to: string) {
+  const a = new Date(from);
+  const b = new Date(to);
+  return (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth();
 }
 
 function pct(value: number | null | undefined, sign = true) {
