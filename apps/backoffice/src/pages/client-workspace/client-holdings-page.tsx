@@ -4,6 +4,7 @@ import {
   useReconcileClientHoldings,
   type ClientHoldingsBook,
   type ClientHoldingsCheck,
+  type HoldingsGroup,
   type HoldingsPosition,
   type HoldingsSlice,
 } from "@atomprive/api-client/backoffice";
@@ -296,6 +297,7 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
     groups.set(key, [...(groups.get(key) ?? []), one]);
   });
   const columns = 1 + COLUMNS.filter(([id]) => on(id)).length;
+  const filtered = Object.values(filters).some(Boolean);
 
   return (
     <>
@@ -349,6 +351,7 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
               return (
                 <Fragment key={group}>
                   <GroupRow group={group} lines={lines} closed={closed} file={file} currency={data.currency} on={on}
+                    summary={filtered ? undefined : data.groups.find((one) => one.grouping === GROUPING_KEYS[by] && one.key === group)}
                     onToggle={() => setCollapsed((was) => toggled(was, group))} />
                   {!closed && visible.map((one) => (
                     <tr key={one.id} onClick={() => onPick(one)}
@@ -428,6 +431,7 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
           </tbody>
         </table>
       </div>
+      {!file && filtered && <p className="mt-2 text-3xs text-ink-muted italic">Group totals are the server's for the whole table, so they are not shown while a filter is on.</p>}
       <p className="mt-2 text-3xs text-ink-muted italic">
         {file ? "Lines exactly as the bank's files state them, under the bank's own class labels. The bank's cost price and total cost are its own figures, in each line's currency; unrealised P&L is not in the bank file and is not worked out from them."
           : "Select a line to see its tax lots. Price is the value over the units held."}
@@ -436,30 +440,31 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
   );
 }
 
-/** A group's own row, as the design draws it: its name and what its lines add up to in the figure columns. */
-function GroupRow({ group, lines, closed, file, currency, on, onToggle }: {
+/** The server's name for each way the table groups, to find its group rows. */
+const GROUPING_KEYS: Record<Grouping, string> = {
+  assetClass: "ASSET_CLASS", entity: "ENTITY", custodian: "CUSTODIAN", currency: "CURRENCY", account: "ACCOUNT",
+};
+
+/**
+ * A group's own row, as the design draws it: its name and, from the server, what its lines add up to. A bank-file
+ * client's group shows its lines' values per currency as sent, since they are never added across currencies.
+ */
+function GroupRow({ group, lines, closed, file, currency, on, summary, onToggle }: {
   group: string;
   lines: HoldingsPosition[];
   closed: boolean;
   file: boolean;
   currency: string;
   on: (column: Column) => boolean;
+  summary: HoldingsGroup | undefined;
   onToggle: () => void;
 }) {
-  const value = lines.reduce((sum, one) => sum + one.value, 0);
-  const costed = lines.filter((one) => one.cost != null);
-  const cost = costed.reduce((sum, one) => sum + (one.cost ?? 0), 0);
-  const unrealised = costed.reduce((sum, one) => sum + (one.unrealised ?? 0), 0);
-  const weightOf = (pick: (one: HoldingsPosition) => number | null) => {
-    const carrying = lines.filter((one) => pick(one) != null);
-    const base = carrying.reduce((sum, one) => sum + one.value, 0);
-    return base === 0 ? null : carrying.reduce((sum, one) => sum + (pick(one) ?? 0) * one.value, 0) / base;
-  };
   const perCurrency = () => {
     const sums = new Map<string, number>();
     lines.forEach((one) => sums.set(one.currency ?? "", (sums.get(one.currency ?? "") ?? 0) + one.value));
     return [...sums.entries()].map(([ccy, sum]) => exact(sum, ccy)).join(" · ");
   };
+  const g = summary;
   return (
     <tr className="bg-slate-50 font-semibold">
       <th scope="rowgroup" className="py-2 pr-3 pl-5 text-left">
@@ -469,15 +474,16 @@ function GroupRow({ group, lines, closed, file, currency, on, onToggle }: {
         </button>
       </th>
       {COLUMNS.filter(([id]) => on(id)).map(([id]) => (
-        <td key={id} className={cn("px-2 py-2 text-right whitespace-nowrap tabular-nums", id === "unrealised" && !file && toneOf(unrealised))}>
-          {id === "value" ? (file ? perCurrency() : compact(value, currency))
-            : file ? ""
-            : id === "weight" ? `${lines.reduce((sum, one) => sum + (one.weight ?? 0), 0).toFixed(1)}%`
-            : id === "cost" ? (costed.length === 0 ? "—" : compact(cost, currency))
-            : id === "unrealised" ? (costed.length === 0 ? "—" : signedCompact(unrealised, currency))
-            : id === "pnl" ? (cost === 0 ? "—" : signedPct((unrealised * 100) / cost))
-            : id === "oneDay" ? signedPct(weightOf((one) => one.oneDay))
-            : id === "ytd" ? signedPct(weightOf((one) => one.yearToDate)) : ""}
+        <td key={id} className={cn("px-2 py-2 text-right whitespace-nowrap tabular-nums", id === "unrealised" && g && toneOf(g.unrealised ?? 0))}>
+          {file ? (id === "value" ? perCurrency() : "")
+            : !g ? ""
+            : id === "value" ? compact(g.value, currency)
+            : id === "weight" ? `${g.weight.toFixed(1)}%`
+            : id === "cost" ? (g.cost == null ? "—" : compact(g.cost, currency))
+            : id === "unrealised" ? (g.unrealised == null ? "—" : signedCompact(g.unrealised, currency))
+            : id === "pnl" ? signedPct(g.unrealisedPercent)
+            : id === "oneDay" ? signedPct(g.oneDay)
+            : id === "ytd" ? signedPct(g.yearToDate) : ""}
         </td>
       ))}
     </tr>
