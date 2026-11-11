@@ -8,7 +8,7 @@ import {
 import { Alert, cn } from "@atomprive/ui";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
-import { formatDate } from "../../lib/labels";
+import { formatDate, formatDateTime } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
 
@@ -33,35 +33,21 @@ export function ClientIpsPage() {
     <div className="space-y-5">
       <header>
         <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Portfolio management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / IPS monitoring
+          Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / IPS Monitoring
         </p>
         <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">IPS Monitoring</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Strategic allocation, tolerance bands and constraint compliance against the signed investment policy · as at {formatDate(data.asOf)}
+          Strategic allocation, tolerance bands and constraint compliance against the signed investment policy
         </p>
       </header>
-      {data.bankFile ? <FileClient /> : <Monitoring data={data} />}
+      <Monitoring data={data} />
+      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
+        <span>
+          {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+        </span>
+        <span>atom privé · Portfolio Management · Internal use only</span>
+      </footer>
     </div>
-  );
-}
-
-function FileClient() {
-  const parts = ["Investment policy statement", "Compliance scorecard", "Risk & liquidity budget", "Strategic asset allocation",
-    "Sub-class deviations", "Deviation from target · 12 months", "Objective tracking", "Constraint checks", "Deviation & exception log"];
-  return (
-    <section className="rounded-2xl border border-line bg-white p-5">
-      <p className="text-sm text-ink-soft">
-        The bank's files hold no investment policy, model or limits for this client, so nothing here can be measured against one.
-      </p>
-      <ul className="mt-3 divide-y divide-line">
-        {parts.map((one) => (
-          <li key={one} className="flex items-center justify-between py-2 text-sm">
-            {one}
-            <NotInFile />
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 
@@ -69,7 +55,7 @@ function Monitoring({ data }: { data: ClientIps }) {
   return (
     <>
       <Summary data={data} />
-      <div className="grid gap-4 xl:grid-cols-[1fr_1.4fr]">
+      <div className="grid gap-4 xl:grid-cols-[1fr_1.6fr]">
         <Scorecard data={data} />
         <Budget data={data} />
       </div>
@@ -83,7 +69,6 @@ function Monitoring({ data }: { data: ClientIps }) {
         <ChecksCard data={data} />
       </div>
       <LogCard data={data} />
-      <p className="text-xs text-ink-muted">{data.bandRule} Monitoring only: no orders are generated.</p>
     </>
   );
 }
@@ -92,6 +77,14 @@ function Monitoring({ data }: { data: ClientIps }) {
 
 function Summary({ data }: { data: ClientIps }) {
   const s = data.summary;
+  if (data.bankFile) {
+    return (
+      <section className="rounded-2xl border border-line bg-white p-5">
+        <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Investment policy statement</p>
+        <div className="mt-2"><NotInFile /></div>
+      </section>
+    );
+  }
   if (!s) {
     return <section className="rounded-2xl border border-line bg-white p-5 text-sm text-ink-muted">No investment policy is recorded for this client.</section>;
   }
@@ -163,7 +156,8 @@ function Scorecard({ data }: { data: ClientIps }) {
     };
   }, [rows]);
   return (
-    <Card title="Compliance Scorecard" lead={`${s.rules} rules read today${s.notMeasured > 0 ? ` · ${s.notMeasured} could not be measured` : ""}`}>
+    <Card title="Compliance Scorecard" lead={data.bankFile ? undefined : `${s.rules} rules monitored${s.notMeasured > 0 ? ` · ${s.notMeasured} could not be measured` : ""}`}>
+      {data.bankFile ? <FileBlock /> : (<>
       <div className="flex flex-wrap items-center gap-5">
         <div className="relative size-40 shrink-0">
           <Chart option={option} height={160} label="Rules by status" />
@@ -186,7 +180,10 @@ function Scorecard({ data }: { data: ClientIps }) {
           ))}
         </ul>
       </div>
-      <p className="mt-2 text-3xs text-ink-muted italic">Constraint checks and each asset class against its band. Near limit is three quarters of the way to it.</p>
+      <p className="mt-2 border-t border-line pt-2 text-3xs text-ink-muted">
+        Checked {formatDateTime(data.checkedAt)} IST · read live each time this page opens
+      </p>
+      </>)}
     </Card>
   );
 }
@@ -194,7 +191,7 @@ function Scorecard({ data }: { data: ClientIps }) {
 function Budget({ data }: { data: ClientIps }) {
   return (
     <Card title="Risk & Liquidity Budget" lead="Utilisation of IPS limits">
-      {data.gauges.length === 0 ? <Empty>No budget limit is recorded.</Empty> : (
+      {data.bankFile ? <FileBlock /> : data.gauges.length === 0 ? <Empty>No budget limit is recorded.</Empty> : (
         <div className="grid gap-4 sm:grid-cols-3">
           {data.gauges.map((one) => <Gauge key={one.key} check={one} />)}
         </div>
@@ -218,7 +215,7 @@ function Gauge({ check }: { check: IpsCheck }) {
       <p className="-mt-6 text-xl font-bold tabular-nums">{check.current == null ? "—" : `${check.current}%`}</p>
       <p className="text-3xs font-semibold tracking-wider text-ink-muted uppercase">Limit {check.limit}</p>
       <p className="mt-1 text-xs font-semibold">{check.label}</p>
-      <p className="text-xs text-ink-muted">{check.usedPercent == null ? check.note ?? "Not measured" : `${check.usedPercent}% of limit · ${STATUS[check.status]?.[0]}`}</p>
+      <p className="text-xs text-ink-muted">{gaugeCaption(check)}</p>
     </div>
   );
 }
@@ -232,9 +229,10 @@ function AllocationCard({ data }: { data: ClientIps }) {
   const scale = Math.max(10, ...data.allocation.filter((one) => one.assetClass).map((one) => Math.max(one.max ?? 0, one.actual))) * 1.05;
   const classes = data.allocation.filter((one) => one.assetClass).length;
   const total = (data.investable ?? 0) + (data.ownedOutright ?? 0);
+  if (data.bankFile) return <FileAllocation data={data} />;
   return (
     <Card title="Strategic Asset Allocation · Target vs Actual"
-      lead={`${classes} asset classes · ${data.allocation.length - classes} sub-classes · deviation in percentage points and ${data.currency}`}
+      lead={`${classes} asset classes · ${data.allocation.length - classes} sub-classes · deviation shown in percentage points and ${data.currency}`}
       action={
         <div className="flex flex-wrap gap-2">
           <Toggle label="Rows shown" value={expanded ? "all" : "classes"} onChange={(next) => setExpanded(next === "all")}
@@ -255,8 +253,9 @@ function AllocationCard({ data }: { data: ClientIps }) {
                 <th scope="col" className="px-2 py-2 text-right">Actual</th>
                 <th scope="col" className="px-2 py-2 text-right">Value</th>
                 <th scope="col" className="px-2 py-2 text-right">Deviation</th>
-                <th scope="col" className="px-2 py-2 text-right">Deviation {data.currency}</th>
-                <th scope="col" className="w-48 py-2 pr-5 pl-2">Position in band</th>
+                <th scope="col" className="px-2 py-2 text-right">Deviation {symbolOf(data.currency)}</th>
+                <th scope="col" className="w-48 px-2 py-2">Position in band</th>
+                <th scope="col" className="py-2 pr-5 pl-2">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -267,7 +266,7 @@ function AllocationCard({ data }: { data: ClientIps }) {
                   <td colSpan={3} className="px-2 py-2 text-right text-xs font-normal text-ink-muted">outside the policy's scope</td>
                   <td className="px-2 py-2 text-right tabular-nums">{pct(((data.ownedOutright ?? 0) * 100) / (total || 1))}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{compact(data.ownedOutright ?? 0, data.currency)}</td>
-                  <td colSpan={3} />
+                  <td colSpan={4} />
                 </tr>
               )}
             </tbody>
@@ -278,8 +277,8 @@ function AllocationCard({ data }: { data: ClientIps }) {
         <li className="flex items-center gap-1.5"><span className="h-1 w-4 rounded-full bg-primary-600" aria-hidden="true" />Actual</li>
         <li className="flex items-center gap-1.5"><span className="h-3 w-4 rounded-sm bg-slate-100" aria-hidden="true" />Tolerance band</li>
         <li className="flex items-center gap-1.5"><span className="h-3 w-0.5 bg-ink" aria-hidden="true" />Target</li>
-        <li className="flex items-center gap-1.5"><span className="h-1 w-4 rounded-full bg-red-600" aria-hidden="true" />Deviation</li>
       </ul>
+      <p className="mt-1 text-3xs text-ink-muted">{data.bandRule}</p>
       {basis === "total" && <p className="mt-1 text-3xs text-ink-muted italic">Bands are set on the investable portfolio; against the total, only the actual share is shown.</p>}
     </Card>
   );
@@ -304,7 +303,7 @@ function AllocationLine({ row, basis, scale, currency }: { row: IpsAllocationRow
       <td className={cn("px-2 py-2 text-right whitespace-nowrap tabular-nums", toneOf(row.deviationValue ?? 0))}>
         {investable && row.deviationValue != null ? signedCompact(row.deviationValue, currency) : "—"}
       </td>
-      <td className="py-2 pr-5 pl-2">
+      <td className="px-2 py-2">
         {investable && row.min != null && row.max != null && row.target != null ? (
           <span className="relative block h-3" aria-hidden="true" title={`${STATUS[row.status]?.[0] ?? row.status} · band ${pct(row.min)} – ${pct(row.max)}`}>
             <span className="absolute top-0 h-3 rounded-sm bg-slate-100" style={{ left: at(row.min), width: `calc(${at(row.max)} - ${at(row.min)})` }} />
@@ -313,6 +312,10 @@ function AllocationLine({ row, basis, scale, currency }: { row: IpsAllocationRow
           </span>
         ) : <span className="text-xs text-ink-muted">{investable ? "Not set by the model" : ""}</span>}
       </td>
+      <td className="py-2 pr-5 pl-2 whitespace-nowrap">
+        {row.status === "NOT_SET" ? <span className="text-xs text-ink-muted">—</span>
+          : <span className={cn("text-xs font-semibold", row.status === "DEVIATION" ? "text-red-700" : row.status === "NEAR_EDGE" ? "text-amber-700" : "text-emerald-700")}>{STATUS[row.status]?.[0] ?? row.status}</span>}
+      </td>
     </tr>
   );
 }
@@ -320,8 +323,8 @@ function AllocationLine({ row, basis, scale, currency }: { row: IpsAllocationRow
 function SubDeviations({ data }: { data: ClientIps }) {
   const largest = Math.max(0.01, ...data.subDeviations.map((one) => Math.abs(one.deviationPoints)));
   return (
-    <Card title="Sub-class Deviations" lead="Where the portfolio sits furthest from policy · points of the investable portfolio">
-      {data.subDeviations.length === 0 ? <Empty>The model sets no sub-class targets for this client.</Empty> : (
+    <Card title="Sub-class Deviations" lead="Where the portfolio sits furthest from policy">
+      {data.bankFile ? <FileBlock /> : data.subDeviations.length === 0 ? <Empty>The model sets no sub-class targets for this client.</Empty> : (
         <ul className="space-y-1">
           {data.subDeviations.map((one, at) => (
             <li key={`${one.name}-${at}`} className="grid grid-cols-[1fr_8rem_3.5rem] items-center gap-2 text-xs">
@@ -338,7 +341,7 @@ function SubDeviations({ data }: { data: ClientIps }) {
           ))}
         </ul>
       )}
-      <p className="mt-2 text-3xs text-ink-muted italic">Sorted · overweights right, underweights left</p>
+      {!data.bankFile && <p className="mt-2 text-3xs text-ink-muted italic">Percentage points vs target, sorted · overweights right, underweights left</p>}
     </Card>
   );
 }
@@ -348,7 +351,10 @@ function HistoryCard({ data }: { data: ClientIps }) {
   const option = useMemo(() => {
     const colours = ink();
     const days = [...new Set(series.flatMap((one) => one.points.map((point) => point.on)))].sort();
-    const widest = series.reduce((most, one) => Math.max(most, one.band), 0);
+    const equity = series.find((one) => one.assetClass === "EQUITIES") ?? series[0];
+    const band = equity?.band ?? 0;
+    const flagged = days.filter((day) => series.some((one) => one.points.some((point) => point.on === day && point.outside)));
+    const marked = flagged[flagged.length - 1];
     return {
       textStyle: { fontFamily: colours.font },
       grid: { left: 8, right: 16, top: 30, bottom: 8, containLabel: true },
@@ -363,10 +369,12 @@ function HistoryCard({ data }: { data: ClientIps }) {
           return { type: "line", name: one.name, data: days.map((day) => byDay.get(day) ?? null), showSymbol: false,
             lineStyle: { color: INK[at % INK.length], width: 1.5 }, itemStyle: { color: INK[at % INK.length] } };
         }),
-        ...(widest > 0 ? [
-          { type: "line", name: `Widest band ±${widest} pp`, data: days.map(() => widest), showSymbol: false,
-            lineStyle: { color: colours.danger, type: "dashed", width: 1 }, itemStyle: { color: colours.danger } },
-          { type: "line", name: "", data: days.map(() => -widest), showSymbol: false,
+        ...(band > 0 && equity ? [
+          { type: "line", name: `${equity.name} band ±${band} pp`, data: days.map(() => band), showSymbol: false,
+            lineStyle: { color: colours.danger, type: "dashed", width: 1 }, itemStyle: { color: colours.danger },
+            ...(marked ? { markLine: { symbol: "none", silent: true, lineStyle: { color: colours.danger, type: "solid", width: 1 },
+              label: { formatter: `${monthLabel(marked)} deviation`, color: colours.danger, fontSize: 10 }, data: [{ xAxis: marked }] } } : {}) },
+          { type: "line", name: "", data: days.map(() => -band), showSymbol: false,
             lineStyle: { color: colours.danger, type: "dashed", width: 1 }, itemStyle: { color: colours.danger } },
         ] : []),
       ],
@@ -374,22 +382,38 @@ function HistoryCard({ data }: { data: ClientIps }) {
   }, [series]);
   const hasPoints = series.some((one) => one.points.length > 1);
   return (
-    <Card title="Deviation from Target · 12 Months" lead="Percentage points against today's target · month-end">
-      {!hasPoints ? <Empty>Not enough month-end valuations to draw yet.</Empty> : (
+    <Card title="Deviation from Target · 12 Months" lead="Percentage points vs strategic target · month-end">
+      {data.bankFile ? <FileBlock /> : !hasPoints ? <Empty>Not enough month-end valuations to draw yet.</Empty> : (
         <Chart option={option} height={260} label="Each class's distance from target at each month end" />
       )}
-      <p className="mt-2 text-3xs text-ink-muted italic">
-        Bands by class: {series.map((one) => `${one.name} ±${one.band} pp`).join(" · ") || "—"}
-      </p>
     </Card>
   );
 }
 
 function ObjectiveCard({ data }: { data: ClientIps }) {
   const o = data.objective;
+  const option = useMemo(() => {
+    const colours = ink();
+    const points = o?.rolling ?? [];
+    return {
+      textStyle: { fontFamily: colours.font },
+      grid: { left: 8, right: 12, top: 24, bottom: 8, containLabel: true },
+      legend: { top: 0, textStyle: { color: colours.muted, fontSize: 11 } },
+      tooltip: { trigger: "axis", valueFormatter: (value: number) => `${value.toFixed(1)}%` },
+      xAxis: { type: "category", data: points.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => quarterLabel(value) },
+        axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
+      yAxis: { type: "value", scale: true, axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
+      series: [
+        { type: "line", name: `Rolling ${o?.rollingWindow ?? "5Y"} annualised return`, data: points.map((one) => one.annualised), showSymbol: false,
+          lineStyle: { color: colours.text, width: 1.5 }, itemStyle: { color: colours.text } },
+        ...(o?.objectivePercent == null ? [] : [{ type: "line", name: `${o.objective ?? "Policy"} objective`, data: points.map(() => o.objectivePercent),
+          showSymbol: false, lineStyle: { color: colours.danger, type: "dashed", width: 1.5 }, itemStyle: { color: colours.danger } }]),
+      ],
+    };
+  }, [o]);
   return (
-    <Card title="Objective Tracking" lead="Five-year annualised time-weighted return against the policy's objective">
-      {!o ? <Empty>No objective is recorded.</Empty> : (
+    <Card title="Objective Tracking">
+      {data.bankFile ? <FileBlock /> : !o ? <Empty>No objective is recorded.</Empty> : (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -397,9 +421,8 @@ function ObjectiveCard({ data }: { data: ClientIps }) {
               <p className="text-2xl font-bold tabular-nums">{o.fiveYearsAnnualised == null ? "—" : `${o.fiveYearsAnnualised}%`}</p>
             </div>
             <div>
-              <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Objective</p>
+              <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Objective{o.objective && ` ${o.objective}`}</p>
               <p className="text-2xl font-bold tabular-nums">{o.objectivePercent == null ? "—" : `${o.objectivePercent}%`}</p>
-              {o.objective && <p className="text-xs text-ink-muted">{o.objective}</p>}
             </div>
           </div>
           <div>
@@ -415,6 +438,11 @@ function ObjectiveCard({ data }: { data: ClientIps }) {
               </Pill>
             )}
           </div>
+          {o.rolling.length < 2 ? (
+            <Empty>{o.rollingWindow == null ? "Not measured: fewer than twelve monthly returns on file." : "Not enough quarter ends to draw yet."}</Empty>
+          ) : (
+            <Chart option={option} height={180} label="Rolling annualised return at each quarter end, against the policy's objective" />
+          )}
         </div>
       )}
     </Card>
@@ -427,7 +455,7 @@ function ChecksCard({ data }: { data: ClientIps }) {
   return (
     <Card title="Constraint Checks" lead={`${shown.length} of ${data.checks.length} rules shown`}
       action={<Toggle label="Rules shown" value={only} onChange={setOnly} options={[["all", "All"], ["exceptions", "Exceptions"]]} />}>
-      {shown.length === 0 ? <Empty>{data.checks.length === 0 ? "No constraint is recorded in the policy." : "Every rule is compliant."}</Empty> : (
+      {data.bankFile ? <FileBlock /> : shown.length === 0 ? <Empty>{data.checks.length === 0 ? "No constraint is recorded in the policy." : "Every rule is compliant."}</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -436,7 +464,8 @@ function ChecksCard({ data }: { data: ClientIps }) {
                 <th scope="col" className="px-2 py-2">Limit</th>
                 <th scope="col" className="px-2 py-2 text-right">Current</th>
                 <th scope="col" className="px-2 py-2">Utilisation</th>
-                <th scope="col" className="py-2 pr-5 pl-2">Status</th>
+                <th scope="col" className="px-2 py-2">Status</th>
+                <th scope="col" className="py-2 pr-5 pl-2">Checked</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -460,7 +489,10 @@ function ChecksCard({ data }: { data: ClientIps }) {
                       </span>
                     )}
                   </td>
-                  <td className="py-2 pr-5 pl-2"><Pill tone={STATUS[one.status]?.[1] ?? ""}>{STATUS[one.status]?.[0] ?? one.status}</Pill></td>
+                  <td className="px-2 py-2"><Pill tone={STATUS[one.status]?.[1] ?? ""}>{STATUS[one.status]?.[0] ?? one.status}</Pill></td>
+                  <td className="py-2 pr-5 pl-2 text-xs whitespace-nowrap text-ink-muted">
+                    {one.measuredOn ? formatDate(one.measuredOn) : formatDateTime(data.checkedAt)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -474,8 +506,8 @@ function ChecksCard({ data }: { data: ClientIps }) {
 function LogCard({ data }: { data: ClientIps }) {
   const tone = (status: string) => (status === "OPEN" ? "bg-red-50 text-red-700" : status === "WAIVED" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700");
   return (
-    <Card title="Deviation & Exception Log" lead="Last 12 months · allocation deviations the drift watch raised, and exceptions recorded against the policy">
-      {data.log.length === 0 ? <Empty>Nothing recorded in the last twelve months.</Empty> : (
+    <Card title="Deviation & Exception Log" lead="Last 12 months · audit trail">
+      {data.bankFile ? <FileBlock /> : data.log.length === 0 ? <Empty>Nothing recorded in the last twelve months.</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -485,7 +517,7 @@ function LogCard({ data }: { data: ClientIps }) {
                 <th scope="col" className="px-2 py-2">Observed</th>
                 <th scope="col" className="px-2 py-2">Status</th>
                 <th scope="col" className="px-2 py-2">Resolution</th>
-                <th scope="col" className="py-2 pr-5 pl-2">Approver</th>
+                <th scope="col" className="py-2 pr-5 pl-2">Approved by</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -508,6 +540,85 @@ function LogCard({ data }: { data: ClientIps }) {
 }
 
 /* ------------------------------------------------------------------------------------------------------------ */
+
+/** His bank's lines, by the bank's own class within each currency, with the value as sent and nothing else. */
+function FileAllocation({ data }: { data: ClientIps }) {
+  return (
+    <Card title="Strategic Asset Allocation · Target vs Actual" lead="His lines by the bank's own class within each currency, as the bank's files state them">
+      {data.fileLines.length === 0 ? <FileBlock /> : (
+        <div className="-mx-5 overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
+                <th scope="col" className="py-2 pr-3 pl-5">Asset class / sub-class</th>
+                <th scope="col" className="px-2 py-2 text-right">Min</th>
+                <th scope="col" className="px-2 py-2 text-right">Target</th>
+                <th scope="col" className="px-2 py-2 text-right">Max</th>
+                <th scope="col" className="px-2 py-2 text-right">Actual</th>
+                <th scope="col" className="px-2 py-2 text-right">Value</th>
+                <th scope="col" className="px-2 py-2 text-right">Deviation</th>
+                <th scope="col" className="px-2 py-2">Position in band</th>
+                <th scope="col" className="py-2 pr-5 pl-2">Status</th>
+              </tr>
+            </thead>
+            {data.fileLines.map((group) => (
+              <tbody key={`${group.currency}-${group.assetClass}`} className="divide-y divide-line">
+                <tr className="bg-slate-50 font-semibold">
+                  <th scope="row" className="py-2 pr-3 pl-5 text-left">{group.assetClass} · {group.currency}</th>
+                  <td colSpan={4} className="px-2 py-2 text-right"><NotInFile /></td>
+                  <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{exact(group.total, group.currency)}</td>
+                  <td colSpan={3} className="py-2 pr-5 pl-2"><NotInFile /></td>
+                </tr>
+                {group.lines.map((one, at) => (
+                  <tr key={`${one.name}-${at}`}>
+                    <th scope="row" className="py-2 pr-3 pl-9 text-left font-normal">{one.name}</th>
+                    <td className="px-2 py-2 text-right"><NotInFile /></td>
+                    <td className="px-2 py-2 text-right"><NotInFile /></td>
+                    <td className="px-2 py-2 text-right"><NotInFile /></td>
+                    <td className="px-2 py-2 text-right"><NotInFile /></td>
+                    <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{exact(one.value, group.currency)}</td>
+                    <td className="px-2 py-2 text-right"><NotInFile /></td>
+                    <td className="px-2 py-2"><NotInFile /></td>
+                    <td className="py-2 pr-5 pl-2"><NotInFile /></td>
+                  </tr>
+                ))}
+              </tbody>
+            ))}
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** A card his bank's files hold nothing for: it stays in its place and says so. */
+function FileBlock() {
+  return <p className="rounded-xl border border-dashed border-line px-4 py-8 text-center"><NotInFile /></p>;
+}
+
+/** The design's gauge captions: the share of a budget or a ceiling, and the status once it is near the limit. */
+function gaugeCaption(check: IpsCheck) {
+  if (check.usedPercent == null) return check.note ?? "Not measured";
+  if (check.status !== "COMPLIANT") return STATUS[check.status]?.[0] ?? check.status;
+  return `${check.usedPercent}% of ${check.key === "EX_ANTE_VOLATILITY" ? "budget" : "ceiling"}`;
+}
+
+function exact(amount: number, currency: string) {
+  return `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function symbolOf(currency: string) {
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).formatToParts(0).find((part) => part.type === "currency")?.value ?? currency;
+  } catch {
+    return currency;
+  }
+}
+
+function quarterLabel(day: string) {
+  const date = new Date(day);
+  return `Q${Math.floor(date.getMonth() / 3) + 1} ${String(date.getFullYear()).slice(2)}`;
+}
 
 function Card({ title, lead, action, children }: { title: string; lead?: string; action?: ReactNode; children: ReactNode }) {
   return (

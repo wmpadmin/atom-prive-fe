@@ -9335,6 +9335,8 @@ export interface IpsCheck {
   status: string;
   /** @nullable */
   note: string | null;
+  /** @nullable */
+  measuredOn: string | null;
 }
 
 export interface IpsAllocationRow {
@@ -9368,6 +9370,7 @@ export interface IpsSubDeviation {
 export interface IpsPoint {
   on: string;
   deviation: number;
+  outside: boolean;
 }
 
 export interface IpsDeviationSeries {
@@ -9375,6 +9378,11 @@ export interface IpsDeviationSeries {
   name: string;
   band: number;
   points: IpsPoint[];
+}
+
+export interface IpsReturnPoint {
+  on: string;
+  annualised: number;
 }
 
 export interface IpsObjective {
@@ -9388,6 +9396,9 @@ export interface IpsObjective {
   margin: number | null;
   /** @nullable */
   firstClose: string | null;
+  rolling: IpsReturnPoint[];
+  /** @nullable */
+  rollingWindow: string | null;
 }
 
 export interface IpsLogEntry {
@@ -9400,6 +9411,18 @@ export interface IpsLogEntry {
   /** @nullable */
   approvedBy: string | null;
   source: string;
+}
+
+export interface IpsFileLine {
+  name: string;
+  value: number;
+}
+
+export interface IpsFileGroup {
+  currency: string;
+  assetClass: string;
+  total: number;
+  lines: IpsFileLine[];
 }
 
 export interface ClientIps {
@@ -9422,6 +9445,8 @@ export interface ClientIps {
   checks: IpsCheck[];
   log: IpsLogEntry[];
   bandRule: string;
+  checkedAt: string;
+  fileLines: IpsFileGroup[];
 }
 
 export interface HoldingsKpis {
