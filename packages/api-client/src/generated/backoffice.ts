@@ -10291,6 +10291,7 @@ export interface ClientCollectibles {
 
 export interface RecentClient {
   id: string;
+  code: string;
   name: string;
   initial: string;
   /** @nullable */
@@ -44707,6 +44708,101 @@ export function useGetClientWorkspaceCollectibles<TData = Awaited<ReturnType<typ
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientWorkspaceCollectiblesQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientWorkspaceCardUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/card`
+}
+
+export const getClientWorkspaceCard = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<RecentClient> => {
+
+  return http<RecentClient>(getGetClientWorkspaceCardUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientWorkspaceCardQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/card`
+    ] as const;
+    }
+
+
+export const getGetClientWorkspaceCardQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspaceCard>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceCardQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspaceCard>>> = ({ signal }) => getClientWorkspaceCard(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCard>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientWorkspaceCardQueryResult = NonNullable<Awaited<ReturnType<typeof getClientWorkspaceCard>>>
+export type GetClientWorkspaceCardQueryError = unknown
+
+
+export function useGetClientWorkspaceCard<TData = Awaited<ReturnType<typeof getClientWorkspaceCard>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCard>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspaceCard>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspaceCard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspaceCard<TData = Awaited<ReturnType<typeof getClientWorkspaceCard>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCard>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspaceCard>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspaceCard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspaceCard<TData = Awaited<ReturnType<typeof getClientWorkspaceCard>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientWorkspaceCard<TData = Awaited<ReturnType<typeof getClientWorkspaceCard>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCard>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientWorkspaceCardQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
