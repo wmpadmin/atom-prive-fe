@@ -152,7 +152,7 @@ function BenchmarkCard({ data }: { data: ClientPerformance }) {
       grid: { left: 8, right: 12, top: 24, bottom: 8, containLabel: true },
       legend: { top: 0, textStyle: { color: colours.muted, fontSize: 11 } },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => `${value.toFixed(2)}%` },
-      xAxis: { type: "category", data: line.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
+      xAxis: { type: "category", boundaryGap: false, data: line.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
       yAxis: { type: "value", axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
@@ -202,7 +202,7 @@ function GrowthCard({ data, weighting, setWeighting, basis, setBasis }: {
       grid: { left: 8, right: 16, top: 12, bottom: 8, containLabel: true },
       legend: { show: false },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => value?.toFixed(1) },
-      xAxis: { type: "category", data: points.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
+      xAxis: { type: "category", boundaryGap: false, data: points.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
       yAxis: { type: "value", scale: true, axisLabel: { color: colours.muted }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
@@ -318,7 +318,7 @@ function RollingCard({ data }: { data: ClientPerformance }) {
       grid: { left: 8, right: 12, top: 28, bottom: 8, containLabel: true },
       legend: { top: 0, textStyle: { color: colours.muted, fontSize: 11 } },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => (value == null ? "—" : `${value.toFixed(2)}%`) },
-      xAxis: { type: "category", data: data.rolling.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
+      xAxis: { type: "category", boundaryGap: false, data: data.rolling.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
       yAxis: { type: "value", axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [

@@ -213,7 +213,7 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
       legend: { top: 0, textStyle: { color: colours.muted, fontSize: 11 } },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => compact(value, data.currency) },
       xAxis: {
-        type: "category",
+        type: "category", boundaryGap: false,
         data: days,
         axisLabel: { color: colours.muted, formatter: (value: string, at: number) => (at === days.length - 1 ? monthYear(value) : quarterLabel(value)) },
         axisLine: { lineStyle: { color: colours.line } },
