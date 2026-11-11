@@ -8254,6 +8254,10 @@ export interface BookCustodianFeed {
   lastOutcome: string | null;
   /** @nullable */
   lastRunAt: string | null;
+  /** @nullable */
+  status: string | null;
+  /** @nullable */
+  delayedHours: number | null;
 }
 
 export interface BookFlowsKpi {
@@ -8353,6 +8357,12 @@ export interface BookOverviewClient {
   nextReviewOn: string | null;
   nextEvent: BookUpcoming | null;
   bankFile: BookBankFile | null;
+  /** @nullable */
+  lastReviewOn: string | null;
+  /** @nullable */
+  data: string | null;
+  /** @nullable */
+  delayedHours: number | null;
 }
 
 export interface BookRiskReturnPoint {
@@ -8368,6 +8378,8 @@ export interface BookRiskReturnPoint {
 export interface BookOverview {
   currency: string;
   asOf: string;
+  /** @nullable */
+  readerName: string | null;
   kpis: BookOverviewKpis;
   aumHistory: BookAumPoint[];
   assetMix: ClassSlice[];
@@ -8983,25 +8995,24 @@ export interface RiskKpis {
   diversification: RiskNotMeasured;
 }
 
-export interface RiskSlice {
-  key: string;
-  name: string;
-  value: number;
-  sharePercent: number;
-}
-
 export interface RiskScenario {
   name: string;
   impactPercent: number;
   impactAmount: number;
   /** @nullable */
   standing: string | null;
-  byClass: RiskSlice[];
 }
 
 export interface RiskPoint {
   on: string;
   var95: number;
+}
+
+export interface RiskSlice {
+  key: string;
+  name: string;
+  value: number;
+  sharePercent: number;
 }
 
 export interface RiskCurrency {
@@ -9022,8 +9033,6 @@ export interface RiskIssuer {
   viaFunds: number | null;
   total: number;
   sharePercent: number;
-  sovereign: boolean;
-  overLimit: boolean;
 }
 
 export interface RiskLadderRow {
@@ -9062,12 +9071,8 @@ export interface ClientRisk {
   sectorNote: string | null;
   currencies: RiskCurrency[];
   currencyTotal: RiskCurrency | null;
-  /** @nullable */
-  nonBasePercent: number | null;
   fileCurrencies: BookCurrencyAmount[];
   issuers: RiskIssuer[];
-  /** @nullable */
-  issuerLimit: number | null;
   /** @nullable */
   issuerNote: string | null;
   liquidity: RiskLadderRow[];
