@@ -41,8 +41,6 @@ export type Preferences = {
   assistantModel: string | null;
   /** How wide the reader has drawn a prospect's panel, in pixels, held like the assistant's. */
   prospectPanelWidth: number;
-  /** The menu sections the reader has closed, by the path of their heading, such as /client-management. */
-  closedSections: string[];
 };
 
 /** The sidebar at its narrowest still shows a label; at its widest it still leaves the page the most room. */
@@ -79,7 +77,6 @@ export const DEFAULTS: Preferences = {
   assistantWidth: ASSISTANT_DEFAULT,
   assistantModel: null,
   prospectPanelWidth: PROSPECT_PANEL_DEFAULT,
-  closedSections: [],
 };
 
 const KEY = "atomprive.preferences";
@@ -128,9 +125,6 @@ export function readPreferences(): Preferences {
       landing: typeof parsed.landing === "string" ? parsed.landing : DEFAULTS.landing,
       sidebarWidth: withinReach(parsed.sidebarWidth),
       sidebarAway: typeof parsed.sidebarAway === "boolean" ? parsed.sidebarAway : DEFAULTS.sidebarAway,
-      closedSections: Array.isArray(parsed.closedSections)
-        ? parsed.closedSections.filter((one): one is string => typeof one === "string")
-        : DEFAULTS.closedSections,
       assistantWidth: assistantWithinReach(parsed.assistantWidth),
       assistantModel: typeof parsed.assistantModel === "string" ? parsed.assistantModel : DEFAULTS.assistantModel,
       prospectPanelWidth: typeof parsed.prospectPanelWidth === "number" && Number.isFinite(parsed.prospectPanelWidth)
