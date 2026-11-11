@@ -42,11 +42,10 @@ export function ClientDirectoryPage() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Portfolio management / Clients</p>
-          <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Client Directory</h1>
+          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Portfolio Management / Clients</p>
+          <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Clients</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Your assigned clients · open one to see their overview, holdings and analytics
-            {data && ` · as at ${formatDate(data.asOf)}, in ${data.currency}`}
+            Directory of all client families · open a family to see its overview, entity structure, holdings and analytics
           </p>
         </div>
         <SelectInput id="directory-currency" aria-label="Currency the directory is shown in" value={currency}
@@ -77,8 +76,8 @@ function Board({ data }: { data: ClientDirectory }) {
     .join(" · ");
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-        <Kpi label="Clients" value={String(kpis.clients)} note={segments || "No segment recorded yet"} />
+      <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+        <Kpi label="Client families" value={String(kpis.clients)} note={segments || "No segment recorded yet"} />
         <Kpi label="Assets under management" value={compact(kpis.totalAum, cur)}
           note={
             <>
@@ -89,7 +88,7 @@ function Board({ data }: { data: ClientDirectory }) {
         <Kpi label="Outperforming benchmark" value={`${kpis.outperforming} of ${kpis.measured}`}
           note={
             <>
-              YTD against each mandate's benchmark
+              YTD, net of fees
               {kpis.measured < kpis.clients && <FootNote>{kpis.clients - kpis.measured} without a return or benchmark to set against.</FootNote>}
             </>
           } />
@@ -128,7 +127,8 @@ function Board({ data }: { data: ClientDirectory }) {
           extra={(one) => (one.on ? ` (${shortDate(one.on)})` : "")} />
         <AttentionTile icon={Clock} tone="warning" label="Custodian data delayed" named={attention.dataDelayed} />
         <AttentionTile icon={ShieldCheck} tone="neutral" label="KYC refresh due" named={attention.kycDue}
-          noun={["client", "clients"]} extra={(one) => ` (${one.count})`} />
+          count={attention.kycDue.reduce((sum, one) => sum + one.count, 0)} noun={["paper", "papers"]}
+          extra={(one) => ` (${one.count})`} />
       </div>
 
       <DirectoryCard data={data} />
@@ -140,11 +140,10 @@ function Board({ data }: { data: ClientDirectory }) {
       </div>
       <ManagerCard data={data} />
 
-      <p className="text-xs text-ink-muted">
-        Values in {cur} unless stated, converted at the latest rate on file. Segments, policy reviews, mandate benchmarks
-        and prospects' expected values are recorded for these screens; everything else is read from the platform's own
-        figures and records.
-      </p>
+      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
+        <span>Values in {cur} unless stated; market data as of {formatDate(data.asOf)} close.</span>
+        <span>atom privé · Portfolio Management · Internal use only</span>
+      </footer>
     </>
   );
 }
@@ -185,7 +184,7 @@ function DirectoryCard({ data }: { data: ClientDirectory }) {
   const shown = useMemo(() => {
     const wanted = query.trim().toLowerCase();
     const kept = data.clients.filter((one) =>
-      (!wanted || [one.name, one.code, one.city, one.mandate].some((text) => text?.toLowerCase().includes(wanted)))
+      (!wanted || [one.name, one.code, one.city, one.mandate, ...one.entityNames].some((text) => text?.toLowerCase().includes(wanted)))
       && (!segment || one.segment === segment)
       && (!mandate || one.mandate === mandate)
       && (!region || one.region === region)
@@ -211,7 +210,7 @@ function DirectoryCard({ data }: { data: ClientDirectory }) {
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">Client Directory</h2>
-          <p className="mt-0.5 text-xs text-ink-muted">Every client assigned to you · select one to open their workspace</p>
+          <p className="mt-0.5 text-xs text-ink-muted">All client families under coverage · select a family to open its workspace</p>
         </div>
         <Button variant="secondary" size="sm" onClick={() => exportCsv(shown, data.currency)}>
           <Download aria-hidden="true" />
@@ -221,10 +220,10 @@ function DirectoryCard({ data }: { data: ClientDirectory }) {
 
       <div className="flex flex-wrap items-center gap-2">
         <label className="relative min-w-56 flex-1 sm:max-w-80">
-          <span className="sr-only">Search clients</span>
+          <span className="sr-only">Search families, codes and entities</span>
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
           <TextInput value={query} onChange={(event) => { setQuery(event.target.value); reset(); }}
-            placeholder="Search clients, codes, cities…" className="h-9 pl-9" />
+            placeholder="Search families, codes, entities…" className="h-9 pl-9" />
         </label>
         <Filter label="Segment" value={segment} onChange={(next) => { setSegment(next); reset(); }}
           options={options.segments.map((one) => [one, segmentLabel(one) ?? one])} />
@@ -247,7 +246,7 @@ function DirectoryCard({ data }: { data: ClientDirectory }) {
 
       {shown.length === 0 ? (
         <p className="py-12 text-center text-sm text-ink-muted">
-          {data.clients.length === 0 ? "You have no clients assigned yet." : "No client of yours matches these filters."}
+          {data.clients.length === 0 ? "No client families under coverage yet." : "No client family matches these filters."}
         </p>
       ) : view === "cards" ? (
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -259,7 +258,7 @@ function DirectoryCard({ data }: { data: ClientDirectory }) {
 
       {shown.length > 0 && (
         <div className="mt-4">
-          <Pagination page={page} pageSize={PAGE} totalItems={shown.length} onPageChange={setPage} noun={["client", "clients"]} />
+          <Pagination page={page} pageSize={PAGE} totalItems={shown.length} onPageChange={setPage} noun={["family", "families"]} />
         </div>
       )}
     </section>
@@ -416,7 +415,7 @@ function SegmentCard({ data }: { data: ClientDirectory }) {
   const total = slices.reduce((sum, one) => sum + one.aum, 0);
   return (
     <Card title="By Segment">
-      {slices.length === 0 ? <Empty>No clients yet.</Empty> : (
+      {slices.length === 0 ? <Empty>No client families yet.</Empty> : (
         <>
           <div className="relative mx-auto w-full max-w-48">
             <Chart option={option} height={180} label="AUM by segment" />
@@ -438,7 +437,7 @@ function SegmentCard({ data }: { data: ClientDirectory }) {
                     </span>
                   </td>
                   <td className="py-2 text-right font-semibold tabular-nums">{compact(one.aum, data.currency)}</td>
-                  <td className="w-16 py-2 text-right text-xs text-ink-muted tabular-nums">{one.clients} {one.clients === 1 ? "client" : "clients"}</td>
+                  <td className="w-16 py-2 text-right text-xs text-ink-muted tabular-nums">{one.clients} fam.</td>
                 </tr>
               ))}
             </tbody>
@@ -452,8 +451,8 @@ function SegmentCard({ data }: { data: ClientDirectory }) {
 function RegionCard({ data }: { data: ClientDirectory }) {
   const largest = Math.max(1, ...data.byRegion.map((one) => one.aum));
   return (
-    <Card title="By Region of Residence" lead="Where each client lives, from their own record">
-      {data.byRegion.length === 0 ? <Empty>No clients yet.</Empty> : (
+    <Card title="By Region of Residence">
+      {data.byRegion.length === 0 ? <Empty>No client families yet.</Empty> : (
         <ul className="space-y-2.5">
           {data.byRegion.map((one) => (
             <li key={one.key} className="grid grid-cols-[7rem_1fr_5rem] items-center gap-3 text-sm">
@@ -461,7 +460,7 @@ function RegionCard({ data }: { data: ClientDirectory }) {
               <span className="block h-2 rounded-full bg-slate-100" aria-hidden="true">
                 <span className="block h-full rounded-full bg-primary-600" style={{ width: `${(one.aum / largest) * 100}%` }} />
               </span>
-              <span className="text-right font-semibold tabular-nums" title={`${one.clients} ${one.clients === 1 ? "client" : "clients"}`}>
+              <span className="text-right font-semibold tabular-nums" title={`${one.clients} ${one.clients === 1 ? "family" : "families"}`}>
                 {compact(one.aum, data.currency)}
               </span>
             </li>
@@ -475,15 +474,15 @@ function RegionCard({ data }: { data: ClientDirectory }) {
 function MandateCard({ data }: { data: ClientDirectory }) {
   return (
     <Card title="By Mandate">
-      {data.byMandate.length === 0 ? <Empty>No clients yet.</Empty> : (
+      {data.byMandate.length === 0 ? <Empty>No client families yet.</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 <th scope="col" className="py-2 pr-3 pl-5">Mandate</th>
-                <th scope="col" className="px-3 py-2 text-right">Clients</th>
+                <th scope="col" className="px-3 py-2 text-right">Families</th>
                 <th scope="col" className="px-3 py-2 text-right">AUM</th>
-                <th scope="col" className="py-2 pr-5 pl-3 text-right">Avg. vs bench</th>
+                <th scope="col" className="py-2 pr-5 pl-3 text-right">Avg. excess YTD</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -509,7 +508,7 @@ function MandateCard({ data }: { data: ClientDirectory }) {
 function ManagerCard({ data }: { data: ClientDirectory }) {
   return (
     <Card title="By Relationship Manager">
-      {data.byRelationshipManager.length === 0 ? <Empty>No clients yet.</Empty> : (
+      {data.byRelationshipManager.length === 0 ? <Empty>No client families yet.</Empty> : (
         <ul className="divide-y divide-line">
           {data.byRelationshipManager.map((one) => (
             <li key={one.key} className="flex items-center gap-3 py-2.5">
@@ -518,7 +517,7 @@ function ManagerCard({ data }: { data: ClientDirectory }) {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">{one.name}</p>
-                <p className="text-xs text-ink-muted">{one.clients} {one.clients === 1 ? "client" : "clients"}</p>
+                <p className="text-xs text-ink-muted">{one.clients} {one.clients === 1 ? "family" : "families"}</p>
               </div>
               <span className="text-sm font-semibold tabular-nums">{compact(one.aum, data.currency)}</span>
             </li>
@@ -559,11 +558,12 @@ function Kpi({ label, value, note }: { label: string; value: ReactNode; note: Re
   );
 }
 
-function AttentionTile({ icon: Icon, tone, label, named, noun = ["client", "clients"], extra }: {
+function AttentionTile({ icon: Icon, tone, label, named, count = named.length, noun = ["family", "families"], extra }: {
   icon: LucideIcon;
   tone: "danger" | "warning" | "neutral";
   label: string;
   named: DirectoryNamed[];
+  count?: number;
   noun?: [string, string];
   extra?: (one: DirectoryNamed) => string;
 }) {
@@ -575,7 +575,7 @@ function AttentionTile({ icon: Icon, tone, label, named, noun = ["client", "clie
       </span>
       <div className="min-w-0">
         <p className="text-xs text-ink-muted">{label}</p>
-        <p className="text-base font-bold">{named.length} {named.length === 1 ? noun[0] : noun[1]}</p>
+        <p className="text-base font-bold">{count} {count === 1 ? noun[0] : noun[1]}</p>
         {named.length > 0 && (
           <p className="text-xs text-ink-soft">
             {named.map((one, at) => (
