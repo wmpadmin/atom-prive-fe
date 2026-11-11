@@ -111,8 +111,10 @@ function OwnershipCard({ data }: { data: ClientStructure }) {
         // Fits the card where it can; a tree too wide for it scrolls inside the card, with its scrollbar always shown,
         // rather than running off the right edge.
         <div className="overflow-x-scroll pb-2 [scrollbar-width:thin]">
-          <div className="flex w-max min-w-full items-center">
-            <div className="w-52 shrink-0 rounded-xl border-2 border-ink p-3">
+          {/* Three columns across the card's full width — settlors ~22%, top-level owners ~30%, subsidiaries ~40%,
+              the rest connectors — with a floor below which the tree scrolls inside the card instead of squeezing. */}
+          <div className="flex w-full min-w-[60rem] items-center">
+            <div className="w-[22%] shrink-0 rounded-xl border-2 border-ink p-3">
               <p className="text-3xs font-semibold tracking-wider text-red-700 uppercase">Settlors{data.settlors.length > 0 && " · G1"}</p>
               <p className="text-base font-bold break-words">{data.settlors.length > 0 ? settlorNames(data.settlors) : data.name}</p>
               <p className="text-2xs text-ink-muted">Consolidated net worth</p>
@@ -126,22 +128,18 @@ function OwnershipCard({ data }: { data: ClientStructure }) {
                     <Branches gap="sm" items={[
                       ...one.children.map((child) => <ChildBox key={child.id} node={child} show={show} currency={cur} />),
                       ...((one.children.length === 0 || one.direct > 0) ? [(
-                        <div key="direct" className="flex min-h-28 max-w-80 min-w-48 flex-1 flex-col justify-center gap-0.5 rounded-lg border border-line px-3 py-2">
-                          <p className="text-sm font-semibold">{one.children.length === 0 ? "Accounts and holdings" : "Held directly"}</p>
-                          <p className="text-2xs break-words text-ink-muted">{one.custodians.join(" · ") || "No account linked"}</p>
-                          <p className="text-sm font-bold tabular-nums">{compact(one.direct, cur)}</p>
-                        </div>
+                        <NodeRow key="direct" className="rounded-lg border border-line"
+                          name={<p className="line-clamp-2 text-sm font-semibold break-words">{one.children.length === 0 ? "Accounts and holdings" : "Held directly"}</p>}
+                          line={one.custodians.join(" · ") || "No account linked"} figure={compact(one.direct, cur)} />
                       )] : []),
                     ]} />
                   )}
                 </div>
               )),
               ...(data.unassigned ? [(
-                <div key="unassigned" className="flex min-h-28 w-56 shrink-0 flex-col justify-center gap-0.5 rounded-xl border border-dashed border-line px-3 py-2.5">
-                  <p className="text-sm font-semibold">Not assigned to an entity</p>
-                  <p className="text-2xs text-ink-muted">Holdings no entity has been linked to</p>
-                  <p className="text-sm font-bold tabular-nums">{compact(data.unassigned.value, cur)}</p>
-                </div>
+                <NodeRow key="unassigned" className="w-[42%] shrink-0 rounded-xl border border-dashed border-line"
+                  name={<p className="line-clamp-2 text-sm font-semibold break-words">Not assigned to an entity</p>}
+                  line="Holdings no entity has been linked to" figure={compact(data.unassigned.value, cur)} />
               )] : []),
             ]} />
           </div>
@@ -184,10 +182,10 @@ function OwnershipCard({ data }: { data: ClientStructure }) {
  * past a box above or below it.
  */
 function Branches({ items, gap }: { items: ReactNode[]; gap: "sm" | "lg" }) {
-  const half = gap === "lg" ? "0.375rem" : "0.25rem";
+  const half = gap === "lg" ? "0.625rem" : "0.25rem";
   const many = items.length > 1;
   return (
-    <div className={cn("relative flex flex-1 flex-col", gap === "lg" ? "gap-3" : "gap-2")}>
+    <div className={cn("relative flex flex-1 flex-col", gap === "lg" ? "gap-5" : "gap-2")}>
       {/* From the parent to the trunk, level with the parent, which sits at the middle of its children. */}
       {many && <span className="absolute top-1/2 left-0 h-px w-5 bg-line" aria-hidden="true" />}
       {items.map((item, at) => (
@@ -206,37 +204,57 @@ function Branches({ items, gap }: { items: ReactNode[]; gap: "sm" | "lg" }) {
 }
 
 /** What a box says on its right: its value, how much of it its parent owns, or its tax status. */
-function figure(node: Pick<StructureNode, "value" | "ownedPercent" | "taxClassification">, show: Show, currency: string): ReactNode {
+function figure(node: Pick<StructureNode, "value" | "ownedPercent" | "taxClassification">, show: Show, currency: string): string {
   if (show === "owned") return node.ownedPercent == null ? "—" : `${node.ownedPercent}%`;
   if (show === "tax") return node.taxClassification ?? "—";
   return compact(node.value, currency);
 }
 
+/** A tax status longer than this would squeeze the name beside it, so it takes the line under the name instead. */
+const SHORT_FIGURE = 14;
+
 /**
- * A node's contents, stacked in every view: the name (two lines at most), the line under it, and the figure on its
- * own line below — never beside the name, where a long tax status squeezed the name to a word a line.
+ * One box's contents as the client's design lays them out: name and the line under it on the left, the figure
+ * right-aligned and vertically centred beside them. A long tax status replaces the line under the name and the right
+ * slot stays empty, so the name is never squeezed to a word a line.
  */
+function NodeRow({ name, line, figure: value, className, children }: {
+  name: ReactNode; line: ReactNode; figure: string; className?: string; children?: ReactNode;
+}) {
+  const long = value.length > SHORT_FIGURE;
+  return (
+    <div className={cn("flex min-h-[5rem] w-full flex-col justify-center px-3.5 py-3", className)}>
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          {name}
+          <p className="text-2xs break-words text-ink-muted">{long ? value : line}</p>
+        </div>
+        {!long && <p className="shrink-0 text-right text-sm font-bold tabular-nums">{value}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function TopBox({ node, show, currency }: { node: StructureNode; show: Show; currency: string }) {
   return (
-    <div className="flex min-h-28 w-56 shrink-0 flex-col justify-center gap-0.5 rounded-xl bg-primary-50 px-3 py-2.5 ring-1 ring-primary-200">
-      <p className="line-clamp-2 text-sm font-bold break-words text-primary-700" title={node.name}>{node.name}</p>
-      <p className="text-2xs break-words text-ink-soft">{node.jurisdiction} · {node.description ?? typeName(node.type)}</p>
-      <p className="text-sm font-bold break-words tabular-nums">{figure(node, show, currency)}</p>
-    </div>
+    <NodeRow className="w-[42%] shrink-0 rounded-xl bg-primary-50 ring-1 ring-primary-200"
+      name={<p className="line-clamp-2 text-sm font-bold break-words text-primary-700" title={node.name}>{node.name}</p>}
+      line={`${node.jurisdiction} · ${node.description ?? typeName(node.type)}`} figure={figure(node, show, currency)} />
   );
 }
 
 function ChildBox({ node, show, currency }: { node: StructureNode; show: Show; currency: string }) {
   return (
-    <div className="flex min-h-28 max-w-80 min-w-48 flex-1 flex-col justify-center gap-0.5 rounded-lg border border-line px-3 py-2">
-      <p className="line-clamp-2 text-sm font-semibold break-words" title={node.name}>
-        {node.name} <span className="ml-1 rounded-sm bg-slate-100 px-1 text-3xs font-semibold text-ink-muted uppercase">{shortType(node.type)}</span>
-      </p>
-      <p className="text-2xs break-words text-ink-muted">
-        {[node.ownedPercent == null ? null : `${node.ownedPercent}%`, node.jurisdiction, node.description, node.custodians.join(" · ")]
-          .filter(Boolean).join(" · ")}
-      </p>
-      <p className="text-sm font-bold break-words tabular-nums">{figure(node, show, currency)}</p>
+    <NodeRow className="rounded-lg border border-line"
+      name={
+        <p className="line-clamp-2 text-sm font-semibold break-words" title={node.name}>
+          {node.name} <span className="ml-1 rounded-sm bg-slate-100 px-1 text-3xs font-semibold text-ink-muted uppercase">{shortType(node.type)}</span>
+        </p>
+      }
+      line={[node.ownedPercent == null ? null : `${node.ownedPercent}%`, node.jurisdiction, node.description, node.custodians.join(" · ")]
+        .filter(Boolean).join(" · ")}
+      figure={figure(node, show, currency)}>
       {node.children.length > 0 && (
         <ul className="mt-1.5 space-y-0.5 border-t border-line pt-1.5 text-xs">
           {node.children.map((grandchild) => (
@@ -247,7 +265,7 @@ function ChildBox({ node, show, currency }: { node: StructureNode; show: Show; c
           ))}
         </ul>
       )}
-    </div>
+    </NodeRow>
   );
 }
 

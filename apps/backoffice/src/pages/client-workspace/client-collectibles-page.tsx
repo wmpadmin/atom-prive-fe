@@ -44,13 +44,14 @@ export function ClientCollectiblesPage() {
       {!file && data.otherNote && <p className="-mt-2 text-xs text-ink-muted">{data.otherNote}.</p>}
       <Tiles data={data} filter={filter} onFilter={setFilter} />
       <Register data={data} filter={filter} onFilter={setFilter} />
+      {/* Paired by height: the chart beside the obligations (the chart grows to match), the two tables together. */}
       <div className="grid gap-4 xl:grid-cols-2">
         <ValueCard data={data} />
-        <InsuranceCard data={data} />
+        <ObligationsCard data={data} />
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
+        <InsuranceCard data={data} />
         <LocationsCard data={data} />
-        <ObligationsCard data={data} />
       </div>
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
@@ -343,7 +344,12 @@ function ValueCard({ data }: { data: ClientCollectibles }) {
     <Card title="Register Value Over Time" lead={data.bankFile ? undefined : "Year-end appraised values · demo series"}>
       {data.bankFile ? <FileBlock /> : data.years.length === 0 ? <Empty>Nothing on the register.</Empty> : (
         <>
-          <Chart option={option} height={260} label="Register value at each year end by category" />
+          {/* As tall as the obligations beside it: no blank space under the key. */}
+          <div className="relative min-h-[260px] flex-1">
+            <div className="absolute inset-0">
+              <Chart option={option} label="Register value at each year end by category" />
+            </div>
+          </div>
           {/* The key is the page's own list rather than the chart's, so however narrow the card it wraps below the axis. */}
           <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
             {SERIES.map(([key, name], at) => (
@@ -452,7 +458,8 @@ function Status({ item }: { item: CoItem }) {
 
 function Photo({ category, tall }: { category: string; tall?: boolean }) {
   return (
-    <span className={cn("flex flex-col items-center justify-center gap-1.5 bg-stone-100 text-stone-500 dark:bg-slate-800 dark:text-slate-400", tall ? "h-32" : "h-20 rounded-lg")} aria-hidden="true">
+    // The theme's own fill and muted ink, so it follows the app's light/dark choice rather than the computer's.
+    <span className={cn("flex flex-col items-center justify-center gap-1.5 bg-slate-100 text-ink-muted", tall ? "h-32" : "h-20 rounded-lg")} aria-hidden="true">
       {createElement(iconOf(category), { className: "size-5" })}
       <span className="text-3xs font-semibold tracking-widest">PHOTO</span>
     </span>

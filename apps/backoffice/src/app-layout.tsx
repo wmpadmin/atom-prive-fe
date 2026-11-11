@@ -104,7 +104,7 @@ function ClientMenu({ customerId, screen, rail }: { customerId: string; screen: 
   if (rail) {
     return (
       <>
-        <li>
+        <li data-client-menu="start">
           <RailTip label={worth ? `${name} · ${worth.full}` : name} show>
             <Link to={workspaceOf(customerId)} aria-label={worth ? `${name}, ${worth.full}` : name}
               className={cn("mx-auto grid size-10 place-items-center rounded-xl transition-colors", FOCUS_CLASS, IDLE_CLASS)}>
@@ -117,7 +117,7 @@ function ClientMenu({ customerId, screen, rail }: { customerId: string; screen: 
         {WORKSPACE_SCREENS.map((each) => {
           const onIt = screen === each.path;
           return (
-            <li key={each.id}>
+            <li key={each.id} data-client-menu={each === WORKSPACE_SCREENS[WORKSPACE_SCREENS.length - 1] ? "end" : undefined}>
               <RailTip label={each.label} show>
                 <Link to={workspaceOf(customerId, each.path)} aria-label={each.label} aria-current={onIt ? "page" : undefined}
                   className={cn("mx-auto grid size-10 place-items-center rounded-xl transition-colors", FOCUS_CLASS,
@@ -135,7 +135,7 @@ function ClientMenu({ customerId, screen, rail }: { customerId: string; screen: 
   return (
     <>
       {/* A card, not a control: who the client is and what they hold. The way back is Client Directory itself. */}
-      <li className="py-1">
+      <li className="py-1" data-client-menu="start">
         <RailTip label={worth?.full ?? ""} show={worth != null && worth.full !== worth.short}>
           <div className="flex w-full items-center gap-2.5 rounded-xl border border-line bg-white px-2.5 py-2">
             <span className="grid size-7 shrink-0 place-items-center rounded-md bg-slate-100 text-sm font-semibold text-ink" aria-hidden="true">
@@ -156,11 +156,11 @@ function ClientMenu({ customerId, screen, rail }: { customerId: string; screen: 
           {WORKSPACE_SCREENS.filter((each) => (each.group ?? "") === group).map((each) => {
             const onIt = screen === each.path;
             return (
-              <li key={each.id}>
+              <li key={each.id} data-client-menu={each === WORKSPACE_SCREENS[WORKSPACE_SCREENS.length - 1] ? "end" : undefined}>
                 <Link to={workspaceOf(customerId, each.path)} aria-current={onIt ? "page" : undefined}
                   className={cn(ENTRY_CLASS, FOCUS_CLASS, onIt ? HERE_CLASS : IDLE_CLASS)}>
                   <each.icon className="size-4 shrink-0" aria-hidden="true" />
-                  {each.label}
+                  <span className="min-w-0 break-words">{each.label}</span>
                 </Link>
               </li>
             );
@@ -325,7 +325,7 @@ function RoleHeader({ role, here, enter }: {
         enter.mutate({ data: { role, fromNowOn: false } });
       }}
       className={cn(
-        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-2xs font-bold tracking-wider uppercase",
+        "flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-2xs font-bold tracking-wider uppercase",
         FOCUS_CLASS,
         here ? "text-ink" : "text-ink-muted hover:bg-white/60 hover:text-ink",
         enter.isPending && !here && "cursor-wait",
@@ -850,6 +850,14 @@ export function AppLayout() {
     return () => document.removeEventListener("keydown", shortcut);
   }, []);
 
+  const navRef = useRef<HTMLElement>(null);
+  // A sidebar link that was pressed keeps focus after the screen changes, and a press made by key leaves its ring
+  // on the entry that is now selected. Selected is the fill alone, so the focus is let go once the screen has moved.
+  useEffect(() => {
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && focused.closest("aside") && focused.matches("a")) focused.blur();
+  }, [pathname]);
+
   /**
    * The workspace this person calls home — the Admin's choice, or their own from Settings. Their declarations
    * are shown there and nowhere else: they are owed once by the person, not once by each desk they sit at.
@@ -867,6 +875,20 @@ export function AppLayout() {
   const workspace = workspaceIn(pathname);
   const clientHome = list.some((item) => item.to === "/client-directory") ? "/client-directory" : null;
   const enter = useEnterRole();
+  // Opening a client brings its whole menu — the card down to the last analytics screen — into the sidebar's view,
+  // rather than leaving the lower half of it under the fold where it read as missing.
+  const openClient = workspace?.id;
+  useEffect(() => {
+    if (!openClient) return;
+    // Once at the next paint, and again a moment later: right after entering a workspace the menu around it is
+    // still settling, and a reveal measured too early lands short.
+    const frame = requestAnimationFrame(() => revealClientMenu(navRef.current));
+    const later = window.setTimeout(() => revealClientMenu(navRef.current), 400);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(later);
+    };
+  }, [openClient]);
 
   const view = currentSupportView();
 
@@ -892,9 +914,10 @@ export function AppLayout() {
             screens between them scroll. Somebody holding one role has no headings at all, and on the rail the
             mark opens the workspaces instead. */}
         {sections && <div className="mt-4 shrink-0"><RoleHeader role={user.activeRole as StaffRole} here enter={enter} /></div>}
-        <nav aria-label="Back-office"
-          // Never squeezed to nothing: on a short window the other workspaces' headings give way first.
-          className={cn("min-h-24 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain",
+        <nav aria-label="Back-office" ref={navRef}
+          // The only part of the sidebar that scrolls: the headings and footer around it are pinned, and on a short
+          // window it gives way down to about 96px rather than push them out of view.
+          className={cn("min-h-24 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain",
             sections ? "mt-1 ml-[1.0625rem] border-l border-line pl-2" : "mt-4")}>
           {/* The portfolio desk's recent clients sit right under Book Overview, so all four are in view without
               scrolling. */}
@@ -913,13 +936,14 @@ export function AppLayout() {
           )}
         </nav>
         {sections && (
-          <div className="mt-2 min-h-0 space-y-0.5 overflow-y-auto border-t border-line/50 pt-2">
+          // Pinned with the footer: every other workspace's heading is always in full view, and never scrolls.
+          <div className="mt-2 min-w-0 shrink-0 border-t border-line/50 pt-1.5">
             {user.roles.filter((role) => role !== user.activeRole).map((role) => (
               <RoleHeader key={role} role={role as StaffRole} here={false} enter={enter} />
             ))}
           </div>
         )}
-        <div className="mt-3 shrink-0 space-y-0.5 border-t border-line pt-3">
+        <div className="mt-3 min-w-0 shrink-0 space-y-0.5 border-t border-line pt-3">
           <ul className="space-y-0.5">
             {footer.map((item) => (
               <NavEntry key={item.to} item={item} pathname={pathname} search={search} rail={rail} />
@@ -929,10 +953,13 @@ export function AppLayout() {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Clipped across, never scrolled: anything in a screen wider than the window must scroll inside its own card.
+          Left to overflow, it widened the whole document, and a sideways scroll of the page slid the sidebar half
+          out of view — role headings read "DMIN" and the footer was cut off. */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
         <header className="flex h-20 items-center justify-between gap-4 px-8">
           <p className="min-w-0 truncate text-2xl font-bold">{user.activeRole ? roleLabels[user.activeRole] : ""}</p>
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <TopSearch />
             <div className="flex items-center gap-1">
               <AssistantButton />
@@ -948,6 +975,24 @@ export function AppLayout() {
     </div>
     </>
   );
+}
+
+/**
+ * Scrolls the sidebar's menu so the open client's menu is in view: all of it where it fits, else from its card down.
+ * Only the menu itself scrolls — never the page.
+ */
+function revealClientMenu(nav: HTMLElement | null) {
+  const start = nav?.querySelector<HTMLElement>("[data-client-menu=start]");
+  const end = nav?.querySelectorAll<HTMLElement>("[data-client-menu=end]");
+  const last = end?.[end.length - 1];
+  if (!nav || !start || !last) return;
+  const box = nav.getBoundingClientRect();
+  const top = start.getBoundingClientRect().top - box.top + nav.scrollTop;
+  const bottom = last.getBoundingClientRect().bottom - box.top + nav.scrollTop;
+  const room = nav.clientHeight;
+  if (bottom - top + 8 > room) nav.scrollTop = Math.max(0, top - 4);
+  else if (bottom + 4 > nav.scrollTop + room) nav.scrollTop = bottom + 4 - room;
+  else if (top < nav.scrollTop) nav.scrollTop = Math.max(0, top - 4);
 }
 
 /** The person at the foot of the sidebar: who they are, and their own account's two actions. */

@@ -20,7 +20,6 @@ import { INK } from "../portfolios/asset-classes";
 
 echarts.use([ScatterChart, MarkLineComponent, LabelLayout]);
 
-const CALLS = "#b4232a";
 
 /**
  * A client's Private Markets & Alternatives, laid out section by section as the firm's 10 Nov design draws it. Every
@@ -57,10 +56,18 @@ export function ClientPrivateMarketsPage() {
         <DiversificationCard data={data} />
       </div>
       <FundsCard data={data} />
-      <div className="grid gap-4 xl:grid-cols-2">
-        <ScorecardCard data={data} />
-        <PacingCard data={data} />
-      </div>
+      {/* A scorecard with nothing to plot yet is a short card on its own rather than a tall empty one beside Pacing. */}
+      {data.scorecard.length === 0 && !data.bankFile ? (
+        <>
+          <ScorecardCard data={data} />
+          <PacingCard data={data} />
+        </>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-2">
+          <ScorecardCard data={data} />
+          <PacingCard data={data} />
+        </div>
+      )}
       <NoticesCard data={data} />
       <HedgeFundsCard data={data} />
 
@@ -208,8 +215,9 @@ function JCurveCard({ data }: { data: ClientPrivateMarkets }) {
       yAxis: { type: "value", splitNumber: 4, axisLabel: { color: colours.muted, formatter: (value: number) => compact(value, data.currency) },
         splitLine: { lineStyle: { color: colours.line } } },
       series: [
-        { type: "bar", name: "Distributions", stack: "flow", barMaxWidth: 28, data: data.years.map((one) => one.distributions), itemStyle: { color: colours.text } },
-        { type: "bar", name: "Capital calls", stack: "flow", barMaxWidth: 28, data: data.years.map((one) => one.calls), itemStyle: { color: CALLS } },
+        // Money in blue and money out red, the same palette and tones as Projected Cash Flows on the Overview.
+        { type: "bar", name: "Distributions", stack: "flow", barMaxWidth: 28, data: data.years.map((one) => one.distributions), itemStyle: { color: colours.primary } },
+        { type: "bar", name: "Capital calls", stack: "flow", barMaxWidth: 28, data: data.years.map((one) => one.calls), itemStyle: { color: colours.danger } },
       ],
     };
   }, [data.years, data.currency]);
@@ -225,7 +233,7 @@ function JCurveCard({ data }: { data: ClientPrivateMarkets }) {
         splitLine: { lineStyle: { color: colours.line } } },
       series: [
         { type: "line", name: `Cumulative net cash flow · ${data.cumulativeNet == null ? "—" : compact(data.cumulativeNet, data.currency)}`,
-          data: data.years.map((one) => one.cumulativeNet), symbol: "circle", symbolSize: 5, lineStyle: { color: CALLS, width: 1.5 }, itemStyle: { color: CALLS } },
+          data: data.years.map((one) => one.cumulativeNet), symbol: "circle", symbolSize: 5, lineStyle: { color: colours.danger, width: 1.5 }, itemStyle: { color: colours.danger } },
         { type: "line", name: `Net cash flow + NAV (value created) · ${data.valueCreated == null ? "—" : compact(data.valueCreated, data.currency)}`,
           data: data.years.map((one) => one.valueCreated), symbol: "circle", symbolSize: 5, areaStyle: { color: colours.canvas, opacity: 0.6 },
           lineStyle: { color: colours.text, width: 1.5 }, itemStyle: { color: colours.text } },
@@ -419,9 +427,9 @@ function ScorecardCard({ data }: { data: ClientPrivateMarkets }) {
         splitLine: { lineStyle: { color: colours.line } } },
       series: [
         { type: "scatter", name: "Above public-market equivalent", data: point(true), itemStyle: { color: colours.text, opacity: 0.85 }, label, labelLayout,
-          markLine: data.scorecardPme == null ? undefined : { symbol: "none", silent: true, lineStyle: { color: CALLS, type: "dashed" },
-            label: { formatter: `PME ${data.scorecardPme.toFixed(1)}%`, color: CALLS, fontSize: 10 }, data: [{ xAxis: data.scorecardPme }] } },
-        { type: "scatter", name: "Below PME", data: point(false), itemStyle: { color: CALLS, opacity: 0.85 }, label, labelLayout },
+          markLine: data.scorecardPme == null ? undefined : { symbol: "none", silent: true, lineStyle: { color: colours.danger, type: "dashed" },
+            label: { formatter: `PME ${data.scorecardPme.toFixed(1)}%`, color: colours.danger, fontSize: 10 }, data: [{ xAxis: data.scorecardPme }] } },
+        { type: "scatter", name: "Below PME", data: point(false), itemStyle: { color: colours.danger, opacity: 0.85 }, label, labelLayout },
       ],
     };
   }, [data.scorecard, data.scorecardPme]);
@@ -450,9 +458,9 @@ function PacingCard({ data }: { data: ClientPrivateMarkets }) {
         splitLine: { lineStyle: { color: colours.line } } },
       series: [
         { type: "bar", name: `Projected distributions · ${compact(data.pacingDistributions ?? 0, data.currency)}`, stack: "pace", barMaxWidth: 28,
-          data: data.pacing.map((one) => one.distributions), itemStyle: { color: colours.text } },
+          data: data.pacing.map((one) => one.distributions), itemStyle: { color: colours.primary } },
         { type: "bar", name: `Projected calls · ${compact(Math.abs(data.pacingCalls ?? 0), data.currency)}`, stack: "pace", barMaxWidth: 28,
-          data: data.pacing.map((one) => one.calls), itemStyle: { color: CALLS } },
+          data: data.pacing.map((one) => one.calls), itemStyle: { color: colours.danger } },
       ],
     };
   }, [data.pacing, data.currency, data.pacingDistributions, data.pacingCalls]);
