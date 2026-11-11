@@ -449,15 +449,15 @@ function Scatter({ data }: { data: ClientEquity }) {
     const largest = Math.max(1, ...data.scatter.map((one) => one.weight));
     return {
       textStyle: { fontFamily: colours.font },
-      // Room above the plot for the benchmark P/E line's label.
-      grid: { left: 8, right: 16, top: 28, bottom: 40, containLabel: true },
+      grid: { left: 8, right: 16, top: 16, bottom: 40, containLabel: true },
       legend: { bottom: 0, data: ["Info. Tech.", "Financials", "Other sectors", "Benchmark"], textStyle: { color: colours.muted, fontSize: 11 } },
       tooltip: { trigger: "item", formatter: (point: { data: [number, number, number, string, boolean] }) => point.data[4]
         ? `${point.data[3]}<br/>Fwd P/E ${point.data[0]}× · ROE above 78%, drawn at the cap`
         : `${point.data[3]}<br/>Fwd P/E ${point.data[0]}× · ROE ${point.data[1]}%` },
       xAxis: { type: "value", name: "Forward P/E", nameLocation: "middle", nameGap: 24, nameTextStyle: { color: colours.muted, fontSize: 10 }, scale: true,
         axisLabel: { color: colours.muted, formatter: "{value}×" }, splitLine: { lineStyle: { color: colours.line } } },
-      yAxis: { type: "value", min: 0, max: 80, axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
+      // Room above the 78% cap: capped bubbles and their arrows sit inside the plot with space above them.
+      yAxis: { type: "value", min: 0, max: 100, interval: 20, axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
         ...groups.map(([id, name, colour]) => ({
           type: "scatter", name, itemStyle: { color: colour, opacity: 0.9 },
@@ -477,9 +477,10 @@ function Scatter({ data }: { data: ClientEquity }) {
         { type: "line", name: "Benchmark", data: [], lineStyle: { color: colours.danger, type: "dashed" }, itemStyle: { color: colours.danger },
           markLine: { symbol: "none", silent: true, lineStyle: { color: colours.danger, type: "dashed", width: 1 },
             label: { color: colours.danger, fontSize: 9 },
-            // Both labels inside the plot: the P/E one at the top of its line, the ROE one at the right end, above it.
+            // Both labels inside the plot: the P/E one just inside the top of its line, the ROE one at the right end,
+            // above its line.
             data: [
-              ...(data.benchmarkForwardPe != null ? [{ xAxis: data.benchmarkForwardPe, label: { position: "end", formatter: `ACWI ${data.benchmarkForwardPe}×` } }] : []),
+              ...(data.benchmarkForwardPe != null ? [{ xAxis: data.benchmarkForwardPe, label: { position: "end", distance: -14, align: "left", padding: [0, 0, 0, 5], formatter: `ACWI ${data.benchmarkForwardPe}×` } }] : []),
               ...(data.benchmarkRoe != null ? [{ yAxis: data.benchmarkRoe, label: { position: "insideEndTop", formatter: `ACWI ROE ${data.benchmarkRoe}%` } }] : []),
             ] } },
       ],
