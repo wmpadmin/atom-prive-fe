@@ -277,13 +277,14 @@ function Issuers({ data }: { data: ClientRisk }) {
                   <th scope="row" className="py-2 pr-3 pl-5 text-left font-bold">{one.issuer}</th>
                   <td className="px-2 py-2 text-right tabular-nums">{one.equity == null ? "—" : money(one.equity, data.currency)}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{one.bonds == null ? "—" : money(one.bonds, data.currency)}</td>
-                  <td className="px-2 py-2 text-right text-ink-muted tabular-nums" title="Not measured: no fund holdings on file">—</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{one.viaFunds == null ? "—" : money(one.viaFunds, data.currency)}</td>
                   <td className="px-2 py-2 text-right font-bold tabular-nums">{money(one.total, data.currency)}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{one.sharePercent.toFixed(1)}%</td>
                   <td className="py-2 pr-5 pl-2">
                     <span className="flex h-2 w-12 overflow-hidden rounded-xs bg-slate-100" aria-hidden="true">
                       <span className="bg-slate-800" style={{ width: `${((one.equity ?? 0) / one.total) * 100}%` }} />
                       <span className="bg-amber-600" style={{ width: `${((one.bonds ?? 0) / one.total) * 100}%` }} />
+                      <span className="bg-amber-200" style={{ width: `${((one.viaFunds ?? 0) / one.total) * 100}%` }} />
                     </span>
                   </td>
                 </tr>
