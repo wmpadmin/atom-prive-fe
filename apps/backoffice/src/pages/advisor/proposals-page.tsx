@@ -61,8 +61,6 @@ const TABS: { id: Tab; label: string; status?: ListProposalsStatus }[] = [
 type Column = {
   id: string;
   label: string;
-  /** What share of the table it is given, where the longest cell should not decide. */
-  width?: string;
   nowrap?: boolean;
   tone?: string;
   cell: (proposal: ProposalRow) => ReactNode;
@@ -92,7 +90,6 @@ function movableFor({ showAdvisor, openedFrom, onMe, reader, theirPart }: {
     {
       id: "proposal",
       label: "Proposal",
-      width: "w-[30%]",
       cell: (proposal) => (
         <>
           <Link
@@ -117,9 +114,6 @@ function movableFor({ showAdvisor, openedFrom, onMe, reader, theirPart }: {
           // the relationship manager and is not: that is whoever the row says it is waiting on, and they
           // are the one person who may never have written it.
           label: "Written by",
-          // Wider than the name under it needs, and held to one line: the heading is now the longest
-          // thing in the column, and at 12% it wrapped and took the whole header row down with it.
-          width: "w-[16%]",
           nowrap: true,
           tone: "text-ink-soft",
           cell: (proposal: ProposalRow) => (
@@ -157,11 +151,12 @@ function movableFor({ showAdvisor, openedFrom, onMe, reader, theirPart }: {
     {
       id: "status",
       label: "Status",
-      nowrap: true,
       cell: (proposal) => {
         const part = theirPart(proposal);
         return (
           <>
+            {/* A badge holds its words on one line; here "Waiting on <a long family name> until <date>"
+                is wider than an equal column, so it wraps inside the column instead of spilling out. */}
             <Badge tone={proposalStatusTones[proposal.status as ProposalRowStatus]}>
               {proposalStanding(proposal.status as ProposalRowStatus, proposal.waitingOn, proposal.answerBy)}
             </Badge>
@@ -436,15 +431,13 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
           />
         </QueueBar>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <thead>
-              {/* The widths are set here rather than left to the longest cell. A proposal's title is the
-                  only thing on the row that is as long as somebody chose to make it, so without them one
-                  long title took the width from every other column and a client's name broke across two
-                  lines beside it. Named in parts of the table, so the row still fits whatever the window
-                  is; everything that is a date, a figure or a word stays on one line. */}
+              {/* Every column the same width, fixed rather than left to the longest cell: a proposal's
+                  title or a waiting-on line otherwise took the width from every other column. Long text
+                  wraps inside its own column; only the answer column is narrower, as it holds one button. */}
               <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                <th scope="col" className="w-[16%] py-3 pr-4 pl-5">Client</th>
+                <th scope="col" className="py-3 pr-4 pl-5">Client</th>
                 {shownColumns.map((column, at) => (
                   <th
                     key={column.id}
@@ -452,7 +445,6 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
                     {...drag.headingProps(column.id)}
                     className={cn(
                       "cursor-grab touch-none px-4 py-3 select-none",
-                      column.width,
                       column.nowrap && "whitespace-nowrap",
                       drag.dragging === column.id && "cursor-grabbing opacity-40",
                       drag.over === column.id && "bg-primary-50",
@@ -465,7 +457,7 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
                     </span>
                   </th>
                 ))}
-                <th scope="col" className="py-3 pr-5 pl-4 text-right"><span className="sr-only">Answer</span></th>
+                <th scope="col" className="w-28 py-3 pr-5 pl-4 text-right"><span className="sr-only">Answer</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -505,7 +497,7 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
                       {/* A name is read as one thing, so it is kept on one line and cut where it will not
                           fit — broken across two it reads as two people. */}
                       <div className="min-w-0">
-                        <span className="block truncate">{proposal.customerName}</span>
+                        <span className="block truncate" title={proposal.customerName}>{proposal.customerName}</span>
                         <span className="block font-mono text-xs text-ink-muted">{proposal.customerCode}</span>
                       </div>
                     </div>
@@ -513,7 +505,8 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
                   {shownColumns.map((column) => (
                     <td
                       key={column.id}
-                      className={cn("px-4 py-3", column.nowrap && "whitespace-nowrap", column.tone)}
+                      className={cn("px-4 py-3 break-words", column.nowrap && "whitespace-nowrap",
+                        column.id === "status" && "[&_.inline-flex]:whitespace-normal", column.tone)}
                     >
                       {column.cell(proposal)}
                     </td>
