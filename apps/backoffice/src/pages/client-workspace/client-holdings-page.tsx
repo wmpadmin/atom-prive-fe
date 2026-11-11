@@ -279,7 +279,7 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [opened, setOpened] = useState<Set<string>>(new Set());
-  const [hidden, setHidden] = useState<Set<Column>>(new Set(file ? [] : ["accrued", "bankCostPrice", "bankCostTotal"]));
+  const [hidden, setHidden] = useState<Set<Column>>(new Set(["accrued", "bankCostPrice", "bankCostTotal"]));
   const on = (column: Column) => !hidden.has(column);
 
   const options = useMemo(() => ({
