@@ -10289,6 +10289,22 @@ export interface ClientCollectibles {
   note: string | null;
 }
 
+export interface RecentClient {
+  id: string;
+  name: string;
+  initial: string;
+  /** @nullable */
+  currency: string | null;
+  /** @nullable */
+  aum: number | null;
+  bankFile: boolean;
+  fileHoldings: BookCurrencyAmount[];
+}
+
+export interface RecentClientList {
+  clients: RecentClient[];
+}
+
 export interface Activity {
   kind: string;
   subject: string;
@@ -29392,6 +29408,74 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getTestBankConnectionMutationOptions(options), queryClient);
     }
 
+export const getRecordClientWorkspaceOpenedUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/opened`
+}
+
+export const recordClientWorkspaceOpened = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getRecordClientWorkspaceOpenedUrl(customerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRecordClientWorkspaceOpenedMutationKey = () => ['recordClientWorkspaceOpened'] as const;
+
+export const getRecordClientWorkspaceOpenedMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordClientWorkspaceOpened>>, TError,RecordClientWorkspaceOpenedMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordClientWorkspaceOpened>>, TError,RecordClientWorkspaceOpenedMutationVariables, TContext> => {
+
+const mutationKey = getRecordClientWorkspaceOpenedMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordClientWorkspaceOpened>>, RecordClientWorkspaceOpenedMutationVariables> = (props) => {
+          const {customerId} = props ?? {};
+
+          return  recordClientWorkspaceOpened(customerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordClientWorkspaceOpenedMutationResult = NonNullable<Awaited<ReturnType<typeof recordClientWorkspaceOpened>>>
+
+    export type RecordClientWorkspaceOpenedMutationError = unknown
+    export type RecordClientWorkspaceOpenedMutationVariables = {customerId: string}
+
+    export const useRecordClientWorkspaceOpened = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordClientWorkspaceOpened>>, TError,RecordClientWorkspaceOpenedMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordClientWorkspaceOpened>>,
+        TError,
+        RecordClientWorkspaceOpenedMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordClientWorkspaceOpenedMutationOptions(options), queryClient);
+    }
+
 export const getAddClientNoteUrl = (customerId: string,) => {
 
 
@@ -44623,6 +44707,101 @@ export function useGetClientWorkspaceCollectibles<TData = Awaited<ReturnType<typ
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientWorkspaceCollectiblesQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRecentClientWorkspacesUrl = () => {
+
+
+
+
+  return `/api/backoffice/client-workspace/recent`
+}
+
+export const getRecentClientWorkspaces = async ( options?: Parameters<typeof http>[1]): Promise<RecentClientList> => {
+
+  return http<RecentClientList>(getGetRecentClientWorkspacesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRecentClientWorkspacesQueryKey = () => {
+    return [
+    `/api/backoffice/client-workspace/recent`
+    ] as const;
+    }
+
+
+export const getGetRecentClientWorkspacesQueryOptions = <TData = Awaited<ReturnType<typeof getRecentClientWorkspaces>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRecentClientWorkspaces>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRecentClientWorkspacesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecentClientWorkspaces>>> = ({ signal }) => getRecentClientWorkspaces({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRecentClientWorkspaces>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetRecentClientWorkspacesQueryResult = NonNullable<Awaited<ReturnType<typeof getRecentClientWorkspaces>>>
+export type GetRecentClientWorkspacesQueryError = unknown
+
+
+export function useGetRecentClientWorkspaces<TData = Awaited<ReturnType<typeof getRecentClientWorkspaces>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRecentClientWorkspaces>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRecentClientWorkspaces>>,
+          TError,
+          Awaited<ReturnType<typeof getRecentClientWorkspaces>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRecentClientWorkspaces<TData = Awaited<ReturnType<typeof getRecentClientWorkspaces>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRecentClientWorkspaces>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRecentClientWorkspaces>>,
+          TError,
+          Awaited<ReturnType<typeof getRecentClientWorkspaces>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRecentClientWorkspaces<TData = Awaited<ReturnType<typeof getRecentClientWorkspaces>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRecentClientWorkspaces>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetRecentClientWorkspaces<TData = Awaited<ReturnType<typeof getRecentClientWorkspaces>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRecentClientWorkspaces>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetRecentClientWorkspacesQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

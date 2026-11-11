@@ -1,5 +1,13 @@
 import { ApiError } from "@atomprive/api-client";
-import { useListWorkspaceClients, type WorkspaceClients } from "@atomprive/api-client/backoffice";
+import {
+  getGetRecentClientWorkspacesQueryKey,
+  useListWorkspaceClients,
+  useRecordClientWorkspaceOpened,
+  type WorkspaceClients,
+} from "@atomprive/api-client/backoffice";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useStaffUser } from "../../auth/session";
 import { SelectInput, cn } from "@atomprive/ui";
 import { ArrowLeft } from "lucide-react";
 import { NavLink, Outlet, useNavigate, useParams } from "react-router";
@@ -16,6 +24,19 @@ export function ClientWorkspaceLayout() {
   const clients = listed.data?.clients ?? [];
   const current = clients.find((one) => one.customerId === customerId);
   const groups = [...new Set(WORKSPACE_SCREENS.map((one) => one.group ?? ""))];
+
+  // Noted on the server each time a portfolio manager opens a client, for the Recent clients in their sidebar.
+  const user = useStaffUser();
+  const queryClient = useQueryClient();
+  const { mutate: noteOpened } = useRecordClientWorkspaceOpened<ApiError>({
+    mutation: { onSuccess: () => void queryClient.invalidateQueries({ queryKey: getGetRecentClientWorkspacesQueryKey() }) },
+  });
+  const manager = user.activeRole === "PORTFOLIO_MANAGER";
+  useEffect(() => {
+    if (manager && customerId) {
+      noteOpened({ customerId });
+    }
+  }, [manager, customerId, noteOpened]);
 
   return (
     <div className="grid gap-5 lg:grid-cols-[13rem_1fr]">

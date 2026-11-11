@@ -1,6 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useEnterWorkspace,
+  useGetRecentClientWorkspaces,
   useListClientRequests,
   useListModelChanges,
   useListProposalsAwaitingMyAnswer,
@@ -11,6 +12,8 @@ import {
   type ProposalPage,
   type AllocationChangeQueue,
   type RestoreQueue,
+  type RecentClient,
+  type RecentClientList,
   type StaffProfile,
 } from "@atomprive/api-client/backoffice";
 import { cn, StaffAvatar } from "@atomprive/ui";
@@ -346,6 +349,77 @@ function MenuList({ items, rail, pathname, search }: {
   );
 }
 
+/** What a recent client holds, as the Client Directory reads it: in their own currency, or as their bank's file states it. */
+function recentWorth(one: RecentClient) {
+  const money = (amount: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat("en-US", { style: "currency", currency, notation: "compact", maximumFractionDigits: 1 }).format(amount);
+    } catch {
+      return `${currency} ${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(amount)}`;
+    }
+  };
+  if (one.bankFile) {
+    // Never added across currencies: the first the file states, and how many more there are.
+    // Never added across currencies: one currency is shown as it is, several are counted here and listed in full on hover.
+    if (one.fileHoldings.length === 0) return { short: "not in bank file", full: "not in bank file" };
+    const full = one.fileHoldings.map((held) => money(held.amount, held.currency)).join(" · ");
+    return { short: one.fileHoldings.length === 1 ? full : `${one.fileHoldings.length} currencies`, full };
+  }
+  if (one.aum == null || !one.currency) return { short: "—", full: "No value yet" };
+  const worth = money(one.aum, one.currency);
+  return { short: worth, full: worth };
+}
+
+/**
+ * The last client workspaces this portfolio manager opened, latest first, under their menu. The only heading in the
+ * sidebar; drawn only once there is something in it.
+ */
+function RecentClientsList({ rail, pathname }: { rail: boolean; pathname: string }) {
+  const recent = useGetRecentClientWorkspaces<RecentClientList, ApiError>({ query: { staleTime: 30_000 } });
+  const clients = recent.data?.clients ?? [];
+  if (clients.length === 0) {
+    return null;
+  }
+  return (
+    <div className={cn("mt-4", rail && "mt-3 border-t border-line pt-3")}>
+      {!rail && <p className="mb-1 px-3 text-3xs font-bold tracking-wider text-ink-muted uppercase">Recent clients</p>}
+      <ul className="space-y-0.5">
+        {clients.map((one) => {
+          // The workspace being read is already lit in the menu above (Client Directory), so here it is only named
+          // in stronger text rather than filled a second time.
+          const here = pathname === `/client-workspace/${one.id}` || pathname.startsWith(`/client-workspace/${one.id}/`);
+          const look = here ? "font-semibold text-ink hover:bg-white" : IDLE_CLASS;
+          const worth = recentWorth(one);
+          const tile = (
+            <span className="grid size-6 shrink-0 place-items-center rounded-sm bg-slate-100 text-xs font-semibold text-ink" aria-hidden="true">
+              {one.initial}
+            </span>
+          );
+          return (
+            <li key={one.id}>
+              {rail ? (
+                <RailTip label={`${one.name} · ${worth.full}`} show>
+                  <Link to={`/client-workspace/${one.id}`} aria-label={`${one.name}, ${worth.full}`} aria-current={here ? "true" : undefined}
+                    className={cn("mx-auto grid size-10 place-items-center rounded-xl transition-colors", look)}>
+                    {tile}
+                  </Link>
+                </RailTip>
+              ) : (
+                <Link to={`/client-workspace/${one.id}`} aria-current={here ? "true" : undefined} title={`${one.name} · ${worth.full}`}
+                  className={cn("flex items-center gap-2.5 rounded-xl px-3 py-1.5 text-sm transition-colors", look)}>
+                  {tile}
+                  <span className="min-w-0 flex-1 truncate">{one.name}</span>
+                  <span className="shrink-0 text-xs font-normal text-ink-muted tabular-nums">{worth.short}</span>
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function NavEntry({
   item,
   pathname,
@@ -659,6 +733,7 @@ export function AppLayout() {
           className={cn("min-h-24 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain",
             sections ? "mt-1 ml-[1.0625rem] border-l border-line pl-2" : "mt-4")}>
           <MenuList items={list} rail={rail} pathname={pathname} search={search} />
+          {user.activeRole === "PORTFOLIO_MANAGER" && <RecentClientsList rail={rail} pathname={pathname} />}
         </nav>
         {sections && (
           <div className="mt-2 min-h-0 space-y-0.5 overflow-y-auto border-t border-line/50 pt-2">
