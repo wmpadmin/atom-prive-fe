@@ -133,12 +133,14 @@ function Board({ data }: { data: ClientDirectory }) {
 
       <DirectoryCard data={data} />
 
-      {/* Paired by height: the tallest breakdown on its own, the three shorter ones side by side. */}
-      <SegmentCard data={data} />
-      <div className="grid gap-4 lg:grid-cols-3">
+      {/* Two by two, paired by height: the segment donut beside the managers, the region bars beside the
+          mandates. Alone across the page the segment card was mostly empty space above three short ones; in a
+          grid each pair stretches to the taller of the two, so a row ends level. */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SegmentCard data={data} />
+        <ManagerCard data={data} />
         <RegionCard data={data} />
         <MandateCard data={data} />
-        <ManagerCard data={data} />
       </div>
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
