@@ -306,7 +306,7 @@ function VarHistory({ data }: { data: ClientRisk }) {
       textStyle: { fontFamily: colours.font },
       grid: { left: 8, right: 12, top: 16, bottom: 8, containLabel: true },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => `${value.toFixed(1)}%` },
-      xAxis: { type: "category", data: points.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
+      xAxis: { type: "category", boundaryGap: false, data: points.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
       yAxis: { type: "value", min: 0, axisLabel: { color: colours.muted, formatter: (value: number) => `${value.toFixed(1)}%` },
         splitLine: { lineStyle: { color: colours.line } } },
