@@ -188,7 +188,7 @@ function LadderCard({ data }: { data: ClientFixedIncome }) {
       yAxis: { type: "value", splitNumber: 4, axisLabel: { color: colours.muted, formatter: (value: number) => compact(value, data.currency) },
         splitLine: { lineStyle: { color: colours.line } } },
       series: [
-        { type: "bar", name: "Government & agency", stack: "due", data: data.ladder.map((one) => one.government), itemStyle: { color: colours.text } },
+        { type: "bar", name: "Government & agency", stack: "due", barMaxWidth: 40, data: data.ladder.map((one) => one.government), itemStyle: { color: colours.primary } },
         { type: "bar", name: "Credit & other", stack: "due", data: data.ladder.map((one) => one.credit), itemStyle: { color: "#d6c7a6" } },
       ],
     };
@@ -222,7 +222,7 @@ function QualityCard({ data }: { data: ClientFixedIncome }) {
       xAxis: { type: "category", data: data.quality.map((one) => one.key), axisLabel: { color: colours.muted, fontSize: 9, interval: 0 } },
       yAxis: { type: "value", axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
-        { type: "bar", name: "Portfolio", data: data.quality.map((one) => one.portfolio), itemStyle: { color: colours.text },
+        { type: "bar", name: "Portfolio", barMaxWidth: 40, data: data.quality.map((one) => one.portfolio), itemStyle: { color: colours.primary },
           label: { show: true, position: "top", fontSize: 9, color: colours.muted, formatter: (p: { value: number }) => (p.value ? Math.round(p.value) : "") } },
         { type: "bar", name: "Bloomberg Global Agg", data: data.quality.map((one) => one.benchmark), itemStyle: { color: colours.neutral },
           label: { show: true, position: "top", fontSize: 9, color: colours.muted, formatter: (p: { value: number }) => (p.value ? Math.round(p.value) : "") } },
@@ -460,8 +460,8 @@ function KeyRateCard({ data }: { data: ClientFixedIncome }) {
       xAxis: { type: "category", data: data.keyRates.map((one) => one.key), axisLabel: { color: colours.muted, fontSize: 10 } },
       yAxis: { type: "value", axisLabel: { color: colours.muted }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
-        { type: "bar", name: `Portfolio · ${data.portfolioDuration?.toFixed(2) ?? "—"}`, data: data.keyRates.map((one) => one.portfolio),
-          itemStyle: { color: colours.text }, label: { show: true, position: "top", fontSize: 8, color: colours.muted } },
+        { type: "bar", name: `Portfolio · ${data.portfolioDuration?.toFixed(2) ?? "—"}`, data: data.keyRates.map((one) => one.portfolio), barMaxWidth: 40,
+          itemStyle: { color: colours.primary }, label: { show: true, position: "top", fontSize: 8, color: colours.muted } },
         { type: "bar", name: `Agg · ${data.benchmarkDuration?.toFixed(2) ?? "—"}`, data: data.keyRates.map((one) => one.benchmark),
           itemStyle: { color: colours.neutral }, label: { show: true, position: "top", fontSize: 8, color: colours.muted } },
       ],
@@ -506,12 +506,13 @@ function IssuerCard({ data }: { data: ClientFixedIncome }) {
     <Card title="Issuer Concentration" lead="% of fixed income sleeve">
       {data.bankFile ? <FileBlock /> : data.issuers.length === 0 ? <Empty>No bond names an issuer.</Empty> : (
         <>
-          <ul className="space-y-1.5">
+          {/* Roomy rows, names wrapping rather than cut; sovereigns in the app's blue (slate-800 vanished on dark). */}
+          <ul className="divide-y divide-line">
             {data.issuers.map((one) => (
-              <li key={one.issuer} className="grid grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 text-xs">
-                <span className="truncate" title={one.issuer}>{one.issuer}</span>
-                <span className="relative block h-2 rounded-full bg-slate-100" aria-hidden="true">
-                  <span className={cn("block h-full rounded-full", one.sovereign ? "bg-slate-800" : one.overLimit ? "bg-red-600" : "bg-amber-600")}
+              <li key={one.issuer} className="grid min-h-9 grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 py-1.5 text-xs">
+                <span className="leading-snug break-words">{one.issuer}</span>
+                <span className="relative block h-2.5 rounded-full bg-slate-100" aria-hidden="true">
+                  <span className={cn("block h-full rounded-full", one.sovereign ? "bg-primary-600" : one.overLimit ? "bg-red-600" : "bg-amber-600")}
                     style={{ width: `${Math.min(100, (one.sharePercent / scale) * 100)}%` }} />
                   {limit != null && <span className="absolute -top-1 -bottom-1 w-0.5 bg-red-600" style={{ left: `${Math.min(100, (limit / scale) * 100)}%` }} />}
                 </span>
@@ -521,7 +522,7 @@ function IssuerCard({ data }: { data: ClientFixedIncome }) {
           </ul>
           <ul className="mt-3 space-y-1 text-xs text-ink-muted">
             <li className="flex flex-wrap gap-x-4">
-              <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-slate-800" aria-hidden="true" />Sovereign (no limit)</span>
+              <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-primary-600" aria-hidden="true" />Sovereign (no limit)</span>
               <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-amber-600" aria-hidden="true" />Corporate / EM</span>
             </li>
             <li className="flex items-center gap-1.5">
@@ -552,7 +553,7 @@ function CalendarCard({ data }: { data: ClientFixedIncome }) {
         { type: "bar", name: `Coupons · ${data.couponsNext12 == null ? "—" : compact(data.couponsNext12, data.currency)}`, stack: "flow",
           data: data.calendar.map((one) => one.coupons), itemStyle: { color: "#d6c7a6" } },
         { type: "bar", name: `Principal · ${data.principalNext12 == null ? "—" : compact(data.principalNext12, data.currency)}`, stack: "flow",
-          data: data.calendar.map((one) => one.principal), itemStyle: { color: colours.text } },
+          data: data.calendar.map((one) => one.principal), itemStyle: { color: colours.primary } },
       ],
     };
   }, [data.calendar, data.couponsNext12, data.principalNext12, data.currency]);

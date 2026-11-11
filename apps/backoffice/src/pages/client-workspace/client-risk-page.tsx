@@ -58,10 +58,10 @@ export function ClientRiskPage() {
           {data.bankFile ? <Missing data={data} reason="" /> : data.sectors.length === 0 ? <Empty>No lines to look through.</Empty> : (
             <ul className="space-y-2">
               {data.sectors.map((one, at) => (
-                <li key={one.key} className="grid grid-cols-[minmax(0,8.75rem)_1fr_3.5rem] items-center gap-3 text-sm">
-                  <span className="truncate">{one.name}</span>
+                <li key={one.key} className="grid grid-cols-[minmax(0,10rem)_1fr_3.5rem] items-center gap-3 text-sm">
+                  <span className="leading-snug break-words">{one.name}</span>
                   <span className="block h-2 rounded-full bg-slate-100" aria-hidden="true">
-                    <span className={cn("block h-full rounded-full", at < 3 ? "bg-slate-800" : "bg-amber-600")}
+                    <span className={cn("block h-full rounded-full", at < 3 ? "bg-primary-600" : "bg-amber-600")}
                       style={{ width: `${Math.min(100, (one.sharePercent / Math.max(20, data.sectors[0].sharePercent)) * 100)}%` }} />
                   </span>
                   <span className="text-right tabular-nums">{one.sharePercent.toFixed(1)}%</span>
@@ -306,12 +306,13 @@ function VarHistory({ data }: { data: ClientRisk }) {
       textStyle: { fontFamily: colours.font },
       grid: { left: 8, right: 12, top: 16, bottom: 8, containLabel: true },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => `${value.toFixed(1)}%` },
-      xAxis: { type: "category", boundaryGap: false, data: points.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
+      xAxis: { type: "category", boundaryGap: points.length === 1, data: points.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
       yAxis: { type: "value", min: 0, axisLabel: { color: colours.muted, formatter: (value: number) => `${value.toFixed(1)}%` },
         splitLine: { lineStyle: { color: colours.line } } },
       series: [
-        { type: "line", name: "95% 1M VaR", data: points.map((one) => one.var95), showSymbol: false,
+        { type: "line", name: "95% 1M VaR", data: points.map((one) => one.var95), showSymbol: points.length === 1, symbolSize: 8,
+          label: { show: points.length === 1, position: "top", color: colours.text, formatter: ({ value }: { value: number }) => `${value.toFixed(1)}%` },
           lineStyle: { color: colours.text, width: 1.5 }, itemStyle: { color: colours.text }, areaStyle: { color: colours.canvas } },
         ...(limit == null ? [] : [{ type: "line", name: `IPS risk limit ${limit.toFixed(1)}%`, data: points.map(() => limit), showSymbol: false,
           lineStyle: { color: colours.danger, type: "dashed", width: 1.5 }, itemStyle: { color: colours.danger } }]),
@@ -326,8 +327,11 @@ function VarHistory({ data }: { data: ClientRisk }) {
           <Key colour="bg-red-500" dashed>{limit == null ? "No IPS risk limit set" : `IPS risk limit ${limit.toFixed(1)}%`}</Key>
         </span>
       )}>
-      {data.bankFile ? <Missing data={data} reason="" /> : points.length < 2 ? <Empty>{data.varHistoryNote ?? "Not enough months to draw."}</Empty> : (
-        <Chart option={option} height={190} label="Value at risk at each month end over the trailing twelve months" />
+      {data.bankFile ? <Missing data={data} reason="" /> : points.length === 0 ? <Empty>{data.varHistoryNote ?? "Not enough months to draw."}</Empty> : (
+        <>
+          <Chart option={option} height={190} label="Value at risk at each month end over the trailing twelve months" />
+          {points.length === 1 && <p className="mt-1 text-3xs text-ink-muted italic">One reading on file so far: it is marked as a point, and the line starts with the next.</p>}
+        </>
       )}
     </Card>
   );

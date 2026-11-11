@@ -245,20 +245,22 @@ function Sectors({ data }: { data: ClientEquity }) {
       lead={data.view === "LOOK_THROUGH" ? "GICS level 1 · fund look-through applied" : "GICS level 1 · lines as held, funds not looked through"}>
       {data.bankFile ? <FileBlock /> : (
         <>
-          <ul className="space-y-1.5">
+          {/* Roomy rows with a faint rule between them, names wrapping rather than cut, and the portfolio in the app's
+              blue (slate-800 all but vanished on the dark theme). */}
+          <ul className="divide-y divide-line">
             {data.sectors.map((one) => (
-              <li key={one.key} className="grid grid-cols-[minmax(0,10rem)_1fr_5.5rem_2.5rem] items-center gap-2 text-xs">
-                <span className="truncate">{one.name}</span>
-                <span className="space-y-0.5" aria-hidden="true">
-                  <span className="block h-1.5 rounded-full bg-slate-800" style={{ width: `${(one.portfolio / largest) * 100}%` }} />
-                  <span className="block h-1.5 rounded-full bg-slate-300" style={{ width: `${((one.benchmark ?? 0) / largest) * 100}%` }} />
+              <li key={one.key} className="grid min-h-9 grid-cols-[minmax(0,10rem)_1fr_5.5rem_2.5rem] items-center gap-2 py-1.5 text-xs">
+                <span className="leading-snug break-words">{one.name}</span>
+                <span className="space-y-1" aria-hidden="true">
+                  <span className="block h-2 rounded-full bg-primary-600" style={{ width: `${(one.portfolio / largest) * 100}%` }} />
+                  <span className="block h-2 rounded-full bg-slate-300" style={{ width: `${((one.benchmark ?? 0) / largest) * 100}%` }} />
                 </span>
                 <span className="text-right tabular-nums"><b>{one.portfolio.toFixed(1)}</b> / {one.benchmark == null ? "—" : one.benchmark.toFixed(1)}</span>
                 <span className={cn("text-right tabular-nums", toneOf(one.active))}>{one.active == null ? "" : `${one.active > 0 ? "+" : ""}${one.active.toFixed(1)}`}</span>
               </li>
             ))}
           </ul>
-          <Legend items={[["Portfolio %", "bg-slate-800"], ["MSCI ACWI %", "bg-slate-300"]]} />
+          <Legend items={[["Portfolio %", "bg-primary-600"], ["MSCI ACWI %", "bg-slate-300"]]} />
         </>
       )}
     </Card>
@@ -307,9 +309,12 @@ function RegionStyle({ data }: { data: ClientEquity }) {
                   const cell = cells.find((one) => one.size === size && one.style === style);
                   const depth = (cell?.portfolio ?? 0) / deepest;
                   return (
-                    <div key={style} className={cn("rounded-sm py-3 text-center", depth > 0.6 ? "bg-slate-800 text-white" : depth > 0.25 ? "bg-slate-400 text-white" : "bg-slate-100")}>
+                    // A tint of the app's blue graded by weight, under the page's own ink: readable on both themes,
+                    // where the old dark-slate fill left near-black text on a dark tile.
+                    <div key={style} className="rounded-sm py-3 text-center text-ink"
+                      style={{ background: depth > 0 ? `color-mix(in srgb, var(--color-primary-600) ${Math.round(8 + 32 * depth)}%, transparent)` : "var(--color-slate-50)" }}>
                       <p className="text-base font-bold tabular-nums">{cell?.portfolio ?? 0}%</p>
-                      <p className="text-3xs opacity-80">bm {cell?.benchmark ?? "—"}%</p>
+                      <p className="text-3xs text-ink-muted">bm {cell?.benchmark ?? "—"}%</p>
                     </div>
                   );
                 })}
@@ -445,7 +450,7 @@ function FileLines({ data }: { data: ClientEquity }) {
 function Scatter({ data }: { data: ClientEquity }) {
   const option = useMemo(() => {
     const colours = ink();
-    const groups: [string, string, string][] = [["IT", "Info. Tech.", colours.text], ["FINANCIALS", "Financials", "#a16207"], ["OTHER", "Other sectors", "#d6c7a6"]];
+    const groups: [string, string, string][] = [["IT", "Info. Tech.", colours.primary], ["FINANCIALS", "Financials", "#a16207"], ["OTHER", "Other sectors", "#d6c7a6"]];
     const largest = Math.max(1, ...data.scatter.map((one) => one.weight));
     return {
       textStyle: { fontFamily: colours.font },
@@ -501,13 +506,13 @@ function Contributions({ data }: { data: ClientEquity }) {
     <Card title="Contribution to Return · YTD"
       lead={data.bankFile ? undefined : `Basis points of equity sleeve return (${signed(data.strip.ytd)})`}>
       {data.bankFile ? <FileBlock /> : data.contributions.length === 0 ? <Empty>No return on file to attribute.</Empty> : (
-        <ul className="space-y-1.5">
+        <ul className="divide-y divide-line">
           {data.contributions.map((one) => (
-            <li key={one.label} className="grid grid-cols-[minmax(0,9.5rem)_1fr_4.5rem] items-center gap-2 text-xs">
-              <span className="leading-tight">{one.label}</span>
-              <span className="relative block h-2.5" aria-hidden="true">
-                <span className="absolute top-0 left-1/2 h-2.5 w-px bg-line" />
-                <span className={cn("absolute top-0 h-2.5", one.basisPoints >= 0 ? "left-1/2 bg-emerald-700" : "right-1/2 bg-red-600")}
+            <li key={one.label} className="grid min-h-9 grid-cols-[minmax(0,9.5rem)_1fr_4.5rem] items-center gap-2 py-1.5 text-xs">
+              <span className="leading-snug">{one.label}</span>
+              <span className="relative block h-3" aria-hidden="true">
+                <span className="absolute top-0 left-1/2 h-3 w-px bg-line" />
+                <span className={cn("absolute top-0 h-3 rounded-xs", one.basisPoints >= 0 ? "left-1/2 bg-emerald-500" : "right-1/2 bg-red-500")}
                   style={{ width: `${(Math.abs(one.basisPoints) / largest) * 50}%` }} />
               </span>
               <span className={cn("text-right tabular-nums", toneOf(one.basisPoints))}>{one.basisPoints > 0 ? "+" : ""}{one.basisPoints} bp</span>
@@ -531,9 +536,9 @@ function CapCard({ data }: { data: ClientEquity }) {
         axisLabel: { color: colours.muted, fontSize: 9, interval: 0, lineHeight: 11, formatter: (value: string) => value.replace(" ", "\n") } },
       yAxis: { type: "value", axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
-        { type: "bar", name: "Portfolio", data: data.capBuckets.map((one) => one.portfolio), itemStyle: { color: colours.text },
+        { type: "bar", name: "Portfolio", barMaxWidth: 40, data: data.capBuckets.map((one) => one.portfolio), itemStyle: { color: colours.primary },
           label: { show: true, position: "top", fontSize: 9, color: colours.muted } },
-        { type: "bar", name: "MSCI ACWI", data: data.capBuckets.map((one) => one.benchmark), itemStyle: { color: colours.neutral },
+        { type: "bar", name: "MSCI ACWI", barMaxWidth: 40, data: data.capBuckets.map((one) => one.benchmark), itemStyle: { color: colours.neutral },
           label: { show: true, position: "top", fontSize: 9, color: colours.muted } },
       ],
     };
@@ -589,19 +594,20 @@ function HistoryCard({ data }: { data: ClientEquity }) {
       grid: { left: 8, right: 12, top: 12, bottom: 32, containLabel: true },
       legend: { bottom: 0, textStyle: { color: colours.muted, fontSize: 11 } },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => (value == null ? "—" : `${value}×`) },
-      xAxis: { type: "category", boundaryGap: false, data: points.map((one) => one.on), axisLabel: { color: colours.muted, fontSize: 9, formatter: (value: string) => value.slice(0, 4) } },
+      xAxis: { type: "category", boundaryGap: points.length === 1, data: points.map((one) => one.on), axisLabel: { color: colours.muted, fontSize: 9, formatter: (value: string) => value.slice(0, 4) } },
       yAxis: { type: "value", scale: true, splitNumber: 4, axisLabel: { color: colours.muted, formatter: "{value}×" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
-        { type: "line", name: "Portfolio", data: points.map((one) => one.portfolio), showSymbol: false, lineStyle: { color: colours.text, width: 1.5 } },
+        { type: "line", name: "Portfolio", data: points.map((one) => one.portfolio), showSymbol: points.length === 1, symbolSize: 8, lineStyle: { color: colours.text, width: 1.5 } },
         { type: "line", name: "MSCI ACWI", data: points.map((one) => one.benchmark), showSymbol: false, lineStyle: { color: colours.danger, type: "dashed", width: 1.5 } },
       ],
     };
   }, [data.valuationHistory]);
   return (
     <Card title="Valuation History · P/E" lead="Trailing 12M, quarterly">
-      {data.bankFile ? <FileBlock /> : data.valuationHistory.length < 2 ? <Empty>No history on file.</Empty> : (
+      {data.bankFile ? <FileBlock /> : data.valuationHistory.length === 0 ? <Empty>No history on file.</Empty> : (
         <>
           <Chart option={option} height={180} label="The equity sleeve's trailing P/E each quarter, at today's weights, against MSCI ACWI" />
+          {data.valuationHistory.length === 1 && <p className="mt-1 text-3xs text-ink-muted italic">One reading on file so far: it is marked as a point, and the line starts with the next.</p>}
           <p className="mt-2 text-xs text-ink-muted">
             Premium to benchmark: <b className="text-ink">{signed(data.premiumNow)}</b> · 5Y average {signed(data.premiumAverage)}
           </p>

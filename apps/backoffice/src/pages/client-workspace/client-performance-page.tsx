@@ -83,29 +83,53 @@ function FileBlock() {
 function Board({ data }: { data: ClientPerformance }) {
   const [weighting, setWeighting] = useState<"twr" | "mwr">("twr");
   const [basis, setBasis] = useState<"net" | "gross">("net");
+  const rollingOk = data.rolling.length > 0;
+  const riskOk = !!data.risk && data.risk.measures.length > 0;
   return (
     <>
       <Kpis data={data} weighting={weighting} basis={basis} />
-      <BenchmarkCard data={data} />
+      {/* Rows paired by height: the growth chart beside the benchmark, the two attribution cards together, and a
+          card with nothing to show yet beside another such card rather than beside a full one. */}
       <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
         <GrowthCard data={data} weighting={weighting} setWeighting={setWeighting} basis={basis} setBasis={setBasis} />
+        <BenchmarkCard data={data} />
+      </div>
+      <ClassCard data={data} />
+      <div className="grid gap-4 xl:grid-cols-2">
         <Card title="Excess Return Bridge · YTD" lead="Benchmark to portfolio, investable assets">
           <NotMeasured reason={data.brinson.reason} />
         </Card>
+        <Card title="Brinson-Fachler Attribution · YTD" lead="Average weights · effects in basis points · investable assets, owned outright excluded">
+          <NotMeasured reason={data.brinson.reason} />
+        </Card>
       </div>
-      <ClassCard data={data} />
-      <Card title="Brinson-Fachler Attribution · YTD" lead="Average weights · effects in basis points · investable assets, owned outright excluded">
-        <NotMeasured reason={data.brinson.reason} />
-      </Card>
       <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
         <YearsCard data={data} />
-        <RollingCard data={data} />
-      </div>
-      <MonthlyCard months={data.monthly} asOf={data.asOf} />
-      <div className="grid gap-4 xl:grid-cols-2">
-        <RiskCard data={data} />
         <FeesCard data={data} />
       </div>
+      {rollingOk === riskOk ? (
+        rollingOk ? (
+          <>
+            <RollingCard data={data} />
+            <MonthlyCard months={data.monthly} asOf={data.asOf} />
+            <RiskCard data={data} />
+          </>
+        ) : (
+          <>
+            <div className="grid gap-4 xl:grid-cols-2">
+              <RollingCard data={data} />
+              <RiskCard data={data} />
+            </div>
+            <MonthlyCard months={data.monthly} asOf={data.asOf} />
+          </>
+        )
+      ) : (
+        <>
+          <RollingCard data={data} />
+          <MonthlyCard months={data.monthly} asOf={data.asOf} />
+          <RiskCard data={data} />
+        </>
+      )}
     </>
   );
 }
@@ -202,11 +226,11 @@ function GrowthCard({ data, weighting, setWeighting, basis, setBasis }: {
       grid: { left: 8, right: 16, top: 12, bottom: 8, containLabel: true },
       legend: { show: false },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => value?.toFixed(1) },
-      xAxis: { type: "category", boundaryGap: false, data: points.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
+      xAxis: { type: "category", boundaryGap: points.length === 1, data: points.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
       yAxis: { type: "value", scale: true, axisLabel: { color: colours.muted }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
-        { type: "line", name: `Portfolio (${basis})`, data: portfolio, showSymbol: false, lineStyle: { color: colours.text, width: 1.5 },
+        { type: "line", name: `Portfolio (${basis})`, data: portfolio, showSymbol: points.length === 1, symbolSize: 8, lineStyle: { color: colours.text, width: 1.5 },
           itemStyle: { color: colours.text }, areaStyle: { color: colours.canvas } },
         { type: "line", name: "Policy benchmark", data: points.map((one) => one.benchmark), showSymbol: false,
           lineStyle: { color: colours.danger, type: "dashed", width: 1.5 }, itemStyle: { color: colours.danger } },
@@ -226,9 +250,10 @@ function GrowthCard({ data, weighting, setWeighting, basis, setBasis }: {
           <Toggle label="Fees" value={basis} onChange={setBasis} options={[["net", "Net"], ["gross", "Gross"]]} />
         </div>
       }>
-      {data.growth.length < 2 ? <Empty>Not enough history to draw yet.</Empty> : (
+      {data.growth.length === 0 ? <Empty>Not enough history to draw yet.</Empty> : (
         <>
           <Chart option={option} height={260} label="What 100 put in at inception has grown to, against the benchmark and the objective" />
+          {data.growth.length === 1 && <p className="mt-1 text-3xs text-ink-muted italic">One reading on file so far: it is marked as a point, and the line starts with the next.</p>}
           <GrowthLegend data={data} basis={basis} />
         </>
       )}
@@ -295,7 +320,8 @@ function YearsCard({ data }: { data: ClientPerformance }) {
       yAxis: { type: "value", axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
         // Capped, so a single year reads as an ordinary pair of bars in the middle rather than two slabs.
-        { type: "bar", name: "Portfolio", barMaxWidth: 40, data: data.calendarYears.map((one) => one.portfolio), itemStyle: { color: colours.text } },
+        // The portfolio in the app's blue rather than the ink, which glares near-white on the dark theme.
+        { type: "bar", name: "Portfolio", barMaxWidth: 40, data: data.calendarYears.map((one) => one.portfolio), itemStyle: { color: colours.primary } },
         { type: "bar", name: "Policy benchmark", barMaxWidth: 40, data: data.calendarYears.map((one) => one.benchmark), itemStyle: { color: colours.neutral } },
       ],
     };
@@ -378,9 +404,9 @@ function MonthlyCard({ months, asOf }: { months: PerformanceMonth[]; asOf: strin
         </div>
       )}
       <ul className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
-        <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-red-600" aria-hidden="true" />Negative</li>
+        <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs" style={{ background: "color-mix(in srgb, var(--color-red-500) 35%, transparent)" }} aria-hidden="true" />Negative</li>
         <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-slate-100" aria-hidden="true" />Flat</li>
-        <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-emerald-500" aria-hidden="true" />Positive</li>
+        <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs" style={{ background: "color-mix(in srgb, var(--color-emerald-500) 35%, transparent)" }} aria-hidden="true" />Positive</li>
         <li className="text-3xs italic">A part month is marked with a dot.</li>
       </ul>
     </Card>
@@ -388,11 +414,13 @@ function MonthlyCard({ months, asOf }: { months: PerformanceMonth[]; asOf: strin
 }
 
 function Heat({ value, largest, partial, strong }: { value: number; largest: number; partial: boolean; strong?: boolean }) {
+  // A soft tint of green or red graded by size, under the page's own ink, as on the Interest Matrix: never a solid
+  // saturated block.
   const depth = Math.min(1, Math.abs(value) / largest);
-  const tone = value > 0.05 ? (depth > 0.5 ? "bg-emerald-500 text-white" : "bg-emerald-50 text-emerald-700")
-    : value < -0.05 ? (depth > 0.5 ? "bg-red-600 text-white" : "bg-red-50 text-red-700") : "bg-slate-100 text-ink-soft";
+  const hue = value > 0.05 ? "var(--color-emerald-500)" : value < -0.05 ? "var(--color-red-500)" : null;
   return (
-    <span className={cn("block h-7 rounded-sm px-1 text-center leading-7 tabular-nums", tone, strong && "font-bold")}>
+    <span className={cn("block h-7 rounded-sm px-1 text-center leading-7 text-ink tabular-nums", strong && "font-bold")}
+      style={{ background: hue ? `color-mix(in srgb, ${hue} ${Math.round(10 + 30 * depth)}%, transparent)` : "var(--color-slate-100)" }}>
       {signed(value)}{partial && "·"}
     </span>
   );
@@ -444,11 +472,11 @@ function FeesCard({ data }: { data: ClientPerformance }) {
             <Small label="Total fees" value={`−${f.totalPercent.toFixed(2)}%`} tone="text-red-700" big />
             <Small label="Net" value={pct(f.net)} tone={toneOf(f.net)} big />
           </div>
-          <ul className="mt-4 space-y-2">
+          <ul className="mt-4 divide-y divide-line">
             {f.byType.map((one) => (
-              <li key={one.type} className="grid grid-cols-[170px_minmax(0,1fr)_54px] items-center gap-2 text-sm">
-                <span className="truncate" title={`${one.annualBp} bp a year`}>{one.label}</span>
-                <span className="block h-2 rounded-full bg-slate-100" aria-hidden="true">
+              <li key={one.type} className="grid min-h-9 grid-cols-[170px_minmax(0,1fr)_54px] items-center gap-2 py-1.5 text-sm">
+                <span className="leading-snug break-words" title={`${one.annualBp} bp a year`}>{one.label}</span>
+                <span className="block h-2.5 rounded-full bg-slate-100" aria-hidden="true">
                   <span className="block h-full rounded-full bg-primary-600" style={{ width: `${(one.ytdPercent / largest) * 100}%` }} />
                 </span>
                 <span className="text-right tabular-nums">{one.ytdPercent.toFixed(2)}%</span>

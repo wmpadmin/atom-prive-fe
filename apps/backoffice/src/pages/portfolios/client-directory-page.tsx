@@ -133,12 +133,13 @@ function Board({ data }: { data: ClientDirectory }) {
 
       <DirectoryCard data={data} />
 
+      {/* Paired by height: the tallest breakdown on its own, the three shorter ones side by side. */}
+      <SegmentCard data={data} />
       <div className="grid gap-4 lg:grid-cols-3">
-        <SegmentCard data={data} />
         <RegionCard data={data} />
         <MandateCard data={data} />
+        <ManagerCard data={data} />
       </div>
-      <ManagerCard data={data} />
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>Values in {cur} unless stated; market data as of {formatDate(data.asOf)} close.</span>

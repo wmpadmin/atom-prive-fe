@@ -473,7 +473,8 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                           className="font-semibold hover:text-primary-700 hover:underline">
                           {row.name}
                         </Link>
-                        <span className="block max-w-48 truncate text-xs text-ink-muted">
+                        {/* Wrapped to two lines at most, every word shown, rather than cut. */}
+                        <span className="line-clamp-2 block max-w-48 text-xs break-words text-ink-muted">
                           {[row.code, typeLabel(row.customerType), row.city].filter(Boolean).join(" · ")}
                         </span>
                         {file && (
@@ -527,7 +528,7 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                   {on("next") && (
                     <td className="px-2 py-2.5 text-xs">
                       {file ? <NotInFile tight /> : row.nextEvent ? (
-                        <span className="block max-w-36 truncate" title={eventLine(row.nextEvent)}>
+                        <span className="line-clamp-2 block max-w-36 break-words" title={eventLine(row.nextEvent)}>
                           {row.nextEvent.title} {formatDate(row.nextEvent.on)}
                         </span>
                       ) : <Muted>—</Muted>}
@@ -679,11 +680,11 @@ function NextThirtyDays({ upcoming }: { upcoming: BookUpcoming[] }) {
                   </span>
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">
+                  <p className="line-clamp-2 text-sm font-semibold break-words">
                     {one.title} ·{" "}
                     <Link to={`/client-workspace/${one.customerId}`} className="hover:text-primary-700 hover:underline">{one.clientName}</Link>
                   </p>
-                  {one.detail && <p className="truncate text-xs text-ink-muted">{one.detail}</p>}
+                  {one.detail && <p className="line-clamp-2 text-xs break-words text-ink-muted">{one.detail}</p>}
                 </div>
                 <span className={cn("shrink-0 text-sm font-semibold whitespace-nowrap tabular-nums",
                   one.amount == null ? "text-ink-muted" : one.amount < 0 ? "text-red-700" : "text-emerald-700")}>
@@ -824,10 +825,11 @@ function DispersionCard({ data }: { data: BookOverview }) {
     <Card title="YTD Dispersion by Mandate" lead="Min–max of client returns within each mandate">
       {rows.length === 0 ? <Empty>No client on a mandate has a year-to-date return yet.</Empty> : (
         <>
-          <ul className="space-y-3">
+          {/* The rows spread over the card's height, which the chart beside it sets, instead of leaving it empty. */}
+          <ul className="flex flex-1 flex-col justify-around gap-3">
             {rows.map((one) => (
               <li key={one.mandate} className="grid grid-cols-[8rem_1fr_6.5rem] items-center gap-3 text-sm">
-                <span className="truncate" title={`${one.mandate} · ${one.clients} ${plural(one.clients, "client", "clients")}`}>{one.mandate}</span>
+                <span className="leading-snug break-words" title={`${one.mandate} · ${one.clients} ${plural(one.clients, "client", "clients")}`}>{one.mandate}</span>
                 <span className="relative h-4" aria-hidden="true">
                   <span className="absolute top-1/2 h-px w-full bg-line" />
                   <span className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-primary-100"
