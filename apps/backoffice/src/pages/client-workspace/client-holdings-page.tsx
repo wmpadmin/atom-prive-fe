@@ -357,36 +357,36 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
                     <tr key={one.id} onClick={() => onPick(one)}
                       className={cn("cursor-pointer hover:bg-slate-50", picked?.id === one.id && "bg-primary-50")}>
                       <td className="py-2 pr-3 pl-8 font-medium">{one.name}{one.subClass && <span className="block text-xs font-normal text-ink-muted">{one.subClass}</span>}</td>
-                      {on("identifier") && <td className="px-1.5 py-2 font-mono text-xs text-ink-muted">{one.identifier ?? (file ? <NotInFile /> : "—")}</td>}
-                      {on("entity") && <td className="px-1.5 py-2 text-xs">{file ? <NotInFile /> : one.entity ?? "—"}</td>}
+                      {on("identifier") && <td className="px-1.5 py-2 font-mono text-xs text-ink-muted">{one.identifier ?? (file ? <NotInFile tight /> : "—")}</td>}
+                      {on("entity") && <td className="px-1.5 py-2 text-xs">{file ? <NotInFile tight /> : one.entity ?? "—"}</td>}
                       {on("custodian") && <td className="px-1.5 py-2 text-xs">{one.custodian ?? "—"}</td>}
                       {on("currency") && <td className="px-1.5 py-2 text-xs">{one.currency ?? "—"}</td>}
-                      {on("quantity") && <td className="px-1.5 py-2 text-right tabular-nums">{one.quantity == null ? (file ? <NotInFile /> : "—") : plain(one.quantity)}</td>}
-                      {on("price") && <td className="px-1.5 py-2 text-right tabular-nums">{one.price == null ? (file ? <NotInFile /> : "—") : plain(one.price)}</td>}
+                      {on("quantity") && <td className="px-1.5 py-2 text-right tabular-nums">{one.quantity == null ? (file ? <NotInFile tight /> : "—") : plain(one.quantity)}</td>}
+                      {on("price") && <td className="px-1.5 py-2 text-right tabular-nums">{one.price == null ? (file ? <NotInFile tight /> : "—") : plain(one.price)}</td>}
                       {on("value") && (
                         <td className="px-1.5 py-2 text-right font-semibold whitespace-nowrap tabular-nums">
                           {file ? exact(one.value, one.currency ?? "") : compact(one.value, data.currency)}
                         </td>
                       )}
-                      {on("weight") && <td className="px-1.5 py-2 text-right tabular-nums">{file ? <NotInFile /> : one.weight == null ? "—" : `${one.weight.toFixed(2)}%`}</td>}
-                      {on("cost") && <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">{file ? <NotInFile /> : one.cost == null ? "—" : compact(one.cost, data.currency)}</td>}
+                      {on("weight") && <td className="px-1.5 py-2 text-right tabular-nums">{file ? <NotInFile tight /> : one.weight == null ? "—" : `${one.weight.toFixed(2)}%`}</td>}
+                      {on("cost") && <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">{file ? <NotInFile tight /> : one.cost == null ? "—" : compact(one.cost, data.currency)}</td>}
                       {on("unrealised") && (
                         <td className={cn("px-1.5 py-2 text-right whitespace-nowrap tabular-nums", toneOf(one.unrealised ?? 0))}>
-                          {file ? <NotInFile /> : one.unrealised == null ? "—" : signedCompact(one.unrealised, data.currency)}
+                          {file ? <NotInFile tight /> : one.unrealised == null ? "—" : signedCompact(one.unrealised, data.currency)}
                         </td>
                       )}
-                      {on("pnl") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf(one.unrealisedPercent ?? 0))}>{file ? <NotInFile /> : signedPct(one.unrealisedPercent)}</td>}
-                      {on("oneDay") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf(one.oneDay ?? 0))}>{file ? <NotInFile /> : signedPct(one.oneDay)}</td>}
-                      {on("ytd") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf(one.yearToDate ?? 0))}>{file ? <NotInFile /> : signedPct(one.yearToDate)}</td>}
-                      {on("accrued") && <td className="px-1.5 py-2 text-right tabular-nums">{one.accruedInterest == null ? (file ? <NotInFile /> : "—") : exact(one.accruedInterest, one.currency ?? "")}</td>}
+                      {on("pnl") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf(one.unrealisedPercent ?? 0))}>{file ? <NotInFile tight /> : signedPct(one.unrealisedPercent)}</td>}
+                      {on("oneDay") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf(one.oneDay ?? 0))}>{file ? <NotInFile tight /> : signedPct(one.oneDay)}</td>}
+                      {on("ytd") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf(one.yearToDate ?? 0))}>{file ? <NotInFile tight /> : signedPct(one.yearToDate)}</td>}
+                      {on("accrued") && <td className="px-1.5 py-2 text-right tabular-nums">{one.accruedInterest == null ? (file ? <NotInFile tight /> : "—") : exact(one.accruedInterest, one.currency ?? "")}</td>}
                       {on("bankCostPrice") && (
                         <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">
-                          {one.bankCostPrice == null ? (file ? <NotInFile /> : "—") : exact(one.bankCostPrice, one.currency ?? "")}
+                          {one.bankCostPrice == null ? (file ? <NotInFile tight /> : "—") : exact(one.bankCostPrice, one.currency ?? "")}
                         </td>
                       )}
                       {on("bankCostTotal") && (
                         <td className="py-2 pr-5 pl-2 text-right whitespace-nowrap tabular-nums">
-                          {one.bankCostTotal == null ? (file ? <NotInFile /> : "—") : exact(one.bankCostTotal, one.currency ?? "")}
+                          {one.bankCostTotal == null ? (file ? <NotInFile tight /> : "—") : exact(one.bankCostTotal, one.currency ?? "")}
                         </td>
                       )}
                     </tr>
@@ -769,11 +769,14 @@ function Marker({ children }: { children: ReactNode }) {
   );
 }
 
-/** Wraps onto two short lines, so the bank-file client's many unfilled columns do not widen the table. */
-function NotInFile() {
+/**
+ * Where a bank-file client's files hold nothing. On one line wherever there is room; {@code tight} puts it on exactly
+ * two short lines, for a narrow figure column that would otherwise be widened by it.
+ */
+function NotInFile({ tight }: { tight?: boolean }) {
   return (
-    <span className="inline-block max-w-14 rounded-sm border border-dashed border-line px-1 text-left text-3xs leading-tight font-medium text-ink-muted">
-      not in bank file
+    <span className="inline-block w-fit rounded-sm border border-dashed border-line px-1 text-left text-3xs leading-tight font-medium whitespace-nowrap text-ink-muted">
+      {tight ? <>not in<br />bank file</> : "not in bank file"}
     </span>
   );
 }
