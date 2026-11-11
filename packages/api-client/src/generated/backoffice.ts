@@ -9522,6 +9522,12 @@ export interface HoldingsPosition {
   bankCostPrice: number | null;
   /** @nullable */
   bankCostTotal: number | null;
+  /** @nullable */
+  unrealisedPercent: number | null;
+  /** @nullable */
+  oneDay: number | null;
+  /** @nullable */
+  yearToDate: number | null;
 }
 
 export interface HoldingsLot {
@@ -9564,6 +9570,20 @@ export interface HoldingsCorporateAction {
   status: string;
 }
 
+export interface HoldingsTotal {
+  value: number;
+  /** @nullable */
+  cost: number | null;
+  /** @nullable */
+  unrealised: number | null;
+  /** @nullable */
+  unrealisedPercent: number | null;
+  /** @nullable */
+  oneDay: number | null;
+  /** @nullable */
+  yearToDate: number | null;
+}
+
 export interface ClientHoldingsBook {
   customerId: string;
   name: string;
@@ -9580,6 +9600,7 @@ export interface ClientHoldingsBook {
   corporateActions: HoldingsCorporateAction[];
   fileTotals: BookCurrencyAmount[];
   fileCostTotals: BookCurrencyAmount[];
+  total: HoldingsTotal | null;
 }
 
 export interface Activity {
