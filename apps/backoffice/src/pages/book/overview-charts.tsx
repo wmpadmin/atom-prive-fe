@@ -41,6 +41,27 @@ export function ink() {
 const HANDLE =
   "path://M514.048 128q79.872 0 149.504 30.208t121.856 82.432 82.432 122.368 30.208 150.016q0 78.848-30.208 148.48t-82.432 121.856-121.856 82.432-149.504 30.208-149.504-30.208-121.856-82.432-82.432-121.856-30.208-148.48q0-79.872 30.208-150.016t82.432-122.368 121.856-82.432 149.504-30.208z";
 
+/**
+ * Every chart's tooltip in the page's own panel colours — the panel, its border and the ink, so dark on the dark
+ * theme and light on the light — rather than ECharts' own white box. A chart that styles its tooltip keeps its own.
+ */
+function themedTooltip(option: echarts.EChartsCoreOption): echarts.EChartsCoreOption {
+  const tooltip = (option as { tooltip?: unknown }).tooltip;
+  if (!tooltip || Array.isArray(tooltip) || typeof tooltip !== "object") return option;
+  const c = ink();
+  const own = tooltip as Record<string, unknown>;
+  return {
+    ...option,
+    tooltip: {
+      backgroundColor: c.surface,
+      borderColor: c.line,
+      extraCssText: "box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);",
+      ...own,
+      textStyle: { color: c.text, fontFamily: c.font, ...(own.textStyle as Record<string, unknown> | undefined) },
+    },
+  };
+}
+
 /** One ECharts canvas, sized by its box and redrawn whenever its option changes. */
 /** @param height in pixels, or nothing to fill whatever panel the chart is in */
 export function Chart({ option, height, label }: { option: echarts.EChartsCoreOption; height?: number; label: string }) {
@@ -62,7 +83,7 @@ export function Chart({ option, height, label }: { option: echarts.EChartsCoreOp
   }, []);
 
   useEffect(() => {
-    chart.current?.setOption(option, true);
+    chart.current?.setOption(themedTooltip(option), true);
   }, [option]);
 
   return <div ref={box} role="img" aria-label={label} style={height ? { height } : undefined} className={cn("w-full", !height && "h-full min-h-40")} />;
