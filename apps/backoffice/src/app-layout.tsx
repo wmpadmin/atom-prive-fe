@@ -43,7 +43,6 @@ import {
   useEffect,
   useRef,
   useState,
-  Fragment,
   type ReactNode,
   // Aliased: the bare name is the DOM's own KeyboardEvent, which a listener further down this file needs.
   type KeyboardEvent as ReactKeyboardEvent,
@@ -56,6 +55,10 @@ import { rememberPage } from "./lib/last-page";
 import { menuFor } from "./menu";
 import { arrangeMenu, type MenuEntry } from "./menu-groups";
 import { createPortal } from "react-dom";
+import logoLight from "./assets/brand/atom-prive-logo.png";
+import logoDark from "./assets/brand/atom-prive-logo-dark.png";
+import markLight from "./assets/brand/atom-prive-mark.png";
+import markDark from "./assets/brand/atom-prive-mark-dark.png";
 import { roleLabels, type StaffRole } from "./lib/labels";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
@@ -71,6 +74,12 @@ function isHere(item: { to: string; at?: (path: string, search: string) => boole
 }
 
 const ENTRY_CLASS = "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors";
+
+/**
+ * Focus shown for the keyboard only, as a quiet neutral ring: a click leaves no outline, and nothing in the sidebar
+ * draws the browser's own blue one.
+ */
+const FOCUS_CLASS = "outline-none focus-visible:ring-2 focus-visible:ring-ink-muted/40";
 
 /**
  * One entry in the menu, with whatever sits under it.
@@ -227,7 +236,7 @@ function RoleHeader({ role, here, enter }: {
       }}
       className={cn(
         "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-2xs font-bold tracking-wider uppercase",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
+        FOCUS_CLASS,
         here ? "text-ink" : "text-ink-muted hover:bg-white/60 hover:text-ink",
         enter.isPending && !here && "cursor-wait",
       )}
@@ -275,13 +284,23 @@ function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boo
       {rail ? <PanelLeftOpen className="size-4" aria-hidden="true" /> : <PanelLeftClose className="size-4" aria-hidden="true" />}
     </button>
   );
-  const markClass = "grid size-8 shrink-0 place-items-center rounded-lg bg-primary-600 text-sm font-bold text-on-accent";
+  const markClass = "grid size-8 shrink-0 place-items-center rounded-lg";
+  // The firm's mark alone, for the rail: the light one on the light theme, the one redrawn in light ink on the dark.
+  const mark = (
+    <>
+      <img src={markLight} alt="Atom Privé" className="size-[24px] [:root[data-theme=dark]_&]:hidden" />
+      <img src={markDark} alt="Atom Privé" className="hidden size-[24px] [:root[data-theme=dark]_&]:block" />
+    </>
+  );
 
   if (!rail) {
     return (
       <div className="flex items-center gap-2.5">
-        <span className={markClass} aria-hidden="true">A</span>
-        <p className="min-w-0 flex-1 truncate text-sm font-bold">Atom Privé</p>
+        {/* The client's own logo; its black lettering is redrawn in the light ink for the dark theme. */}
+        <div className="min-w-0 flex-1">
+          <img src={logoLight} alt="Atom Privé" className="h-[24px] w-auto max-w-full object-contain object-left [:root[data-theme=dark]_&]:hidden" />
+          <img src={logoDark} alt="Atom Privé" className="hidden h-[24px] w-auto max-w-full object-contain object-left [:root[data-theme=dark]_&]:block" />
+        </div>
         {fold}
       </div>
     );
@@ -293,11 +312,11 @@ function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boo
       <RailTip label={switches ? `${role} · switch workspace` : `Atom Privé · ${role}`} show={!open}>
         {switches ? (
           <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={`${role}, switch workspace`}
-            onClick={() => setOpen((current) => !current)} className={cn(markClass, "hover:opacity-90")}>
-            A
+            onClick={() => setOpen((current) => !current)} className={cn(markClass, FOCUS_CLASS, "hover:opacity-90")}>
+            {mark}
           </button>
         ) : (
-          <span className={markClass} aria-hidden="true">A</span>
+          <span className={markClass}>{mark}</span>
         )}
       </RailTip>
       {fold}
@@ -335,23 +354,21 @@ function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boo
 }
 
 /**
- * The menu as one list, nested entries indented under the entry they belong to. Whatever {@code after} holds is
- * drawn straight after the entry it names — the portfolio desk's recent clients, under Book Overview.
+ * The menu as one list, nested entries indented under the entry they belong to. Whatever {@code extra} holds is
+ * drawn under the entry it names, folding with it — the portfolio desk's recent clients, under Book Overview.
  */
-function MenuList({ items, rail, pathname, search, after }: {
+function MenuList({ items, rail, pathname, search, extra }: {
   items: MenuEntry[];
   rail: boolean;
   pathname: string;
   search: string;
-  after?: { to: string; node: ReactNode };
+  extra?: { to: string; node: ReactNode };
 }) {
   return (
     <ul className="space-y-0.5">
       {items.map((item) => (
-        <Fragment key={item.to}>
-          <NavEntry item={item} pathname={pathname} search={search} rail={rail} />
-          {after && after.to === item.to && after.node}
-        </Fragment>
+        <NavEntry key={item.to} item={item} pathname={pathname} search={search} rail={rail}
+          extra={extra && extra.to === item.to ? extra.node : undefined} />
       ))}
     </ul>
   );
@@ -382,12 +399,7 @@ function recentWorth(one: RecentClient) {
  * The last client workspaces this portfolio manager opened, latest first, under their menu. The only heading in the
  * sidebar; drawn only once there is something in it.
  */
-function RecentClientsList({ rail, pathname }: { rail: boolean; pathname: string }) {
-  const recent = useGetRecentClientWorkspaces<RecentClientList, ApiError>({ query: { staleTime: 30_000 } });
-  const clients = recent.data?.clients ?? [];
-  if (clients.length === 0) {
-    return null;
-  }
+function RecentClientsList({ clients, rail, pathname }: { clients: RecentClient[]; rail: boolean; pathname: string }) {
   const rows = clients.map((one) => {
     // The workspace being read is already lit in the menu above (Client Directory), so here it is only named
     // in stronger text rather than filled a second time.
@@ -399,7 +411,7 @@ function RecentClientsList({ rail, pathname }: { rail: boolean; pathname: string
         {rail ? (
           <RailTip label={`${one.name} · ${worth.full}`} show>
             <Link to={`/client-workspace/${one.id}`} aria-label={`${one.name}, ${worth.full}`} aria-current={here ? "true" : undefined}
-              className={cn("mx-auto grid size-10 place-items-center rounded-xl transition-colors", look)}>
+              className={cn("mx-auto grid size-10 place-items-center rounded-xl transition-colors", FOCUS_CLASS, look)}>
               <span className="grid size-6 shrink-0 place-items-center rounded-sm bg-slate-100 text-xs font-semibold text-ink" aria-hidden="true">
                 {one.initial}
               </span>
@@ -409,7 +421,7 @@ function RecentClientsList({ rail, pathname }: { rail: boolean; pathname: string
           // As an entry under a section, exactly as Client Management's are drawn, the initial in the icon's place.
           <RailTip label={`${one.name} · ${worth.full}`} show>
           <Link to={`/client-workspace/${one.id}`} aria-current={here ? "true" : undefined} aria-label={`${one.name}, ${worth.full}`}
-            className={cn(ENTRY_CLASS, look)}>
+            className={cn(ENTRY_CLASS, FOCUS_CLASS, look)}>
             <span className="grid size-4 shrink-0 place-items-center rounded-xs bg-slate-100 text-3xs font-semibold text-ink" aria-hidden="true">
               {one.initial}
             </span>
@@ -429,27 +441,42 @@ function RecentClientsList({ rail, pathname }: { rail: boolean; pathname: string
       </li>
     );
   }
-  // Book Overview's own entries, indented under it with the same rule as Client Management's; never folded away.
-  return (
-    <li>
-      <ul aria-label="Recent clients" className="mt-0.5 ml-5 space-y-0.5 border-l border-line pl-3">{rows}</ul>
-    </li>
-  );
+  // Book Overview's own entries, drawn in its list under it with the same rule as Client Management's.
+  return <>{rows}</>;
 }
 
+/**
+ * One entry in the menu, with whatever sits under it.
+ *
+ * <p>As before the redesign: an entry with screens under it has a chevron, and pressing it opens its own screen and
+ * opens or closes what is under it. Open unless the reader has closed it, and kept as they left it; closed over the
+ * screen being read, the entry itself lights up instead, so they still see where they are. {@code extra} is more
+ * under it that is not a screen of the menu — Book Overview's recent clients — and folds with it.
+ */
 function NavEntry({
   item,
   pathname,
   search,
   rail,
+  extra,
 }: {
   item: Entry;
   pathname: string;
   search: string;
   rail: boolean;
+  extra?: ReactNode;
 }) {
   const Icon = item.icon;
-  const here = isHere(item, pathname, search);
+  const { preferences, change } = usePreferences();
+  // On the rail everything is an icon of its own, so nothing is closed there.
+  const closes = !rail && (item.below.length > 0 || extra != null);
+  const closed = closes && preferences.closedSections.includes(item.to);
+  const toggle = () =>
+    change("closedSections", closed
+      ? preferences.closedSections.filter((one) => one !== item.to)
+      : [...preferences.closedSections, item.to]);
+  const here = isHere(item, pathname, search)
+    || (closed && item.below.some((under) => isHere(under, pathname, search)));
   const waiting = useWaitingOn(item.to);
 
   if (rail) {
@@ -461,7 +488,8 @@ function NavEntry({
               to={item.to}
               aria-label={item.label}
               aria-current={here ? "page" : undefined}
-              className={cn("relative mx-auto grid size-10 place-items-center rounded-xl transition-colors", here ? HERE_CLASS : IDLE_CLASS)}
+              className={cn("relative mx-auto grid size-10 place-items-center rounded-xl transition-colors", FOCUS_CLASS,
+                here ? HERE_CLASS : IDLE_CLASS)}
             >
               <Icon className="size-4.5" aria-hidden="true" />
               {waiting > 0 && <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-primary-600" aria-hidden="true" />}
@@ -478,7 +506,8 @@ function NavEntry({
                   to={under.to}
                   aria-label={under.label}
                   aria-current={onIt ? "page" : undefined}
-                  className={cn("mx-auto grid size-10 place-items-center rounded-xl transition-colors", onIt ? HERE_CLASS : IDLE_CLASS)}
+                  className={cn("mx-auto grid size-10 place-items-center rounded-xl transition-colors", FOCUS_CLASS,
+                    onIt ? HERE_CLASS : IDLE_CLASS)}
                 >
                   <UnderIcon className="size-4" aria-hidden="true" />
                 </Link>
@@ -486,6 +515,7 @@ function NavEntry({
             </li>
           );
         })}
+        {extra}
       </>
     );
   }
@@ -498,8 +528,11 @@ function NavEntry({
           out where they are themselves, and both the highlight and what is announced follow that. */}
       <Link
         to={item.to}
+        // A section's heading opens and closes it as well as opening its own screen.
+        onClick={closes ? toggle : undefined}
+        aria-expanded={closes ? !closed : undefined}
         aria-current={here ? "page" : undefined}
-        className={cn(ENTRY_CLASS, here ? HERE_CLASS : IDLE_CLASS)}
+        className={cn(ENTRY_CLASS, FOCUS_CLASS, here ? HERE_CLASS : IDLE_CLASS)}
       >
         <Icon className="size-4.5 shrink-0" aria-hidden="true" />
         <span className="min-w-0 flex-1">{item.label}</span>
@@ -507,8 +540,15 @@ function NavEntry({
             is a queue people stop looking at; the number is what makes somebody open it on the day there
             is something in it, and its absence is what lets them leave it alone on the days there is not. */}
         {waiting > 0 && <span className="shrink-0 text-xs font-semibold text-ink-muted tabular-nums">{waiting}</span>}
+        {/* The arrow says whether the section is open; the entry itself opens and closes it. */}
+        {closes && (
+          <ChevronDown
+            className={cn("size-4 shrink-0 text-ink-muted transition-transform", !closed && "rotate-180")}
+            aria-hidden="true"
+          />
+        )}
       </Link>
-      {item.below.length > 0 && (
+      {closes && !closed && (
         <ul className="mt-0.5 ml-5 space-y-0.5 border-l border-line pl-3">
           {item.below.map((under) => {
             const UnderIcon = under.icon;
@@ -518,7 +558,7 @@ function NavEntry({
                 <Link
                   to={under.to}
                   aria-current={onIt ? "page" : undefined}
-                  className={cn(ENTRY_CLASS, onIt ? HERE_CLASS : IDLE_CLASS)}
+                  className={cn(ENTRY_CLASS, FOCUS_CLASS, onIt ? HERE_CLASS : IDLE_CLASS)}
                 >
                   <UnderIcon className="size-4 shrink-0" aria-hidden="true" />
                   {under.label}
@@ -526,6 +566,7 @@ function NavEntry({
               </li>
             );
           })}
+          {extra}
         </ul>
       )}
     </li>
@@ -719,6 +760,10 @@ export function AppLayout() {
   const { list, footer } = arrangeMenu(shown, user.activeRole as StaffRole | null);
   // Workspace headings where there is more than one workspace and room to name them.
   const sections = !rail && user.roles.length > 1 && user.activeRole !== null;
+  // The portfolio desk's recent clients, under Book Overview; nobody else's sidebar asks for them.
+  const manager = user.activeRole === "PORTFOLIO_MANAGER";
+  const recent = useGetRecentClientWorkspaces<RecentClientList, ApiError>({ query: { enabled: manager, staleTime: 30_000 } });
+  const recentClients = manager ? recent.data?.clients ?? [] : [];
   const enter = useEnterRole();
 
   const view = currentSupportView();
@@ -752,8 +797,9 @@ export function AppLayout() {
           {/* The portfolio desk's recent clients sit right under Book Overview, so all four are in view without
               scrolling. */}
           <MenuList items={list} rail={rail} pathname={pathname} search={search}
-            after={user.activeRole === "PORTFOLIO_MANAGER"
-              ? { to: "/book-overview", node: <RecentClientsList rail={rail} pathname={pathname} /> } : undefined} />
+            extra={recentClients.length > 0
+              ? { to: "/book-overview", node: <RecentClientsList clients={recentClients} rail={rail} pathname={pathname} /> }
+              : undefined} />
         </nav>
         {sections && (
           <div className="mt-2 min-h-0 space-y-0.5 overflow-y-auto border-t border-line/50 pt-2">
@@ -824,7 +870,7 @@ function AccountMenu({ rail }: { rail: boolean }) {
           aria-expanded={open}
           aria-label={rail ? `${user.fullName}, account` : undefined}
           onClick={() => setOpen((current) => !current)}
-          className={cn("flex w-full items-center gap-2.5 rounded-xl text-left hover:bg-white",
+          className={cn("flex w-full items-center gap-2.5 rounded-xl text-left hover:bg-white", FOCUS_CLASS,
             rail ? "justify-center p-1" : "px-2 py-1.5")}
         >
           <StaffAvatar name={user.fullName} photo={user.photo} className="size-8 shrink-0" />
