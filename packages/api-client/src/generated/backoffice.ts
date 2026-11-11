@@ -9636,6 +9636,188 @@ export interface ClientHoldingsBook {
   groups: HoldingsGroup[];
 }
 
+export interface FiKpi {
+  key: string;
+  label: string;
+  /** @nullable */
+  value: number | null;
+  /** @nullable */
+  text: string | null;
+  unit: string;
+  /** @nullable */
+  delta: number | null;
+  deltaUnit: string;
+  /** @nullable */
+  note: string | null;
+}
+
+export interface FiLadderYear {
+  year: string;
+  government: number;
+  credit: number;
+}
+
+export interface FiLadderSummary {
+  shortValue: number;
+  shortPercent: number;
+  reinvestmentRisk: string;
+  /** @nullable */
+  largestYear: string | null;
+  /** @nullable */
+  largestPercent: number | null;
+}
+
+export interface FiActive {
+  key: string;
+  portfolio: number;
+  /** @nullable */
+  benchmark: number | null;
+}
+
+export interface FiQualitySummary {
+  investmentGrade: number;
+  highYield: number;
+  /** @nullable */
+  highYieldLimit: number | null;
+  negativeOutlooks: number;
+}
+
+export interface FiCurvePoint {
+  label: string;
+  years: number;
+  ytm: number;
+  value: number;
+  group: string;
+}
+
+export interface FiCurveYield {
+  tenor: number;
+  yield: number;
+}
+
+export interface FiSlice {
+  key: string;
+  value: number;
+  sharePercent: number;
+}
+
+export interface FiHolding {
+  name: string;
+  /** @nullable */
+  isin: string | null;
+  kind: string;
+  /** @nullable */
+  sector: string | null;
+  /** @nullable */
+  rating: string | null;
+  /** @nullable */
+  currency: string | null;
+  /** @nullable */
+  coupon: number | null;
+  /** @nullable */
+  maturity: string | null;
+  perpetual: boolean;
+  /** @nullable */
+  nextCall: string | null;
+  /** @nullable */
+  price: number | null;
+  value: number;
+  /** @nullable */
+  weight: number | null;
+  /** @nullable */
+  ytm: number | null;
+  /** @nullable */
+  ytw: number | null;
+  /** @nullable */
+  modifiedDuration: number | null;
+  /** @nullable */
+  oas: number | null;
+  /** @nullable */
+  dv01: number | null;
+  /** @nullable */
+  nextCoupon: string | null;
+  /** @nullable */
+  frequency: number | null;
+  /** @nullable */
+  couponsNext12: number | null;
+  /** @nullable */
+  principalNext12: number | null;
+  /** @nullable */
+  averageMaturity: number | null;
+  count: number;
+}
+
+export interface FiScenario {
+  name: string;
+  amount: number;
+  percent: number;
+}
+
+export interface FiIssuer {
+  issuer: string;
+  sharePercent: number;
+  sovereign: boolean;
+  overLimit: boolean;
+}
+
+export interface FiMonth {
+  month: string;
+  coupons: number;
+  principal: number;
+}
+
+export interface FiFileLine {
+  name: string;
+  /** @nullable */
+  identifier: string | null;
+  value: number;
+  currency: string;
+}
+
+export interface ClientFixedIncome {
+  customerId: string;
+  name: string;
+  currency: string;
+  asOf: string;
+  bankFile: boolean;
+  benchmark: string;
+  /** @nullable */
+  sleeve: number | null;
+  kpis: FiKpi[];
+  segments: IpsAllocationRow[];
+  /** @nullable */
+  segmentsNote: string | null;
+  ladder: FiLadderYear[];
+  ladderSummary: FiLadderSummary | null;
+  quality: FiActive[];
+  qualitySummary: FiQualitySummary | null;
+  curve: FiCurvePoint[];
+  curveToday: FiCurveYield[];
+  curveYearAgo: FiCurveYield[];
+  sectors: FiSlice[];
+  holdings: FiHolding[];
+  total: FiHolding | null;
+  keyRates: FiActive[];
+  /** @nullable */
+  portfolioDuration: number | null;
+  /** @nullable */
+  benchmarkDuration: number | null;
+  scenarios: FiScenario[];
+  issuers: FiIssuer[];
+  /** @nullable */
+  issuerLimitOfSleeve: number | null;
+  /** @nullable */
+  issuerLimit: number | null;
+  calendar: FiMonth[];
+  /** @nullable */
+  couponsNext12: number | null;
+  /** @nullable */
+  principalNext12: number | null;
+  fileLines: FiFileLine[];
+  /** @nullable */
+  note: string | null;
+}
+
 export interface EquityStrip {
   /** @nullable */
   value: number | null;
@@ -43738,6 +43920,101 @@ export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getCl
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientHoldingsBookQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientFixedIncome1Url = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/fixed-income`
+}
+
+export const getClientFixedIncome1 = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientFixedIncome> => {
+
+  return http<ClientFixedIncome>(getGetClientFixedIncome1Url(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientFixedIncome1QueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/fixed-income`
+    ] as const;
+    }
+
+
+export const getGetClientFixedIncome1QueryOptions = <TData = Awaited<ReturnType<typeof getClientFixedIncome1>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientFixedIncome1>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientFixedIncome1QueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientFixedIncome1>>> = ({ signal }) => getClientFixedIncome1(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientFixedIncome1>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientFixedIncome1QueryResult = NonNullable<Awaited<ReturnType<typeof getClientFixedIncome1>>>
+export type GetClientFixedIncome1QueryError = unknown
+
+
+export function useGetClientFixedIncome1<TData = Awaited<ReturnType<typeof getClientFixedIncome1>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientFixedIncome1>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientFixedIncome1>>,
+          TError,
+          Awaited<ReturnType<typeof getClientFixedIncome1>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientFixedIncome1<TData = Awaited<ReturnType<typeof getClientFixedIncome1>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientFixedIncome1>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientFixedIncome1>>,
+          TError,
+          Awaited<ReturnType<typeof getClientFixedIncome1>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientFixedIncome1<TData = Awaited<ReturnType<typeof getClientFixedIncome1>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientFixedIncome1>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientFixedIncome1<TData = Awaited<ReturnType<typeof getClientFixedIncome1>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientFixedIncome1>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientFixedIncome1QueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
