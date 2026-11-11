@@ -457,7 +457,7 @@ function TopPositionsCard({ data }: { data: ClientWorkspace }) {
   const weight = positions.reduce((sum, one) => sum + one.weightPercent, 0);
   return (
     <Card title="Top 10 Positions" lead="The portfolio's lines and what is owned outright"
-      action={<Link to={`/portfolio-clients/${data.customerId}`} className="text-xs font-semibold text-primary-700 hover:underline">All holdings</Link>}>
+      action={<Link to={`/client-workspace/${data.customerId}/holdings`} className="text-xs font-semibold text-primary-700 hover:underline">All holdings</Link>}>
       {positions.length === 0 ? <Empty>No holdings written down yet.</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
