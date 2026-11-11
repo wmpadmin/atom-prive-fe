@@ -43,6 +43,7 @@ import {
   useEffect,
   useRef,
   useState,
+  Fragment,
   type ReactNode,
   // Aliased: the bare name is the DOM's own KeyboardEvent, which a listener further down this file needs.
   type KeyboardEvent as ReactKeyboardEvent,
@@ -333,17 +334,24 @@ function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boo
   );
 }
 
-/** The menu as one list, nested entries indented under the entry they belong to. */
-function MenuList({ items, rail, pathname, search }: {
+/**
+ * The menu as one list, nested entries indented under the entry they belong to. Whatever {@code after} holds is
+ * drawn straight after the entry it names — the portfolio desk's recent clients, under Book Overview.
+ */
+function MenuList({ items, rail, pathname, search, after }: {
   items: MenuEntry[];
   rail: boolean;
   pathname: string;
   search: string;
+  after?: { to: string; node: ReactNode };
 }) {
   return (
     <ul className="space-y-0.5">
       {items.map((item) => (
-        <NavEntry key={item.to} item={item} pathname={pathname} search={search} rail={rail} />
+        <Fragment key={item.to}>
+          <NavEntry item={item} pathname={pathname} search={search} rail={rail} />
+          {after && after.to === item.to && after.node}
+        </Fragment>
       ))}
     </ul>
   );
@@ -381,8 +389,8 @@ function RecentClientsList({ rail, pathname }: { rail: boolean; pathname: string
     return null;
   }
   return (
-    <div className={cn("mt-4", rail && "mt-3 border-t border-line pt-3")}>
-      {!rail && <p className="mb-1 px-3 text-3xs font-bold tracking-wider text-ink-muted uppercase">Recent clients</p>}
+    <li className={cn("py-1.5", rail && "my-1 border-y border-line")}>
+      {!rail && <p className="mb-0.5 px-3 text-3xs font-bold tracking-wider text-ink-muted uppercase">Recent clients</p>}
       <ul className="space-y-0.5">
         {clients.map((one) => {
           // The workspace being read is already lit in the menu above (Client Directory), so here it is only named
@@ -416,7 +424,7 @@ function RecentClientsList({ rail, pathname }: { rail: boolean; pathname: string
           );
         })}
       </ul>
-    </div>
+    </li>
   );
 }
 
@@ -732,8 +740,11 @@ export function AppLayout() {
           // Never squeezed to nothing: on a short window the other workspaces' headings give way first.
           className={cn("min-h-24 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain",
             sections ? "mt-1 ml-[1.0625rem] border-l border-line pl-2" : "mt-4")}>
-          <MenuList items={list} rail={rail} pathname={pathname} search={search} />
-          {user.activeRole === "PORTFOLIO_MANAGER" && <RecentClientsList rail={rail} pathname={pathname} />}
+          {/* The portfolio desk's recent clients sit right under Book Overview, so all four are in view without
+              scrolling. */}
+          <MenuList items={list} rail={rail} pathname={pathname} search={search}
+            after={user.activeRole === "PORTFOLIO_MANAGER"
+              ? { to: "/book-overview", node: <RecentClientsList rail={rail} pathname={pathname} /> } : undefined} />
         </nav>
         {sections && (
           <div className="mt-2 min-h-0 space-y-0.5 overflow-y-auto border-t border-line/50 pt-2">
