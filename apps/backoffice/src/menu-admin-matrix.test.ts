@@ -77,3 +77,20 @@ describe("the sidebar's list", () => {
     expect(list.map((item) => item.to)).toEqual(items.map((item) => item.to).filter((to) => !footed.has(to)));
   });
 });
+
+describe("the portfolio desk's sidebar", () => {
+  const aManager = { activeRole: "PORTFOLIO_MANAGER", permissions: [
+    "VIEW_CUSTOMER_PROFILE:ASSIGNED", "VIEW_ALL_CLIENTS:VIEW", "SEND_PROPOSALS:VIEW", "SEND_PROPOSALS:CHANGE",
+    "APPROVE_PORTFOLIO_CHANGES:VIEW", "APPROVE_PORTFOLIO_CHANGES:CHANGE",
+  ] } as unknown as Parameters<typeof menuFor>[0];
+
+  it("leaves out Client list and Clients, though the menu still gives them for Settings", () => {
+    const items = menuFor(aManager).map((item) => item.to);
+    expect(items).toEqual(expect.arrayContaining(["/book", "/portfolio-clients"]));
+    const { list, footer } = arrangeMenu(menuFor(aManager), "PORTFOLIO_MANAGER");
+    const drawn = [...list, ...footer].map((item) => item.to);
+    expect(drawn).not.toContain("/book");
+    expect(drawn).not.toContain("/portfolio-clients");
+    expect(drawn.slice(0, 5)).toEqual(["/dashboard", "/approvals", "/assistant", "/book-overview", "/client-directory"]);
+  });
+});

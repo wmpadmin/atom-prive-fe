@@ -27,6 +27,8 @@ export const MENU_ORDER: string[] = [
 
   // The portfolio desk's own book, in the order the desk works it: the whole book at a glance, who is on a
   // plan, what the plans are, how they are doing, who has wandered off one, and putting them back.
+  // Client list (/book) and Clients (/portfolio-clients) stay named here so Settings still offers them in this
+  // place as a screen to open on, but the sidebar leaves them out (OFF_THE_SIDEBAR in menu-groups.ts).
   "/book-overview", "/client-directory", "/book", "/portfolio-clients", "/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing",
   // What the desk reads back off its book: management information, then the client reports. Reports was further
   // down, after the paper, until the sidebar put the two under one heading on 11 Nov 2026; only the portfolio
