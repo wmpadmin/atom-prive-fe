@@ -1,6 +1,6 @@
 import { ApiError } from "@atomprive/api-client";
 import {
-  useGetClientFixedIncome,
+  useGetClientWorkspaceFixedIncome,
   type ClientFixedIncome,
   type FiHolding,
   type FiKpi,
@@ -22,7 +22,7 @@ import { INK } from "../portfolios/asset-classes";
  */
 export function ClientFixedIncomePage() {
   const { customerId = "" } = useParams();
-  const fi = useGetClientFixedIncome<ClientFixedIncome, ApiError>(customerId);
+  const fi = useGetClientWorkspaceFixedIncome<ClientFixedIncome, ApiError>(customerId);
   const data = fi.data;
 
   if (fi.isError) return <Alert tone="danger">{fi.error.message}</Alert>;
@@ -62,7 +62,7 @@ export function ClientFixedIncomePage() {
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {file ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+          {file ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {day(data.asOf)} close.
           {!file && data.note && ` ${data.note}`}
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>
@@ -331,7 +331,7 @@ function Holdings({ data }: { data: ClientFixedIncome }) {
   const [tab, setTab] = useState<"analytics" | "cashflows">("analytics");
   const cur = data.currency;
   const rows = [...data.holdings, ...(data.total ? [data.total] : [])];
-  const date = (value: string | null) => (value == null ? "—" : formatDate(value));
+  const date = day;
   const columns: [string, (one: FiHolding) => ReactNode][] = tab === "analytics" ? [
     ["Coupon", (one) => (one.coupon == null ? "—" : `${one.coupon}%`)],
     ["Maturity", (one) => (one.kind === "TOTAL" ? (one.averageMaturity == null ? "—" : `${one.averageMaturity} yrs avg`) : one.perpetual ? "Perpetual" : date(one.maturity))],
@@ -634,6 +634,12 @@ function kpiTone(one: FiKpi) {
   if (one.key === "RATING") return d > 0 ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-700";
   if (["YTM", "YTW", "OAS"].includes(one.key)) return d >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700";
   return "bg-slate-100 text-ink-soft";
+}
+
+/** A date as the page prints it; nothing, or something that is not a date, prints as a dash rather than throwing. */
+function day(value: string | null | undefined) {
+  if (value == null || value === "" || Number.isNaN(new Date(value).getTime())) return "—";
+  return formatDate(value);
 }
 
 function compact(amount: number, currency: string) {
