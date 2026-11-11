@@ -76,8 +76,17 @@ function Kpis({ data, reconciliation }: { data: ClientHoldingsBook; reconciliati
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
       <Kpi label="Market value" value={file ? <Marker>per currency below</Marker> : compact(k.marketValue ?? 0, cur)}
         note={`${k.positions} positions · ${k.accounts} accounts`} />
-      <Kpi label="Cost basis" value={file ? <NotInFile /> : k.costBasis == null ? "—" : compact(k.costBasis, cur)}
-        note={file ? null : k.averageHoldingYears == null ? "No tax lots on file" : `Average holding period ${k.averageHoldingYears} years${k.costed < k.positions ? ` · ${k.costed} of ${k.positions} lines costed` : ""}`} />
+      <Kpi label="Cost basis"
+        value={file
+          ? (data.fileCostTotals.length === 0 ? <NotInFile /> : (
+            <span className="flex flex-col text-base">
+              {data.fileCostTotals.map((one) => <span key={one.currency}>{exact(one.amount, one.currency)}</span>)}
+            </span>
+          ))
+          : k.costBasis == null ? "—" : compact(k.costBasis, cur)}
+        note={file
+          ? (data.fileCostTotals.length === 0 ? null : `The bank's own total cost, for ${k.costed} of ${k.positions} lines · per currency; the rest not in bank file`)
+          : k.averageHoldingYears == null ? "No tax lots on file" : `Average holding period ${k.averageHoldingYears} years${k.costed < k.positions ? ` · ${k.costed} of ${k.positions} lines costed` : ""}`} />
       <Kpi label="Unrealised P&L" tone={file ? undefined : toneOf(k.unrealised ?? 0)}
         value={file ? <NotInFile /> : k.unrealised == null ? "—" : signedCompact(k.unrealised, cur)}
         note={file ? null : k.unrealisedPercent == null ? null : `${k.unrealisedPercent > 0 ? "+" : ""}${k.unrealisedPercent}% on cost`} />
@@ -257,6 +266,7 @@ type Grouping = (typeof GROUPINGS)[number][0];
 const COLUMNS = [
   ["identifier", "Identifier"], ["entity", "Entity"], ["custodian", "Custodian"], ["currency", "Ccy"], ["quantity", "Quantity"],
   ["price", "Price"], ["value", "Value"], ["cost", "Cost"], ["unrealised", "Unrealised"], ["weight", "Weight"], ["accrued", "Accrued"],
+  ["bankCostPrice", "Bank's cost price"], ["bankCostTotal", "Bank's total cost"],
 ] as const;
 
 type Column = (typeof COLUMNS)[number][0];
@@ -275,7 +285,7 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [opened, setOpened] = useState<Set<string>>(new Set());
-  const [hidden, setHidden] = useState<Set<Column>>(new Set(file ? [] : ["accrued"]));
+  const [hidden, setHidden] = useState<Set<Column>>(new Set(file ? ["cost", "weight"] : ["accrued", "bankCostPrice", "bankCostTotal"]));
   const on = (column: Column) => !hidden.has(column);
 
   const options = useMemo(() => ({
@@ -328,7 +338,9 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
               {on("cost") && <th scope="col" className="px-2 py-2 text-right">Cost</th>}
               {on("unrealised") && <th scope="col" className="px-2 py-2 text-right">Unrealised</th>}
               {on("weight") && <th scope="col" className="px-2 py-2 text-right">Weight</th>}
-              {on("accrued") && <th scope="col" className="py-2 pr-5 pl-2 text-right">Accrued</th>}
+              {on("accrued") && <th scope="col" className="px-2 py-2 text-right">Accrued</th>}
+              {on("bankCostPrice") && <th scope="col" className="px-2 py-2 text-right">Bank's cost price</th>}
+              {on("bankCostTotal") && <th scope="col" className="py-2 pr-5 pl-2 text-right">Bank's total cost</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -372,7 +384,17 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
                         </td>
                       )}
                       {on("weight") && <td className="px-2 py-2 text-right tabular-nums">{file ? "—" : one.weight == null ? "—" : `${one.weight.toFixed(1)}%`}</td>}
-                      {on("accrued") && <td className="py-2 pr-5 pl-2 text-right tabular-nums">{one.accruedInterest == null ? (file ? <NotInFile /> : "—") : exact(one.accruedInterest, one.currency ?? "")}</td>}
+                      {on("accrued") && <td className="px-2 py-2 text-right tabular-nums">{one.accruedInterest == null ? (file ? <NotInFile /> : "—") : exact(one.accruedInterest, one.currency ?? "")}</td>}
+                      {on("bankCostPrice") && (
+                        <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
+                          {one.bankCostPrice == null ? (file ? <NotInFile /> : "—") : exact(one.bankCostPrice, one.currency ?? "")}
+                        </td>
+                      )}
+                      {on("bankCostTotal") && (
+                        <td className="py-2 pr-5 pl-2 text-right whitespace-nowrap tabular-nums">
+                          {one.bankCostTotal == null ? (file ? <NotInFile /> : "—") : exact(one.bankCostTotal, one.currency ?? "")}
+                        </td>
+                      )}
                     </tr>
                   ))}
                   {!closed && rest > 0 && (
@@ -398,7 +420,7 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
         </table>
       </div>
       <p className="mt-2 text-3xs text-ink-muted italic">
-        {file ? "Lines exactly as the bank's files state them, under the bank's own class labels; select a line for its tax lots."
+        {file ? "Lines exactly as the bank's files state them, under the bank's own class labels. The bank's cost price and total cost are its own figures, in each line's currency; unrealised P&L is not in the bank file and is not worked out from them."
           : "Select a line to see its tax lots. Price is the value over the units held."}
       </p>
     </>
