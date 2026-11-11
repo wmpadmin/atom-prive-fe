@@ -318,26 +318,41 @@ const SERIES: [keyof Omit<ClientCollectibles["years"][number], "year">, string][
   ["yacht", "Yacht"], ["art", "Fine art"], ["cars", "Classic cars"], ["watches", "Watches"], ["wine", "Wine"], ["jewellery", "Jewellery"],
 ];
 
+/** The categories' fills, the yacht in the page's own ink so it reads in either theme. */
+function fillsOf(text: string) {
+  return [text, "#9a7b4f", "#d6c7a6", "#9b1c1c", "#e7dfcf", "#6b6358"];
+}
+
 function ValueCard({ data }: { data: ClientCollectibles }) {
+  const fills = fillsOf(ink().text);
   const option = useMemo(() => {
     const colours = ink();
-    const fills = [colours.text, "#9a7b4f", "#d6c7a6", "#9b1c1c", "#e7dfcf", "#6b6358"];
+    const series = fillsOf(colours.text);
     return {
       textStyle: { fontFamily: colours.font },
-      grid: { left: 8, right: 8, top: 12, bottom: 32, containLabel: true },
-      legend: { bottom: 0, textStyle: { color: colours.muted, fontSize: 11 } },
+      grid: { left: 8, right: 8, top: 12, bottom: 8, containLabel: true },
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (value: number) => compact(value, data.currency) },
       xAxis: { type: "category", data: data.years.map((one) => one.year), axisLabel: { color: colours.muted, fontSize: 10 } },
       yAxis: { type: "value", splitNumber: 4, axisLabel: { color: colours.muted, formatter: (value: number) => compact(value, data.currency) },
         splitLine: { lineStyle: { color: colours.line } } },
       series: SERIES.map(([key, name], at) => ({ type: "bar", name, stack: "register", barMaxWidth: 36,
-        data: data.years.map((one) => one[key]), itemStyle: { color: fills[at] } })),
+        data: data.years.map((one) => one[key]), itemStyle: { color: series[at] } })),
     };
   }, [data.years, data.currency]);
   return (
     <Card title="Register Value Over Time" lead={data.bankFile ? undefined : "Year-end appraised values · demo series"}>
       {data.bankFile ? <FileBlock /> : data.years.length === 0 ? <Empty>Nothing on the register.</Empty> : (
-        <Chart option={option} height={280} label="Register value at each year end by category" />
+        <>
+          <Chart option={option} height={260} label="Register value at each year end by category" />
+          {/* The key is the page's own list rather than the chart's, so however narrow the card it wraps below the axis. */}
+          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
+            {SERIES.map(([key, name], at) => (
+              <li key={key} className="flex items-center gap-1.5">
+                <span className="size-2.5 rounded-xs border border-line" style={{ background: fills[at] }} aria-hidden="true" />{name}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </Card>
   );
