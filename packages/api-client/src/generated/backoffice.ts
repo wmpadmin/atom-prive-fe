@@ -8162,6 +8162,7 @@ export interface DirectoryClient {
   /** @nullable */
   nextReviewOn: string | null;
   bankFile: DirectoryBankFile | null;
+  entityNames: string[];
 }
 
 export interface DirectorySlice {
