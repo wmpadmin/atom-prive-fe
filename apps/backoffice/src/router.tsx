@@ -77,6 +77,7 @@ import { ClientPerformancePage } from "./pages/client-workspace/client-performan
 import { ClientRiskPage } from "./pages/client-workspace/client-risk-page";
 import { ClientEquityPage } from "./pages/client-workspace/client-equity-page";
 import { ClientFixedIncomePage } from "./pages/client-workspace/client-fixed-income-page";
+import { ClientPrivateMarketsPage } from "./pages/client-workspace/client-private-markets-page";
 import { PortfolioReportsPage } from "./pages/portfolios/reports-page";
 import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-page";
 import { ModelPerformancePage } from "./pages/portfolios/model-performance-page";
@@ -434,6 +435,7 @@ export const router = createBrowserRouter([
                   { path: "risk", element: <ClientRiskPage /> },
                   { path: "equity", element: <ClientEquityPage /> },
                   { path: "fixed-income", element: <ClientFixedIncomePage /> },
+                  { path: "private-markets", element: <ClientPrivateMarketsPage /> },
                 ],
               },
               { path: "book", element: <ClientListPage /> },
