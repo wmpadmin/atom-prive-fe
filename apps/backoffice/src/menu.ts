@@ -115,8 +115,22 @@ const A_CLIENT_KYC = /^\/kyc\/[^/]+(\/documents\/[^/]+)?$/;
  * narrowing the matrix narrows this too.
  */
 const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
+  // In the order the sidebar's headings draw it (menu-groups.ts): the three everybody starts from, then
+  // staff and access, clients, the platform, oversight, and the person's own. Reordered on 11 Nov 2026 when the
+  // menu was put under headings; before that the topics were interleaved and no heading could hold a run of them.
   { to: "/dashboard" },
+  // Asked for on 4 Nov 2026 so the dashboard's links have somewhere to go: the approval queues, the portfolio
+  // reports and the bank feeds, each opened as the screen the desk that works it already uses.
+  { to: "/approvals" },
+  { to: "/assistant" },
+  // What the firm may do and who does it: staff, the permission matrix they work under, and the tracker of what
+  // they have declared.
   { to: "/users" },
+  { to: "/roles" },
+  { to: "/staff-tracker" },
+  // The declarations register is reached from under the tracker rather than from the menu's top level: it is
+  // one of the things being tracked, not a heading of its own.
+  { to: "/staff-declarations", under: "/staff-tracker" },
   // Prospects and clients together, as one section: its overview, the prospects being followed up, and
   // the client directory below them.
   { to: "/client-management" },
@@ -124,40 +138,27 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   // The client directory, the same screen Operations and Compliance read, under the name they read it by.
   // It was called "Assign relationship managers" after the one job an Admin was given it for; an entry
   // naming one job on a screen that does all of them sends a reader looking for a second entry that does
-  // not exist. The screen is theirs in full - putting a relationship manager on a client is one of the
-  // things done on it, not the whole of it.
+  // not exist.
   { to: "/clients", under: "/client-management" },
   // Deciding whether the firm stops acting for a client, and the clients it has stopped acting for. Both
   // are the Admin's alone: nobody else may answer a request, and nobody else may see an archived client.
   { to: "/deactivation-requests", under: "/client-management" },
   { to: "/archived-clients", under: "/client-management" },
-  // What the firm may do and what it runs on, before the people who do it: the Admin's own order puts
-  // the permission matrix and the configuration above the staff they apply to.
-  { to: "/roles" },
+  // What the platform runs on: its configuration and the bank feeds, with what the banks say each client holds
+  // beside them, where an Admin switches a bank over to writing it.
   { to: "/config" },
-  { to: "/staff-tracker" },
-  // The declarations register is reached from under the tracker rather than from the menu's top level: it is
-  // one of the things being tracked, not a heading of its own.
-  { to: "/staff-declarations", under: "/staff-tracker" },
-  // The narrower read before the wider one: family access is one question asked of the trail, and the
-  // audit log is every question at once.
-  // Asked for on 4 Nov 2026 so the dashboard's links have somewhere to go: the approval queues, the portfolio
-  // reports and the bank feeds, each opened as the screen the desk that works it already uses.
-  { to: "/approvals" },
-  { to: "/reports" },
   { to: "/ingestion", label: "Bank feeds" },
-  // Beside the feeds, as on Operations' menu: what the banks say each client holds, and where an Admin
-  // switches a bank over to writing it.
   { to: "/holdings-check" },
+  // Reading back: the reports, then the narrower trail before the wider one - family access is one question
+  // asked of the trail, and the audit log is every question at once.
+  { to: "/reports" },
   { to: "/family-access-trail" },
   { to: "/audit-log" },
-  // An Admin signs the same nine as everybody else. Their menu is written out rather than filtered down, so
-  // their own declarations had to be written into it or they had no way to them at all — the screen was
-  // open to them the whole time, with nothing on the menu pointing at it.
-  { to: "/my-clearances", under: "/client-management" },
+  // An Admin signs the same nine as everybody else, and raises clearance requests like anybody. Their menu is
+  // written out rather than filtered down, so their own screens had to be written into it.
+  { to: "/my-clearances" },
   { to: "/my-declarations" },
   { to: "/support" },
-  { to: "/assistant" },
   { to: "/settings" },
 ];
 
@@ -476,7 +477,8 @@ const allNavigation: {
   // permission: a reader who holds none of the desks asked sees an empty list, which is the truth about
   // them. Beside their own declarations, which is the other thing on this menu that is theirs alone.
   // In the Client Management section for whoever has it; at the top level for everybody else.
-  { to: "/my-clearances", label: "My clearance requests", icon: UserMinus, authority: null, under: "/client-management" },
+  // The person's own, under YOUR OWN in the sidebar for every desk, rather than inside Client Management.
+  { to: "/my-clearances", label: "My clearance requests", icon: UserMinus, authority: null },
   { to: "/my-declarations", label: "My declarations", icon: FileCheck, authority: null },
   // The clients assigned to this relationship manager: the whole book is not theirs, and this is the part that is.
   {

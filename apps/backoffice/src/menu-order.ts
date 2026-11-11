@@ -1,10 +1,8 @@
 /**
  * The order the sidebar lists its screens in.
  *
- * <p>An order rather than a shape. The menu used to be folded into three named sections, and reading it
- * meant opening one of them first: a reader who knew the name of the screen they wanted still had to
- * guess which section the firm had filed it under. It is one list now, and the only thing this file
- * decides is what comes before what.
+ * <p>An order rather than a shape. Which heading a screen sits under in the sidebar is menu-groups.ts's to say;
+ * under each heading the screens keep the order written here.
  *
  * <p>The order is the order the work is done in, not the order the entries happen to be declared in:
  * your own first screen, then managing money against a plan, then what is waiting on an answer, then
@@ -30,7 +28,10 @@ export const MENU_ORDER: string[] = [
   // The portfolio desk's own book, in the order the desk works it: the whole book at a glance, who is on a
   // plan, what the plans are, how they are doing, who has wandered off one, and putting them back.
   "/book-overview", "/client-directory", "/book", "/portfolio-clients", "/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing",
-  "/mis",
+  // What the desk reads back off its book: management information, then the client reports. Reports was further
+  // down, after the paper, until the sidebar put the two under one heading on 11 Nov 2026; only the portfolio
+  // desk has it, so moving it here moves nobody else's menu.
+  "/mis", "/reports",
 
   // What follows is one order serving three desks at once, written from the firm's own list for each.
   // It works because the three barely overlap: where two of them hold the same screen they want it in
@@ -53,14 +54,14 @@ export const MENU_ORDER: string[] = [
   "/forms", "/client-documents", "/to-sign", "/trade-logs", "/post-onboarding",
 
   // Then the feeds, which are Operations' own and are watched rather than worked.
-  "/ingestion", "/sync-errors",
+  "/ingestion", "/sync-errors", "/holdings-check",
 
   // Then the reads that come back off all of it — what was traded, who saw what, who did what. Looked
   // at when a question is asked, rather than worked every morning, so they sit under the work.
   "/trails", "/family-access-trail", "/audit-log",
 
   // Then the rest of the client's file, and what the platform will print.
-  "/deactivation-requests", "/archived-clients", "/aml-risk", "/reports",
+  "/deactivation-requests", "/archived-clients", "/aml-risk",
 
   // Then what exists before any client does and would still exist with none: the firm's own setup and
   // the people who run it.
