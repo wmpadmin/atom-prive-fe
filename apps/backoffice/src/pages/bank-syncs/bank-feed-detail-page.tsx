@@ -5,7 +5,7 @@ import {
   type BankFeedDetail,
   type BankFeedLine,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, cn } from "@atomprive/ui";
+import { Alert, Badge, cn, SelectInput, TextInput } from "@atomprive/ui";
 import { ArrowLeft, Search } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
@@ -89,8 +89,8 @@ function AccountsTab({ accounts }: { accounts: BankFeedAccount[] }) {
     <>
       <Filters>
         <SearchBox value={query} onChange={setQuery} placeholder="Search client or account" />
-        <Select label="Client" value={client} onChange={setClient} options={clients} />
-        <Select label="Currency" value={currency} onChange={setCurrency} options={currencies.map((one) => [one, one])} />
+        <Select label="Clients" value={client} onChange={setClient} options={clients} />
+        <Select label="Currencies" value={currency} onChange={setCurrency} options={currencies.map((one) => [one, one])} />
       </Filters>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
@@ -145,8 +145,8 @@ function HoldingsTab({ data }: { data: BankFeedDetail }) {
       </p>
       <Filters>
         <SearchBox value={query} onChange={setQuery} placeholder="Search instrument or ISIN" />
-        <Select label="Currency" value={currency} onChange={setCurrency} options={currencies.map((one) => [one, one])} />
-        <Select label="Bank's class" value={bankClass} onChange={setBankClass}
+        <Select label="Currencies" value={currency} onChange={setCurrency} options={currencies.map((one) => [one, one])} />
+        <Select label="Bank's classes" value={bankClass} onChange={setBankClass}
           options={classes.map((one) => [one, one === "" ? "Not given" : one])} />
       </Filters>
       <div className="overflow-x-auto">
@@ -211,17 +211,18 @@ function Kpi({ label, value, note }: { label: string; value: string | undefined;
   );
 }
 
+/** The app's filter bar: search first at a set width, then each filter sized to its words; wraps when narrow. */
 function Filters({ children }: { children: ReactNode }) {
   return <div className="flex flex-wrap items-center gap-2 px-5 py-3">{children}</div>;
 }
 
 function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
   return (
-    <label className="relative min-w-56 flex-1">
+    <label className="relative w-[360px] max-w-full">
       <span className="sr-only">{placeholder}</span>
-      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
-      <input type="search" value={value} onChange={(event) => onChange(event.target.value)} placeholder={`${placeholder}…`}
-        className="block h-9 w-full rounded-lg border border-line bg-white pr-3 pl-9 text-sm text-ink placeholder:text-ink-muted" />
+      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+      <TextInput type="search" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder}
+        className="w-full pl-9" />
     </label>
   );
 }
@@ -230,13 +231,13 @@ function Select({ label, value, onChange, options }: {
   label: string; value: string; onChange: (value: string) => void; options: (readonly [string, string])[];
 }) {
   return (
-    <label className="flex items-center gap-1.5 text-sm text-ink-soft">
-      <span>{label}:</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)}
-        className="h-9 rounded-lg border border-line bg-white px-2 text-sm text-ink">
-        <option value="">All</option>
+    <label className="max-w-full">
+      <span className="sr-only">{label}</span>
+      <SelectInput value={value} onChange={(event) => onChange(event.target.value)} title={label}
+        className="w-auto max-w-[220px] sm:min-w-[140px]">
+        <option value="">{`All ${label.toLowerCase()}`}</option>
         {options.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-      </select>
+      </SelectInput>
     </label>
   );
 }
