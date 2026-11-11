@@ -1865,14 +1865,14 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  floatingPointNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -6195,6 +6195,7 @@ export interface BankFeedLine {
   value: number;
   currency: string;
   asOf: string;
+  demo: boolean;
 }
 
 export interface BankFeedTotal {
@@ -6212,6 +6213,7 @@ export interface BankFeedDetail {
   accounts: BankFeedAccount[];
   lines: BankFeedLine[];
   totals: BankFeedTotal[];
+  demo: boolean;
 }
 
 export interface StaffToView {

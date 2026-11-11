@@ -43,6 +43,7 @@ export function BankFeedDetailPage() {
             <span aria-hidden="true">·</span>
             <span>last file {feed.lastRunAt ? formatDateTime(feed.lastRunAt) : "never"}</span>
             <Badge tone={standing.tone}>{standing.label}</Badge>
+            {data?.demo && <Badge tone="warning">Demo data</Badge>}
           </p>
         )}
       </header>
@@ -143,6 +144,14 @@ function HoldingsTab({ data }: { data: BankFeedDetail }) {
         {data.holdingsFromBank.toLocaleString()} holding line{data.holdingsFromBank === 1 ? "" : "s"} on file from this bank in all.
         Shown: each account's latest file, exactly as sent — never converted, never added across currencies.
       </p>
+      {/* Said wherever a line was not sent by the bank: these were made from the clients' own holdings for the
+          demonstration, and no figure anywhere else is read from them. */}
+      {data.demo && (
+        <p className="mx-5 mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <span className="font-semibold">Demo data.</span> Lines marked Demo were made from the clients' own
+          holdings for the demonstration. This bank has not sent them, and no other screen reads them.
+        </p>
+      )}
       <Filters>
         <SearchBox value={query} onChange={setQuery} placeholder="Search instrument or ISIN" />
         <Select label="Currencies" value={currency} onChange={setCurrency} options={currencies.map((one) => [one, one])} />
@@ -196,7 +205,10 @@ function LineRow({ line }: { line: BankFeedLine }) {
       <td className="px-3 py-2.5 text-right tabular-nums">{line.quantity == null ? "—" : number(line.quantity)}</td>
       <td className="px-3 py-2.5 text-right tabular-nums">{line.price == null ? "—" : number(line.price)}</td>
       <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap tabular-nums">{line.currency} {number(line.value, 2)}</td>
-      <td className="py-2.5 pr-5 pl-3 whitespace-nowrap text-ink-soft tabular-nums">{formatDate(line.asOf)}</td>
+      <td className="py-2.5 pr-5 pl-3 whitespace-nowrap text-ink-soft tabular-nums">
+        {formatDate(line.asOf)}
+        {line.demo && <span className="ml-2"><Badge tone="warning">Demo</Badge></span>}
+      </td>
     </tr>
   );
 }
