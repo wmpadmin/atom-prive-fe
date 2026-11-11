@@ -162,9 +162,9 @@ function Facts({ data }: { data: ClientWorkspace }) {
     <section className="grid gap-4 rounded-2xl border border-line bg-white p-5 sm:grid-cols-2 lg:grid-cols-4">
       <Fact label="Relationship lead" value={f.relationshipManager ?? <Muted>Not recorded</Muted>} />
       <Fact label="Mandate" value={fromFile(f.mandate)} />
-      <Fact label="Benchmark" value={fromFile(f.benchmark && (
-        <>{f.benchmark}{f.benchmarkComposition && <span className="block text-xs text-ink-muted">{f.benchmarkComposition}</span>}</>
-      ))} />
+      {/* Which model the client is measured against, by the model's name alone: the blended benchmark's long name and
+          its composition were more than this tile needs, and are on Performance. */}
+      <Fact label="Benchmark" value={fromFile(f.benchmark && (f.mandate ?? f.benchmark))} />
       <Fact label="Base currency" value={f.baseCurrency ?? <Muted>Not recorded</Muted>} />
       <Fact label="Client since" value={f.clientSince ? formatDate(f.clientSince) : <Muted>—</Muted>} />
       <Fact label="Last review" value={fromFile(f.lastReview && formatDate(f.lastReview))} />
@@ -549,7 +549,11 @@ function TopPositionsCard({ data }: { data: ClientWorkspace }) {
   );
 }
 
+/** How many expected flows the card lists before the rest are asked for. */
+const FLOWS_SHOWN = 8;
+
 function CashFlowCard({ data }: { data: ClientWorkspace }) {
+  const [allFlows, setAllFlows] = useState(false);
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -579,8 +583,9 @@ function CashFlowCard({ data }: { data: ClientWorkspace }) {
         {data.cashFlows.length === 0 ? <Empty>Nothing expected in the next twelve months.</Empty> : (
           <Chart option={option} height={220} label="Money expected in and out each month for the next twelve" />
         )}
-        <ul className="max-h-64 divide-y divide-line overflow-y-auto text-sm">
-          {data.cashFlows.map((one, at) => (
+        <ul className="divide-y divide-line text-sm">
+          {/* Whole rows only: the first few, then the rest on request, so a row is never cut through. */}
+          {(allFlows ? data.cashFlows : data.cashFlows.slice(0, FLOWS_SHOWN)).map((one, at) => (
             <li key={`${one.on}-${at}`} className="flex items-center gap-3 py-2">
               <span className="w-14 shrink-0 text-xs text-ink-muted tabular-nums">{dayMonth(one.on)}</span>
               <span className="min-w-0 flex-1 truncate">{one.title}{one.detail && ` · ${one.detail}`}</span>
@@ -588,6 +593,12 @@ function CashFlowCard({ data }: { data: ClientWorkspace }) {
             </li>
           ))}
         </ul>
+        {data.cashFlows.length > FLOWS_SHOWN && (
+          <button type="button" onClick={() => setAllFlows((now) => !now)}
+            className="text-xs font-semibold text-primary-700 hover:underline">
+            {allFlows ? "Show fewer" : `+${data.cashFlows.length - FLOWS_SHOWN} more`}
+          </button>
+        )}
       </div>
       )}
     </Card>

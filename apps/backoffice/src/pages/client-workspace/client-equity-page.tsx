@@ -12,6 +12,12 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
+import { ScatterChart } from "echarts/charts";
+import { LabelLayout } from "echarts/features";
+import * as echarts from "echarts/core";
+
+// Names that would land on one another are left to the tooltip.
+echarts.use([ScatterChart, LabelLayout]);
 
 /**
  * A client's Equity Analytics, laid out section by section as the firm's 10 Nov design draws it. Every figure — each
@@ -443,9 +449,12 @@ function Scatter({ data }: { data: ClientEquity }) {
     const largest = Math.max(1, ...data.scatter.map((one) => one.weight));
     return {
       textStyle: { fontFamily: colours.font },
-      grid: { left: 8, right: 16, top: 16, bottom: 40, containLabel: true },
-      legend: { bottom: 0, textStyle: { color: colours.muted, fontSize: 11 } },
-      tooltip: { trigger: "item", formatter: (point: { data: [number, number, number, string] }) => `${point.data[3]}<br/>Fwd P/E ${point.data[0]}× · ROE ${point.data[1]}%` },
+      // Room above the plot for the benchmark P/E line's label.
+      grid: { left: 8, right: 16, top: 28, bottom: 40, containLabel: true },
+      legend: { bottom: 0, data: ["Info. Tech.", "Financials", "Other sectors", "Benchmark"], textStyle: { color: colours.muted, fontSize: 11 } },
+      tooltip: { trigger: "item", formatter: (point: { data: [number, number, number, string, boolean] }) => point.data[4]
+        ? `${point.data[3]}<br/>Fwd P/E ${point.data[0]}× · ROE above 78%, drawn at the cap`
+        : `${point.data[3]}<br/>Fwd P/E ${point.data[0]}× · ROE ${point.data[1]}%` },
       xAxis: { type: "value", name: "Forward P/E", nameLocation: "middle", nameGap: 24, nameTextStyle: { color: colours.muted, fontSize: 10 }, scale: true,
         axisLabel: { color: colours.muted, formatter: "{value}×" }, splitLine: { lineStyle: { color: colours.line } } },
       yAxis: { type: "value", min: 0, max: 80, axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
@@ -453,15 +462,25 @@ function Scatter({ data }: { data: ClientEquity }) {
         ...groups.map(([id, name, colour]) => ({
           type: "scatter", name, itemStyle: { color: colour, opacity: 0.9 },
           symbolSize: (value: [number, number, number]) => 8 + Math.sqrt(value[2] / largest) * 18,
-          label: { show: true, position: "right", fontSize: 9, color: colours.muted, formatter: (point: { data: [number, number, number, string] }) => point.data[3] },
-          data: data.scatter.filter((one) => one.group === id).map((one) => [one.forwardPe, one.roe, one.weight, `${one.label}${one.capped ? " ↑" : ""}`]),
+          // A capped point carries only a small ↑ above it, its name in the tooltip; the rest are named beside them,
+          // and a name that would land on another is left to the tooltip too.
+          label: { show: true, position: "right", fontSize: 9, color: colours.muted,
+            formatter: (point: { data: [number, number, number, string, boolean] }) => point.data[4] ? "" : point.data[3] },
+          labelLayout: { hideOverlap: true },
+          data: data.scatter.filter((one) => one.group === id).map((one) => [one.forwardPe, one.roe, one.weight, one.label, one.capped]),
         })),
+        {
+          type: "scatter", name: "Capped", silent: true, symbolSize: 1, itemStyle: { color: "transparent" }, z: 3, legendHoverLink: false,
+          label: { show: true, position: "top", distance: 8, fontSize: 11, color: colours.muted, formatter: "↑" },
+          data: data.scatter.filter((one) => one.capped).map((one) => [one.forwardPe, one.roe]),
+        },
         { type: "line", name: "Benchmark", data: [], lineStyle: { color: colours.danger, type: "dashed" }, itemStyle: { color: colours.danger },
           markLine: { symbol: "none", silent: true, lineStyle: { color: colours.danger, type: "dashed", width: 1 },
             label: { color: colours.danger, fontSize: 9 },
+            // Both labels inside the plot: the P/E one at the top of its line, the ROE one at the right end, above it.
             data: [
-              ...(data.benchmarkForwardPe != null ? [{ xAxis: data.benchmarkForwardPe, label: { formatter: `ACWI ${data.benchmarkForwardPe}×` } }] : []),
-              ...(data.benchmarkRoe != null ? [{ yAxis: data.benchmarkRoe, label: { formatter: `ACWI ROE ${data.benchmarkRoe}%` } }] : []),
+              ...(data.benchmarkForwardPe != null ? [{ xAxis: data.benchmarkForwardPe, label: { position: "end", formatter: `ACWI ${data.benchmarkForwardPe}×` } }] : []),
+              ...(data.benchmarkRoe != null ? [{ yAxis: data.benchmarkRoe, label: { position: "insideEndTop", formatter: `ACWI ROE ${data.benchmarkRoe}%` } }] : []),
             ] } },
       ],
     };
