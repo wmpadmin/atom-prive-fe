@@ -66,6 +66,11 @@ type Column = {
   cell: (proposal: ProposalRow) => ReactNode;
 };
 
+/** Sent to the client and not yet answered: what has a day the client has until. */
+function waitingOnClient(proposal: ProposalRow) {
+  return proposal.status === "PENDING" && !!proposal.answerBy;
+}
+
 /**
  * The columns a reader may move and take off, in the order the firm wrote them.
  *
@@ -155,11 +160,16 @@ function movableFor({ showAdvisor, openedFrom, onMe, reader, theirPart }: {
         const part = theirPart(proposal);
         return (
           <>
-            {/* A badge holds its words on one line; here "Waiting on <a long family name> until <date>"
-                is wider than an equal column, so it wraps inside the column instead of spilling out. */}
+            {/* Sent to the client, the badge says only "Waiting on client": the client is the row's first
+                column, and their name again here made the badge longer than the column. The day they
+                have until sits under it, as who answered sits under an answer. */}
             <Badge tone={proposalStatusTones[proposal.status as ProposalRowStatus]}>
-              {proposalStanding(proposal.status as ProposalRowStatus, proposal.waitingOn, proposal.answerBy)}
+              {waitingOnClient(proposal)
+                ? "Waiting on client"
+                : proposalStanding(proposal.status as ProposalRowStatus, proposal.waitingOn, proposal.answerBy)}
             </Badge>
+            {waitingOnClient(proposal)
+              && <span className="mt-1 block text-xs text-ink-muted">Until {formatDate(proposal.answerBy!)}</span>}
             {/* Who answered it sits under the answer, where it belongs. It used to sit in the last
                 column — the one the Review button is in — so on an answered row it was a sentence
                 floating at the far right of the table under no heading at all. */}
