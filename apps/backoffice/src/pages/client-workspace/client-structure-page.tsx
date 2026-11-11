@@ -34,31 +34,37 @@ export function ClientStructurePage() {
     <div className="space-y-5">
       <header>
         <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Portfolio management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Entity structure
+          Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Entity Structure
         </p>
         <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Entity &amp; Ownership Structure</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Trusts, companies and SPVs with ownership, look-through value and beneficial interest · as at {formatDate(data.asOf)}
+          Trusts, companies and SPVs with ownership, look-through value and beneficial interest
         </p>
       </header>
 
-      {data.bankFile ? <FileContainers name={data.name} accounts={data.bankFile} /> : <Structure data={data} />}
+      {data.bankFile ? <FileContainers name={data.name} accounts={data.bankFile} data={data} /> : <Structure data={data} />}
+
+      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
+        <span>
+          {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+        </span>
+        <span>atom privé · Portfolio Management · Internal use only</span>
+      </footer>
     </div>
   );
 }
 
 function Structure({ data }: { data: ClientStructure }) {
   const { kpis } = data;
-  const cur = data.currency;
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+      <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
         <Kpi label="Legal entities" value={String(kpis.legalEntities)}
           note={kpis.byType.map((one) => `${one.count} ${one.name}${one.count === 1 || one.name.endsWith("C") || one.name.endsWith("V") ? "" : "s"}`).join(" · ") || "None on file"} />
         <Kpi label="Jurisdictions" value={kpis.jurisdictions.length === 0 ? "—" : kpis.jurisdictions.join(" · ")}
-          note={`${kpis.jurisdictions.length} ${kpis.jurisdictions.length === 1 ? "jurisdiction" : "jurisdictions"}`} />
-        <Kpi label="Beneficiaries" value={String(kpis.beneficiaries)}
-          note={`${kpis.generations} ${kpis.generations === 1 ? "generation" : "generations"}${kpis.charities > 0 ? ` · ${kpis.charities} charitable` : ""}`} />
+          note={data.jurisdictionNote ?? `${kpis.jurisdictions.length} ${kpis.jurisdictions.length === 1 ? "jurisdiction" : "jurisdictions"}`} />
+        <Kpi label="Beneficiaries" value={`${kpis.beneficiaries - kpis.charities} ${kpis.beneficiaries - kpis.charities === 1 ? "individual" : "individuals"}`}
+          note={`${kpis.generations} ${kpis.generations === 1 ? "generation" : "generations"}${kpis.charities > 0 ? ` + ${kpis.charities} ${kpis.charities === 1 ? "charity" : "charities"}` : ""}`} />
         <Kpi label="Trustees & directors" value={String(kpis.trusteesAndDirectors)}
           note={`${kpis.corporateTrustees} corporate ${kpis.corporateTrustees === 1 ? "trustee" : "trustees"} · ${kpis.directors} ${kpis.directors === 1 ? "director" : "directors"}`} />
         <Kpi label="KYC / CRS refresh due" value={String(kpis.refreshDue.length)}
@@ -66,7 +72,6 @@ function Structure({ data }: { data: ClientStructure }) {
           note={
             <>
               {kpis.refreshDue.map((one) => `${one.entity ?? "Client"} ${shortDate(one.dueOn)}`).join(" · ") || "Nothing due"}
-              {kpis.kycPapersExpiring > 0 && <span className="block">{kpis.kycPapersExpiring} client KYC {kpis.kycPapersExpiring === 1 ? "paper" : "papers"} expiring</span>}
             </>
           } />
       </div>
@@ -74,16 +79,12 @@ function Structure({ data }: { data: ClientStructure }) {
       <OwnershipCard data={data} />
       <RegisterCard data={data} />
 
-      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
         <InterestCard data={data} />
         <MixCard data={data} />
       </div>
 
       <GovernanceCard data={data} />
-
-      <p className="text-xs text-ink-muted">
-        Values are look-through market values in {cur}, rolled up from the holdings linked to each entity; none is typed in.
-      </p>
     </>
   );
 }
@@ -98,7 +99,7 @@ function OwnershipCard({ data }: { data: ClientStructure }) {
   const [show, setShow] = useState<Show>("value");
   const cur = data.currency;
   return (
-    <Card title="Ownership Structure" lead="Settlors → trusts & personal holdings → companies, SPVs and holdings"
+    <Card title="Ownership Structure" lead="Settlors → trusts & personal holdings → companies, SPVs and accounts"
       action={
         <div className="flex flex-wrap gap-2">
           <Toggle label="Shown as" value={view} onChange={setView} options={[["tree", "Tree"], ["table", "Table"]]} />
@@ -110,10 +111,10 @@ function OwnershipCard({ data }: { data: ClientStructure }) {
         <div className="overflow-x-auto">
           <div className="flex min-w-[52rem] items-center gap-0">
             <div className="w-52 shrink-0 rounded-xl border-2 border-ink p-3">
-              <p className="text-3xs font-semibold tracking-wider text-red-700 uppercase">Settlors</p>
-              <p className="text-base font-bold">{data.name}</p>
-              <p className="text-2xs text-ink-muted">Held across the structure</p>
-              <p className="text-lg font-bold tabular-nums">{compact(data.total, cur)}</p>
+              <p className="text-3xs font-semibold tracking-wider text-red-700 uppercase">Settlors{data.settlors.length > 0 && " · G1"}</p>
+              <p className="text-base font-bold">{data.settlors.length > 0 ? settlorNames(data.settlors) : data.name}</p>
+              <p className="text-2xs text-ink-muted">Consolidated net worth</p>
+              <p className="text-lg font-bold tabular-nums">{data.netWorth == null ? "—" : compact(data.netWorth, cur)}</p>
             </div>
             <div className="w-6 shrink-0 border-t border-line" aria-hidden="true" />
             <div className="flex-1 space-y-3 border-l border-line pl-0">
@@ -260,8 +261,8 @@ function ChildBox({ node, show, currency }: { node: StructureNode; show: Show; c
 
 function RegisterCard({ data }: { data: ClientStructure }) {
   return (
-    <Card title="Entity Register" lead="Every entity on file, with who runs it and where its accounts are held">
-      {data.register.length === 0 ? <Empty>No entity is on file for this client yet.</Empty> : (
+    <Card title="Entity Register" lead="Every entity on file for this family, with who runs it and where its accounts are held">
+      {data.bankFile ? <FileBlock /> : data.register.length === 0 ? <Empty>No entity is on file for this client yet.</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -273,7 +274,9 @@ function RegisterCard({ data }: { data: ClientStructure }) {
                 <th scope="col" className="px-3 py-2">Tax classification</th>
                 <th scope="col" className="px-3 py-2">Trustee / directors</th>
                 <th scope="col" className="px-3 py-2">Custodians</th>
-                <th scope="col" className="py-2 pr-5 pl-3 text-right">Value</th>
+                <th scope="col" className="px-3 py-2 text-right">Value</th>
+                <th scope="col" className="px-3 py-2 text-right">% NW</th>
+                <th scope="col" className="py-2 pr-5 pl-3">Docs &amp; KYC</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -289,7 +292,15 @@ function RegisterCard({ data }: { data: ClientStructure }) {
                   <td className="px-3 py-2">{one.taxClassification ?? <Muted>—</Muted>}</td>
                   <td className="px-3 py-2">{officers(one.officers)}</td>
                   <td className="px-3 py-2">{one.custodians.join(" · ") || <Muted>—</Muted>}</td>
-                  <td className="py-2 pr-5 pl-3 text-right font-semibold whitespace-nowrap tabular-nums">{compact(one.value, data.currency)}</td>
+                  <td className="px-3 py-2 text-right font-semibold whitespace-nowrap tabular-nums">{compact(one.value, data.currency)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{one.netWorthPercent == null ? <Muted>—</Muted> : `${one.netWorthPercent.toFixed(1)}%`}</td>
+                  <td className="py-2 pr-5 pl-3 whitespace-nowrap">
+                    {one.refreshKind == null || one.refreshDue == null
+                      ? <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-2xs font-semibold text-emerald-700">Nothing due</span>
+                      : <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-2xs font-semibold text-amber-700">
+                          {one.refreshKind === "CRS_RENEWAL" ? "CRS" : "KYC"} due {shortDate(one.refreshDue)}
+                        </span>}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -314,13 +325,13 @@ function InterestCard({ data }: { data: ClientStructure }) {
   const cur = data.currency;
   const largest = Math.max(1, ...data.interests.flatMap((row) => (row.cells as (number | null)[]).map((cell) => cell ?? 0)));
   return (
-    <Card title="Beneficial Interest Matrix" lead="Economic interest by top-level entity and beneficiary">
-      {data.beneficiaries.length === 0 ? <Empty>No beneficiary is on file for this client yet.</Empty> : (
+    <Card title="Beneficial Interest Matrix" lead="Economic interest by entity and beneficiary · as recorded">
+      {data.bankFile ? <FileBlock /> : data.beneficiaries.length === 0 ? <Empty>No beneficiary is on file for this client yet.</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-                <th scope="col" className="py-2 pr-3 pl-5">Entity</th>
+                <th scope="col" className="py-2 pr-3 pl-5"><span className="sr-only">Entity</span></th>
                 {data.beneficiaries.map((one) => (
                   <th key={one.id} scope="col" className="px-1 py-2 text-center">
                     {one.name}
@@ -358,7 +369,7 @@ function InterestCard({ data }: { data: ClientStructure }) {
           </table>
         </div>
       )}
-      {data.unassigned && (
+      {!data.bankFile && data.unassigned && (
         <p className="mt-2 text-3xs text-ink-muted italic">
           {compact(data.unassigned.value, cur)} the client holds outside any entity is not in this matrix.
         </p>
@@ -371,8 +382,8 @@ function MixCard({ data }: { data: ClientStructure }) {
   const names = [...new Set(data.assetMix.flatMap((row) => row.slices.map((one) => one.name)))];
   const colour = (name: string) => INK[names.indexOf(name) % INK.length];
   return (
-    <Card title="Asset Mix by Entity" lead="% of each top-level entity's look-through value">
-      {data.assetMix.length === 0 ? <Empty>No entity is on file for this client yet.</Empty> : (
+    <Card title="Asset Mix by Entity" lead="% of each entity's value">
+      {data.bankFile ? <FileBlock /> : data.assetMix.length === 0 ? <Empty>No entity is on file for this client yet.</Empty> : (
         <>
           <ul className="space-y-2.5">
             {data.assetMix.map((row) => (
@@ -403,6 +414,7 @@ function MixCard({ data }: { data: ClientStructure }) {
 function GovernanceCard({ data }: { data: ClientStructure }) {
   return (
     <Card title="Governance Calendar & Documents">
+      {data.bankFile ? <FileBlock /> : (<>
       {data.governance.length === 0 ? <Empty>Nothing is on the governance calendar.</Empty> : (
         <ul className="divide-y divide-line">
           {data.governance.map((one, at) => (
@@ -436,6 +448,7 @@ function GovernanceCard({ data }: { data: ClientStructure }) {
         </ul>
       )}
       <p className="mt-2 text-3xs text-ink-muted italic">Dates and status only; the papers themselves are kept with the client's documents.</p>
+      </>)}
     </Card>
   );
 }
@@ -443,15 +456,15 @@ function GovernanceCard({ data }: { data: ClientStructure }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 /* The bank-file client                                                                                          */
 
-function FileContainers({ name, accounts }: { name: string; accounts: StructureFileAccount[] }) {
+function FileContainers({ name, accounts, data }: { name: string; accounts: StructureFileAccount[]; data: ClientStructure }) {
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+      <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
         {["Legal entities", "Jurisdictions", "Beneficiaries", "Trustees & directors", "KYC / CRS refresh due"].map((label) => (
           <Kpi key={label} label={label} value={<NotInFile />} note="The bank file holds no entity, trust or beneficiary data" />
         ))}
       </div>
-      <Card title="Ownership Structure" lead="The only holding containers on file are the accounts the bank's files state">
+      <Card title="Ownership Structure" lead="Settlors → trusts & personal holdings → companies, SPVs and accounts · his accounts as the bank's files state them">
         <div className="overflow-x-auto">
           <div className="flex min-w-[44rem] items-center">
             <div className="w-52 shrink-0 rounded-xl border-2 border-ink p-3">
@@ -485,15 +498,28 @@ function FileContainers({ name, accounts }: { name: string; accounts: StructureF
           Each account's holdings summed in the currency the bank wrote them in, as sent; masked numbers as the bank sent them.
         </p>
       </Card>
-      <p className="text-xs text-ink-muted">
-        Entity register, beneficial interest matrix, asset mix by entity, governance calendar and documents: <NotInFile />
-      </p>
+      <RegisterCard data={data} />
+      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+        <InterestCard data={data} />
+        <MixCard data={data} />
+      </div>
+      <GovernanceCard data={data} />
     </>
   );
 }
 
 /* ------------------------------------------------------------------------------------------------------------ */
 /* Small pieces                                                                                                  */
+
+/** A card his bank's files hold nothing for: it stays in its place and says so. */
+function FileBlock() {
+  return <p className="rounded-xl border border-dashed border-line px-4 py-8 text-center"><NotInFile /></p>;
+}
+
+/** "Richard & Eleanor Halden" from the first generation's names, as the design writes the settlors. */
+function settlorNames(names: string[]) {
+  return names.length <= 2 ? names.join(" & ") : `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+}
 
 function Card({ title, lead, action, children }: { title: string; lead?: string; action?: ReactNode; children: ReactNode }) {
   return (
