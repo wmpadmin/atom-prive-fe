@@ -9406,6 +9406,8 @@ export interface IpsObjective {
   rolling: IpsReturnPoint[];
   /** @nullable */
   rollingWindow: string | null;
+  /** @nullable */
+  windowAnnualised: number | null;
 }
 
 export interface IpsLogEntry {

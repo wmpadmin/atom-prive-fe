@@ -355,22 +355,27 @@ function HistoryCard({ data }: { data: ClientIps }) {
     const band = equity?.band ?? 0;
     const flagged = days.filter((day) => series.some((one) => one.points.some((point) => point.on === day && point.outside)));
     const marked = flagged[flagged.length - 1];
+    // Symmetric about the target, wide enough for the furthest class and the band, so no line is pressed flat.
+    const furthest = Math.max(band, ...series.flatMap((one) => one.points.map((point) => Math.abs(point.deviation))));
+    const edge = Math.max(2, Math.ceil((furthest * 1.15) / 2) * 2);
+    const bandName = band > 0 && equity ? `${equity.name} band ±${band} pp` : null;
     return {
       textStyle: { fontFamily: colours.font },
-      grid: { left: 8, right: 16, top: 30, bottom: 8, containLabel: true },
-      legend: { top: 0, textStyle: { color: colours.muted, fontSize: 11 } },
-      tooltip: { trigger: "axis", valueFormatter: (value: number) => `${value.toFixed(2)} pp` },
+      grid: { left: 8, right: 16, top: 16, bottom: 36, containLabel: true },
+      legend: { bottom: 0, data: [...series.map((one) => one.name), ...(bandName ? [bandName] : [])], textStyle: { color: colours.muted, fontSize: 11 } },
+      tooltip: { trigger: "axis", valueFormatter: (value: number) => (value == null ? "—" : `${value.toFixed(2)} pp`) },
       xAxis: { type: "category", data: days, axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
-      yAxis: { type: "value", axisLabel: { color: colours.muted, formatter: "{value}" }, splitLine: { lineStyle: { color: colours.line } } },
+      yAxis: { type: "value", min: -edge, max: edge, splitNumber: 4, axisLabel: { color: colours.muted, formatter: (value: number) => `${value > 0 ? "+" : ""}${value}` },
+        splitLine: { lineStyle: { color: colours.line } } },
       series: [
         ...series.map((one, at) => {
           const byDay = new Map(one.points.map((point) => [point.on, point.deviation]));
-          return { type: "line", name: one.name, data: days.map((day) => byDay.get(day) ?? null), showSymbol: false,
-            lineStyle: { color: INK[at % INK.length], width: 1.5 }, itemStyle: { color: INK[at % INK.length] } };
+          return { type: "line", name: one.name, data: days.map((day) => byDay.get(day) ?? null), showSymbol: true, symbolSize: 4,
+            lineStyle: { color: INK[at % INK.length], width: 2 }, itemStyle: { color: INK[at % INK.length] } };
         }),
         ...(band > 0 && equity ? [
-          { type: "line", name: `${equity.name} band ±${band} pp`, data: days.map(() => band), showSymbol: false,
+          { type: "line", name: bandName, data: days.map(() => band), showSymbol: false,
             lineStyle: { color: colours.danger, type: "dashed", width: 1 }, itemStyle: { color: colours.danger },
             ...(marked ? { markLine: { symbol: "none", silent: true, lineStyle: { color: colours.danger, type: "solid", width: 1 },
               label: { formatter: `${monthLabel(marked)} deviation`, color: colours.danger, fontSize: 10 }, data: [{ xAxis: marked }] } } : {}) },
@@ -417,8 +422,11 @@ function ObjectiveCard({ data }: { data: ClientIps }) {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">5Y ann. return</p>
-              <p className="text-2xl font-bold tabular-nums">{o.fiveYearsAnnualised == null ? "—" : `${o.fiveYearsAnnualised}%`}</p>
+              <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                {o.rollingWindow == null || o.rollingWindow === "5Y" ? "5Y" : "Since inception"} ann. return
+              </p>
+              <p className="text-2xl font-bold tabular-nums">{o.windowAnnualised == null ? "—" : `${o.windowAnnualised}%`}</p>
+              {o.rollingWindow && o.rollingWindow !== "5Y" && <p className="text-xs text-ink-muted">{o.rollingWindow}</p>}
             </div>
             <div>
               <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Objective{o.objective && ` ${o.objective}`}</p>
@@ -427,10 +435,10 @@ function ObjectiveCard({ data }: { data: ClientIps }) {
           </div>
           <div>
             <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Status</p>
-            {o.fiveYearsAnnualised == null ? (
+            {o.windowAnnualised == null || o.margin == null ? (
               <p className="mt-1 text-sm">
                 <Pill tone="bg-slate-100 text-ink-soft">Not enough history</Pill>
-                <span className="ml-2 text-xs text-ink-muted">{o.firstClose ? `Measured since ${formatDate(o.firstClose)}; five years are needed.` : "No valuation history yet."}</span>
+                <span className="ml-2 text-xs text-ink-muted">{o.firstClose ? `Measured since ${formatDate(o.firstClose)}; twelve months are needed.` : "No valuation history yet."}</span>
               </p>
             ) : (
               <Pill tone={(o.margin ?? 0) >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}>
