@@ -108,8 +108,10 @@ function OwnershipCard({ data }: { data: ClientStructure }) {
         </div>
       }>
       {data.entities.length === 0 && !data.unassigned ? <Empty>No entity is on file for this client yet.</Empty> : view === "tree" ? (
-        <div className="overflow-x-auto">
-          <div className="flex min-w-[52rem] items-center">
+        // Fits the card where it can; a tree too wide for it scrolls inside the card, with its scrollbar always shown,
+        // rather than running off the right edge.
+        <div className="overflow-x-scroll pb-2 [scrollbar-width:thin]">
+          <div className="flex w-max min-w-full items-center">
             <div className="w-52 shrink-0 rounded-xl border-2 border-ink p-3">
               <p className="text-3xs font-semibold tracking-wider text-red-700 uppercase">Settlors{data.settlors.length > 0 && " · G1"}</p>
               <p className="text-base font-bold break-words">{data.settlors.length > 0 ? settlorNames(data.settlors) : data.name}</p>
@@ -124,12 +126,10 @@ function OwnershipCard({ data }: { data: ClientStructure }) {
                     <Branches gap="sm" items={[
                       ...one.children.map((child) => <ChildBox key={child.id} node={child} show={show} currency={cur} />),
                       ...((one.children.length === 0 || one.direct > 0) ? [(
-                        <div key="direct" className="flex min-h-12 flex-1 items-center justify-between gap-3 rounded-lg border border-line px-3 py-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold">{one.children.length === 0 ? "Accounts and holdings" : "Held directly"}</p>
-                            <p className="text-2xs break-words text-ink-muted">{one.custodians.join(" · ") || "No account linked"}</p>
-                          </div>
-                          <span className="shrink-0 text-sm font-bold tabular-nums">{compact(one.direct, cur)}</span>
+                        <div key="direct" className="flex min-h-28 max-w-80 min-w-48 flex-1 flex-col justify-center gap-0.5 rounded-lg border border-line px-3 py-2">
+                          <p className="text-sm font-semibold">{one.children.length === 0 ? "Accounts and holdings" : "Held directly"}</p>
+                          <p className="text-2xs break-words text-ink-muted">{one.custodians.join(" · ") || "No account linked"}</p>
+                          <p className="text-sm font-bold tabular-nums">{compact(one.direct, cur)}</p>
                         </div>
                       )] : []),
                     ]} />
@@ -137,12 +137,10 @@ function OwnershipCard({ data }: { data: ClientStructure }) {
                 </div>
               )),
               ...(data.unassigned ? [(
-                <div key="unassigned" className="flex min-h-14 w-64 shrink-0 items-center justify-between gap-3 rounded-xl border border-dashed border-line px-3 py-2.5">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold">Not assigned to an entity</p>
-                    <p className="text-2xs text-ink-muted">Holdings no entity has been linked to</p>
-                  </div>
-                  <span className="shrink-0 text-sm font-bold tabular-nums">{compact(data.unassigned.value, cur)}</span>
+                <div key="unassigned" className="flex min-h-28 w-56 shrink-0 flex-col justify-center gap-0.5 rounded-xl border border-dashed border-line px-3 py-2.5">
+                  <p className="text-sm font-semibold">Not assigned to an entity</p>
+                  <p className="text-2xs text-ink-muted">Holdings no entity has been linked to</p>
+                  <p className="text-sm font-bold tabular-nums">{compact(data.unassigned.value, cur)}</p>
                 </div>
               )] : []),
             ]} />
@@ -214,39 +212,37 @@ function figure(node: Pick<StructureNode, "value" | "ownedPercent" | "taxClassif
   return compact(node.value, currency);
 }
 
+/**
+ * A node's contents, stacked in every view: the name (two lines at most), the line under it, and the figure on its
+ * own line below — never beside the name, where a long tax status squeezed the name to a word a line.
+ */
 function TopBox({ node, show, currency }: { node: StructureNode; show: Show; currency: string }) {
   return (
-    <div className="flex min-h-14 w-64 shrink-0 items-center justify-between gap-3 rounded-xl bg-primary-50 px-3 py-2.5 ring-1 ring-primary-200">
-      <div className="min-w-0">
-        <p className="text-sm font-bold break-words text-primary-700">{node.name}</p>
-        <p className="text-2xs break-words text-ink-soft">{node.jurisdiction} · {node.description ?? typeName(node.type)}</p>
-      </div>
-      <span className="shrink-0 text-right text-sm font-bold tabular-nums">{figure(node, show, currency)}</span>
+    <div className="flex min-h-28 w-56 shrink-0 flex-col justify-center gap-0.5 rounded-xl bg-primary-50 px-3 py-2.5 ring-1 ring-primary-200">
+      <p className="line-clamp-2 text-sm font-bold break-words text-primary-700" title={node.name}>{node.name}</p>
+      <p className="text-2xs break-words text-ink-soft">{node.jurisdiction} · {node.description ?? typeName(node.type)}</p>
+      <p className="text-sm font-bold break-words tabular-nums">{figure(node, show, currency)}</p>
     </div>
   );
 }
 
 function ChildBox({ node, show, currency }: { node: StructureNode; show: Show; currency: string }) {
   return (
-    <div className="flex min-h-12 flex-1 items-center rounded-lg border border-line px-3 py-2">
-      <div className="flex w-full items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold break-words">
-            {node.name} <span className="ml-1 rounded-sm bg-slate-100 px-1 text-3xs font-semibold text-ink-muted uppercase">{shortType(node.type)}</span>
-          </p>
-          <p className="text-2xs break-words text-ink-muted">
-            {[node.ownedPercent == null ? null : `${node.ownedPercent}%`, node.jurisdiction, node.description, node.custodians.join(" · ")]
-              .filter(Boolean).join(" · ")}
-          </p>
-        </div>
-        <span className="shrink-0 text-right text-sm font-bold tabular-nums">{figure(node, show, currency)}</span>
-      </div>
+    <div className="flex min-h-28 max-w-80 min-w-48 flex-1 flex-col justify-center gap-0.5 rounded-lg border border-line px-3 py-2">
+      <p className="line-clamp-2 text-sm font-semibold break-words" title={node.name}>
+        {node.name} <span className="ml-1 rounded-sm bg-slate-100 px-1 text-3xs font-semibold text-ink-muted uppercase">{shortType(node.type)}</span>
+      </p>
+      <p className="text-2xs break-words text-ink-muted">
+        {[node.ownedPercent == null ? null : `${node.ownedPercent}%`, node.jurisdiction, node.description, node.custodians.join(" · ")]
+          .filter(Boolean).join(" · ")}
+      </p>
+      <p className="text-sm font-bold break-words tabular-nums">{figure(node, show, currency)}</p>
       {node.children.length > 0 && (
         <ul className="mt-1.5 space-y-0.5 border-t border-line pt-1.5 text-xs">
           {node.children.map((grandchild) => (
             <li key={grandchild.id} className="flex justify-between gap-2 pl-3">
-              <span className="truncate">{grandchild.name}</span>
-              <span className="tabular-nums">{figure(grandchild, show, currency)}</span>
+              <span className="min-w-0 break-words">{grandchild.name}</span>
+              <span className="shrink-0 text-right tabular-nums">{figure(grandchild, show, currency)}</span>
             </li>
           ))}
         </ul>
