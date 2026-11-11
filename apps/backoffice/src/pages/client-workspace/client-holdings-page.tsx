@@ -41,23 +41,26 @@ export function ClientHoldingsPage() {
     <div className="space-y-5">
       <header>
         <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Portfolio management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Consolidated holdings
+          Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Consolidated Holdings
         </p>
         <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Consolidated Holdings</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          {data.name} · all entities and custodians · positions as at {formatDate(data.asOf)}
+          {data.name} · all entities and custodians · positions as of {formatDate(data.asOf)} close
         </p>
       </header>
       <Kpis data={data} reconciliation={reconciliation} />
-      {!data.bankFile && (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <CustodianCard data={data} />
-          <CurrencyCard data={data} />
-          <PnlCard data={data} />
-        </div>
-      )}
-      {data.bankFile && <FileTotals data={data} />}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <CustodianCard data={data} />
+        <CurrencyCard data={data} />
+        <PnlCard data={data} />
+      </div>
       <Tabs data={data} reconciliation={reconciliation} />
+      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
+        <span>
+          {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+        </span>
+        <span>atom privé · Portfolio Management · Internal use only</span>
+      </footer>
     </div>
   );
 }
@@ -73,7 +76,7 @@ function Kpis({ data, reconciliation }: { data: ClientHoldingsBook; reconciliati
   const file = data.bankFile;
   const summary = reconciliation.kind === "data" ? reconciliation.data.summary : null;
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
       <Kpi label="Market value" value={file ? <Marker>per currency below</Marker> : compact(k.marketValue ?? 0, cur)}
         note={`${k.positions} positions · ${k.accounts} accounts`} />
       <Kpi label="Cost basis"
@@ -95,51 +98,42 @@ function Kpis({ data, reconciliation }: { data: ClientHoldingsBook; reconciliati
         note={file ? null : `ST ${signedCompact(k.realisedShortTerm ?? 0, cur)} · LT ${signedCompact(k.realisedLongTerm ?? 0, cur)}`} />
       <Kpi label="Income · YTD" value={file ? <NotInFile /> : compact(k.incomeYearToDate ?? 0, cur)}
         note={file ? null : `Coupons ${compact(k.coupons ?? 0, cur)} · Dividends ${compact(k.dividends ?? 0, cur)} · Dist. ${compact(k.distributions ?? 0, cur)}`} />
-      {/* The comparison's own counts: a share of lines matched would be a figure of this screen's making. */}
+      {/* The check's own counts: lines matched over lines compared, and everything else a break. */}
       <Kpi label="Reconciliation"
-        value={summary ? `${summary.matching} matched` : reconciliation.kind === "none" ? "—" : "…"}
-        note={summary
-          ? [summary.differing && `${summary.differing} differing`, summary.onlyAtBank && `${summary.onlyAtBank} only at bank`,
-            summary.notAtBank && `${summary.notAtBank} not at bank`].filter(Boolean).join(" · ") || "Nothing differs"
-          : reconciliation.kind === "none" ? reconciliation.message : null} />
+        value={summary ? matchedShare(summary) : reconciliation.kind === "none" ? "—" : "…"}
+        note={summary ? breaksNote(summary) : reconciliation.kind === "none" ? reconciliation.message : null} />
     </div>
-  );
-}
-
-function FileTotals({ data }: { data: ClientHoldingsBook }) {
-  return (
-    <section className="rounded-2xl border border-line bg-white p-5">
-      <h2 className="text-lg font-bold">Totals per currency</h2>
-      <p className="mt-0.5 text-xs text-ink-muted">Each currency as the bank's files state it; not converted, so not added together</p>
-      <div className="mt-3 flex flex-wrap gap-3">
-        {data.fileTotals.map((one) => (
-          <div key={one.currency} className="rounded-lg border border-line px-3 py-2">
-            <p className="text-xs font-semibold text-ink-muted">{one.currency}</p>
-            <p className="text-base font-bold tabular-nums">{exact(one.amount, one.currency)}</p>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 
 function CustodianCard({ data }: { data: ClientHoldingsBook }) {
   return (
-    <Card title="By Custodian" lead="Where each line's tax lots sit">
-      <Bars slices={data.byCustodian} currency={data.currency} />
+    <Card title="By Custodian" lead="Book of record per custodian">
+      {data.bankFile ? <FileByBank data={data} /> : <Bars slices={data.byCustodian} currency={data.currency} />}
     </Card>
   );
 }
 
 function CurrencyCard({ data }: { data: ClientHoldingsBook }) {
   return (
-    <Card title="By Currency" lead={`Exposure of each line, in ${data.currency}`}>
-      {data.byCurrency.length === 0 ? <Empty>No line states its currency.</Empty> : (
+    <Card title="By Currency" lead={data.bankFile ? "Each currency as the bank's files state it; not converted" : `Unhedged exposure in reporting currency (${data.currency})`}>
+      {data.bankFile ? (
+        data.fileTotals.length === 0 ? <FileBlock /> : (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 2xl:grid-cols-4">
+            {data.fileTotals.map((one) => (
+              <div key={one.currency} className="rounded-lg border border-line px-2.5 py-2">
+                <p className="text-xs font-semibold">{one.currency}</p>
+                <p className="text-sm font-bold tabular-nums">{exact(one.amount, one.currency)}</p>
+              </div>
+            ))}
+          </div>
+        )
+      ) : data.byCurrency.length === 0 ? <Empty>No line states its currency.</Empty> : (
         <>
           <div className="flex h-3 w-full overflow-hidden rounded-sm" aria-hidden="true">
             {data.byCurrency.map((one, at) => <span key={one.key} style={{ width: `${one.sharePercent}%`, background: INK[at % INK.length] }} />)}
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 2xl:grid-cols-4">
             {data.byCurrency.map((one, at) => (
               <div key={one.key} className="rounded-lg border border-line px-2.5 py-2">
                 <p className="flex items-center gap-1.5 text-xs font-semibold">
@@ -159,8 +153,8 @@ function CurrencyCard({ data }: { data: ClientHoldingsBook }) {
 function PnlCard({ data }: { data: ClientHoldingsBook }) {
   const largest = Math.max(1, ...data.unrealisedByClass.map((one) => Math.abs(one.amount)));
   return (
-    <Card title="Unrealised P&L by Asset Class" lead="Market value less cost, for lines with tax lots">
-      {data.unrealisedByClass.length === 0 ? <Empty>No tax lots on file.</Empty> : (
+    <Card title="Unrealised P&L by Asset Class" lead="Market value less cost basis">
+      {data.bankFile ? <FileBlock /> : data.unrealisedByClass.length === 0 ? <Empty>No tax lots on file.</Empty> : (
         <ul className="space-y-2">
           {data.unrealisedByClass.map((one) => (
             <li key={one.key} className="grid grid-cols-[1fr_5rem_5rem] items-center gap-2 text-sm">
@@ -212,7 +206,7 @@ type Tab = (typeof TABS)[number][0];
 
 function Tabs({ data, reconciliation }: { data: ClientHoldingsBook; reconciliation: Reconciliation }) {
   const [tab, setTab] = useState<Tab>("positions");
-  const [picked, setPicked] = useState<HoldingsPosition | null>(null);
+  const [picked, setPicked] = useState<HoldingsPosition | null>(data.positions[0] ?? null);
   return (
     <>
       <section className="rounded-2xl border border-line bg-white p-5">
@@ -243,12 +237,10 @@ function Tabs({ data, reconciliation }: { data: ClientHoldingsBook; reconciliati
       {tab === "positions" && picked && data.bankFile && (
         <Card title={`Tax Lots · ${picked.name}`}><FileNote what="Tax lots" /></Card>
       )}
-      {tab !== "transactions" && (
-        <Card title="Recent Transactions" lead={data.bankFile ? "As the bank's files state them" : "Statement lines, recorded cash flows, capital calls and income"}
-          action={<button type="button" onClick={() => setTab("transactions")} className="text-xs font-semibold text-primary-700 hover:underline">Full ledger</button>}>
-          <Ledger data={data} limit={8} />
-        </Card>
-      )}
+      <Card title="Recent Transactions" lead={data.bankFile ? "As the bank's files state them" : "From bank statements, recorded flows, capital calls and events"}
+        action={<button type="button" onClick={() => setTab("transactions")} className="text-xs font-semibold text-primary-700 hover:underline">Full ledger</button>}>
+        <Ledger data={data} limit={8} />
+      </Card>
     </>
   );
 }
@@ -265,7 +257,8 @@ type Grouping = (typeof GROUPINGS)[number][0];
 
 const COLUMNS = [
   ["identifier", "Identifier"], ["entity", "Entity"], ["custodian", "Custodian"], ["currency", "Ccy"], ["quantity", "Quantity"],
-  ["price", "Price"], ["value", "Value"], ["cost", "Cost"], ["unrealised", "Unrealised"], ["weight", "Weight"], ["accrued", "Accrued"],
+  ["price", "Price"], ["value", "Market value"], ["weight", "Weight"], ["cost", "Cost basis"], ["unrealised", "Unrealised P&L"],
+  ["pnl", "P&L %"], ["oneDay", "1D"], ["ytd", "YTD"], ["accrued", "Accrued"],
   ["bankCostPrice", "Bank's cost price"], ["bankCostTotal", "Bank's total cost"],
 ] as const;
 
@@ -285,7 +278,7 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [opened, setOpened] = useState<Set<string>>(new Set());
-  const [hidden, setHidden] = useState<Set<Column>>(new Set(file ? ["cost", "weight"] : ["accrued", "bankCostPrice", "bankCostTotal"]));
+  const [hidden, setHidden] = useState<Set<Column>>(new Set(file ? [] : ["accrued", "bankCostPrice", "bankCostTotal"]));
   const on = (column: Column) => !hidden.has(column);
 
   const options = useMemo(() => ({
@@ -334,10 +327,13 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
               {on("currency") && <th scope="col" className="px-2 py-2">Ccy</th>}
               {on("quantity") && <th scope="col" className="px-2 py-2 text-right">Quantity</th>}
               {on("price") && <th scope="col" className="px-2 py-2 text-right">Price</th>}
-              {on("value") && <th scope="col" className="px-2 py-2 text-right">Value</th>}
-              {on("cost") && <th scope="col" className="px-2 py-2 text-right">Cost</th>}
-              {on("unrealised") && <th scope="col" className="px-2 py-2 text-right">Unrealised</th>}
+              {on("value") && <th scope="col" className="px-2 py-2 text-right">Market value</th>}
               {on("weight") && <th scope="col" className="px-2 py-2 text-right">Weight</th>}
+              {on("cost") && <th scope="col" className="px-2 py-2 text-right">Cost basis</th>}
+              {on("unrealised") && <th scope="col" className="px-2 py-2 text-right">Unrealised P&amp;L</th>}
+              {on("pnl") && <th scope="col" className="px-2 py-2 text-right">P&amp;L %</th>}
+              {on("oneDay") && <th scope="col" className="px-2 py-2 text-right">1D</th>}
+              {on("ytd") && <th scope="col" className="px-2 py-2 text-right">YTD</th>}
               {on("accrued") && <th scope="col" className="px-2 py-2 text-right">Accrued</th>}
               {on("bankCostPrice") && <th scope="col" className="px-2 py-2 text-right">Bank's cost price</th>}
               {on("bankCostTotal") && <th scope="col" className="py-2 pr-5 pl-2 text-right">Bank's total cost</th>}
@@ -352,16 +348,8 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
               const rest = lines.length - visible.length;
               return (
                 <Fragment key={group}>
-                  <tr className="bg-slate-50">
-                    <th scope="rowgroup" colSpan={columns} className="py-2 pr-3 pl-5 text-left">
-                      <button type="button" aria-expanded={!closed} className="flex items-center gap-1.5 text-sm font-semibold"
-                        onClick={() => setCollapsed((was) => toggled(was, group))}>
-                        {closed ? <ChevronRight className="size-4" aria-hidden="true" /> : <ChevronDown className="size-4" aria-hidden="true" />}
-                        {group}
-                        <span className="text-xs font-normal text-ink-muted">· {lines.length} {lines.length === 1 ? "line" : "lines"}{groupTotal(lines, file, data.currency)}</span>
-                      </button>
-                    </th>
-                  </tr>
+                  <GroupRow group={group} lines={lines} closed={closed} file={file} currency={data.currency} on={on}
+                    onToggle={() => setCollapsed((was) => toggled(was, group))} />
                   {!closed && visible.map((one) => (
                     <tr key={one.id} onClick={() => onPick(one)}
                       className={cn("cursor-pointer hover:bg-slate-50", picked?.id === one.id && "bg-primary-50")}>
@@ -377,13 +365,16 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
                           {file ? exact(one.value, one.currency ?? "") : compact(one.value, data.currency)}
                         </td>
                       )}
+                      {on("weight") && <td className="px-2 py-2 text-right tabular-nums">{file ? <NotInFile /> : one.weight == null ? "—" : `${one.weight.toFixed(2)}%`}</td>}
                       {on("cost") && <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{file ? <NotInFile /> : one.cost == null ? "—" : compact(one.cost, data.currency)}</td>}
                       {on("unrealised") && (
                         <td className={cn("px-2 py-2 text-right whitespace-nowrap tabular-nums", toneOf(one.unrealised ?? 0))}>
                           {file ? <NotInFile /> : one.unrealised == null ? "—" : signedCompact(one.unrealised, data.currency)}
                         </td>
                       )}
-                      {on("weight") && <td className="px-2 py-2 text-right tabular-nums">{file ? "—" : one.weight == null ? "—" : `${one.weight.toFixed(1)}%`}</td>}
+                      {on("pnl") && <td className={cn("px-2 py-2 text-right tabular-nums", toneOf(one.unrealisedPercent ?? 0))}>{file ? <NotInFile /> : signedPct(one.unrealisedPercent)}</td>}
+                      {on("oneDay") && <td className={cn("px-2 py-2 text-right tabular-nums", toneOf(one.oneDay ?? 0))}>{file ? <NotInFile /> : signedPct(one.oneDay)}</td>}
+                      {on("ytd") && <td className={cn("px-2 py-2 text-right tabular-nums", toneOf(one.yearToDate ?? 0))}>{file ? <NotInFile /> : signedPct(one.yearToDate)}</td>}
                       {on("accrued") && <td className="px-2 py-2 text-right tabular-nums">{one.accruedInterest == null ? (file ? <NotInFile /> : "—") : exact(one.accruedInterest, one.currency ?? "")}</td>}
                       {on("bankCostPrice") && (
                         <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
@@ -410,12 +401,30 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
                 </Fragment>
               );
             })}
-            <tr className="font-semibold">
-              <td colSpan={columns} className="py-2 pr-3 pl-5">
-                Total · {shown.length} positions
-                {file ? ` · ${data.fileTotals.map((one) => exact(one.amount, one.currency)).join(" · ")} (per currency, not added together)` : ""}
-              </td>
-            </tr>
+            {file || !data.total ? (
+              <tr className="font-semibold">
+                <td colSpan={columns} className="py-2 pr-3 pl-5">
+                  Total · {shown.length} positions
+                  {file ? ` · ${data.fileTotals.map((one) => exact(one.amount, one.currency)).join(" · ")} (per currency, not added together)` : ""}
+                </td>
+              </tr>
+            ) : (
+              <tr className="border-t border-line font-semibold">
+                <th scope="row" className="py-2 pr-3 pl-5 text-left">Total · {data.positions.length} positions</th>
+                {COLUMNS.filter(([id]) => on(id)).map(([id]) => (
+                  <td key={id} className={cn("px-2 py-2 text-right whitespace-nowrap tabular-nums",
+                    id === "unrealised" && toneOf(data.total!.unrealised ?? 0))}>
+                    {id === "value" ? compact(data.total!.value, data.currency)
+                      : id === "weight" ? "100.00%"
+                      : id === "cost" ? (data.total!.cost == null ? "—" : compact(data.total!.cost, data.currency))
+                      : id === "unrealised" ? (data.total!.unrealised == null ? "—" : signedCompact(data.total!.unrealised, data.currency))
+                      : id === "pnl" ? signedPct(data.total!.unrealisedPercent)
+                      : id === "oneDay" ? signedPct(data.total!.oneDay)
+                      : id === "ytd" ? signedPct(data.total!.yearToDate) : ""}
+                  </td>
+                ))}
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -427,13 +436,95 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
   );
 }
 
-function groupTotal(lines: HoldingsPosition[], file: boolean, currency: string) {
-  if (file) {
+/** A group's own row, as the design draws it: its name and what its lines add up to in the figure columns. */
+function GroupRow({ group, lines, closed, file, currency, on, onToggle }: {
+  group: string;
+  lines: HoldingsPosition[];
+  closed: boolean;
+  file: boolean;
+  currency: string;
+  on: (column: Column) => boolean;
+  onToggle: () => void;
+}) {
+  const value = lines.reduce((sum, one) => sum + one.value, 0);
+  const costed = lines.filter((one) => one.cost != null);
+  const cost = costed.reduce((sum, one) => sum + (one.cost ?? 0), 0);
+  const unrealised = costed.reduce((sum, one) => sum + (one.unrealised ?? 0), 0);
+  const weightOf = (pick: (one: HoldingsPosition) => number | null) => {
+    const carrying = lines.filter((one) => pick(one) != null);
+    const base = carrying.reduce((sum, one) => sum + one.value, 0);
+    return base === 0 ? null : carrying.reduce((sum, one) => sum + (pick(one) ?? 0) * one.value, 0) / base;
+  };
+  const perCurrency = () => {
     const sums = new Map<string, number>();
     lines.forEach((one) => sums.set(one.currency ?? "", (sums.get(one.currency ?? "") ?? 0) + one.value));
-    return ` · ${[...sums.entries()].map(([ccy, sum]) => exact(sum, ccy)).join(" · ")}`;
-  }
-  return ` · ${compact(lines.reduce((sum, one) => sum + one.value, 0), currency)}`;
+    return [...sums.entries()].map(([ccy, sum]) => exact(sum, ccy)).join(" · ");
+  };
+  return (
+    <tr className="bg-slate-50 font-semibold">
+      <th scope="rowgroup" className="py-2 pr-3 pl-5 text-left">
+        <button type="button" aria-expanded={!closed} className="flex items-center gap-1.5 text-sm font-semibold" onClick={onToggle}>
+          {closed ? <ChevronRight className="size-4" aria-hidden="true" /> : <ChevronDown className="size-4" aria-hidden="true" />}
+          {group}
+        </button>
+      </th>
+      {COLUMNS.filter(([id]) => on(id)).map(([id]) => (
+        <td key={id} className={cn("px-2 py-2 text-right whitespace-nowrap tabular-nums", id === "unrealised" && !file && toneOf(unrealised))}>
+          {id === "value" ? (file ? perCurrency() : compact(value, currency))
+            : file ? ""
+            : id === "weight" ? `${lines.reduce((sum, one) => sum + (one.weight ?? 0), 0).toFixed(1)}%`
+            : id === "cost" ? (costed.length === 0 ? "—" : compact(cost, currency))
+            : id === "unrealised" ? (costed.length === 0 ? "—" : signedCompact(unrealised, currency))
+            : id === "pnl" ? (cost === 0 ? "—" : signedPct((unrealised * 100) / cost))
+            : id === "oneDay" ? signedPct(weightOf((one) => one.oneDay))
+            : id === "ytd" ? signedPct(weightOf((one) => one.yearToDate)) : ""}
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+/** His banks, each with what its file lines add up to in each currency, as sent. */
+function FileByBank({ data }: { data: ClientHoldingsBook }) {
+  const banks = new Map<string, Map<string, number>>();
+  data.positions.forEach((one) => {
+    const bank = banks.get(one.custodian ?? "Not stated") ?? new Map<string, number>();
+    bank.set(one.currency ?? "", (bank.get(one.currency ?? "") ?? 0) + one.value);
+    banks.set(one.custodian ?? "Not stated", bank);
+  });
+  if (banks.size === 0) return <FileBlock />;
+  return (
+    <ul className="divide-y divide-line text-sm">
+      {[...banks.entries()].map(([bank, sums]) => (
+        <li key={bank} className="flex items-start justify-between gap-3 py-2">
+          <span>{bank}</span>
+          <span className="text-right text-xs font-semibold tabular-nums">
+            {[...sums.entries()].map(([ccy, sum]) => <span key={ccy} className="block">{exact(sum, ccy)}</span>)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function FileBlock() {
+  return <p className="rounded-xl border border-dashed border-line px-4 py-8 text-center"><NotInFile /></p>;
+}
+
+function matchedShare(summary: ClientHoldingsCheck["summary"]) {
+  const compared = summary.matching + summary.differing + summary.onlyAtBank + summary.notAtBank;
+  return compared === 0 ? "—" : `${((summary.matching * 100) / compared).toFixed(1)}%`;
+}
+
+function breaksNote(summary: ClientHoldingsCheck["summary"]) {
+  const breaks = summary.differing + summary.onlyAtBank + summary.notAtBank;
+  if (breaks === 0) return "No breaks";
+  return `${breaks} ${breaks === 1 ? "break" : "breaks"}${summary.difference ? ` · ${compact(Math.abs(summary.difference), summary.currency)}` : ""}`;
+}
+
+function signedPct(value: number | null | undefined) {
+  if (value == null) return "—";
+  return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
 function LotsTable({ data, position }: { data: ClientHoldingsBook; position: HoldingsPosition | null }) {
@@ -489,8 +580,8 @@ function Ledger({ data, limit }: { data: ClientHoldingsBook; limit: number | nul
           <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             <th scope="col" className="py-2 pr-3 pl-5">Date</th>
             <th scope="col" className="px-2 py-2">Type</th>
-            <th scope="col" className="px-2 py-2">Description</th>
-            <th scope="col" className="px-2 py-2">{data.bankFile ? "Account" : "Entity · account"}</th>
+            <th scope="col" className="px-2 py-2">Security</th>
+            <th scope="col" className="px-2 py-2">Entity</th>
             <th scope="col" className="py-2 pr-5 pl-2 text-right">Amount</th>
           </tr>
         </thead>
@@ -500,7 +591,9 @@ function Ledger({ data, limit }: { data: ClientHoldingsBook; limit: number | nul
               <td className="py-2 pr-3 pl-5 whitespace-nowrap text-ink-muted">{formatDate(one.on)}</td>
               <td className="px-2 py-2"><Pill tone="bg-slate-100 text-ink-soft">{one.type}</Pill></td>
               <td className="px-2 py-2">{one.description}</td>
-              <td className="px-2 py-2 text-xs text-ink-soft">{[one.entity, one.account].filter(Boolean).join(" · ") || "—"}</td>
+              <td className="px-2 py-2 text-xs text-ink-soft" title={one.account ?? undefined}>
+                {data.bankFile ? <NotInFile /> : one.entity ?? "—"}
+              </td>
               <td className={cn("py-2 pr-5 pl-2 text-right font-semibold whitespace-nowrap tabular-nums", toneOf(one.amount))}>
                 {data.bankFile ? exact(one.amount, one.currency) : signedCompact(one.amount, one.currency)}
               </td>
