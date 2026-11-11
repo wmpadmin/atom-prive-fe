@@ -279,7 +279,12 @@ function CurveCard({ data }: { data: ClientFixedIncome }) {
   return (
     <Card title="Holdings on the Curve" lead="Yield to maturity (local currency) vs years to maturity · bubble = market value">
       {data.bankFile ? <FileBlock /> : data.curve.length === 0 ? <Empty>No bonds held.</Empty> : (
-        <Chart option={option} height={280} label="Each bond's yield against its years to maturity, beside the UST curve" />
+        // As tall as the card, which the Sector Mix beside it sets: no blank space under the legend.
+        <div className="relative min-h-[280px] flex-1">
+          <div className="absolute inset-0">
+            <Chart option={option} label="Each bond's yield against its years to maturity, beside the UST curve" />
+          </div>
+        </div>
       )}
     </Card>
   );
