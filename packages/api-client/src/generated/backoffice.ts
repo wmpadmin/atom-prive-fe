@@ -1865,14 +1865,14 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  floatingPointNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -43932,7 +43932,7 @@ export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getCl
 
 
 
-export const getGetClientFixedIncome1Url = (customerId: string,) => {
+export const getGetClientWorkspaceFixedIncomeUrl = (customerId: string,) => {
 
 
 
@@ -43940,9 +43940,9 @@ export const getGetClientFixedIncome1Url = (customerId: string,) => {
   return `/api/backoffice/client-workspace/${customerId}/fixed-income`
 }
 
-export const getClientFixedIncome1 = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientFixedIncome> => {
+export const getClientWorkspaceFixedIncome = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientFixedIncome> => {
 
-  return http<ClientFixedIncome>(getGetClientFixedIncome1Url(customerId),
+  return http<ClientFixedIncome>(getGetClientWorkspaceFixedIncomeUrl(customerId),
   {
     ...options,
     method: 'GET'
@@ -43955,66 +43955,66 @@ export const getClientFixedIncome1 = async (customerId: string, options?: Parame
 
 
 
-export const getGetClientFixedIncome1QueryKey = (customerId: string,) => {
+export const getGetClientWorkspaceFixedIncomeQueryKey = (customerId: string,) => {
     return [
     `/api/backoffice/client-workspace/${customerId}/fixed-income`
     ] as const;
     }
 
 
-export const getGetClientFixedIncome1QueryOptions = <TData = Awaited<ReturnType<typeof getClientFixedIncome1>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientFixedIncome1>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getGetClientWorkspaceFixedIncomeQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetClientFixedIncome1QueryKey(customerId);
+  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceFixedIncomeQueryKey(customerId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientFixedIncome1>>> = ({ signal }) => getClientFixedIncome1(customerId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>> = ({ signal }) => getClientWorkspaceFixedIncome(customerId, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientFixedIncome1>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
-export type GetClientFixedIncome1QueryResult = NonNullable<Awaited<ReturnType<typeof getClientFixedIncome1>>>
-export type GetClientFixedIncome1QueryError = unknown
+export type GetClientWorkspaceFixedIncomeQueryResult = NonNullable<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>>
+export type GetClientWorkspaceFixedIncomeQueryError = unknown
 
 
-export function useGetClientFixedIncome1<TData = Awaited<ReturnType<typeof getClientFixedIncome1>>, TError = unknown>(
- customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientFixedIncome1>>, TError, TData>> & Pick<
+export function useGetClientWorkspaceFixedIncome<TData = Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getClientFixedIncome1>>,
+          Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>,
           TError,
-          Awaited<ReturnType<typeof getClientFixedIncome1>>
+          Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>
         > , 'initialData'
       >, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetClientFixedIncome1<TData = Awaited<ReturnType<typeof getClientFixedIncome1>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientFixedIncome1>>, TError, TData>> & Pick<
+export function useGetClientWorkspaceFixedIncome<TData = Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getClientFixedIncome1>>,
+          Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>,
           TError,
-          Awaited<ReturnType<typeof getClientFixedIncome1>>
+          Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>
         > , 'initialData'
       >, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetClientFixedIncome1<TData = Awaited<ReturnType<typeof getClientFixedIncome1>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientFixedIncome1>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export function useGetClientWorkspaceFixedIncome<TData = Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useGetClientFixedIncome1<TData = Awaited<ReturnType<typeof getClientFixedIncome1>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientFixedIncome1>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export function useGetClientWorkspaceFixedIncome<TData = Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetClientFixedIncome1QueryOptions(customerId,options)
+  const queryOptions = getGetClientWorkspaceFixedIncomeQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
