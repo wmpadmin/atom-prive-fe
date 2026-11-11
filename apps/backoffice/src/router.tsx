@@ -75,6 +75,7 @@ import { ClientIpsPage } from "./pages/client-workspace/client-ips-page";
 import { ClientHoldingsPage } from "./pages/client-workspace/client-holdings-page";
 import { ClientPerformancePage } from "./pages/client-workspace/client-performance-page";
 import { ClientRiskPage } from "./pages/client-workspace/client-risk-page";
+import { ClientEquityPage } from "./pages/client-workspace/client-equity-page";
 import { PortfolioReportsPage } from "./pages/portfolios/reports-page";
 import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-page";
 import { ModelPerformancePage } from "./pages/portfolios/model-performance-page";
@@ -430,6 +431,7 @@ export const router = createBrowserRouter([
                   { path: "holdings", element: <ClientHoldingsPage /> },
                   { path: "performance", element: <ClientPerformancePage /> },
                   { path: "risk", element: <ClientRiskPage /> },
+                  { path: "equity", element: <ClientEquityPage /> },
                 ],
               },
               { path: "book", element: <ClientListPage /> },
