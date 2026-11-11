@@ -138,11 +138,11 @@ function Stress({ data }: { data: ClientRisk }) {
             <tbody className="divide-y divide-line">
               {rows.map((one) => (
                 <tr key={one.name}>
-                  <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-normal whitespace-nowrap">{one.name}</th>
+                  <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-normal">{one.name}</th>
                   <td className={cn("px-2 py-2.5 text-right font-semibold tabular-nums", toneOf(one.impactPercent))}>{signed(one.impactPercent)}</td>
                   <td className={cn("px-2 py-2.5 text-right font-semibold tabular-nums", toneOf(one.impactAmount))}>{signedMoney(one.impactAmount, data.currency)}</td>
                   <td className="px-2 py-2.5">
-                    <span className="block h-2.5 w-32 rounded-xs bg-slate-100" aria-hidden="true">
+                    <span className="block h-2.5 w-24 rounded-xs bg-slate-100" aria-hidden="true">
                       <span className={cn("ml-auto block h-full rounded-xs", one.impactPercent < 0 ? "bg-red-600" : "bg-emerald-700")}
                         style={{ width: `${(Math.abs(one.impactPercent) / largest) * 70}%`, marginRight: "15%" }} />
                     </span>

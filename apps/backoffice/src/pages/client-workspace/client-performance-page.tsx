@@ -2,6 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useGetClientPerformance,
   type ClientPerformance,
+  type PerformanceGrowth,
   type PerformanceMonth,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
@@ -532,13 +533,14 @@ function Empty({ children }: { children: ReactNode }) {
 
 /** Their legend under the chart, with where each line ends. */
 function GrowthLegend({ data, basis }: { data: ClientPerformance; basis: "net" | "gross" }) {
-  const last = data.growth[data.growth.length - 1];
-  if (!last) return null;
-  const portfolio = basis === "gross" ? last.portfolioGross : last.portfolio;
+  // Where each line ends: its last point, which for a line with a gap at the end is the last one it has.
+  const end = (pick: (one: PerformanceGrowth) => number | null | undefined) =>
+    [...data.growth].reverse().map(pick).find((value) => value != null);
+  if (data.growth.length === 0) return null;
   const items: [string, string, number | null | undefined][] = [
-    ["Portfolio", "bg-ink", portfolio],
-    ["Policy benchmark", "bg-red-500", last.benchmark],
-    ["IPS objective", "bg-slate-400", last.objective],
+    ["Portfolio", "bg-ink", end((one) => (basis === "gross" ? one.portfolioGross : one.portfolio))],
+    ["Policy benchmark", "bg-red-500", end((one) => one.benchmark)],
+    ["IPS objective", "bg-slate-400", end((one) => one.objective)],
   ];
   return (
     <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
