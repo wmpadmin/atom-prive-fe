@@ -60,10 +60,11 @@ function Monitoring({ data }: { data: ClientIps }) {
         <Budget data={data} />
       </div>
       <AllocationCard data={data} />
-      {/* Objective Tracking sits beside the deviations and the twelve-month history, whose height it shares;
-          Constraint Checks, the long table, has the full width to itself rather than an empty card beside it. */}
-      <div className="grid gap-4 xl:grid-cols-3">
-        <SubDeviations data={data} />
+      {/* The user's layout: Sub-class Deviations on its own full-width row; the twelve-month history and Objective
+          Tracking side by side below it at equal width and equal height — the row is as tall as the taller card's
+          content, so two "not enough history" cards stay short. Constraint Checks keeps the full width after them. */}
+      <SubDeviations data={data} />
+      <div className="grid gap-4 xl:grid-cols-2">
         <HistoryCard data={data} />
         <ObjectiveCard data={data} />
       </div>
@@ -327,17 +328,21 @@ function AllocationLine({ row, basis, scale, currency }: { row: IpsAllocationRow
 }
 
 function SubDeviations({ data }: { data: ClientIps }) {
-  const largest = Math.max(0.01, ...data.subDeviations.map((one) => Math.abs(one.deviationPoints)));
+  const rows = data.subDeviations;
+  const largest = Math.max(0.01, ...rows.map((one) => Math.abs(one.deviationPoints)));
   return (
     <Card title="Sub-class Deviations" lead="Where the portfolio sits furthest from policy">
-      {data.bankFile ? <FileBlock /> : data.subDeviations.length === 0 ? <Empty>The model sets no sub-class targets for this client.</Empty> : (
-        <ul className="space-y-1">
-          {data.subDeviations.map((one, at) => (
-            <li key={`${one.name}-${at}`} className="grid grid-cols-[1fr_8rem_3.5rem] items-center gap-2 text-xs">
-              <span className="truncate" title={`${one.assetClass} · ${one.name}`}>{one.name}</span>
-              <span className="relative block h-2" aria-hidden="true">
-                <span className="absolute top-0 left-1/2 h-2 w-px bg-line" />
-                <span className={cn("absolute top-0 h-2", one.deviationPoints >= 0 ? "left-1/2 rounded-r-sm bg-primary-600" : "right-1/2 rounded-l-sm bg-red-600")}
+      {data.bankFile ? <FileBlock /> : rows.length === 0 ? <Empty>The model sets no sub-class targets for this client.</Empty> : (
+        // One list, biggest overweight to biggest underweight, as the server sorts it. A fixed label column wide
+        // enough that the longest names keep to one line, then the bar area about one centred zero line shared by
+        // every row (overweights right in blue, underweights left in red), and the value at the far right.
+        <ul className="divide-y divide-line">
+          {rows.map((one, at) => (
+            <li key={`${one.name}-${at}`} className="grid min-h-8 grid-cols-[17rem_1fr_4rem] items-center gap-4 py-1.5 text-xs">
+              <span className="leading-snug break-words" title={`${one.assetClass} · ${one.name}`}>{one.name}</span>
+              <span className="relative block h-2.5" aria-hidden="true">
+                <span className="absolute -top-1 left-1/2 h-4.5 w-px bg-ink-muted/40" />
+                <span className={cn("absolute top-0 h-2.5", one.deviationPoints >= 0 ? "left-1/2 rounded-r-sm bg-primary-600" : "right-1/2 rounded-l-sm bg-red-600")}
                   style={{ width: `${(Math.abs(one.deviationPoints) / largest) * 50}%` }} />
               </span>
               <span className={cn("text-right tabular-nums", toneOf(one.deviationPoints))}>
@@ -373,7 +378,7 @@ function HistoryCard({ data }: { data: ClientIps }) {
       grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
       legend: { show: false },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => (value == null ? "—" : `${value.toFixed(2)} pp`) },
-      xAxis: { type: "category", boundaryGap: false, data: days, axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
+      xAxis: { type: "category", boundaryGap: days.length === 1, data: days, axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
       yAxis: { type: "value", min: -edge, max: edge, interval: step, axisLabel: { color: colours.muted, formatter: (value: number) => `${value > 0 ? "+" : ""}${value}` },
         splitLine: { lineStyle: { color: colours.line } } },
@@ -396,7 +401,8 @@ function HistoryCard({ data }: { data: ClientIps }) {
       ],
     };
   }, [series]);
-  const hasPoints = series.some((one) => one.points.length > 1);
+  const hasPoints = series.some((one) => one.points.length > 0);
+  const single = !series.some((one) => one.points.length > 1);
   const equityRow = series.find((one) => one.assetClass === "EQUITIES") ?? series[0];
   const bandLabel = equityRow && (equityRow.band ?? 0) > 0 ? `${equityRow.name} band ±${equityRow.band} pp` : null;
   return (
@@ -404,6 +410,7 @@ function HistoryCard({ data }: { data: ClientIps }) {
       {data.bankFile ? <FileBlock /> : !hasPoints ? <Empty>Not enough month-end valuations to draw yet.</Empty> : (
         <>
           <Chart option={option} height={220} label="Each class's distance from target at each month end" />
+          {single && <p className="mt-1 text-3xs text-ink-muted italic">One reading on file so far: it is marked as a point, and the line starts with the next.</p>}
           <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
             {series.map((one, at) => (
               <li key={one.name} className="flex items-center gap-1.5">

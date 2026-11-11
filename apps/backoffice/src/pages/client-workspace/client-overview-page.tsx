@@ -206,6 +206,8 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
   const option = useMemo(() => {
     const colours = ink();
     const days = worth.map((one) => one.on);
+    // A single reading is drawn as a marked, labelled point rather than an empty box.
+    const single = worth.length === 1;
     const benchOn = new Map(bench.map((one) => [one.on, one.amount]));
     return {
       textStyle: { fontFamily: colours.font },
@@ -213,7 +215,7 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
       legend: { top: 0, textStyle: { color: colours.muted, fontSize: 11 } },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => compact(value, data.currency) },
       xAxis: {
-        type: "category", boundaryGap: false,
+        type: "category", boundaryGap: single,
         data: days,
         axisLabel: { color: colours.muted, formatter: (value: string, at: number) => (at === days.length - 1 ? monthYear(value) : quarterLabel(value)) },
         axisLine: { lineStyle: { color: colours.line } },
@@ -228,7 +230,8 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
       },
       series: [
         {
-          type: "line", name: "Investable assets", data: worth.map((one) => one.amount), showSymbol: false,
+          type: "line", name: "Investable assets", data: worth.map((one) => one.amount), showSymbol: single, symbolSize: 8,
+          label: { show: single, position: "top", color: colours.text, formatter: ({ value }: { value: number }) => compact(value, data.currency) },
           lineStyle: { color: colours.text, width: 1.5 }, itemStyle: { color: colours.text }, areaStyle: { color: colours.canvas },
         },
         ...(bench.length > 1 ? [{
@@ -244,12 +247,13 @@ function WorthCard({ data }: { data: ClientWorkspace }) {
       action={!data.bankFile && <Toggle label="Period shown" value={range} onChange={setRange} options={RANGES.map((one) => [one.id, one.id])} />}>
       {data.bankFile ? <FileBlock /> : (
         <>
-          {worth.length < 2 ? <Empty>There is no valuation history to draw yet.</Empty> : (
+          {worth.length === 0 ? <Empty>There is no valuation history to draw yet.</Empty> : (
             <Chart option={option} height={260} label="The portfolio's worth at each quarter end, beside its benchmark-equivalent" />
           )}
           <p className="mt-2 text-3xs text-ink-muted italic">
+            {worth.length === 1 && "One reading on file so far: it is marked as a point, and the line starts with the next. "}
             Total net worth is not drawn: what is owned outright and what is owed have no history on file.
-            {data.benchmarkEquivalent.length < 2 && " No benchmark history is on file for this mandate."}
+            {worth.length > 1 && data.benchmarkEquivalent.length < 2 && " No benchmark history is on file for this mandate."}
           </p>
         </>
       )}
@@ -719,23 +723,33 @@ function FilePositions({ file }: { file: WorkspaceBankFile }) {
 }
 
 /** What his bank's files say moved, in place of a projection his file cannot give. */
+/** How many of the bank file's movements the card lists before the rest are asked for. */
+const MOVEMENTS_SHOWN = 12;
+
 function FileMovements({ file }: { file: WorkspaceBankFile }) {
+  const [all, setAll] = useState(false);
   return (
     <>
       <p className="mb-2 text-xs font-semibold text-ink-soft">As the bank's files state them</p>
       {file.movements.length === 0 ? <FileBlock /> : (
-        <ul className="max-h-80 divide-y divide-line overflow-y-auto text-sm">
-          {file.movements.map((one, at) => (
+        <ul className="divide-y divide-line text-sm">
+          {/* Whole rows, the first dozen and the rest on request, descriptions wrapping rather than cut. */}
+          {(all ? file.movements : file.movements.slice(0, MOVEMENTS_SHOWN)).map((one, at) => (
             <li key={`${one.bookedOn}-${at}`} className="flex items-start gap-3 py-2">
               <span className="w-14 shrink-0 text-xs text-ink-muted tabular-nums">{dayMonth(one.bookedOn)}</span>
               <span className="min-w-0 flex-1">
                 {one.type ?? <NotInFile />}
-                <span className="block truncate text-xs text-ink-muted">{one.description}</span>
+                <span className="block text-xs break-words text-ink-muted">{one.description}</span>
               </span>
               <span className={cn("shrink-0 font-semibold tabular-nums", toneOf(one.amount))}>{exact(one.amount, one.currency)}</span>
             </li>
           ))}
         </ul>
+      )}
+      {file.movements.length > MOVEMENTS_SHOWN && (
+        <button type="button" onClick={() => setAll((now) => !now)} className="mt-1 text-xs font-semibold text-primary-700 hover:underline">
+          {all ? "Show fewer" : `+${file.movements.length - MOVEMENTS_SHOWN} more`}
+        </button>
       )}
       <p className="mt-2 text-3xs text-ink-muted italic">No projection: the bank's file states what has moved, not what is to come.</p>
     </>
