@@ -10137,6 +10137,158 @@ export interface ClientEquity {
   note: string | null;
 }
 
+export interface CoKpi {
+  key: string;
+  label: string;
+  /** @nullable */
+  value: number | null;
+  unit: string;
+  /** @nullable */
+  detail: string | null;
+  /** @nullable */
+  extra: string | null;
+  /** @nullable */
+  extraTone: string | null;
+  /** @nullable */
+  after: string | null;
+}
+
+export interface CoCategory {
+  key: string;
+  label: string;
+  value: number;
+  count: number;
+  countLine: string;
+  /** @nullable */
+  gainPercent: number | null;
+  /** @nullable */
+  sharePercent: number | null;
+}
+
+export interface CoPoint {
+  on: string;
+  value: number;
+}
+
+export interface CoEvent {
+  on: string;
+  title: string;
+  /** @nullable */
+  detail: string | null;
+}
+
+export interface CoDocument {
+  name: string;
+  format: string;
+  /** @nullable */
+  sizeKb: number | null;
+}
+
+export interface CoItem {
+  id: string;
+  category: string;
+  categoryLabel: string;
+  name: string;
+  /** @nullable */
+  line: string | null;
+  value: number;
+  /** @nullable */
+  cost: number | null;
+  /** @nullable */
+  gainPercent: number | null;
+  /** @nullable */
+  acquiredOn: string | null;
+  /** @nullable */
+  reference: string | null;
+  /** @nullable */
+  owner: string | null;
+  /** @nullable */
+  valuationMethod: string | null;
+  /** @nullable */
+  lastAppraisal: string | null;
+  /** @nullable */
+  valuer: string | null;
+  /** @nullable */
+  nextAppraisal: string | null;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  custody: string | null;
+  /** @nullable */
+  policyRef: string | null;
+  /** @nullable */
+  coverType: string | null;
+  /** @nullable */
+  insured: number | null;
+  /** @nullable */
+  coveragePercent: number | null;
+  /** @nullable */
+  premium: number | null;
+  status: string;
+  statusTone: string;
+  history: CoPoint[];
+  events: CoEvent[];
+  documents: CoDocument[];
+  documentsExpected: number;
+}
+
+export interface CoYear {
+  year: string;
+  yacht: number;
+  art: number;
+  cars: number;
+  watches: number;
+  wine: number;
+  jewellery: number;
+}
+
+export interface CoCover {
+  key: string;
+  label: string;
+  market: number;
+  insured: number;
+  /** @nullable */
+  coverPercent: number | null;
+  /** @nullable */
+  policy: string | null;
+  /** @nullable */
+  renewal: string | null;
+  underInsured: boolean;
+}
+
+export interface CoLocation {
+  name: string;
+  line: string;
+  value: number;
+  count: number;
+}
+
+export interface CoObligation {
+  on: string;
+  title: string;
+  tag: string;
+}
+
+export interface ClientCollectibles {
+  customerId: string;
+  name: string;
+  currency: string;
+  asOf: string;
+  bankFile: boolean;
+  kpis: CoKpi[];
+  /** @nullable */
+  otherNote: string | null;
+  categories: CoCategory[];
+  items: CoItem[];
+  years: CoYear[];
+  insurance: CoCover[];
+  insuranceTotal: CoCover | null;
+  locations: CoLocation[];
+  obligations: CoObligation[];
+  /** @nullable */
+  note: string | null;
+}
+
 export interface Activity {
   kind: string;
   subject: string;
@@ -44376,6 +44528,101 @@ export function useGetClientEquity<TData = Awaited<ReturnType<typeof getClientEq
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientEquityQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientWorkspaceCollectiblesUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/collectibles`
+}
+
+export const getClientWorkspaceCollectibles = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientCollectibles> => {
+
+  return http<ClientCollectibles>(getGetClientWorkspaceCollectiblesUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientWorkspaceCollectiblesQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/collectibles`
+    ] as const;
+    }
+
+
+export const getGetClientWorkspaceCollectiblesQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceCollectiblesQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>> = ({ signal }) => getClientWorkspaceCollectibles(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientWorkspaceCollectiblesQueryResult = NonNullable<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>>
+export type GetClientWorkspaceCollectiblesQueryError = unknown
+
+
+export function useGetClientWorkspaceCollectibles<TData = Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspaceCollectibles<TData = Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspaceCollectibles<TData = Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientWorkspaceCollectibles<TData = Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientWorkspaceCollectiblesQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
