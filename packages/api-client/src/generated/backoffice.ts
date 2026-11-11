@@ -6166,6 +6166,54 @@ export interface BankFeed {
   failingForDays: boolean;
 }
 
+export interface BankFeedAccount {
+  id: string;
+  clientId: string;
+  clientName: string;
+  clientCode: string;
+  maskedNumber: string;
+  currency: string;
+  accountType: string;
+  status: string;
+  addedOn: string;
+}
+
+export interface BankFeedLine {
+  id: string;
+  accountId: string;
+  maskedAccount: string;
+  /** @nullable */
+  isin: string | null;
+  /** @nullable */
+  instrument: string | null;
+  /** @nullable */
+  bankClass: string | null;
+  /** @nullable */
+  quantity: number | null;
+  /** @nullable */
+  price: number | null;
+  value: number;
+  currency: string;
+  asOf: string;
+}
+
+export interface BankFeedTotal {
+  currency: string;
+  amount: number;
+  lines: number;
+}
+
+export interface BankFeedDetail {
+  feed: BankFeed;
+  clients: number;
+  /** @nullable */
+  latestFileOn: string | null;
+  holdingsFromBank: number;
+  accounts: BankFeedAccount[];
+  lines: BankFeedLine[];
+  totals: BankFeedTotal[];
+}
+
 export interface StaffToView {
   id: string;
   fullName: string;
@@ -32056,6 +32104,101 @@ export function useListBankFeeds<TData = Awaited<ReturnType<typeof listBankFeeds
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListBankFeedsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBankFeedDetailUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/sync-runs/feeds/${bankId}`
+}
+
+export const getBankFeedDetail = async (bankId: string, options?: Parameters<typeof http>[1]): Promise<BankFeedDetail> => {
+
+  return http<BankFeedDetail>(getGetBankFeedDetailUrl(bankId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankFeedDetailQueryKey = (bankId: string,) => {
+    return [
+    `/api/backoffice/sync-runs/feeds/${bankId}`
+    ] as const;
+    }
+
+
+export const getGetBankFeedDetailQueryOptions = <TData = Awaited<ReturnType<typeof getBankFeedDetail>>, TError = unknown>(bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankFeedDetail>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankFeedDetailQueryKey(bankId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankFeedDetail>>> = ({ signal }) => getBankFeedDetail(bankId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bankId !== null && bankId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankFeedDetail>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetBankFeedDetailQueryResult = NonNullable<Awaited<ReturnType<typeof getBankFeedDetail>>>
+export type GetBankFeedDetailQueryError = unknown
+
+
+export function useGetBankFeedDetail<TData = Awaited<ReturnType<typeof getBankFeedDetail>>, TError = unknown>(
+ bankId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankFeedDetail>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBankFeedDetail>>,
+          TError,
+          Awaited<ReturnType<typeof getBankFeedDetail>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBankFeedDetail<TData = Awaited<ReturnType<typeof getBankFeedDetail>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankFeedDetail>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBankFeedDetail>>,
+          TError,
+          Awaited<ReturnType<typeof getBankFeedDetail>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBankFeedDetail<TData = Awaited<ReturnType<typeof getBankFeedDetail>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankFeedDetail>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetBankFeedDetail<TData = Awaited<ReturnType<typeof getBankFeedDetail>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankFeedDetail>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetBankFeedDetailQueryOptions(bankId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

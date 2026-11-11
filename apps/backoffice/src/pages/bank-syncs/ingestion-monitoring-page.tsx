@@ -13,7 +13,7 @@ import { Alert, Badge, Button, cn } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { Play, Upload } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
@@ -103,6 +103,7 @@ export function IngestionMonitoringPage() {
   const user = useStaffUser();
   const canRun = hasAuthority(user, "MANAGE_BANK_FEEDS:CHANGE");
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   /** The bank whose statement is being uploaded, while the dialog is open. */
   const [uploading, setUploading] = useState<BankFeed | null>(null);
   const start = useStartSyncNow<ApiError>({
@@ -259,9 +260,13 @@ export function IngestionMonitoringPage() {
                 </tr>
               )}
               {paged.shown.map((feed) => (
-                <tr key={feed.id} className={feed.failingForDays ? "bg-red-50/40" : undefined}>
+                // The whole row opens the bank's own page; the bank's name is the link a keyboard reaches. The
+                // actions at the end of the row stop the press there, so Run now never opens the page as well.
+                <tr key={feed.id} onClick={() => navigate(`/ingestion/${feed.id}`)}
+                  className={cn("cursor-pointer hover:bg-canvas/60", feed.failingForDays && "bg-red-50/40")}>
                   <td className="py-3 pr-4 pl-5">
-                    <span className="block font-medium">{feed.name}</span>
+                    <Link to={`/ingestion/${feed.id}`} onClick={(event) => event.stopPropagation()}
+                      className="block font-medium hover:text-primary-700 hover:underline">{feed.name}</Link>
                     <span className="block text-xs text-ink-muted">
                       {feed.liveAccounts} account{feed.liveAccounts === 1 ? "" : "s"}
                       {feed.takenOffAccounts > 0 ? ` · ${feed.takenOffAccounts} taken off` : ""}
@@ -281,7 +286,7 @@ export function IngestionMonitoringPage() {
                       {column.cell(feed)}
                     </td>
                   ))}
-                  <td className="py-3 pr-5 pl-4">
+                  <td className="py-3 pr-5 pl-4" onClick={(event) => event.stopPropagation()}>
                     <div className="flex justify-end gap-3">
                       {/* A bank that delivers by upload has nothing to run: its files come from somebody. */}
                       {canRun && feed.enabled && feed.connectionType !== "MANUAL_UPLOAD" && (

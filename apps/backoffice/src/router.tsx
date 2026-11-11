@@ -16,6 +16,7 @@ import { SupportViewPage } from "./pages/support/support-view-page";
 import { SupportPage } from "./pages/support/support-page";
 import { SupportTicketPage } from "./pages/support/support-ticket-page";
 import { IngestionMonitoringPage } from "./pages/bank-syncs/ingestion-monitoring-page";
+import { BankFeedDetailPage } from "./pages/bank-syncs/bank-feed-detail-page";
 import { SyncErrorsPage } from "./pages/bank-syncs/sync-errors-page";
 import { HoldingsCheckClientPage } from "./pages/bank-syncs/holdings-check-client-page";
 import { HoldingsCheckPage } from "./pages/bank-syncs/holdings-check-page";
@@ -362,6 +363,8 @@ export const router = createBrowserRouter([
             children: [
               // The feeds themselves, then the run-by-run log behind them.
               { path: "ingestion", element: <IngestionMonitoringPage /> },
+              // One bank's feed, opened from its row: its accounts and the lines of its latest files.
+              { path: "ingestion/:bankId", element: <BankFeedDetailPage /> },
               { path: "bank-syncs", element: <SyncRunsPage /> },
               // What has gone wrong, on its own: the part of the log somebody has to act on.
               { path: "sync-errors", element: <SyncErrorsPage /> },
