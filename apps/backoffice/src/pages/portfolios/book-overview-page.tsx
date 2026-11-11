@@ -236,7 +236,7 @@ function AumCard({ data }: { data: BookOverview }) {
         valueFormatter: (value: number) => compact(value, data.currency),
       },
       xAxis: {
-        type: "category",
+        type: "category", boundaryGap: false,
         data: points.map((one) => one.on),
         axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
         axisLine: { lineStyle: { color: colours.line } },

@@ -373,7 +373,7 @@ function HistoryCard({ data }: { data: ClientIps }) {
       grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
       legend: { show: false },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => (value == null ? "—" : `${value.toFixed(2)} pp`) },
-      xAxis: { type: "category", data: days, axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
+      xAxis: { type: "category", boundaryGap: false, data: days, axisLabel: { color: colours.muted, formatter: (value: string) => monthLabel(value) },
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
       yAxis: { type: "value", min: -edge, max: edge, interval: step, axisLabel: { color: colours.muted, formatter: (value: number) => `${value > 0 ? "+" : ""}${value}` },
         splitLine: { lineStyle: { color: colours.line } } },
@@ -437,7 +437,7 @@ function ObjectiveCard({ data }: { data: ClientIps }) {
       grid: { left: 8, right: 12, top: 24, bottom: 8, containLabel: true },
       legend: { top: 0, textStyle: { color: colours.muted, fontSize: 11 } },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => `${value.toFixed(1)}%` },
-      xAxis: { type: "category", data: points.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => quarterLabel(value) },
+      xAxis: { type: "category", boundaryGap: false, data: points.map((one) => one.on), axisLabel: { color: colours.muted, formatter: (value: string) => quarterLabel(value) },
         axisLine: { lineStyle: { color: colours.line } }, axisTick: { show: false } },
       yAxis: { type: "value", scale: true, axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [

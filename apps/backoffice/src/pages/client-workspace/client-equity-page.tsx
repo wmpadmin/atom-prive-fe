@@ -588,7 +588,7 @@ function HistoryCard({ data }: { data: ClientEquity }) {
       grid: { left: 8, right: 12, top: 12, bottom: 32, containLabel: true },
       legend: { bottom: 0, textStyle: { color: colours.muted, fontSize: 11 } },
       tooltip: { trigger: "axis", valueFormatter: (value: number) => (value == null ? "—" : `${value}×`) },
-      xAxis: { type: "category", data: points.map((one) => one.on), axisLabel: { color: colours.muted, fontSize: 9, formatter: (value: string) => value.slice(0, 4) } },
+      xAxis: { type: "category", boundaryGap: false, data: points.map((one) => one.on), axisLabel: { color: colours.muted, fontSize: 9, formatter: (value: string) => value.slice(0, 4) } },
       yAxis: { type: "value", scale: true, splitNumber: 4, axisLabel: { color: colours.muted, formatter: "{value}×" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
         { type: "line", name: "Portfolio", data: points.map((one) => one.portfolio), showSymbol: false, lineStyle: { color: colours.text, width: 1.5 } },
