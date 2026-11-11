@@ -8940,6 +8940,142 @@ export interface ClientStructure {
   bankFile: StructureFileAccount[] | null;
 }
 
+export interface RiskNotMeasured {
+  measured: boolean;
+  reason: string;
+}
+
+export interface RiskKpis {
+  /** @nullable */
+  var95: number | null;
+  /** @nullable */
+  var95Amount: number | null;
+  /** @nullable */
+  varLimit: number | null;
+  /** @nullable */
+  es975: number | null;
+  /** @nullable */
+  es975Amount: number | null;
+  /** @nullable */
+  whyNot: string | null;
+  /** @nullable */
+  exAnteVolatility: number | null;
+  /** @nullable */
+  exPostVolatility: number | null;
+  /** @nullable */
+  volatilityBudget: number | null;
+  /** @nullable */
+  window: string | null;
+  /** @nullable */
+  beta: number | null;
+  /** @nullable */
+  correlation: number | null;
+  /** @nullable */
+  benchmark: string | null;
+  /** @nullable */
+  betaWhyNot: string | null;
+  /** @nullable */
+  worstScenario: string | null;
+  /** @nullable */
+  worstPercent: number | null;
+  /** @nullable */
+  worstAmount: number | null;
+  diversification: RiskNotMeasured;
+}
+
+export interface RiskSlice {
+  key: string;
+  name: string;
+  value: number;
+  sharePercent: number;
+}
+
+export interface RiskScenario {
+  name: string;
+  impactPercent: number;
+  impactAmount: number;
+  /** @nullable */
+  standing: string | null;
+  byClass: RiskSlice[];
+}
+
+export interface RiskPoint {
+  on: string;
+  var95: number;
+}
+
+export interface RiskCurrency {
+  currency: string;
+  gross: number;
+  hedged: number;
+  net: number;
+  netPercent: number;
+}
+
+export interface RiskIssuer {
+  issuer: string;
+  /** @nullable */
+  equity: number | null;
+  /** @nullable */
+  bonds: number | null;
+  /** @nullable */
+  viaFunds: number | null;
+  total: number;
+  sharePercent: number;
+  sovereign: boolean;
+  overLimit: boolean;
+}
+
+export interface RiskLadderRow {
+  key: string;
+  name: string;
+  buckets: RiskSlice[];
+  total: number;
+}
+
+export interface ClientRisk {
+  customerId: string;
+  name: string;
+  currency: string;
+  asOf: string;
+  bankFile: boolean;
+  model: string;
+  kpis: RiskKpis;
+  riskContribution: RiskNotMeasured;
+  factorExposures: RiskNotMeasured;
+  stress: RiskScenario[];
+  /** @nullable */
+  stressTolerance: number | null;
+  /** @nullable */
+  stressNote: string | null;
+  correlation: RiskNotMeasured;
+  varHistory: RiskPoint[];
+  /** @nullable */
+  varLimit: number | null;
+  /** @nullable */
+  varHistoryNote: string | null;
+  geography: RiskSlice[];
+  /** @nullable */
+  geographyNote: string | null;
+  sectors: RiskSlice[];
+  /** @nullable */
+  sectorNote: string | null;
+  currencies: RiskCurrency[];
+  currencyTotal: RiskCurrency | null;
+  /** @nullable */
+  nonBasePercent: number | null;
+  fileCurrencies: BookCurrencyAmount[];
+  issuers: RiskIssuer[];
+  /** @nullable */
+  issuerLimit: number | null;
+  /** @nullable */
+  issuerNote: string | null;
+  liquidity: RiskLadderRow[];
+  liquidityTotals: RiskSlice[];
+  /** @nullable */
+  liquidityNote: string | null;
+}
+
 export interface PerformanceKpis {
   /** @nullable */
   ytd: number | null;
@@ -42851,6 +42987,101 @@ export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClien
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientStructureQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientRiskUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/risk`
+}
+
+export const getClientRisk = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientRisk> => {
+
+  return http<ClientRisk>(getGetClientRiskUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientRiskQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/risk`
+    ] as const;
+    }
+
+
+export const getGetClientRiskQueryOptions = <TData = Awaited<ReturnType<typeof getClientRisk>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientRiskQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientRisk>>> = ({ signal }) => getClientRisk(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientRiskQueryResult = NonNullable<Awaited<ReturnType<typeof getClientRisk>>>
+export type GetClientRiskQueryError = unknown
+
+
+export function useGetClientRisk<TData = Awaited<ReturnType<typeof getClientRisk>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientRisk>>,
+          TError,
+          Awaited<ReturnType<typeof getClientRisk>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientRisk<TData = Awaited<ReturnType<typeof getClientRisk>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientRisk>>,
+          TError,
+          Awaited<ReturnType<typeof getClientRisk>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientRisk<TData = Awaited<ReturnType<typeof getClientRisk>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientRisk<TData = Awaited<ReturnType<typeof getClientRisk>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientRiskQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
