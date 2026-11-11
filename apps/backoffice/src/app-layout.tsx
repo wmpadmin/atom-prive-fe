@@ -388,42 +388,51 @@ function RecentClientsList({ rail, pathname }: { rail: boolean; pathname: string
   if (clients.length === 0) {
     return null;
   }
-  return (
-    <li className={cn("py-1.5", rail && "my-1 border-y border-line")}>
-      {!rail && <p className="mb-0.5 px-3 text-3xs font-bold tracking-wider text-ink-muted uppercase">Recent clients</p>}
-      <ul className="space-y-0.5">
-        {clients.map((one) => {
-          // The workspace being read is already lit in the menu above (Client Directory), so here it is only named
-          // in stronger text rather than filled a second time.
-          const here = pathname === `/client-workspace/${one.id}` || pathname.startsWith(`/client-workspace/${one.id}/`);
-          const look = here ? "font-semibold text-ink hover:bg-white" : IDLE_CLASS;
-          const worth = recentWorth(one);
-          const tile = (
-            <span className="grid size-6 shrink-0 place-items-center rounded-sm bg-slate-100 text-xs font-semibold text-ink" aria-hidden="true">
+  const rows = clients.map((one) => {
+    // The workspace being read is already lit in the menu above (Client Directory), so here it is only named
+    // in stronger text rather than filled a second time.
+    const here = pathname === `/client-workspace/${one.id}` || pathname.startsWith(`/client-workspace/${one.id}/`);
+    const look = here ? "font-semibold text-ink hover:bg-white" : IDLE_CLASS;
+    const worth = recentWorth(one);
+    return (
+      <li key={one.id}>
+        {rail ? (
+          <RailTip label={`${one.name} · ${worth.full}`} show>
+            <Link to={`/client-workspace/${one.id}`} aria-label={`${one.name}, ${worth.full}`} aria-current={here ? "true" : undefined}
+              className={cn("mx-auto grid size-10 place-items-center rounded-xl transition-colors", look)}>
+              <span className="grid size-6 shrink-0 place-items-center rounded-sm bg-slate-100 text-xs font-semibold text-ink" aria-hidden="true">
+                {one.initial}
+              </span>
+            </Link>
+          </RailTip>
+        ) : (
+          // As an entry under a section, exactly as Client Management's are drawn, the initial in the icon's place.
+          <RailTip label={`${one.name} · ${worth.full}`} show>
+          <Link to={`/client-workspace/${one.id}`} aria-current={here ? "true" : undefined} aria-label={`${one.name}, ${worth.full}`}
+            className={cn(ENTRY_CLASS, look)}>
+            <span className="grid size-4 shrink-0 place-items-center rounded-xs bg-slate-100 text-3xs font-semibold text-ink" aria-hidden="true">
               {one.initial}
             </span>
-          );
-          return (
-            <li key={one.id}>
-              {rail ? (
-                <RailTip label={`${one.name} · ${worth.full}`} show>
-                  <Link to={`/client-workspace/${one.id}`} aria-label={`${one.name}, ${worth.full}`} aria-current={here ? "true" : undefined}
-                    className={cn("mx-auto grid size-10 place-items-center rounded-xl transition-colors", look)}>
-                    {tile}
-                  </Link>
-                </RailTip>
-              ) : (
-                <Link to={`/client-workspace/${one.id}`} aria-current={here ? "true" : undefined} title={`${one.name} · ${worth.full}`}
-                  className={cn("flex items-center gap-2.5 rounded-xl px-3 py-1.5 text-sm transition-colors", look)}>
-                  {tile}
-                  <span className="min-w-0 flex-1 truncate">{one.name}</span>
-                  <span className="shrink-0 text-xs font-normal text-ink-muted tabular-nums">{worth.short}</span>
-                </Link>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+            {/* The worth is on hover rather than beside the name: at the sub-entry's indent there is not room for both,
+                and the name was cut to three letters to make it. */}
+            <span className="min-w-0 flex-1 truncate">{one.name}</span>
+          </Link>
+          </RailTip>
+        )}
+      </li>
+    );
+  });
+  if (rail) {
+    return (
+      <li className="my-1 border-y border-line py-1.5">
+        <ul aria-label="Recent clients" className="space-y-0.5">{rows}</ul>
+      </li>
+    );
+  }
+  // Book Overview's own entries, indented under it with the same rule as Client Management's; never folded away.
+  return (
+    <li>
+      <ul aria-label="Recent clients" className="mt-0.5 ml-5 space-y-0.5 border-l border-line pl-3">{rows}</ul>
     </li>
   );
 }
