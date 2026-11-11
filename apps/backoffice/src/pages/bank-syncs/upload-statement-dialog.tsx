@@ -122,7 +122,7 @@ export function UploadStatementDialog({ feed, onClose, onTaken }: {
           )}
         >
           <p className="text-sm text-ink-soft">
-            Drop CSV or text files here, or{" "}
+            Drop the bank's files here (CSV, text, XML, ZIP or encrypted), or{" "}
             <button
               type="button"
               onClick={() => picker.current?.click()}
@@ -137,7 +137,8 @@ export function UploadStatementDialog({ feed, onClose, onTaken }: {
             id="statement-files"
             type="file"
             multiple
-            accept=".csv,.txt,.tsv,.json,text/csv,text/plain,application/json"
+            // What the banks' adapters read: EFG sends XML, often zipped, encrypted (.pgp/.gpg/.asc) and signed (.sig).
+            accept=".csv,.txt,.tsv,.json,.xml,.zip,.pgp,.gpg,.asc,.sig,text/csv,text/plain,application/json,application/xml,text/xml,application/zip"
             className="sr-only"
             onChange={(event) => {
               add(event.target.files);
