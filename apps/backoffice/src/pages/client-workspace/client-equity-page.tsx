@@ -421,10 +421,10 @@ function FileLines({ data }: { data: ClientEquity }) {
                 {one.name}
                 {one.identifier && <span className="block text-2xs font-normal text-ink-muted">{one.identifier}</span>}
               </th>
-              <td className="px-1.5 py-2"><NotInFile /></td>
-              <td className="px-1.5 py-2"><NotInFile /></td>
+              <td className="px-1.5 py-2"><NotInFile tight /></td>
+              <td className="px-1.5 py-2"><NotInFile tight /></td>
               <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">{exact(one.value, one.currency)}</td>
-              {Array.from({ length: 7 }, (_, cell) => <td key={cell} className="px-1.5 py-2 text-right"><NotInFile /></td>)}
+              {Array.from({ length: 7 }, (_, cell) => <td key={cell} className="px-1.5 py-2 text-right"><NotInFile tight /></td>)}
             </tr>
           ))}
         </tbody>
@@ -483,8 +483,8 @@ function Contributions({ data }: { data: ClientEquity }) {
       {data.bankFile ? <FileBlock /> : data.contributions.length === 0 ? <Empty>No return on file to attribute.</Empty> : (
         <ul className="space-y-1.5">
           {data.contributions.map((one) => (
-            <li key={one.label} className="grid grid-cols-[5rem_1fr_4.5rem] items-center gap-2 text-xs">
-              <span className="truncate">{one.label}</span>
+            <li key={one.label} className="grid grid-cols-[minmax(0,9.5rem)_1fr_4.5rem] items-center gap-2 text-xs">
+              <span className="leading-tight">{one.label}</span>
               <span className="relative block h-2.5" aria-hidden="true">
                 <span className="absolute top-0 left-1/2 h-2.5 w-px bg-line" />
                 <span className={cn("absolute top-0 h-2.5", one.basisPoints >= 0 ? "left-1/2 bg-emerald-700" : "right-1/2 bg-red-600")}
@@ -506,7 +506,9 @@ function CapCard({ data }: { data: ClientEquity }) {
       textStyle: { fontFamily: colours.font },
       grid: { left: 8, right: 8, top: 16, bottom: 32, containLabel: true },
       legend: { bottom: 0, textStyle: { color: colours.muted, fontSize: 11 } },
-      xAxis: { type: "category", data: data.capBuckets.map((one) => one.name), axisLabel: { color: colours.muted, fontSize: 9, interval: 0 } },
+      // Their bucket names, each on two lines: the size, then its range.
+      xAxis: { type: "category", data: data.capBuckets.map((one) => one.name),
+        axisLabel: { color: colours.muted, fontSize: 9, interval: 0, lineHeight: 11, formatter: (value: string) => value.replace(" ", "\n") } },
       yAxis: { type: "value", axisLabel: { color: colours.muted, formatter: "{value}%" }, splitLine: { lineStyle: { color: colours.line } } },
       series: [
         { type: "bar", name: "Portfolio", data: data.capBuckets.map((one) => one.portfolio), itemStyle: { color: colours.text },
@@ -637,10 +639,14 @@ function NotMeasured({ title }: { title: string }) {
   );
 }
 
-function NotInFile() {
+/**
+ * Where a bank-file client's files hold nothing. On one line wherever there is room; {@code tight} puts it on exactly
+ * two short lines, for a narrow figure column that would otherwise be widened by it.
+ */
+function NotInFile({ tight }: { tight?: boolean }) {
   return (
-    <span className="inline-block max-w-14 rounded-sm border border-dashed border-line px-1 text-left text-3xs leading-tight font-medium text-ink-muted">
-      not in bank file
+    <span className="inline-block w-fit rounded-sm border border-dashed border-line px-1 text-left text-3xs leading-tight font-medium whitespace-nowrap text-ink-muted">
+      {tight ? <>not in<br />bank file</> : "not in bank file"}
     </span>
   );
 }

@@ -485,7 +485,7 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                       </span>
                     </span>
                   </th>
-                  {on("mandate") && <td className="px-2 py-2.5 whitespace-nowrap">{file ? <NotInFile /> : row.mandate ?? <Muted>No model</Muted>}</td>}
+                  {on("mandate") && <td className="px-2 py-2.5 whitespace-nowrap">{file ? <NotInFile tight /> : row.mandate ?? <Muted>No model</Muted>}</td>}
                   {on("aum") && (
                     <td className="px-2 py-2.5 text-right font-semibold whitespace-nowrap tabular-nums">
                       {file ? <InTheirCurrencies amounts={file.holdings} /> : row.aum == null ? <Muted>—</Muted> : compact(row.aum, data.currency)}
@@ -504,18 +504,18 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                       )}
                     </td>
                   )}
-                  {on("mtd") && <td className="px-2 py-2.5 text-right tabular-nums">{file ? <NotInFile /> : <Percent value={row.monthToDate} />}</td>}
-                  {on("ytd") && <td className="px-2 py-2.5 text-right tabular-nums">{file ? <NotInFile /> : <Percent value={row.yearToDate} />}</td>}
+                  {on("mtd") && <td className="px-2 py-2.5 text-right tabular-nums">{file ? <NotInFile tight /> : <Percent value={row.monthToDate} />}</td>}
+                  {on("ytd") && <td className="px-2 py-2.5 text-right tabular-nums">{file ? <NotInFile tight /> : <Percent value={row.yearToDate} />}</td>}
                   {on("bench") && (
                     <td className="px-2 py-2.5 text-right whitespace-nowrap tabular-nums">
-                      {file ? <NotInFile /> : row.versusBenchmark == null ? <Muted>—</Muted> : (
+                      {file ? <NotInFile tight /> : row.versusBenchmark == null ? <Muted>—</Muted> : (
                         <span className={toneOf(row.versusBenchmark)}>{signedPoints(row.versusBenchmark)}</span>
                       )}
                     </td>
                   )}
                   {on("deviation") && (
                     <td className="px-2 py-2.5 text-right">
-                      {file ? <NotInFile /> : row.maxDeviation == null ? <Muted>—</Muted> : (
+                      {file ? <NotInFile tight /> : row.maxDeviation == null ? <Muted>—</Muted> : (
                         <span className={cn("rounded-md px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap tabular-nums",
                           row.deviating ? "bg-red-50 text-red-700" : "bg-slate-100 text-ink-soft")}>
                           {row.maxDeviation.toFixed(1)} pp
@@ -523,10 +523,10 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                       )}
                     </td>
                   )}
-                  {on("ips") && <td className="px-2 py-2.5">{file ? <NotInFile /> : <IpsStatus row={row} />}</td>}
+                  {on("ips") && <td className="px-2 py-2.5">{file ? <NotInFile tight /> : <IpsStatus row={row} />}</td>}
                   {on("next") && (
                     <td className="px-2 py-2.5 text-xs">
-                      {file ? <NotInFile /> : row.nextEvent ? (
+                      {file ? <NotInFile tight /> : row.nextEvent ? (
                         <span className="block max-w-36 truncate" title={eventLine(row.nextEvent)}>
                           {row.nextEvent.title} {formatDate(row.nextEvent.on)}
                         </span>
@@ -535,7 +535,7 @@ function ClientBookCard({ data }: { data: BookOverview }) {
                   )}
                   {on("review") && (
                     <td className="px-2 py-2.5 text-xs whitespace-nowrap">
-                      {file ? <NotInFile /> : row.lastReviewOn ? shortDay(row.lastReviewOn) : <Muted>—</Muted>}
+                      {file ? <NotInFile tight /> : row.lastReviewOn ? shortDay(row.lastReviewOn) : <Muted>—</Muted>}
                     </td>
                   )}
                   {on("data") && <td className="py-2.5 pr-5 pl-2"><DataStatus status={row.data} hours={row.delayedHours} /></td>}
@@ -858,12 +858,14 @@ function DispersionCard({ data }: { data: BookOverview }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 /* Small pieces                                                                                                  */
 
-/** Where a bank-file client's files hold nothing: left blank, and said so, rather than shown as a nought. */
-/** Wraps onto two short lines, so a narrow figure column is not widened by the bank-file client's row. */
-function NotInFile() {
+/**
+ * Where a bank-file client's files hold nothing. On one line wherever there is room; {@code tight} puts it on exactly
+ * two short lines, for a narrow figure column that would otherwise be widened by it.
+ */
+function NotInFile({ tight }: { tight?: boolean }) {
   return (
-    <span className="inline-block max-w-14 rounded-sm border border-dashed border-line px-1 text-3xs leading-tight font-medium text-ink-muted">
-      not in bank file
+    <span className="inline-block w-fit rounded-sm border border-dashed border-line px-1 text-left text-3xs leading-tight font-medium whitespace-nowrap text-ink-muted">
+      {tight ? <>not in<br />bank file</> : "not in bank file"}
     </span>
   );
 }
