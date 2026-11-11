@@ -7414,6 +7414,11 @@ export interface CustomerPage {
   totalItems: number;
 }
 
+export interface BreakAmount {
+  currency: string;
+  amount: number;
+}
+
 export interface ClientComparison {
   customerId: string;
   clientName: string;
@@ -7430,6 +7435,7 @@ export interface ClientComparison {
   withoutIsin: number;
   /** @nullable */
   asOf: string | null;
+  breaks: BreakAmount[];
 }
 
 export interface HoldingsOverview {

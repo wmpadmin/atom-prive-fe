@@ -522,10 +522,18 @@ function matchedShare(summary: ClientHoldingsCheck["summary"]) {
   return compared === 0 ? "—" : `${((summary.matching * 100) / compared).toFixed(1)}%`;
 }
 
-function breaksNote(summary: ClientHoldingsCheck["summary"]) {
+/** How many breaks, and what they come to in each currency they are in, as the check sends them: never added across. */
+function breaksNote(summary: ClientHoldingsCheck["summary"]): ReactNode {
   const breaks = summary.differing + summary.onlyAtBank + summary.notAtBank;
   if (breaks === 0) return "No breaks";
-  return `${breaks} ${breaks === 1 ? "break" : "breaks"}${summary.difference ? ` · ${compact(Math.abs(summary.difference), summary.currency)}` : ""}`;
+  return (
+    <span className="flex flex-wrap gap-x-1">
+      <span>{breaks} {breaks === 1 ? "break" : "breaks"}</span>
+      {summary.breaks.map((one) => (
+        <span key={one.currency} className="whitespace-nowrap">· {compact(one.amount, one.currency)}</span>
+      ))}
+    </span>
+  );
 }
 
 function signedPct(value: number | null | undefined) {
