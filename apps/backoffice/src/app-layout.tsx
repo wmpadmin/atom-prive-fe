@@ -3,7 +3,6 @@ import {
   useEnterWorkspace,
   useGetClientWorkspaceCard,
   useGetRecentClientWorkspaces,
-  useListWorkspaceClients,
   useListClientRequests,
   useListModelChanges,
   useListProposalsAwaitingMyAnswer,
@@ -17,7 +16,6 @@ import {
   type RecentClient,
   type RecentClientList,
   type StaffProfile,
-  type WorkspaceClients,
 } from "@atomprive/api-client/backoffice";
 import { cn, StaffAvatar } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,7 +30,6 @@ import { TopSearch } from "./components/top-search";
 import { NotificationBell } from "./components/notification-bell";
 import { AssistantButton } from "./components/portfolio-assistant";
 import {
-  ArrowLeft,
   Check,
   ChevronDown,
   ChevronsUpDown,
@@ -94,15 +91,11 @@ function workspaceIn(pathname: string) {
 }
 
 /**
- * An open client's menu, inside the main sidebar as the firm's design draws it: back to all clients, the client's
- * card — which opens the switcher to another client — and the workspace's screens, the analytics under their own
- * small label. Under the Client Directory, drawn with the same rule and indent as any entry's sub-entries.
+ * An open client's menu, inside the main sidebar as the firm's design draws it: the client's card and the
+ * workspace's screens, the analytics under their own small label. Under the Client Directory, drawn with the same rule and indent as any entry's sub-entries.
  */
 function ClientMenu({ customerId, screen, rail }: { customerId: string; screen: string; rail: boolean }) {
-  const navigate = useNavigate();
-  const [switching, setSwitching] = useState(false);
   const card = useGetClientWorkspaceCard<RecentClient, ApiError>(customerId, { query: { staleTime: 60_000 } });
-  const listed = useListWorkspaceClients<WorkspaceClients, ApiError>({ query: { staleTime: 60_000, enabled: switching } });
   const one = card.data;
   const worth = one ? recentWorth(one) : null;
   const name = one?.name ?? "This client";
@@ -141,17 +134,10 @@ function ClientMenu({ customerId, screen, rail }: { customerId: string; screen: 
 
   return (
     <>
-      <li>
-        <Link to="/client-directory" className={cn(ENTRY_CLASS, FOCUS_CLASS, IDLE_CLASS)}>
-          <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
-          All clients
-        </Link>
-      </li>
+      {/* A card, not a control: who the client is and what they hold. The way back is Client Directory itself. */}
       <li className="py-1">
         <RailTip label={worth?.full ?? ""} show={worth != null && worth.full !== worth.short}>
-          <button type="button" aria-haspopup="listbox" aria-expanded={switching} onClick={() => setSwitching((now) => !now)}
-            className={cn("flex w-full items-center gap-2.5 rounded-xl border border-line bg-white px-2.5 py-2 text-left hover:border-ink-muted/40",
-              FOCUS_CLASS)}>
+          <div className="flex w-full items-center gap-2.5 rounded-xl border border-line bg-white px-2.5 py-2">
             <span className="grid size-7 shrink-0 place-items-center rounded-md bg-slate-100 text-sm font-semibold text-ink" aria-hidden="true">
               {one?.initial ?? "·"}
             </span>
@@ -161,25 +147,8 @@ function ClientMenu({ customerId, screen, rail }: { customerId: string; screen: 
                 {one ? `${one.code} · ${worth?.short ?? "—"}` : "…"}
               </span>
             </span>
-            <ChevronsUpDown className="size-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
-          </button>
+          </div>
         </RailTip>
-        {switching && (
-          <ul role="listbox" aria-label="Switch to another client"
-            className="mt-1 max-h-60 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-sm">
-            {(listed.data?.clients ?? []).map((other) => (
-              <li key={other.customerId} role="option" aria-selected={other.customerId === customerId}>
-                <button type="button" onClick={() => { setSwitching(false); navigate(workspaceOf(other.customerId)); }}
-                  className={cn("flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm", FOCUS_CLASS,
-                    other.customerId === customerId ? HERE_CLASS : "text-ink-soft hover:bg-slate-50")}>
-                  <span className="min-w-0 flex-1 truncate">{other.name}</span>
-                  <span className="shrink-0 text-2xs text-ink-muted">{other.code}</span>
-                </button>
-              </li>
-            ))}
-            {listed.isLoading && <li className="px-2.5 py-1.5 text-xs text-ink-muted">Reading clients…</li>}
-          </ul>
-        )}
       </li>
       {groups.map((group) => (
         <Fragment key={group || "main"}>
