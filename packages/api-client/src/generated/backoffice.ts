@@ -2646,6 +2646,7 @@ export const FieldChoiceStandardField = {
   VALUATION_DATE: 'VALUATION_DATE',
   ACCRUED_INTEREST: 'ACCRUED_INTEREST',
   COST_PRICE: 'COST_PRICE',
+  COST_TOTAL: 'COST_TOTAL',
   TRADE_DATE: 'TRADE_DATE',
   SETTLEMENT_DATE: 'SETTLEMENT_DATE',
   TRANSACTION_TYPE: 'TRANSACTION_TYPE',
@@ -2703,6 +2704,7 @@ export const MappedFieldStandardField = {
   VALUATION_DATE: 'VALUATION_DATE',
   ACCRUED_INTEREST: 'ACCRUED_INTEREST',
   COST_PRICE: 'COST_PRICE',
+  COST_TOTAL: 'COST_TOTAL',
   TRADE_DATE: 'TRADE_DATE',
   SETTLEMENT_DATE: 'SETTLEMENT_DATE',
   TRANSACTION_TYPE: 'TRANSACTION_TYPE',
@@ -8479,6 +8481,7 @@ export const StandardFieldOptionField = {
   VALUATION_DATE: 'VALUATION_DATE',
   ACCRUED_INTEREST: 'ACCRUED_INTEREST',
   COST_PRICE: 'COST_PRICE',
+  COST_TOTAL: 'COST_TOTAL',
   TRADE_DATE: 'TRADE_DATE',
   SETTLEMENT_DATE: 'SETTLEMENT_DATE',
   TRANSACTION_TYPE: 'TRANSACTION_TYPE',
@@ -9144,6 +9147,10 @@ export interface HoldingsPosition {
   weight: number | null;
   /** @nullable */
   accruedInterest: number | null;
+  /** @nullable */
+  bankCostPrice: number | null;
+  /** @nullable */
+  bankCostTotal: number | null;
 }
 
 export interface HoldingsLot {
@@ -9201,6 +9208,7 @@ export interface ClientHoldingsBook {
   transactions: HoldingsTransaction[];
   corporateActions: HoldingsCorporateAction[];
   fileTotals: BookCurrencyAmount[];
+  fileCostTotals: BookCurrencyAmount[];
 }
 
 export interface Activity {
