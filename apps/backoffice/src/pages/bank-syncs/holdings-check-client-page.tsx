@@ -30,17 +30,11 @@ type Only = "all" | "differences" | "matching";
 export function HoldingsCheckClientPage() {
   const { customerId = "" } = useParams();
   const check = useCheckClientHoldings<ClientHoldingsCheck, ApiError>(customerId);
-  const [only, setOnly] = useState<Only>("differences");
 
   if (check.isError) {
     return <Alert tone="danger">{check.error.status === 404 ? "No bank has sent this client's holdings." : check.error.message}</Alert>;
   }
   if (!check.data) return <p className="text-sm text-ink-muted">Comparing holdings…</p>;
-  const { summary, accounts, lines } = check.data;
-  const differences = lines.filter((line) => line.status !== "MATCHES");
-  const shown = only === "differences" ? differences : only === "matching" ? lines.filter((line) => line.status === "MATCHES") : lines;
-  // Shown in groups, as the file groups them; a group is named once, above its first line.
-  const groups = [...new Set(shown.map((line) => line.group))];
 
   return (
     <div className="space-y-5">
@@ -48,6 +42,26 @@ export function HoldingsCheckClientPage() {
         <ChevronLeft aria-hidden="true" className="size-4" />
         Holdings check
       </Link>
+      <HoldingsCheckBody data={check.data} />
+    </div>
+  );
+}
+
+/**
+ * One client's comparison, as Operations read it: the header, the counts, and the lines. Shared with the portfolio
+ * desk's Custodian reconciliation tab, so the two screens show the same figures by the same rules and cannot drift
+ * apart.
+ */
+export function HoldingsCheckBody({ data }: { data: ClientHoldingsCheck }) {
+  const [only, setOnly] = useState<Only>("differences");
+  const { summary, accounts, lines } = data;
+  const differences = lines.filter((line) => line.status !== "MATCHES");
+  const shown = only === "differences" ? differences : only === "matching" ? lines.filter((line) => line.status === "MATCHES") : lines;
+  // Shown in groups, as the file groups them; a group is named once, above its first line.
+  const groups = [...new Set(shown.map((line) => line.group))];
+
+  return (
+    <div className="space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[1.625rem] font-bold">
@@ -58,8 +72,8 @@ export function HoldingsCheckClientPage() {
             {summary.asOf && ` · bank's statement of ${formatDate(summary.asOf)}`}
           </p>
         </div>
-        {check.data.inUse.length > 0
-          ? <Badge tone="success">{check.data.inUse.join(", ")} in use</Badge>
+        {data.inUse.length > 0
+          ? <Badge tone="success">{data.inUse.join(", ")} in use</Badge>
           : <Badge tone="info">Compared, not used</Badge>}
       </header>
 
@@ -134,7 +148,7 @@ export function HoldingsCheckClientPage() {
                     <td colSpan={10} className="px-5 py-2 text-xs font-bold text-ink-soft">{group}</td>
                   </tr>
                   {shown.filter((line) => line.group === group).map((line) => (
-                    <Line key={(line.isin ?? line.name) + line.status} line={line} waitingToBePlaced={check.data.inUse.length > 0} />
+                    <Line key={(line.isin ?? line.name) + line.status} line={line} waitingToBePlaced={data.inUse.length > 0} />
                   ))}
                 </Fragment>
               ))}

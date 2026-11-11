@@ -9075,6 +9075,134 @@ export interface ClientIps {
   bandRule: string;
 }
 
+export interface HoldingsKpis {
+  /** @nullable */
+  marketValue: number | null;
+  positions: number;
+  accounts: number;
+  /** @nullable */
+  costBasis: number | null;
+  costed: number;
+  /** @nullable */
+  averageHoldingYears: number | null;
+  /** @nullable */
+  unrealised: number | null;
+  /** @nullable */
+  unrealisedPercent: number | null;
+  /** @nullable */
+  realisedYearToDate: number | null;
+  /** @nullable */
+  realisedShortTerm: number | null;
+  /** @nullable */
+  realisedLongTerm: number | null;
+  /** @nullable */
+  incomeYearToDate: number | null;
+  /** @nullable */
+  coupons: number | null;
+  /** @nullable */
+  dividends: number | null;
+  /** @nullable */
+  distributions: number | null;
+}
+
+export interface HoldingsSlice {
+  key: string;
+  name: string;
+  amount: number;
+  sharePercent: number;
+}
+
+export interface HoldingsPosition {
+  id: string;
+  name: string;
+  /** @nullable */
+  identifier: string | null;
+  assetClass: string;
+  assetClassName: string;
+  /** @nullable */
+  subClass: string | null;
+  /** @nullable */
+  entity: string | null;
+  /** @nullable */
+  custodian: string | null;
+  /** @nullable */
+  account: string | null;
+  /** @nullable */
+  currency: string | null;
+  /** @nullable */
+  liquidity: string | null;
+  /** @nullable */
+  quantity: number | null;
+  /** @nullable */
+  price: number | null;
+  value: number;
+  /** @nullable */
+  cost: number | null;
+  /** @nullable */
+  unrealised: number | null;
+  /** @nullable */
+  weight: number | null;
+  /** @nullable */
+  accruedInterest: number | null;
+}
+
+export interface HoldingsLot {
+  positionId: string;
+  lotRef: string;
+  acquiredOn: string;
+  /** @nullable */
+  account: string | null;
+  /** @nullable */
+  quantity: number | null;
+  /** @nullable */
+  unitCost: number | null;
+  cost: number;
+  marketValue: number;
+  unrealised: number;
+  term: string;
+}
+
+export interface HoldingsTransaction {
+  on: string;
+  type: string;
+  description: string;
+  /** @nullable */
+  entity: string | null;
+  /** @nullable */
+  account: string | null;
+  amount: number;
+  currency: string;
+  source: string;
+}
+
+export interface HoldingsCorporateAction {
+  security: string;
+  kind: string;
+  exDate: string;
+  /** @nullable */
+  payDate: string | null;
+  /** @nullable */
+  detail: string | null;
+  status: string;
+}
+
+export interface ClientHoldingsBook {
+  customerId: string;
+  name: string;
+  currency: string;
+  asOf: string;
+  bankFile: boolean;
+  kpis: HoldingsKpis;
+  byCustodian: HoldingsSlice[];
+  byCurrency: HoldingsSlice[];
+  unrealisedByClass: HoldingsSlice[];
+  positions: HoldingsPosition[];
+  lots: HoldingsLot[];
+  transactions: HoldingsTransaction[];
+  corporateActions: HoldingsCorporateAction[];
+  fileTotals: BookCurrencyAmount[];
+}
+
 export interface Activity {
   kind: string;
   subject: string;
@@ -42547,6 +42675,101 @@ export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClien
 
 
 
+export const getReconcileClientHoldingsUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/reconciliation`
+}
+
+export const reconcileClientHoldings = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientHoldingsCheck> => {
+
+  return http<ClientHoldingsCheck>(getReconcileClientHoldingsUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReconcileClientHoldingsQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/reconciliation`
+    ] as const;
+    }
+
+
+export const getReconcileClientHoldingsQueryOptions = <TData = Awaited<ReturnType<typeof reconcileClientHoldings>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof reconcileClientHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReconcileClientHoldingsQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof reconcileClientHoldings>>> = ({ signal }) => reconcileClientHoldings(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof reconcileClientHoldings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReconcileClientHoldingsQueryResult = NonNullable<Awaited<ReturnType<typeof reconcileClientHoldings>>>
+export type ReconcileClientHoldingsQueryError = unknown
+
+
+export function useReconcileClientHoldings<TData = Awaited<ReturnType<typeof reconcileClientHoldings>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof reconcileClientHoldings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof reconcileClientHoldings>>,
+          TError,
+          Awaited<ReturnType<typeof reconcileClientHoldings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReconcileClientHoldings<TData = Awaited<ReturnType<typeof reconcileClientHoldings>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof reconcileClientHoldings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof reconcileClientHoldings>>,
+          TError,
+          Awaited<ReturnType<typeof reconcileClientHoldings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReconcileClientHoldings<TData = Awaited<ReturnType<typeof reconcileClientHoldings>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof reconcileClientHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useReconcileClientHoldings<TData = Awaited<ReturnType<typeof reconcileClientHoldings>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof reconcileClientHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReconcileClientHoldingsQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetClientIpsUrl = (customerId: string,) => {
 
 
@@ -42630,6 +42853,101 @@ export function useGetClientIps<TData = Awaited<ReturnType<typeof getClientIps>>
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientIpsQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientHoldingsBookUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/holdings`
+}
+
+export const getClientHoldingsBook = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientHoldingsBook> => {
+
+  return http<ClientHoldingsBook>(getGetClientHoldingsBookUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientHoldingsBookQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/holdings`
+    ] as const;
+    }
+
+
+export const getGetClientHoldingsBookQueryOptions = <TData = Awaited<ReturnType<typeof getClientHoldingsBook>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientHoldingsBookQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientHoldingsBook>>> = ({ signal }) => getClientHoldingsBook(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientHoldingsBookQueryResult = NonNullable<Awaited<ReturnType<typeof getClientHoldingsBook>>>
+export type GetClientHoldingsBookQueryError = unknown
+
+
+export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getClientHoldingsBook>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientHoldingsBook>>,
+          TError,
+          Awaited<ReturnType<typeof getClientHoldingsBook>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getClientHoldingsBook>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientHoldingsBook>>,
+          TError,
+          Awaited<ReturnType<typeof getClientHoldingsBook>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getClientHoldingsBook>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getClientHoldingsBook>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientHoldingsBookQueryOptions(customerId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
