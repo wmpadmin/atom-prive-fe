@@ -1410,7 +1410,7 @@ export type FamilyWealthParams = {
 period?: string;
 };
 
-export type Open1Params = {
+export type OpenDocumentParams = {
 download?: boolean;
 };
 
@@ -8567,9 +8567,9 @@ export function useRequests<TData = Awaited<ReturnType<typeof requests>>, TError
 
 
 
-export const getOpen1Url = (source: string,
+export const getOpenDocumentUrl = (source: string,
     id: string,
-    params?: Open1Params,) => {
+    params?: OpenDocumentParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -8584,11 +8584,11 @@ export const getOpen1Url = (source: string,
   return stringifiedParams.length > 0 ? `/api/portal/documents/${source}/${id}?${stringifiedParams}` : `/api/portal/documents/${source}/${id}`
 }
 
-export const open1 = async (source: string,
+export const openDocument = async (source: string,
     id: string,
-    params?: Open1Params, options?: Parameters<typeof http>[1]): Promise<string> => {
+    params?: OpenDocumentParams, options?: Parameters<typeof http>[1]): Promise<string> => {
 
-  return http<string>(getOpen1Url(source,id,params),
+  return http<string>(getOpenDocumentUrl(source,id,params),
   {
     ...options,
     method: 'GET'
@@ -8601,78 +8601,78 @@ export const open1 = async (source: string,
 
 
 
-export const getOpen1QueryKey = (source: string,
+export const getOpenDocumentQueryKey = (source: string,
     id: string,
-    params?: Open1Params,) => {
+    params?: OpenDocumentParams,) => {
     return [
     `/api/portal/documents/${source}/${id}`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getOpen1QueryOptions = <TData = Awaited<ReturnType<typeof open1>>, TError = unknown>(source: string,
+export const getOpenDocumentQueryOptions = <TData = Awaited<ReturnType<typeof openDocument>>, TError = unknown>(source: string,
     id: string,
-    params?: Open1Params, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof open1>>, TError, TData>>, request?: SecondParameter<typeof http>}
+    params?: OpenDocumentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof openDocument>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getOpen1QueryKey(source,id,params);
+  const queryKey =  queryOptions?.queryKey ?? getOpenDocumentQueryKey(source,id,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof open1>>> = ({ signal }) => open1(source,id,params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof openDocument>>> = ({ signal }) => openDocument(source,id,params, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: source !== null && source !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof open1>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, enabled: source !== null && source !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof openDocument>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
-export type Open1QueryResult = NonNullable<Awaited<ReturnType<typeof open1>>>
-export type Open1QueryError = unknown
+export type OpenDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof openDocument>>>
+export type OpenDocumentQueryError = unknown
 
 
-export function useOpen1<TData = Awaited<ReturnType<typeof open1>>, TError = unknown>(
+export function useOpenDocument<TData = Awaited<ReturnType<typeof openDocument>>, TError = unknown>(
  source: string,
     id: string,
-    params: undefined |  Open1Params, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof open1>>, TError, TData>> & Pick<
+    params: undefined |  OpenDocumentParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof openDocument>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof open1>>,
+          Awaited<ReturnType<typeof openDocument>>,
           TError,
-          Awaited<ReturnType<typeof open1>>
+          Awaited<ReturnType<typeof openDocument>>
         > , 'initialData'
       >, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useOpen1<TData = Awaited<ReturnType<typeof open1>>, TError = unknown>(
+export function useOpenDocument<TData = Awaited<ReturnType<typeof openDocument>>, TError = unknown>(
  source: string,
     id: string,
-    params?: Open1Params, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof open1>>, TError, TData>> & Pick<
+    params?: OpenDocumentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof openDocument>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof open1>>,
+          Awaited<ReturnType<typeof openDocument>>,
           TError,
-          Awaited<ReturnType<typeof open1>>
+          Awaited<ReturnType<typeof openDocument>>
         > , 'initialData'
       >, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useOpen1<TData = Awaited<ReturnType<typeof open1>>, TError = unknown>(
+export function useOpenDocument<TData = Awaited<ReturnType<typeof openDocument>>, TError = unknown>(
  source: string,
     id: string,
-    params?: Open1Params, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof open1>>, TError, TData>>, request?: SecondParameter<typeof http>}
+    params?: OpenDocumentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof openDocument>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useOpen1<TData = Awaited<ReturnType<typeof open1>>, TError = unknown>(
+export function useOpenDocument<TData = Awaited<ReturnType<typeof openDocument>>, TError = unknown>(
  source: string,
     id: string,
-    params?: Open1Params, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof open1>>, TError, TData>>, request?: SecondParameter<typeof http>}
+    params?: OpenDocumentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof openDocument>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getOpen1QueryOptions(source,id,params,options)
+  const queryOptions = getOpenDocumentQueryOptions(source,id,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
