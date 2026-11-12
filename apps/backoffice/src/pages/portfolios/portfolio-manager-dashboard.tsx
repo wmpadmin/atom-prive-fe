@@ -40,8 +40,8 @@ import {
 
 /**
  * A portfolio manager's dashboard: the clients assigned to them — what they hold, how far each sits from plan,
- * the models they are on, the furthest from plan, and what this manager has raised. One dashboard with Edit view
- * to tick cards on and off, the same as every other role's.
+ * the models they are on, the furthest from plan, and what this manager has raised. One dashboard with Customize view
+ * to move, size and hide cards, the same as every other role's.
  */
 
 const PERIODS = [
@@ -62,7 +62,6 @@ const CARD: Record<CardId, CardMeta> = {
   assistant: { title: "AI Assistant", area: "side" },
 };
 
-const CARD_IDS = Object.keys(CARD) as CardId[];
 
 /** What the dashboard opens on, as the firm drew it on 4 Nov 2026. */
 const DEFAULT_CARDS: CardId[] = ["overview", "health", "proposals", "models", "deviations", "assistant"];
@@ -111,8 +110,7 @@ export function PortfolioManagerDashboard() {
     { query: { placeholderData: keepPreviousData, refetchInterval: 60_000 } },
   );
   const currencies = useListCurrencies<Currency[], ApiError>();
-  const view = useDashboardCards("portfolio-manager", CARD_IDS, DEFAULT_CARDS);
-  const [editing, setEditing] = useState(false);
+  const view = useDashboardCards("portfolio-manager", CARD, DEFAULT_CARDS);
   // Every screen on the reader's menu, the ones drawn under a section heading included.
   const reachable = useMemo(
     () => new Set(menuFor(user).flatMap((one) => [one.to, ...(one.below ?? []).map((under) => under.to)])),
@@ -253,8 +251,7 @@ export function PortfolioManagerDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards meta={CARD} shown={view.cards} editing={editing} onEditing={setEditing} onChange={view.change}
-            changed={view.changed} onReset={view.reset} />
+          <EditCards view={view} />
           <SelectInput id="pm-period" aria-label="Period the changes are measured over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -270,7 +267,7 @@ export function PortfolioManagerDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} shown={view.cards} render={render} editing={editing} onChange={view.change} />
+      <CardGrid meta={CARD} view={view} render={render} screen="Portfolio Manager dashboard" />
     </div>
   );
 }

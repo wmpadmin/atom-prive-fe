@@ -49,8 +49,8 @@ import {
 
 /**
  * Compliance's dashboard: the firm's KYC and AML across the whole book, what is waiting on Compliance, what is
- * about to lapse, and the staff side — declarations and the audit trail. One dashboard with Edit view to tick
- * cards on and off, the same as the Admin's; every figure opens the screen it was counted from.
+ * about to lapse, and the staff side — declarations and the audit trail. One dashboard with Customize view to
+ * move, size and hide cards, the same as the Admin's; every figure opens the screen it was counted from.
  */
 
 const PERIODS = [
@@ -74,9 +74,8 @@ const CARD: Record<CardId, CardMeta> = {
   assistant: { title: "AI Assistant", area: "side" },
 };
 
-const CARD_IDS = Object.keys(CARD) as CardId[];
 
-/** What the dashboard opens on, as the firm drew it on 4 Nov 2026; the rest are under Edit view. */
+/** What the dashboard opens on, as the firm drew it on 4 Nov 2026; the rest wait in Customize view's Add cards. */
 const DEFAULT_CARDS: CardId[] = ["kyc", "aml", "queue", "expiring", "trail", "assistant"];
 
 /** Which screen each counted line is worked from. A line whose screen the reader's menu lacks has no link. */
@@ -116,8 +115,7 @@ export function ComplianceDashboard() {
     { days },
     { query: { placeholderData: keepPreviousData, refetchInterval: 60_000 } },
   );
-  const view = useDashboardCards("compliance", CARD_IDS, DEFAULT_CARDS);
-  const [editing, setEditing] = useState(false);
+  const view = useDashboardCards("compliance", CARD, DEFAULT_CARDS);
   // Every screen on the reader's menu, the ones drawn under a section heading included.
   const reachable = useMemo(
     () => new Set(menuFor(user).flatMap((one) => [one.to, ...(one.below ?? []).map((under) => under.to)])),
@@ -216,8 +214,7 @@ export function ComplianceDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards meta={CARD} shown={view.cards} editing={editing} onEditing={setEditing} onChange={view.change}
-            changed={view.changed} onReset={view.reset} />
+          <EditCards view={view} />
           <SelectInput id="compliance-period" aria-label="Period the audit events are counted over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -227,7 +224,7 @@ export function ComplianceDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} shown={view.cards} render={render} editing={editing} onChange={view.change} />
+      <CardGrid meta={CARD} view={view} render={render} screen="Compliance dashboard" />
     </div>
   );
 }

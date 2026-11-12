@@ -1,4 +1,4 @@
-import { Button, cn } from "@atomprive/ui";
+import { cn } from "@atomprive/ui";
 import {
   ArrowLeft,
   ArrowRight,
@@ -6,9 +6,6 @@ import {
   ExternalLink,
   FileText,
   MoreVertical,
-  Pencil,
-  RotateCcw,
-  Search,
   SendHorizontal,
   Sparkles,
   X,
@@ -17,44 +14,23 @@ import {
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { Chart, ink } from "../book/overview-charts";
+import { CardLibrary, CustomizeBar, CustomizeButton, EditFrame, useViewLayout, type ViewLayoutState } from "../layout/custom-view";
 
 /**
- * The pieces every role's dashboard is built from: cards in a grid of two, each with its ⋮, an Edit view that
- * ticks cards on and off, and the panels, lists and rings the cards are drawn with. One dashboard per role and
- * no named views, at the firm's request; what a person ticks is kept in their browser.
+ * The pieces every role's dashboard is built from: cards in a grid of two, each with its ⋮, a Customize view that
+ * moves, sizes, hides and adds cards (layout/custom-view.tsx), and the panels, lists and rings the cards are drawn
+ * with. One layout per person and dashboard, kept on the server so it follows them to any browser (12 Nov 2026).
  */
 
 /** Something waiting, counted: the key says which screen it is worked from. */
 export type Waiting = { key: string; label: string; count: number };
 
 /** Where a card sits and what it is called: the side column holds the assistant and shortcuts. */
-export type CardMeta = { title: string; area: "main" | "side"; wide?: boolean };
+export type CardMeta = { title: string; area: "main" | "side"; wide?: boolean; group?: string };
 
-/**
- * The cards on one dashboard, in order, kept in this browser under {@code key}. Whatever is ticked in Edit view
- * is what the dashboard shows from then on; a card the code no longer has is quietly dropped.
- */
-export function useDashboardCards<Id extends string>(key: string, ids: readonly Id[], defaults: Id[]) {
-  const where = `atomprive.dashboard-cards.v1.${key}`;
-  const [cards, setCards] = useState<Id[]>(() => {
-    try {
-      const found = window.localStorage.getItem(where);
-      if (!found) return defaults;
-      const parsed: unknown = JSON.parse(found);
-      return Array.isArray(parsed) ? [...new Set(parsed.filter((one): one is Id => ids.includes(one as Id)))] : defaults;
-    } catch {
-      return defaults;
-    }
-  });
-  const change = (next: Id[]) => {
-    setCards(next);
-    try {
-      window.localStorage.setItem(where, JSON.stringify(next));
-    } catch {
-      // A browser that keeps nothing still shows the change; it lasts until the page is left.
-    }
-  };
-  return { cards, change, changed: cards.join("|") !== defaults.join("|"), reset: () => change(defaults) };
+/** The cards on one role's dashboard as the reader laid them out, kept on the server under dashboard.{key}. */
+export function useDashboardCards<Id extends string>(key: string, meta: Record<Id, CardMeta>, defaults: Id[]) {
+  return useViewLayout(`dashboard.${key}`, meta, defaults);
 }
 
 /**
@@ -62,74 +38,75 @@ export function useDashboardCards<Id extends string>(key: string, ids: readonly 
  * the side column beside it on wide screens. The two in a row are one height; a card that would sit alone takes
  * the whole row, so none is left half empty. Each card gets its own ⋮ to move it or take it off.
  */
-export function CardGrid<Id extends string>({ meta, shown, render, editing, onChange }: {
+export function CardGrid<Id extends string>({ meta, view, render, screen }: {
   meta: Record<Id, CardMeta>;
-  shown: Id[];
+  view: ViewLayoutState<Id>;
   render: Record<Id, ReactNode>;
-  editing: boolean;
-  onChange: (cards: Id[]) => void;
+  /** What the customize bar calls this screen. */
+  screen: string;
 }) {
+  const shown = view.cards;
   const inArea = (area: CardMeta["area"]) => shown.filter((id) => meta[id].area === area);
   const nudge = (id: Id, step: -1 | 1) => {
     const mates = inArea(meta[id].area);
     const neighbour = mates[mates.indexOf(id) + step];
-    if (!neighbour) return;
-    const next = [...shown];
-    const from = next.indexOf(id);
-    const to = next.indexOf(neighbour);
-    next[from] = neighbour;
-    next[to] = id;
-    onChange(next);
+    if (neighbour) view.move(id, neighbour, step === 1);
   };
   const main = inArea("main");
   const side = inArea("side");
+  const wide = (id: Id) => view.width(id) === "FULL";
+  // A half card with no half beside it takes the whole row, so none is left half empty.
   const fullRow = useMemo(() => {
     const alone = new Set<Id>();
     let column = 0;
     main.forEach((id, index) => {
-      if (meta[id].wide) {
+      if (wide(id)) {
         column = 0;
         return;
       }
       const next = main[index + 1];
-      if (column === 0 && (!next || meta[next].wide)) {
+      if (column === 0 && (!next || wide(next))) {
         alone.add(id);
         return;
       }
       column = (column + 1) % 2;
     });
     return alone;
-  }, [main, meta]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [main.join("|"), main.map((id) => view.width(id)).join("|")]);
   const card = (id: Id) => {
     const mates = inArea(meta[id].area);
     const controls: CardControls = {
       title: meta[id].title,
       earlier: mates[0] === id ? undefined : () => nudge(id, -1),
       later: mates[mates.length - 1] === id ? undefined : () => nudge(id, 1),
-      remove: () => onChange(shown.filter((one) => one !== id)),
+      remove: () => view.hide(id),
     };
     return (
-      <CardContext.Provider key={id} value={controls}>
-        <div className={cn("flex min-w-0 flex-col [&>*]:flex-1", (meta[id].wide || fullRow.has(id)) && "@2xl:col-span-2",
-          editing && "rounded-2xl outline-2 outline-offset-2 outline-primary-300 outline-dashed")}>
+      <CardContext.Provider key={id} value={view.editing ? null : controls}>
+        <EditFrame id={id} view={view}
+          className={cn("flex min-w-0 flex-col [&>*]:flex-1", (wide(id) || fullRow.has(id)) && meta[id].area === "main" && "@2xl:col-span-2")}>
           {render[id]}
-        </div>
+        </EditFrame>
       </CardContext.Provider>
     );
   };
-  if (shown.length === 0) {
-    return (
-      <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
-        Nothing on your dashboard. Use Edit view to tick the cards you want.
-      </p>
-    );
-  }
   return (
-    <div className={cn("grid gap-5", side.length > 0 && "xl:grid-cols-[minmax(0,1fr)_20rem]")}>
-      <div className="@container min-w-0">
-        <div className="grid gap-5 @2xl:grid-cols-2">{main.map(card)}</div>
-      </div>
-      {side.length > 0 && <aside className="space-y-5">{side.map(card)}</aside>}
+    <div className={cn("space-y-4", view.editing && "pr-0 lg:pr-80")}>
+      <CustomizeBar view={view} screen={screen} />
+      <CardLibrary view={view} />
+      {shown.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
+          Nothing on your dashboard. Use Customize view to add the cards you want.
+        </p>
+      ) : (
+        <div className={cn("grid gap-5", side.length > 0 && "xl:grid-cols-[minmax(0,1fr)_20rem]")}>
+          <div className="@container min-w-0">
+            <div className="grid gap-5 @2xl:grid-cols-2">{main.map(card)}</div>
+          </div>
+          {side.length > 0 && <aside className="space-y-5">{side.map(card)}</aside>}
+        </div>
+      )}
     </div>
   );
 }
@@ -167,70 +144,9 @@ export function money(amount: number, currency: string) {
 }
 
 
-/**
- * Edit view: every card, ticked where it is on the dashboard. Ticking one puts it on straight away and unticking
- * takes it off; nothing waits on a button. Reset puts back the dashboard as the firm set it.
- */
-export function EditCards<Id extends string>({ meta, shown, editing, onEditing, onChange, changed, onReset }: {
-  meta: Record<Id, CardMeta>;
-  shown: Id[];
-  editing: boolean;
-  onEditing: (editing: boolean) => void;
-  onChange: (cards: Id[]) => void;
-  changed: boolean;
-  onReset: () => void;
-}) {
-  const [query, setQuery] = useState("");
-  const close = useCallback(() => onEditing(false), [onEditing]);
-  const box = useDismiss(editing, close);
-  const listed = (Object.keys(meta) as Id[]).filter((id) => meta[id].title.toLowerCase().includes(query.trim().toLowerCase()));
-  const flip = (id: Id) => onChange(shown.includes(id) ? shown.filter((one) => one !== id) : [...shown, id]);
-  return (
-    <div ref={box} className="relative">
-      <Button variant={editing ? "primary" : "secondary"} onClick={() => { setQuery(""); onEditing(!editing); }}
-        aria-expanded={editing}>
-        <Pencil aria-hidden="true" />
-        Edit view
-      </Button>
-      {editing && (
-        <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-line bg-white p-3 shadow-lg">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold">Cards on your dashboard</p>
-            <button type="button" aria-label="Close" onClick={close} className="rounded p-1 text-ink-muted hover:bg-slate-100">
-              <X className="size-4" aria-hidden="true" />
-            </button>
-          </div>
-          <p className="mt-0.5 text-2xs text-ink-muted">Tick to add a card, untick to take it off. Kept in this browser.</p>
-          <div className="relative mt-2">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
-            <input aria-label="Search cards" value={query} onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search cards…"
-              className="w-full rounded-xl border border-line bg-white py-1.5 pr-3 pl-8 text-sm focus:border-primary-400 focus:outline-none" />
-          </div>
-          <ul className="mt-2 max-h-80 space-y-0.5 overflow-y-auto">
-            {listed.map((id) => (
-              <li key={id}>
-                <label className={cn("flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50",
-                  shown.includes(id) && "bg-primary-50/60")}>
-                  <input type="checkbox" checked={shown.includes(id)} onChange={() => flip(id)}
-                    className="size-4 accent-primary-600" />
-                  {meta[id].title}
-                </label>
-              </li>
-            ))}
-            {listed.length === 0 && <li className="px-2 py-3 text-sm text-ink-muted">No card is called that.</li>}
-          </ul>
-          <div className="mt-3 flex justify-between gap-2">
-            <Button variant="secondary" size="sm" onClick={onReset} disabled={!changed}>
-              <RotateCcw aria-hidden="true" />
-              Reset to default
-            </Button>
-            <Button size="sm" onClick={close}>Done</Button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+/** The dashboard's Customize view button; the bar and Add cards appear with the cards (CardGrid). */
+export function EditCards<Id extends string>({ view }: { view: ViewLayoutState<Id> }) {
+  return <CustomizeButton view={view} />;
 }
 
 

@@ -46,7 +46,7 @@ import {
 
 /**
  * A relationship manager's dashboard: their own clients and nobody else's — where each stands, what waits on
- * their answer, and who to chase. One dashboard with Edit view to tick cards on and off, the same as every other
+ * their answer, and who to chase. One dashboard with Customize view to move, size and hide cards, the same as every other
  * role's; every figure opens the screen it was counted from.
  */
 
@@ -70,9 +70,8 @@ const CARD: Record<CardId, CardMeta> = {
   links: { title: "Key links", area: "side" },
 };
 
-const CARD_IDS = Object.keys(CARD) as CardId[];
 
-/** What the dashboard opens on, as the firm drew it on 4 Nov 2026; the rest are under Edit view. */
+/** What the dashboard opens on, as the firm drew it on 4 Nov 2026; the rest wait in Customize view's Add cards. */
 const DEFAULT_CARDS: CardId[] = ["clients", "approvals", "kyc", "portfolios", "chase", "assistant"];
 
 /** Which screen each counted line is worked from. A line whose screen the reader's menu lacks has no link. */
@@ -124,8 +123,7 @@ export function AdvisorDashboard() {
     { query: { placeholderData: keepPreviousData, refetchInterval: 60_000 } },
   );
   const currencies = useListCurrencies<Currency[], ApiError>();
-  const view = useDashboardCards("relationship-manager", CARD_IDS, DEFAULT_CARDS);
-  const [editing, setEditing] = useState(false);
+  const view = useDashboardCards("relationship-manager", CARD, DEFAULT_CARDS);
   // Every screen on the reader's menu, the ones drawn under a section heading included.
   const reachable = useMemo(
     () => new Set(menuFor(user).flatMap((one) => [one.to, ...(one.below ?? []).map((under) => under.to)])),
@@ -230,8 +228,7 @@ export function AdvisorDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards meta={CARD} shown={view.cards} editing={editing} onEditing={setEditing} onChange={view.change}
-            changed={view.changed} onReset={view.reset} />
+          <EditCards view={view} />
           <SelectInput id="rm-period" aria-label="Period the changes are measured over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -247,7 +244,7 @@ export function AdvisorDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} shown={view.cards} render={render} editing={editing} onChange={view.change} />
+      <CardGrid meta={CARD} view={view} render={render} screen="Relationship Manager dashboard" />
     </div>
   );
 }
