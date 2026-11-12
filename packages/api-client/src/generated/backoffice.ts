@@ -24,6 +24,36 @@ import type {
 } from '@tanstack/react-query';
 
 import { http } from '../http';
+export type LayoutCardWidth = typeof LayoutCardWidth[keyof typeof LayoutCardWidth];
+
+
+export const LayoutCardWidth = {
+  HALF: 'HALF',
+  FULL: 'FULL',
+} as const;
+
+export interface LayoutCard {
+  /** @pattern [A-Za-z0-9][A-Za-z0-9._:-]{0,79} */
+  id: string;
+  width: LayoutCardWidth;
+  hidden: boolean;
+}
+
+export interface LayoutRequest {
+  /**
+     * @minItems 0
+     * @maxItems 80
+     */
+  cards: LayoutCard[];
+}
+
+export interface ViewLayout {
+  key: string;
+  cards: LayoutCard[];
+  /** @nullable */
+  savedAt: string | null;
+}
+
 export type DeclarationCycleWantedCadence = typeof DeclarationCycleWantedCadence[keyof typeof DeclarationCycleWantedCadence];
 
 
@@ -11513,6 +11543,252 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetViewLayoutUrl = (key: string,) => {
+
+
+
+
+  return `/api/backoffice/view-layouts/${key}`
+}
+
+export const getViewLayout = async (key: string, options?: Parameters<typeof http>[1]): Promise<ViewLayout> => {
+
+  return http<ViewLayout>(getGetViewLayoutUrl(key),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetViewLayoutQueryKey = (key: string,) => {
+    return [
+    `/api/backoffice/view-layouts/${key}`
+    ] as const;
+    }
+
+
+export const getGetViewLayoutQueryOptions = <TData = Awaited<ReturnType<typeof getViewLayout>>, TError = unknown>(key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewLayout>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetViewLayoutQueryKey(key);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getViewLayout>>> = ({ signal }) => getViewLayout(key, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: key !== null && key !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getViewLayout>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetViewLayoutQueryResult = NonNullable<Awaited<ReturnType<typeof getViewLayout>>>
+export type GetViewLayoutQueryError = unknown
+
+
+export function useGetViewLayout<TData = Awaited<ReturnType<typeof getViewLayout>>, TError = unknown>(
+ key: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewLayout>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getViewLayout>>,
+          TError,
+          Awaited<ReturnType<typeof getViewLayout>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetViewLayout<TData = Awaited<ReturnType<typeof getViewLayout>>, TError = unknown>(
+ key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewLayout>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getViewLayout>>,
+          TError,
+          Awaited<ReturnType<typeof getViewLayout>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetViewLayout<TData = Awaited<ReturnType<typeof getViewLayout>>, TError = unknown>(
+ key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewLayout>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetViewLayout<TData = Awaited<ReturnType<typeof getViewLayout>>, TError = unknown>(
+ key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewLayout>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetViewLayoutQueryOptions(key,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveViewLayoutUrl = (key: string,) => {
+
+
+
+
+  return `/api/backoffice/view-layouts/${key}`
+}
+
+export const saveViewLayout = async (key: string,
+    layoutRequest: LayoutRequest, options?: Parameters<typeof http>[1]): Promise<ViewLayout> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ViewLayout>(getSaveViewLayoutUrl(key),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(layoutRequest)
+  }
+);}
+
+
+
+
+
+export const getSaveViewLayoutMutationKey = () => ['saveViewLayout'] as const;
+
+export const getSaveViewLayoutMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveViewLayout>>, TError,SaveViewLayoutMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveViewLayout>>, TError,SaveViewLayoutMutationVariables, TContext> => {
+
+const mutationKey = getSaveViewLayoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveViewLayout>>, SaveViewLayoutMutationVariables> = (props) => {
+          const {key,data} = props ?? {};
+
+          return  saveViewLayout(key,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveViewLayoutMutationResult = NonNullable<Awaited<ReturnType<typeof saveViewLayout>>>
+    export type SaveViewLayoutMutationBody = LayoutRequest
+    export type SaveViewLayoutMutationError = unknown
+    export type SaveViewLayoutMutationVariables = {key: string;data: LayoutRequest}
+
+    export const useSaveViewLayout = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveViewLayout>>, TError,SaveViewLayoutMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveViewLayout>>,
+        TError,
+        SaveViewLayoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveViewLayoutMutationOptions(options), queryClient);
+    }
+
+export const getResetViewLayoutUrl = (key: string,) => {
+
+
+
+
+  return `/api/backoffice/view-layouts/${key}`
+}
+
+export const resetViewLayout = async (key: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getResetViewLayoutUrl(key),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getResetViewLayoutMutationKey = () => ['resetViewLayout'] as const;
+
+export const getResetViewLayoutMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetViewLayout>>, TError,ResetViewLayoutMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetViewLayout>>, TError,ResetViewLayoutMutationVariables, TContext> => {
+
+const mutationKey = getResetViewLayoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetViewLayout>>, ResetViewLayoutMutationVariables> = (props) => {
+          const {key} = props ?? {};
+
+          return  resetViewLayout(key,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetViewLayoutMutationResult = NonNullable<Awaited<ReturnType<typeof resetViewLayout>>>
+
+    export type ResetViewLayoutMutationError = unknown
+    export type ResetViewLayoutMutationVariables = {key: string}
+
+    export const useResetViewLayout = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetViewLayout>>, TError,ResetViewLayoutMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resetViewLayout>>,
+        TError,
+        ResetViewLayoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResetViewLayoutMutationOptions(options), queryClient);
+    }
 
 export const getCycleUrl = () => {
 
