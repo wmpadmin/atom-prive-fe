@@ -42,8 +42,8 @@ import {
 
 /**
  * The IT Admin's dashboard: support tickets, who is signed in and who was looked at as somebody else, whether the
- * platform is well, the staff accounts and the security trail. One dashboard with Edit view to tick cards on and
- * off, the same as every other role's.
+ * platform is well, the staff accounts and the security trail. One dashboard with Customize view to move, size and
+ * hide cards, the same as every other role's.
  */
 
 const PERIODS = [
@@ -65,9 +65,8 @@ const CARD: Record<CardId, CardMeta> = {
   links: { title: "Key links", area: "side" },
 };
 
-const CARD_IDS = Object.keys(CARD) as CardId[];
 
-/** What the dashboard opens on, as the firm drew it on 4 Nov 2026; the rest are under Edit view. */
+/** What the dashboard opens on, as the firm drew it on 4 Nov 2026; the rest wait in Customize view's Add cards. */
 const DEFAULT_CARDS: CardId[] = ["tickets", "sessions", "health", "users", "security", "assistant"];
 
 /** Which screen each counted line is worked from. A line whose screen the reader's menu lacks has no link. */
@@ -118,8 +117,7 @@ export function ItAdminDashboard() {
     { days },
     { query: { placeholderData: keepPreviousData, refetchInterval: 60_000 } },
   );
-  const view = useDashboardCards("it-admin", CARD_IDS, DEFAULT_CARDS);
-  const [editing, setEditing] = useState(false);
+  const view = useDashboardCards("it-admin", CARD, DEFAULT_CARDS);
   // Every screen on the reader's menu, the ones drawn under a section heading included.
   const reachable = useMemo(
     () => new Set(menuFor(user).flatMap((one) => [one.to, ...(one.below ?? []).map((under) => under.to)])),
@@ -246,8 +244,7 @@ export function ItAdminDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards meta={CARD} shown={view.cards} editing={editing} onEditing={setEditing} onChange={view.change}
-            changed={view.changed} onReset={view.reset} />
+          <EditCards view={view} />
           <SelectInput id="it-period" aria-label="Period tickets, sign-ins and security events are counted over"
             value={String(days)} onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -257,7 +254,7 @@ export function ItAdminDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} shown={view.cards} render={render} editing={editing} onChange={view.change} />
+      <CardGrid meta={CARD} view={view} render={render} screen="IT Admin dashboard" />
     </div>
   );
 }

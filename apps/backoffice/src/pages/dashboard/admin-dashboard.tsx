@@ -151,7 +151,6 @@ const CARD: Record<CardId, CardMeta> = {
   links: { title: "Key links", area: "side" },
 };
 
-const CARD_IDS = Object.keys(CARD) as CardId[];
 
 /** What the dashboard opens on until the Admin changes it: the firm's own choice, 4 Nov 2026. */
 const DEFAULT_CARDS: CardId[] = ["summary", "asset-classes", "operations", "approvals", "upcoming", "assistant"];
@@ -180,8 +179,7 @@ export function AdminDashboard() {
   const data = firm.data;
   const cur = data?.currency ?? currency;
 
-  const view = useDashboardCards("admin", CARD_IDS, DEFAULT_CARDS);
-  const [editing, setEditing] = useState(false);
+  const view = useDashboardCards("admin", CARD, DEFAULT_CARDS);
   const openItems = data ? data.headline.openApprovals + data.headline.openRequests : undefined;
 
   const cards: Record<CardId, ReactNode> = {
@@ -344,7 +342,6 @@ export function AdminDashboard() {
     ),
   };
 
-  const shown = view.cards;
 
   return (
     <div className="space-y-4">
@@ -359,8 +356,7 @@ export function AdminDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards meta={CARD} shown={shown} editing={editing} onEditing={setEditing} onChange={view.change}
-            changed={view.changed} onReset={view.reset} />
+          <EditCards view={view} />
           <SelectInput id="firm-period" aria-label="Period the changes are measured over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -382,7 +378,7 @@ export function AdminDashboard() {
         </Alert>
       )}
 
-      <CardGrid meta={CARD} shown={shown} render={cards} editing={editing} onChange={view.change} />
+      <CardGrid meta={CARD} view={view} render={cards} screen="Admin dashboard" />
     </div>
   );
 }
