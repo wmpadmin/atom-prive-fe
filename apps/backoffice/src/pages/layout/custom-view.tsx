@@ -9,7 +9,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Button, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, GripVertical, LayoutGrid, Plus, RotateCcw, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, GripVertical, LayoutGrid as LayoutIcon, Plus, RotateCcw, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 
 /**
@@ -141,7 +141,7 @@ export function CustomizeButton<Id extends string>({ view }: { view: ViewLayoutS
   if (view.editing) return null;
   return (
     <Button variant="secondary" onClick={view.begin}>
-      <LayoutGrid aria-hidden="true" />
+      <LayoutIcon aria-hidden="true" />
       Customize view
     </Button>
   );
@@ -310,6 +310,55 @@ export function EditFrame<Id extends string>({ id, view, className, children }: 
         </button>
       </div>
       <div className="pointer-events-none flex min-w-0 flex-1 flex-col select-none [&>*]:flex-1">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * A screen's cards in the reader's order: two to a row, a full-width card taking the row, and a half card with no
+ * half beside it stretched across so no row is left half empty. Customizing draws the bar, Add cards and each card's
+ * frame; outside it the cards are drawn as they are.
+ */
+export function LayoutGrid<Id extends string>({ view, render, screen }: {
+  view: ViewLayoutState<Id>;
+  render: Record<Id, ReactNode>;
+  /** What the customize bar calls this screen. */
+  screen: string;
+}) {
+  const shown = view.cards;
+  const wide = (id: Id) => view.width(id) === "FULL";
+  const alone = new Set<Id>();
+  let column = 0;
+  shown.forEach((id, index) => {
+    if (wide(id)) {
+      column = 0;
+      return;
+    }
+    const next = shown[index + 1];
+    if (column === 0 && (!next || wide(next))) {
+      alone.add(id);
+      return;
+    }
+    column = (column + 1) % 2;
+  });
+  return (
+    <div className={cn("space-y-4", view.editing && "lg:pr-80")}>
+      <CustomizeBar view={view} screen={screen} />
+      <CardLibrary view={view} />
+      {shown.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
+          Every card is hidden. Use Customize view to add the cards you want.
+        </p>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {shown.map((id) => (
+            <EditFrame key={id} id={id} view={view}
+              className={cn("flex min-w-0 flex-col [&>*]:flex-1", (wide(id) || alone.has(id)) && "xl:col-span-2")}>
+              {render[id]}
+            </EditFrame>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
