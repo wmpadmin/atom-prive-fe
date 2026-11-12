@@ -137,6 +137,8 @@ export function SyncRunsPage() {
   const runs = useListSyncRuns<SyncRunPage, ApiError>(filters, { query: { placeholderData: keepPreviousData } });
   // Every bank the feeds cover, not only the ones this page of runs happens to name.
   const banks = runs.data?.banks ?? [];
+  // Trying again would only ask such a bank for files it never sends; the server refuses it.
+  const uploadOnly = new Set(banks.filter((bank) => bank.uploadOnly).map((bank) => bank.id));
   const user = useStaffUser();
   const canRun = hasAuthority(user, "MANAGE_BANK_FEEDS:CHANGE");
   const queryClient = useQueryClient();
@@ -171,7 +173,8 @@ export function SyncRunsPage() {
         </div>
         {canRun && (
           <RunNow
-            banks={banks.filter((bank) => bank.enabled)}
+            // A bank whose files come only by upload has nothing to run: Upload statement on Bank feeds takes them.
+            banks={banks.filter((bank) => bank.enabled && !bank.uploadOnly)}
             busy={asking}
             onRun={(bank, account) => start.mutate({ bankId: bank, data: { accountLabel: account || null } })}
           />
@@ -320,7 +323,7 @@ export function SyncRunsPage() {
                   key={run.id}
                   run={run}
                   columns={shownColumns}
-                  canRetry={canRun}
+                  canRetry={canRun && !uploadOnly.has(run.bankId)}
                   busy={asking}
                   onRetry={() => retry.mutate({ runId: run.id })}
                 />
