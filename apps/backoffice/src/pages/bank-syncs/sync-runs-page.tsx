@@ -173,7 +173,7 @@ export function SyncRunsPage() {
         </div>
         {canRun && (
           <RunNow
-            // A bank whose files come only by upload has nothing to run: Upload statement on Bank feeds takes them.
+            // A bank whose files come only by upload has nothing to run: Upload file on Bank feeds takes them.
             banks={banks.filter((bank) => bank.enabled && !bank.uploadOnly)}
             busy={asking}
             onRun={(bank, account) => start.mutate({ bankId: bank, data: { accountLabel: account || null } })}

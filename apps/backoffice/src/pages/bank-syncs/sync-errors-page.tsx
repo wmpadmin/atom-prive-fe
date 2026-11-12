@@ -90,7 +90,7 @@ export function SyncErrorsPage() {
   const byId = new Map(MOVABLE.map((one) => [one.id, one]));
   const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
   const banks = runs.data?.banks ?? [];
-  // A bank whose files come only by upload has nothing to try again; Upload statement on Bank feeds takes them.
+  // A bank whose files come only by upload has nothing to try again; Upload file on Bank feeds takes them.
   const uploadOnly = new Set(banks.filter((bank) => bank.uploadOnly).map((bank) => bank.id));
   const failing = runs.data?.failing ?? [];
   const rows = runs.data?.items ?? [];
