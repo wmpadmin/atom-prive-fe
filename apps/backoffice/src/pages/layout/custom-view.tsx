@@ -362,3 +362,54 @@ export function LayoutGrid<Id extends string>({ view, render, screen }: {
     </div>
   );
 }
+
+/**
+ * A narrow screen's sections one under another, such as a side panel: moved and hidden like cards, with no width.
+ * While customizing, the hidden ones are listed at the end to add back, as a drawer would cover the panel.
+ */
+export function LayoutStack<Id extends string>({ view, render, screen }: {
+  view: ViewLayoutState<Id>;
+  render: Record<Id, ReactNode>;
+  screen: string;
+}) {
+  return (
+    <div className="space-y-6">
+      {view.editing && (
+        <div className="space-y-2 rounded-xl border border-primary-200 bg-primary-50 px-3 py-2.5">
+          <p className="text-sm font-bold">Customizing · {screen}</p>
+          <p className="text-xs text-ink-soft">Move sections with the arrows or by dragging, ✕ to hide. Saved to your account.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" onClick={view.reset} disabled={!view.changed}>
+              <RotateCcw aria-hidden="true" />
+              Reset
+            </Button>
+            <Button variant="secondary" size="sm" onClick={view.cancel}>Cancel</Button>
+            <Button size="sm" onClick={view.done}>Done</Button>
+          </div>
+        </div>
+      )}
+      {view.cards.map((id) => (
+        <EditFrame key={id} id={id} view={view}>{render[id]}</EditFrame>
+      ))}
+      {view.editing && view.hidden.length > 0 && (
+        <section className="rounded-xl border border-dashed border-line px-3 py-2.5">
+          <p className="mb-1.5 text-2xs font-bold tracking-wider text-ink-muted uppercase">Hidden sections</p>
+          <ul className="space-y-1.5">
+            {view.hidden.map((id) => (
+              <li key={id} className="flex items-center justify-between gap-2 text-sm">
+                <span className="font-semibold">{view.meta[id].title}</span>
+                <button type="button" onClick={() => view.show(id)}
+                  className="inline-flex items-center gap-1 rounded-md border border-primary-200 bg-primary-50 px-2 py-1 text-2xs font-bold text-primary-700 hover:bg-primary-100">
+                  <Plus className="size-3" aria-hidden="true" /> Add
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {!view.editing && view.cards.length === 0 && (
+        <p className="text-sm text-ink-muted">Every section is hidden. Use Customize to add them back.</p>
+      )}
+    </div>
+  );
+}
