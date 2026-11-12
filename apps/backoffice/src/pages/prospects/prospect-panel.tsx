@@ -16,10 +16,11 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, DateInput, Dialog, Field, SelectInput, TextArea, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Mail, X } from "lucide-react";
+import { LayoutGrid, Mail, X } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { PanelEdge } from "../../components/panel-edge";
+import { LayoutStack, useViewLayout, type LayoutMeta } from "../layout/custom-view";
 import { formatDate, formatDateTime } from "../../lib/labels";
 import {
   PROSPECT_PANEL_DEFAULT,
@@ -35,6 +36,17 @@ import {
   STATUS_PILLS,
   statusLabel,
 } from "./prospect-labels";
+
+type Section = "details" | "email" | "follow-ups";
+
+/** The panel's sections, moved or hidden by each reader for every prospect they open. */
+const SECTIONS: Record<Section, LayoutMeta> = {
+  details: { title: "Details", area: "side" },
+  email: { title: "Send follow-up email", area: "side" },
+  "follow-ups": { title: "Follow-ups", area: "side" },
+};
+
+const DEFAULT_SECTIONS = Object.keys(SECTIONS) as Section[];
 
 const today = () => new Date().toLocaleDateString("en-CA");
 
@@ -56,6 +68,7 @@ export function ProspectPanel({ id, onClose, onEdit }: {
   const [losing, setLosing] = useState(false);
   const [converting, setConverting] = useState(false);
   const { preferences, change } = usePreferences();
+  const view = useViewLayout("prospect-panel", SECTIONS, DEFAULT_SECTIONS);
   // Live while a drag is in flight; what is on file otherwise, as with the assistant's panel.
   const [dragged, setDragged] = useState<number | null>(null);
   const width = dragged ?? preferences.prospectPanelWidth;
@@ -115,6 +128,13 @@ export function ProspectPanel({ id, onClose, onEdit }: {
                     </span>
                   </h2>
                 </div>
+                {!view.editing && (
+                  <button type="button" onClick={view.begin} title="Move or hide this panel's sections"
+                    className="rounded-lg p-1.5 text-ink-muted hover:bg-slate-100 hover:text-ink">
+                    <LayoutGrid className="size-5" aria-hidden="true" />
+                    <span className="sr-only">Customize the panel</span>
+                  </button>
+                )}
                 <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-ink-muted hover:bg-slate-100 hover:text-ink">
                   <X className="size-5" aria-hidden="true" />
                   <span className="sr-only">Close</span>
@@ -148,47 +168,53 @@ export function ProspectPanel({ id, onClose, onEdit }: {
             <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
               {logging && <LogFollowUp detail={detail} onDone={() => setLogging(false)} />}
 
-              <dl className="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-2 text-sm">
-                <Fact label="Reference">{row.reference}</Fact>
-                <Fact label="Assigned to">{row.assignedTo?.fullName ?? <Muted>Nobody yet</Muted>}</Fact>
-                <Fact label="Email">{row.email ?? <Muted>None given</Muted>}</Fact>
-                <Fact label="Phone">{row.phone ?? <Muted>None given</Muted>}</Fact>
-                <Fact label="Next follow up">
-                  {row.nextFollowUp ? (
-                    <span className={cn(row.overdue && "font-semibold text-red-700")}>
-                      {formatDate(row.nextFollowUp)}{row.overdue && " · overdue"}
-                    </span>
-                  ) : <Muted>Not set</Muted>}
-                </Fact>
-                {detail.lostReason && <Fact label="Lost because">{LOST_REASONS[detail.lostReason]}</Fact>}
-                <Fact label="Notes">{detail.notes ? <span className="whitespace-pre-wrap">{detail.notes}</span> : <Muted>None</Muted>}</Fact>
-              </dl>
-
-              {detail.mayChange && open && <EmailBox detail={detail} />}
-
-              <section>
-                <h3 className="mb-3 text-2xs font-bold tracking-wider text-ink-muted uppercase">Follow-ups</h3>
-                <ol className="space-y-4 border-l-2 border-line pl-5">
-                  {detail.followUps.map((one) => (
-                    <li key={one.id} className="relative text-sm">
-                      <span className="absolute top-1 -left-[1.6rem] size-2.5 rounded-full border-2 border-primary-600 bg-white" aria-hidden="true" />
-                      <p className="text-xs text-ink-muted">
-                        {formatDate(one.happenedOn)} · {METHOD_LABELS[one.method]} · {one.writtenBy}
-                      </p>
-                      <p className="font-semibold">
-                        {one.emailSubject ? `Email: ${one.emailSubject}` : `Status: ${statusLabel(one.statusAfter)}`}
-                      </p>
-                      {one.notes && <p className="mt-0.5 whitespace-pre-wrap text-ink-soft">{one.notes}</p>}
-                      {one.nextFollowUp && <p className="mt-0.5 text-xs text-ink-muted">Next follow up {formatDate(one.nextFollowUp)}</p>}
-                    </li>
-                  ))}
-                  <li className="relative text-sm">
-                    <span className="absolute top-1 -left-[1.6rem] size-2.5 rounded-full border-2 border-slate-300 bg-white" aria-hidden="true" />
-                    <p className="text-xs text-ink-muted">{formatDateTime(detail.createdAt)} · {detail.createdBy}</p>
-                    <p className="font-semibold">Added as a prospective client</p>
-                  </li>
-                </ol>
-              </section>
+              <LayoutStack view={view} screen="Prospect panel" render={{
+                details: (
+                  <dl className="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-2 text-sm">
+                    <Fact label="Reference">{row.reference}</Fact>
+                    <Fact label="Assigned to">{row.assignedTo?.fullName ?? <Muted>Nobody yet</Muted>}</Fact>
+                    <Fact label="Email">{row.email ?? <Muted>None given</Muted>}</Fact>
+                    <Fact label="Phone">{row.phone ?? <Muted>None given</Muted>}</Fact>
+                    <Fact label="Next follow up">
+                      {row.nextFollowUp ? (
+                        <span className={cn(row.overdue && "font-semibold text-red-700")}>
+                          {formatDate(row.nextFollowUp)}{row.overdue && " · overdue"}
+                        </span>
+                      ) : <Muted>Not set</Muted>}
+                    </Fact>
+                    {detail.lostReason && <Fact label="Lost because">{LOST_REASONS[detail.lostReason]}</Fact>}
+                    <Fact label="Notes">{detail.notes ? <span className="whitespace-pre-wrap">{detail.notes}</span> : <Muted>None</Muted>}</Fact>
+                  </dl>
+                ),
+                email: detail.mayChange && open ? <EmailBox detail={detail} /> : (
+                  <p className="text-xs text-ink-muted">Follow-up emails can be sent while the prospect is open.</p>
+                ),
+                "follow-ups": (
+                  <section>
+                    <h3 className="mb-3 text-2xs font-bold tracking-wider text-ink-muted uppercase">Follow-ups</h3>
+                    <ol className="space-y-4 border-l-2 border-line pl-5">
+                      {detail.followUps.map((one) => (
+                        <li key={one.id} className="relative text-sm">
+                          <span className="absolute top-1 -left-[1.6rem] size-2.5 rounded-full border-2 border-primary-600 bg-white" aria-hidden="true" />
+                          <p className="text-xs text-ink-muted">
+                            {formatDate(one.happenedOn)} · {METHOD_LABELS[one.method]} · {one.writtenBy}
+                          </p>
+                          <p className="font-semibold">
+                            {one.emailSubject ? `Email: ${one.emailSubject}` : `Status: ${statusLabel(one.statusAfter)}`}
+                          </p>
+                          {one.notes && <p className="mt-0.5 whitespace-pre-wrap text-ink-soft">{one.notes}</p>}
+                          {one.nextFollowUp && <p className="mt-0.5 text-xs text-ink-muted">Next follow up {formatDate(one.nextFollowUp)}</p>}
+                        </li>
+                      ))}
+                      <li className="relative text-sm">
+                        <span className="absolute top-1 -left-[1.6rem] size-2.5 rounded-full border-2 border-slate-300 bg-white" aria-hidden="true" />
+                        <p className="text-xs text-ink-muted">{formatDateTime(detail.createdAt)} · {detail.createdBy}</p>
+                        <p className="font-semibold">Added as a prospective client</p>
+                      </li>
+                    </ol>
+                  </section>
+                ),
+              }} />
             </div>
           </>
         )}
