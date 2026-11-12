@@ -187,9 +187,10 @@ export function AdminDashboard() {
   const cards: Record<CardId, ReactNode> = {
     summary: (
       <Panel icon={Layers} title="Firm summary">
-        <dl className="grid grid-cols-2 gap-y-4 sm:grid-cols-4 sm:divide-x sm:divide-line">
+        <dl className="grid grid-cols-2 gap-y-4 sm:grid-cols-3 xl:grid-cols-5 xl:divide-x xl:divide-line">
           <Figure label="Total AUM" value={data ? money(data.headline.totalAum, cur) : undefined}
             change={data?.headline.aumChangePercent} to={goTo("/client-management", "/clients")} />
+          <Figure label="Relationship Managers" value={data?.headline.relationshipManagers} to={goTo("/users")} />
           <Figure label="Total clients" value={data?.headline.clients} change={data?.headline.clientsChangePercent}
             to={goTo("/clients")} />
           <Figure label="Active staff" value={data?.headline.activeStaff} to={goTo("/users")} />
