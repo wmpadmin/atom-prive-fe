@@ -8027,6 +8027,7 @@ export interface Headline {
   /** @nullable */
   clientsChangePercent: number | null;
   activeStaff: number;
+  relationshipManagers: number;
   onboarding: number;
   openApprovals: number;
   openRequests: number;
