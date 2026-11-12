@@ -303,7 +303,7 @@ export function IngestionMonitoringPage() {
                       {canRun && feed.enabled && (
                         <Button variant="ghost" size="sm" onClick={() => setUploading(feed)}>
                           <Upload aria-hidden="true" />
-                          Upload statement
+                          Upload file
                         </Button>
                       )}
                       <Link

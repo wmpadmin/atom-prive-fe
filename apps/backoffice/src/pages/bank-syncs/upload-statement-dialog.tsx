@@ -59,7 +59,7 @@ export function UploadStatementDialog({ feed, onClose, onTaken }: {
   if (run) {
     const taken = run.outcome === "SUCCEEDED";
     return (
-      <Dialog open title={taken ? "Statement taken" : "Nothing was stored"} onClose={onClose}>
+      <Dialog open title={taken ? "File taken" : "Nothing was stored"} onClose={onClose}>
         <div className="space-y-4">
           {taken ? (
             <Alert tone="success">
@@ -99,7 +99,7 @@ export function UploadStatementDialog({ feed, onClose, onTaken }: {
   return (
     <Dialog
       open
-      title={`Upload a statement from ${feed.name}`}
+      title={`Upload a file from ${feed.name}`}
       description={`The files are read through ${feed.name}'s format mapping, checked line by line, and stored once. The run appears in the Ingestion log.`}
       onClose={onClose}
     >
