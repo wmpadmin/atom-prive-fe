@@ -17,6 +17,7 @@ import { Link, useNavigate } from "react-router";
 import { downloadTextFile } from "../../lib/download";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
+import { CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
 import { INK } from "./asset-classes";
 
 /**
@@ -37,6 +38,7 @@ export function ClientDirectoryPage() {
   );
   const currencies = useListCurrencies<Currency[], ApiError>();
   const data = directory.data;
+  const view = useViewLayout("client-directory", CARDS, DEFAULT_CARDS);
 
   return (
     <div className="space-y-5">
@@ -48,27 +50,79 @@ export function ClientDirectoryPage() {
             Directory of all client families · open a family to see its overview, entity structure, holdings and analytics
           </p>
         </div>
-        <SelectInput id="directory-currency" aria-label="Currency the directory is shown in" value={currency}
-          onChange={(event) => setCurrency(event.target.value)} className="w-28">
-          {(currencies.data ?? [{ code: "USD", name: "US dollar" }]).map((one) => (
-            <option key={one.code} value={one.code}>{one.code}</option>
-          ))}
-        </SelectInput>
+        <div className="flex flex-wrap gap-2">
+          <CustomizeButton view={view} />
+          <SelectInput id="directory-currency" aria-label="Currency the directory is shown in" value={currency}
+            onChange={(event) => setCurrency(event.target.value)} className="w-28">
+            {(currencies.data ?? [{ code: "USD", name: "US dollar" }]).map((one) => (
+              <option key={one.code} value={one.code}>{one.code}</option>
+            ))}
+          </SelectInput>
+        </div>
       </header>
 
       {directory.isError && <Alert tone="danger">{directory.error.message}</Alert>}
       {!data ? (
         !directory.isError && <p className="py-16 text-center text-sm text-ink-muted">Reading the directory…</p>
       ) : (
-        <Board data={data} />
+        <Board data={data} view={view} />
       )}
     </div>
   );
 }
 
-function Board({ data }: { data: ClientDirectory }) {
+type DirectoryCardId = "kpis" | "attention" | "directory" | "segments" | "managers" | "regions" | "mandates";
+
+/** The screen's cards, in the firm's order: every card on by default. */
+const CARDS: Record<DirectoryCardId, LayoutMeta> = {
+  kpis: { title: "Key figures", group: "Summary", wide: true },
+  attention: { title: "Needs attention", group: "Summary", wide: true },
+  directory: { title: "Client Directory", group: "Clients", wide: true },
+  segments: { title: "By Segment", group: "Breakdowns" },
+  managers: { title: "By Relationship Manager", group: "Breakdowns" },
+  regions: { title: "By Region of Residence", group: "Breakdowns" },
+  mandates: { title: "By Mandate", group: "Breakdowns" },
+};
+
+const DEFAULT_CARDS = Object.keys(CARDS) as DirectoryCardId[];
+
+function Board({ data, view }: { data: ClientDirectory; view: ViewLayoutState<DirectoryCardId> }) {
   const cur = data.currency;
-  const { kpis, attention } = data;
+  const { attention } = data;
+  return (
+    <>
+      <LayoutGrid view={view} screen="Client Directory" render={{
+        kpis: <Kpis data={data} />,
+        attention: (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <AttentionTile icon={Target} tone="danger" label="Deviation from IPS" named={attention.deviations} />
+            <AttentionTile icon={CalendarClock} tone="warning" label="Reviews overdue" named={attention.reviewsOverdue}
+              extra={(one) => (one.on ? ` (${shortDate(one.on)})` : "")} />
+            <AttentionTile icon={Clock} tone="warning" label="Custodian data delayed" named={attention.dataDelayed} />
+            <AttentionTile icon={ShieldCheck} tone="neutral" label="KYC / CRS refresh due" named={attention.kycDue}
+              count={attention.kycDue.reduce((sum, one) => sum + one.count, 0)} noun={["entity", "entities"]}
+              extra={(one) => ` (${one.count})`} />
+          </div>
+        ),
+        directory: <DirectoryCard data={data} />,
+        segments: <SegmentCard data={data} />,
+        managers: <ManagerCard data={data} />,
+        regions: <RegionCard data={data} />,
+        mandates: <MandateCard data={data} />,
+      }} />
+
+      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
+        <span>Values in {cur} unless stated; market data as of {formatDate(data.asOf)} close.</span>
+        <span>atom privé · Portfolio Management · Internal use only</span>
+      </footer>
+    </>
+  );
+}
+
+/** The six figures across the top. */
+function Kpis({ data }: { data: ClientDirectory }) {
+  const cur = data.currency;
+  const { kpis } = data;
   const fileNote = data.bankFileClients.join(", ");
   const segments = kpis.segments
     .filter((one) => one.segment != null)
@@ -120,33 +174,6 @@ function Board({ data }: { data: ClientDirectory }) {
             </>
           } />
       </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <AttentionTile icon={Target} tone="danger" label="Deviation from IPS" named={attention.deviations} />
-        <AttentionTile icon={CalendarClock} tone="warning" label="Reviews overdue" named={attention.reviewsOverdue}
-          extra={(one) => (one.on ? ` (${shortDate(one.on)})` : "")} />
-        <AttentionTile icon={Clock} tone="warning" label="Custodian data delayed" named={attention.dataDelayed} />
-        <AttentionTile icon={ShieldCheck} tone="neutral" label="KYC / CRS refresh due" named={attention.kycDue}
-          count={attention.kycDue.reduce((sum, one) => sum + one.count, 0)} noun={["entity", "entities"]}
-          extra={(one) => ` (${one.count})`} />
-      </div>
-
-      <DirectoryCard data={data} />
-
-      {/* Two by two, paired by height: the segment donut beside the managers, the region bars beside the
-          mandates. Alone across the page the segment card was mostly empty space above three short ones; in a
-          grid each pair stretches to the taller of the two, so a row ends level. */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SegmentCard data={data} />
-        <ManagerCard data={data} />
-        <RegionCard data={data} />
-        <MandateCard data={data} />
-      </div>
-
-      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
-        <span>Values in {cur} unless stated; market data as of {formatDate(data.asOf)} close.</span>
-        <span>atom privé · Portfolio Management · Internal use only</span>
-      </footer>
     </>
   );
 }
