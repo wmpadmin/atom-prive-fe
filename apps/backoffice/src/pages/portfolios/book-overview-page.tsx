@@ -20,6 +20,7 @@ import { Link, useNavigate } from "react-router";
 import { downloadTextFile } from "../../lib/download";
 import { formatDate, formatRelative } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
+import { CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
 import { INK } from "./asset-classes";
 
 echarts.use([ScatterChart]);
@@ -42,6 +43,7 @@ export function BookOverviewPage() {
   );
   const currencies = useListCurrencies<Currency[], ApiError>();
   const data = overview.data;
+  const view = useViewLayout("book-overview", CARDS, DEFAULT_CARDS);
 
   return (
     <div className="space-y-5">
@@ -57,31 +59,75 @@ export function BookOverviewPage() {
               : "Reading the book…"}
           </p>
         </div>
-        <SelectInput id="book-currency" aria-label="Currency the book is shown in" value={currency}
-          onChange={(event) => setCurrency(event.target.value)} className="w-28">
-          {(currencies.data ?? [{ code: "USD", name: "US dollar" }]).map((one) => (
-            <option key={one.code} value={one.code}>{one.code}</option>
-          ))}
-        </SelectInput>
+        <div className="flex flex-wrap gap-2">
+          <CustomizeButton view={view} />
+          <SelectInput id="book-currency" aria-label="Currency the book is shown in" value={currency}
+            onChange={(event) => setCurrency(event.target.value)} className="w-28">
+            {(currencies.data ?? [{ code: "USD", name: "US dollar" }]).map((one) => (
+              <option key={one.code} value={one.code}>{one.code}</option>
+            ))}
+          </SelectInput>
+        </div>
       </header>
 
       {overview.isError && <Alert tone="danger">{overview.error.message}</Alert>}
       {!data ? (
         !overview.isError && <p className="py-16 text-center text-sm text-ink-muted">Reading the book…</p>
       ) : (
-        <Board data={data} />
+        <Board data={data} view={view} />
       )}
     </div>
   );
 }
 
-function Board({ data }: { data: BookOverview }) {
+type BookCard = "kpis" | "aum" | "mandates" | "clients" | "alerts" | "upcoming" | "feeds" | "risk-return" | "dispersion";
+
+/** The screen's cards, in the firm's order: every card on by default. */
+const CARDS: Record<BookCard, LayoutMeta> = {
+  kpis: { title: "Key figures", group: "Summary", wide: true },
+  aum: { title: "Assets Under Management", group: "Summary" },
+  mandates: { title: "AUM by Mandate", group: "Summary" },
+  clients: { title: "Client Book", group: "Clients", wide: true },
+  alerts: { title: "Alert Queue", group: "Attention" },
+  upcoming: { title: "Next 30 Days", group: "Attention" },
+  feeds: { title: "Custodian Data Feeds", group: "Attention" },
+  "risk-return": { title: "Return vs Risk — All Clients", group: "Performance" },
+  dispersion: { title: "YTD Dispersion by Mandate", group: "Performance" },
+};
+
+const DEFAULT_CARDS = Object.keys(CARDS) as BookCard[];
+
+function Board({ data, view }: { data: BookOverview; view: ViewLayoutState<BookCard> }) {
+  const cur = data.currency;
+  return (
+    <>
+      <LayoutGrid view={view} screen="Book Overview" render={{
+        kpis: <Kpis data={data} />,
+        aum: <AumCard data={data} />,
+        mandates: <MandateCard data={data} />,
+        clients: <ClientBookCard data={data} />,
+        alerts: <AlertQueue alerts={data.alerts} />,
+        upcoming: <NextThirtyDays upcoming={data.upcoming} />,
+        feeds: <CustodianFeeds data={data} />,
+        "risk-return": <RiskReturnCard data={data} />,
+        dispersion: <DispersionCard data={data} />,
+      }} />
+
+      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
+        <span>Values in {cur} unless stated; market data as of {formatDate(data.asOf)} close.</span>
+        <span>atom privé · Portfolio Management · Internal use only</span>
+      </footer>
+    </>
+  );
+}
+
+/** Six figures, as the design's first row. */
+function Kpis({ data }: { data: BookOverview }) {
   const cur = data.currency;
   const fileNote = bankFileNote(data.bankFileClients);
   const { aum, netFlows, bookReturn, entitiesAccounts, openAlerts, capitalCalls } = data.kpis;
   return (
     <>
-      {/* Six figures, as the design's first row. */}
       <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
         <Kpi label="Book AUM" value={compact(aum.total, cur)} spark={data.aumHistory.slice(-13)}
           note={
@@ -131,29 +177,6 @@ function Board({ data }: { data: BookOverview }) {
         <Kpi label="Capital calls · 30 days" value={compact(capitalCalls.total, cur)}
           note={`${capitalCalls.clients} ${plural(capitalCalls.clients, "client", "clients")} · ${capitalCalls.notices} ${plural(capitalCalls.notices, "notice", "notices")} · ${compact(capitalCalls.dueThisWeek, cur)} due this week`} />
       </div>
-
-      <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-        <AumCard data={data} />
-        <MandateCard data={data} />
-      </div>
-
-      <ClientBookCard data={data} />
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <AlertQueue alerts={data.alerts} />
-        <NextThirtyDays upcoming={data.upcoming} />
-        <CustodianFeeds data={data} />
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-        <RiskReturnCard data={data} />
-        <DispersionCard data={data} />
-      </div>
-
-      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
-        <span>Values in {cur} unless stated; market data as of {formatDate(data.asOf)} close.</span>
-        <span>atom privé · Portfolio Management · Internal use only</span>
-      </footer>
     </>
   );
 }
