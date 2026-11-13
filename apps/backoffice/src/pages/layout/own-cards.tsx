@@ -58,18 +58,32 @@ const BANDS: Record<number, string[]> = {
   5: ["#dc2626", "#ea580c", "#f59e0b", "#84cc16", "#16a34a"],
 };
 
+/** The steps a card set against the client's limit, as multiples of it, when none were chosen: red, amber, green. */
+export const POLICY_STEPS = [0, 1, 2, 4];
+
 /**
- * Where a gauge's colours change for this client: the points the reader set, or from the client's own limit — red
- * below it, amber up to twice it, green beyond, four times it at the dial's end.
+ * Where a gauge's colours change for this client: the points the reader set, or multiples of the client's own limit —
+ * by default red below it, amber up to twice it, green beyond, four times it at the dial's end.
  */
 export function breakPoints(breaks: Breaks | null | undefined, figure: Figure): number[] | null {
   if (!breaks) return null;
+  const points = rising(breaks.points);
   if (breaks.basis === "POLICY") {
     const limit = figure.policy?.value;
-    return limit == null || limit <= 0 ? null : [0, limit, limit * 2, limit * 4];
+    return limit == null || limit <= 0 || !points ? null : points.map((times) => times * limit);
   }
-  const points = breaks.points.map(Number).filter((one) => Number.isFinite(one));
-  return points.length >= 2 && points.every((one, at) => at === 0 || one > points[at - 1]!) ? points : null;
+  return points;
+}
+
+/** The points as numbers, if there are at least two and each is higher than the one before. */
+export function rising(values: readonly (number | string)[]) {
+  const points = values.map(Number).filter((one) => Number.isFinite(one));
+  return points.length >= 2 && points.length === values.length && points.every((one, at) => at === 0 || one > points[at - 1]!) ? points : null;
+}
+
+/** "1×", "1.5×": a multiple of the client's limit as the card names it. */
+export function times(value: number) {
+  return `${Number(value.toFixed(2))}×`;
 }
 
 /** The figure as the card draws it: a gauge with the reader's bands, or the figure as the screen has it. */
@@ -116,7 +130,7 @@ export function OwnCardView({ card, figure, className }: { card: OwnCardDraft; f
           <KindChart data={data} kind={kind} format={figure.format} height={kind === "number" ? undefined : 240} label={card.title || figure.label} />
           {points && (kind === "gauge" || kind === "number") && (
             <p className="mt-1 flex justify-between text-2xs text-ink-muted tabular-nums">
-              {points.map((one, at) => <span key={at}>{figure.format(one)}{at === 1 && card.breaks?.basis === "POLICY" ? " limit" : ""}</span>)}
+              {points.map((one, at) => <span key={at}>{figure.format(one)}{card.breaks?.basis === "POLICY" && Number(card.breaks.points[at]) === 1 ? " limit" : ""}</span>)}
             </p>
           )}
         </CardSettingsContext.Provider>
