@@ -13,6 +13,7 @@ import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { INK } from "../portfolios/asset-classes";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
@@ -67,7 +68,7 @@ type StructureCard = "kpis" | "ownership" | "register" | "interest" | "mix" | "g
 
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<StructureCard, LayoutMeta> = {
-  kpis: { title: "Key figures", group: "Summary", wide: true },
+  kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   ownership: { title: "Ownership Structure", group: "Structure", wide: true },
   register: { title: "Entity Register", group: "Structure", wide: true },
   interest: { title: "Beneficial Interest Matrix", group: "Beneficiaries", charts: ["heatmap", "stacked-bar", "grouped-bar", "donut"] },
@@ -96,7 +97,7 @@ function Kpis({ data }: { data: ClientStructure }) {
   const { kpis } = data;
   return (
     <>
-      <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+      <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
         <Kpi label="Legal entities" value={String(kpis.legalEntities)}
           note={kpis.byType.map((one) => `${one.count} ${one.name}${one.count === 1 || one.name.endsWith("C") || one.name.endsWith("V") ? "" : "s"}`).join(" · ") || "None on file"} />
         <Kpi label="Jurisdictions" value={kpis.jurisdictions.length === 0 ? "—" : kpis.jurisdictions.join(" · ")}
@@ -112,7 +113,7 @@ function Kpis({ data }: { data: ClientStructure }) {
               {kpis.refreshDue.map((one) => `${one.entity ?? "Client"} ${shortDate(one.dueOn)}`).join(" · ") || "Nothing due"}
             </>
           } />
-      </div>
+      </FigureStrip>
     </>
   );
 }
@@ -650,6 +651,7 @@ function Card({ title, lead, action, picker, children }: { title: string; lead?:
 }
 
 function Kpi({ label, value, note, tone }: { label: string; value: ReactNode; note: ReactNode; tone?: string }) {
+  if (useFigureRow()) return <FigureRow label={label} value={value} note={note} tone={tone} />;
   return (
     <div className="rounded-2xl border border-line bg-white px-4 py-3.5">
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>

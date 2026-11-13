@@ -16,6 +16,7 @@ import { formatDate } from "../../lib/labels";
 import { HoldingsCheckBody } from "../bank-syncs/holdings-check-client-page";
 import { INK } from "../portfolios/asset-classes";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/chart-kinds";
 import type { Figures } from "../layout/own-cards";
@@ -89,7 +90,7 @@ type HoldingsCard = "kpis" | "custodian" | "currency" | "pnl" | "lines" | "lots"
 
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<HoldingsCard, LayoutMeta> = {
-  kpis: { title: "Key figures", group: "Summary", wide: true },
+  kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   custodian: { title: "By Custodian", group: "Breakdowns", charts: ["horizontal-bar", "donut", "treemap", "table"] },
   currency: { title: "By Currency", group: "Breakdowns", charts: ["stacked-bar", "donut", "horizontal-bar", "treemap", "table"] },
   pnl: { title: "Unrealised P&L by Asset Class", group: "Breakdowns", charts: ["horizontal-bar", "bar", "waterfall", "table"] },
@@ -113,7 +114,7 @@ function Kpis({ data, reconciliation }: { data: ClientHoldingsBook; reconciliati
   const file = data.bankFile;
   const summary = reconciliation.kind === "data" ? reconciliation.data.summary : null;
   return (
-    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+    <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
       <Kpi label="Market value" value={file ? <Marker>per currency below</Marker> : compact(k.marketValue ?? 0, cur)}
         note={`${k.positions} positions · ${k.accounts} accounts`} />
       <Kpi label="Cost basis"
@@ -139,7 +140,7 @@ function Kpis({ data, reconciliation }: { data: ClientHoldingsBook; reconciliati
       <Kpi label="Reconciliation"
         value={summary ? matchedShare(summary) : reconciliation.kind === "none" ? "—" : "…"}
         note={summary ? breaksNote(summary) : reconciliation.kind === "none" ? reconciliation.message : null} />
-    </div>
+    </FigureStrip>
   );
 }
 
@@ -896,6 +897,7 @@ function Card({ title, lead, action, picker, children }: { title: string; lead?:
 }
 
 function Kpi({ label, value, note, tone }: { label: string; value: ReactNode; note: ReactNode; tone?: string }) {
+  if (useFigureRow()) return <FigureRow label={label} value={value} note={note} tone={tone} />;
   return (
     <div className="rounded-2xl border border-line bg-white px-4 py-3.5">
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>

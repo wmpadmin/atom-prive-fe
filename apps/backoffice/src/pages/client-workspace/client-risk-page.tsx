@@ -8,6 +8,7 @@ import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
@@ -24,7 +25,7 @@ type RiskCard = "kpis" | "contribution" | "factors" | "stress" | "correlation" |
 
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<RiskCard, LayoutMeta> = {
-  kpis: { title: "Key figures", group: "Summary", wide: true },
+  kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   contribution: { title: "Risk Contribution vs Capital", group: "Risk model", charts: ["horizontal-bar", "grouped-bar", "scatter", "table"] },
   factors: { title: "Factor Exposures", group: "Risk model", charts: ["horizontal-bar", "radar", "grouped-bar", "table"] },
   stress: { title: "Stress Tests & Scenarios", group: "Scenarios", charts: ["table", "horizontal-bar", "bar"] },
@@ -108,7 +109,7 @@ function Kpis({ data }: { data: ClientRisk }) {
   const file = data.bankFile;
   const window = k.window ?? "";
   return (
-    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+    <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
       <Kpi label="VaR · 95% · 1 month" value={k.var95Amount == null ? "—" : money(k.var95Amount, data.currency)}
         note={file ? <NotInFile /> : k.var95 == null ? (k.whyNot ?? "—")
           : `${k.var95.toFixed(1)}% of investable · ${k.varLimit == null ? "no limit set" : `limit ${k.varLimit.toFixed(1)}%`}`} />
@@ -129,7 +130,7 @@ function Kpis({ data }: { data: ClientRisk }) {
       <Kpi label="Diversification ratio" value={k.diversificationRatio == null ? "—" : k.diversificationRatio.toFixed(2)}
         note={file ? <NotInFile /> : k.diversificationRatio == null ? <NotMeasuredTag title={k.diversification.reason} />
           : "Weighted class volatilities over the portfolio's · demo class returns"} />
-    </div>
+    </FigureStrip>
   );
 }
 
@@ -685,6 +686,7 @@ function Card({ title, lead, foot, flush, picker, children }: {
 }
 
 function Kpi({ label, value, note, tone }: { label: string; value: string; note: ReactNode; tone?: string }) {
+  if (useFigureRow()) return <FigureRow label={label} value={value} note={note} tone={tone} />;
   return (
     <div className="rounded-2xl border border-line bg-white px-4 py-3.5">
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>

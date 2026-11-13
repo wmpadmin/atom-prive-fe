@@ -1,5 +1,5 @@
 import { changeOwnCard, createOwnCard, deleteOwnCard, getGetViewLayoutQueryKey, getListOwnCardsQueryKey, type Breaks } from "@atomprive/api-client/backoffice";
-import { Button, cn } from "@atomprive/ui";
+import { Button, SelectInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Check, LayoutList, Move, Plus, RotateCcw, Search, X, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -215,7 +215,8 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
                     <input data-autofocus aria-label="Search cards" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search cards…"
                       className="w-full rounded-lg border border-line bg-white py-2.5 pr-3 pl-9 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none" />
                   </div>
-                  <CardOptions ids={ids} view={view} query={query} picked={picked} nameOf={nameOf} iconOf={iconOf} onToggle={toggle} />
+                  <CardOptions ids={ids} view={view} query={query} picked={picked} nameOf={nameOf} iconOf={iconOf} onToggle={toggle}
+                    onAll={(listed, on) => setPicked((now) => (on ? [...now, ...listed.filter((id) => !now.includes(id))] : now.filter((id) => !listed.includes(id))))} />
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <Button variant="secondary" size="sm" disabled={!offered} onClick={addNew}
                       title={offered ? "Build a card from this screen's figures" : "Building your own card is not open on this screen yet"}>
@@ -322,7 +323,7 @@ function CardIcon({ icon: Icon }: { icon: LucideIcon }) {
 }
 
 /** Every card of the screen, grouped, each ticked or not, with whether it is on screen today. */
-function CardOptions<Id extends string>({ ids, view, query, picked, nameOf, iconOf, onToggle }: {
+function CardOptions<Id extends string>({ ids, view, query, picked, nameOf, iconOf, onToggle, onAll }: {
   ids: Id[];
   view: ViewLayoutState<Id>;
   query: string;
@@ -330,12 +331,25 @@ function CardOptions<Id extends string>({ ids, view, query, picked, nameOf, icon
   nameOf: (id: Id) => string;
   iconOf: (id: Id) => LucideIcon;
   onToggle: (id: Id) => void;
+  /** Ticks every card listed, or unticks them all: the whole screen, or what the search has left. */
+  onAll: (listed: Id[], on: boolean) => void;
 }) {
   const listed = ids.filter((id) => nameOf(id).toLowerCase().includes(query.trim().toLowerCase()));
   const groups = [...new Set(listed.map((id) => view.meta[id].group ?? "Cards"))];
   if (listed.length === 0) return <p className="py-3 text-sm text-ink-muted">No card is called that.</p>;
+  const ticked = listed.filter((id) => picked.includes(id)).length;
+  const all = ticked === listed.length;
   return (
     <div className="space-y-5" role="listbox" aria-multiselectable="true" aria-label="Cards">
+      <button type="button" onClick={() => onAll(listed, !all)} aria-pressed={all}
+        className="-mb-2 flex w-full items-center gap-3 border-b border-line pb-3 text-left text-sm font-semibold">
+        <span className={cn("grid size-[18px] shrink-0 place-items-center rounded border-[1.5px]",
+          ticked > 0 ? "border-primary-600 bg-primary-600 text-on-accent" : "border-slate-300")} aria-hidden="true">
+          {all ? <Check className="size-3" strokeWidth={3} /> : ticked > 0 && <span className="h-0.5 w-2 rounded bg-current" />}
+        </span>
+        {query.trim() ? "Select all shown" : "Select all cards"}
+        <span className="ml-auto text-xs font-normal text-ink-muted">{ticked} of {listed.length}</span>
+      </button>
       {groups.map((group) => (
         <section key={group}>
           <h4 className="mb-1 text-sm font-bold">{group}</h4>
@@ -415,28 +429,41 @@ function CardStep<Id extends string>({ id, view, render, choice, picked, positio
   const KindIcon = kind ? KIND_ICON[kind] : LayoutList;
   // Cards still being built have no place to go after yet: they are not the screen's until saved.
   const places = [...new Set([...view.cards, ...picked])].filter((one) => one !== id && !one.startsWith(NEW) && (view.meta[one]?.area ?? "main") === area);
+  // The card as the portal was set up with it: its own name, type, colours and width, in its own place.
+  const standard: CardChoice<Id> = { title: meta.title, note: "", chart: null, palette: "theme", width: meta.wide ? "FULL" : "HALF", after: null };
+  const changed = choice.title.trim() !== meta.title || choice.note.trim() !== "" || (choice.chart != null && choice.chart !== kinds[0])
+    || choice.palette !== "theme" || (area === "main" && choice.width !== standard.width) || choice.after != null;
   const preview = useMemo(() => ({
     title: choice.title.trim() && choice.title.trim() !== meta.title ? choice.title.trim() : null,
     note: choice.note.trim() || null,
     palette: choice.palette,
     chart: choice.chart,
+    preview: true,
   }), [choice, meta.title]);
   return (
     <>
       <StageHeading title={nameOf(id)} lead="Configure your card settings" aside={position} />
-      <div className="grid gap-6 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
-        <div className="space-y-5">
+      <div className="-mt-3 mb-5">
+        <button type="button" disabled={!changed} onClick={() => onChange(standard)}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-700 hover:underline disabled:cursor-default disabled:text-ink-muted disabled:no-underline">
+          <RotateCcw className="size-3.5" aria-hidden="true" />
+          {changed ? "Reset to default" : "As set up · default"}
+        </button>
+      </div>
+      {/* The settings in one row, the card as it will draw beneath them at its full width. */}
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-start gap-x-8 gap-y-5 [&>*]:min-w-48">
           {kinds.length > 0 && (
             <Field label="Chart Type">
               <div className="relative">
-                <KindIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-primary-700" aria-hidden="true" />
-                <select data-autofocus value={kind} onChange={(event) => onChange({ chart: event.target.value as ChartKind })} className={cn(INPUT, "pl-9")}>
+                <KindIcon className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-primary-700" aria-hidden="true" />
+                <SelectInput data-autofocus value={kind} onChange={(event) => onChange({ chart: event.target.value as ChartKind })} className="pl-9">
                   {kinds.map((one) => <option key={one} value={one}>{KIND_LABEL[one]}</option>)}
-                </select>
+                </SelectInput>
               </div>
             </Field>
           )}
-          {kinds.length > 0 && (
+          {kinds.some((one) => one !== "tiles" && one !== "table") && (
             <Field label="Colour Scheme">
               <PaletteDots value={choice.palette} onChange={(palette) => onChange({ palette })} name="Colour scheme" />
             </Field>
@@ -447,14 +474,23 @@ function CardStep<Id extends string>({ id, view, render, choice, picked, positio
             </Field>
           )}
           <Field label="Place">
-            <select value={choice.after ?? ""} onChange={(event) => onChange({ after: (event.target.value || null) as Id | null })} className={INPUT}>
+            <SelectInput value={choice.after ?? ""} onChange={(event) => onChange({ after: (event.target.value || null) as Id | null })}>
               <option value="">{shown ? "Keep current place" : "At the end"}</option>
               {places.map((one) => <option key={one} value={one}>After {nameOf(one)}</option>)}
-            </select>
+            </SelectInput>
           </Field>
         </div>
-        <section aria-label="Preview" className="min-w-0">
-          <div className="pointer-events-none flex flex-col select-none [&>*]:flex-1">
+        <section aria-label="Preview" className="min-w-0 border-t border-line pt-5">
+          <p className="mb-2.5 text-xs font-semibold tracking-wider text-ink-muted uppercase">Preview</p>
+          {/* The card works as on the screen — its own buttons switch what it shows — but a click on a figure or a
+              link, which would leave the window, is held. */}
+          <div className="flex flex-col [&>*]:flex-1" onClickCapture={(event) => {
+            const target = event.target as HTMLElement;
+            if (target.closest("canvas, a, [data-drill]")) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}>
             <CardSettingsContext.Provider value={preview}>
               <CardChartContext.Provider value={kinds.length ? cardChart(view, id) : null}>{render[id]}</CardChartContext.Provider>
             </CardSettingsContext.Provider>
@@ -503,10 +539,10 @@ function OwnStep({ draft, figures, isNew, busy, position, headings, onChange, on
               placeholder="What the card is called" className={INPUT} />
           </Field>
           <Field label="Group">
-            <select value={draft.group ?? ""} onChange={(event) => onChange({ group: event.target.value || null })} className={INPUT}>
+            <SelectInput value={draft.group ?? ""} onChange={(event) => onChange({ group: event.target.value || null })}>
               <option value="">{OWN_GROUP}</option>
               {headings.filter((one) => one !== OWN_GROUP).map((one) => <option key={one} value={one}>{one}</option>)}
-            </select>
+            </SelectInput>
           </Field>
           <Field label="Description">
             <textarea value={draft.note ?? ""} maxLength={500} rows={4} onChange={(event) => onChange({ note: event.target.value })}
@@ -529,7 +565,7 @@ function OwnStep({ draft, figures, isNew, busy, position, headings, onChange, on
 
         <div className="space-y-5">
           <Field label="What do you want to report on?" required>
-            <select value={draft.source} onChange={(event) => pick(event.target.value)} className={INPUT}>
+            <SelectInput value={draft.source} onChange={(event) => pick(event.target.value)}>
               <option value="">Choose a figure…</option>
               {groups.map((group) => (
                 <optgroup key={group} label={group}>
@@ -538,7 +574,7 @@ function OwnStep({ draft, figures, isNew, busy, position, headings, onChange, on
                   ))}
                 </optgroup>
               ))}
-            </select>
+            </SelectInput>
           </Field>
           <Field label="How do you want to see it?">
             {figure ? (
@@ -583,10 +619,10 @@ function OwnStep({ draft, figures, isNew, busy, position, headings, onChange, on
                           onChange={(event) => onChange({ breaks: { ...draft.breaks!, points: points.map((point, index) => (index === at ? Number(event.target.value) : point)) } })}
                           className="w-24 rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs tabular-nums" />
                       ))}
-                      <select value={points.length - 1} aria-label="Segments" className="rounded-lg border border-line bg-white px-2 py-1.5 text-xs"
+                      <SelectInput value={points.length - 1} aria-label="Segments" className="rounded-lg border border-line bg-white px-2 py-1.5 text-xs"
                         onChange={(event) => onChange({ breaks: { ...draft.breaks!, points: spread(points[0]!, points[points.length - 1]!, Number(event.target.value)) } })}>
                         {[2, 3, 4, 5].map((one) => <option key={one} value={one}>{one} segments</option>)}
-                      </select>
+                      </SelectInput>
                     </div>
                     {!breakPoints(draft.breaks, figure) && <p className="text-xs text-red-700">Each point must be higher than the one before.</p>}
                   </>
@@ -656,10 +692,10 @@ function PolicySteps({ breaks, label, onChange }: { breaks: Breaks; label: strin
     <>
       <div className="flex items-center gap-2 text-xs">
         Segments
-        <select value={steps.length - 1} className="rounded-md border border-line bg-white px-1.5 py-1"
+        <SelectInput value={steps.length - 1} className="rounded-md border border-line bg-white px-1.5 py-1"
           onChange={(event) => onChange(STEPS_BY_SEGMENTS[Number(event.target.value)]!)}>
           {[2, 3, 4, 5].map((one) => <option key={one} value={one}>{one}</option>)}
-        </select>
+        </SelectInput>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         {steps.map((one, at) => (

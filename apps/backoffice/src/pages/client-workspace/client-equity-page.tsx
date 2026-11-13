@@ -16,6 +16,7 @@ import { ScatterChart } from "echarts/charts";
 import { LabelLayout } from "echarts/features";
 import * as echarts from "echarts/core";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFiguresAsTable } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
@@ -37,7 +38,7 @@ type EquityCard = "kpis" | "segments" | "sectors" | "regions" | "holdings" | "sc
 /** The screen's cards below the sleeve strip, in the firm's order: every card on by default. */
 const CARDS: Record<EquityCard, LayoutMeta> = {
   // Its figures are in different units (×, %, a currency), so no one chart can put them side by side.
-  kpis: { title: "Fundamentals vs benchmark", group: "Summary", wide: true },
+  kpis: { title: "Fundamentals vs benchmark", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   segments: { title: "Equity Segments · Target vs Actual", group: "Allocation", wide: true, charts: ["table", "grouped-bar", "horizontal-bar", "radar"] },
   sectors: { title: "Sector Allocation vs Benchmark", group: "Allocation", charts: ["horizontal-bar", "grouped-bar", "radar", "table"] },
   regions: { title: "Region & Style", group: "Allocation", charts: ["table", "grouped-bar", "horizontal-bar", "donut"] },
@@ -155,12 +156,15 @@ function Strip({ data, view, setView }: { data: ClientEquity; view: string; setV
 }
 
 function Kpis({ data }: { data: ClientEquity }) {
+  const rows = useFiguresAsTable();
   const labels = ["P/E · trailing", "P/E · forward 12M", "Price / Book", "Return on equity", "Dividend yield", "EPS growth · 3Y CAGR",
     "Net debt / EBITDA", "Beta (vs ACWI)", "Wtd. avg. market cap", "Active share", "Tracking error · ex-ante", "Holdings · coverage"];
   const kpis: (EquityKpi | null)[] = data.bankFile ? labels.map(() => null) : data.kpis;
   return (
-    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
-      {kpis.map((one, at) => (
+    <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+      {kpis.map((one, at) => rows ? (
+        <FigureRow key={one?.key ?? labels[at]} label={one?.label ?? labels[at]} value={!one ? <NotInFile /> : <>{one.value == null ? "—" : figure(one.value, one.unit)}{one.delta != null && one.deltaUnit !== "NONE" && <span className={cn("ml-2 rounded-md px-1.5 py-0.5 text-2xs font-semibold", deltaTone(one))}>{delta(one)}</span>}</>} note={!one ? null : one.reason && one.value == null ? <NotMeasured title={one.reason} /> : <>MSCI ACWI {one.benchmark == null ? "—" : figure(one.benchmark, one.unit)}</>} />
+      ) : (
         <div key={one?.key ?? labels[at]} className="rounded-2xl border border-line bg-white px-4 py-3.5">
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? labels[at]}</p>
           {!one ? <div className="mt-2"><NotInFile /></div> : (
@@ -180,7 +184,7 @@ function Kpis({ data }: { data: ClientEquity }) {
           )}
         </div>
       ))}
-    </div>
+    </FigureStrip>
   );
 }
 

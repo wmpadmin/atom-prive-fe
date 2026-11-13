@@ -18,6 +18,7 @@ import { downloadTextFile } from "../../lib/download";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { sharesFigure, type Figures } from "../layout/own-cards";
@@ -78,7 +79,7 @@ type DirectoryCardId = "kpis" | "attention" | "directory" | "segments" | "manage
 
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<DirectoryCardId, LayoutMeta> = {
-  kpis: { title: "Key figures", group: "Summary", wide: true },
+  kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   attention: { title: "Needs attention", group: "Summary", wide: true },
   directory: { title: "Client Directory", group: "Clients", wide: true },
   segments: { title: "By Segment", group: "Breakdowns", charts: ["donut", "horizontal-bar", "treemap", "table"] },
@@ -134,7 +135,7 @@ function Kpis({ data }: { data: ClientDirectory }) {
     .join(" · ");
   return (
     <>
-      <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+      <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
         <Kpi label="Client families" value={String(kpis.clients)} note={segments || "No segment recorded yet"} />
         <Kpi label="Assets under management" value={compact(kpis.totalAum, cur)}
           note={
@@ -177,7 +178,7 @@ function Kpis({ data }: { data: ClientDirectory }) {
               </FootNote>
             </>
           } />
-      </div>
+      </FigureStrip>
     </>
   );
 }
@@ -619,6 +620,7 @@ function Card({ title, lead, picker, children }: { title: string; lead?: string;
 }
 
 function Kpi({ label, value, note }: { label: string; value: ReactNode; note: ReactNode }) {
+  if (useFigureRow()) return <FigureRow label={label} value={value} note={note} />;
   return (
     <div className="rounded-2xl border border-line bg-white px-4 py-3.5">
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
