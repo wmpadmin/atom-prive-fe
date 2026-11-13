@@ -15,7 +15,7 @@ import {
   Gauge,
   Grid3x3,
   Hash,
-  LayoutDashboard,
+  Network,
   LayoutGrid,
   Radar,
   Table2,
@@ -36,7 +36,7 @@ import type { ViewLayoutState } from "./custom-view";
  */
 export type ChartKind =
   | "line" | "area" | "stacked-area" | "bar" | "horizontal-bar" | "grouped-bar" | "stacked-bar" | "donut" | "table"
-  | "heatmap" | "gauge" | "funnel" | "radar" | "waterfall" | "treemap" | "scatter" | "bubble"
+  | "heatmap" | "gauge" | "funnel" | "radar" | "waterfall" | "mindmap" | "scatter" | "bubble"
   /** A card's own tiles, such as the Collectibles categories: only ever a card's own look, drawn by the card. */
   | "tiles"
   /** One figure written large, for a card of the reader's own. */
@@ -57,7 +57,7 @@ export const KIND_LABEL: Record<ChartKind, string> = {
   funnel: "Funnel",
   radar: "Radar",
   waterfall: "Waterfall",
-  treemap: "Treemap",
+  mindmap: "Mind map",
   scatter: "Scatter",
   bubble: "Bubble",
   tiles: "Tiles",
@@ -79,7 +79,7 @@ export const KIND_ICON: Record<ChartKind, LucideIcon> = {
   funnel: Funnel,
   radar: Radar,
   waterfall: ChartColumnIncreasing,
-  treemap: LayoutDashboard,
+  mindmap: Network,
   scatter: ChartScatter,
   bubble: Waypoints,
   tiles: LayoutGrid,
@@ -232,6 +232,8 @@ export function KindChart({ data, kind, format, height = 240, label, onPick }: {
     <Chart option={option} height={height} label={label}
       onPick={onPick ? (name, index) => {
         const at = names.indexOf(name);
+        // The mind map's centre is the whole, not one of its parts.
+        if (kind === "mindmap" && at < 0) return;
         onPick(at >= 0 ? at : index);
       } : undefined} />
   );
@@ -275,12 +277,18 @@ function optionFor(data: ChartData, kind: ChartKind, format: (value: number) => 
       case "donut":
         return { ...common, tooltip: { ...common.tooltip, trigger: "item" }, legend: { ...legend, type: "scroll", bottom: 0, top: "auto" },
           series: [{ type: "pie", radius: ["55%", "80%"], center: ["50%", "45%"], label: { show: false }, itemStyle: { borderColor: c.surface, borderWidth: 2 }, data: items }] };
-      case "treemap":
-        return { ...common, tooltip: { ...common.tooltip, trigger: "item" },
-          series: [{ type: "treemap", roam: false, nodeClick: false, breadcrumb: { show: false }, width: "100%", height: "100%",
-            itemStyle: { borderColor: c.surface, borderWidth: 2, gapWidth: 2 },
-            label: { show: true, formatter: ({ name, value }: { name: string; value: number }) => `${name}\n${format(value)}`, fontSize: 11 },
-            data: items }] };
+      case "mindmap": {
+        // The whole in the middle, a branch to each part: its name and amount at the branch's end.
+        const total = data.items.reduce((sum, one) => sum + one.value, 0);
+        const named = ({ name, value }: { name: string; value: number }) => `{b|${name}}\n${format(value)}`;
+        return { ...common, tooltip: { ...common.tooltip, trigger: "item", formatter: ({ name, value }: { name: string; value: number }) => `${name}: ${format(value)}` },
+          series: [{ type: "tree", orient: "LR", left: "14%", right: "34%", top: "4%", bottom: "4%", roam: false, expandAndCollapse: false,
+            initialTreeDepth: -1, symbol: "circle", symbolSize: 11, lineStyle: { color: c.line, width: 1.5, curveness: 0.5 },
+            label: { position: "left", align: "right", verticalAlign: "middle", color: c.text, fontSize: 12, lineHeight: 16, formatter: named,
+              rich: { b: { fontWeight: "bold", color: c.text, fontSize: 12 } } },
+            leaves: { label: { position: "right", align: "left", verticalAlign: "middle" } },
+            data: [{ name: "Total", value: total, symbolSize: 15, itemStyle: { color: c.primary }, children: items }] }] };
+      }
       case "funnel":
         return { ...common, tooltip: { ...common.tooltip, trigger: "item" },
           series: [{ type: "funnel", sort: "none", gap: 2, left: "10%", width: "80%", label: { color: c.text, formatter: "{b}" }, data: items }] };

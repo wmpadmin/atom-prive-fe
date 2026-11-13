@@ -199,7 +199,11 @@ export function useViewLayout<Id extends string>(key: string, screenMeta: Record
     },
     setWidth: (id: Id, width: Width) => apply(placed.map((one) => (one.id === id ? { ...one, width } : one))),
     /** The kind of chart the card is drawn as: the one picked, or its own look. Null for a card with no chart. */
-    chart: (id: Id): ChartKind | null => placed.find((one) => one.id === id)?.chart ?? meta[id]?.charts?.[0] ?? null,
+    // A type saved before the card stopped offering it (Treemap, before Mind map took its place) reads as the card's own.
+    chart: (id: Id): ChartKind | null => {
+      const saved = placed.find((one) => one.id === id)?.chart;
+      return (saved && meta[id]?.charts?.includes(saved) ? saved : null) ?? meta[id]?.charts?.[0] ?? null;
+    },
     /** The reader's own name, line and colours for the card, as its card reads them. */
     settings: (id: Id): CardSettings => {
       const one = placed.find((card) => card.id === id);

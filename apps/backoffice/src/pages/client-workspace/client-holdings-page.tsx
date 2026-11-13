@@ -91,8 +91,8 @@ type HoldingsCard = "kpis" | "custodian" | "currency" | "pnl" | "lines" | "lots"
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<HoldingsCard, LayoutMeta> = {
   kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
-  custodian: { title: "By Custodian", group: "Breakdowns", charts: ["horizontal-bar", "donut", "treemap", "table"] },
-  currency: { title: "By Currency", group: "Breakdowns", charts: ["stacked-bar", "donut", "horizontal-bar", "treemap", "table"] },
+  custodian: { title: "By Custodian", group: "Breakdowns", charts: ["horizontal-bar", "donut", "mindmap", "table"] },
+  currency: { title: "By Currency", group: "Breakdowns", charts: ["stacked-bar", "donut", "horizontal-bar", "mindmap", "table"] },
   pnl: { title: "Unrealised P&L by Asset Class", group: "Breakdowns", charts: ["horizontal-bar", "bar", "waterfall", "table"] },
   lines: { title: "Positions, lots, transactions & reconciliation", group: "Lines", wide: true },
   lots: { title: "Tax Lots of the selected line", group: "Lines", wide: true },
@@ -287,7 +287,7 @@ function holdingsFigures(data: ClientHoldingsBook): Figures {
   const one = (name: string, value: number | null | undefined, max?: number): ChartData | null =>
     value == null ? null : { shape: "gauge", name, value, max: max ?? (Math.abs(value) * 2 || 1) };
   const k = data.kpis;
-  const breakdown = { group: "Breakdowns", kinds: ["donut", "horizontal-bar", "treemap", "bar", "table"] as const, format: amount };
+  const breakdown = { group: "Breakdowns", kinds: ["donut", "horizontal-bar", "mindmap", "bar", "table"] as const, format: amount };
   return {
     "holdings.custodian": { ...breakdown, kinds: [...breakdown.kinds], label: "Holdings by custodian", data: shares(data.byCustodian) },
     "holdings.currency": { ...breakdown, kinds: [...breakdown.kinds], label: "Holdings by currency", data: shares(data.byCurrency) },
@@ -296,7 +296,7 @@ function holdingsFigures(data: ClientHoldingsBook): Figures {
     "holdings.account": { ...breakdown, kinds: [...breakdown.kinds], label: "Holdings by account", data: sumBy((one) => one.account) },
     "holdings.liquidity": { ...breakdown, kinds: [...breakdown.kinds], label: "Holdings by time to cash", data: sumBy((one) => one.liquidity) },
     "holdings.top": {
-      label: "Ten largest positions", group: "Positions", kinds: ["horizontal-bar", "treemap", "donut", "table"], format: amount,
+      label: "Ten largest positions", group: "Positions", kinds: ["horizontal-bar", "mindmap", "donut", "table"], format: amount,
       data: shares([...data.positions].sort((a, b) => b.value - a.value).slice(0, 10).map((one) => ({ name: one.name, amount: one.value }))),
     },
     "pnl.class": {

@@ -60,7 +60,7 @@ const PERIODS = [
 type CardId = "clients" | "approvals" | "kyc" | "portfolios" | "chase" | "signatures" | "links" | "assistant";
 
 const CARD: Record<CardId, CardMeta> = {
-  clients: { title: "My clients overview", area: "main", charts: ["donut", "horizontal-bar", "treemap", "table"] },
+  clients: { title: "My clients overview", area: "main", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
   approvals: { title: "My approvals & actions", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   kyc: { title: "KYC status (my clients)", area: "main", charts: ["donut", "horizontal-bar", "table"] },
   portfolios: { title: "Portfolio summary", area: "main", charts: ["table", "horizontal-bar", "donut"] },
