@@ -62,6 +62,7 @@ import {
   type CardMeta,
 } from "./dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { KindChart, useCardChart, type ChartKind } from "../layout/chart-kinds";
 
 /**
  * The Admin's dashboard: the firm's money and clients across the top, then everything waiting on somebody,
@@ -131,20 +132,20 @@ type CardId = "summary" | "trend" | "asset-classes" | "lifecycle" | "operations"
  */
 const CARD: Record<CardId, CardMeta> = {
   summary: { title: "Firm summary", area: "main", wide: true },
-  trend: { title: "AUM trend", area: "main" },
-  "asset-classes": { title: "AUM by asset class", area: "main" },
-  lifecycle: { title: "Clients by lifecycle", area: "main" },
+  trend: { title: "AUM trend", area: "main", charts: ["bar", "line", "area", "table"] },
+  "asset-classes": { title: "AUM by asset class", area: "main", charts: ["donut", "horizontal-bar", "treemap", "table"] },
+  lifecycle: { title: "Clients by lifecycle", area: "main", charts: ["donut", "funnel", "bar", "table"] },
   operations: { title: "Operational health", area: "main" },
-  approvals: { title: "Approvals & queues", area: "main" },
-  upcoming: { title: "Upcoming & due", area: "main" },
+  approvals: { title: "Approvals & queues", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  upcoming: { title: "Upcoming & due", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   attention: { title: "Items requiring attention", area: "main" },
   activity: { title: "Firm activity", area: "main", wide: true },
   health: { title: "System health", area: "main" },
   tasks: { title: "Task summary", area: "main" },
-  "by-rm": { title: "AUM by RM", area: "main" },
-  "by-pm": { title: "AUM by PM", area: "main" },
+  "by-rm": { title: "AUM by RM", area: "main", charts: ["horizontal-bar", "donut", "treemap", "table"] },
+  "by-pm": { title: "AUM by PM", area: "main", charts: ["horizontal-bar", "donut", "treemap", "table"] },
   "rm-count": { title: "Relationship managers", area: "main" },
-  "rm-book": { title: "AUM by relationship manager", area: "main" },
+  "rm-book": { title: "AUM by relationship manager", area: "main", charts: ["table", "horizontal-bar", "donut", "treemap"] },
   assistant: { title: "AI Assistant", area: "side" },
   quick: { title: "Quick actions", area: "side" },
   links: { title: "Key links", area: "side" },
@@ -442,6 +443,7 @@ function OpsRow({ icon: Icon, label, state, value, tone, to }: {
 
 /** The firm's money as columns and its client count as a line, month by month. */
 function GrowthChart({ data }: { data: FirmDashboard }) {
+  const chart = useCardChart();
   const option = useMemo(() => {
     const c = ink();
     const months = data.growth.map((one, index) =>
@@ -470,6 +472,19 @@ function GrowthChart({ data }: { data: FirmDashboard }) {
       ],
     };
   }, [data]);
+  if (chart && !chart.own) {
+    // AUM alone: the clients' count is on a scale of its own, kept to the card's own look and the table.
+    const months = data.growth.map((one, index) => (index === data.growth.length - 1 ? "Now"
+      : new Date(`${one.on}T00:00:00`).toLocaleDateString("en-GB", { month: "short" })));
+    return (
+      <KindChart kind={chart.kind!} height={220} label="AUM at the end of each of the last six months"
+        format={(value) => (value > 9999 ? money(value, data.currency) : String(Math.round(value)))}
+        data={{ shape: "series", categories: months, series: [
+          { name: `AUM (${data.currency})`, values: data.growth.map((one) => Number(one.aum)) },
+          ...(chart.kind === "table" ? [{ name: "Clients", values: data.growth.map((one) => one.clients) }] : []),
+        ] }} />
+    );
+  }
   return <Chart option={option} height={220} label="AUM and number of clients at the end of each of the last six months" />;
 }
 
@@ -596,9 +611,11 @@ function FirmActivity({ platform, attention, linkFor, to }: {
 }
 
 function Managers({ rows, currency }: { rows: ManagerAum[] | undefined; currency: string }) {
+  const chart = useCardChart();
   if (rows && rows.length === 0) {
     return <p className="py-8 text-center text-sm text-ink-muted">No assigned clients hold anything yet.</p>;
   }
+  if (rows && chart && !chart.own) return <ManagerChart rows={rows} currency={currency} kind={chart.kind!} />;
   const most = Math.max(...(rows ?? []).map((one) => Number(one.amount)), 1);
   return (
     <ul className="space-y-2.5 text-sm">
@@ -619,17 +636,28 @@ function Managers({ rows, currency }: { rows: ManagerAum[] | undefined; currency
   );
 }
 
+/** What each manager's clients hold, drawn as the kind picked for the card. */
+function ManagerChart({ rows, currency, kind }: { rows: ManagerAum[]; currency: string; kind: ChartKind }) {
+  return (
+    <KindChart kind={kind} height={Math.max(200, 40 + rows.length * 28)} label="What each manager's clients hold"
+      format={(value) => money(value, currency)}
+      data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: Number(one.amount) })) }} />
+  );
+}
+
 /**
  * Every relationship manager with a client: how many clients, what they hold and their share of the firm. A
  * client with two RMs counts in full for each, so the shares can add up to more than the whole.
  */
 function RelationshipBook({ rows, currency }: { rows: ManagerAum[] | undefined; currency: string }) {
+  const chart = useCardChart();
   if (!rows) {
     return <Loading />;
   }
   if (rows.length === 0) {
     return <p className="py-8 text-center text-sm text-ink-muted">No relationship manager has a client yet.</p>;
   }
+  if (chart && !chart.own) return <ManagerChart rows={rows} currency={currency} kind={chart.kind!} />;
   const overlap = rows.reduce((sum, one) => sum + Number(one.sharePercent), 0) > 100;
   return (
     <div className="overflow-x-auto">
