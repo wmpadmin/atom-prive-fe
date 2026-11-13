@@ -56,10 +56,11 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
   const offered = figures && Object.keys(figures).length > 0;
   const baseline = (id: Id): CardChoice<Id> => {
     const own = view.settings(id);
-    return { title: own.title ?? view.meta[id].title, note: own.note ?? "", chart: view.chart(id), palette: own.palette, width: view.width(id), after: null };
+    return { title: own.title ?? view.meta[id].title, note: own.note ?? "", chart: view.chart(id), palette: own.palette, width: view.width(id), after: null, shown: true };
   };
   const only = start != null;
-  const [picked, setPicked] = useState<Id[]>(() => (start ? [start] : view.cards));
+  // Nothing is ticked to begin with: a tick picks a card to change or add, and a card left unticked stays as it is.
+  const [picked, setPicked] = useState<Id[]>(() => (start ? [start] : []));
   const [choices, setChoices] = useState<Partial<Record<Id, CardChoice<Id>>>>({});
   const [step, setStep] = useState(only ? 1 : 0);
   const [reached, setReached] = useState(only ? 1 : 0);
@@ -92,7 +93,7 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
     setPicked((now) => [...now, id]);
     go(picked.length + 1);
   };
-  const removed = only ? [] : view.cards.filter((id) => !picked.includes(id));
+  const removed = picked.filter((id) => !isOwn(id) && view.cards.includes(id) && choiceOf(id).shown === false);
   const save = async () => {
     setSaving(true);
     setProblem(null);
@@ -118,7 +119,8 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
         placedAs.set(id, layoutId);
         choices[layoutId] = { title: "", note: "", chart: null, palette: "theme", width: draft.width, after: draft.after as Id | null };
       }
-      view.arrange(picked.map((id) => placedAs.get(id) ?? id), choices, only);
+      // Only the picked cards change; every other card keeps its place and look.
+      view.arrange(picked.map((id) => placedAs.get(id) ?? id), choices, true);
       await queryClient.invalidateQueries({ queryKey: getListOwnCardsQueryKey(view.screenKey) });
       onClose();
     } catch (failure) {
@@ -209,7 +211,7 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
             <div className="min-h-0 flex-1 overflow-y-auto px-7 py-6">
               {step === 0 ? (
                 <>
-                  <StageHeading title="Step 1: Cards" lead="Select the cards you want to show on this screen." />
+                  <StageHeading title="Step 1: Cards" lead="Select the cards you want to change or add. Cards you don't select stay as they are." />
                   <div className="relative mb-5">
                     <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
                     <input data-autofocus aria-label="Search cards" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search cards…"
@@ -244,7 +246,18 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
                       return (
                         <li key={id} className="grid grid-cols-[2rem_minmax(0,1fr)_9rem_5rem_3rem] items-center gap-3 py-3 max-sm:grid-cols-[2rem_minmax(0,1fr)_3rem]">
                           <CardIcon icon={Icon} />
-                          <span className="truncate text-sm font-bold">{nameOf(id)}</span>
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="truncate text-sm font-bold">{nameOf(id)}</span>
+                            {(() => {
+                              const hiding = !isOwn(id) && choiceOf(id).shown === false;
+                              const adding = !hiding && !view.cards.includes(id);
+                              return (hiding || adding) && (
+                                <span className={cn("shrink-0 rounded-md px-1.5 py-0.5 text-2xs font-semibold", hiding ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700")}>
+                                  {hiding ? "Taken off" : "Added"}
+                                </span>
+                              );
+                            })()}
+                          </span>
                           <span className="text-xs text-ink-soft max-sm:hidden">{kindName(id)}</span>
                           <span className="text-xs text-ink-soft max-sm:hidden">{widthName(id)}</span>
                           <button type="button" onClick={() => go(at + 1)} className="text-right text-xs font-bold text-primary-700 hover:underline">Edit</button>
@@ -255,7 +268,7 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
                   </ul>
                   {removed.length > 0 && (
                     <p className="mt-4 rounded-lg bg-red-50 px-3.5 py-2.5 text-xs text-red-800">
-                      Taken off the screen: <b>{removed.map(nameOf).join(", ")}</b>. Tick them on Cards to bring them back.
+                      Taken off the screen: <b>{removed.map(nameOf).join(", ")}</b>. They stay in Cards to bring back.
                     </p>
                   )}
                   {!only && (
@@ -287,7 +300,8 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
                 {step === summary ? (
                   <Button size="sm" onClick={save} disabled={saving || picked.some((id) => !ready(id))}>{saving ? "Saving…" : "Save View"}</Button>
                 ) : (
-                  <Button size="sm" disabled={current != null && isOwn(current) && !ready(current)} onClick={() => go(step + 1)}>
+                  <Button size="sm" disabled={(step === 0 && picked.length === 0) || (current != null && isOwn(current) && !ready(current))}
+                    title={step === 0 && picked.length === 0 ? "Select a card to change" : undefined} onClick={() => go(step + 1)}>
                     Next
                     <ArrowRight aria-hidden="true" />
                   </Button>
@@ -430,8 +444,8 @@ function CardStep<Id extends string>({ id, view, render, choice, picked, positio
   // Cards still being built have no place to go after yet: they are not the screen's until saved.
   const places = [...new Set([...view.cards, ...picked])].filter((one) => one !== id && !one.startsWith(NEW) && (view.meta[one]?.area ?? "main") === area);
   // The card as the portal was set up with it: its own name, type, colours and width, in its own place.
-  const standard: CardChoice<Id> = { title: meta.title, note: "", chart: null, palette: "theme", width: meta.wide ? "FULL" : "HALF", after: null };
-  const changed = choice.title.trim() !== meta.title || choice.note.trim() !== "" || (choice.chart != null && choice.chart !== kinds[0])
+  const standard: CardChoice<Id> = { title: meta.title, note: "", chart: null, palette: "theme", width: meta.wide ? "FULL" : "HALF", after: null, shown: true };
+  const changed = choice.shown === false || choice.title.trim() !== meta.title || choice.note.trim() !== "" || (choice.chart != null && choice.chart !== kinds[0])
     || choice.palette !== "theme" || (area === "main" && choice.width !== standard.width) || choice.after != null;
   const preview = useMemo(() => ({
     title: choice.title.trim() && choice.title.trim() !== meta.title ? choice.title.trim() : null,
@@ -453,6 +467,17 @@ function CardStep<Id extends string>({ id, view, render, choice, picked, positio
       {/* The settings in one row, the card as it will draw beneath them at its full width. */}
       <div className="space-y-6">
         <div className="flex flex-wrap items-start gap-x-8 gap-y-5 [&>*]:min-w-48">
+          <Field label="On screen">
+            <div className="inline-flex rounded-lg border border-line p-0.5" role="radiogroup" aria-label="On screen">
+              {([[true, "Show"], [false, "Hide"]] as [boolean, string][]).map(([key, name]) => (
+                <button key={name} type="button" role="radio" aria-checked={(choice.shown !== false) === key} onClick={() => onChange({ shown: key })}
+                  className={cn("rounded-md px-3.5 py-1.5 text-xs font-semibold",
+                    (choice.shown !== false) === key ? "bg-primary-50 text-primary-700 ring-1 ring-primary-300" : "text-ink-soft hover:text-ink")}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          </Field>
           {kinds.length > 0 && (
             <Field label="Chart Type">
               <div className="relative">
@@ -482,11 +507,13 @@ function CardStep<Id extends string>({ id, view, render, choice, picked, positio
         </div>
         <section aria-label="Preview" className="min-w-0 border-t border-line pt-5">
           <p className="mb-2.5 text-xs font-semibold tracking-wider text-ink-muted uppercase">Preview</p>
-          {/* The card works as on the screen — its own buttons switch what it shows — but a click on a figure or a
-              link, which would leave the window, is held. */}
+          {/* Only the buttons in the card's own header work here — they switch what it shows. A click anywhere else
+              (a client, a figure, a link) would leave the window, so it is held. */}
           <div className="flex flex-col [&>*]:flex-1" onClickCapture={(event) => {
-            const target = event.target as HTMLElement;
-            if (target.closest("canvas, a, [data-drill]")) {
+            const card = event.currentTarget.firstElementChild;
+            const header = card?.firstElementChild;
+            const control = (event.target as HTMLElement).closest("button, [role=tab], [role=radio]");
+            if (!control || !header?.contains(control)) {
               event.preventDefault();
               event.stopPropagation();
             }
