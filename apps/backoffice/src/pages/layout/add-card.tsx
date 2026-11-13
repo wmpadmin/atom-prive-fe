@@ -65,6 +65,7 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
   const [step, setStep] = useState(only ? 1 : 0);
   const [reached, setReached] = useState(only ? 1 : 0);
   const [query, setQuery] = useState("");
+  const [resetting, setResetting] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -285,10 +286,26 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
             {problem && <p className="border-t border-red-200 bg-red-50 px-7 py-2 text-sm text-red-800">{problem}</p>}
             <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-7 py-4">
               {step === 0 ? (
-                <Button variant="secondary" size="sm" onClick={() => { onClose(); view.begin(); }} title="Drag the cards about on the screen itself">
-                  <Move aria-hidden="true" />
-                  Rearrange on page
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => { onClose(); view.begin(); }} title="Drag the cards about on the screen itself">
+                    <Move aria-hidden="true" />
+                    Rearrange on page
+                  </Button>
+                  {/* The screen as the portal was set up: its own cards, in their own order and look. */}
+                  {resetting ? (
+                    <span className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="text-ink-soft">Back to the screen's default cards? Your changes here go.</span>
+                      <Button size="sm" onClick={() => { view.reset(); onClose(); }}>Yes, reset</Button>
+                      <Button variant="secondary" size="sm" onClick={() => setResetting(false)}>Keep mine</Button>
+                    </span>
+                  ) : (
+                    <Button variant="secondary" size="sm" disabled={!view.changed} onClick={() => setResetting(true)}
+                      title={view.changed ? "Bring back the cards this screen was set up with" : "This screen already shows its default view"}>
+                      <RotateCcw aria-hidden="true" />
+                      Reset to default view
+                    </Button>
+                  )}
+                </div>
               ) : (
                 <Button variant="secondary" size="sm" disabled={only && step === 1} onClick={() => go(step - 1)}>
                   <ArrowLeft aria-hidden="true" />
