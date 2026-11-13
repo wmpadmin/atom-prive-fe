@@ -110,8 +110,8 @@ const CARDS: Record<PerformanceCard, LayoutMeta> = {
   risk: { title: "Risk-adjusted Statistics", group: "Costs & risk", wide: true },
 };
 
-// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
-const DEFAULT_CARDS: PerformanceCard[] = ["kpis", "growth", "classes", "bridge"];
+// The screen as the portal was set up, every card on it: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS = Object.keys(CARDS) as PerformanceCard[];
 
 /**
  * What Performance & Attribution offers for a card of the reader's own: the returns, attribution and costs this page

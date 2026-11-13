@@ -155,7 +155,8 @@ const CARD: Record<CardId, CardMeta> = {
 
 
 /** What the dashboard opens on: the four that matter most, chosen 13 Nov 2026; the rest wait in Add cards. A layout someone saved is kept. */
-const DEFAULT_CARDS: CardId[] = ["summary", "asset-classes", "approvals", "attention"];
+// What the dashboard showed when the portal was set up: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS: CardId[] = ["summary", "asset-classes", "operations", "approvals", "upcoming", "assistant"];
 
 export function AdminDashboard() {
   const user = useStaffUser();

@@ -50,8 +50,8 @@ const CARDS: Record<OverviewCard, LayoutMeta> = {
 type OverviewCard = "headline" | "facts" | "worth" | "allocation" | "bands" | "performance" | "liquidity" | "entities"
   | "positions" | "flows" | "look-through" | "alerts";
 
-// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
-const DEFAULT_CARDS: OverviewCard[] = ["headline", "worth", "allocation", "performance"];
+// The screen as the portal was set up, every card on it: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS = Object.keys(CARDS) as OverviewCard[];
 
 export function ClientOverviewPage() {
   const { customerId = "" } = useParams();

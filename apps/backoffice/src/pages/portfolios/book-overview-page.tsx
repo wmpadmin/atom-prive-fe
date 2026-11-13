@@ -99,8 +99,8 @@ const CARDS: Record<BookCard, LayoutMeta> = {
   dispersion: { title: "YTD Dispersion by Mandate", group: "Performance", charts: ["horizontal-bar", "grouped-bar", "table"] },
 };
 
-// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
-const DEFAULT_CARDS: BookCard[] = ["kpis", "aum", "mandates", "alerts"];
+// The screen as the portal was set up, every card on it: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS = Object.keys(CARDS) as BookCard[];
 
 function Board({ data, view }: { data: BookOverview; view: ViewLayoutState<BookCard> }) {
   const cur = data.currency;

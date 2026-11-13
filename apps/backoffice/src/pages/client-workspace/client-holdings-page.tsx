@@ -99,9 +99,8 @@ const CARDS: Record<HoldingsCard, LayoutMeta> = {
   recent: { title: "Recent Transactions", group: "Lines", wide: true },
 };
 
-// The four that matter most open the screen, the lines card with the two cards that were once part of it; every other
-// card waits in Add cards. A layout someone saved is kept.
-const DEFAULT_CARDS: HoldingsCard[] = ["kpis", "custodian", "currency", "lines", "lots", "recent"];
+// The screen as the portal was set up, every card on it: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS = Object.keys(CARDS) as HoldingsCard[];
 
 type Reconciliation = { kind: "data"; data: ClientHoldingsCheck } | { kind: "none"; message: string } | { kind: "loading" };
 

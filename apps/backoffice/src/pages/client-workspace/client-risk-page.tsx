@@ -38,8 +38,8 @@ const CARDS: Record<RiskCard, LayoutMeta> = {
   ladder: { title: "Liquidity Ladder by Asset Class", group: "Liquidity", charts: ["stacked-bar", "grouped-bar", "table"] },
 };
 
-// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
-const DEFAULT_CARDS: RiskCard[] = ["kpis", "contribution", "stress", "var"];
+// The screen as the portal was set up, every card on it: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS = Object.keys(CARDS) as RiskCard[];
 
 export function ClientRiskPage() {
   const { customerId = "" } = useParams();
