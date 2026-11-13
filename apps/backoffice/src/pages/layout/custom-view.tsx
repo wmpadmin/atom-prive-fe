@@ -71,6 +71,8 @@ export type CardChoice<Id extends string> = {
   width: Width;
   /** Where the card goes: after this card; at the end when null and it was hidden; its own place when null and shown. */
   after: Id | null;
+  /** Whether the card is on the screen once saved; taken off only when this is false. */
+  shown?: boolean;
 };
 
 /** Builds the card Customize view leaves, keeping what the reader left as the card has it as no choice at all. */
@@ -80,7 +82,7 @@ function chosen<Id extends string>(id: Id, choice: CardChoice<Id>, meta: Record<
   return {
     id,
     width: meta[id]?.area === "side" ? widthOf(id) : choice.width,
-    hidden: false,
+    hidden: choice.shown === false,
     chart: choice.chart == null || choice.chart === meta[id]?.charts?.[0] ? null : choice.chart,
     title: title && title !== meta[id]?.title ? title : null,
     note: note || null,
