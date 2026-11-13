@@ -10,8 +10,9 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Button, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, GripVertical, LayoutGrid as LayoutIcon, Plus, RotateCcw, Settings2, X } from "lucide-react";
-import { createContext, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { ArrowLeft, ArrowRight, ExternalLink, GripVertical, LayoutGrid as LayoutIcon, MoreVertical, Plus, RotateCcw, Settings2, X } from "lucide-react";
+import { Link } from "react-router";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { CustomizeDialog } from "./add-card";
 import { CardSettingsContext, type CardSettings, type Palette } from "./card-settings";
 import { CardChartContext, cardChart, type ChartKind } from "./chart-kinds";
@@ -421,6 +422,61 @@ export function EditFrame<Id extends string>({ id, view, className, children }: 
 export type CardControls = { earlier?: () => void; later?: () => void; remove: () => void; title: string };
 
 export const CardContext = createContext<CardControls | null>(null);
+
+/** A card's ⋮: move it either way, open the screen behind it, or take it off this view. */
+export function CardMenu({ to }: { to?: string }) {
+  const controls = useContext(CardContext);
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: MouseEvent) => {
+      if (box.current && !box.current.contains(event.target as Node)) close();
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    document.addEventListener("mousedown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("mousedown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open, close]);
+  if (!controls) return null;
+  const item = "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-slate-50 disabled:opacity-40 [&_svg]:size-4";
+  const act = (run?: () => void) => () => {
+    run?.();
+    setOpen(false);
+  };
+  return (
+    <div ref={box} className="relative">
+      <button type="button" aria-label={`Options for ${controls.title}`} aria-expanded={open} onClick={() => setOpen((now) => !now)}
+        className="grid size-7 place-items-center rounded-lg text-ink-muted hover:bg-slate-100 hover:text-ink">
+        <MoreVertical className="size-4" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-1 w-52 rounded-xl border border-line bg-white p-1.5 shadow-lg">
+          <button type="button" className={item} onClick={act(controls.earlier)} disabled={!controls.earlier}>
+            <ArrowLeft aria-hidden="true" />Move earlier
+          </button>
+          <button type="button" className={item} onClick={act(controls.later)} disabled={!controls.later}>
+            <ArrowRight aria-hidden="true" />Move later
+          </button>
+          {to && (
+            <Link to={to} className={item}>
+              <ExternalLink aria-hidden="true" />Open full screen
+            </Link>
+          )}
+          <button type="button" className={cn(item, "text-red-600 hover:bg-red-50")} onClick={act(controls.remove)}>
+            <X aria-hidden="true" />Remove from this view
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Every screen's cards — each dashboard, each PPM screen, the Book Overview and the Client Directory — in the reader's
