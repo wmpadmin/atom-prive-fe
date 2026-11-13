@@ -216,6 +216,9 @@ export function KindChart({ data, kind, format, height = 240, label, onPick }: {
 }) {
   const palette = use(CardSettingsContext)?.palette ?? "theme";
   const option = useMemo(() => (kind === "table" || kind === "number" ? null : optionFor(data, kind, format, palette)), [data, kind, format, palette]);
+  if (kind === "donut" && data.shape === "shares" && option) {
+    return <DonutWithList data={data} option={option} format={format} palette={palette} label={label} onPick={onPick} />;
+  }
   if (kind === "number" && data.shape === "gauge") {
     const band = data.bands?.find((one) => data.value <= one.to) ?? data.bands?.[data.bands.length - 1];
     return (
@@ -274,9 +277,17 @@ function optionFor(data: ChartData, kind: ChartKind, format: (value: number) => 
   if (data.shape === "shares") {
     const items = data.items.map((one, at) => ({ name: one.name, value: one.value, itemStyle: { color: colourOf(at, one.colour, palette) } }));
     switch (kind) {
-      case "donut":
-        return { ...common, tooltip: { ...common.tooltip, trigger: "item" }, legend: { ...legend, type: "scroll", bottom: 0, top: "auto" },
-          series: [{ type: "pie", radius: ["55%", "80%"], center: ["50%", "45%"], label: { show: false }, itemStyle: { borderColor: c.surface, borderWidth: 2 }, data: items }] };
+      case "donut": {
+        // The ring alone, the whole in its middle; the parts are listed beside it by the card (DonutWithList).
+        const total = data.items.reduce((sum, one) => sum + one.value, 0);
+        return { ...common, tooltip: { ...common.tooltip, trigger: "item" },
+          series: [
+            { type: "pie", radius: ["62%", "92%"], center: ["50%", "50%"], label: { show: false }, itemStyle: { borderColor: c.surface, borderWidth: 2 }, data: items },
+            { type: "pie", radius: ["0%", "0%"], center: ["50%", "50%"], silent: true, tooltip: { show: false }, data: [{ name: "", value: 1 }],
+              label: { show: true, position: "center", formatter: `{v|${format(total)}}\n{l|Total}`,
+                rich: { v: { fontSize: 16, fontWeight: "bold", color: c.text, lineHeight: 22 }, l: { fontSize: 11, color: c.muted } } } },
+          ] };
+      }
       case "mindmap": {
         // The whole in the middle, a branch to each part: its name and amount at the branch's end.
         const total = data.items.reduce((sum, one) => sum + one.value, 0);
@@ -433,6 +444,46 @@ function optionFor(data: ChartData, kind: ChartKind, format: (value: number) => 
 }
 
 /** The same figures as rows: what a person reads exact numbers from, or copies. */
+/**
+ * A donut as the screens draw their own: the ring on the left with the whole in its middle, and beside it every part
+ * on a line of its own — its colour, name, share and amount — filling the card's width, however wide it is.
+ */
+function DonutWithList({ data, option, format, palette, label, onPick }: {
+  data: Extract<ChartData, { shape: "shares" }>;
+  option: Record<string, unknown>;
+  format: (value: number) => string;
+  palette: Palette;
+  label: string;
+  onPick?: (index: number) => void;
+}) {
+  const total = data.items.reduce((sum, one) => sum + one.value, 0);
+  return (
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 py-1">
+      <div className="w-40 shrink-0">
+        <Chart option={option} height={160} label={label} onPick={onPick ? (_, index) => onPick(index) : undefined} />
+      </div>
+      <ul className="min-w-52 flex-1 divide-y divide-line text-sm">
+        {data.items.map((one, at) => {
+          const row = (
+            <>
+              <span className="size-2.5 shrink-0 rounded-full" style={{ background: colourOf(at, one.colour, palette) }} aria-hidden="true" />
+              <span className="min-w-0 flex-1">{one.name}</span>
+              {total > 0 && <span className="text-xs text-ink-muted tabular-nums">{((one.value / total) * 100).toFixed(1)}%</span>}
+              <b className="w-20 text-right tabular-nums">{format(one.value)}</b>
+            </>
+          );
+          return (
+            <li key={one.name}>
+              {onPick ? <button type="button" onClick={() => onPick(at)} className="flex w-full items-center gap-2.5 py-1.5 text-left hover:text-primary-700">{row}</button>
+                : <div className="flex items-center gap-2.5 py-1.5">{row}</div>}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function FiguresTable({ data, format, palette, onPick }: {
   data: ChartData;
   format: (value: number) => string;
