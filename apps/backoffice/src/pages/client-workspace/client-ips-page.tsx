@@ -11,6 +11,11 @@ import { Link, useParams } from "react-router";
 import { formatDate, formatDateTime } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
+import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { useCardLabel } from "../layout/card-settings";
+import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
+import { seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
+import { useDrill } from "./drill-panel";
 
 /**
  * A client's IPS Monitoring, laid out the way the firm's own design draws it: the policy's terms, a scorecard of its
@@ -25,22 +30,26 @@ export function ClientIpsPage() {
   const { customerId = "" } = useParams();
   const ips = useGetClientIps<ClientIps, ApiError>(customerId);
   const data = ips.data;
+  const view = useViewLayout("workspace.ips", CARDS, DEFAULT_CARDS);
 
   if (ips.isError) return <Alert tone="danger">{ips.error.message}</Alert>;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Reading the policy…</p>;
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / IPS Monitoring
-        </p>
-        <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">IPS Monitoring</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          Strategic allocation, tolerance bands and constraint compliance against the signed investment policy
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / IPS Monitoring
+          </p>
+          <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">IPS Monitoring</h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            Strategic allocation, tolerance bands and constraint compliance against the signed investment policy
+          </p>
+        </div>
+        <CustomizeButton view={view} />
       </header>
-      <Monitoring data={data} />
+      <Monitoring data={data} view={view} />
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
           {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
@@ -51,26 +60,40 @@ export function ClientIpsPage() {
   );
 }
 
-function Monitoring({ data }: { data: ClientIps }) {
+type IpsCard = "summary" | "scorecard" | "budget" | "allocation" | "sub-classes" | "history" | "objective" | "checks" | "log";
+
+/**
+ * The screen's cards, in the order the user laid them out: Sub-class Deviations on its own full-width row, the
+ * twelve-month history and Objective Tracking side by side below it, Constraint Checks the full width after them.
+ */
+const CARDS: Record<IpsCard, LayoutMeta> = {
+  summary: { title: "Investment policy statement", group: "Policy", wide: true },
+  scorecard: { title: "Compliance Scorecard", group: "Compliance", charts: ["donut", "gauge", "horizontal-bar", "table"] },
+  budget: { title: "Risk & Liquidity Budget", group: "Compliance", charts: ["gauge", "horizontal-bar", "table"] },
+  allocation: { title: "Strategic Asset Allocation · Target vs Actual", group: "Allocation", wide: true, charts: ["table", "grouped-bar", "horizontal-bar", "radar"] },
+  "sub-classes": { title: "Sub-class Deviations", group: "Allocation", wide: true, charts: ["horizontal-bar", "bar", "table"] },
+  history: { title: "Deviation from Target · 12 Months", group: "Allocation", charts: ["line", "heatmap", "bar", "table"] },
+  objective: { title: "Objective Tracking", group: "Policy", charts: ["line", "area", "gauge", "table"] },
+  checks: { title: "Constraint Checks", group: "Compliance", wide: true },
+  log: { title: "Deviation & Exception Log", group: "Compliance", wide: true },
+};
+
+// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
+const DEFAULT_CARDS: IpsCard[] = ["summary", "scorecard", "allocation", "checks"];
+
+function Monitoring({ data, view }: { data: ClientIps; view: ViewLayoutState<IpsCard> }) {
   return (
-    <>
-      <Summary data={data} />
-      <div className="grid gap-4 xl:grid-cols-[1fr_1.6fr]">
-        <Scorecard data={data} />
-        <Budget data={data} />
-      </div>
-      <AllocationCard data={data} />
-      {/* The user's layout: Sub-class Deviations on its own full-width row; the twelve-month history and Objective
-          Tracking side by side below it at equal width and equal height — the row is as tall as the taller card's
-          content, so two "not enough history" cards stay short. Constraint Checks keeps the full width after them. */}
-      <SubDeviations data={data} />
-      <div className="grid gap-4 xl:grid-cols-2">
-        <HistoryCard data={data} />
-        <ObjectiveCard data={data} />
-      </div>
-      <ChecksCard data={data} />
-      <LogCard data={data} />
-    </>
+    <LayoutGrid view={view} screen="IPS Monitoring" figures={data.bankFile ? undefined : ipsFigures(data)} render={{
+      summary: <Summary data={data} />,
+      scorecard: <Scorecard data={data} chart={cardChart(view, "scorecard")} />,
+      budget: <Budget data={data} chart={cardChart(view, "budget")} />,
+      allocation: <AllocationCard data={data} chart={cardChart(view, "allocation")} />,
+      "sub-classes": <SubDeviations data={data} chart={cardChart(view, "sub-classes")} />,
+      history: <HistoryCard data={data} chart={cardChart(view, "history")} />,
+      objective: <ObjectiveCard data={data} chart={cardChart(view, "objective")} />,
+      checks: <ChecksCard data={data} />,
+      log: <LogCard data={data} />,
+    }} />
   );
 }
 
@@ -139,7 +162,7 @@ const STATUS: Record<string, [string, string, string]> = {
   NOT_SET: ["Not set", "bg-slate-100 text-ink-muted", "#94a3b8"],
 };
 
-function Scorecard({ data }: { data: ClientIps }) {
+function Scorecard({ data, chart }: { data: ClientIps; chart: CardChart }) {
   const s = data.scorecard;
   const rows = useMemo<[string, number][]>(
     () => [["COMPLIANT", s.compliant], ["NEAR_LIMIT", s.nearLimit], ["WARNING", s.warning], ["DEVIATION", s.deviation]],
@@ -161,8 +184,14 @@ function Scorecard({ data }: { data: ClientIps }) {
     };
   }, [rows]);
   return (
-    <Card title="Compliance Scorecard" lead={data.bankFile ? undefined : `${s.rules} rules monitored${s.notMeasured > 0 ? ` · ${s.notMeasured} could not be measured` : ""}`}>
-      {data.bankFile ? <FileBlock /> : (<>
+    <Card title="Compliance Scorecard" lead={data.bankFile ? undefined : `${s.rules} rules monitored${s.notMeasured > 0 ? ` · ${s.notMeasured} could not be measured` : ""}`}
+      picker={!data.bankFile && s.rules > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => String(Math.round(value))} height={220} label="Rules by status"
+          data={chart.kind === "gauge"
+            ? { shape: "gauge", name: "Rules passing", value: s.compliant + s.nearLimit, max: s.rules, target: s.rules }
+            : { shape: "shares", items: rows.map(([key, count]) => ({ name: STATUS[key]![0], value: count, colour: STATUS[key]![2] })) }} />
+      ) : (<>
       <div className="flex flex-wrap items-center gap-5">
         {/* A square box in pixels, the chart exactly its size: the ring was drawn 160 high in a box 120 high, so it
             spilled over the footer's rule. */}
@@ -195,10 +224,13 @@ function Scorecard({ data }: { data: ClientIps }) {
   );
 }
 
-function Budget({ data }: { data: ClientIps }) {
+function Budget({ data, chart }: { data: ClientIps; chart: CardChart }) {
   return (
-    <Card title="Risk & Liquidity Budget" lead="Utilisation of IPS limits">
-      {data.bankFile ? <FileBlock /> : data.gauges.length === 0 ? <Empty>No budget limit is recorded.</Empty> : (
+    <Card title="Risk & Liquidity Budget" lead="Utilisation of IPS limits" picker={!data.bankFile && data.gauges.length > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : data.gauges.length === 0 ? <Empty>No budget limit is recorded.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(0)}%`} height={60 + data.gauges.length * 34} label="How much of each IPS limit is used"
+          data={{ shape: "series", categories: data.gauges.map((one) => one.label), series: [{ name: "% of limit used", values: data.gauges.map((one) => one.usedPercent) }] }} />
+      ) : (
         <div className="grid gap-4 sm:grid-cols-3">
           {data.gauges.map((one) => <Gauge key={one.key} check={one} />)}
         </div>
@@ -229,7 +261,8 @@ function Gauge({ check }: { check: IpsCheck }) {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 
-function AllocationCard({ data }: { data: ClientIps }) {
+function AllocationCard({ data, chart }: { data: ClientIps; chart: CardChart }) {
+  const drill = useDrill();
   const [expanded, setExpanded] = useState(true);
   const [basis, setBasis] = useState<"investable" | "total">("investable");
   const rows = data.allocation.filter((one) => expanded || one.assetClass);
@@ -240,6 +273,7 @@ function AllocationCard({ data }: { data: ClientIps }) {
   return (
     <Card title="Strategic Asset Allocation · Target vs Actual"
       lead={`${classes} asset classes · ${data.allocation.length - classes} sub-classes · deviation shown in percentage points and ${data.currency}`}
+      picker={data.allocation.length > 0 && chart.picker}
       action={
         <div className="flex flex-wrap gap-2">
           <Toggle label="Rows shown" value={expanded ? "all" : "classes"} onChange={(next) => setExpanded(next === "all")}
@@ -248,7 +282,18 @@ function AllocationCard({ data }: { data: ClientIps }) {
             options={[["investable", "Investable"], ["total", "Total incl. owned outright"]]} />
         </div>
       }>
-      {data.allocation.length === 0 ? <Empty>No model to measure against yet.</Empty> : (
+      {data.allocation.length === 0 ? <Empty>No model to measure against yet.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={chart.kind === "radar" ? 300 : 60 + rows.length * 26}
+          label="Each class's actual weight against its strategic target"
+          data={{ shape: "series", categories: rows.map((one) => one.name), series: [
+            { name: basis === "investable" ? "Actual" : "Actual (of total)", values: rows.map((one) => (basis === "investable" ? one.actual : one.actualOfTotal)) },
+            { name: "Target", values: rows.map((one) => (basis === "investable" ? one.target : null)) },
+          ] }}
+          onPick={(at) => {
+            const row = rows[at];
+            if (row && row.key !== "OWNED_OUTRIGHT") drill?.(row.assetClass ? { by: "class", key: row.key, name: row.name } : { by: "subClass", key: row.name, name: row.name });
+          }} />
+      ) : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -292,13 +337,21 @@ function AllocationCard({ data }: { data: ClientIps }) {
 }
 
 function AllocationLine({ row, basis, scale, currency }: { row: IpsAllocationRow; basis: "investable" | "total"; scale: number; currency: string }) {
+  const drill = useDrill();
   const investable = basis === "investable";
   const actual = investable ? row.actual : row.actualOfTotal;
   const at = (value: number) => `${Math.min(100, (value / scale) * 100)}%`;
   const tone = row.status === "DEVIATION" ? "bg-red-600" : row.status === "NEAR_EDGE" ? "bg-amber-500" : "bg-primary-600";
   return (
     <tr className={cn(row.assetClass && "bg-slate-50 font-semibold")}>
-      <th scope="row" className={cn("py-2 pr-3 text-left", row.assetClass ? "pl-5" : "pl-9 font-normal")}>{row.name}</th>
+      <th scope="row" className={cn("py-2 pr-3 text-left", row.assetClass ? "pl-5" : "pl-9 font-normal")}>
+        {row.key === "OWNED_OUTRIGHT" ? row.name : (
+          <button type="button" className="text-left hover:text-primary-700 hover:underline"
+            onClick={() => drill?.(row.assetClass ? { by: "class", key: row.key, name: row.name } : { by: "subClass", key: row.name, name: row.name })}>
+            {row.name}
+          </button>
+        )}
+      </th>
       <td className="px-2 py-2 text-right tabular-nums">{investable ? pct(row.min) : "—"}</td>
       <td className="px-2 py-2 text-right tabular-nums">{investable ? pct(row.target) : "—"}</td>
       <td className="px-2 py-2 text-right tabular-nums">{investable ? pct(row.max) : "—"}</td>
@@ -327,19 +380,26 @@ function AllocationLine({ row, basis, scale, currency }: { row: IpsAllocationRow
   );
 }
 
-function SubDeviations({ data }: { data: ClientIps }) {
+function SubDeviations({ data, chart }: { data: ClientIps; chart: CardChart }) {
+  const drill = useDrill();
   const rows = data.subDeviations;
   const largest = Math.max(0.01, ...rows.map((one) => Math.abs(one.deviationPoints)));
   return (
-    <Card title="Sub-class Deviations" lead="Where the portfolio sits furthest from policy">
-      {data.bankFile ? <FileBlock /> : rows.length === 0 ? <Empty>The model sets no sub-class targets for this client.</Empty> : (
+    <Card title="Sub-class Deviations" lead="Where the portfolio sits furthest from policy" picker={!data.bankFile && rows.length > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : rows.length === 0 ? <Empty>The model sets no sub-class targets for this client.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => `${value > 0 ? "+" : ""}${value.toFixed(2)} pp`} height={chart.kind === "bar" ? 260 : 60 + rows.length * 24}
+          label="Each sub-class's distance from its target"
+          data={{ shape: "series", categories: rows.map((one) => one.name), series: [{ name: "Deviation", values: rows.map((one) => one.deviationPoints) }] }}
+          onPick={(at) => { const one = rows[at]; if (one) drill?.({ by: "subClass", key: one.name, name: one.name }); }} />
+      ) : (
         // One list, biggest overweight to biggest underweight, as the server sorts it. A fixed label column wide
         // enough that the longest names keep to one line, then the bar area about one centred zero line shared by
         // every row (overweights right in blue, underweights left in red), and the value at the far right.
         <ul className="divide-y divide-line">
           {rows.map((one, at) => (
             <li key={`${one.name}-${at}`} className="grid min-h-8 grid-cols-[17rem_1fr_4rem] items-center gap-4 py-1.5 text-xs">
-              <span className="leading-snug break-words" title={`${one.assetClass} · ${one.name}`}>{one.name}</span>
+              <button type="button" className="text-left leading-snug break-words hover:text-primary-700 hover:underline" title={`${one.assetClass} · ${one.name}`}
+                onClick={() => drill?.({ by: "subClass", key: one.name, name: one.name })}>{one.name}</button>
               <span className="relative block h-2.5" aria-hidden="true">
                 <span className="absolute -top-1 left-1/2 h-4.5 w-px bg-ink-muted/40" />
                 <span className={cn("absolute top-0 h-2.5", one.deviationPoints >= 0 ? "left-1/2 rounded-r-sm bg-primary-600" : "right-1/2 rounded-l-sm bg-red-600")}
@@ -357,7 +417,7 @@ function SubDeviations({ data }: { data: ClientIps }) {
   );
 }
 
-function HistoryCard({ data }: { data: ClientIps }) {
+function HistoryCard({ data, chart }: { data: ClientIps; chart: CardChart }) {
   const series = data.history;
   const option = useMemo(() => {
     const colours = ink();
@@ -402,12 +462,20 @@ function HistoryCard({ data }: { data: ClientIps }) {
     };
   }, [series]);
   const hasPoints = series.some((one) => one.points.length > 0);
+  const days = [...new Set(series.flatMap((one) => one.points.map((point) => point.on)))].sort();
   const single = !series.some((one) => one.points.length > 1);
   const equityRow = series.find((one) => one.assetClass === "EQUITIES") ?? series[0];
   const bandLabel = equityRow && (equityRow.band ?? 0) > 0 ? `${equityRow.name} band ±${equityRow.band} pp` : null;
   return (
-    <Card title="Deviation from Target · 12 Months" lead="Percentage points vs strategic target · month-end">
-      {data.bankFile ? <FileBlock /> : !hasPoints ? <Empty>Not enough month-end valuations to draw yet.</Empty> : (
+    <Card title="Deviation from Target · 12 Months" lead="Percentage points vs strategic target · month-end" picker={!data.bankFile && hasPoints && chart.picker}>
+      {data.bankFile ? <FileBlock /> : !hasPoints ? <Empty>Not enough month-end valuations to draw yet.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => `${value > 0 ? "+" : ""}${value.toFixed(2)} pp`} height={chart.kind === "heatmap" ? 80 + series.length * 34 : 240}
+          label="Each class's distance from target at each month end"
+          data={{ shape: "series", categories: days.map((day) => monthLabel(day)), series: series.map((one) => {
+            const byDay = new Map(one.points.map((point) => [point.on, point.deviation]));
+            return { name: one.name, values: days.map((day) => byDay.get(day) ?? null) };
+          }) }} />
+      ) : (
         <>
           <Chart option={option} height={220} label="Each class's distance from target at each month end" />
           {single && <p className="mt-1 text-3xs text-ink-muted italic">One reading on file so far: it is marked as a point, and the line starts with the next.</p>}
@@ -434,7 +502,7 @@ function HistoryCard({ data }: { data: ClientIps }) {
   );
 }
 
-function ObjectiveCard({ data }: { data: ClientIps }) {
+function ObjectiveCard({ data, chart }: { data: ClientIps; chart: CardChart }) {
   const o = data.objective;
   const option = useMemo(() => {
     const colours = ink();
@@ -456,7 +524,7 @@ function ObjectiveCard({ data }: { data: ClientIps }) {
     };
   }, [o]);
   return (
-    <Card title="Objective Tracking">
+    <Card title="Objective Tracking" picker={!data.bankFile && !!o && o.rolling.length >= 2 && chart.picker}>
       {data.bankFile ? <FileBlock /> : !o ? <Empty>No objective is recorded.</Empty> : (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-4">
@@ -487,8 +555,18 @@ function ObjectiveCard({ data }: { data: ClientIps }) {
           </div>
           {o.rolling.length < 2 ? (
             <Empty>{o.rollingWindow == null ? "Not measured: fewer than twelve monthly returns on file." : "Not enough quarter ends to draw yet."}</Empty>
-          ) : (
+          ) : chart.own ? (
             <Chart option={option} height={180} label="Rolling annualised return at each quarter end, against the policy's objective" />
+          ) : chart.kind === "gauge" ? (
+            <KindChart kind="gauge" format={(value) => `${value.toFixed(1)}%`} height={200} label="The annualised return against the policy's objective"
+              data={{ shape: "gauge", name: "Annualised return", value: o.windowAnnualised ?? o.rolling[o.rolling.length - 1]!.annualised,
+                max: Math.max(1, (o.objectivePercent ?? 0) * 2, Math.abs(o.windowAnnualised ?? 0) * 1.2), target: o.objectivePercent }} />
+          ) : (
+            <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={180} label="Rolling annualised return at each quarter end, against the policy's objective"
+              data={{ shape: "series", categories: o.rolling.map((one) => quarterLabel(one.on)), series: [
+                { name: `Rolling ${o.rollingWindow ?? "5Y"} annualised`, values: o.rolling.map((one) => one.annualised) },
+                ...(o.objectivePercent == null ? [] : [{ name: "Objective", values: o.rolling.map(() => o.objectivePercent), colour: ink().danger }]),
+              ] }} />
           )}
         </div>
       )}
@@ -497,6 +575,7 @@ function ObjectiveCard({ data }: { data: ClientIps }) {
 }
 
 function ChecksCard({ data }: { data: ClientIps }) {
+  const drill = useDrill();
   const [only, setOnly] = useState<"all" | "exceptions">("all");
   const shown = data.checks.filter((one) => only === "all" || ["NEAR_LIMIT", "WARNING", "DEVIATION"].includes(one.status));
   return (
@@ -519,7 +598,8 @@ function ChecksCard({ data }: { data: ClientIps }) {
               {shown.map((one) => (
                 <tr key={one.key} className="align-top">
                   <th scope="row" className="py-2 pr-3 pl-5 text-left font-normal">
-                    {one.label}
+                    <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                      onClick={() => drill?.({ by: "rule", key: one.key, name: one.label })}>{one.label}</button>
                     {one.note && <span className="block text-3xs text-ink-muted">{one.note}</span>}
                   </th>
                   <td className="px-2 py-2 whitespace-nowrap">{one.limit}</td>
@@ -551,6 +631,7 @@ function ChecksCard({ data }: { data: ClientIps }) {
 }
 
 function LogCard({ data }: { data: ClientIps }) {
+  const drill = useDrill();
   const tone = (status: string) => (status === "OPEN" ? "bg-red-50 text-red-700" : status === "WAIVED" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700");
   return (
     <Card title="Deviation & Exception Log" lead="Last 12 months · audit trail">
@@ -571,7 +652,10 @@ function LogCard({ data }: { data: ClientIps }) {
               {data.log.map((one, at) => (
                 <tr key={`${one.on}-${at}`} className="align-top">
                   <td className="py-2 pr-3 pl-5 whitespace-nowrap text-ink-muted">{formatDate(one.on)}</td>
-                  <td className="px-2 py-2">{one.rule}</td>
+                  <td className="px-2 py-2">
+                    <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                      onClick={() => drill?.({ by: "rule", key: one.rule, name: one.rule })}>{one.rule}</button>
+                  </td>
                   <td className="px-2 py-2">{one.observed}</td>
                   <td className="px-2 py-2"><Pill tone={tone(one.status)}>{titleCase(one.status)}</Pill></td>
                   <td className="px-2 py-2 text-ink-soft">{one.resolution ?? "—"}</td>
@@ -667,15 +751,51 @@ function quarterLabel(day: string) {
   return `Q${Math.floor(date.getMonth() / 3) + 1} ${String(date.getFullYear()).slice(2)}`;
 }
 
-function Card({ title, lead, action, children }: { title: string; lead?: string; action?: ReactNode; children: ReactNode }) {
+/** What IPS Monitoring offers for a card of the reader's own: its compliance, budgets, allocation and objective. */
+function ipsFigures(data: ClientIps): Figures {
+  const pc = (value: number) => `${value.toFixed(1)}%`;
+  const s = data.scorecard;
+  const o = data.objective;
+  const days = [...new Set(data.history.flatMap((one) => one.points.map((point) => point.on)))].sort();
+  return {
+    "compliance.passing": singleFigure("Rules passing", "Compliance", s.rules ? s.compliant + s.nearLimit : null, (value) => String(Math.round(value)),
+      { gauge: true, max: s.rules, target: s.rules }),
+    "compliance.status": sharesFigure("Rules by status", "Compliance", [
+      { name: "Compliant", value: s.compliant }, { name: "Near limit", value: s.nearLimit }, { name: "Warning", value: s.warning }, { name: "Deviation", value: s.deviation },
+    ].filter((one) => one.value > 0), (value) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+    ...Object.fromEntries(data.gauges.map((check) => [`budget.${check.key.toLowerCase()}`,
+      singleFigure(`${check.label}, % of the limit used`, "Budgets", check.usedPercent, (value) => `${value.toFixed(0)}%`, { gauge: true, max: 120, target: 100 })])),
+    "allocation.bands": seriesFigure("Strategic allocation, actual against target", "Allocation", data.allocation.filter((one) => one.assetClass).map((one) => one.name), [
+      { name: "Actual", values: data.allocation.filter((one) => one.assetClass).map((one) => one.actual) },
+      { name: "Target", values: data.allocation.filter((one) => one.assetClass).map((one) => one.target) },
+    ], pc, ["grouped-bar", "horizontal-bar", "radar", "table"]),
+    "allocation.subclasses": seriesFigure("Sub-class deviations from target", "Allocation", data.subDeviations.map((one) => one.name),
+      [{ name: "Deviation", values: data.subDeviations.map((one) => one.deviationPoints) }], (value) => `${value > 0 ? "+" : ""}${value.toFixed(2)} pp`,
+      ["horizontal-bar", "bar", "table"]),
+    "allocation.history": seriesFigure("Deviation from target by month", "Allocation", days.map((day) => monthLabel(day)), data.history.map((one) => {
+      const byDay = new Map(one.points.map((point) => [point.on, point.deviation]));
+      return { name: one.name, values: days.map((day) => byDay.get(day) ?? null) };
+    }), (value) => `${value > 0 ? "+" : ""}${value.toFixed(2)} pp`, ["line", "heatmap", "bar", "table"]),
+    "objective.return": singleFigure("Annualised return against the objective", "Objective", o?.windowAnnualised, pc,
+      { gauge: true, max: Math.max(1, (o?.objectivePercent ?? 0) * 2, Math.abs(o?.windowAnnualised ?? 0) * 1.2), target: o?.objectivePercent,
+        policy: o?.objectivePercent != null ? { value: o.objectivePercent, label: "return objective" } : null }),
+    "objective.rolling": seriesFigure("Rolling annualised return by quarter", "Objective", (o?.rolling ?? []).map((one) => quarterLabel(one.on)),
+      [{ name: "Annualised", values: (o?.rolling ?? []).map((one) => one.annualised) }], pc, ["line", "area", "table"]),
+  };
+}
+
+/** @param picker the chart type switcher, beside the card's own action, for a card that draws a chart */
+function Card({ title, lead, action, picker, children }: { title: string; lead?: string; action?: ReactNode; picker?: ReactNode; children: ReactNode }) {
+  // The reader's own name and line for the card, where they set them through Add card.
+  const label = useCardLabel(title, lead);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold">{title}</h2>
-          {lead && <p className="mt-0.5 text-xs text-ink-muted">{lead}</p>}
+          <h2 className="text-lg font-bold">{label.title}</h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        {action}
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
       </div>
       {children}
     </section>

@@ -12,6 +12,11 @@ import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { INK } from "../portfolios/asset-classes";
+import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { useCardLabel } from "../layout/card-settings";
+import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
+import { seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
+import { useDrill } from "./drill-panel";
 
 /**
  * A client's Entity & Ownership Structure, laid out the way the firm's own design draws it: the entities their wealth
@@ -26,23 +31,27 @@ export function ClientStructurePage() {
   const { customerId = "" } = useParams();
   const structure = useGetClientStructure<ClientStructure, ApiError>(customerId);
   const data = structure.data;
+  const view = useViewLayout("workspace.structure", CARDS, DEFAULT_CARDS);
 
   if (structure.isError) return <Alert tone="danger">{structure.error.message}</Alert>;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Reading the structure…</p>;
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Entity Structure
-        </p>
-        <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Entity &amp; Ownership Structure</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          Trusts, companies and SPVs with ownership, look-through value and beneficial interest
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Entity Structure
+          </p>
+          <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Entity &amp; Ownership Structure</h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            Trusts, companies and SPVs with ownership, look-through value and beneficial interest
+          </p>
+        </div>
+        {!data.bankFile && <CustomizeButton view={view} />}
       </header>
 
-      {data.bankFile ? <FileContainers name={data.name} accounts={data.bankFile} data={data} /> : <Structure data={data} />}
+      {data.bankFile ? <FileContainers name={data.name} accounts={data.bankFile} data={data} /> : <Structure data={data} view={view} />}
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
@@ -54,7 +63,36 @@ export function ClientStructurePage() {
   );
 }
 
-function Structure({ data }: { data: ClientStructure }) {
+type StructureCard = "kpis" | "ownership" | "register" | "interest" | "mix" | "governance";
+
+/** The screen's cards, in the firm's order: every card on by default. */
+const CARDS: Record<StructureCard, LayoutMeta> = {
+  kpis: { title: "Key figures", group: "Summary", wide: true },
+  ownership: { title: "Ownership Structure", group: "Structure", wide: true },
+  register: { title: "Entity Register", group: "Structure", wide: true },
+  interest: { title: "Beneficial Interest Matrix", group: "Beneficiaries", charts: ["heatmap", "stacked-bar", "grouped-bar", "donut"] },
+  mix: { title: "Asset Mix by Entity", group: "Structure", charts: ["stacked-bar", "grouped-bar", "heatmap", "table"] },
+  governance: { title: "Governance Calendar & Documents", group: "Governance", wide: true },
+};
+
+// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
+const DEFAULT_CARDS: StructureCard[] = ["kpis", "ownership", "register", "mix"];
+
+function Structure({ data, view }: { data: ClientStructure; view: ViewLayoutState<StructureCard> }) {
+  return (
+    <LayoutGrid view={view} screen="Entity Structure" figures={data.bankFile ? undefined : structureFigures(data)} render={{
+      kpis: <Kpis data={data} />,
+      ownership: <OwnershipCard data={data} />,
+      register: <RegisterCard data={data} />,
+      interest: <InterestCard data={data} chart={cardChart(view, "interest")} />,
+      mix: <MixCard data={data} chart={cardChart(view, "mix")} />,
+      governance: <GovernanceCard data={data} />,
+    }} />
+  );
+}
+
+/** The figures across the top: entities, jurisdictions, beneficiaries, officers and what is due. */
+function Kpis({ data }: { data: ClientStructure }) {
   const { kpis } = data;
   return (
     <>
@@ -75,16 +113,6 @@ function Structure({ data }: { data: ClientStructure }) {
             </>
           } />
       </div>
-
-      <OwnershipCard data={data} />
-      <RegisterCard data={data} />
-
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-        <InterestCard data={data} />
-        <MixCard data={data} />
-      </div>
-
-      <GovernanceCard data={data} />
     </>
   );
 }
@@ -241,19 +269,25 @@ function NodeRow({ name, line, figure: value, figureTone, className, children }:
 }
 
 function TopBox({ node, show, currency }: { node: StructureNode; show: Show; currency: string }) {
+  const drill = useDrill();
   return (
     <NodeRow className="w-[42%] shrink-0 rounded-xl bg-primary-50 ring-1 ring-primary-200"
-      name={<p className="line-clamp-2 text-sm font-bold break-words text-primary-700" title={node.name}>{node.name}</p>}
+      name={
+        <button type="button" className="line-clamp-2 text-left text-sm font-bold break-words text-primary-700 hover:underline" title={node.name}
+          onClick={() => drill?.({ by: "legalEntity", key: node.id, name: node.name })}>{node.name}</button>
+      }
       line={`${node.jurisdiction} · ${node.description ?? typeName(node.type)}`} figure={figure(node, show, currency)} />
   );
 }
 
 function ChildBox({ node, show, currency }: { node: StructureNode; show: Show; currency: string }) {
+  const drill = useDrill();
   return (
     <NodeRow className="rounded-lg border border-line"
       name={
         <p className="line-clamp-2 text-sm font-semibold break-words" title={node.name}>
-          {node.name} <span className="ml-1 rounded-sm bg-slate-100 px-1 text-3xs font-semibold text-ink-muted uppercase">{shortType(node.type)}</span>
+          <button type="button" className="text-left hover:text-primary-700 hover:underline"
+            onClick={() => drill?.({ by: "legalEntity", key: node.id, name: node.name })}>{node.name}</button> <span className="ml-1 rounded-sm bg-slate-100 px-1 text-3xs font-semibold text-ink-muted uppercase">{shortType(node.type)}</span>
         </p>
       }
       line={[node.ownedPercent == null ? null : `${node.ownedPercent}%`, node.jurisdiction, node.description, node.custodians.join(" · ")]
@@ -263,7 +297,8 @@ function ChildBox({ node, show, currency }: { node: StructureNode; show: Show; c
         <ul className="mt-1.5 space-y-0.5 border-t border-line pt-1.5 text-xs">
           {node.children.map((grandchild) => (
             <li key={grandchild.id} className="flex justify-between gap-2 pl-3">
-              <span className="min-w-0 break-words">{grandchild.name}</span>
+              <button type="button" className="min-w-0 text-left break-words hover:text-primary-700 hover:underline"
+                onClick={() => drill?.({ by: "legalEntity", key: grandchild.id, name: grandchild.name })}>{grandchild.name}</button>
               <span className="shrink-0 text-right tabular-nums">{figure(grandchild, show, currency)}</span>
             </li>
           ))}
@@ -277,6 +312,7 @@ function ChildBox({ node, show, currency }: { node: StructureNode; show: Show; c
 /* Register, interest, mix, governance                                                                           */
 
 function RegisterCard({ data }: { data: ClientStructure }) {
+  const drill = useDrill();
   return (
     <Card title="Entity Register" lead="Every entity on file for this family, with who runs it and where its accounts are held">
       {data.bankFile ? <FileBlock /> : data.register.length === 0 ? <Empty>No entity is on file for this client yet.</Empty> : (
@@ -300,7 +336,8 @@ function RegisterCard({ data }: { data: ClientStructure }) {
               {data.register.map((one) => (
                 <tr key={one.id} className="align-top">
                   <th scope="row" className="py-2 pr-3 pl-5 text-left font-normal">
-                    <span className="font-semibold">{one.name}</span>
+                    <button type="button" className="text-left font-semibold hover:text-primary-700 hover:underline"
+                      onClick={() => drill?.({ by: "legalEntity", key: one.id, name: one.name })}>{one.name}</button>
                     <span className="block text-xs text-ink-muted">{typeName(one.type)}</span>
                   </th>
                   <td className="px-3 py-2 whitespace-nowrap">{one.jurisdiction}</td>
@@ -338,12 +375,26 @@ function officers(list: StructureOfficer[]): ReactNode {
     .join(" · ");
 }
 
-function InterestCard({ data }: { data: ClientStructure }) {
+function InterestCard({ data, chart }: { data: ClientStructure; chart: CardChart }) {
+  const drill = useDrill();
   const cur = data.currency;
   const largest = Math.max(1, ...data.interests.flatMap((row) => (row.cells as (number | null)[]).map((cell) => cell ?? 0)));
   return (
-    <Card title="Beneficial Interest Matrix" lead="Economic interest by entity and beneficiary · as recorded">
-      {data.bankFile ? <FileBlock /> : data.beneficiaries.length === 0 ? <Empty>No beneficiary is on file for this client yet.</Empty> : (
+    <Card title="Beneficial Interest Matrix" lead="Economic interest by entity and beneficiary · as recorded"
+      picker={!data.bankFile && data.beneficiaries.length > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : data.beneficiaries.length === 0 ? <Empty>No beneficiary is on file for this client yet.</Empty> : !chart.own ? (
+        chart.kind === "donut" ? (
+          <KindChart kind="donut" format={(value) => compact(value, cur)} height={260} label="Each beneficiary's economic interest across every entity"
+            data={{ shape: "shares", items: data.beneficiaries.map((one) => ({ name: one.name, value: one.value })) }}
+            onPick={(at) => { const one = data.beneficiaries[at]; if (one) drill?.({ by: "beneficiary", key: one.id, name: one.name }); }} />
+        ) : (
+          <KindChart kind={chart.kind!} format={(value) => compact(value, cur)} height={260} label="Each entity's value split by beneficiary"
+            data={{ shape: "series", categories: data.interests.map((row) => row.entity), series: data.beneficiaries.map((one, at) => ({
+              name: one.name, values: data.interests.map((row) => (row.cells as (number | null)[])[at] ?? null),
+            })) }}
+            onPick={(at) => { const row = data.interests[at]; if (row) drill?.({ by: "legalEntity", key: row.entityId, name: row.entity }); }} />
+        )
+      ) : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -351,7 +402,8 @@ function InterestCard({ data }: { data: ClientStructure }) {
                 <th scope="col" className="py-2 pr-3 pl-5"><span className="sr-only">Entity</span></th>
                 {data.beneficiaries.map((one) => (
                   <th key={one.id} scope="col" className="px-1 py-2 text-center">
-                    {one.name}
+                    <button type="button" className="uppercase hover:text-primary-700 hover:underline"
+                      onClick={() => drill?.({ by: "beneficiary", key: one.id, name: one.name })}>{one.name}</button>
                     {one.generation && <span className="block font-normal normal-case">{one.generation}</span>}
                   </th>
                 ))}
@@ -361,7 +413,10 @@ function InterestCard({ data }: { data: ClientStructure }) {
             <tbody>
               {data.interests.map((row) => (
                 <tr key={row.entityId}>
-                  <th scope="row" className="py-1 pr-3 pl-5 text-left font-medium">{row.entity}</th>
+                  <th scope="row" className="py-1 pr-3 pl-5 text-left font-medium">
+                    <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                      onClick={() => drill?.({ by: "legalEntity", key: row.entityId, name: row.entity })}>{row.entity}</button>
+                  </th>
                   {(row.cells as (number | null)[]).map((cell, at) => (
                     <td key={at} className="px-1 py-1">
                       {/* A tint of the theme's blue, from faint for the smallest share to a third for the largest, under
@@ -399,18 +454,31 @@ function InterestCard({ data }: { data: ClientStructure }) {
   );
 }
 
-function MixCard({ data }: { data: ClientStructure }) {
+function MixCard({ data, chart }: { data: ClientStructure; chart: CardChart }) {
+  const drill = useDrill();
   const names = [...new Set(data.assetMix.flatMap((row) => row.slices.map((one) => one.name)))];
   const colour = (name: string) => INK[names.indexOf(name) % INK.length];
   return (
-    <Card title="Asset Mix by Entity" lead="% of each entity's value">
-      {data.bankFile ? <FileBlock /> : data.assetMix.length === 0 ? <Empty>No entity is on file for this client yet.</Empty> : (
+    <Card title="Asset Mix by Entity" lead="% of each entity's value" picker={!data.bankFile && data.assetMix.length > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : data.assetMix.length === 0 ? <Empty>No entity is on file for this client yet.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={chart.kind === "heatmap" ? 80 + data.assetMix.length * 34 : 260}
+          label="Each entity's value by asset class"
+          data={chart.kind === "heatmap"
+            ? { shape: "series", categories: names, series: data.assetMix.map((row) => ({
+                name: row.entity, values: names.map((name) => row.slices.find((one) => one.name === name)?.sharePercent ?? null),
+              })) }
+            : { shape: "series", categories: data.assetMix.map((row) => row.entity), series: names.map((name) => ({
+                name, values: data.assetMix.map((row) => row.slices.find((one) => one.name === name)?.sharePercent ?? null),
+              })) }}
+          onPick={chart.kind === "heatmap" ? undefined : (at) => { const row = data.assetMix[at]; if (row) drill?.({ by: "legalEntity", key: row.entityId, name: row.entity }); }} />
+      ) : (
         <>
           <ul className="space-y-2.5">
             {data.assetMix.map((row) => (
               <li key={row.entityId} className="grid grid-cols-[9rem_1fr] items-center gap-3 text-sm">
                 {/* Wrapped rather than cut: an entity's name is how it is told apart from the next. */}
-                <span className="leading-snug break-words">{row.entity}</span>
+                <button type="button" className="text-left leading-snug break-words hover:text-primary-700 hover:underline"
+                  onClick={() => drill?.({ by: "legalEntity", key: row.entityId, name: row.entity })}>{row.entity}</button>
                 <span className="flex h-3 overflow-hidden rounded-sm bg-slate-100" aria-hidden="true">
                   {row.slices.map((one) => (
                     <span key={one.key} title={`${one.name} ${one.sharePercent}%`} style={{ width: `${one.sharePercent}%`, background: colour(one.name) }} />
@@ -478,6 +546,9 @@ function GovernanceCard({ data }: { data: ClientStructure }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 /* The bank-file client                                                                                          */
 
+/** A card drawn as it is, with no switcher: the bank-file layout, where these cards only say the file does not hold them. */
+const OWN_LOOK: CardChart = { kind: null, own: true, picker: null };
+
 function FileContainers({ name, accounts, data }: { name: string; accounts: StructureFileAccount[]; data: ClientStructure }) {
   return (
     <>
@@ -522,8 +593,8 @@ function FileContainers({ name, accounts, data }: { name: string; accounts: Stru
       </Card>
       <RegisterCard data={data} />
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-        <InterestCard data={data} />
-        <MixCard data={data} />
+        <InterestCard data={data} chart={OWN_LOOK} />
+        <MixCard data={data} chart={OWN_LOOK} />
       </div>
       <GovernanceCard data={data} />
     </>
@@ -543,15 +614,35 @@ function settlorNames(names: string[]) {
   return names.length <= 2 ? names.join(" & ") : `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
 }
 
-function Card({ title, lead, action, children }: { title: string; lead?: string; action?: ReactNode; children: ReactNode }) {
+/** What Entity Structure offers for a card of the reader's own: who holds the economic interest, and in what. */
+function structureFigures(data: ClientStructure): Figures {
+  const amount = (value: number) => compact(value, data.currency);
+  const names = [...new Set(data.assetMix.flatMap((row) => row.slices.map((one) => one.name)))];
+  return {
+    "interest.beneficiaries": sharesFigure("Economic interest by beneficiary", "Beneficiaries", data.beneficiaries.map((one) => ({ name: one.name, value: one.value })), amount),
+    "interest.entities": sharesFigure("Value held by each entity", "Structure", data.interests.map((row) => ({ name: row.entity, value: row.value })), amount,
+      ["horizontal-bar", "donut", "treemap", "table"]),
+    "interest.matrix": seriesFigure("Each entity's value by beneficiary", "Beneficiaries", data.interests.map((row) => row.entity),
+      data.beneficiaries.map((one, at) => ({ name: one.name, values: data.interests.map((row) => (row.cells as (number | null)[])[at] ?? null) })),
+      amount, ["stacked-bar", "grouped-bar", "heatmap", "table"]),
+    "mix.entities": seriesFigure("Asset mix by entity", "Structure", data.assetMix.map((row) => row.entity),
+      names.map((name) => ({ name, values: data.assetMix.map((row) => row.slices.find((one) => one.name === name)?.sharePercent ?? null) })),
+      (value) => `${value.toFixed(1)}%`, ["stacked-bar", "grouped-bar", "heatmap", "table"]),
+  };
+}
+
+/** @param picker the chart type switcher, beside the card's own action, for a card that draws a chart */
+function Card({ title, lead, action, picker, children }: { title: string; lead?: string; action?: ReactNode; picker?: ReactNode; children: ReactNode }) {
+  // The reader's own name and line for the card, where they set them through Add card.
+  const label = useCardLabel(title, lead);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold">{title}</h2>
-          {lead && <p className="mt-0.5 text-xs text-ink-muted">{lead}</p>}
+          <h2 className="text-lg font-bold">{label.title}</h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        {action}
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
       </div>
       {children}
     </section>

@@ -9,12 +9,17 @@ import {
   type HoldingsSlice,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, SelectInput, cn } from "@atomprive/ui";
-import { ChevronDown, ChevronRight, Columns3 } from "lucide-react";
+import { ChevronDown, ChevronRight, Columns3, PanelRightOpen } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { HoldingsCheckBody } from "../bank-syncs/holdings-check-client-page";
 import { INK } from "../portfolios/asset-classes";
+import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { useCardLabel } from "../layout/card-settings";
+import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/chart-kinds";
+import type { Figures } from "../layout/own-cards";
+import { useDrill, type DrillBy } from "./drill-panel";
 
 /**
  * A client's Consolidated Holdings, laid out the way the firm's own design draws it: what the lines are worth, cost and
@@ -30,6 +35,7 @@ export function ClientHoldingsPage() {
   const book = useGetClientHoldingsBook<ClientHoldingsBook, ApiError>(customerId);
   const check = useReconcileClientHoldings<ClientHoldingsCheck, ApiError>(customerId, { query: { retry: false } });
   const data = book.data;
+  const view = useViewLayout("workspace.holdings", CARDS, DEFAULT_CARDS);
 
   if (book.isError) return <Alert tone="danger">{book.error.message}</Alert>;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Reading the holdings…</p>;
@@ -40,22 +46,25 @@ export function ClientHoldingsPage() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Consolidated Holdings
-        </p>
-        <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Consolidated Holdings</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          {data.name} · all entities and custodians · positions as of {formatDate(data.asOf)} close
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Consolidated Holdings
+          </p>
+          <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Consolidated Holdings</h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            {data.name} · all entities and custodians · positions as of {formatDate(data.asOf)} close
+          </p>
+        </div>
+        <CustomizeButton view={view} />
       </header>
-      <Kpis data={data} reconciliation={reconciliation} />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <CustodianCard data={data} />
-        <CurrencyCard data={data} />
-        <PnlCard data={data} />
-      </div>
-      <Tabs data={data} reconciliation={reconciliation} />
+      <LayoutGrid view={view} screen="Consolidated Holdings" figures={data.bankFile ? undefined : holdingsFigures(data)} render={{
+        kpis: <Kpis data={data} reconciliation={reconciliation} />,
+        custodian: <CustodianCard data={data} chart={cardChart(view, "custodian")} />,
+        currency: <CurrencyCard data={data} chart={cardChart(view, "currency")} />,
+        pnl: <PnlCard data={data} chart={cardChart(view, "pnl")} />,
+        lines: <Tabs data={data} reconciliation={reconciliation} />,
+      }} />
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
           {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
@@ -65,6 +74,20 @@ export function ClientHoldingsPage() {
     </div>
   );
 }
+
+type HoldingsCard = "kpis" | "custodian" | "currency" | "pnl" | "lines";
+
+/** The screen's cards, in the firm's order: every card on by default. */
+const CARDS: Record<HoldingsCard, LayoutMeta> = {
+  kpis: { title: "Key figures", group: "Summary", wide: true },
+  custodian: { title: "By Custodian", group: "Breakdowns", charts: ["horizontal-bar", "donut", "treemap", "table"] },
+  currency: { title: "By Currency", group: "Breakdowns", charts: ["stacked-bar", "donut", "horizontal-bar", "treemap", "table"] },
+  pnl: { title: "Unrealised P&L by Asset Class", group: "Breakdowns", charts: ["horizontal-bar", "bar", "waterfall", "table"] },
+  lines: { title: "Positions, lots, transactions & reconciliation", group: "Lines", wide: true },
+};
+
+// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
+const DEFAULT_CARDS: HoldingsCard[] = ["kpis", "custodian", "currency", "lines"];
 
 type Reconciliation = { kind: "data"; data: ClientHoldingsCheck } | { kind: "none"; message: string } | { kind: "loading" };
 
@@ -107,17 +130,23 @@ function Kpis({ data, reconciliation }: { data: ClientHoldingsBook; reconciliati
   );
 }
 
-function CustodianCard({ data }: { data: ClientHoldingsBook }) {
+function CustodianCard({ data, chart }: { data: ClientHoldingsBook; chart: CardChart }) {
+  const drill = useDrill();
   return (
-    <Card title="By Custodian" lead="Book of record per custodian">
-      {data.bankFile ? <FileByBank data={data} /> : <Bars slices={data.byCustodian} currency={data.currency} />}
+    <Card title="By Custodian" lead="Book of record per custodian" picker={!data.bankFile && data.byCustodian.length > 0 && chart.picker}>
+      {data.bankFile ? <FileByBank data={data} /> : !chart.own && data.byCustodian.length > 0 ? (
+        <Shares slices={data.byCustodian} currency={data.currency} kind={chart} label="Holdings by custodian"
+          onPick={(one) => drill?.({ by: "custodian", key: one.key, name: one.name })} />
+      ) : <Bars slices={data.byCustodian} currency={data.currency} by="custodian" />}
     </Card>
   );
 }
 
-function CurrencyCard({ data }: { data: ClientHoldingsBook }) {
+function CurrencyCard({ data, chart }: { data: ClientHoldingsBook; chart: CardChart }) {
+  const drill = useDrill();
   return (
-    <Card title="By Currency" lead={data.bankFile ? "Each currency as the bank's files state it; not converted" : `Unhedged exposure in reporting currency (${data.currency})`}>
+    <Card title="By Currency" lead={data.bankFile ? "Each currency as the bank's files state it; not converted" : `Unhedged exposure in reporting currency (${data.currency})`}
+      picker={!data.bankFile && data.byCurrency.length > 0 && chart.picker}>
       {data.bankFile ? (
         data.fileTotals.length === 0 ? <FileBlock /> : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 2xl:grid-cols-4">
@@ -129,20 +158,24 @@ function CurrencyCard({ data }: { data: ClientHoldingsBook }) {
             ))}
           </div>
         )
-      ) : data.byCurrency.length === 0 ? <Empty>No line states its currency.</Empty> : (
+      ) : data.byCurrency.length === 0 ? <Empty>No line states its currency.</Empty> : !chart.own ? (
+        <Shares slices={data.byCurrency} currency={data.currency} kind={chart} label="Exposure by currency"
+          onPick={(one) => drill?.({ by: "currency", key: one.key, name: one.name })} />
+      ) : (
         <>
           <div className="flex h-3 w-full overflow-hidden rounded-sm" aria-hidden="true">
             {data.byCurrency.map((one, at) => <span key={one.key} style={{ width: `${one.sharePercent}%`, background: INK[at % INK.length] }} />)}
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 2xl:grid-cols-4">
             {data.byCurrency.map((one, at) => (
-              <div key={one.key} className="rounded-lg border border-line px-2.5 py-2">
+              <button key={one.key} type="button" onClick={() => drill?.({ by: "currency", key: one.key, name: one.name })}
+                className="rounded-lg border border-line px-2.5 py-2 text-left hover:border-primary-400 hover:bg-canvas">
                 <p className="flex items-center gap-1.5 text-xs font-semibold">
                   <span className="size-2 rounded-xs" style={{ background: INK[at % INK.length] }} aria-hidden="true" />{one.name}
                 </p>
                 <p className="text-base font-bold tabular-nums">{one.sharePercent.toFixed(1)}%</p>
                 <p className="text-2xs text-ink-muted tabular-nums">{compact(one.amount, data.currency)}</p>
-              </div>
+              </button>
             ))}
           </div>
         </>
@@ -151,14 +184,23 @@ function CurrencyCard({ data }: { data: ClientHoldingsBook }) {
   );
 }
 
-function PnlCard({ data }: { data: ClientHoldingsBook }) {
+function PnlCard({ data, chart }: { data: ClientHoldingsBook; chart: CardChart }) {
+  const drill = useDrill();
   const largest = Math.max(1, ...data.unrealisedByClass.map((one) => Math.abs(one.amount)));
+  const classes = data.unrealisedByClass;
   return (
-    <Card title="Unrealised P&L by Asset Class" lead="Market value less cost basis">
-      {data.bankFile ? <FileBlock /> : data.unrealisedByClass.length === 0 ? <Empty>No tax lots on file.</Empty> : (
+    <Card title="Unrealised P&L by Asset Class" lead="Market value less cost basis" picker={!data.bankFile && classes.length > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : classes.length === 0 ? <Empty>No tax lots on file.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => signedCompact(value, data.currency)} height={240}
+          label={chart.kind === "waterfall" ? "Each class's unrealised gain or loss, walked to the total" : "Unrealised gain or loss in each asset class"}
+          data={{ shape: "series", categories: classes.map((one) => one.name), series: [{ name: "Unrealised P&L", values: classes.map((one) => one.amount) }] }}
+          onPick={(at) => { const one = classes[at]; if (one) drill?.({ by: "class", key: one.key, name: one.name }); }} />
+      ) : (
         <ul className="space-y-2">
           {data.unrealisedByClass.map((one) => (
-            <li key={one.key} className="grid grid-cols-[1fr_5rem_5rem] items-center gap-2 text-sm">
+            <li key={one.key}>
+              <button type="button" onClick={() => drill?.({ by: "class", key: one.key, name: one.name })}
+                className="grid w-full grid-cols-[1fr_5rem_5rem] items-center gap-2 rounded-md px-1 py-0.5 text-left text-sm hover:bg-canvas">
               <span className="truncate">{one.name}</span>
               <span className="relative block h-2" aria-hidden="true">
                 <span className="absolute top-0 left-1/2 h-2 w-px bg-line" />
@@ -166,6 +208,7 @@ function PnlCard({ data }: { data: ClientHoldingsBook }) {
                   style={{ width: `${(Math.abs(one.amount) / largest) * 50}%` }} />
               </span>
               <span className={cn("text-right font-semibold tabular-nums", toneOf(one.amount))}>{signedCompact(one.amount, data.currency)}</span>
+              </button>
             </li>
           ))}
         </ul>
@@ -174,22 +217,89 @@ function PnlCard({ data }: { data: ClientHoldingsBook }) {
   );
 }
 
-function Bars({ slices, currency }: { slices: HoldingsSlice[]; currency: string }) {
+/** A breakdown drawn as the kind picked for its card; a click opens that slice's breakdown. */
+function Shares({ slices, currency, kind, label, onPick }: {
+  slices: HoldingsSlice[];
+  currency: string;
+  kind: CardChart;
+  label: string;
+  onPick: (one: HoldingsSlice) => void;
+}) {
+  return (
+    <KindChart kind={kind.kind!} format={(value) => compact(value, currency)} height={240} label={label}
+      data={{ shape: "shares", items: slices.map((one) => ({ name: one.name, value: one.amount })) }}
+      onPick={(at) => { const one = slices[at]; if (one) onPick(one); }} />
+  );
+}
+
+function Bars({ slices, currency, by }: { slices: HoldingsSlice[]; currency: string; by: DrillBy }) {
+  const drill = useDrill();
   const largest = Math.max(1, ...slices.map((one) => one.amount));
   if (slices.length === 0) return <Empty>Nothing held yet.</Empty>;
   return (
     <ul className="space-y-2">
       {slices.map((one) => (
-        <li key={one.key} className="grid grid-cols-[1fr_6rem_5rem] items-center gap-2 text-sm">
-          <span className="truncate">{one.name}</span>
-          <span className="block h-2 rounded-full bg-slate-100" aria-hidden="true">
-            <span className="block h-full rounded-full bg-primary-600" style={{ width: `${(one.amount / largest) * 100}%` }} />
-          </span>
-          <span className="text-right font-semibold tabular-nums">{compact(one.amount, currency)}</span>
+        <li key={one.key}>
+          <button type="button" onClick={() => drill?.({ by, key: one.key, name: one.name })}
+            className="grid w-full grid-cols-[1fr_6rem_5rem] items-center gap-2 rounded-md px-1 py-0.5 text-left text-sm hover:bg-canvas">
+            <span className="truncate">{one.name}</span>
+            <span className="block h-2 rounded-full bg-slate-100" aria-hidden="true">
+              <span className="block h-full rounded-full bg-primary-600" style={{ width: `${(one.amount / largest) * 100}%` }} />
+            </span>
+            <span className="text-right font-semibold tabular-nums">{compact(one.amount, currency)}</span>
+          </button>
         </li>
       ))}
     </ul>
   );
+}
+
+/**
+ * What Consolidated Holdings offers for a card of the reader's own: its breakdowns, its key figures, and the book's
+ * lines added up by asset class, entity, account and time to cash, as its own groupings add them. A bank-file client's
+ * page offers none.
+ */
+function holdingsFigures(data: ClientHoldingsBook): Figures {
+  const cur = data.currency;
+  const amount = (value: number) => compact(value, cur);
+  const percent = (value: number) => `${value.toFixed(1)}%`;
+  const shares = (rows: { name: string; amount: number }[]): ChartData | null =>
+    rows.length ? { shape: "shares", items: rows.map((one) => ({ name: one.name, value: one.amount })) } : null;
+  const sumBy = (read: (one: HoldingsPosition) => string | null) => {
+    const totals = new Map<string, number>();
+    for (const one of data.positions) totals.set(read(one) ?? "Not stated", (totals.get(read(one) ?? "Not stated") ?? 0) + one.value);
+    return shares([...totals].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, amount: value })));
+  };
+  const one = (name: string, value: number | null | undefined, max?: number): ChartData | null =>
+    value == null ? null : { shape: "gauge", name, value, max: max ?? (Math.abs(value) * 2 || 1) };
+  const k = data.kpis;
+  const breakdown = { group: "Breakdowns", kinds: ["donut", "horizontal-bar", "treemap", "bar", "table"] as const, format: amount };
+  return {
+    "holdings.custodian": { ...breakdown, kinds: [...breakdown.kinds], label: "Holdings by custodian", data: shares(data.byCustodian) },
+    "holdings.currency": { ...breakdown, kinds: [...breakdown.kinds], label: "Holdings by currency", data: shares(data.byCurrency) },
+    "holdings.class": { ...breakdown, kinds: [...breakdown.kinds], label: "Holdings by asset class", data: sumBy((one) => one.assetClassName) },
+    "holdings.entity": { ...breakdown, kinds: [...breakdown.kinds], label: "Holdings by entity", data: sumBy((one) => one.entity) },
+    "holdings.account": { ...breakdown, kinds: [...breakdown.kinds], label: "Holdings by account", data: sumBy((one) => one.account) },
+    "holdings.liquidity": { ...breakdown, kinds: [...breakdown.kinds], label: "Holdings by time to cash", data: sumBy((one) => one.liquidity) },
+    "holdings.top": {
+      label: "Ten largest positions", group: "Positions", kinds: ["horizontal-bar", "treemap", "donut", "table"], format: amount,
+      data: shares([...data.positions].sort((a, b) => b.value - a.value).slice(0, 10).map((one) => ({ name: one.name, amount: one.value }))),
+    },
+    "pnl.class": {
+      label: "Unrealised P&L by asset class", group: "Gains & income", kinds: ["horizontal-bar", "bar", "waterfall", "table"], format: amount,
+      data: data.unrealisedByClass.length ? { shape: "series", categories: data.unrealisedByClass.map((row) => row.name),
+        series: [{ name: "Unrealised P&L", values: data.unrealisedByClass.map((row) => row.amount) }] } : null,
+    },
+    "kpi.value": { label: "Market value", group: "Key figures", kinds: ["number", "table"], format: amount, data: one("Market value", k.marketValue) },
+    "kpi.unrealised": { label: "Unrealised P&L", group: "Gains & income", kinds: ["number", "table"], format: amount, data: one("Unrealised P&L", k.unrealised) },
+    "kpi.unrealised-percent": {
+      label: "Unrealised P&L, % of cost", group: "Gains & income", kinds: ["gauge", "number", "table"], format: percent,
+      data: one("Unrealised P&L, % of cost", k.unrealisedPercent, Math.max(20, Math.abs(k.unrealisedPercent ?? 0) * 1.5)),
+    },
+    "kpi.realised": { label: "Realised P&L, year to date", group: "Gains & income", kinds: ["number", "table"], format: amount, data: one("Realised P&L · YTD", k.realisedYearToDate) },
+    "kpi.income": { label: "Income, year to date", group: "Gains & income", kinds: ["number", "table"], format: amount, data: one("Income · YTD", k.incomeYearToDate) },
+    "kpi.positions": { label: "Number of positions", group: "Key figures", kinds: ["number", "table"], format: (value) => String(Math.round(value)), data: one("Positions", k.positions) },
+  };
 }
 
 /* ------------------------------------------------------------------------------------------------------------ */
@@ -275,6 +385,7 @@ function keyOf(position: HoldingsPosition, by: Grouping) {
 
 function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick: (one: HoldingsPosition) => void; picked: HoldingsPosition | null }) {
   const file = data.bankFile;
+  const drill = useDrill();
   const [by, setBy] = useState<Grouping>("assetClass");
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -350,13 +461,20 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
               const rest = lines.length - visible.length;
               return (
                 <Fragment key={group}>
-                  <GroupRow group={group} lines={lines} closed={closed} file={file} currency={data.currency} on={on}
+                  <GroupRow group={group} by={by} lines={lines} closed={closed} file={file} currency={data.currency} on={on}
                     summary={filtered ? undefined : data.groups.find((one) => one.grouping === GROUPING_KEYS[by] && one.key === group)}
                     onToggle={() => setCollapsed((was) => toggled(was, group))} />
                   {!closed && visible.map((one) => (
                     <tr key={one.id} onClick={() => onPick(one)}
                       className={cn("cursor-pointer hover:bg-slate-50", picked?.id === one.id && "bg-primary-50")}>
-                      <td className="py-2 pr-3 pl-8 font-medium">{one.name}{one.subClass && <span className="block text-xs font-normal text-ink-muted">{one.subClass}</span>}</td>
+                      <td className="py-2 pr-3 pl-8 font-medium">
+                        {file ? one.name : (
+                          <button type="button" className="text-left hover:text-primary-700 hover:underline" title="Open its breakdown"
+                            onClick={(event) => { event.stopPropagation(); drill?.({ by: "position", key: one.id, name: one.name }); }}>
+                            {one.name}
+                          </button>
+                        )}
+                        {one.subClass && <span className="block text-xs font-normal text-ink-muted">{one.subClass}</span>}</td>
                       {on("identifier") && <td className="px-1.5 py-2 font-mono text-xs text-ink-muted">{one.identifier ?? (file ? <NotInFile tight /> : "—")}</td>}
                       {on("entity") && <td className="px-1.5 py-2 text-xs">{file ? <NotInFile tight /> : one.entity ?? "—"}</td>}
                       {on("custodian") && <td className="px-1.5 py-2 text-xs">{one.custodian ?? "—"}</td>}
@@ -449,8 +567,9 @@ const GROUPING_KEYS: Record<Grouping, string> = {
  * A group's own row, as the design draws it: its name and, from the server, what its lines add up to. A bank-file
  * client's group shows its lines' values per currency as sent, since they are never added across currencies.
  */
-function GroupRow({ group, lines, closed, file, currency, on, summary, onToggle }: {
+function GroupRow({ group, by, lines, closed, file, currency, on, summary, onToggle }: {
   group: string;
+  by: Grouping;
   lines: HoldingsPosition[];
   closed: boolean;
   file: boolean;
@@ -465,6 +584,10 @@ function GroupRow({ group, lines, closed, file, currency, on, summary, onToggle 
     return [...sums.entries()].map(([ccy, sum]) => <span key={ccy} className="block">{exact(sum, ccy)}</span>);
   };
   const g = summary;
+  const drill = useDrill();
+  const first = lines[0];
+  // The group's own key: an asset class is grouped by its name but opened by its code.
+  const key = by === "assetClass" ? first?.assetClass ?? "" : (first?.[by] ?? "");
   return (
     <tr className="bg-slate-50 font-semibold">
       <th scope="rowgroup" className="py-2 pr-3 pl-5 text-left">
@@ -472,6 +595,12 @@ function GroupRow({ group, lines, closed, file, currency, on, summary, onToggle 
           {closed ? <ChevronRight className="size-4" aria-hidden="true" /> : <ChevronDown className="size-4" aria-hidden="true" />}
           {group}
         </button>
+        {!file && first && (
+          <button type="button" onClick={() => drill?.({ by: by === "assetClass" ? "class" : by, key, name: group })}
+            className="mt-0.5 inline-flex items-center gap-1 pl-5.5 text-2xs font-semibold text-primary-700 hover:underline">
+            <PanelRightOpen className="size-3" aria-hidden="true" /> Breakdown
+          </button>
+        )}
       </th>
       {COLUMNS.filter(([id]) => on(id)).map(([id]) => (
         <td key={id} className={cn("px-1.5 py-2 text-right whitespace-nowrap tabular-nums", id === "unrealised" && g && toneOf(g.unrealised ?? 0))}>
@@ -714,15 +843,18 @@ function toggled<T>(set: Set<T>, value: T) {
   return next;
 }
 
-function Card({ title, lead, action, children }: { title: string; lead?: string; action?: ReactNode; children: ReactNode }) {
+/** @param picker the chart type switcher, beside the card's own action, for a card that draws a chart */
+function Card({ title, lead, action, picker, children }: { title: string; lead?: string; action?: ReactNode; picker?: ReactNode; children: ReactNode }) {
+  // The reader's own name and line for the card, where they set them through Add card.
+  const label = useCardLabel(title, lead);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold">{title}</h2>
-          {lead && <p className="mt-0.5 text-xs text-ink-muted">{lead}</p>}
+          <h2 className="text-lg font-bold">{label.title}</h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        {action}
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
       </div>
       {children}
     </section>

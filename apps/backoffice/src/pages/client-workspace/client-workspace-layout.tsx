@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Outlet, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { DrillHost } from "./drill-panel";
 
 /**
  * One client's workspace: the screen, at the page's full width. Its menu — back to all clients, the client's card
@@ -26,5 +27,10 @@ export function ClientWorkspaceLayout() {
     }
   }, [manager, customerId, noteOpened]);
 
-  return <Outlet />;
+  // A click on a figure opens its breakdown beside the screen, on every screen of the workspace.
+  return (
+    <DrillHost customerId={customerId}>
+      <Outlet />
+    </DrillHost>
+  );
 }

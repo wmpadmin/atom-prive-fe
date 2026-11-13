@@ -11,6 +11,11 @@ import { createElement, useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
+import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { useCardLabel } from "../layout/card-settings";
+import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
+import { kpiFigures, seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
+import { useDrill } from "./drill-panel";
 
 /**
  * A client's Collectibles & Real Assets register, laid out section by section as the firm's 10 Nov design draws it.
@@ -26,33 +31,38 @@ export function ClientCollectiblesPage() {
   const data = co.data;
   const [filter, setFilter] = useState("ALL");
 
+  const view = useViewLayout("workspace.collectibles", CARDS, DEFAULT_CARDS);
   if (co.isError) return <Alert tone="danger">{co.error.message}</Alert>;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Reading the register…</p>;
   const file = data.bankFile;
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Collectibles &amp; Real Assets
-        </p>
-        <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Collectibles &amp; Real Assets</h1>
-        <p className="mt-1 text-sm text-ink-muted">Register of yachts, art, cars, watches, wine and jewellery · valuations, provenance, custody and insurance</p>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Collectibles &amp; Real Assets
+          </p>
+          <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Collectibles &amp; Real Assets</h1>
+          <p className="mt-1 text-sm text-ink-muted">Register of yachts, art, cars, watches, wine and jewellery · valuations, provenance, custody and insurance</p>
+        </div>
+        <CustomizeButton view={view} />
       </header>
 
-      <Kpis data={data} />
-      {!file && data.otherNote && <p className="-mt-2 text-xs text-ink-muted">{data.otherNote}.</p>}
-      <Tiles data={data} filter={filter} onFilter={setFilter} />
-      <Register data={data} filter={filter} onFilter={setFilter} />
-      {/* Paired by height: the chart beside the obligations (the chart grows to match), the two tables together. */}
-      <div className="grid gap-4 xl:grid-cols-2">
-        <ValueCard data={data} />
-        <ObligationsCard data={data} />
-      </div>
-      <div className="grid gap-4 xl:grid-cols-2">
-        <InsuranceCard data={data} />
-        <LocationsCard data={data} />
-      </div>
+      <LayoutGrid view={view} screen="Collectibles & Real Assets" figures={file ? undefined : collectiblesFigures(data)} render={{
+        kpis: (
+          <div className="space-y-2">
+            <Kpis data={data} />
+            {!file && data.otherNote && <p className="text-xs text-ink-muted">{data.otherNote}.</p>}
+          </div>
+        ),
+        categories: <Tiles data={data} filter={filter} onFilter={setFilter} chart={cardChart(view, "categories")} />,
+        register: <Register data={data} filter={filter} onFilter={setFilter} />,
+        value: <ValueCard data={data} chart={cardChart(view, "value")} />,
+        obligations: <ObligationsCard data={data} />,
+        insurance: <InsuranceCard data={data} chart={cardChart(view, "insurance")} />,
+        locations: <LocationsCard data={data} chart={cardChart(view, "locations")} />,
+      }} />
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
@@ -66,6 +76,22 @@ export function ClientCollectiblesPage() {
 }
 
 /* ------------------------------------------------------------------------------------------------------------ */
+
+type CollectiblesCard = "kpis" | "categories" | "register" | "value" | "obligations" | "insurance" | "locations";
+
+/** The screen's cards, in the firm's order: every card on by default. */
+const CARDS: Record<CollectiblesCard, LayoutMeta> = {
+  kpis: { title: "Key figures", group: "Summary", wide: true },
+  categories: { title: "Categories", group: "Summary", wide: true, charts: ["tiles", "donut", "treemap", "horizontal-bar"] },
+  register: { title: "Asset Register & Item record", group: "Register", wide: true },
+  value: { title: "Register Value Over Time", group: "Register", charts: ["stacked-bar", "stacked-area", "grouped-bar", "line", "table"] },
+  obligations: { title: "Upcoming Obligations", group: "Care & cover" },
+  insurance: { title: "Insurance Coverage", group: "Care & cover", charts: ["table", "grouped-bar", "gauge"] },
+  locations: { title: "Locations & Custody", group: "Care & cover", charts: ["table", "donut", "horizontal-bar", "treemap"] },
+};
+
+// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
+const DEFAULT_CARDS: CollectiblesCard[] = ["kpis", "categories", "register", "value"];
 
 const CATEGORIES: { key: string; label: string; short: string; icon: LucideIcon }[] = [
   { key: "YACHT", label: "Yacht", short: "Yacht", icon: Sailboat },
@@ -105,9 +131,22 @@ function Kpis({ data }: { data: ClientCollectibles }) {
   );
 }
 
-function Tiles({ data, filter, onFilter }: { data: ClientCollectibles; filter: string; onFilter: (key: string) => void }) {
+function Tiles({ data, filter, onFilter, chart }: { data: ClientCollectibles; filter: string; onFilter: (key: string) => void; chart: CardChart }) {
+  const held = data.categories.filter((one) => one.count > 0);
+  // Drawn as another kind, the categories sit in a card of their own; a click filters the register as a tile does.
+  if (!data.bankFile && !chart.own && held.length > 0) {
+    return (
+      <Card title="Categories" lead="Appraised value by category" picker={chart.picker}>
+        <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={260} label="Appraised value by category"
+          data={{ shape: "shares", items: held.map((one) => ({ name: one.label, value: one.value })) }}
+          onPick={(at) => { const one = held[at]; if (one) onFilter(filter === one.key ? "ALL" : one.key); }} />
+      </Card>
+    );
+  }
   return (
-    <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))]">
+    <div className="space-y-2">
+      {!data.bankFile && held.length > 0 && chart.picker && <div className="flex justify-end">{chart.picker}</div>}
+      <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))]">
       {CATEGORIES.map((category) => {
         const one = data.categories.find((tile) => tile.key === category.key);
         const Icon = category.icon;
@@ -136,6 +175,7 @@ function Tiles({ data, filter, onFilter }: { data: ClientCollectibles; filter: s
           </button>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -324,7 +364,7 @@ function fillsOf(text: string) {
   return [text, "#9a7b4f", "#d6c7a6", "#9b1c1c", "#e7dfcf", "#6b6358"];
 }
 
-function ValueCard({ data }: { data: ClientCollectibles }) {
+function ValueCard({ data, chart }: { data: ClientCollectibles; chart: CardChart }) {
   const fills = fillsOf(ink().text);
   const option = useMemo(() => {
     const colours = ink();
@@ -341,8 +381,12 @@ function ValueCard({ data }: { data: ClientCollectibles }) {
     };
   }, [data.years, data.currency]);
   return (
-    <Card title="Register Value Over Time" lead={data.bankFile ? undefined : "Year-end appraised values · demo series"}>
-      {data.bankFile ? <FileBlock /> : data.years.length === 0 ? <Empty>Nothing on the register.</Empty> : (
+    <Card title="Register Value Over Time" lead={data.bankFile ? undefined : "Year-end appraised values · demo series"}
+      picker={!data.bankFile && data.years.length > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : data.years.length === 0 ? <Empty>Nothing on the register.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={280} label="Register value at each year end by category"
+          data={{ shape: "series", categories: data.years.map((one) => one.year), series: SERIES.map(([key, name]) => ({ name, values: data.years.map((one) => one[key]) })) }} />
+      ) : (
         <>
           {/* As tall as the obligations beside it: no blank space under the key. */}
           <div className="relative min-h-[260px] flex-1">
@@ -364,11 +408,29 @@ function ValueCard({ data }: { data: ClientCollectibles }) {
   );
 }
 
-function InsuranceCard({ data }: { data: ClientCollectibles }) {
+function InsuranceCard({ data, chart }: { data: ClientCollectibles; chart: CardChart }) {
+  const drill = useDrill();
   const rows = data.insuranceTotal ? [...data.insurance, data.insuranceTotal] : data.insurance;
+  const total = data.insuranceTotal;
   return (
-    <Card title="Insurance Coverage" lead={data.bankFile ? undefined : "Insured values vs latest appraisals"} flush>
-      {data.bankFile ? <div className="px-5"><FileBlock /></div> : rows.length === 0 ? <Empty>Nothing to insure.</Empty> : (
+    <Card title="Insurance Coverage" lead={data.bankFile ? undefined : "Insured values vs latest appraisals"} flush
+      picker={!data.bankFile && data.insurance.length > 0 && chart.picker}>
+      {data.bankFile ? <div className="px-5"><FileBlock /></div> : rows.length === 0 ? <Empty>Nothing to insure.</Empty> : !chart.own ? (
+        <div className="px-5">
+          {chart.kind === "gauge" ? (
+            // The whole register's cover against full cover; past 100% is drawn at the end of the dial.
+            <KindChart kind="gauge" format={(value) => `${value.toFixed(0)}%`} height={240} label="Insured value as a share of appraised value"
+              data={{ shape: "gauge", name: "Insured of appraised", value: total?.coverPercent ?? 0, max: Math.max(120, total?.coverPercent ?? 0), target: 100 }} />
+          ) : (
+            <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={240} label="Appraised and insured value by category"
+              data={{ shape: "series", categories: data.insurance.map((one) => one.label), series: [
+                { name: "Appraised", values: data.insurance.map((one) => one.market) },
+                { name: "Insured", values: data.insurance.map((one) => one.insured) },
+              ] }}
+              onPick={(at) => { const one = data.insurance[at]; if (one) drill?.({ by: "category", key: one.key, name: one.label }); }} />
+          )}
+        </div>
+      ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -384,7 +446,12 @@ function InsuranceCard({ data }: { data: ClientCollectibles }) {
             <tbody className="divide-y divide-line">
               {rows.map((one) => (
                 <tr key={one.key} className={cn(one.key === "TOTAL" && "font-semibold")}>
-                  <th scope="row" className="py-2 pr-2 pl-5 text-left font-medium whitespace-nowrap">{one.label}</th>
+                  <th scope="row" className="py-2 pr-2 pl-5 text-left font-medium whitespace-nowrap">
+                    {one.key === "TOTAL" ? one.label : (
+                      <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                        onClick={() => drill?.({ by: "category", key: one.key, name: one.label })}>{one.label}</button>
+                    )}
+                  </th>
                   <td className="px-2 py-2 text-right tabular-nums">{compact(one.market, data.currency)}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{compact(one.insured, data.currency)}</td>
                   <td className="px-2 py-2 text-right tabular-nums">
@@ -403,19 +470,28 @@ function InsuranceCard({ data }: { data: ClientCollectibles }) {
   );
 }
 
-function LocationsCard({ data }: { data: ClientCollectibles }) {
+function LocationsCard({ data, chart }: { data: ClientCollectibles; chart: CardChart }) {
+  const drill = useDrill();
   return (
-    <Card title="Locations & Custody" lead={data.bankFile ? undefined : "Where each asset physically sits"}>
-      {data.bankFile ? <FileBlock /> : data.locations.length === 0 ? <Empty>Nothing on the register.</Empty> : (
+    <Card title="Locations & Custody" lead={data.bankFile ? undefined : "Where each asset physically sits"}
+      picker={!data.bankFile && data.locations.length > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : data.locations.length === 0 ? <Empty>Nothing on the register.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={240} label="Appraised value by where it sits"
+          data={{ shape: "shares", items: data.locations.map((one) => ({ name: one.name, value: one.value })) }}
+          onPick={(at) => { const one = data.locations[at]; if (one) drill?.({ by: "location", key: one.name, name: one.name }); }} />
+      ) : (
         <ul className="divide-y divide-line">
           {data.locations.map((one) => (
-            <li key={one.name} className="flex items-center gap-3 py-2.5">
-              <MapPin className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold">{one.name}</span>
-                <span className="block text-xs text-ink-muted">{one.line}</span>
-              </span>
-              <span className="text-sm font-semibold tabular-nums">{compact(one.value, data.currency)}</span>
+            <li key={one.name}>
+              <button type="button" onClick={() => drill?.({ by: "location", key: one.name, name: one.name })}
+                className="flex w-full items-center gap-3 rounded-md py-2.5 text-left hover:bg-canvas">
+                <MapPin className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold">{one.name}</span>
+                  <span className="block text-xs text-ink-muted">{one.line}</span>
+                </span>
+                <span className="text-sm font-semibold tabular-nums">{compact(one.value, data.currency)}</span>
+              </button>
             </li>
           ))}
         </ul>
@@ -497,12 +573,38 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   );
 }
 
-function Card({ title, lead, flush, children }: { title: string; lead?: string; flush?: boolean; children: ReactNode }) {
+/** What Collectibles & Real Assets offers for a card of the reader's own: its register, values, cover and places. */
+function collectiblesFigures(data: ClientCollectibles): Figures {
+  const amount = (value: number) => compact(value, data.currency);
+  const unitFormat = (unit: string) => (value: number) => unit === "PERCENT" ? `${value.toFixed(0)}%` : unit === "COUNT" ? value.toLocaleString("en-US")
+    : compact(value, data.currency);
+  const total = data.insuranceTotal;
+  return {
+    ...kpiFigures(data.kpis, unitFormat),
+    "register.categories": sharesFigure("Appraised value by category", "Register", data.categories.filter((one) => one.count > 0).map((one) => ({ name: one.label, value: one.value })), amount),
+    "register.years": seriesFigure("Register value at each year end", "Register", data.years.map((one) => one.year),
+      SERIES.map(([key, name]) => ({ name, values: data.years.map((one) => one[key]) })), amount, ["stacked-bar", "stacked-area", "grouped-bar", "line", "table"]),
+    "cover.categories": seriesFigure("Appraised and insured value by category", "Care & cover", data.insurance.map((one) => one.label), [
+      { name: "Appraised", values: data.insurance.map((one) => one.market) }, { name: "Insured", values: data.insurance.map((one) => one.insured) },
+    ], amount, ["grouped-bar", "horizontal-bar", "table"]),
+    "cover.total": singleFigure("Insured, % of appraised value", "Care & cover", total?.coverPercent, (value) => `${value.toFixed(0)}%`,
+      { gauge: true, max: Math.max(120, total?.coverPercent ?? 0), target: 100, policy: { value: 100, label: "full cover" } }),
+    "places.locations": sharesFigure("Appraised value by where it sits", "Care & cover", data.locations.map((one) => ({ name: one.name, value: one.value })), amount),
+  };
+}
+
+/** @param picker the chart type switcher, beside the title, for a card that draws a chart */
+function Card({ title, lead, flush, picker, children }: { title: string; lead?: string; flush?: boolean; picker?: ReactNode; children: ReactNode }) {
+  // The reader's own name and line for the card, where they set them through Add card.
+  const label = useCardLabel(title, lead);
   return (
     <section className={cn("flex min-w-0 flex-col rounded-2xl border border-line bg-white", flush ? "py-5" : "p-5")}>
-      <div className={cn("mb-3", flush && "px-5")}>
-        <h2 className="text-lg font-bold">{title}</h2>
-        {lead && <p className="mt-0.5 text-xs text-ink-muted">{lead}</p>}
+      <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", flush && "px-5")}>
+        <div>
+          <h2 className="text-lg font-bold">{label.title}</h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">{picker}<CardMenu /></div>
       </div>
       {children}
     </section>
