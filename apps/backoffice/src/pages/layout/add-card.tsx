@@ -292,15 +292,16 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
                     Rearrange on page
                   </Button>
                   {/* The screen as the portal was set up: its own cards, in their own order and look. */}
-                  {resetting ? (
+                  {resetting && !view.changed ? (
+                    <span className="text-xs text-ink-soft">This screen already shows its default view.</span>
+                  ) : resetting ? (
                     <span className="flex flex-wrap items-center gap-2 text-xs">
                       <span className="text-ink-soft">Back to the screen's default cards? Your changes here go.</span>
                       <Button size="sm" onClick={() => { view.reset(); onClose(); }}>Yes, reset</Button>
                       <Button variant="secondary" size="sm" onClick={() => setResetting(false)}>Keep mine</Button>
                     </span>
                   ) : (
-                    <Button variant="secondary" size="sm" disabled={!view.changed} onClick={() => setResetting(true)}
-                      title={view.changed ? "Bring back the cards this screen was set up with" : "This screen already shows its default view"}>
+                    <Button variant="secondary" size="sm" onClick={() => setResetting(true)} title="Bring back the cards this screen was set up with">
                       <RotateCcw aria-hidden="true" />
                       Reset to default view
                     </Button>
