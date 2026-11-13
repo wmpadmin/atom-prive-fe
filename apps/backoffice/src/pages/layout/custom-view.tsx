@@ -5,6 +5,7 @@ import {
   useResetViewLayout,
   useSaveViewLayout,
   type LayoutCard,
+  type OwnCard,
   type ViewLayout,
 } from "@atomprive/api-client/backoffice";
 import { Button, cn } from "@atomprive/ui";
@@ -14,6 +15,7 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState, type 
 import { CustomizeDialog } from "./add-card";
 import { CardSettingsContext, type CardSettings, type Palette } from "./card-settings";
 import { CardChartContext, cardChart, type ChartKind } from "./chart-kinds";
+import { OWN, OwnCardView, useOwnCards, type Figures } from "./own-cards";
 
 /**
  * A screen made of cards that each member of staff lays out for themselves, the way Autotask's dashboards are: drag a
@@ -39,6 +41,8 @@ export type LayoutMeta = {
   area?: "main" | "side";
   /** The kinds of chart the card can be drawn as, its own look first; none where it draws no chart. */
   charts?: ChartKind[];
+  /** A card the reader built through Add new card, with what they set for it. */
+  own?: OwnCard;
 };
 
 /**
@@ -104,7 +108,13 @@ function same<Id extends string>(one: Placed<Id>, other: Placed<Id>) {
 export type ViewLayoutState<Id extends string> = ReturnType<typeof useViewLayout<Id>>;
 
 /** One screen's layout for the reader, with the customize session it is changed through. */
-export function useViewLayout<Id extends string>(key: string, meta: Record<Id, LayoutMeta>, defaults: Id[]) {
+export function useViewLayout<Id extends string>(key: string, screenMeta: Record<Id, LayoutMeta>, defaults: Id[]) {
+  // The screen's own cards, and the reader's own beside them under "own:" + id: placed, hidden and moved alike.
+  const own = useOwnCards(key);
+  const meta = useMemo(() => ({
+    ...screenMeta,
+    ...Object.fromEntries(own.map((card) => [`${OWN}${card.id}`, { title: card.title, group: "Your own cards", own: card }])),
+  }) as Record<Id, LayoutMeta>, [screenMeta, own]);
   const ids = useMemo(() => Object.keys(meta) as Id[], [meta]);
   const queryClient = useQueryClient();
   const saved = useGetViewLayout<ViewLayout, ApiError>(key, { query: { staleTime: 5 * 60_000 } });
@@ -210,8 +220,16 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
      * Customize view's whole journey at once: each card picked is set as chosen, in turn. Unless {@code only}, a card
      * shown that was not picked is taken off the screen, as the dropdown is the screen's list of cards.
      */
+    /** The screen's layout key, for the reader's own cards kept under it. */
+    screenKey: key,
     arrange: (picked: Id[], choices: Partial<Record<Id, CardChoice<Id>>>, only: boolean) => {
       let next = placed.map((one) => (!only && !one.hidden && !picked.includes(one.id) ? { ...one, hidden: true } : one));
+      // An own card built a moment ago is not among the screen's cards until they are read again: placed all the same.
+      for (const id of picked) {
+        if (id.startsWith(OWN) && !next.some((one) => one.id === id)) {
+          next = [...next, { id, width: "HALF", hidden: true, chart: null, title: null, note: null, palette: null }];
+        }
+      }
       for (const id of picked) {
         const choice = choices[id];
         if (choice && next.some((one) => one.id === id)) next = placeCard(next, chosen(id, choice, meta, widthOf), choice.after);
@@ -411,14 +429,22 @@ export const CardContext = createContext<CardControls | null>(null);
  * the cards that sit there. Customizing draws the bar, Add card and each card's frame; outside it each card may offer
  * its ⋮ to move or remove it.
  */
-export function LayoutGrid<Id extends string>({ view, render, screen, empty }: {
+export function LayoutGrid<Id extends string>({ view, render: screenRender, screen, empty, figures }: {
   view: ViewLayoutState<Id>;
-  render: Record<Id, ReactNode>;
+  render: Partial<Record<Id, ReactNode>>;
   /** What the customize bar calls this screen. */
   screen: string;
   /** What to say when the reader has hidden every card. */
   empty?: string;
+  /** The figures this screen offers for cards of the reader's own; none where Add new card is not open here yet. */
+  figures?: Figures;
 }) {
+  // The reader's own cards are drawn from the screen's figures; the screen's own cards as it draws them.
+  const render = { ...screenRender } as Record<Id, ReactNode>;
+  for (const id of Object.keys(view.meta) as Id[]) {
+    const card = view.meta[id].own;
+    if (card) render[id] = <OwnCardView card={card} figure={figures?.[card.source]} />;
+  }
   const shown = view.cards;
   const areaOf = (id: Id) => view.meta[id]?.area ?? "main";
   const inArea = (area: "main" | "side") => shown.filter((id) => areaOf(id) === area);
@@ -464,7 +490,7 @@ export function LayoutGrid<Id extends string>({ view, render, screen, empty }: {
   return (
     <div className="space-y-4">
       <CustomizeBar view={view} screen={screen} />
-      {view.adding && <CustomizeDialog view={view} render={render} screen={screen} start={view.adding.card} onClose={view.closeAdd} />}
+      {view.adding && <CustomizeDialog view={view} render={render} screen={screen} start={view.adding.card} onClose={view.closeAdd} figures={figures} />}
       {shown.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
           {empty ?? "Every card is hidden. Use Customize view to add the cards you want."}
