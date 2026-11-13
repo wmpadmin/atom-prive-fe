@@ -1,5 +1,5 @@
 import type { LinePoint } from "@atomprive/api-client/backoffice";
-import { BarChart, FunnelChart, GaugeChart, HeatmapChart, LineChart as LineSeries, PieChart, RadarChart, ScatterChart, TreemapChart } from "echarts/charts";
+import { BarChart, FunnelChart, GaugeChart, HeatmapChart, LineChart as LineSeries, PieChart, RadarChart, ScatterChart, TreeChart } from "echarts/charts";
 import { DataZoomComponent, GridComponent, LegendComponent, RadarComponent, TooltipComponent, VisualMapComponent } from "echarts/components";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
@@ -11,8 +11,8 @@ import { INK, inkFor } from "../portfolios/asset-classes";
 import type { Row } from "./overview-data";
 import type { ChartType } from "./overview-model";
 
-// The kinds a card can be switched to (layout/chart-kinds) need treemaps, funnels, radars, heatmaps, gauges and scatters too.
-echarts.use([LineSeries, BarChart, PieChart, TreemapChart, FunnelChart, RadarChart, HeatmapChart, GaugeChart, ScatterChart,
+// The kinds a card can be switched to (layout/chart-kinds) need mind maps (trees), funnels, radars, heatmaps, gauges and scatters too.
+echarts.use([LineSeries, BarChart, PieChart, TreeChart, FunnelChart, RadarChart, HeatmapChart, GaugeChart, ScatterChart,
   GridComponent, TooltipComponent, DataZoomComponent, LegendComponent, RadarComponent, VisualMapComponent, CanvasRenderer]);
 
 /**

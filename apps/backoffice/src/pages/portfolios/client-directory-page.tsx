@@ -82,10 +82,10 @@ const CARDS: Record<DirectoryCardId, LayoutMeta> = {
   kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   attention: { title: "Needs attention", group: "Summary", wide: true },
   directory: { title: "Client Directory", group: "Clients", wide: true },
-  segments: { title: "By Segment", group: "Breakdowns", charts: ["donut", "horizontal-bar", "treemap", "table"] },
-  managers: { title: "By Relationship Manager", group: "Breakdowns", charts: ["table", "horizontal-bar", "donut", "treemap"] },
-  regions: { title: "By Region of Residence", group: "Breakdowns", charts: ["horizontal-bar", "donut", "treemap", "table"] },
-  mandates: { title: "By Mandate", group: "Breakdowns", charts: ["table", "donut", "horizontal-bar", "treemap"] },
+  segments: { title: "By Segment", group: "Breakdowns", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
+  managers: { title: "By Relationship Manager", group: "Breakdowns", charts: ["table", "horizontal-bar", "donut", "mindmap"] },
+  regions: { title: "By Region of Residence", group: "Breakdowns", charts: ["horizontal-bar", "donut", "mindmap", "table"] },
+  mandates: { title: "By Mandate", group: "Breakdowns", charts: ["table", "donut", "horizontal-bar", "mindmap"] },
 };
 
 // The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.

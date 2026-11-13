@@ -30,10 +30,10 @@ const CARDS: Record<RiskCard, LayoutMeta> = {
   factors: { title: "Factor Exposures", group: "Risk model", charts: ["horizontal-bar", "radar", "grouped-bar", "table"] },
   stress: { title: "Stress Tests & Scenarios", group: "Scenarios", charts: ["table", "horizontal-bar", "bar"] },
   correlation: { title: "Correlation Matrix", group: "Risk model", charts: ["heatmap", "table"] },
-  geography: { title: "Geographic Look-through", group: "Look-through", charts: ["stacked-bar", "donut", "horizontal-bar", "treemap", "table"] },
-  sectors: { title: "Sector Look-through", group: "Look-through", charts: ["horizontal-bar", "donut", "treemap", "table"] },
+  geography: { title: "Geographic Look-through", group: "Look-through", charts: ["stacked-bar", "donut", "horizontal-bar", "mindmap", "table"] },
+  sectors: { title: "Sector Look-through", group: "Look-through", charts: ["horizontal-bar", "donut", "mindmap", "table"] },
   currencies: { title: "Currency Exposure", group: "Look-through", wide: true, charts: ["table", "grouped-bar", "horizontal-bar", "donut"] },
-  issuers: { title: "Issuer Look-through · Top 8", group: "Look-through", wide: true, charts: ["table", "stacked-bar", "horizontal-bar", "treemap"] },
+  issuers: { title: "Issuer Look-through · Top 8", group: "Look-through", wide: true, charts: ["table", "stacked-bar", "horizontal-bar", "mindmap"] },
   var: { title: "VaR History · 24 Months", group: "Scenarios", charts: ["line", "area", "bar", "table"] },
   ladder: { title: "Liquidity Ladder by Asset Class", group: "Liquidity", charts: ["stacked-bar", "grouped-bar", "table"] },
 };
@@ -653,7 +653,7 @@ function riskFigures(data: ClientRisk): Figures {
     "look.sectors": sharesFigure("Holdings by sector, % of the book", "Look-through", data.sectors.map((one) => ({ name: one.name, value: one.sharePercent })), pc),
     "look.currencies": sharesFigure("Net exposure by currency", "Look-through", data.currencies.map((one) => ({ name: one.currency, value: one.net ?? 0 })), amount),
     "look.issuers": sharesFigure("Exposure to the largest issuers", "Look-through", data.issuers.map((one) => ({ name: one.issuer, value: one.total })), amount,
-      ["horizontal-bar", "treemap", "donut", "table"]),
+      ["horizontal-bar", "mindmap", "donut", "table"]),
     "liquidity.ladder": seriesFigure("Liquidity ladder by asset class", "Liquidity", data.liquidityTotals.map((one) => one.name),
       data.liquidity.map((row) => ({ name: row.name, values: row.buckets.map((one) => one.value) })), amount, ["stacked-bar", "grouped-bar", "table"]),
   };

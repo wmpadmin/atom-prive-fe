@@ -36,11 +36,11 @@ const CARDS: Record<FixedIncomeCard, LayoutMeta> = {
   ladder: { title: "Maturity Ladder", group: "Maturity & income", charts: ["stacked-bar", "grouped-bar", "line", "table"] },
   quality: { title: "Credit Quality", group: "Credit", charts: ["grouped-bar", "donut", "horizontal-bar", "table"] },
   curve: { title: "Holdings on the Curve", group: "Rates", charts: ["bubble", "scatter", "table"] },
-  sectors: { title: "Sector Mix", group: "Credit", charts: ["donut", "horizontal-bar", "treemap", "table"] },
+  sectors: { title: "Sector Mix", group: "Credit", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
   holdings: { title: "Bond & Fund Holdings", group: "Holdings", wide: true },
   "key-rates": { title: "Key Rate Durations", group: "Rates", charts: ["grouped-bar", "line", "radar", "table"] },
   scenarios: { title: "Rate & Spread Scenarios", group: "Rates", charts: ["horizontal-bar", "bar", "table"] },
-  issuers: { title: "Issuer Concentration", group: "Credit", charts: ["horizontal-bar", "treemap", "donut", "table"] },
+  issuers: { title: "Issuer Concentration", group: "Credit", charts: ["horizontal-bar", "mindmap", "donut", "table"] },
   calendar: { title: "Coupon & Redemption Calendar", group: "Maturity & income", wide: true, charts: ["stacked-bar", "grouped-bar", "line", "table"] },
 };
 
@@ -693,7 +693,7 @@ function incomeFigures(data: ClientFixedIncome): Figures {
     "quality.mix": sharesFigure("Sleeve by rating", "Credit", data.quality.filter((one) => one.portfolio > 0).map((one) => ({ name: one.key, value: one.portfolio })), pc),
     "sectors.mix": sharesFigure("Sleeve by issuer type", "Credit", data.sectors.map((one) => ({ name: one.key, value: one.value })), amount),
     "issuers.top": sharesFigure("Largest issuers, % of the sleeve", "Credit", data.issuers.map((one) => ({ name: one.issuer, value: one.sharePercent })), pc,
-      ["horizontal-bar", "treemap", "donut", "table"]),
+      ["horizontal-bar", "mindmap", "donut", "table"]),
     "rates.keyrates": seriesFigure("Key rate durations against the Agg", "Rates", data.keyRates.map((one) => one.key), [
       { name: "Portfolio", values: data.keyRates.map((one) => one.portfolio) }, { name: "Agg", values: data.keyRates.map((one) => one.benchmark) },
     ], (value) => value.toFixed(2), ["grouped-bar", "line", "radar", "table"]),

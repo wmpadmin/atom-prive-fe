@@ -90,7 +90,7 @@ type BookCard = "kpis" | "aum" | "mandates" | "clients" | "alerts" | "upcoming" 
 const CARDS: Record<BookCard, LayoutMeta> = {
   kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   aum: { title: "Assets Under Management", group: "Summary", charts: ["area", "line", "bar", "table"] },
-  mandates: { title: "AUM by Mandate", group: "Summary", charts: ["donut", "horizontal-bar", "treemap", "table"] },
+  mandates: { title: "AUM by Mandate", group: "Summary", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
   clients: { title: "Client Book", group: "Clients", wide: true },
   alerts: { title: "Alert Queue", group: "Attention" },
   upcoming: { title: "Next 30 Days", group: "Attention" },

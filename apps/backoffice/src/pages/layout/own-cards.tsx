@@ -142,7 +142,7 @@ export function OwnCardView({ card, figure, className }: { card: OwnCardDraft; f
 /* ------------------------------------------------------------------------------------------------------------ */
 /* Building a screen's list of figures                                                                          */
 
-const SHARE_KINDS: ChartKind[] = ["donut", "horizontal-bar", "treemap", "bar", "table"];
+const SHARE_KINDS: ChartKind[] = ["donut", "horizontal-bar", "mindmap", "bar", "table"];
 
 /** Parts of a whole, such as holdings by currency. */
 export function sharesFigure(label: string, group: string, rows: { name: string; value: number }[], format: (value: number) => string,
