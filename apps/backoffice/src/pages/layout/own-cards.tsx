@@ -117,3 +117,41 @@ export function OwnCardView({ card, figure, className }: { card: OwnCardDraft; f
     </section>
   );
 }
+
+/* ------------------------------------------------------------------------------------------------------------ */
+/* Building a screen's list of figures                                                                          */
+
+const SHARE_KINDS: ChartKind[] = ["donut", "horizontal-bar", "treemap", "bar", "table"];
+
+/** Parts of a whole, such as holdings by currency. */
+export function sharesFigure(label: string, group: string, rows: { name: string; value: number }[], format: (value: number) => string,
+  kinds: ChartKind[] = SHARE_KINDS): Figure {
+  const kept = rows.filter((one) => Number.isFinite(one.value));
+  return { label, group, kinds, format, data: kept.length ? { shape: "shares", items: kept.map((one) => ({ name: one.name, value: one.value })) } : null };
+}
+
+/** Figures across categories or months, one series or several. */
+export function seriesFigure(label: string, group: string, categories: string[], series: { name: string; values: (number | null)[] }[],
+  format: (value: number) => string, kinds: ChartKind[]): Figure {
+  return { label, group, kinds, format, data: categories.length && series.length ? { shape: "series", categories, series } : null };
+}
+
+/** One figure, drawn large or on a dial; {@code policy} is the client's own limit where their IPS sets one. */
+export function singleFigure(label: string, group: string, value: number | null | undefined, format: (value: number) => string,
+  options: { max?: number; target?: number | null; policy?: Figure["policy"]; gauge?: boolean } = {}): Figure {
+  const max = options.max ?? (Math.abs(value ?? 0) * 2 || 1);
+  return {
+    label, group, format, policy: options.policy ?? null,
+    kinds: options.gauge ? ["gauge", "number", "table"] : ["number", "table"],
+    data: value == null ? null : { shape: "gauge", name: label, value, max, target: options.target ?? null },
+  };
+}
+
+/** A screen's key figures, each one offered as a figure of its own under its key; a percentage may also be a dial. */
+export function kpiFigures(list: { key: string; label: string; value: number | null; unit: string }[],
+  format: (unit: string) => (value: number) => string, group = "Key figures"): Figures {
+  return Object.fromEntries(list.filter((one) => one.value != null).map((one) => [
+    `kpi.${one.key.toLowerCase()}`,
+    singleFigure(one.label, group, one.value, format(one.unit), { gauge: one.unit === "PERCENT", max: one.unit === "PERCENT" ? Math.max(100, Math.abs(one.value ?? 0)) : undefined }),
+  ]));
+}

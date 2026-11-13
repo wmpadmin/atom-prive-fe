@@ -38,6 +38,7 @@ import {
   type CardMeta,
 } from "./dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { sharesFigure, singleFigure } from "../layout/own-cards";
 
 /**
  * The IT Admin's dashboard: support tickets, who is signed in and who was looked at as somebody else, whether the
@@ -253,7 +254,17 @@ export function ItAdminDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <LayoutGrid view={view} render={render} screen="IT Admin dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
+      <LayoutGrid view={view} render={render} figures={data ? {
+        "tickets.status": sharesFigure("Support tickets by status", "Support", [
+          { name: "Open", value: data.tickets.open }, { name: "In progress", value: data.tickets.inProgress }, { name: "Waiting on the person", value: data.tickets.waiting },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "tickets.open": singleFigure("Open tickets", "Support", data.tickets.open + data.tickets.inProgress + data.tickets.waiting, (value: number) => String(Math.round(value))),
+        "sessions.kind": sharesFigure("Who is signed in", "Access", [
+          { name: "Staff sessions", value: data.sessions.staff }, { name: "Client sessions", value: data.sessions.clients }, { name: "Sign in as (running)", value: data.sessions.signedInAs },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "users.counts": sharesFigure("User management, counted", "Users", (data.users).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+        "security.counts": sharesFigure("Security & compliance, counted", "Security", (data.security).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+      } : undefined} screen="IT Admin dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }

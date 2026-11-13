@@ -42,6 +42,7 @@ import {
   type CardMeta,
 } from "../dashboard/dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { sharesFigure, singleFigure } from "../layout/own-cards";
 
 /**
  * A relationship manager's dashboard: their own clients and nobody else's — where each stands, what waits on
@@ -243,7 +244,20 @@ export function AdvisorDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <LayoutGrid view={view} render={render} screen="Relationship Manager dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
+      <LayoutGrid view={view} render={render} figures={data ? {
+        "clients.status": sharesFigure("My clients by status", "Clients", [
+          { name: "Active", value: data.clients.active }, { name: "Onboarding", value: data.clients.onboarding }, { name: "KYC expired", value: data.clients.kycExpired },
+          { name: "Deactivation", value: data.clients.deactivating },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "clients.total": singleFigure("My clients", "Clients", data.clients.total, (value: number) => String(Math.round(value))),
+        "kyc.status": sharesFigure("KYC status of my clients", "KYC", [
+          { name: "Approved", value: data.kyc.approved }, { name: "In review", value: data.kyc.inReview }, { name: "Needs action", value: data.kyc.needsAction },
+          { name: "Not started", value: data.kyc.notStarted },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "kyc.complete": singleFigure("KYC complete", "KYC", data.kyc.completePercent, (value) => `${Math.round(value)}%`, { gauge: true, max: 100 }),
+        "approvals.counts": sharesFigure("My approvals & actions, counted", "Work", (data.approvals).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+        "chase.counts": sharesFigure("Client engagement & chase, counted", "Work", (data.chase).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+      } : undefined} screen="Relationship Manager dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }

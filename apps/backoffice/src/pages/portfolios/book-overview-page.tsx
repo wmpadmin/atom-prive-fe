@@ -23,6 +23,7 @@ import { Chart, ink } from "../book/overview-charts";
 import { CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
+import { seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
 import { INK } from "./asset-classes";
 
 echarts.use([ScatterChart]);
@@ -104,7 +105,7 @@ function Board({ data, view }: { data: BookOverview; view: ViewLayoutState<BookC
   const cur = data.currency;
   return (
     <>
-      <LayoutGrid view={view} screen="Book Overview" render={{
+      <LayoutGrid view={view} screen="Book Overview" figures={bookFigures(data)} render={{
         kpis: <Kpis data={data} />,
         aum: <AumCard data={data} chart={cardChart(view, "aum")} />,
         mandates: <MandateCard data={data} chart={cardChart(view, "mandates")} />,
@@ -186,6 +187,23 @@ function Kpis({ data }: { data: BookOverview }) {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 /* Cards                                                                                                         */
+
+/** What the Book Overview offers for a card of the reader's own: the book's AUM, mix and dispersion. */
+function bookFigures(data: BookOverview): Figures {
+  const amount = (value: number) => compact(value, data.currency);
+  return {
+    "aum.history": seriesFigure("Book AUM at each month end", "Summary", data.aumHistory.map((one) => monthLabel(one.on)),
+      [{ name: "Book AUM", values: data.aumHistory.map((one) => one.amount) }], amount, ["area", "line", "bar", "table"]),
+    "aum.mandates": sharesFigure("AUM by mandate", "Summary", data.byMandate.map((one) => ({ name: one.name, value: one.amount })), amount),
+    "aum.mix": sharesFigure("Book asset mix, %", "Summary", data.assetMix.map((one) => ({ name: one.name, value: one.sharePercent })), (value) => `${value.toFixed(1)}%`),
+    "feeds.accounts": sharesFigure("Accounts linked at each custodian", "Attention", data.custodians.map((one) => ({ name: one.bank, value: one.accounts })),
+      (value) => `${Math.round(value)} accounts`, ["donut", "horizontal-bar", "table"]),
+    "returns.dispersion": seriesFigure("YTD returns within each mandate", "Performance", data.dispersion.map((one) => one.mandate), [
+      { name: "Lowest", values: data.dispersion.map((one) => one.lowest) }, { name: "Median", values: data.dispersion.map((one) => one.median) },
+      { name: "Highest", values: data.dispersion.map((one) => one.highest) }, { name: "Benchmark", values: data.dispersion.map((one) => one.benchmark) },
+    ], (value) => `${value.toFixed(1)}%`, ["grouped-bar", "table"]),
+  };
+}
 
 /** @param picker the chart type switcher, beside the card's own action, for a card that draws a chart */
 function Card({ title, lead, action, picker, children, className }: {
