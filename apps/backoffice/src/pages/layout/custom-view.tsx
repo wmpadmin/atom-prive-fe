@@ -312,10 +312,12 @@ let dragging: string | null = null;
  * One card while customizing: a dashed frame with its handle, width and ✕ above it, dragged by the handle onto another
  * card of the same area to land before or after it. Outside customize mode it draws the card alone.
  */
-export function EditFrame<Id extends string>({ id, view, className, children }: {
+/** @param alone a ½-row card with no card beside it, so drawn across the row: its width reads Full */
+export function EditFrame<Id extends string>({ id, view, className, alone, children }: {
   id: Id;
   view: ViewLayoutState<Id>;
   className?: string;
+  alone?: boolean;
   children: ReactNode;
 }) {
   const [over, setOver] = useState<"before" | "after" | null>(null);
@@ -396,12 +398,17 @@ export function EditFrame<Id extends string>({ id, view, className, children }: 
         </button>
         {area === "main" && (
           <span className="flex rounded-md bg-white p-0.5 ring-1 ring-line" role="group" aria-label={`Width of ${meta.title}`}>
-            {(["HALF", "FULL"] as const).map((width) => (
-              <button key={width} type="button" aria-pressed={view.width(id) === width} onClick={() => view.setWidth(id, width)}
-                className={cn("rounded px-1.5 text-2xs font-bold", view.width(id) === width ? "bg-primary-600 text-on-accent" : "text-ink-muted hover:text-ink")}>
+            {(["HALF", "FULL"] as const).map((width) => {
+              // A ½-row card with nothing beside it fills the row, so it reads as Full; ½ waits for a card to share with.
+              const now = alone ? "FULL" : view.width(id);
+              return (
+              <button key={width} type="button" aria-pressed={now === width} onClick={() => view.setWidth(id, width)}
+                disabled={alone && width === "HALF"} title={alone && width === "HALF" ? "No card beside it to share the row" : undefined}
+                className={cn("rounded px-1.5 text-2xs font-bold disabled:cursor-default disabled:opacity-40", now === width ? "bg-primary-600 text-on-accent" : "text-ink-muted enabled:hover:text-ink")}>
                 {width === "HALF" ? "½" : "Full"}
               </button>
-            ))}
+              );
+            })}
           </span>
         )}
         <button type="button" aria-label={`Hide ${meta.title}`} onClick={() => view.hide(id)}
@@ -536,7 +543,7 @@ export function LayoutGrid<Id extends string>({ view, render: screenRender, scre
     };
     return (
       <CardContext.Provider key={id} value={view.editing ? null : controls}>
-        <EditFrame id={id} view={view}
+        <EditFrame id={id} view={view} alone={areaOf(id) === "main" && alone.has(id)}
           className={cn("flex min-w-0 flex-col [&>*:last-child]:flex-1", areaOf(id) === "main" && (wide(id) || alone.has(id)) && "@2xl:col-span-2")}>
           {render[id]}
         </EditFrame>
