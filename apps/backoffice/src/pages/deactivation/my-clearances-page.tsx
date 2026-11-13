@@ -159,6 +159,9 @@ function AnswerDialog({ row, onClose }: { row: MyClearanceRow; onClose: () => vo
     row.standing === "AWAITED" ? "GO_AHEAD" : (row.standing as SayClearanceRequestStanding),
   );
   const [comments, setComments] = useState(row.comments ?? "");
+  // Set by a Save on "blocked" with no reason; the box then shows red until one is written.
+  const [tried, setTried] = useState(false);
+  const missing = standing === "BLOCKED" && !comments.trim();
   const say = useSayClearance<ApiError>({
     mutation: {
       onSuccess: () => {
@@ -185,15 +188,23 @@ function AnswerDialog({ row, onClose }: { row: MyClearanceRow; onClose: () => vo
             </button>
           ))}
         </div>
-        <Field id="clearance-comments" label={standing === "BLOCKED" ? "What is blocking it" : "Note"} required={standing === "BLOCKED"}>
-          <TextArea id="clearance-comments" rows={3} value={comments} onChange={(event) => setComments(event.target.value)} />
+        <Field id="clearance-comments" label={standing === "BLOCKED" ? "What is blocking it" : "Note"} required={standing === "BLOCKED"}
+          error={tried && missing ? "Say what is blocking it." : undefined}>
+          <TextArea id="clearance-comments" rows={3} aria-invalid={tried && missing} value={comments} onChange={(event) => setComments(event.target.value)} />
         </Field>
         {say.error && <Alert tone="danger">{say.error.message}</Alert>}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           <Button
-            disabled={say.isPending || (standing === "BLOCKED" && !comments.trim())}
-            onClick={() => say.mutate({ customerId: row.customerId, data: { standing, comments: comments.trim() || null, role: row.role } })}
+            disabled={say.isPending}
+            onClick={() => {
+              if (missing) {
+                setTried(true);
+                document.getElementById("clearance-comments")?.focus();
+                return;
+              }
+              say.mutate({ customerId: row.customerId, data: { standing, comments: comments.trim() || null, role: row.role } });
+            }}
           >
             Save answer
           </Button>

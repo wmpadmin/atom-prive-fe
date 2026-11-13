@@ -992,6 +992,9 @@ function AlertsAndNotes({ data }: { data: ClientWorkspace }) {
   const [writing, setWriting] = useState(false);
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Set when Save is pressed on an empty note; the box stays red until something is written.
+  const [tried, setTried] = useState(false);
+  const empty = tried && !body.trim();
   const queryClient = useQueryClient();
   const add = useAddClientNote<ApiError>({
     mutation: {
@@ -999,6 +1002,7 @@ function AlertsAndNotes({ data }: { data: ClientWorkspace }) {
         setWriting(false);
         setBody("");
         setError(null);
+        setTried(false);
         void queryClient.invalidateQueries({ queryKey: getGetClientWorkspaceQueryKey(data.customerId) });
       },
       onError: (caught) => setError(caught.message),
@@ -1015,15 +1019,22 @@ function AlertsAndNotes({ data }: { data: ClientWorkspace }) {
       {writing && (
         <form className="mb-4 space-y-2" onSubmit={(event) => {
           event.preventDefault();
+          if (!body.trim()) {
+            setTried(true);
+            document.getElementById("client-note")?.focus();
+            return;
+          }
           add.mutate({ customerId: data.customerId, data: { body } });
         }}>
           <label htmlFor="client-note" className="sr-only">Note</label>
           <TextArea id="client-note" rows={3} maxLength={2000} value={body} onChange={(event) => setBody(event.target.value)}
+            aria-invalid={empty || undefined} aria-describedby={empty ? "client-note-error" : undefined}
             placeholder="What should the next person to open this client know?" />
+          {empty && <p id="client-note-error" className="text-xs text-red-600">Write the note first.</p>}
           {error && <p className="text-xs text-red-700">{error}</p>}
           <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={add.isPending || !body.trim()}>Save note</Button>
-            <Button variant="ghost" size="sm" onClick={() => { setWriting(false); setBody(""); setError(null); }}>Cancel</Button>
+            <Button type="submit" size="sm" disabled={add.isPending}>Save note</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setWriting(false); setBody(""); setError(null); setTried(false); }}>Cancel</Button>
           </div>
         </form>
       )}

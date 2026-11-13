@@ -15,6 +15,18 @@ export function SignInAsPage() {
   const [query, setQuery] = useState("");
   const [reason, setReason] = useState("");
   const [chosen, setChosen] = useState<{ id: string; name: string } | null>(null);
+  // Open pressed with nobody chosen or no reason: each missing one is said in red until it is filled.
+  const [tried, setTried] = useState(false);
+  const nobody = tried && !chosen;
+  const noReason = tried && !reason.trim();
+  const open = () => {
+    if (!chosen || !reason.trim()) {
+      setTried(true);
+      document.getElementById(!chosen ? "sign-in-as-search" : "sign-in-as-reason")?.focus();
+      return;
+    }
+    start.mutate({ data: { kind, id: chosen.id, reason: reason.trim() } });
+  };
   const wanted = useDebouncedValue(query.trim(), 300);
   const clients = useListCustomers<CustomerPage, ApiError>({ query: wanted, size: 20 }, { query: { enabled: kind === "CLIENT" } });
   const staff = useStaffToView<StaffToView[], ApiError>({ query: wanted }, { query: { enabled: kind === "STAFF" } });
@@ -24,6 +36,7 @@ export function SignInAsPage() {
         window.open(supportViewAddress(view.openAt, { token: view.accessToken, until: view.expiresAt, name: view.name }), "_blank", "noopener");
         setChosen(null);
         setReason("");
+        setTried(false);
       },
     },
   });
@@ -103,7 +116,10 @@ export function SignInAsPage() {
         </section>
 
         <section className="h-fit space-y-4 rounded-2xl border border-line bg-white p-5">
-          <h2 className="text-base font-bold">{chosen ? `View as ${chosen.name}` : "Choose somebody"}</h2>
+          <div>
+            <h2 className="text-base font-bold">{chosen ? `View as ${chosen.name}` : "Choose somebody"}</h2>
+            {nobody && <p className="mt-1 text-xs text-red-600">Choose somebody from the list.</p>}
+          </div>
           <div>
             <label htmlFor="sign-in-as-reason" className="mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               Reason or ticket number
@@ -113,17 +129,24 @@ export function SignInAsPage() {
               rows={3}
               maxLength={500}
               value={reason}
+              aria-invalid={noReason || undefined}
+              aria-describedby={noReason ? "sign-in-as-reason-error" : undefined}
               onChange={(event) => setReason(event.target.value)}
               placeholder="e.g. T-1001: holdings page is blank"
-              className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm focus-visible:border-primary-600 focus-visible:outline-2 focus-visible:outline-primary-600"
+              className="w-full rounded-xl border border-line aria-invalid:border-red-500 bg-white px-3 py-2 text-sm focus-visible:border-primary-600 focus-visible:outline-2 focus-visible:outline-primary-600"
             />
+            {noReason && (
+              <p id="sign-in-as-reason-error" className="mt-1 text-xs text-red-600">
+                Enter a reason or ticket number.
+              </p>
+            )}
             {kind === "CLIENT" && <p className="mt-1 text-xs text-ink-muted">The client sees this reason on their own Audit Log.</p>}
           </div>
           {start.isError && <Alert tone="danger">{start.error.message}</Alert>}
           <Button
             className="w-full"
-            disabled={!chosen || !reason.trim() || start.isPending}
-            onClick={() => chosen && start.mutate({ data: { kind, id: chosen.id, reason: reason.trim() } })}
+            disabled={start.isPending}
+            onClick={open}
           >
             <Eye aria-hidden="true" />
             {start.isPending ? "Opening…" : "Open read-only view"}

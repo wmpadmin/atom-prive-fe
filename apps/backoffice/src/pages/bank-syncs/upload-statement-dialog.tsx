@@ -23,7 +23,10 @@ export function UploadStatementDialog({ feed, onClose, onTaken }: {
   const [sending, setSending] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [run, setRun] = useState<SyncRunRow | null>(null);
+  // Set when Upload is pressed with no file chosen; the drop box stays red until one is.
+  const [tried, setTried] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
+  const noFile = tried && files.length === 0;
 
   function add(list: FileList | null | undefined) {
     if (!list) return;
@@ -40,6 +43,11 @@ export function UploadStatementDialog({ feed, onClose, onTaken }: {
   }
 
   async function send() {
+    if (files.length === 0) {
+      setTried(true);
+      document.getElementById("statement-choose")?.focus();
+      return;
+    }
     setSending(true);
     setProblem(null);
     const form = new FormData();
@@ -118,13 +126,16 @@ export function UploadStatementDialog({ feed, onClose, onTaken }: {
           }}
           className={cn(
             "rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors",
-            over ? "border-primary-600 bg-primary-50" : "border-line bg-canvas",
+            over ? "border-primary-600 bg-primary-50" : noFile ? "border-red-500 bg-canvas" : "border-line bg-canvas",
           )}
         >
           <p className="text-sm text-ink-soft">
             Drop the bank's files here (CSV, text, XML, ZIP or encrypted), or{" "}
             <button
+              id="statement-choose"
               type="button"
+              aria-invalid={noFile || undefined}
+              aria-describedby={noFile ? "statement-files-error" : undefined}
               onClick={() => picker.current?.click()}
               className="font-semibold text-primary-700 underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-line focus-visible:outline-none"
             >
@@ -132,6 +143,7 @@ export function UploadStatementDialog({ feed, onClose, onTaken }: {
             </button>
           </p>
           <p className="mt-1 text-xs text-ink-muted">Up to 10 MB each. A line already stored is not stored again.</p>
+          {noFile && <p id="statement-files-error" className="mt-1 text-xs text-red-600">Pick a file to upload.</p>}
           <input
             ref={picker}
             id="statement-files"
@@ -170,7 +182,7 @@ export function UploadStatementDialog({ feed, onClose, onTaken }: {
           <Button variant="secondary" onClick={onClose} disabled={sending}>
             Cancel
           </Button>
-          <Button disabled={files.length === 0 || sending} onClick={() => void send()}>
+          <Button disabled={sending} onClick={() => void send()}>
             {sending ? "Taking…" : `Upload and take ${files.length || ""} file${files.length === 1 ? "" : "s"}`.replace("  ", " ")}
           </Button>
         </div>

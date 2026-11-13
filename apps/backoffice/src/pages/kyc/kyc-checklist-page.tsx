@@ -176,6 +176,9 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
   const [kinds, setKinds] = useState<ClientType[]>([]);
   const [failed, setFailed] = useState<string>();
   const [adding, setAdding] = useState(false);
+  // Add it pressed with no name: the box shows in red until one is typed.
+  const [tried, setTried] = useState(false);
+  const unnamed = tried && name.trim().length === 0;
   const named = useNameKycPaper<ApiError>();
   const ask = useAskForPaper<ApiError>();
 
@@ -183,6 +186,7 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
     setName("");
     setKinds([]);
     setFailed(undefined);
+    setTried(false);
   }
 
   /**
@@ -194,6 +198,11 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
    * name is matched rather than added twice, so pressing Add it again finishes the job.
    */
   async function add() {
+    if (name.trim().length === 0) {
+      setTried(true);
+      document.getElementById("name-a-paper")?.focus();
+      return;
+    }
     setFailed(undefined);
     setAdding(true);
     try {
@@ -230,9 +239,11 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
           id="name-a-paper"
           label="What is it called?"
           hint="A name already on the list is matched rather than added twice, whatever its case or spacing."
+          error={unnamed ? "Enter a name." : undefined}
         >
           <TextInput
             id="name-a-paper"
+            aria-invalid={unnamed || undefined}
             value={name}
             maxLength={120}
             placeholder="Trust deed"
@@ -282,7 +293,7 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
           >
             Cancel
           </Button>
-          <Button disabled={name.trim().length === 0 || adding} onClick={() => void add()}>
+          <Button disabled={adding} onClick={() => void add()}>
             {adding ? "Adding\u2026" : "Add it"}
           </Button>
         </div>
