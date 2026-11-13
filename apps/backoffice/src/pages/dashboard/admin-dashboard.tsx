@@ -62,6 +62,7 @@ import {
   type CardMeta,
 } from "./dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { seriesFigure, sharesFigure, singleFigure } from "../layout/own-cards";
 import { KindChart, useCardChart, type ChartKind } from "../layout/chart-kinds";
 
 /**
@@ -378,7 +379,23 @@ export function AdminDashboard() {
         </Alert>
       )}
 
-      <LayoutGrid view={view} render={cards} screen="Admin dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
+      <LayoutGrid view={view} render={cards} figures={data ? {
+        "aum.classes": sharesFigure("AUM by asset class", "Money", data.byAssetClass.map((one) => ({ name: one.name, value: Number(one.amount) })), (value) => money(value, cur)),
+        "aum.total": singleFigure("Total AUM", "Money", Number(data.headline.totalAum), (value) => money(value, cur)),
+        "aum.trend": seriesFigure("AUM at each month end, last six months", "Money", data.growth.map((one) => one.on.slice(0, 7)),
+          [{ name: "AUM", values: data.growth.map((one) => Number(one.aum)) }], (value) => money(value, cur), ["bar", "line", "area", "table"]),
+        "aum.rm": sharesFigure("AUM by relationship manager", "Money", (data.everyRelationshipManager ?? []).map((one) => ({ name: one.name, value: Number(one.amount) })),
+          (value) => money(value, cur), ["horizontal-bar", "donut", "treemap", "table"]),
+        "aum.pm": sharesFigure("AUM by portfolio manager", "Money", (data.byPortfolioManager ?? []).map((one) => ({ name: one.name, value: Number(one.amount) })),
+          (value) => money(value, cur), ["horizontal-bar", "donut", "treemap", "table"]),
+        "clients.lifecycle": sharesFigure("Clients by lifecycle", "Clients", [
+          { name: "Active", value: data.lifecycle.active }, { name: "KYC not yet approved", value: data.lifecycle.onboarding },
+          { name: "KYC expired", value: data.lifecycle.kycExpired }, { name: "Deactivation", value: data.lifecycle.deactivating },
+        ], (value: number) => String(Math.round(value)), ["donut", "funnel", "bar", "table"]),
+        "clients.total": singleFigure("Total clients", "Clients", data.headline.clients, (value: number) => String(Math.round(value))),
+        "approvals.counts": sharesFigure("Approvals & queues, counted", "Work", ([...data.approvals, ...data.requests]).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+        "upcoming.counts": sharesFigure("Upcoming & due, counted", "Work", (data.upcoming).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+      } : undefined} screen="Admin dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }

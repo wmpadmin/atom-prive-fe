@@ -45,6 +45,7 @@ import {
   type CardMeta,
 } from "../dashboard/dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { seriesFigure, sharesFigure, singleFigure } from "../layout/own-cards";
 import { KindChart, useCardChart } from "../layout/chart-kinds";
 
 /**
@@ -224,7 +225,20 @@ export function ComplianceDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <LayoutGrid view={view} render={render} screen="Compliance dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
+      <LayoutGrid view={view} render={render} figures={data ? {
+        "kyc.status": sharesFigure("KYC status across the firm", "KYC", [
+          { name: "Approved", value: data.kyc.approved }, { name: "In review", value: data.kyc.inReview }, { name: "Needs action", value: data.kyc.needsAction },
+          { name: "Not started", value: data.kyc.notStarted },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "kyc.compliant": singleFigure("KYC compliant", "KYC", data.kyc.compliantPercent, (value) => `${Math.round(value)}%`, { gauge: true, max: 100 }),
+        "aml.bands": sharesFigure("Clients by AML risk band", "AML", [
+          ...data.aml.bands.map((one) => ({ name: one.name, value: one.clients })), { name: "Never scored", value: data.aml.neverScored },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "expiring.months": seriesFigure("Papers expiring in the next three months", "Documents", ["0–30 days", "31–60 days", "61–90 days"],
+          [{ name: "Papers expiring", values: [data.expiring.within30, data.expiring.within60, data.expiring.within90] }], (value: number) => String(Math.round(value)), ["bar", "horizontal-bar", "table"]),
+        "queue.counts": sharesFigure("Review queue, counted", "Work", (data.queue).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+        "declarations.counts": sharesFigure("Declarations & audit, counted", "Work", (data.declarations).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+      } : undefined} screen="Compliance dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }

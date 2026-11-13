@@ -39,6 +39,7 @@ import {
   type CardMeta,
 } from "./dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { sharesFigure, singleFigure } from "../layout/own-cards";
 import { KindChart, useCardChart } from "../layout/chart-kinds";
 
 /**
@@ -248,7 +249,19 @@ export function OperationsDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <LayoutGrid view={view} render={render} screen="Operations dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
+      <LayoutGrid view={view} render={render} figures={data ? {
+        "onboarding.stage": sharesFigure("Clients in onboarding, by stage", "Onboarding", [
+          { name: "Application being filled in", value: data.onboarding.fillingIn }, { name: "Waiting on the client", value: data.onboarding.awaitingClient },
+          { name: "KYC with Compliance", value: data.onboarding.inReview },
+        ], (value: number) => String(Math.round(value)), ["funnel", "donut", "horizontal-bar", "table"]),
+        "onboarding.activated": singleFigure("Clients activated in the period", "Onboarding", data.onboarding.activated, (value: number) => String(Math.round(value))),
+        "feeds.runs": sharesFigure("Bank feed runs by outcome", "Bank feeds", [
+          { name: "Succeeded", value: data.feeds.succeeded }, { name: "Failed", value: data.feeds.failed }, { name: "Running", value: data.feeds.running },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "feeds.success": singleFigure("Bank feed success rate", "Bank feeds", data.feeds.successPercent, (value) => `${Math.round(value)}%`, { gauge: true, max: 100 }),
+        "requests.counts": sharesFigure("Open requests, counted", "Work", (data.requests).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+        "todo.counts": sharesFigure("To do, counted", "Work", (data.toDo).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+      } : undefined} screen="Operations dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }
