@@ -1537,6 +1537,12 @@ export interface OwnCardRequest {
      * @nullable
      */
   note: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  group: string | null;
   /** @pattern [a-z][a-z0-9.-]{0,59} */
   source: string;
   /** @pattern [a-z][a-z-]{0,19} */
@@ -1555,6 +1561,8 @@ export interface OwnCard {
   title: string;
   /** @nullable */
   note: string | null;
+  /** @nullable */
+  group: string | null;
   source: string;
   chart: string;
   /** @nullable */
