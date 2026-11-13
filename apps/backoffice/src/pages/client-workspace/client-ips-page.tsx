@@ -12,6 +12,7 @@ import { formatDate, formatDateTime } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
@@ -47,7 +48,7 @@ export function ClientIpsPage() {
             Strategic allocation, tolerance bands and constraint compliance against the signed investment policy
           </p>
         </div>
-        <CustomizeButton view={view} />
+        <div className="flex items-start gap-2"><ReportButton /><CustomizeButton view={view} /></div>
       </header>
       <Monitoring data={data} view={view} />
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">

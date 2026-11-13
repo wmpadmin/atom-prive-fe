@@ -17,6 +17,7 @@ import { formatDate, formatDateTime } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
 import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow, useFiguresAsTable } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/chart-kinds";
@@ -73,7 +74,7 @@ export function ClientOverviewPage() {
           <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">{data.name}</h1>
           <p className="mt-1 text-sm text-ink-muted">{subtitle(data)}</p>
         </div>
-        <CustomizeButton view={view} />
+        <div className="flex items-start gap-2"><ReportButton /><CustomizeButton view={view} /></div>
       </header>
 
       {/* Every card in the design's place until the reader moves it; a bank-file client's cards say what his file does
@@ -210,6 +211,8 @@ function Headline({ data }: { data: ClientWorkspace }) {
   }
   return (
     <section className="rounded-2xl border border-line bg-white p-5">
+      {/* Net worth and the lines under it are one figure in a report. */}
+      <div data-figure>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Total net worth · consolidated</p>
       <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         {file ? (
@@ -245,7 +248,8 @@ function Headline({ data }: { data: ClientWorkspace }) {
           </>
         )}
       </p>
-      <div className="mt-4 grid gap-3 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-5">
+      </div>
+      <div data-figure-strip className="mt-4 grid gap-3 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-5">
         {stats}
       </div>
     </section>

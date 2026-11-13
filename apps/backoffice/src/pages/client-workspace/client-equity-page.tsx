@@ -16,6 +16,7 @@ import { ScatterChart } from "echarts/charts";
 import { LabelLayout } from "echarts/features";
 import * as echarts from "echarts/core";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
 import { FIGURE_KINDS, FigureRow, FigureStrip, useFiguresAsTable } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
@@ -74,7 +75,7 @@ export function ClientEquityPage() {
           <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Equity Analytics</h1>
           <p className="mt-1 text-sm text-ink-muted">Portfolio-weighted fundamentals, positioning and contribution against MSCI ACWI</p>
         </div>
-        <CustomizeButton view={layout} />
+        <div className="flex items-start gap-2"><ReportButton /><CustomizeButton view={layout} /></div>
       </header>
 
       <Strip data={data} view={view} setView={setView} />

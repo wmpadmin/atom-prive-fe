@@ -386,7 +386,8 @@ export function EditFrame<Id extends string>({ id, view, className, alone, child
     over === "after" && "shadow-[6px_0_0_0_var(--color-primary-500)]");
   if (!view.editing) {
     return (
-      <div ref={box} {...drag} className={cn(className, "rounded-2xl [&>*>*:first-child]:cursor-grab", marks)}>
+      <div ref={box} {...drag} data-report-card={id} data-report-title={settings.title ?? meta?.title} data-report-wide={area === "main" && className?.includes("col-span-2") ? "true" : "false"}
+        className={cn(className, "rounded-2xl [&>*>*:first-child]:cursor-grab", marks)}>
         <CardSettingsContext.Provider value={settings}>
           <CardChartContext.Provider value={chart}>{children}</CardChartContext.Provider>
         </CardSettingsContext.Provider>

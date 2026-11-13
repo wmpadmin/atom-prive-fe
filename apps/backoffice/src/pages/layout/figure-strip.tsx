@@ -31,10 +31,10 @@ export function useFiguresAsTable() {
  */
 export function FigureStrip({ className, bare, list, children }: { className?: string; bare?: boolean; list?: boolean; children: ReactNode }) {
   const table = useFiguresAsTable();
-  if (!table) return list ? <dl className={className}>{children}</dl> : <div className={className}>{children}</div>;
+  if (!table) return list ? <dl data-figure-strip className={className}>{children}</dl> : <div data-figure-strip className={className}>{children}</div>;
   return (
     <RowsContext.Provider value={true}>
-      <div role="table" aria-label="Key figures" className={cn("divide-y divide-line", !bare && "rounded-2xl border border-line bg-white px-5")}>
+      <div role="table" aria-label="Key figures" data-figure-strip className={cn("divide-y divide-line", !bare && "rounded-2xl border border-line bg-white px-5")}>
         {children}
       </div>
     </RowsContext.Provider>

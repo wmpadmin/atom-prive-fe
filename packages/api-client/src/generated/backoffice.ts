@@ -4432,15 +4432,19 @@ export interface WhatIf {
   netChange: number;
 }
 
-export interface OwnedAssetFileRow {
-  id: string;
-  kind: string;
-  fileName: string;
-  contentType: string;
-  size: number;
-  /** @nullable */
-  uploadedBy: string | null;
-  uploadedAt: string;
+export interface ReportBar {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  label: string;
+  share: number;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  amount: string | null;
 }
 
 /**
@@ -4476,16 +4480,6 @@ export interface ReportFigure {
   change: ReportFigureChange;
 }
 
-export type ReportPanelPlace = typeof ReportPanelPlace[keyof typeof ReportPanelPlace];
-
-
-export const ReportPanelPlace = {
-  LEFT: 'LEFT',
-  MIDDLE: 'MIDDLE',
-  RIGHT: 'RIGHT',
-  BOTTOM: 'BOTTOM',
-} as const;
-
 export type ReportPairTone = typeof ReportPairTone[keyof typeof ReportPairTone];
 
 
@@ -4511,20 +4505,15 @@ export interface ReportPair {
   tone: ReportPairTone;
 }
 
-export interface ReportBar {
-  /**
-     * @minLength 0
-     * @maxLength 60
-     */
-  label: string;
-  share: number;
-  /**
-     * @minLength 0
-     * @maxLength 40
-     * @nullable
-     */
-  amount: string | null;
-}
+export type ReportPanelPlace = typeof ReportPanelPlace[keyof typeof ReportPanelPlace];
+
+
+export const ReportPanelPlace = {
+  LEFT: 'LEFT',
+  MIDDLE: 'MIDDLE',
+  RIGHT: 'RIGHT',
+  BOTTOM: 'BOTTOM',
+} as const;
 
 export interface ReportPanel {
   /**
@@ -4535,29 +4524,74 @@ export interface ReportPanel {
   place: ReportPanelPlace;
   /**
      * @minItems 0
-     * @maxItems 30
+     * @maxItems 40
      */
   pairs: ReportPair[];
   /**
      * @minItems 0
-     * @maxItems 20
+     * @maxItems 30
      */
   bars: ReportBar[];
   /**
      * @minItems 0
-     * @maxItems 8
+     * @maxItems 12
      * @items.minLength 0
      * @items.maxLength 60
      */
   columns: string[];
   /**
      * @minItems 0
-     * @maxItems 200
+     * @maxItems 300
      * @items.minItems 0
-     * @items.maxItems 8
+     * @items.maxItems 12
      */
   rows: string[][];
   alignRight: number[];
+}
+
+export interface ScreenReportRequest {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  screen: string;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  status: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     */
+  subtitle: string;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     */
+  asOf: string;
+  /**
+     * @minItems 0
+     * @maxItems 24
+     */
+  figures: ReportFigure[];
+  /**
+     * @minItems 1
+     * @maxItems 40
+     */
+  panels: ReportPanel[];
+}
+
+export interface OwnedAssetFileRow {
+  id: string;
+  kind: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  /** @nullable */
+  uploadedBy: string | null;
+  uploadedAt: string;
 }
 
 export interface OverviewReportRequest {
@@ -22701,6 +22735,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getWhatIfMutationOptions(options), queryClient);
+    }
+
+export const getClientScreenReportUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/screen-report`
+}
+
+export const clientScreenReport = async (customerId: string,
+    screenReportRequest: ScreenReportRequest, options?: Parameters<typeof http>[1]): Promise<Blob> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<Blob>(getClientScreenReportUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(screenReportRequest)
+  }
+);}
+
+
+
+
+
+export const getClientScreenReportMutationKey = () => ['clientScreenReport'] as const;
+
+export const getClientScreenReportMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clientScreenReport>>, TError,ClientScreenReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof clientScreenReport>>, TError,ClientScreenReportMutationVariables, TContext> => {
+
+const mutationKey = getClientScreenReportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clientScreenReport>>, ClientScreenReportMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  clientScreenReport(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClientScreenReportMutationResult = NonNullable<Awaited<ReturnType<typeof clientScreenReport>>>
+    export type ClientScreenReportMutationBody = ScreenReportRequest
+    export type ClientScreenReportMutationError = unknown
+    export type ClientScreenReportMutationVariables = {customerId: string;data: ScreenReportRequest}
+
+    export const useClientScreenReport = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clientScreenReport>>, TError,ClientScreenReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof clientScreenReport>>,
+        TError,
+        ClientScreenReportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getClientScreenReportMutationOptions(options), queryClient);
     }
 
 export const getListOwnedAssetsUrl = (customerId: string,) => {
