@@ -420,6 +420,17 @@ function RunNow({
 }) {
   const [bankId, setBankId] = useState("");
   const [account, setAccount] = useState("");
+  // A press with no bank chosen turns the picker red until one is.
+  const [tried, setTried] = useState(false);
+
+  function run() {
+    if (!bankId) {
+      setTried(true);
+      document.getElementById("run-bank")?.focus();
+      return;
+    }
+    onRun(bankId, account.trim());
+  }
 
   if (banks.length === 0) {
     return <p className="text-xs text-ink-muted">No bank is switched on, so there is nothing to pull from.</p>;
@@ -433,6 +444,7 @@ function RunNow({
           name="runBank"
           value={bankId}
           onChange={(event) => setBankId(event.target.value)}
+          aria-invalid={tried && !bankId}
           className="w-auto pr-8 pl-3"
         >
           <option value="">Choose a bank</option>
@@ -451,10 +463,11 @@ function RunNow({
         onChange={(event) => setAccount(event.target.value)}
         className="w-56"
       />
-      <Button disabled={!bankId || busy} onClick={() => onRun(bankId, account.trim())}>
+      <Button disabled={busy} onClick={run}>
         <Play aria-hidden="true" />
         {busy ? "Asking…" : "Run now"}
       </Button>
+      {tried && !bankId && <p className="basis-full text-xs text-red-600">Choose a bank.</p>}
     </div>
   );
 }

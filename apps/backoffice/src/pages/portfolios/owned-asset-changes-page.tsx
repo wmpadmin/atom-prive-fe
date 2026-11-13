@@ -135,6 +135,8 @@ export function OwnedAssetChangesPage() {
   const [size, setSize] = useState<number>(defaultPageSize);
   const [declining, setDeclining] = useState<OwnedAssetChangeRow | null>(null);
   const [reason, setReason] = useState("");
+  // Set by a Reject with no reason; the box then shows red until one is written.
+  const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const view = useTableView("owned-asset-changes", MOVABLE.map((one) => one.id));
@@ -296,7 +298,7 @@ export function OwnedAssetChangesPage() {
                     <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                       {one.canAnswer && (
                         <>
-                          <Button size="sm" variant="secondary" disabled={busy === one.id} onClick={() => { setReason(""); setDeclining(one); }}>
+                          <Button size="sm" variant="secondary" disabled={busy === one.id} onClick={() => { setReason(""); setTried(false); setDeclining(one); }}>
                             Reject
                           </Button>
                           <Button size="sm" disabled={busy === one.id}
@@ -336,15 +338,21 @@ export function OwnedAssetChangesPage() {
 
       <Dialog open={declining !== null} title="Reject this change?" description={declining ? asked(declining) : undefined}
         onClose={() => setDeclining(null)}>
-        <Field id="owned-reason" label="Why" required hint="Shown to whoever asked.">
-          <TextArea id="owned-reason" rows={3} value={reason} maxLength={1000} onChange={(event) => setReason(event.target.value)} />
+        <Field id="owned-reason" label="Why" required hint="Shown to whoever asked."
+          error={tried && !reason.trim() ? "Enter a reason." : undefined}>
+          <TextArea id="owned-reason" rows={3} aria-invalid={tried && !reason.trim()} value={reason} maxLength={1000} onChange={(event) => setReason(event.target.value)} />
         </Field>
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setDeclining(null)}>Cancel</Button>
-          <Button variant="danger" disabled={!reason.trim() || busy !== null}
+          <Button variant="danger" disabled={busy !== null}
             onClick={() => {
               const change = declining;
               if (!change) return;
+              if (!reason.trim()) {
+                setTried(true);
+                document.getElementById("owned-reason")?.focus();
+                return;
+              }
               setDeclining(null);
               void act(change.id, () => answerOwnedAssetChange(change.id, { approve: false, reason: reason.trim() }));
             }}>

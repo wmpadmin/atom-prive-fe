@@ -32,6 +32,8 @@ export function AmlClientPage() {
   // Why somebody set the record's own answer aside, by line. Required for each one they did.
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [note, setNote] = useState("");
+  // Save pressed with lines still open: each one left shows in red until it is answered.
+  const [tried, setTried] = useState(false);
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [justRated, setJustRated] = useState<RatingRow | null>(null);
 
@@ -40,6 +42,7 @@ export function AmlClientPage() {
     mutation: {
       onSuccess: (rated) => {
         setErrors(noErrors);
+        setTried(false);
         setJustRated(rated);
         setChosen({});
         setOverrides({});
@@ -73,8 +76,17 @@ export function AmlClientPage() {
       && (overrides[factor.id] ?? "").trim() === "";
   });
   // Said before the button is pressed rather than after: the server refuses it either way, but a person
-  // part-way down a long sheet should be able to see what is left.
-  const canSave = sheet.complete && unanswered.length === 0 && unexplained.length === 0 && !rate.isPending;
+  // part-way down a long sheet should be able to see what is left. Pressing it anyway marks each one in red.
+  const save = () => {
+    const first = live.find((factor) => unanswered.includes(factor) || unexplained.includes(factor));
+    if (first) {
+      setTried(true);
+      const id = unanswered.includes(first) ? `answer-${first.id}` : `why-${first.id}`;
+      requestAnimationFrame(() => document.getElementById(id)?.focus());
+      return;
+    }
+    rate.mutate({ customerId: customerId!, data: { chosen, overrides, note: note.trim() || null } });
+  };
 
   return (
     <div className="space-y-6">
@@ -126,15 +138,7 @@ export function AmlClientPage() {
                 before it stays on the record.
               </p>
             </div>
-            <Button
-              disabled={!canSave}
-              onClick={() =>
-                rate.mutate({
-                  customerId: customerId!,
-                  data: { chosen, overrides, note: note.trim() || null },
-                })
-              }
-            >
+            <Button disabled={rate.isPending} onClick={save}>
               {rate.isPending
                 ? "Saving…"
                 : unanswered.length > 0
@@ -155,6 +159,7 @@ export function AmlClientPage() {
                 why={overrides[factor.id] ?? ""}
                 onWhy={(said) => setOverrides({ ...overrides, [factor.id]: said })}
                 onChoose={(optionId) => setChosen({ ...chosen, [factor.id]: optionId })}
+                tried={tried}
               />
             ))}
           </div>
@@ -194,6 +199,7 @@ function Line({
   why,
   onWhy,
   onChoose,
+  tried,
 }: {
   factor: FactorRow;
   chosen: string | undefined;
@@ -201,11 +207,14 @@ function Line({
   why: string;
   onWhy: (said: string) => void;
   onChoose: (optionId: string) => void;
+  /** Save has been pressed, so what is still missing on this line shows in red. */
+  tried: boolean;
 }) {
   const options = factor.options.filter((option) => option.retiredAt === null);
   // Whether this is still the answer the client's own record came to, or somebody has changed it.
   const theRecords = onFile?.answers;
   const changed = theRecords != null && chosen != null && chosen !== theRecords;
+  const unanswered = tried && !chosen;
   return (
     <div className="grid gap-3 px-5 py-4 lg:grid-cols-[18rem_1fr]">
       <div>
@@ -230,9 +239,10 @@ function Line({
         )}
       </div>
       <div className="flex flex-wrap items-start gap-2">
-        {options.map((option) => (
+        {options.map((option, at) => (
           <button
             key={option.id}
+            id={at === 0 ? `answer-${factor.id}` : undefined}
             type="button"
             aria-pressed={chosen === option.id}
             onClick={() => onChoose(option.id)}
@@ -240,7 +250,9 @@ function Line({
               "rounded-xl border px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
               chosen === option.id
                 ? "border-primary-600 bg-primary-50 font-semibold text-ink"
-                : "border-line bg-white text-ink-soft hover:border-ink-muted hover:text-ink",
+                : unanswered
+                  ? "border-red-500 bg-white text-ink-soft hover:text-ink"
+                  : "border-line bg-white text-ink-soft hover:border-ink-muted hover:text-ink",
             )}
           >
             {option.label}
@@ -251,12 +263,19 @@ function Line({
             </span>
           </button>
         ))}
+        {unanswered && <p className="w-full text-xs text-red-600">Choose an answer.</p>}
         {/* Changing what the record says is allowed, and the reason goes on the rating. */}
         {changed && (
           <div className="w-full">
-            <Field id={`why-${factor.id}`} label="Why are you setting the record aside?" required>
+            <Field
+              id={`why-${factor.id}`}
+              label="Why are you setting the record aside?"
+              required
+              error={tried && why.trim() === "" ? "Say why you're setting the record aside." : undefined}
+            >
               <TextInput
                 id={`why-${factor.id}`}
+                aria-invalid={tried && why.trim() === "" ? true : undefined}
                 value={why}
                 placeholder="Held through a company since March."
                 onChange={(event) => onWhy(event.target.value)}

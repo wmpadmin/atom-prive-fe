@@ -38,6 +38,9 @@ export function SendToSignBar({
   const [asking, setAsking] = useState(false);
   const [dueOn, setDueOn] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  // Set when Send is pressed with no form ticked; the bar says so in red until one is.
+  const [tried, setTried] = useState(false);
+  const noneChosen = tried && chosen.length === 0;
   const ready = forms.filter(readyToSend).length;
 
   function submit() {
@@ -66,12 +69,25 @@ export function SendToSignBar({
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-canvas px-6 py-4">
+        {noneChosen ? (
+          <p role="alert" className="text-xs text-red-600">Tick at least one form to send.</p>
+        ) : (
         <p className="text-sm text-ink-muted">
           {chosen.length === 0
             ? `${ready} ${ready === 1 ? "form is" : "forms are"} ready to send for signing.`
             : `${chosen.length} ${chosen.length === 1 ? "form" : "forms"} chosen.`}
         </p>
-        <Button size="sm" disabled={chosen.length === 0} onClick={() => setAsking(true)}>
+        )}
+        <Button
+          size="sm"
+          onClick={() => {
+            if (chosen.length === 0) {
+              setTried(true);
+              return;
+            }
+            setAsking(true);
+          }}
+        >
           Send to the client to sign
         </Button>
       </div>

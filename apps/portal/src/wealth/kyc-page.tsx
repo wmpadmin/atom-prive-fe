@@ -310,6 +310,10 @@ function UploadPaper({ papers, chosen, onClose }: { papers: KycRequirement[]; ch
   const paper = papers.find((one) => one.paperId === paperId);
   const [expiresOn, setExpiresOn] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  // Upload pressed with no document chosen or no file picked: each missing one shows in red until it is.
+  const [tried, setTried] = useState(false);
+  const noPaper = tried && !paper;
+  const noFile = tried && !file;
   const upload = useUpload<ApiError>({
     mutation: {
       onSuccess: () => {
@@ -331,7 +335,13 @@ function UploadPaper({ papers, chosen, onClose }: { papers: KycRequirement[]; ch
           <label htmlFor="kyc-paper" className="mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             Document
           </label>
-          <SelectInput id="kyc-paper" value={paperId} onChange={(event) => setPaperId(event.target.value)}>
+          <SelectInput
+            id="kyc-paper"
+            value={paperId}
+            aria-invalid={noPaper || undefined}
+            aria-describedby={noPaper ? "kyc-paper-error" : undefined}
+            onChange={(event) => setPaperId(event.target.value)}
+          >
             <option value="">Choose which document this is…</option>
             {papers.map((one) => (
               <option key={one.paperId} value={one.paperId}>
@@ -339,6 +349,7 @@ function UploadPaper({ papers, chosen, onClose }: { papers: KycRequirement[]; ch
               </option>
             ))}
           </SelectInput>
+          {noPaper && <p id="kyc-paper-error" className="mt-1 text-xs text-red-600">Choose which document this is.</p>}
           {paper?.stands === "APPROVED" && (
             <p className="mt-1 text-xs text-ink-muted">Already approved. Send a new one only if it has changed or is about to expire.</p>
           )}
@@ -354,9 +365,12 @@ function UploadPaper({ papers, chosen, onClose }: { papers: KycRequirement[]; ch
             id="kyc-file"
             type="file"
             accept="application/pdf,image/jpeg,image/png"
+            aria-invalid={noFile || undefined}
+            aria-describedby={noFile ? "kyc-file-error" : undefined}
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             className="block w-full text-sm text-ink-soft file:mr-3 file:rounded-lg file:border-0 file:bg-primary-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-primary-700"
           />
+          {noFile && <p id="kyc-file-error" className="mt-1 text-xs text-red-600">Choose a file to upload.</p>}
           <p className="mt-1 text-xs text-ink-muted">PDF, JPEG or PNG, up to 10 MB.</p>
         </div>
         <div>
@@ -375,14 +389,18 @@ function UploadPaper({ papers, chosen, onClose }: { papers: KycRequirement[]; ch
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={upload.isPending}>Cancel</Button>
           <Button
-            disabled={!file || !paper || upload.isPending}
-            onClick={() =>
-              file && paper &&
+            disabled={upload.isPending}
+            onClick={() => {
+              if (!file || !paper) {
+                setTried(true);
+                document.getElementById(!paper ? "kyc-paper" : "kyc-file")?.focus();
+                return;
+              }
               upload.mutate({
                 params: { kind, otherName: kind === "OTHER" ? paper.kindTitle : undefined, expiresOn: expiresOn || undefined },
                 data: { file },
-              })
-            }
+              });
+            }}
           >
             <Upload aria-hidden="true" />
             {upload.isPending ? "Uploading…" : "Upload"}

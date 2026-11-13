@@ -79,7 +79,11 @@ function UploadDialog({ onClose }: { onClose: () => void }) {
       },
     },
   });
-  const ready = kind && file && (kind !== "OTHER" || otherName.trim());
+  // Set by an Upload with something missing; each such box then shows red until it is filled in.
+  const [tried, setTried] = useState(false);
+  const noKind = tried && !kind;
+  const noName = tried && kind === "OTHER" && !otherName.trim();
+  const noFile = tried && !file;
 
   return (
     <Dialog open onClose={onClose} title="Upload a document" description="Send the firm a KYC document. It shows as Pending review until they have checked it.">
@@ -88,7 +92,7 @@ function UploadDialog({ onClose }: { onClose: () => void }) {
           <label htmlFor="upload-kind" className="mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             What is it?
           </label>
-          <SelectInput id="upload-kind" value={kind} onChange={(event) => setKind(event.target.value)}>
+          <SelectInput id="upload-kind" value={kind} aria-invalid={noKind} onChange={(event) => setKind(event.target.value)}>
             <option value="">Choose…</option>
             {KINDS.map((one) => (
               <option key={one.id} value={one.id}>
@@ -96,6 +100,7 @@ function UploadDialog({ onClose }: { onClose: () => void }) {
               </option>
             ))}
           </SelectInput>
+          {noKind && <p className="mt-1 text-xs text-red-600">Choose what the document is.</p>}
         </div>
         {kind === "OTHER" && (
           <div>
@@ -106,10 +111,12 @@ function UploadDialog({ onClose }: { onClose: () => void }) {
               id="upload-name"
               value={otherName}
               maxLength={120}
+              aria-invalid={noName}
               onChange={(event) => setOtherName(event.target.value)}
               placeholder="e.g. Tax residency certificate"
-              className="h-10 w-full rounded-xl border border-line bg-white px-3 text-sm focus-visible:border-primary-600 focus-visible:outline-2 focus-visible:outline-primary-600"
+              className="h-10 w-full rounded-xl border border-line bg-white px-3 text-sm focus-visible:border-primary-600 focus-visible:outline-2 focus-visible:outline-primary-600 aria-invalid:border-red-500"
             />
+            {noName && <p className="mt-1 text-xs text-red-600">Enter the name of the document.</p>}
           </div>
         )}
         <div>
@@ -132,10 +139,13 @@ function UploadDialog({ onClose }: { onClose: () => void }) {
             id="upload-file"
             type="file"
             accept="application/pdf,image/jpeg,image/png"
+            aria-invalid={noFile}
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             className="block w-full text-sm text-ink-soft file:mr-3 file:rounded-lg file:border-0 file:bg-primary-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-primary-700"
           />
-          <p className="mt-1 text-xs text-ink-muted">PDF, JPEG or PNG, up to 10 MB.</p>
+          {noFile
+            ? <p className="mt-1 text-xs text-red-600">Pick a file to upload.</p>
+            : <p className="mt-1 text-xs text-ink-muted">PDF, JPEG or PNG, up to 10 MB.</p>}
         </div>
         {upload.isError && <Alert tone="danger">{upload.error.message}</Alert>}
         <div className="flex justify-end gap-3">
@@ -143,14 +153,18 @@ function UploadDialog({ onClose }: { onClose: () => void }) {
             Cancel
           </Button>
           <Button
-            disabled={!ready || upload.isPending}
-            onClick={() =>
-              file &&
+            disabled={upload.isPending}
+            onClick={() => {
+              if (!kind || !file || (kind === "OTHER" && !otherName.trim())) {
+                setTried(true);
+                requestAnimationFrame(() => document.querySelector<HTMLElement>("[aria-invalid='true']")?.focus());
+                return;
+              }
               upload.mutate({
                 params: { kind, otherName: kind === "OTHER" ? otherName.trim() : undefined, expiresOn: expiresOn || undefined },
                 data: { file },
-              })
-            }
+              });
+            }}
           >
             <Upload aria-hidden="true" />
             {upload.isPending ? "Uploading…" : "Upload"}

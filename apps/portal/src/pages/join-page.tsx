@@ -31,6 +31,9 @@ export function JoinPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [again, setAgain] = useState("");
+  // Continue or Create pressed with something still missing: each missing box shows in red until it is filled.
+  const [triedDetails, setTriedDetails] = useState(false);
+  const [triedPassword, setTriedPassword] = useState(false);
 
   const invitation = useOpen<Invitation, ApiError>(token);
   const join = useJoin<ApiError>({
@@ -134,7 +137,9 @@ export function JoinPage() {
 
   // The same rule as every other password on the platform, ticked off as it is typed.
   const mismatched = again.length > 0 && again !== password;
-  const canFinish = isStrongPassword(password) && again === password && !join.isPending;
+  const noName = triedDetails && fullName.trim().length === 0;
+  const weak = triedPassword && !isStrongPassword(password);
+  const noAgain = triedPassword && again.length === 0;
 
   return (
     <div className="grid min-h-screen place-items-center bg-slate-100 px-4 py-10">
@@ -157,9 +162,15 @@ export function JoinPage() {
 
         {at === "details" ? (
           <form
+            noValidate
             className="mt-7 grid gap-x-10 gap-y-7 sm:grid-cols-[1fr_15rem] sm:grid-rows-[auto_auto]"
             onSubmit={(event) => {
               event.preventDefault();
+              if (fullName.trim().length === 0) {
+                setTriedDetails(true);
+                document.getElementById("join-name")?.focus();
+                return;
+              }
               setAt("password");
               setStep(2);
             }}
@@ -184,9 +195,12 @@ export function JoinPage() {
                 required
                 autoComplete="name"
                 value={fullName}
+                aria-invalid={noName || undefined}
+                aria-describedby={noName ? "join-name-error" : undefined}
                 onChange={(event) => setFullName(event.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm aria-invalid:border-red-500"
               />
+              {noName && <p id="join-name-error" className="mt-1 text-xs text-red-600">Enter your full name.</p>}
 
               <Label htmlFor="join-phone" className="mt-4">
                 Phone <span className="font-normal text-slate-400">(optional)</span>
@@ -215,7 +229,6 @@ export function JoinPage() {
             <div className="sm:col-span-2 sm:row-start-2">
               <button
                 type="submit"
-                disabled={fullName.trim().length === 0}
                 className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"
               >
                 Continue
@@ -231,9 +244,16 @@ export function JoinPage() {
           </form>
         ) : (
           <form
+            noValidate
             className="mt-7 grid gap-x-10 gap-y-7 sm:grid-cols-[1fr_15rem] sm:grid-rows-[auto_auto]"
             onSubmit={(event) => {
               event.preventDefault();
+              const missing = !isStrongPassword(password) ? "join-password" : again !== password ? "join-again" : null;
+              if (missing) {
+                setTriedPassword(true);
+                document.getElementById(missing)?.focus();
+                return;
+              }
               join.mutate({
                 token,
                 data: { fullName: fullName.trim(), phone: phone.trim() || null, password },
@@ -248,12 +268,18 @@ export function JoinPage() {
               autoComplete="new-password"
               required
               value={password}
-              aria-describedby="join-password-rules"
+              aria-invalid={weak || undefined}
+              aria-describedby={weak ? "join-password-error join-password-rules" : "join-password-rules"}
               onChange={(event) => setPassword(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm aria-invalid:border-red-500"
             />
+            {weak && (
+              <p id="join-password-error" className="mt-1 text-xs text-red-600">
+                {password.length === 0 ? "Choose a password." : "Choose a password that meets every rule below."}
+              </p>
+            )}
             <div className="mt-2">
-              <PasswordChecklist id="join-password-rules" password={password} showMissing={password.length > 0} />
+              <PasswordChecklist id="join-password-rules" password={password} showMissing={password.length > 0 || triedPassword} />
             </div>
 
             <Label htmlFor="join-again" className="mt-4">
@@ -265,9 +291,11 @@ export function JoinPage() {
               autoComplete="new-password"
               required
               value={again}
+              aria-invalid={noAgain || (triedPassword && mismatched) || undefined}
               onChange={(event) => setAgain(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm aria-invalid:border-red-500"
             />
+            {noAgain && <p className="mt-1 text-xs text-red-600">Enter the password again.</p>}
             {mismatched && <p className="mt-1 text-xs text-red-600">These two do not match.</p>}
 
               <p className="mt-5 text-xs text-slate-500">
@@ -281,7 +309,7 @@ export function JoinPage() {
             <div className="sm:col-span-2 sm:row-start-2">
               <button
                 type="submit"
-                disabled={!canFinish}
+                disabled={join.isPending}
                 className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"
               >
                 {join.isPending ? "Setting you up…" : "Create my account"}

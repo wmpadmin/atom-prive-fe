@@ -153,6 +153,9 @@ export function ModelPortfoliosPage() {
   /** The model being copied, and what the copy is to be called. */
   const [copying, setCopying] = useState<ModelRow | null>(null);
   const [called, setCalled] = useState("");
+  // Make the copy pressed with the name cleared: the box shows in red until one is typed.
+  const [tried, setTried] = useState(false);
+  const unnamed = tried && called.trim() === "";
   const [errors, setErrors] = useState<FormErrors>(noErrors);
   const [search, setSearch] = useState("");
 
@@ -338,6 +341,7 @@ export function ModelPortfoliosPage() {
                   label={`Make a copy of ${model.name}`}
                   onClick={() => {
                     setErrors(noErrors);
+                    setTried(false);
                     setCopying(model);
                     setCalled(`Copy of ${model.name}`);
                   }}
@@ -378,19 +382,31 @@ export function ModelPortfoliosPage() {
             measured against it. {copying?.name} is left exactly as it is.
           </p>
           {errors.form && <Alert tone="danger">{errors.form}</Alert>}
-          <Field id="copy-name" label="What the copy is called" error={errors.fields.name} required>
+          <Field
+            id="copy-name"
+            label="What the copy is called"
+            error={unnamed ? "Enter a name." : errors.fields.name}
+            required
+          >
             <TextInput
               id="copy-name"
               value={called}
-              aria-invalid={Boolean(errors.fields.name)}
+              aria-invalid={unnamed || Boolean(errors.fields.name)}
               onChange={(event) => setCalled(event.target.value)}
             />
           </Field>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setCopying(null)}>Cancel</Button>
             <Button
-              disabled={called.trim() === "" || busy}
-              onClick={() => copying && copy.mutate({ id: copying.id, data: { name: called.trim() } })}
+              disabled={busy}
+              onClick={() => {
+                if (called.trim() === "") {
+                  setTried(true);
+                  document.getElementById("copy-name")?.focus();
+                  return;
+                }
+                if (copying) copy.mutate({ id: copying.id, data: { name: called.trim() } });
+              }}
             >
               {copy.isPending ? "Copying…" : "Make the copy"}
             </Button>

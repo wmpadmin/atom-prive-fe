@@ -39,6 +39,9 @@ export function ModelStep({ customerId, onDone, onBack }: StepProps) {
   const [chosen, setChosen] = useState<string | null>(null);
   const on = standing.data?.modelPortfolioId ?? "";
   const model = chosen ?? on;
+  // Finish pressed over an empty picker: the picker shows in red until a plan is chosen.
+  const [tried, setTried] = useState(false);
+  const noModel = tried && model === "";
   // Read against a model they are not on yet, so the table says what it would do before it does it.
   const tryingOn = model !== "" && model !== on;
   const preview = useClientOnThatModel<PortfolioStanding, ApiError>(customerId, tryingOn ? model : "", {
@@ -52,6 +55,11 @@ export function ModelStep({ customerId, onDone, onBack }: StepProps) {
   );
 
   async function save() {
+    if (model === "") {
+      setTried(true);
+      document.getElementById("client-model")?.focus();
+      return;
+    }
     setErrors(noErrors);
     setBusy(true);
     try {
@@ -82,7 +90,7 @@ export function ModelStep({ customerId, onDone, onBack }: StepProps) {
     <div className="flex flex-1 flex-col space-y-6">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
         <label htmlFor="client-model" className="text-xs font-semibold text-ink-soft">
           Measured against
         </label>
@@ -90,6 +98,8 @@ export function ModelStep({ customerId, onDone, onBack }: StepProps) {
           id="client-model"
           className={cn(BOX, "w-auto")}
           value={model}
+          aria-invalid={noModel || undefined}
+          aria-describedby={noModel ? "client-model-error" : undefined}
           onChange={(event) => setChosen(event.target.value)}
         >
           <option value="">No model — nothing to read it against</option>
@@ -99,6 +109,11 @@ export function ModelStep({ customerId, onDone, onBack }: StepProps) {
             </option>
           ))}
         </SelectInput>
+        {noModel && (
+          <p id="client-model-error" className="w-full text-right text-xs text-red-600">
+            Choose a model.
+          </p>
+        )}
       </div>
 
       {model === "" && (
@@ -135,8 +150,8 @@ export function ModelStep({ customerId, onDone, onBack }: StepProps) {
         </Button>
         {/* Nothing to finish on. The button used to read Done over an empty picker and finish anyway,
             which left the client written down, worked out, and measured against nothing — the one state
-            the screen after this cannot draw. */}
-        <Button type="button" size="lg" disabled={busy || model === ""} onClick={() => void save()}>
+            the screen after this cannot draw. Pressed there now, it marks the picker in red instead. */}
+        <Button type="button" size="lg" disabled={busy} onClick={() => void save()}>
           {busy ? "Saving…" : model === "" ? "Pick a plan" : model === on ? "Done" : "Put them on this plan"}
         </Button>
       </div>

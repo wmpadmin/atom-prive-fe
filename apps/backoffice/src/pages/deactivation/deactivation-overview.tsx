@@ -124,9 +124,12 @@ function Fact({ label, value, wide }: { label: string; value: ReactNode; wide?: 
 function Decision({ customerId, clientName, ready }: { customerId: string; clientName: string; ready: boolean }) {
   const [note, setNote] = useState("");
   const [confirming, setConfirming] = useState(false);
+  // Reject pressed with no note: the box shows in red until one is typed.
+  const [tried, setTried] = useState(false);
   const queryClient = useQueryClient();
   const done = () => {
     setNote("");
+    setTried(false);
     setConfirming(false);
     void queryClient.invalidateQueries();
   };
@@ -135,6 +138,7 @@ function Decision({ customerId, clientName, ready }: { customerId: string; clien
   const busy = approve.isPending || reject.isPending;
   const failed = approve.error ?? reject.error;
   const said = note.trim();
+  const noReason = tried && said.length === 0;
 
   return (
     <section className="space-y-3 rounded-2xl border border-line bg-white px-6 py-5">
@@ -151,9 +155,11 @@ function Decision({ customerId, clientName, ready }: { customerId: string; clien
         id="final-review-note"
         label="Admin notes"
         hint="Optional to approve. Required to reject — it is all the desks will be told."
+        error={noReason ? "Enter a reason to reject." : undefined}
       >
         <TextArea
           id="final-review-note"
+          aria-invalid={noReason || undefined}
           rows={3}
           maxLength={MOST}
           value={note}
@@ -179,12 +185,19 @@ function Decision({ customerId, clientName, ready }: { customerId: string; clien
         <div className="flex flex-wrap justify-end gap-2">
           <Button
             variant="secondary"
-            disabled={busy || said.length === 0}
-            onClick={() => reject.mutate({ customerId, data: { note: said } })}
+            disabled={busy}
+            onClick={() => {
+              if (said.length === 0) {
+                setTried(true);
+                document.getElementById("final-review-note")?.focus();
+                return;
+              }
+              reject.mutate({ customerId, data: { note: said } });
+            }}
           >
             {reject.isPending ? "Saving…" : "Reject deactivation"}
           </Button>
-          <Button disabled={busy || !ready} onClick={() => setConfirming(true)}>
+          <Button disabled={busy || !ready} onClick={() => { setTried(false); setConfirming(true); }}>
             Approve deactivation
           </Button>
         </div>

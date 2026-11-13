@@ -172,6 +172,10 @@ function AnswerDialog({ asked, agreeing, onClose }: { asked: Asked; agreeing: bo
   const [ticked, setTicked] = useState<Set<string>>(new Set(asked.accounts.map((one) => one.id)));
   const [until, setUntil] = useState("");
   const [comment, setComment] = useState("");
+  // Approve or Reject pressed with something required missing: it shows in red until it is filled.
+  const [tried, setTried] = useState(false);
+  const noAccounts = tried && agreeing && asked.kind === "accounts" && ticked.size === 0;
+  const noReason = tried && !agreeing && !comment.trim();
   const done = {
     mutation: {
       onSuccess: () => {
@@ -185,6 +189,14 @@ function AnswerDialog({ asked, agreeing, onClose }: { asked: Asked; agreeing: bo
   const busy = accounts.isPending || wealth.isPending;
   const error = accounts.error ?? wealth.error;
   const submit = () => {
+    const missing = agreeing
+      ? asked.kind === "accounts" && ticked.size === 0 ? `share-${asked.accounts[0]?.id}` : null
+      : !comment.trim() ? "answer-comment" : null;
+    if (missing) {
+      setTried(true);
+      document.getElementById(missing)?.focus();
+      return;
+    }
     const expiresOn = agreeing && until ? until : null;
     const said = comment.trim() || null;
     if (asked.kind === "wealth") {
@@ -220,7 +232,7 @@ function AnswerDialog({ asked, agreeing, onClose }: { asked: Asked; agreeing: bo
               {asked.accounts.map((one) => (
                 <li key={one.id}>
                   <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-line px-3 py-2.5 hover:bg-sidebar">
-                    <input type="checkbox" checked={ticked.has(one.id)} onChange={() => toggle(one.id)} className="size-4 accent-primary-600" />
+                    <input id={`share-${one.id}`} type="checkbox" checked={ticked.has(one.id)} onChange={() => toggle(one.id)} className="size-4 accent-primary-600" />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold text-ink">{one.nickname ?? `${one.bankName} ${accountKind(one.accountType)}`}</span>
                       <span className="block text-xs text-ink-muted">•••• {one.lastFour}</span>
@@ -229,6 +241,7 @@ function AnswerDialog({ asked, agreeing, onClose }: { asked: Asked; agreeing: bo
                 </li>
               ))}
             </ul>
+            {noAccounts && <p className="mt-1 text-xs text-red-600">Choose at least one account to share.</p>}
           </fieldset>
         )}
         {agreeing && (
@@ -240,7 +253,18 @@ function AnswerDialog({ asked, agreeing, onClose }: { asked: Asked; agreeing: bo
         )}
         <div>
           <label htmlFor="answer-comment" className={LABEL}>{agreeing ? "A note (optional)" : "Why"}</label>
-          <textarea id="answer-comment" name="answer-comment" rows={3} maxLength={500} value={comment} onChange={(event) => setComment(event.target.value)} className={AREA} />
+          <textarea
+            id="answer-comment"
+            name="answer-comment"
+            rows={3}
+            maxLength={500}
+            value={comment}
+            aria-invalid={noReason || undefined}
+            aria-describedby={noReason ? "answer-comment-error" : undefined}
+            onChange={(event) => setComment(event.target.value)}
+            className={`${AREA} aria-invalid:border-red-500`}
+          />
+          {noReason && <p id="answer-comment-error" className="mt-1 text-xs text-red-600">Enter a reason.</p>}
         </div>
         {error && <Alert tone="danger">{error.message}</Alert>}
         <div className="flex justify-end gap-3">
@@ -249,7 +273,7 @@ function AnswerDialog({ asked, agreeing, onClose }: { asked: Asked; agreeing: bo
           </Button>
           <Button
             variant={agreeing ? "primary" : "danger"}
-            disabled={busy || (agreeing ? asked.kind === "accounts" && ticked.size === 0 : !comment.trim())}
+            disabled={busy}
             onClick={submit}
           >
             {agreeing ? <Check aria-hidden="true" /> : <X aria-hidden="true" />}
@@ -268,6 +292,8 @@ function NewRequestDialog({ onClose }: { onClose: () => void }) {
   const [who, setWho] = useState<string>();
   const [what, setWhat] = useState<string>();
   const [message, setMessage] = useState("");
+  // Send pressed before somebody and something are chosen: each missing choice is said in red until made.
+  const [tried, setTried] = useState(false);
   const done = {
     mutation: {
       onSuccess: () => {
@@ -282,6 +308,8 @@ function NewRequestDialog({ onClose }: { onClose: () => void }) {
   const error = askAccounts.error ?? askWealth.error;
   const people = family.data ?? [];
   const chosen = people.find((one) => one.customerId === who);
+  const nobody = tried && !who;
+  const nothing = tried && !!who && !what;
 
   return (
     <Dialog open onClose={onClose} title="New access request" description="Ask a family member to let you see their accounts or their wealth. Nothing is shared until they approve.">
@@ -294,9 +322,10 @@ function NewRequestDialog({ onClose }: { onClose: () => void }) {
             <p className="rounded-xl bg-sidebar px-4 py-3 text-sm text-ink-muted">There is nobody else in your family group to ask yet.</p>
           ) : (
             <ul className="grid gap-2 sm:grid-cols-2">
-              {people.map((one) => (
+              {people.map((one, at) => (
                 <li key={one.customerId}>
                   <button
+                    id={at === 0 ? "ask-who-first" : undefined}
                     type="button"
                     aria-pressed={who === one.customerId}
                     onClick={() => {
@@ -315,16 +344,17 @@ function NewRequestDialog({ onClose }: { onClose: () => void }) {
               ))}
             </ul>
           )}
+          {nobody && <p className="mt-1 text-xs text-red-600">Choose a family member.</p>}
         </fieldset>
 
         {chosen && (
           <fieldset>
             <legend className={LABEL}>What you'd like to see</legend>
             <ul className="space-y-2">
-              {[{ id: "wealth", label: "Their wealth", hint: "Portfolio, assets owned outside it, and loans" }, ...chosen.banks.map((bank) => ({ id: bank.bankId, label: `Accounts at ${bank.bankName}`, hint: "They choose which accounts to share" }))].map((one) => (
+              {[{ id: "wealth", label: "Their wealth", hint: "Portfolio, assets owned outside it, and loans" }, ...chosen.banks.map((bank) => ({ id: bank.bankId, label: `Accounts at ${bank.bankName}`, hint: "They choose which accounts to share" }))].map((one, at) => (
                 <li key={one.id}>
                   <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-line px-3 py-2.5 hover:bg-sidebar">
-                    <input type="radio" name="ask-what" checked={what === one.id} onChange={() => setWhat(one.id)} className="size-4 accent-primary-600" />
+                    <input id={at === 0 ? "ask-what-first" : undefined} type="radio" name="ask-what" checked={what === one.id} onChange={() => setWhat(one.id)} className="size-4 accent-primary-600" />
                     <span>
                       <span className="block text-sm font-semibold text-ink">{one.label}</span>
                       <span className="block text-xs text-ink-muted">{one.hint}</span>
@@ -333,6 +363,7 @@ function NewRequestDialog({ onClose }: { onClose: () => void }) {
                 </li>
               ))}
             </ul>
+            {nothing && <p className="mt-1 text-xs text-red-600">Choose what you'd like to see.</p>}
           </fieldset>
         )}
 
@@ -346,9 +377,14 @@ function NewRequestDialog({ onClose }: { onClose: () => void }) {
             Cancel
           </Button>
           <Button
-            disabled={!who || !what || busy}
+            // Only held back when there is nobody to ask at all; a choice not made yet is said in red instead.
+            disabled={busy || people.length === 0}
             onClick={() => {
-              if (!who || !what) return;
+              if (!who || !what) {
+                setTried(true);
+                document.getElementById(!who ? "ask-who-first" : "ask-what-first")?.focus();
+                return;
+              }
               const said = message.trim() || null;
               if (what === "wealth") askWealth.mutate({ data: { ownerId: who, message: said } });
               else askAccounts.mutate({ data: { ownerId: who, bankId: what, message: said } });

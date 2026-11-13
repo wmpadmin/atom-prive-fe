@@ -449,12 +449,21 @@ export function Row({ label, children }: { label: string; children: ReactNode })
 export function AskTheAssistant({ questions, blurb }: { questions: string[]; blurb: string }) {
   const navigate = useNavigate();
   const [draft, setDraft] = useState("");
+  // Set when Ask is pressed with nothing typed; the box goes red until a question is in it.
+  const [tried, setTried] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  const missing = tried && !draft.trim();
   const ask = (question: string) => {
     if (!question.trim()) return;
     void navigate(`/assistant?ask=${encodeURIComponent(question.trim())}`);
   };
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (!draft.trim()) {
+      setTried(true);
+      input.current?.focus();
+      return;
+    }
     ask(draft);
   };
   return (
@@ -481,14 +490,16 @@ export function AskTheAssistant({ questions, blurb }: { questions: string[]; blu
       </ul>
       <form onSubmit={onSubmit} className="mt-3 flex gap-2">
         <label htmlFor="dashboard-ask" className="sr-only">Ask the assistant</label>
-        <input id="dashboard-ask" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Ask anything…"
-          className="min-w-0 flex-1 rounded-xl border border-line bg-white px-3 py-2 text-sm focus:border-violet-400 focus:outline-none" />
-        <button type="submit" disabled={!draft.trim()}
+        <input id="dashboard-ask" ref={input} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Ask anything…"
+          aria-invalid={missing || undefined} aria-describedby={missing ? "dashboard-ask-error" : undefined}
+          className="min-w-0 flex-1 rounded-xl border border-line bg-white px-3 py-2 text-sm focus:border-violet-400 focus:outline-none aria-invalid:border-red-500" />
+        <button type="submit"
           className="grid size-9 shrink-0 place-items-center rounded-xl bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40">
           <SendHorizontal className="size-4" aria-hidden="true" />
           <span className="sr-only">Ask</span>
         </button>
       </form>
+      {missing && <p id="dashboard-ask-error" className="mt-1 text-xs text-red-600">Type a question first.</p>}
     </section>
   );
 }

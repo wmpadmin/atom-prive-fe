@@ -42,6 +42,10 @@ export function AskToChangeTheModel({
   const [wanted, setWanted] = useState("");
   const [why, setWhy] = useState("");
   const [errors, setErrors] = useState<FormErrors>(noErrors);
+  // Set by an Ask with something missing; each such box then shows red until it is filled in.
+  const [tried, setTried] = useState(false);
+  const noModel = wanted === "";
+  const noWhy = why.trim() === "";
 
   const asked = useListModelChangesForClient<ModelChangeRow[], ApiError>(customerId);
   const models = useListModelPortfolios<ModelsPage, ApiError>();
@@ -92,7 +96,7 @@ export function AskToChangeTheModel({
           </p>
         </div>
         {!open && (
-          <Button variant="secondary" onClick={() => setAsking(true)}>
+          <Button variant="secondary" onClick={() => { setAsking(true); setTried(false); }}>
             Ask to change the model
           </Button>
         )}
@@ -156,8 +160,9 @@ export function AskToChangeTheModel({
           <p className="text-sm text-ink-muted">
             They are on {onModelName} now. Nothing moves until somebody answers this.
           </p>
-          <Field id="wanted-model" label="Put them on" error={errors.fields.modelPortfolioId} required>
-            <SelectInput id="wanted-model" value={wanted} onChange={(event) => setWanted(event.target.value)}>
+          <Field id="wanted-model" label="Put them on" required
+            error={errors.fields.modelPortfolioId ?? (tried && noModel ? "Choose a model." : undefined)}>
+            <SelectInput id="wanted-model" value={wanted} aria-invalid={tried && noModel} onChange={(event) => setWanted(event.target.value)}>
               <option value="">Choose a model</option>
               {/* The one way a client comes off a plan at all. Offered only where they are on one:
                   there is nothing to come off otherwise. */}
@@ -170,9 +175,10 @@ export function AskToChangeTheModel({
             </SelectInput>
           </Field>
 
-          <Field id="why-move" label="Why" error={errors.fields.why} required>
+          <Field id="why-move" label="Why" error={errors.fields.why ?? (tried && noWhy ? "Enter a reason." : undefined)} required>
             <TextArea
               id="why-move"
+              aria-invalid={tried && noWhy}
               rows={3}
               value={why}
               placeholder="They have told us they want more equity exposure."
@@ -185,16 +191,21 @@ export function AskToChangeTheModel({
               Cancel
             </Button>
             <Button
-              disabled={wanted === "" || why.trim() === "" || raise.isPending}
-              onClick={() =>
+              disabled={raise.isPending}
+              onClick={() => {
+                if (noModel || noWhy) {
+                  setTried(true);
+                  document.getElementById(noModel ? "wanted-model" : "why-move")?.focus();
+                  return;
+                }
                 raise.mutate({
                   data: {
                     customerId,
                     modelPortfolioId: wanted === "none" ? null : wanted,
                     why: why.trim(),
                   },
-                })
-              }
+                });
+              }}
             >
               {raise.isPending ? "Asking…" : "Ask"}
             </Button>

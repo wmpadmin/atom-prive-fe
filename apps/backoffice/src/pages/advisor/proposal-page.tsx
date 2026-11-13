@@ -83,6 +83,8 @@ export function ProposalPage() {
   /** How the client told them, where the proposal went to the client and the manager is writing it down. */
   const [instruction, setInstruction] = useState<string>("");
   const [note, setNote] = useState("");
+  // Set when the answer is pressed with something it needs still empty; each such box stays red until filled.
+  const [answerTried, setAnswerTried] = useState(false);
   // Typed rather than native: a number box takes "e" as scientific notation and then reports itself empty,
   // so a figure somebody fumbled would be dropped on the way out instead of questioned.
   // Null until somebody types: the box then shows what is on the proposal, and what was typed from then on.
@@ -232,6 +234,12 @@ export function ProposalPage() {
   // Sent to the client, it is theirs to answer in the portal. Their manager may still write down an answer the
   // client gave them, and says how it came.
   const toClient = !writing && (proposal?.summary.toClient ?? false);
+  // What the answer dialog still needs, read from the boxes as they stand — so the red goes as each is filled.
+  const noteMissing = answering === "reject" && note.trim() === "";
+  const instructionMissing = toClient && instruction === "";
+  const noteError = errors.fields.note ?? (answerTried && noteMissing ? "Enter a reason." : undefined);
+  const instructionError = errors.fields.instruction
+    ?? (answerTried && instructionMissing ? "Choose how the client told you." : undefined);
   // What the legs would do to the lines they name, worked out by the server against the figures as they
   // stand now — not here, where it would be a second reading of a band the platform already states.
   const weighed = proposal?.weighed ?? [];
@@ -250,6 +258,7 @@ export function ProposalPage() {
     setNote("");
     setInstruction("");
     setErrors(noErrors);
+    setAnswerTried(false);
     setAnswering(which);
   }
 
@@ -746,8 +755,9 @@ export function ProposalPage() {
           )}
           {errors.form && <Alert tone="danger">{errors.form}</Alert>}
           {toClient && (
-            <Field id="answer-instruction" label="How did the client tell you?" required error={errors.fields.instruction}>
+            <Field id="answer-instruction" label="How did the client tell you?" required error={instructionError}>
               <SelectInput
+                {...describedBy("answer-instruction", instructionError)}
                 id="answer-instruction"
                 value={instruction}
                 onChange={(event) => setInstruction(event.target.value)}
@@ -763,10 +773,10 @@ export function ProposalPage() {
             id="answer-note"
             label={answering === "approve" ? "Anything to say about it" : "Why?"}
             required={answering === "reject"}
-            error={errors.fields.note}
+            error={noteError}
           >
             <TextArea
-              {...describedBy("answer-note", errors.fields.note)}
+              {...describedBy("answer-note", noteError)}
               id="answer-note"
               rows={3}
               value={note}
@@ -778,9 +788,14 @@ export function ProposalPage() {
               Cancel
             </Button>
             <Button
-              // A refusal owes a reason, so the button waits for one. An agreement does not.
-              disabled={deciding || (answering === "reject" && note.trim() === "") || (toClient && instruction === "")}
-              onClick={() =>
+              // A refusal owes a reason; an agreement does not. Pressed without one, the box it needs goes red.
+              disabled={deciding}
+              onClick={() => {
+                if (noteMissing || instructionMissing) {
+                  setAnswerTried(true);
+                  document.getElementById(instructionMissing ? "answer-instruction" : "answer-note")?.focus();
+                  return;
+                }
                 answer.mutate({
                   id: proposalId!,
                   data: {
@@ -788,8 +803,8 @@ export function ProposalPage() {
                     note: note.trim() || null,
                     instruction: toClient ? (instruction as ClientInstruction) : null,
                   },
-                })
-              }
+                });
+              }}
             >
               {answer.isPending
                 ? answering === "approve" ? "Approving…" : "Rejecting…"

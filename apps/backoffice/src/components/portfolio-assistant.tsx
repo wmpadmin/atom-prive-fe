@@ -141,6 +141,8 @@ export function FirmAssistantChat({ customerId, portfolioDesk, asked = null, onA
     setSaid((now) => [...earlier, ...now]);
   }, [kept.data, kept.isFetching]);
   const [draft, setDraft] = useState("");
+  // Send with an empty box says so under the box instead of being greyed out; typing clears it.
+  const [tried, setTried] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
   const ask = useAskAssistant<ApiError>({
     mutation: {
@@ -172,9 +174,18 @@ export function FirmAssistantChat({ customerId, portfolioDesk, asked = null, onA
     setDraft("");
     ask.mutate({ data: { conversationId, customerId, question: text, model } });
   };
+  const sendDraft = () => {
+    if (!draft.trim()) {
+      setTried(true);
+      document.getElementById("assistant-question")?.focus();
+      return;
+    }
+    setTried(false);
+    send(draft);
+  };
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    send(draft);
+    sendDraft();
   };
   // After the chat so far is read back, so the question lands below the earlier ones rather than above them.
   const askedOnce = useRef(false);
@@ -266,11 +277,13 @@ export function FirmAssistantChat({ customerId, portfolioDesk, asked = null, onA
               rows={2}
               value={draft}
               disabled={off}
+              aria-invalid={tried && !draft.trim() ? true : undefined}
+              aria-describedby={tried && !draft.trim() ? "assistant-question-error" : undefined}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
-                  send(draft);
+                  sendDraft();
                 }
               }}
               placeholder={customerId ? "Ask about this client — their KYC, onboarding or portfolio…"
@@ -280,7 +293,7 @@ export function FirmAssistantChat({ customerId, portfolioDesk, asked = null, onA
             />
             <button
               type="submit"
-              disabled={!draft.trim() || ask.isPending || off}
+              disabled={ask.isPending || off}
               className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-600 text-white hover:bg-violet-700
                 disabled:opacity-40"
             >
@@ -289,6 +302,9 @@ export function FirmAssistantChat({ customerId, portfolioDesk, asked = null, onA
             </button>
           </div>
         </form>
+        {tried && !draft.trim() && (
+          <p id="assistant-question-error" className="text-xs text-red-600">Type a question first.</p>
+        )}
         <Privacy />
       </div>
     </div>

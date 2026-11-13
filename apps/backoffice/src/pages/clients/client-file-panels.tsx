@@ -757,6 +757,9 @@ function ClientInviteAsks({ clientId, mayAct }: { clientId: string; mayAct: bool
   const queryClient = useQueryClient();
   const [declining, setDeclining] = useState<InviteAsk | null>(null);
   const [reason, setReason] = useState("");
+  // Decline pressed with no reason: the box shows in red until one is typed.
+  const [tried, setTried] = useState(false);
+  const noReason = tried && !reason.trim();
   const done = { mutation: { onSuccess: () => void queryClient.invalidateQueries() } };
   const send = useSendFamilyInviteAsk<ApiError>(done);
   const decline = useDeclineFamilyInviteAsk<ApiError>({
@@ -765,6 +768,7 @@ function ClientInviteAsks({ clientId, mayAct }: { clientId: string; mayAct: bool
         void queryClient.invalidateQueries();
         setDeclining(null);
         setReason("");
+        setTried(false);
       },
     },
   });
@@ -830,22 +834,30 @@ function ClientInviteAsks({ clientId, mayAct }: { clientId: string; mayAct: bool
         onClose={() => {
           setDeclining(null);
           setReason("");
+          setTried(false);
           decline.reset();
         }}
       >
         <div className="space-y-4">
           {decline.error && <Alert tone="danger">{decline.error.message}</Alert>}
-          <Field id="decline-ask-reason" label="Why" required>
-            <TextArea id="decline-ask-reason" rows={3} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
+          <Field id="decline-ask-reason" label="Why" required error={noReason ? "Enter a reason." : undefined}>
+            <TextArea id="decline-ask-reason" aria-invalid={noReason || undefined} rows={3} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
           </Field>
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" disabled={decline.isPending} onClick={() => setDeclining(null)}>
+            <Button variant="secondary" disabled={decline.isPending} onClick={() => { setDeclining(null); setTried(false); }}>
               Cancel
             </Button>
             <Button
               variant="danger"
-              disabled={decline.isPending || !reason.trim() || !declining}
-              onClick={() => declining && decline.mutate({ id: clientId, askId: declining.id, data: { reason: reason.trim() } })}
+              disabled={decline.isPending || !declining}
+              onClick={() => {
+                if (!reason.trim()) {
+                  setTried(true);
+                  document.getElementById("decline-ask-reason")?.focus();
+                  return;
+                }
+                if (declining) decline.mutate({ id: clientId, askId: declining.id, data: { reason: reason.trim() } });
+              }}
             >
               {decline.isPending ? "Declining…" : "Decline"}
             </Button>
@@ -1015,6 +1027,8 @@ function InviteFamilyMember({
   const [email, setEmail] = useState("");
   const [relationship, setRelationship] = useState("");
   const [message, setMessage] = useState("");
+  // Send pressed with something required still empty: each one shows in red until it is filled.
+  const [tried, setTried] = useState(false);
   // What was sent, once it has been. The window does not close on success: the password is minted by the
   // send and is the one thing on this screen that cannot be looked up again, so closing on success would
   // mean handing it over and taking it away in the same instant.
@@ -1022,6 +1036,8 @@ function InviteFamilyMember({
   const { inUse } = useRelationshipTypes();
   const queryClient = useQueryClient();
   const address = email.trim();
+  const noAddress = tried && address.length === 0;
+  const noRelationship = tried && relationship.length === 0;
   // Who they are joining under, and therefore who the relationship is measured from. The client whose
   // file this is, unless a desk pressed Invite under somebody on the chart.
   const parent = family.find((one) => one.id === under) ?? family.find((one) => one.id === clientId);
@@ -1042,6 +1058,7 @@ function InviteFamilyMember({
     setEmail("");
     setRelationship("");
     setMessage("");
+    setTried(false);
     setSent(null);
     invite.reset();
     onClose();
@@ -1089,18 +1106,25 @@ function InviteFamilyMember({
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="invite-email" label="Email address" required>
+          <Field id="invite-email" label="Email address" required error={noAddress ? "Enter an email address." : undefined}>
             <TextInput
               id="invite-email"
+              aria-invalid={noAddress || undefined}
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="rohan.khan@example.com"
             />
           </Field>
-          <Field id="invite-relationship" label={`Relationship to ${firstWordOf(parentName)}`} required>
+          <Field
+            id="invite-relationship"
+            label={`Relationship to ${firstWordOf(parentName)}`}
+            required
+            error={noRelationship ? "Choose a relationship." : undefined}
+          >
             <SelectInput
               id="invite-relationship"
+              aria-invalid={noRelationship || undefined}
               value={relationship}
               onChange={(event) => setRelationship(event.target.value)}
             >
@@ -1137,8 +1161,14 @@ function InviteFamilyMember({
             Cancel
           </Button>
           <Button
-            disabled={invite.isPending || address.length === 0 || relationship.length === 0}
-            onClick={() =>
+            disabled={invite.isPending}
+            onClick={() => {
+              const missing = address.length === 0 ? "invite-email" : relationship.length === 0 ? "invite-relationship" : null;
+              if (missing) {
+                setTried(true);
+                document.getElementById(missing)?.focus();
+                return;
+              }
               invite.mutate({
                 id: clientId,
                 data: {
@@ -1147,8 +1177,8 @@ function InviteFamilyMember({
                   personalMessage: message.trim() || null,
                   inviteUnder: under,
                 },
-              })
-            }
+              });
+            }}
           >
             {invite.isPending ? "Sending…" : "Send invite"}
           </Button>
