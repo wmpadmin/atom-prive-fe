@@ -39,6 +39,7 @@ import {
   type CardMeta,
 } from "./dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { KindChart, useCardChart } from "../layout/chart-kinds";
 
 /**
  * Operations' dashboard: clients being taken on, the prospect pipeline, the bank feeds, the requests Operations
@@ -56,11 +57,11 @@ const PERIODS = [
 type CardId = "onboarding" | "pipeline" | "feeds" | "requests" | "to-do" | "applications" | "links" | "assistant";
 
 const CARD: Record<CardId, CardMeta> = {
-  onboarding: { title: "Onboarding overview", area: "main" },
-  pipeline: { title: "Prospects & pipeline", area: "main" },
-  feeds: { title: "Bank feed health", area: "main" },
-  requests: { title: "Open requests", area: "main" },
-  "to-do": { title: "To do", area: "main" },
+  onboarding: { title: "Onboarding overview", area: "main", charts: ["donut", "funnel", "horizontal-bar", "table"] },
+  pipeline: { title: "Prospects & pipeline", area: "main", charts: ["funnel", "bar", "horizontal-bar", "table"] },
+  feeds: { title: "Bank feed health", area: "main", charts: ["donut", "horizontal-bar", "table"] },
+  requests: { title: "Open requests", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  "to-do": { title: "To do", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   applications: { title: "Applications in progress", area: "main" },
   assistant: { title: "AI Assistant", area: "side" },
   links: { title: "Key links", area: "side" },
@@ -254,6 +255,13 @@ export function OperationsDashboard() {
 
 /** The pipeline as one arrow of stages, the converted stage lit as the one that counts. */
 function Funnel({ stages }: { stages: { label: string; value: number; done?: boolean }[] }) {
+  const chart = useCardChart();
+  if (chart && !chart.own) {
+    return (
+      <KindChart kind={chart.kind!} height={220} label="Clients at each stage of the pipeline" format={(value) => String(Math.round(value))}
+        data={{ shape: "shares", items: stages.map((one) => ({ name: one.label, value: one.value })) }} />
+    );
+  }
   return (
     <ol className="flex">
       {stages.map((one, index) => (

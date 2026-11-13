@@ -45,6 +45,7 @@ import {
   type CardMeta,
 } from "../dashboard/dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { KindChart, useCardChart } from "../layout/chart-kinds";
 
 /**
  * Compliance's dashboard: the firm's KYC and AML across the whole book, what is waiting on Compliance, what is
@@ -62,11 +63,11 @@ const PERIODS = [
 type CardId = "kyc" | "aml" | "queue" | "expiring" | "trail" | "sign-off" | "expired" | "mine" | "assistant";
 
 const CARD: Record<CardId, CardMeta> = {
-  kyc: { title: "KYC overview", area: "main" },
-  aml: { title: "AML risk overview", area: "main" },
-  queue: { title: "Review queue", area: "main" },
-  expiring: { title: "Expiring documents", area: "main" },
-  trail: { title: "Declarations & audit", area: "main" },
+  kyc: { title: "KYC overview", area: "main", charts: ["donut", "horizontal-bar", "table"] },
+  aml: { title: "AML risk overview", area: "main", charts: ["donut", "horizontal-bar", "table"] },
+  queue: { title: "Review queue", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  expiring: { title: "Expiring documents", area: "main", charts: ["bar", "horizontal-bar", "donut", "table"] },
+  trail: { title: "Declarations & audit", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   "sign-off": { title: "Awaiting your sign-off", area: "main" },
   expired: { title: "KYC expired", area: "main" },
   mine: { title: "Your own declarations", area: "main" },
@@ -230,6 +231,7 @@ export function ComplianceDashboard() {
 
 /** Approved papers by how soon they run out, in three columns of thirty days. */
 function ExpiringChart({ within30, within60, within90 }: { within30: number; within60: number; within90: number }) {
+  const chart = useCardChart();
   const option = useMemo(() => {
     const c = ink();
     return {
@@ -246,6 +248,14 @@ function ExpiringChart({ within30, within60, within90 }: { within30: number; wit
       }],
     };
   }, [within30, within60, within90]);
+  if (chart && !chart.own) {
+    return (
+      <KindChart kind={chart.kind!} height={200} label="Papers expiring in each of the next three months" format={(value) => String(Math.round(value))}
+        data={chart.kind === "donut"
+          ? { shape: "shares", items: [{ name: "0–30 days", value: within30 }, { name: "31–60 days", value: within60 }, { name: "61–90 days", value: within90 }] }
+          : { shape: "series", categories: ["0–30 days", "31–60 days", "61–90 days"], series: [{ name: "Papers expiring", values: [within30, within60, within90] }] }} />
+    );
+  }
   return <Chart option={option} height={170} label={`Papers expiring: ${within30} within 30 days, ${within60} in 31 to 60, ${within90} in 61 to 90`} />;
 }
 
