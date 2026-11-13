@@ -19,6 +19,7 @@ import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
 import { useCardLabel } from "../layout/card-settings";
+import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { INK } from "./asset-classes";
 
 /**
@@ -79,10 +80,10 @@ const CARDS: Record<DirectoryCardId, LayoutMeta> = {
   kpis: { title: "Key figures", group: "Summary", wide: true },
   attention: { title: "Needs attention", group: "Summary", wide: true },
   directory: { title: "Client Directory", group: "Clients", wide: true },
-  segments: { title: "By Segment", group: "Breakdowns" },
-  managers: { title: "By Relationship Manager", group: "Breakdowns" },
-  regions: { title: "By Region of Residence", group: "Breakdowns" },
-  mandates: { title: "By Mandate", group: "Breakdowns" },
+  segments: { title: "By Segment", group: "Breakdowns", charts: ["donut", "horizontal-bar", "treemap", "table"] },
+  managers: { title: "By Relationship Manager", group: "Breakdowns", charts: ["table", "horizontal-bar", "donut", "treemap"] },
+  regions: { title: "By Region of Residence", group: "Breakdowns", charts: ["horizontal-bar", "donut", "treemap", "table"] },
+  mandates: { title: "By Mandate", group: "Breakdowns", charts: ["table", "donut", "horizontal-bar", "treemap"] },
 };
 
 // The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
@@ -107,10 +108,10 @@ function Board({ data, view }: { data: ClientDirectory; view: ViewLayoutState<Di
           </div>
         ),
         directory: <DirectoryCard data={data} />,
-        segments: <SegmentCard data={data} />,
-        managers: <ManagerCard data={data} />,
-        regions: <RegionCard data={data} />,
-        mandates: <MandateCard data={data} />,
+        segments: <SegmentCard data={data} chart={cardChart(view, "segments")} />,
+        managers: <ManagerCard data={data} chart={cardChart(view, "managers")} />,
+        regions: <RegionCard data={data} chart={cardChart(view, "regions")} />,
+        mandates: <MandateCard data={data} chart={cardChart(view, "mandates")} />,
       }} />
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
@@ -428,7 +429,7 @@ function StatusPill({ one }: { one: DirectoryClient }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 /* Breakdowns                                                                                                    */
 
-function SegmentCard({ data }: { data: ClientDirectory }) {
+function SegmentCard({ data, chart }: { data: ClientDirectory; chart: CardChart }) {
   const slices = data.bySegment;
   const option = useMemo(() => {
     const colours = ink();
@@ -446,8 +447,10 @@ function SegmentCard({ data }: { data: ClientDirectory }) {
   }, [slices, data.currency]);
   const total = slices.reduce((sum, one) => sum + one.aum, 0);
   return (
-    <Card title="By Segment">
-      {slices.length === 0 ? <Empty>No client families yet.</Empty> : (
+    <Card title="By Segment" picker={slices.length > 0 && chart.picker}>
+      {slices.length === 0 ? <Empty>No client families yet.</Empty> : !chart.own ? (
+        <AumChart rows={slices} currency={data.currency} chart={chart} label="AUM by segment" />
+      ) : (
         <>
           <div className="relative mx-auto w-full max-w-48">
             <Chart option={option} height={180} label="AUM by segment" />
@@ -480,11 +483,13 @@ function SegmentCard({ data }: { data: ClientDirectory }) {
   );
 }
 
-function RegionCard({ data }: { data: ClientDirectory }) {
+function RegionCard({ data, chart }: { data: ClientDirectory; chart: CardChart }) {
   const largest = Math.max(1, ...data.byRegion.map((one) => one.aum));
   return (
-    <Card title="By Region of Residence">
-      {data.byRegion.length === 0 ? <Empty>No client families yet.</Empty> : (
+    <Card title="By Region of Residence" picker={data.byRegion.length > 0 && chart.picker}>
+      {data.byRegion.length === 0 ? <Empty>No client families yet.</Empty> : !chart.own ? (
+        <AumChart rows={data.byRegion} currency={data.currency} chart={chart} label="AUM by region of residence" />
+      ) : (
         <ul className="space-y-2.5">
           {data.byRegion.map((one) => (
             <li key={one.key} className="grid grid-cols-[7rem_1fr_5rem] items-center gap-3 text-sm">
@@ -503,10 +508,12 @@ function RegionCard({ data }: { data: ClientDirectory }) {
   );
 }
 
-function MandateCard({ data }: { data: ClientDirectory }) {
+function MandateCard({ data, chart }: { data: ClientDirectory; chart: CardChart }) {
   return (
-    <Card title="By Mandate">
-      {data.byMandate.length === 0 ? <Empty>No client families yet.</Empty> : (
+    <Card title="By Mandate" picker={data.byMandate.length > 0 && chart.picker}>
+      {data.byMandate.length === 0 ? <Empty>No client families yet.</Empty> : !chart.own ? (
+        <AumChart rows={data.byMandate} currency={data.currency} chart={chart} label="AUM by mandate" />
+      ) : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -537,10 +544,12 @@ function MandateCard({ data }: { data: ClientDirectory }) {
   );
 }
 
-function ManagerCard({ data }: { data: ClientDirectory }) {
+function ManagerCard({ data, chart }: { data: ClientDirectory; chart: CardChart }) {
   return (
-    <Card title="By Relationship Manager">
-      {data.byRelationshipManager.length === 0 ? <Empty>No client families yet.</Empty> : (
+    <Card title="By Relationship Manager" picker={data.byRelationshipManager.length > 0 && chart.picker}>
+      {data.byRelationshipManager.length === 0 ? <Empty>No client families yet.</Empty> : !chart.own ? (
+        <AumChart rows={data.byRelationshipManager} currency={data.currency} chart={chart} label="AUM by relationship manager" />
+      ) : (
         <ul className="divide-y divide-line">
           {data.byRelationshipManager.map((one) => (
             <li key={one.key} className="flex items-center gap-3 py-2.5">
@@ -568,14 +577,26 @@ function ManagerCard({ data }: { data: ClientDirectory }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 /* Small pieces                                                                                                  */
 
-function Card({ title, lead, children }: { title: string; lead?: string; children: ReactNode }) {
+/** A breakdown of the book's AUM drawn as the kind picked for its card. */
+function AumChart({ rows, currency, chart, label }: { rows: { name: string; aum: number }[]; currency: string; chart: CardChart; label: string }) {
+  return (
+    <KindChart kind={chart.kind!} format={(value) => compact(value, currency)} height={240} label={label}
+      data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: one.aum })) }} />
+  );
+}
+
+/** @param picker the chart type switcher, beside the title, for a card that draws a chart */
+function Card({ title, lead, picker, children }: { title: string; lead?: string; picker?: ReactNode; children: ReactNode }) {
   // The reader's own name and line for the card, where they set them through Add card.
   const label = useCardLabel(title, lead);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white p-5">
-      <div className="mb-3">
-        <h2 className="text-lg font-bold">{label.title}</h2>
-        {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold">{label.title}</h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
+        </div>
+        {picker}
       </div>
       {children}
     </section>
