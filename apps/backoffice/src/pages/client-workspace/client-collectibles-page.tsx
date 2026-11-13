@@ -83,12 +83,12 @@ type CollectiblesCard = "kpis" | "categories" | "register" | "value" | "obligati
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<CollectiblesCard, LayoutMeta> = {
   kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
-  categories: { title: "Categories", group: "Summary", wide: true, charts: ["tiles", "donut", "treemap", "horizontal-bar"] },
+  categories: { title: "Categories", group: "Summary", wide: true, charts: ["tiles", "donut", "mindmap", "horizontal-bar"] },
   register: { title: "Asset Register & Item record", group: "Register", wide: true },
   value: { title: "Register Value Over Time", group: "Register", charts: ["stacked-bar", "stacked-area", "grouped-bar", "line", "table"] },
   obligations: { title: "Upcoming Obligations", group: "Care & cover" },
   insurance: { title: "Insurance Coverage", group: "Care & cover", charts: ["table", "grouped-bar", "gauge"] },
-  locations: { title: "Locations & Custody", group: "Care & cover", charts: ["table", "donut", "horizontal-bar", "treemap"] },
+  locations: { title: "Locations & Custody", group: "Care & cover", charts: ["table", "donut", "horizontal-bar", "mindmap"] },
 };
 
 // The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.

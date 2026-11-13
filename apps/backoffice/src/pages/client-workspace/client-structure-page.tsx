@@ -622,7 +622,7 @@ function structureFigures(data: ClientStructure): Figures {
   return {
     "interest.beneficiaries": sharesFigure("Economic interest by beneficiary", "Beneficiaries", data.beneficiaries.map((one) => ({ name: one.name, value: one.value })), amount),
     "interest.entities": sharesFigure("Value held by each entity", "Structure", data.interests.map((row) => ({ name: row.entity, value: row.value })), amount,
-      ["horizontal-bar", "donut", "treemap", "table"]),
+      ["horizontal-bar", "donut", "mindmap", "table"]),
     "interest.matrix": seriesFigure("Each entity's value by beneficiary", "Beneficiaries", data.interests.map((row) => row.entity),
       data.beneficiaries.map((one, at) => ({ name: one.name, values: data.interests.map((row) => (row.cells as (number | null)[])[at] ?? null) })),
       amount, ["stacked-bar", "grouped-bar", "heatmap", "table"]),

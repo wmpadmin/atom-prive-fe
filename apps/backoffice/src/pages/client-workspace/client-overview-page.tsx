@@ -36,14 +36,14 @@ const CARDS: Record<OverviewCard, LayoutMeta> = {
   headline: { title: "Net worth & key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   facts: { title: "Mandate & relationship", group: "Summary", wide: true },
   worth: { title: "Net Worth Evolution", group: "Summary", charts: ["line", "area", "bar", "table"] },
-  allocation: { title: "Asset Allocation", group: "Allocation & performance", charts: ["donut", "horizontal-bar", "treemap", "table"] },
+  allocation: { title: "Asset Allocation", group: "Allocation & performance", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
   bands: { title: "Target vs Actual Allocation", group: "Allocation & performance", charts: ["table", "grouped-bar", "horizontal-bar", "radar"] },
   performance: { title: "Performance", group: "Allocation & performance", charts: ["table", "grouped-bar", "bar"] },
   liquidity: { title: "Liquidity Profile", group: "Liquidity & cash", charts: ["horizontal-bar", "bar", "donut", "table"] },
-  entities: { title: "Holding Entities", group: "Structure", charts: ["horizontal-bar", "donut", "treemap", "table"] },
-  positions: { title: "Top 10 Positions", group: "Holdings", charts: ["table", "horizontal-bar", "treemap"] },
+  entities: { title: "Holding Entities", group: "Structure", charts: ["horizontal-bar", "donut", "mindmap", "table"] },
+  positions: { title: "Top 10 Positions", group: "Holdings", charts: ["table", "horizontal-bar", "mindmap"] },
   flows: { title: "Projected Cash Flows", group: "Liquidity & cash", charts: ["stacked-bar", "grouped-bar", "waterfall", "line", "table"] },
-  "look-through": { title: "Beneficial Look-through", group: "Structure", charts: ["stacked-bar", "donut", "treemap", "table"] },
+  "look-through": { title: "Beneficial Look-through", group: "Structure", charts: ["stacked-bar", "donut", "mindmap", "table"] },
   alerts: { title: "Alerts & Notes", group: "Activity" },
 };
 
@@ -119,9 +119,9 @@ function overviewFigures(data: ClientWorkspace): Figures {
   const periods = (data.performance?.periods ?? []).filter((period) => period.portfolio != null);
   const months = data.cashFlowMonths;
   return {
-    "allocation.class": { label: "Holdings by asset class", group: "Allocation", kinds: ["donut", "horizontal-bar", "treemap", "bar", "table"], format: amount, data: shares(data.byAssetClass) },
-    "allocation.currency": { label: "Holdings by currency", group: "Allocation", kinds: ["donut", "horizontal-bar", "treemap", "bar", "table"], format: amount, data: shares(data.byCurrency) },
-    "allocation.entity": { label: "Holdings by entity", group: "Allocation", kinds: ["donut", "horizontal-bar", "treemap", "bar", "table"], format: amount, data: shares(data.byEntity) },
+    "allocation.class": { label: "Holdings by asset class", group: "Allocation", kinds: ["donut", "horizontal-bar", "mindmap", "bar", "table"], format: amount, data: shares(data.byAssetClass) },
+    "allocation.currency": { label: "Holdings by currency", group: "Allocation", kinds: ["donut", "horizontal-bar", "mindmap", "bar", "table"], format: amount, data: shares(data.byCurrency) },
+    "allocation.entity": { label: "Holdings by entity", group: "Allocation", kinds: ["donut", "horizontal-bar", "mindmap", "bar", "table"], format: amount, data: shares(data.byEntity) },
     "allocation.bands": {
       label: "Actual against target, by asset class", group: "Allocation", kinds: ["grouped-bar", "horizontal-bar", "radar", "table"], format: percent,
       data: data.bands.length ? { shape: "series", categories: data.bands.map((band) => band.name), series: [
@@ -161,11 +161,11 @@ function overviewFigures(data: ClientWorkspace): Figures {
       ] } : null,
     },
     "positions.top": {
-      label: "Ten largest positions", group: "Holdings", kinds: ["horizontal-bar", "treemap", "donut", "table"], format: amount,
+      label: "Ten largest positions", group: "Holdings", kinds: ["horizontal-bar", "mindmap", "donut", "table"], format: amount,
       data: shares(data.topPositions.map((position) => ({ name: position.name, amount: position.value }))),
     },
     "entities.holding": {
-      label: "What each holding entity holds", group: "Structure", kinds: ["horizontal-bar", "donut", "treemap", "table"], format: amount,
+      label: "What each holding entity holds", group: "Structure", kinds: ["horizontal-bar", "donut", "mindmap", "table"], format: amount,
       data: shares(data.holdingEntities.map((entity) => ({ name: entity.name, amount: entity.value }))),
     },
   };
