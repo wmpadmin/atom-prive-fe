@@ -9,8 +9,10 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Button, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, GripVertical, LayoutGrid as LayoutIcon, Plus, RotateCcw, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, GripVertical, LayoutGrid as LayoutIcon, Plus, RotateCcw, Settings2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { AddCardDialog } from "./add-card";
+import { CardSettingsContext, type CardSettings, type Palette } from "./card-settings";
 import type { ChartKind } from "./chart-kinds";
 
 /**
@@ -39,8 +41,37 @@ export type LayoutMeta = {
   charts?: ChartKind[];
 };
 
-/** @param chart the kind picked for the card, or null for its own look */
-type Placed<Id extends string> = { id: Id; width: Width; hidden: boolean; chart: ChartKind | null };
+/**
+ * @param chart the kind picked for the card, or null for its own look
+ * @param title the reader's own name for it, or null for its own
+ * @param note a line of the reader's own under its title, or null for its own
+ * @param palette "traffic" for green, amber and red, or null for the app's colours
+ */
+type Placed<Id extends string> = {
+  id: Id;
+  width: Width;
+  hidden: boolean;
+  chart: ChartKind | null;
+  title: string | null;
+  note: string | null;
+  palette: "traffic" | null;
+};
+
+/** What Add card sets for one card when it is added or saved. */
+export type CardChoice<Id extends string> = {
+  title: string;
+  note: string;
+  chart: ChartKind | null;
+  palette: Palette;
+  width: Width;
+  /** Where a card being added goes: after this card, or at the first free place (the end) when null. */
+  after: Id | null;
+};
+
+function same<Id extends string>(one: Placed<Id>, other: Placed<Id>) {
+  return one.id === other.id && one.width === other.width && one.hidden === other.hidden && one.chart === other.chart
+    && one.title === other.title && one.note === other.note && one.palette === other.palette;
+}
 
 export type ViewLayoutState<Id extends string> = ReturnType<typeof useViewLayout<Id>>;
 
@@ -55,8 +86,8 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
   const widthOf = useCallback((id: Id): Width => (meta[id]?.wide ? "FULL" : "HALF"), [meta]);
   const standard = useMemo<Placed<Id>[]>(
     () => [
-      ...defaults.filter((id) => ids.includes(id)).map((id) => ({ id, width: widthOf(id), hidden: false, chart: null })),
-      ...ids.filter((id) => !defaults.includes(id)).map((id) => ({ id, width: widthOf(id), hidden: true, chart: null })),
+      ...defaults.filter((id) => ids.includes(id)).map((id) => ({ id, width: widthOf(id), hidden: false, chart: null, title: null, note: null, palette: null })),
+      ...ids.filter((id) => !defaults.includes(id)).map((id) => ({ id, width: widthOf(id), hidden: true, chart: null, title: null, note: null, palette: null })),
     ],
     [defaults, ids, widthOf],
   );
@@ -68,6 +99,9 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
         id: one.id as Id, width: meta[one.id as Id]?.area === "side" ? widthOf(one.id as Id) : one.width, hidden: one.hidden,
         // A kind the card no longer offers falls back to its own look.
         chart: meta[one.id as Id]?.charts?.includes(one.chart as ChartKind) ? one.chart as ChartKind : null,
+        title: one.title ?? null,
+        note: one.note ?? null,
+        palette: one.palette === "traffic" ? "traffic" as const : null,
       }));
     // A card the screen gained after the person saved: shown where the default shows it, hidden if the default hides it.
     const added = standard.filter((one) => !known.some((line) => line.id === one.id));
@@ -75,14 +109,13 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
   }, [saved.data, standard, ids, meta, widthOf]);
 
   const [draft, setDraft] = useState<Placed<Id>[] | null>(null);
+  /** Add card, open on its first step, or on one card's settings. */
+  const [adding, setAdding] = useState<{ card: Id | null } | null>(null);
   const placed = draft ?? stored;
   const editing = draft !== null;
 
   const persist = (next: Placed<Id>[]) => {
-    const isStandard = next.length === standard.length && next.every((one, at) => {
-      const other = standard[at]!;
-      return other.id === one.id && other.width === one.width && other.hidden === one.hidden && other.chart === one.chart;
-    });
+    const isStandard = next.length === standard.length && next.every((one, at) => same(one, standard[at]!));
     const done = (layout: ViewLayout) => queryClient.setQueryData(getGetViewLayoutQueryKey(key), layout);
     if (isStandard) {
       reset.mutate({ key }, { onSuccess: () => done({ key, cards: [], savedAt: null }) });
@@ -105,10 +138,7 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
     saving: save.isPending || reset.isPending,
     error: save.error?.message ?? reset.error?.message ?? null,
     /** Whether the layout differs from the firm's default. */
-    changed: placed.some((one, at) => {
-      const other = standard[at];
-      return !other || other.id !== one.id || other.width !== one.width || other.hidden !== one.hidden || other.chart !== one.chart;
-    }),
+    changed: placed.some((one, at) => !standard[at] || !same(one, standard[at])),
     begin: () => setDraft(stored),
     cancel: () => setDraft(null),
     done: () => {
@@ -121,7 +151,8 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
       const next = [
         ...cards.map((id) => {
           const was = placed.find((one) => one.id === id);
-          return { id, width: was?.width ?? widthOf(id), hidden: false, chart: was?.chart ?? null };
+          return { id, width: was?.width ?? widthOf(id), hidden: false, chart: was?.chart ?? null, title: was?.title ?? null,
+            note: was?.note ?? null, palette: was?.palette ?? null };
         }),
         ...placed.filter((one) => !cards.includes(one.id)).map((one) => ({ ...one, hidden: true })),
       ];
@@ -130,6 +161,41 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
     setWidth: (id: Id, width: Width) => apply(placed.map((one) => (one.id === id ? { ...one, width } : one))),
     /** The kind of chart the card is drawn as: the one picked, or its own look. Null for a card with no chart. */
     chart: (id: Id): ChartKind | null => placed.find((one) => one.id === id)?.chart ?? meta[id]?.charts?.[0] ?? null,
+    /** The reader's own name, line and colours for the card, as its card reads them. */
+    settings: (id: Id): CardSettings => {
+      const one = placed.find((card) => card.id === id);
+      return { title: one?.title ?? null, note: one?.note ?? null, palette: one?.palette ?? "theme" };
+    },
+    /** Add card: open on choosing a card, or on one card's settings. */
+    adding,
+    openAdd: (card?: Id) => setAdding({ card: card ?? null }),
+    closeAdd: () => setAdding(null),
+    /**
+     * Sets a card as Add card left it, showing it if it was hidden. Anything left as the card has it — its own name,
+     * line, look and the app's colours — is kept as no choice at all, so the card follows the firm's if that changes.
+     */
+    configure: (id: Id, choice: CardChoice<Id>) => {
+      const was = placed.find((one) => one.id === id);
+      if (!was) return;
+      const title = choice.title.trim();
+      const note = choice.note.trim();
+      const card: Placed<Id> = {
+        id,
+        width: meta[id]?.area === "side" ? widthOf(id) : choice.width,
+        hidden: false,
+        chart: choice.chart == null || choice.chart === meta[id]?.charts?.[0] ? null : choice.chart,
+        title: title && title !== meta[id]?.title ? title : null,
+        note: note || null,
+        palette: choice.palette === "traffic" ? "traffic" : null,
+      };
+      const rest = placed.filter((one) => one.id !== id);
+      let at: number;
+      if (!was.hidden && choice.after == null) at = placed.indexOf(was);
+      else if (choice.after != null && rest.some((one) => one.id === choice.after)) at = rest.findIndex((one) => one.id === choice.after) + 1;
+      else at = rest.filter((one) => !one.hidden).length;
+      rest.splice(at, 0, card);
+      apply(rest);
+    },
     /** Draws the card as another kind; its own look is kept as no choice at all. */
     setChart: (id: Id, kind: ChartKind) => {
       const chart = kind === meta[id]?.charts?.[0] ? null : kind;
@@ -176,9 +242,13 @@ export function CustomizeBar<Id extends string>({ view, screen }: { view: ViewLa
     <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 shadow-sm">
       <div className="min-w-0">
         <p className="text-sm font-bold">Customizing your view · {screen}</p>
-        <p className="text-xs text-ink-soft">Drag cards to move them, pick ½ or Full width, ✕ to hide. Saved to your account, so it follows you to any device.</p>
+        <p className="text-xs text-ink-soft">Drag cards to move them, ⚙ to change one, ✕ to hide, Add card to bring one in. Saved to your account, so it follows you to any device.</p>
       </div>
       <div className="flex gap-2">
+        <Button variant="secondary" size="sm" onClick={() => view.openAdd()}>
+          <Plus aria-hidden="true" />
+          Add card
+        </Button>
         <Button variant="secondary" size="sm" onClick={view.reset} disabled={!view.changed}>
           <RotateCcw aria-hidden="true" />
           Reset to default
@@ -187,55 +257,6 @@ export function CustomizeBar<Id extends string>({ view, screen }: { view: ViewLa
         <Button size="sm" onClick={view.done}>Done</Button>
       </div>
     </div>
-  );
-}
-
-/** Every card the reader can have on this screen, grouped, with the hidden ones ready to add back. */
-export function CardLibrary<Id extends string>({ view }: { view: ViewLayoutState<Id> }) {
-  const [query, setQuery] = useState("");
-  if (!view.editing) return null;
-  const ids = Object.keys(view.meta) as Id[];
-  const listed = ids.filter((id) => view.meta[id].title.toLowerCase().includes(query.trim().toLowerCase()));
-  const groups = [...new Set(listed.map((id) => view.meta[id].group ?? "Cards"))];
-  return (
-    <aside aria-label="Add cards"
-      className="fixed inset-y-0 right-0 z-40 flex w-80 max-w-[90vw] flex-col border-l border-line bg-white shadow-2xl">
-      <div className="border-b border-line px-4 pt-4 pb-3">
-        <p className="text-base font-bold">Add cards</p>
-        <p className="text-xs text-ink-muted">Every card you can have here. Hidden ones wait in this list.</p>
-        <div className="relative mt-2">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
-          <input aria-label="Search cards" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search cards…"
-            className="w-full rounded-xl border border-line bg-white py-1.5 pr-3 pl-8 text-sm focus:border-primary-400 focus:outline-none" />
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto px-4 py-3">
-        {groups.map((group) => (
-          <section key={group} className="mb-3">
-            <h3 className="mb-1.5 text-3xs font-bold tracking-wider text-ink-muted uppercase">{group}</h3>
-            <ul className="space-y-1.5">
-              {listed.filter((id) => (view.meta[id].group ?? "Cards") === group).map((id) => {
-                const on = view.cards.includes(id);
-                return (
-                  <li key={id} className="flex items-center gap-2 rounded-lg border border-line px-2.5 py-2">
-                    <span className="min-w-0 flex-1 text-sm font-semibold">{view.meta[id].title}</span>
-                    {on ? (
-                      <span className="text-2xs font-semibold text-emerald-700">On screen</span>
-                    ) : (
-                      <button type="button" onClick={() => view.show(id)}
-                        className="inline-flex items-center gap-1 rounded-md border border-primary-200 bg-primary-50 px-2 py-1 text-2xs font-bold text-primary-700 hover:bg-primary-100">
-                        <Plus className="size-3" aria-hidden="true" /> Add
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
-        {listed.length === 0 && <p className="py-3 text-sm text-ink-muted">No card is called that.</p>}
-      </div>
-    </aside>
   );
 }
 
@@ -258,9 +279,13 @@ export function EditFrame<Id extends string>({ id, view, className, children }: 
   useEffect(() => {
     if (!view.editing) setOver(null);
   }, [view.editing]);
-  if (!view.editing) return <div className={className}>{children}</div>;
+  const settings = view.settings(id);
+  if (!view.editing) {
+    return <div className={className}><CardSettingsContext.Provider value={settings}>{children}</CardSettingsContext.Provider></div>;
+  }
 
   const meta = view.meta[id];
+  const name = settings.title ?? meta.title;
   const area = meta.area ?? "main";
   const mates = view.cards.filter((one) => (view.meta[one].area ?? "main") === area);
   const at = mates.indexOf(id);
@@ -304,7 +329,11 @@ export function EditFrame<Id extends string>({ id, view, className, children }: 
           className="cursor-grab rounded p-0.5 text-ink-muted hover:text-ink active:cursor-grabbing">
           <GripVertical className="size-4" aria-hidden="true" />
         </button>
-        <span className="min-w-0 flex-1 truncate text-xs font-bold">{meta.title}</span>
+        <span className="min-w-0 flex-1 truncate text-xs font-bold">{name}</span>
+        <button type="button" aria-label={`Settings of ${name}`} title="Card settings" onClick={() => view.openAdd(id)}
+          className="rounded p-0.5 text-ink-muted hover:text-ink">
+          <Settings2 className="size-3.5" aria-hidden="true" />
+        </button>
         <button type="button" aria-label={`Move ${meta.title} earlier`} disabled={at <= 0}
           onClick={() => view.move(id, mates[at - 1]!, false)} className="rounded p-0.5 text-ink-muted hover:text-ink disabled:opacity-30">
           <ArrowLeft className="size-3.5" aria-hidden="true" />
@@ -328,14 +357,16 @@ export function EditFrame<Id extends string>({ id, view, className, children }: 
           <X className="size-4" aria-hidden="true" />
         </button>
       </div>
-      <div className="pointer-events-none flex min-w-0 flex-1 flex-col select-none [&>*]:flex-1">{children}</div>
+      <div className="pointer-events-none flex min-w-0 flex-1 flex-col select-none [&>*]:flex-1">
+        <CardSettingsContext.Provider value={settings}>{children}</CardSettingsContext.Provider>
+      </div>
     </div>
   );
 }
 
 /**
  * A screen's cards in the reader's order: two to a row, a full-width card taking the row, and a half card with no
- * half beside it stretched across so no row is left half empty. Customizing draws the bar, Add cards and each card's
+ * half beside it stretched across so no row is left half empty. Customizing draws the bar, Add card and each card's
  * frame; outside it the cards are drawn as they are.
  */
 export function LayoutGrid<Id extends string>({ view, render, screen }: {
@@ -361,9 +392,9 @@ export function LayoutGrid<Id extends string>({ view, render, screen }: {
     column = (column + 1) % 2;
   });
   return (
-    <div className={cn("space-y-4", view.editing && "lg:pr-80")}>
+    <div className="space-y-4">
       <CustomizeBar view={view} screen={screen} />
-      <CardLibrary view={view} />
+      {view.adding && <AddCardDialog view={view} render={render} screen={screen} start={view.adding.card} onClose={view.closeAdd} />}
       {shown.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
           Every card is hidden. Use Customize view to add the cards you want.

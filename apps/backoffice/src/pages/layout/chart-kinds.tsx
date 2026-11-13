@@ -20,9 +20,10 @@ import {
   Waypoints,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
+import { CardSettingsContext, type Palette } from "./card-settings";
 import type { ViewLayoutState } from "./custom-view";
 
 /**
@@ -55,7 +56,7 @@ export const KIND_LABEL: Record<ChartKind, string> = {
   bubble: "Bubble",
 };
 
-const KIND_ICON: Record<ChartKind, LucideIcon> = {
+export const KIND_ICON: Record<ChartKind, LucideIcon> = {
   line: ChartLine,
   area: ChartArea,
   "stacked-area": ChartArea,
@@ -89,12 +90,26 @@ export type ChartData =
 /** The kind a card is drawn as and the button that switches it, for a card that draws a chart. */
 export function cardChart<Id extends string>(view: ViewLayoutState<Id>, id: Id) {
   const kinds = view.meta[id]?.charts ?? [];
-  const kind = view.chart(id);
+  const saved = view.chart(id);
+  // Read as the card draws, so Add card's preview can try a type before it is saved. React's dev tools also read the
+  // card's props after drawing, when a context cannot be read; they get the saved type.
+  const kind = (): ChartKind | null => {
+    try {
+      return use(CardSettingsContext)?.chart ?? saved;
+    } catch {
+      return saved;
+    }
+  };
   return {
-    kind,
+    get kind() {
+      return kind();
+    },
     /** Whether the card is in its own look, drawn by the card itself. */
-    own: kind == null || kind === kinds[0],
-    picker: kinds.length > 1 && kind ? <ChartPicker kinds={kinds} value={kind} onChange={(next) => view.setChart(id, next)} /> : null,
+    get own() {
+      const now = kind();
+      return now == null || now === kinds[0];
+    },
+    picker: kinds.length > 1 && saved ? <ChartPicker kinds={kinds} value={saved} onChange={(next) => view.setChart(id, next)} /> : null,
   };
 }
 
@@ -171,8 +186,9 @@ export function KindChart({ data, kind, format, height = 240, label, onPick }: {
   /** The item, category or point clicked, by its place in the figures. */
   onPick?: (index: number) => void;
 }) {
-  const option = useMemo(() => (kind === "table" ? null : optionFor(data, kind, format)), [data, kind, format]);
-  if (kind === "table" || !option) return <FiguresTable data={data} format={format} onPick={onPick} />;
+  const palette = use(CardSettingsContext)?.palette ?? "theme";
+  const option = useMemo(() => (kind === "table" ? null : optionFor(data, kind, format, palette)), [data, kind, format, palette]);
+  if (kind === "table" || !option) return <FiguresTable data={data} format={format} palette={palette} onPick={onPick} />;
   const names = data.shape === "shares" || data.shape === "points" ? data.items.map((one) => one.name)
     : data.shape === "series" ? data.categories : [];
   return (
@@ -184,7 +200,11 @@ export function KindChart({ data, kind, format, height = 240, label, onPick }: {
   );
 }
 
-function colourOf(at: number, own?: string) {
+/** Green, amber and red, for a reader who picked them over the app's own colours. */
+const TRAFFIC = ["#16a34a", "#f59e0b", "#dc2626"];
+
+function colourOf(at: number, own?: string, palette: Palette = "theme") {
+  if (palette === "traffic") return TRAFFIC[at % TRAFFIC.length]!;
   return own ?? INK[at % INK.length]!;
 }
 
@@ -205,13 +225,15 @@ function base(format: (value: number) => string) {
   };
 }
 
-function optionFor(data: ChartData, kind: ChartKind, format: (value: number) => string): Record<string, unknown> | null {
-  const { c, common, axis } = base(format);
+function optionFor(data: ChartData, kind: ChartKind, format: (value: number) => string, palette: Palette): Record<string, unknown> | null {
+  const { c: theme, common, axis } = base(format);
+  // Green, amber and red draw gains green and losses red wherever a chart tells the two apart.
+  const c = palette === "traffic" ? { ...theme, primary: TRAFFIC[0]!, danger: TRAFFIC[2]! } : theme;
   const valueAxis = { type: "value", ...axis, axisLabel: { color: c.muted, formatter: (value: number) => format(value) } };
   const legend = { top: 0, textStyle: { color: c.muted, fontSize: 11 } };
 
   if (data.shape === "shares") {
-    const items = data.items.map((one, at) => ({ name: one.name, value: one.value, itemStyle: { color: colourOf(at, one.colour) } }));
+    const items = data.items.map((one, at) => ({ name: one.name, value: one.value, itemStyle: { color: colourOf(at, one.colour, palette) } }));
     switch (kind) {
       case "donut":
         return { ...common, tooltip: { ...common.tooltip, trigger: "item" }, legend: { ...legend, type: "scroll", bottom: 0, top: "auto" },
@@ -240,7 +262,7 @@ function optionFor(data: ChartData, kind: ChartKind, format: (value: number) => 
 
   if (data.shape === "series") {
     const many = data.series.length > 1;
-    const coloured = data.series.map((one, at) => ({ ...one, colour: colourOf(at, one.colour) }));
+    const coloured = data.series.map((one, at) => ({ ...one, colour: colourOf(at, one.colour, palette) }));
     const grid = { left: 8, right: 12, top: many ? 28 : 12, bottom: 8, containLabel: true };
     const category = { type: "category", data: data.categories, ...axis, splitLine: { show: false } };
     const lines = (area: boolean, stack: boolean) => coloured.map((one) => ({
@@ -358,7 +380,12 @@ function optionFor(data: ChartData, kind: ChartKind, format: (value: number) => 
 }
 
 /** The same figures as rows: what a person reads exact numbers from, or copies. */
-function FiguresTable({ data, format, onPick }: { data: ChartData; format: (value: number) => string; onPick?: (index: number) => void }) {
+function FiguresTable({ data, format, palette, onPick }: {
+  data: ChartData;
+  format: (value: number) => string;
+  palette: Palette;
+  onPick?: (index: number) => void;
+}) {
   const row = (at: number, cells: ReactNode) => (
     <tr key={at} className={cn(onPick && "cursor-pointer hover:bg-canvas")} onClick={onPick ? () => onPick(at) : undefined}>{cells}</tr>
   );
@@ -377,7 +404,7 @@ function FiguresTable({ data, format, onPick }: { data: ChartData; format: (valu
     body = data.items.map((one, at) => row(at, (
       <>
         <td className="py-1.5 pr-2">
-          <span className="flex items-center gap-2"><span className="size-2.5 rounded-xs" style={{ background: colourOf(at, one.colour) }} aria-hidden="true" />{one.name}</span>
+          <span className="flex items-center gap-2"><span className="size-2.5 rounded-xs" style={{ background: colourOf(at, one.colour, palette) }} aria-hidden="true" />{one.name}</span>
         </td>
         <td className="px-2 py-1.5 text-right font-semibold">{format(one.value)}</td>
         <td className="px-2 py-1.5 text-right text-ink-muted">{total ? `${((one.value / total) * 100).toFixed(1)}%` : "—"}</td>

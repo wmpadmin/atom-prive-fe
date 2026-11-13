@@ -18,6 +18,7 @@ import { downloadTextFile } from "../../lib/download";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { useCardLabel } from "../layout/card-settings";
 import { INK } from "./asset-classes";
 
 /**
@@ -568,11 +569,13 @@ function ManagerCard({ data }: { data: ClientDirectory }) {
 /* Small pieces                                                                                                  */
 
 function Card({ title, lead, children }: { title: string; lead?: string; children: ReactNode }) {
+  // The reader's own name and line for the card, where they set them through Add card.
+  const label = useCardLabel(title, lead);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white p-5">
       <div className="mb-3">
-        <h2 className="text-lg font-bold">{title}</h2>
-        {lead && <p className="mt-0.5 text-xs text-ink-muted">{lead}</p>}
+        <h2 className="text-lg font-bold">{label.title}</h2>
+        {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
       </div>
       {children}
     </section>

@@ -42,6 +42,23 @@ export interface LayoutCard {
      * @pattern [a-z][a-z-]{0,19}
      */
   chart: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 80
+     * @nullable
+     */
+  title: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  note: string | null;
+  /**
+     * @nullable
+     * @pattern [a-z][a-z-]{0,11}
+     */
+  palette: string | null;
 }
 
 export interface LayoutRequest {
