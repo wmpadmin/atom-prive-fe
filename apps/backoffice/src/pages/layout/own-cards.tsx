@@ -3,6 +3,7 @@ import { useListOwnCards, type Breaks, type OwnCard } from "@atomprive/api-clien
 import { cn } from "@atomprive/ui";
 import { useMemo } from "react";
 import { CardSettingsContext } from "./card-settings";
+import { CardMenu } from "./custom-view";
 import { KindChart, type ChartData, type ChartKind } from "./chart-kinds";
 
 /**
@@ -98,7 +99,10 @@ export function OwnCardView({ card, figure, className }: { card: OwnCardDraft; f
           <h2 className="text-lg font-bold">{card.title || "New card"}</h2>
           {card.note && <p className="mt-0.5 text-xs text-ink-muted">{card.note}</p>}
         </div>
-        <span className="shrink-0 rounded-md bg-primary-50 px-1.5 py-0.5 text-3xs font-bold text-primary-700">Your card</span>
+        <span className="flex shrink-0 items-center gap-1">
+          <span className="rounded-md bg-primary-50 px-1.5 py-0.5 text-3xs font-bold text-primary-700">Your card</span>
+          <CardMenu />
+        </span>
       </div>
       {!figure ? (
         <p className="py-8 text-center text-sm text-ink-muted">This card's figure is not on this screen any more.</p>
