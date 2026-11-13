@@ -137,7 +137,7 @@ const CARD: Record<CardId, CardMeta> = {
   trend: { title: "AUM trend", area: "main", charts: ["bar", "line", "area", "table"] },
   "asset-classes": { title: "AUM by asset class", area: "main", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
   lifecycle: { title: "Clients by lifecycle", area: "main", charts: ["donut", "funnel", "bar", "table"] },
-  operations: { title: "Operational health", area: "main" },
+  operations: { title: "Operational health", area: "main", charts: ["table", "horizontal-bar", "donut", "bar"] },
   approvals: { title: "Approvals & queues", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   upcoming: { title: "Upcoming & due", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   attention: { title: "Items requiring attention", area: "main", charts: ["table", "horizontal-bar", "donut", "bar"] },
@@ -226,6 +226,12 @@ export function AdminDashboard() {
     ),
     operations: (
       <Panel icon={Activity} title="Operational health">
+        <OpsChart rows={data ? [
+          { name: "Onboarding", value: data.operations.onboarding, to: goTo("/clients") },
+          { name: "KYC & compliance", value: data.operations.kycInReview, to: goTo("/kyc-documents", "/kyc", "/clients") },
+          { name: "Portfolio proposals", value: data.operations.proposalsPending, to: goTo("/approvals?queue=proposals") },
+          { name: "Bank feeds failed", value: data.operations.bankFeedsFailed, to: goTo("/ingestion") },
+        ] : []}>
         <ul className="space-y-2">
           <OpsRow icon={CheckCircle2} label="Onboarding" state="In progress" value={data?.operations.onboarding}
             tone="good" to={goTo("/clients")} />
@@ -239,6 +245,7 @@ export function AdminDashboard() {
             value={data?.operations.bankFeedsFailed} tone={data?.operations.bankFeedsFailed ? "danger" : "good"}
             to={goTo("/ingestion")} />
         </ul>
+        </OpsChart>
       </Panel>
     ),
     approvals: (
@@ -429,6 +436,19 @@ function Figure({ label, value, change, tone, to }: {
   );
   return to ? <Link to={to} className="block px-4 first:pl-0 hover:[&_dd]:text-primary-700">{body}</Link>
     : <div className="px-4 first:pl-0">{body}</div>;
+}
+
+/** Operational health as its own rows, or as a chart of the same counts; a click opens where each is worked. */
+function OpsChart({ rows, children }: { rows: { name: string; value: number; to?: string }[]; children: ReactNode }) {
+  const chart = useCardChart();
+  const navigate = useNavigate();
+  if (!chart || chart.own || rows.length === 0) return <>{children}</>;
+  return (
+    <KindChart kind={chart.kind!} height={Math.max(180, 40 + rows.length * 28)} label="Operational health, counted"
+      format={(value) => String(Math.round(value))}
+      data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: one.value })) }}
+      onPick={(at) => { const to = rows[at]?.to; if (to) navigate(to); }} />
+  );
 }
 
 /** One line of Operational health: what, where it stands, how many, and the way in. */

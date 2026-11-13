@@ -240,7 +240,7 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
                   onChange={(next) => setDrafts((now) => ({ ...now, [current]: { ...draftOf(current), ...next } }))}
                   onDelete={isNew(current) ? undefined : () => remove(current)} />
               ) : current ? (
-                <CardStep id={current} view={view} render={render} choice={choiceOf(current)} picked={picked} position={`Card ${step} of ${picked.length}`}
+                <CardStep id={current} view={view} render={render} choice={choiceOf(current)} position={`Card ${step} of ${picked.length}`}
                   onChange={(next) => change(current, next)} nameOf={nameOf} />
               ) : (
                 <>
@@ -458,25 +458,21 @@ function WidthToggle({ value, onChange }: { value: Width; onChange: (next: Width
 
 const INPUT = "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none";
 
-/** One picked card's settings: chart type, colours, width and place, beside the card as they will draw it. */
-function CardStep<Id extends string>({ id, view, render, choice, picked, position, onChange, nameOf }: {
+/** One picked card's settings: whether it shows, chart type, colours and width, above the card as it will draw. */
+function CardStep<Id extends string>({ id, view, render, choice, position, onChange, nameOf }: {
   id: Id;
   view: ViewLayoutState<Id>;
   render: Record<Id, ReactNode>;
   choice: CardChoice<Id>;
-  picked: Id[];
   position: string;
   onChange: (next: Partial<CardChoice<Id>>) => void;
   nameOf: (id: Id) => string;
 }) {
   const meta = view.meta[id];
-  const shown = view.cards.includes(id);
   const kinds = meta.charts ?? [];
   const area = meta.area ?? "main";
   const kind = choice.chart ?? kinds[0];
   const KindIcon = kind ? KIND_ICON[kind] : LayoutList;
-  // Cards still being built have no place to go after yet: they are not the screen's until saved.
-  const places = [...new Set([...view.cards, ...picked])].filter((one) => one !== id && !one.startsWith(NEW) && (view.meta[one]?.area ?? "main") === area);
   // The card as the portal was set up with it: its own name, type, colours and width, in its own place.
   const standard: CardChoice<Id> = { title: meta.title, note: "", chart: null, palette: "theme", width: meta.wide ? "FULL" : "HALF", after: null, shown: true };
   const changed = choice.shown === false || choice.title.trim() !== meta.title || choice.note.trim() !== "" || (choice.chart != null && choice.chart !== kinds[0])
@@ -512,6 +508,13 @@ function CardStep<Id extends string>({ id, view, render, choice, picked, positio
               ))}
             </div>
           </Field>
+          {kinds.length === 0 && (
+            <Field label="Chart Type">
+              <p className="max-w-80 pt-1.5 text-sm text-ink-muted">
+                None for this card: it shows a list, links or a status, not figures that compare on a chart.
+              </p>
+            </Field>
+          )}
           {kinds.length > 0 && (
             <Field label="Chart Type">
               <div className="relative">
@@ -532,12 +535,7 @@ function CardStep<Id extends string>({ id, view, render, choice, picked, positio
               <WidthToggle value={choice.width} onChange={(width) => onChange({ width })} />
             </Field>
           )}
-          <Field label="Place">
-            <SelectInput value={choice.after ?? ""} onChange={(event) => onChange({ after: (event.target.value || null) as Id | null })}>
-              <option value="">{shown ? "Keep current place" : "At the end"}</option>
-              {places.map((one) => <option key={one} value={one}>After {nameOf(one)}</option>)}
-            </SelectInput>
-          </Field>
+
         </div>
         <section aria-label="Preview" className="min-w-0 border-t border-line pt-5">
           <p className="mb-2.5 text-xs font-semibold tracking-wider text-ink-muted uppercase">Preview</p>
