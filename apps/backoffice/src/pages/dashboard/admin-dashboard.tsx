@@ -42,7 +42,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatRelative, roleLabel } from "../../lib/labels";
 import { menuFor } from "../../menu";
@@ -140,7 +140,7 @@ const CARD: Record<CardId, CardMeta> = {
   operations: { title: "Operational health", area: "main" },
   approvals: { title: "Approvals & queues", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   upcoming: { title: "Upcoming & due", area: "main", charts: ["table", "horizontal-bar", "donut"] },
-  attention: { title: "Items requiring attention", area: "main" },
+  attention: { title: "Items requiring attention", area: "main", charts: ["table", "horizontal-bar", "donut", "bar"] },
   activity: { title: "Firm activity", area: "main", wide: true },
   health: { title: "System health", area: "main" },
   tasks: { title: "Task summary", area: "main" },
@@ -527,8 +527,20 @@ const ICON_FOR: Record<string, LucideIcon> = {
 };
 
 function Attention({ rows, linkFor, loaded }: { rows: FirmWaiting[]; linkFor: (key: string) => string | undefined; loaded: boolean }) {
+  const chart = useCardChart();
+  const navigate = useNavigate();
   if (loaded && rows.length === 0) {
     return <p className="py-8 text-center text-sm text-ink-muted">Nothing needs attention right now.</p>;
+  }
+  // Drawn as another kind, what needs attention is a chart of its counts; a click opens where it is worked.
+  if (chart && !chart.own) {
+    const shown = rows.slice(0, 5);
+    return (
+      <KindChart kind={chart.kind!} height={Math.max(180, 40 + shown.length * 28)} label="What needs attention, counted"
+        format={(value) => String(Math.round(value))}
+        data={{ shape: "shares", items: shown.map((one) => ({ name: one.label, value: one.count })) }}
+        onPick={(at) => { const to = shown[at] && linkFor(shown[at].key); if (to) navigate(to); }} />
+    );
   }
   return (
     <ul className="divide-y divide-line text-sm">
