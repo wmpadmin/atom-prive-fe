@@ -66,6 +66,8 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
   const [reached, setReached] = useState(only ? 1 : 0);
   const [query, setQuery] = useState("");
   const [resetting, setResetting] = useState(false);
+  // Next or Save pressed with something still needed here: what is missing shows in red until it is filled in.
+  const [tried, setTried] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
   const change = (id: Id, next: Partial<CardChoice<Id>>) => setChoices((now) => ({ ...now, [id]: { ...(now[id] ?? baseline(id)), ...next } }));
   const summary = picked.length + 1;
   const go = (next: number) => {
+    setTried(false);
     setStep(next);
     setReached((now) => Math.max(now, next));
   };
@@ -227,10 +230,11 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
                       Add New Card
                     </Button>
                     <span className="text-xs text-ink-muted">{picked.length} selected</span>
+                    {tried && picked.length === 0 && <span role="alert" className="text-xs font-semibold text-red-600">Select at least one card to change.</span>}
                   </div>
                 </>
               ) : current && isOwn(current) ? (
-                <OwnStep key={current} draft={draftOf(current)} figures={figures ?? {}} isNew={isNew(current)} busy={saving}
+                <OwnStep key={current} draft={draftOf(current)} figures={figures ?? {}} isNew={isNew(current)} busy={saving} tried={tried}
                   position={`Card ${step} of ${picked.length}`}
                   headings={[...new Set((Object.values(view.meta) as LayoutMeta[]).filter((one) => !one.own && one.group).map((one) => one.group!))]}
                   onChange={(next) => setDrafts((now) => ({ ...now, [current]: { ...draftOf(current), ...next } }))}
@@ -316,10 +320,22 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
               <div className="flex gap-2">
                 {step === 0 && <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>}
                 {step === summary ? (
-                  <Button size="sm" onClick={save} disabled={saving || picked.some((id) => !ready(id))}>{saving ? "Saving…" : "Save View"}</Button>
+                  <Button size="sm" disabled={saving} onClick={() => {
+                    // A card of one's own still missing its name or figure opens again, with what it needs in red.
+                    const unready = picked.findIndex((id) => !ready(id));
+                    if (unready < 0) return void save();
+                    go(unready + 1);
+                    setTried(true);
+                  }}>{saving ? "Saving…" : "Save View"}</Button>
                 ) : (
-                  <Button size="sm" disabled={(step === 0 && picked.length === 0) || (current != null && isOwn(current) && !ready(current))}
-                    title={step === 0 && picked.length === 0 ? "Select a card to change" : undefined} onClick={() => go(step + 1)}>
+                  <Button size="sm" onClick={() => {
+                    if ((step === 0 && picked.length === 0) || (current != null && isOwn(current) && !ready(current))) {
+                      setTried(true);
+                      requestAnimationFrame(() => box.current?.querySelector<HTMLElement>("[aria-invalid='true']")?.focus());
+                      return;
+                    }
+                    go(step + 1);
+                  }}>
                     Next
                     <ArrowRight aria-hidden="true" />
                   </Button>
@@ -552,11 +568,13 @@ function CardStep<Id extends string>({ id, view, render, choice, picked, positio
  * screen's figures it reports on, how it is drawn, its break points, colours and width.
  */
 /** @param headings the screen's own groups in Cards, any of which the card may be listed under */
-function OwnStep({ draft, figures, isNew, busy, position, headings, onChange, onDelete }: {
+/** @param tried Next or Save was pressed with this card unfinished: what it still needs shows in red */
+function OwnStep({ draft, figures, isNew, busy, tried, position, headings, onChange, onDelete }: {
   draft: OwnStepDraft;
   figures: Figures;
   isNew: boolean;
   busy: boolean;
+  tried: boolean;
   position: string;
   headings: string[];
   onChange: (next: Partial<OwnStepDraft>) => void;
@@ -582,7 +600,9 @@ function OwnStep({ draft, figures, isNew, busy, position, headings, onChange, on
         <div className="space-y-5">
           <Field label="Card Name" required>
             <input data-autofocus value={draft.title} maxLength={80} onChange={(event) => onChange({ title: event.target.value })}
-              placeholder="What the card is called" className={INPUT} />
+              aria-invalid={tried && !draft.title.trim() ? true : undefined}
+              placeholder="What the card is called" className={cn(INPUT, "aria-invalid:border-red-500")} />
+            {tried && !draft.title.trim() && <p className="mt-1 text-xs text-red-600">Enter a name for the card.</p>}
           </Field>
           <Field label="Group">
             <SelectInput value={draft.group ?? ""} onChange={(event) => onChange({ group: event.target.value || null })}>
@@ -611,7 +631,7 @@ function OwnStep({ draft, figures, isNew, busy, position, headings, onChange, on
 
         <div className="space-y-5">
           <Field label="What do you want to report on?" required>
-            <SelectInput value={draft.source} onChange={(event) => pick(event.target.value)}>
+            <SelectInput value={draft.source} onChange={(event) => pick(event.target.value)} aria-invalid={tried && !figure ? true : undefined}>
               <option value="">Choose a figure…</option>
               {groups.map((group) => (
                 <optgroup key={group} label={group}>
@@ -621,6 +641,7 @@ function OwnStep({ draft, figures, isNew, busy, position, headings, onChange, on
                 </optgroup>
               ))}
             </SelectInput>
+            {tried && !figure && <p className="mt-1 text-xs text-red-600">Choose what the card reports on.</p>}
           </Field>
           <Field label="How do you want to see it?">
             {figure ? (
