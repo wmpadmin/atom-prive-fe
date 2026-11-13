@@ -95,7 +95,8 @@ const CARDS: Record<BookCard, LayoutMeta> = {
   dispersion: { title: "YTD Dispersion by Mandate", group: "Performance" },
 };
 
-const DEFAULT_CARDS = Object.keys(CARDS) as BookCard[];
+// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
+const DEFAULT_CARDS: BookCard[] = ["kpis", "aum", "mandates", "alerts"];
 
 function Board({ data, view }: { data: BookOverview; view: ViewLayoutState<BookCard> }) {
   const cur = data.currency;

@@ -85,7 +85,7 @@ export function CardGrid<Id extends string>({ meta, view, render, screen }: {
     return (
       <CardContext.Provider key={id} value={view.editing ? null : controls}>
         <EditFrame id={id} view={view}
-          className={cn("flex min-w-0 flex-col [&>*]:flex-1", (wide(id) || fullRow.has(id)) && meta[id].area === "main" && "@2xl:col-span-2")}>
+          className={cn("flex min-w-0 flex-col [&>*:last-child]:flex-1", (wide(id) || fullRow.has(id)) && meta[id].area === "main" && "@2xl:col-span-2")}>
           {render[id]}
         </EditFrame>
       </CardContext.Provider>

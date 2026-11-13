@@ -152,8 +152,8 @@ const CARD: Record<CardId, CardMeta> = {
 };
 
 
-/** What the dashboard opens on until the Admin changes it: the firm's own choice, 4 Nov 2026. */
-const DEFAULT_CARDS: CardId[] = ["summary", "asset-classes", "operations", "approvals", "upcoming", "assistant"];
+/** What the dashboard opens on: the four that matter most, chosen 13 Nov 2026; the rest wait in Add cards. A layout someone saved is kept. */
+const DEFAULT_CARDS: CardId[] = ["summary", "asset-classes", "approvals", "attention"];
 
 export function AdminDashboard() {
   const user = useStaffUser();
