@@ -46,8 +46,9 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
       ? { title: own.title, note: own.note, source: own.source, chart: own.chart, palette: own.palette, breaks: own.breaks, width: view.width(id), after: null }
       : { title: "", note: null, source: "", chart: "", palette: null, breaks: null, width: "HALF", after: null });
   };
-  const nameOf = (id: Id) => (isOwn(id) ? draftOf(id).title.trim() || (isNew(id) ? "New card" : view.meta[id].title)
-    : view.settings(id).title ?? view.meta[id].title);
+  // A card gone from the screen while the window is open (one just deleted) reads as such rather than breaking it.
+  const nameOf = (id: Id) => (isOwn(id) ? draftOf(id).title.trim() || (isNew(id) ? "New card" : view.meta[id]?.title ?? "Deleted card")
+    : view.settings(id).title ?? view.meta[id]?.title ?? "Card");
   const offered = figures && Object.keys(figures).length > 0;
   const addNew = () => {
     const id = `${NEW}${built + 1}` as Id;
@@ -128,11 +129,12 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
     setSaving(true);
     try {
       await deleteOwnCard(view.screenKey, own.id);
+      // Closed before the cards are read again, so the window never holds a card the screen no longer has.
+      onClose();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getListOwnCardsQueryKey(view.screenKey) }),
         queryClient.invalidateQueries({ queryKey: getGetViewLayoutQueryKey(view.screenKey) }),
       ]);
-      onClose();
     } catch (failure) {
       setProblem(failure instanceof Error ? failure.message : "The card could not be deleted.");
     } finally {
