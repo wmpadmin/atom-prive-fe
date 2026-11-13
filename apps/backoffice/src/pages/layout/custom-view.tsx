@@ -10,7 +10,7 @@ import {
 import { Button, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, GripVertical, LayoutGrid as LayoutIcon, Plus, RotateCcw, Settings2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { createContext, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { AddCardDialog } from "./add-card";
 import { CardSettingsContext, type CardSettings, type Palette } from "./card-settings";
 import type { ChartKind } from "./chart-kinds";
@@ -221,7 +221,10 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
   };
 }
 
-/** The button that starts customizing, and while customizing, nothing: the bar takes over. */
+/**
+ * The one Customize view button, on every screen made of cards — dashboards included: it starts customizing, and
+ * while customizing it is gone, as the bar takes over.
+ */
 export function CustomizeButton<Id extends string>({ view }: { view: ViewLayoutState<Id> }) {
   if (view.editing) return null;
   return (
@@ -364,49 +367,82 @@ export function EditFrame<Id extends string>({ id, view, className, children }: 
   );
 }
 
+/** What a card's ⋮ offers outside customizing — move it either way or take it off — for a card that draws one. */
+export type CardControls = { earlier?: () => void; later?: () => void; remove: () => void; title: string };
+
+export const CardContext = createContext<CardControls | null>(null);
+
 /**
- * A screen's cards in the reader's order: two to a row, a full-width card taking the row, and a half card with no
- * half beside it stretched across so no row is left half empty. Customizing draws the bar, Add card and each card's
- * frame; outside it the cards are drawn as they are.
+ * Every screen's cards — each dashboard, each PPM screen, the Book Overview and the Client Directory — in the reader's
+ * order: two to a row in the main column, read off the column itself rather than the window, a full-width card taking
+ * the row and a half card with no half beside it stretched across, and a side column beside it on wide screens for
+ * the cards that sit there. Customizing draws the bar, Add card and each card's frame; outside it each card may offer
+ * its ⋮ to move or remove it.
  */
-export function LayoutGrid<Id extends string>({ view, render, screen }: {
+export function LayoutGrid<Id extends string>({ view, render, screen, empty }: {
   view: ViewLayoutState<Id>;
   render: Record<Id, ReactNode>;
   /** What the customize bar calls this screen. */
   screen: string;
+  /** What to say when the reader has hidden every card. */
+  empty?: string;
 }) {
   const shown = view.cards;
+  const areaOf = (id: Id) => view.meta[id]?.area ?? "main";
+  const inArea = (area: "main" | "side") => shown.filter((id) => areaOf(id) === area);
+  const main = inArea("main");
+  const side = inArea("side");
   const wide = (id: Id) => view.width(id) === "FULL";
   const alone = new Set<Id>();
   let column = 0;
-  shown.forEach((id, index) => {
+  main.forEach((id, index) => {
     if (wide(id)) {
       column = 0;
       return;
     }
-    const next = shown[index + 1];
+    const next = main[index + 1];
     if (column === 0 && (!next || wide(next))) {
       alone.add(id);
       return;
     }
     column = (column + 1) % 2;
   });
+  const nudge = (id: Id, step: -1 | 1) => {
+    const mates = inArea(areaOf(id));
+    const neighbour = mates[mates.indexOf(id) + step];
+    if (neighbour) view.move(id, neighbour, step === 1);
+  };
+  const card = (id: Id) => {
+    const mates = inArea(areaOf(id));
+    const controls: CardControls = {
+      title: view.settings(id).title ?? view.meta[id].title,
+      earlier: mates[0] === id ? undefined : () => nudge(id, -1),
+      later: mates[mates.length - 1] === id ? undefined : () => nudge(id, 1),
+      remove: () => view.hide(id),
+    };
+    return (
+      <CardContext.Provider key={id} value={view.editing ? null : controls}>
+        <EditFrame id={id} view={view}
+          className={cn("flex min-w-0 flex-col [&>*:last-child]:flex-1", areaOf(id) === "main" && (wide(id) || alone.has(id)) && "@2xl:col-span-2")}>
+          {render[id]}
+        </EditFrame>
+      </CardContext.Provider>
+    );
+  };
   return (
     <div className="space-y-4">
       <CustomizeBar view={view} screen={screen} />
       {view.adding && <AddCardDialog view={view} render={render} screen={screen} start={view.adding.card} onClose={view.closeAdd} />}
       {shown.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
-          Every card is hidden. Use Customize view to add the cards you want.
+          {empty ?? "Every card is hidden. Use Customize view to add the cards you want."}
         </p>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
-          {shown.map((id) => (
-            <EditFrame key={id} id={id} view={view}
-              className={cn("flex min-w-0 flex-col [&>*:last-child]:flex-1", (wide(id) || alone.has(id)) && "xl:col-span-2")}>
-              {render[id]}
-            </EditFrame>
-          ))}
+        <div className={cn("grid gap-4", side.length > 0 && "xl:grid-cols-[minmax(0,1fr)_20rem]")}>
+          <div className="@container min-w-0">
+            <div className="grid gap-4 @2xl:grid-cols-2">{main.map(card)}</div>
+          </div>
+          {side.length > 0 && <aside className="space-y-4">{side.map(card)}</aside>}
         </div>
       )}
     </div>

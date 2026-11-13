@@ -27,9 +27,7 @@ import { menuFor } from "../../menu";
 import {
   AskTheAssistant,
   Breakdown,
-  CardGrid,
   Counts,
-  EditCards,
   Loading,
   Panel,
   Strip,
@@ -37,6 +35,7 @@ import {
   useDashboardCards,
   type CardMeta,
 } from "../dashboard/dashboard-kit";
+import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
 
 /**
  * A portfolio manager's dashboard: the clients assigned to them — what they hold, how far each sits from plan,
@@ -251,7 +250,7 @@ export function PortfolioManagerDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards view={view} />
+          <CustomizeButton view={view} />
           <SelectInput id="pm-period" aria-label="Period the changes are measured over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -267,7 +266,7 @@ export function PortfolioManagerDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} view={view} render={render} screen="Portfolio Manager dashboard" />
+      <LayoutGrid view={view} render={render} screen="Portfolio Manager dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }
