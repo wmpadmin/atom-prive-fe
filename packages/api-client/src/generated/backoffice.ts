@@ -1512,6 +1512,57 @@ export interface BenchmarkLevelRow {
   level: number;
 }
 
+export interface Breaks {
+  /** @pattern VALUES|POLICY */
+  basis: string;
+  /**
+     * @minItems 2
+     * @maxItems 8
+     * @items.minimum -1000000000000
+     * @items.maximum 1000000000000
+     */
+  points: number[];
+  reversed: boolean;
+}
+
+export interface OwnCardRequest {
+  /**
+     * @minLength 0
+     * @maxLength 80
+     */
+  title: string;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  note: string | null;
+  /** @pattern [a-z][a-z0-9.-]{0,59} */
+  source: string;
+  /** @pattern [a-z][a-z-]{0,19} */
+  chart: string;
+  /**
+     * @nullable
+     * @pattern [a-z][a-z-]{0,11}
+     */
+  palette: string | null;
+  breaks: Breaks | null;
+}
+
+export interface OwnCard {
+  id: string;
+  key: string;
+  title: string;
+  /** @nullable */
+  note: string | null;
+  source: string;
+  chart: string;
+  /** @nullable */
+  palette: string | null;
+  breaks: Breaks | null;
+  savedAt: string;
+}
+
 /**
  * @nullable
  */
@@ -15037,6 +15088,161 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRecordBenchmarkLevelMutationOptions(options), queryClient);
     }
 
+export const getChangeOwnCardUrl = (key: string,
+    id: string,) => {
+
+
+
+
+  return `/api/backoffice/own-cards/${key}/${id}`
+}
+
+export const changeOwnCard = async (key: string,
+    id: string,
+    ownCardRequest: OwnCardRequest, options?: Parameters<typeof http>[1]): Promise<OwnCard> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<OwnCard>(getChangeOwnCardUrl(key,id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ownCardRequest)
+  }
+);}
+
+
+
+
+
+export const getChangeOwnCardMutationKey = () => ['changeOwnCard'] as const;
+
+export const getChangeOwnCardMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeOwnCard>>, TError,ChangeOwnCardMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeOwnCard>>, TError,ChangeOwnCardMutationVariables, TContext> => {
+
+const mutationKey = getChangeOwnCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeOwnCard>>, ChangeOwnCardMutationVariables> = (props) => {
+          const {key,id,data} = props ?? {};
+
+          return  changeOwnCard(key,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeOwnCardMutationResult = NonNullable<Awaited<ReturnType<typeof changeOwnCard>>>
+    export type ChangeOwnCardMutationBody = OwnCardRequest
+    export type ChangeOwnCardMutationError = unknown
+    export type ChangeOwnCardMutationVariables = {key: string;id: string;data: OwnCardRequest}
+
+    export const useChangeOwnCard = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeOwnCard>>, TError,ChangeOwnCardMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeOwnCard>>,
+        TError,
+        ChangeOwnCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeOwnCardMutationOptions(options), queryClient);
+    }
+
+export const getDeleteOwnCardUrl = (key: string,
+    id: string,) => {
+
+
+
+
+  return `/api/backoffice/own-cards/${key}/${id}`
+}
+
+export const deleteOwnCard = async (key: string,
+    id: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getDeleteOwnCardUrl(key,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteOwnCardMutationKey = () => ['deleteOwnCard'] as const;
+
+export const getDeleteOwnCardMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOwnCard>>, TError,DeleteOwnCardMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteOwnCard>>, TError,DeleteOwnCardMutationVariables, TContext> => {
+
+const mutationKey = getDeleteOwnCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteOwnCard>>, DeleteOwnCardMutationVariables> = (props) => {
+          const {key,id} = props ?? {};
+
+          return  deleteOwnCard(key,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteOwnCardMutationResult = NonNullable<Awaited<ReturnType<typeof deleteOwnCard>>>
+
+    export type DeleteOwnCardMutationError = unknown
+    export type DeleteOwnCardMutationVariables = {key: string;id: string}
+
+    export const useDeleteOwnCard = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOwnCard>>, TError,DeleteOwnCardMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteOwnCard>>,
+        TError,
+        DeleteOwnCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteOwnCardMutationOptions(options), queryClient);
+    }
+
 export const getGetOnboardingCaseUrl = (id: string,) => {
 
 
@@ -23877,6 +24083,184 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getCreateBenchmarkMutationOptions(options), queryClient);
+    }
+
+export const getListOwnCardsUrl = (key: string,) => {
+
+
+
+
+  return `/api/backoffice/own-cards/${key}`
+}
+
+export const listOwnCards = async (key: string, options?: Parameters<typeof http>[1]): Promise<OwnCard[]> => {
+
+  return http<OwnCard[]>(getListOwnCardsUrl(key),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOwnCardsQueryKey = (key: string,) => {
+    return [
+    `/api/backoffice/own-cards/${key}`
+    ] as const;
+    }
+
+
+export const getListOwnCardsQueryOptions = <TData = Awaited<ReturnType<typeof listOwnCards>>, TError = unknown>(key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnCards>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOwnCardsQueryKey(key);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOwnCards>>> = ({ signal }) => listOwnCards(key, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: key !== null && key !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOwnCards>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListOwnCardsQueryResult = NonNullable<Awaited<ReturnType<typeof listOwnCards>>>
+export type ListOwnCardsQueryError = unknown
+
+
+export function useListOwnCards<TData = Awaited<ReturnType<typeof listOwnCards>>, TError = unknown>(
+ key: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnCards>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOwnCards>>,
+          TError,
+          Awaited<ReturnType<typeof listOwnCards>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOwnCards<TData = Awaited<ReturnType<typeof listOwnCards>>, TError = unknown>(
+ key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnCards>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOwnCards>>,
+          TError,
+          Awaited<ReturnType<typeof listOwnCards>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOwnCards<TData = Awaited<ReturnType<typeof listOwnCards>>, TError = unknown>(
+ key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnCards>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListOwnCards<TData = Awaited<ReturnType<typeof listOwnCards>>, TError = unknown>(
+ key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnCards>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListOwnCardsQueryOptions(key,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateOwnCardUrl = (key: string,) => {
+
+
+
+
+  return `/api/backoffice/own-cards/${key}`
+}
+
+export const createOwnCard = async (key: string,
+    ownCardRequest: OwnCardRequest, options?: Parameters<typeof http>[1]): Promise<OwnCard> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<OwnCard>(getCreateOwnCardUrl(key),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ownCardRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateOwnCardMutationKey = () => ['createOwnCard'] as const;
+
+export const getCreateOwnCardMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOwnCard>>, TError,CreateOwnCardMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOwnCard>>, TError,CreateOwnCardMutationVariables, TContext> => {
+
+const mutationKey = getCreateOwnCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOwnCard>>, CreateOwnCardMutationVariables> = (props) => {
+          const {key,data} = props ?? {};
+
+          return  createOwnCard(key,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOwnCardMutationResult = NonNullable<Awaited<ReturnType<typeof createOwnCard>>>
+    export type CreateOwnCardMutationBody = OwnCardRequest
+    export type CreateOwnCardMutationError = unknown
+    export type CreateOwnCardMutationVariables = {key: string;data: OwnCardRequest}
+
+    export const useCreateOwnCard = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOwnCard>>, TError,CreateOwnCardMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createOwnCard>>,
+        TError,
+        CreateOwnCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateOwnCardMutationOptions(options), queryClient);
     }
 
 export const getListOnboardingCasesUrl = (params?: ListOnboardingCasesParams,) => {

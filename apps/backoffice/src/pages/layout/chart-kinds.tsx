@@ -14,6 +14,7 @@ import {
   Funnel,
   Gauge,
   Grid3x3,
+  Hash,
   LayoutDashboard,
   LayoutGrid,
   Radar,
@@ -37,7 +38,9 @@ export type ChartKind =
   | "line" | "area" | "stacked-area" | "bar" | "horizontal-bar" | "grouped-bar" | "stacked-bar" | "donut" | "table"
   | "heatmap" | "gauge" | "funnel" | "radar" | "waterfall" | "treemap" | "scatter" | "bubble"
   /** A card's own tiles, such as the Collectibles categories: only ever a card's own look, drawn by the card. */
-  | "tiles";
+  | "tiles"
+  /** One figure written large, for a card of the reader's own. */
+  | "number";
 
 export const KIND_LABEL: Record<ChartKind, string> = {
   line: "Line",
@@ -58,6 +61,7 @@ export const KIND_LABEL: Record<ChartKind, string> = {
   scatter: "Scatter",
   bubble: "Bubble",
   tiles: "Tiles",
+  number: "Number",
 };
 
 export const KIND_ICON: Record<ChartKind, LucideIcon> = {
@@ -79,6 +83,7 @@ export const KIND_ICON: Record<ChartKind, LucideIcon> = {
   scatter: ChartScatter,
   bubble: Waypoints,
   tiles: LayoutGrid,
+  number: Hash,
 };
 
 /** A card's figures in the one shape every kind is drawn from. */
@@ -89,8 +94,11 @@ export type ChartData =
   | { shape: "series"; categories: string[]; series: { name: string; values: (number | null)[]; colour?: string }[] }
   /** Items each measured two or three ways, such as a company's valuation against its quality. */
   | { shape: "points"; xName: string; yName: string; sizeName?: string; items: { name: string; x: number; y: number; size?: number }[] }
-  /** One figure against its target, such as rules passing out of all rules. */
-  | { shape: "gauge"; name: string; value: number; max: number; target?: number | null };
+  /**
+   * One figure against its target, such as rules passing out of all rules. {@code bands} colour the dial from
+   * {@code min} up, each to where it stops, for a gauge whose break points the reader set.
+   */
+  | { shape: "gauge"; name: string; value: number; max: number; min?: number; target?: number | null; bands?: { to: number; colour: string }[] };
 
 /** The kind a card is drawn as and the button that switches it, for a card that draws a chart. */
 export function cardChart<Id extends string>(view: ViewLayoutState<Id>, id: Id) {
@@ -203,7 +211,16 @@ export function KindChart({ data, kind, format, height = 240, label, onPick }: {
   onPick?: (index: number) => void;
 }) {
   const palette = use(CardSettingsContext)?.palette ?? "theme";
-  const option = useMemo(() => (kind === "table" ? null : optionFor(data, kind, format, palette)), [data, kind, format, palette]);
+  const option = useMemo(() => (kind === "table" || kind === "number" ? null : optionFor(data, kind, format, palette)), [data, kind, format, palette]);
+  if (kind === "number" && data.shape === "gauge") {
+    const band = data.bands?.find((one) => data.value <= one.to) ?? data.bands?.[data.bands.length - 1];
+    return (
+      <div className="flex min-h-32 flex-col justify-center py-4" role="img" aria-label={`${label}: ${format(data.value)}`}>
+        <p className="text-4xl font-bold tabular-nums" style={band ? { color: band.colour } : undefined}>{format(data.value)}</p>
+        <p className="mt-1 text-sm text-ink-muted">{data.name}{data.target != null && ` · target ${format(data.target)}`}</p>
+      </div>
+    );
+  }
   if (kind === "table" || !option) return <FiguresTable data={data} format={format} palette={palette} onPick={onPick} />;
   const names = data.shape === "shares" || data.shape === "points" ? data.items.map((one) => one.name)
     : data.shape === "series" ? data.categories : [];
@@ -378,10 +395,18 @@ function optionFor(data: ChartData, kind: ChartKind, format: (value: number) => 
 
   // One figure against its target.
   if (kind === "gauge") {
+    const low = data.min ?? 0;
+    const span = data.max - low || 1;
+    // With break points the dial is coloured band by band and a needle points at the figure; without, it fills.
+    const banded = data.bands?.length
+      ? data.bands.map((one) => [Math.min(1, Math.max(0, (one.to - low) / span)), one.colour] as [number, string])
+      : null;
     return { ...common,
-      series: [{ type: "gauge", min: 0, max: data.max, startAngle: 210, endAngle: -30, radius: "92%", center: ["50%", "58%"],
-        progress: { show: true, width: 14, itemStyle: { color: c.primary } }, axisLine: { lineStyle: { width: 14, color: [[1, c.line]] } },
-        axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false }, pointer: { show: false },
+      series: [{ type: "gauge", min: low, max: data.max, startAngle: 210, endAngle: -30, radius: "92%", center: ["50%", "58%"],
+        progress: { show: !banded, width: 14, itemStyle: { color: c.primary } },
+        axisLine: { lineStyle: { width: 14, color: banded ?? [[1, c.line]] } },
+        axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
+        pointer: banded ? { show: true, length: "62%", width: 4, itemStyle: { color: c.text } } : { show: false },
         anchor: { show: false }, title: { offsetCenter: [0, "38%"], color: c.muted, fontSize: 12 },
         detail: { valueAnimation: true, offsetCenter: [0, "0%"], fontSize: 26, fontWeight: 700, color: c.text, formatter: (value: number) => format(value) },
         data: [{ value: data.value, name: data.target != null ? `${data.name} · target ${format(data.target)}` : data.name }] }] };
