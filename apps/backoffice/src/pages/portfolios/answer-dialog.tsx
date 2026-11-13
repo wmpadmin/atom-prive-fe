@@ -1,5 +1,5 @@
 import { Alert, Button, Dialog, Field, TextArea } from "@atomprive/ui";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 /**
  * The window an answer is given in, either way.
@@ -52,6 +52,15 @@ export function AnswerDialog({
   /** What is being answered, where the queue has figures worth putting in front of the reader. */
   children?: ReactNode;
 }) {
+  // A rejection sent without its reason marks the box in red instead of greying the button out.
+  const [tried, setTried] = useState(false);
+  // Each opening starts clean: the window stays mounted between answers.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    setTried(false);
+  }
+  const noReason = tried && !approved && note.trim() === "";
   return (
     <Dialog open={open} title={title} onClose={onClose}>
       <div className="space-y-4">
@@ -68,15 +77,26 @@ export function AnswerDialog({
           label={asks ?? (approved ? "Anything to add?" : "Why not?")}
           hint={approved ? "Optional." : undefined}
           required={!approved}
+          error={noReason ? "Enter a reason." : undefined}
         >
-          <TextArea id="answer-note" rows={3} value={note} onChange={(event) => onNote(event.target.value)} />
+          <TextArea id="answer-note" aria-invalid={noReason || undefined} rows={3} value={note} onChange={(event) => onNote(event.target.value)} />
         </Field>
         {error && <Alert tone="danger">{error}</Alert>}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={busy || (!approved && note.trim() === "")} onClick={onConfirm}>
+          <Button
+            disabled={busy}
+            onClick={() => {
+              if (!approved && note.trim() === "") {
+                setTried(true);
+                document.getElementById("answer-note")?.focus();
+                return;
+              }
+              onConfirm();
+            }}
+          >
             {busy ? confirming : confirm}
           </Button>
         </div>

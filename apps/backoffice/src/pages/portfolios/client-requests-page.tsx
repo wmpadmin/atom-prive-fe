@@ -363,6 +363,8 @@ function WritingForAclient({ client, onDone, onClose }: {
   // A press between a typed figure and the client's holdings. Nobody reads this after them, and there is
   // no way back from a mistyped one.
   const [confirming, setConfirming] = useState(false);
+  // Set by a Move it now with something missing; what is missing then shows red until it is filled in.
+  const [tried, setTried] = useState(false);
 
   const ask = useAskOnBehalfOfTheClient<ApiError>({
     mutation: {
@@ -375,7 +377,8 @@ function WritingForAclient({ client, onDone, onClose }: {
   });
 
   const written = rows.filter((row) => isAsked(row, held.data));
-  const ready = written.length > 0 && why.trim() !== "";
+  const noRows = written.length === 0;
+  const noWhy = why.trim() === "";
   // What the confirm puts in front of them: the whole of what is about to move, as one figure.
   const moving = written.reduce((sum, row) => sum + Number(row.amount), 0);
 
@@ -399,7 +402,7 @@ function WritingForAclient({ client, onDone, onClose }: {
           </div>
           {/* Above what it is about, where somebody looking for it looks: under a portfolio this long it
               sat below the fold on every client the firm has. */}
-          {!writing && <Button onClick={() => setWriting(true)}>Create client request</Button>}
+          {!writing && <Button onClick={() => { setWriting(true); setTried(false); }}>Create client request</Button>}
         </div>
       </div>
 
@@ -411,20 +414,27 @@ function WritingForAclient({ client, onDone, onClose }: {
           <h3 className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             What the client asked for
           </h3>
-          <ClientAskingRows
-            holdings={held.data}
-            rows={rows}
-            disabled={ask.isPending}
-            onChange={(next) => {
-              setRows(next);
-              setRefused(noErrors);
-            }}
-          />
+          <div id="client-asking-rows" className={cn(tried && noRows && "rounded-xl ring-1 ring-red-500")}>
+            <ClientAskingRows
+              holdings={held.data}
+              rows={rows}
+              disabled={ask.isPending}
+              onChange={(next) => {
+                setRows(next);
+                setRefused(noErrors);
+              }}
+            />
+          </div>
+          {tried && noRows && (
+            <p className="text-xs text-red-600">Fill in a line: where it comes out of, where it goes, and how much.</p>
+          )}
           <Field id="why-the-client-asked" label="Why it should move" required
+            error={tried && noWhy ? "Enter why it should move." : undefined}
             hint="What the client said, in their words. Nobody else is asked, so this is the record of why
               the money moved.">
             <TextArea
               id="why-the-client-asked"
+              aria-invalid={tried && noWhy}
               rows={2}
               value={why}
               disabled={ask.isPending}
@@ -455,7 +465,20 @@ function WritingForAclient({ client, onDone, onClose }: {
               {/* Asked once more, because this press is the last one before the money is gone. Not a
                   second reader — the client already asked — but a second look by the person who typed
                   the figures, at the figures they typed. */}
-              <Button disabled={!ready || ask.isPending} onClick={() => setConfirming(true)}>
+              <Button
+                disabled={ask.isPending}
+                onClick={() => {
+                  if (noRows || noWhy) {
+                    setTried(true);
+                    const first = noRows
+                      ? document.querySelector<HTMLElement>("#client-asking-rows :is(input, select, button)")
+                      : document.getElementById("why-the-client-asked");
+                    first?.focus();
+                    return;
+                  }
+                  setConfirming(true);
+                }}
+              >
                 {ask.isPending ? "Moving it…" : "Move it now"}
               </Button>
             </div>
