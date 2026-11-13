@@ -11,7 +11,7 @@ import { Button, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, GripVertical, LayoutGrid as LayoutIcon, Plus, RotateCcw, Settings2, X } from "lucide-react";
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { AddCardDialog } from "./add-card";
+import { CustomizeDialog } from "./add-card";
 import { CardSettingsContext, type CardSettings, type Palette } from "./card-settings";
 import type { ChartKind } from "./chart-kinds";
 
@@ -64,9 +64,37 @@ export type CardChoice<Id extends string> = {
   chart: ChartKind | null;
   palette: Palette;
   width: Width;
-  /** Where a card being added goes: after this card, or at the first free place (the end) when null. */
+  /** Where the card goes: after this card; at the end when null and it was hidden; its own place when null and shown. */
   after: Id | null;
 };
+
+/** Builds the card Customize view leaves, keeping what the reader left as the card has it as no choice at all. */
+function chosen<Id extends string>(id: Id, choice: CardChoice<Id>, meta: Record<Id, LayoutMeta>, widthOf: (id: Id) => Width): Placed<Id> {
+  const title = choice.title.trim();
+  const note = choice.note.trim();
+  return {
+    id,
+    width: meta[id]?.area === "side" ? widthOf(id) : choice.width,
+    hidden: false,
+    chart: choice.chart == null || choice.chart === meta[id]?.charts?.[0] ? null : choice.chart,
+    title: title && title !== meta[id]?.title ? title : null,
+    note: note || null,
+    palette: choice.palette === "traffic" ? "traffic" : null,
+  };
+}
+
+/** Sets one card as chosen in a layout, at its place: kept if it was shown and no place was picked. */
+function placeCard<Id extends string>(placed: Placed<Id>[], card: Placed<Id>, after: Id | null): Placed<Id>[] {
+  const was = placed.find((one) => one.id === card.id);
+  const rest = placed.filter((one) => one.id !== card.id);
+  let at: number;
+  if (was && !was.hidden && after == null) at = placed.indexOf(was);
+  else if (after != null && rest.some((one) => one.id === after)) at = rest.findIndex((one) => one.id === after) + 1;
+  // At the end: straight after the last card shown, wherever the hidden ones sit among them.
+  else at = rest.findLastIndex((one) => !one.hidden) + 1;
+  rest.splice(at, 0, card);
+  return rest;
+}
 
 function same<Id extends string>(one: Placed<Id>, other: Placed<Id>) {
   return one.id === other.id && one.width === other.width && one.hidden === other.hidden && one.chart === other.chart
@@ -109,7 +137,7 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
   }, [saved.data, standard, ids, meta, widthOf]);
 
   const [draft, setDraft] = useState<Placed<Id>[] | null>(null);
-  /** Add card, open on its first step, or on one card's settings. */
+  /** Customize view's window, open on choosing cards, or on one card's settings (its ⚙). */
   const [adding, setAdding] = useState<{ card: Id | null } | null>(null);
   const placed = draft ?? stored;
   const editing = draft !== null;
@@ -166,7 +194,7 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
       const one = placed.find((card) => card.id === id);
       return { title: one?.title ?? null, note: one?.note ?? null, palette: one?.palette ?? "theme" };
     },
-    /** Add card: open on choosing a card, or on one card's settings. */
+    /** Customize view's window: open on choosing cards, or on one card's settings (its ⚙). */
     adding,
     openAdd: (card?: Id) => setAdding({ card: card ?? null }),
     closeAdd: () => setAdding(null),
@@ -175,26 +203,20 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
      * line, look and the app's colours — is kept as no choice at all, so the card follows the firm's if that changes.
      */
     configure: (id: Id, choice: CardChoice<Id>) => {
-      const was = placed.find((one) => one.id === id);
-      if (!was) return;
-      const title = choice.title.trim();
-      const note = choice.note.trim();
-      const card: Placed<Id> = {
-        id,
-        width: meta[id]?.area === "side" ? widthOf(id) : choice.width,
-        hidden: false,
-        chart: choice.chart == null || choice.chart === meta[id]?.charts?.[0] ? null : choice.chart,
-        title: title && title !== meta[id]?.title ? title : null,
-        note: note || null,
-        palette: choice.palette === "traffic" ? "traffic" : null,
-      };
-      const rest = placed.filter((one) => one.id !== id);
-      let at: number;
-      if (!was.hidden && choice.after == null) at = placed.indexOf(was);
-      else if (choice.after != null && rest.some((one) => one.id === choice.after)) at = rest.findIndex((one) => one.id === choice.after) + 1;
-      else at = rest.filter((one) => !one.hidden).length;
-      rest.splice(at, 0, card);
-      apply(rest);
+      if (!placed.some((one) => one.id === id)) return;
+      apply(placeCard(placed, chosen(id, choice, meta, widthOf), choice.after));
+    },
+    /**
+     * Customize view's whole journey at once: each card picked is set as chosen, in turn. Unless {@code only}, a card
+     * shown that was not picked is taken off the screen, as the dropdown is the screen's list of cards.
+     */
+    arrange: (picked: Id[], choices: Partial<Record<Id, CardChoice<Id>>>, only: boolean) => {
+      let next = placed.map((one) => (!only && !one.hidden && !picked.includes(one.id) ? { ...one, hidden: true } : one));
+      for (const id of picked) {
+        const choice = choices[id];
+        if (choice && next.some((one) => one.id === id)) next = placeCard(next, chosen(id, choice, meta, widthOf), choice.after);
+      }
+      apply(next);
     },
     /** Draws the card as another kind; its own look is kept as no choice at all. */
     setChart: (id: Id, kind: ChartKind) => {
@@ -222,13 +244,14 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
 }
 
 /**
- * The one Customize view button, on every screen made of cards — dashboards included: it starts customizing, and
- * while customizing it is gone, as the bar takes over.
+ * The one Customize view button, on every screen made of cards — dashboards included: it opens the window where the
+ * reader picks the screen's cards and sets each up. While cards are being dragged about on the page it is gone, as the
+ * bar takes over.
  */
 export function CustomizeButton<Id extends string>({ view }: { view: ViewLayoutState<Id> }) {
   if (view.editing) return null;
   return (
-    <Button variant="secondary" onClick={view.begin}>
+    <Button variant="secondary" onClick={() => view.openAdd()}>
       <LayoutIcon aria-hidden="true" />
       Customize view
     </Button>
@@ -245,12 +268,12 @@ export function CustomizeBar<Id extends string>({ view, screen }: { view: ViewLa
     <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 shadow-sm">
       <div className="min-w-0">
         <p className="text-sm font-bold">Customizing your view · {screen}</p>
-        <p className="text-xs text-ink-soft">Drag cards to move them, ⚙ to change one, ✕ to hide, Add card to bring one in. Saved to your account, so it follows you to any device.</p>
+        <p className="text-xs text-ink-soft">Drag cards to move them, ⚙ to change one, ✕ to hide, Choose cards to pick them. Saved to your account, so it follows you to any device.</p>
       </div>
       <div className="flex gap-2">
         <Button variant="secondary" size="sm" onClick={() => view.openAdd()}>
           <Plus aria-hidden="true" />
-          Add card
+          Choose cards
         </Button>
         <Button variant="secondary" size="sm" onClick={view.reset} disabled={!view.changed}>
           <RotateCcw aria-hidden="true" />
@@ -432,7 +455,7 @@ export function LayoutGrid<Id extends string>({ view, render, screen, empty }: {
   return (
     <div className="space-y-4">
       <CustomizeBar view={view} screen={screen} />
-      {view.adding && <AddCardDialog view={view} render={render} screen={screen} start={view.adding.card} onClose={view.closeAdd} />}
+      {view.adding && <CustomizeDialog view={view} render={render} screen={screen} start={view.adding.card} onClose={view.closeAdd} />}
       {shown.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
           {empty ?? "Every card is hidden. Use Customize view to add the cards you want."}
