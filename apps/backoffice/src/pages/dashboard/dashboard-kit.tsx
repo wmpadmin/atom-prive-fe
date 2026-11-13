@@ -1,20 +1,18 @@
 import { cn } from "@atomprive/ui";
 import {
-  ArrowLeft,
-  ArrowRight,
   ChevronRight,
-  ExternalLink,
   FileText,
-  MoreVertical,
   SendHorizontal,
   Sparkles,
-  X,
   type LucideIcon,
 } from "lucide-react";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { Chart, ink } from "../book/overview-charts";
-import { CardContext, useViewLayout } from "../layout/custom-view";
+import { CardMenu, useViewLayout } from "../layout/custom-view";
+
+/** The ⋮ every card of a screen has, kept with the grid that gives it; still offered from here to the dashboards. */
+export { CardMenu };
 import { useCardLabel } from "../layout/card-settings";
 import { KindChart, useCardChart, type ChartKind } from "../layout/chart-kinds";
 
@@ -66,45 +64,6 @@ export function money(amount: number, currency: string) {
 
 
 
-/** A card's ⋮: move it either way, open the screen behind it, or take it off this view. */
-export function CardMenu({ to }: { to?: string }) {
-  const controls = useContext(CardContext);
-  const [open, setOpen] = useState(false);
-  const close = useCallback(() => setOpen(false), []);
-  const box = useDismiss(open, close);
-  if (!controls) return null;
-  const item = "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-slate-50 disabled:opacity-40 [&_svg]:size-4";
-  const act = (run?: () => void) => () => {
-    run?.();
-    setOpen(false);
-  };
-  return (
-    <div ref={box} className="relative">
-      <button type="button" aria-label={`Options for ${controls.title}`} aria-expanded={open} onClick={() => setOpen((now) => !now)}
-        className="grid size-7 place-items-center rounded-lg text-ink-muted hover:bg-slate-100 hover:text-ink">
-        <MoreVertical className="size-4" aria-hidden="true" />
-      </button>
-      {open && (
-        <div className="absolute right-0 z-30 mt-1 w-52 rounded-xl border border-line bg-white p-1.5 shadow-lg">
-          <button type="button" className={item} onClick={act(controls.earlier)} disabled={!controls.earlier}>
-            <ArrowLeft aria-hidden="true" />Move earlier
-          </button>
-          <button type="button" className={item} onClick={act(controls.later)} disabled={!controls.later}>
-            <ArrowRight aria-hidden="true" />Move later
-          </button>
-          {to && (
-            <Link to={to} className={item}>
-              <ExternalLink aria-hidden="true" />Open full screen
-            </Link>
-          )}
-          <button type="button" className={cn(item, "text-red-600 hover:bg-red-50")} onClick={act(controls.remove)}>
-            <X aria-hidden="true" />Remove from this view
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 
 export function Panel({ icon: Icon, title, to, children }: {

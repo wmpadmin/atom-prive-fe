@@ -17,7 +17,7 @@ import { Link, useNavigate } from "react-router";
 import { downloadTextFile } from "../../lib/download";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
-import { CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { sharesFigure, type Figures } from "../layout/own-cards";
@@ -611,7 +611,7 @@ function Card({ title, lead, picker, children }: { title: string; lead?: string;
           <h2 className="text-lg font-bold">{label.title}</h2>
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        {picker}
+        <div className="flex flex-wrap items-center gap-2">{picker}<CardMenu /></div>
       </div>
       {children}
     </section>
