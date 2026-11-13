@@ -89,7 +89,7 @@ export function Panel({ icon: Icon, title, to, children }: {
         <div className="flex items-center gap-1">
           {chart?.picker}
           {to && (
-            <Link to={to} className="inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-primary-700 hover:underline">
+            <Link to={to} data-view-all className="inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-primary-700 hover:underline">
               View all
               <ChevronRight className="size-3.5" aria-hidden="true" />
             </Link>

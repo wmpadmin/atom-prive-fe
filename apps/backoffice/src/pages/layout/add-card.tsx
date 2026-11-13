@@ -527,8 +527,8 @@ function CardStep<Id extends string>({ id, view, render, choice, picked, positio
           <p className="mb-2.5 text-xs font-semibold tracking-wider text-ink-muted uppercase">Preview</p>
           {/* Only the buttons in the card's own header work here — they switch what it shows. A click anywhere else
               (a client, a figure, a link) would leave the window, so it is held. */}
-          {/* A link in the card's own header (View all) leads off the screen, so the preview leaves it out. */}
-          <div className="flex flex-col [&>*]:flex-1 [&>*>*:first-child_a]:hidden" onClickCapture={(event) => {
+          {/* A card's View all leads off the screen, so the preview leaves it out. */}
+          <div className="flex flex-col [&>*]:flex-1 [&_[data-view-all]]:hidden" onClickCapture={(event) => {
             const card = event.currentTarget.firstElementChild;
             const header = card?.firstElementChild;
             const control = (event.target as HTMLElement).closest("button, [role=tab], [role=radio]");
