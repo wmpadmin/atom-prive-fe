@@ -29,9 +29,7 @@ import { menuFor } from "../../menu";
 import {
   AskTheAssistant,
   Breakdown,
-  CardGrid,
   Counts,
-  EditCards,
   Loading,
   Panel,
   Row,
@@ -39,6 +37,7 @@ import {
   useDashboardCards,
   type CardMeta,
 } from "./dashboard-kit";
+import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
 
 /**
  * The IT Admin's dashboard: support tickets, who is signed in and who was looked at as somebody else, whether the
@@ -244,7 +243,7 @@ export function ItAdminDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards view={view} />
+          <CustomizeButton view={view} />
           <SelectInput id="it-period" aria-label="Period tickets, sign-ins and security events are counted over"
             value={String(days)} onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -254,7 +253,7 @@ export function ItAdminDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} view={view} render={render} screen="IT Admin dashboard" />
+      <LayoutGrid view={view} render={render} screen="IT Admin dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }

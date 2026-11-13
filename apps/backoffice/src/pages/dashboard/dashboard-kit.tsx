@@ -11,17 +11,16 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { Chart, ink } from "../book/overview-charts";
-import { CustomizeBar, CustomizeButton, EditFrame, useViewLayout, type ViewLayoutState } from "../layout/custom-view";
-import { AddCardDialog } from "../layout/add-card";
+import { CardContext, useViewLayout } from "../layout/custom-view";
 import { useCardLabel } from "../layout/card-settings";
 
 /**
- * The pieces every role's dashboard is built from: cards in a grid of two, each with its ⋮, a Customize view that
- * moves, sizes, hides and adds cards (layout/custom-view.tsx), and the panels, lists and rings the cards are drawn
- * with. One layout per person and dashboard, kept on the server so it follows them to any browser (12 Nov 2026).
+ * The pieces every role's dashboard is built from: the panels, lists and rings its cards are drawn with, and each
+ * card's ⋮. The cards are laid out, and Customize view works, exactly as on every other screen of cards
+ * (layout/custom-view.tsx: CustomizeButton and LayoutGrid). One layout per person and dashboard, kept on the server so it follows them to any browser (12 Nov 2026).
  */
 
 /** Something waiting, counted: the key says which screen it is worked from. */
@@ -33,84 +32,6 @@ export type CardMeta = { title: string; area: "main" | "side"; wide?: boolean; g
 /** The cards on one role's dashboard as the reader laid them out, kept on the server under dashboard.{key}. */
 export function useDashboardCards<Id extends string>(key: string, meta: Record<Id, CardMeta>, defaults: Id[]) {
   return useViewLayout(`dashboard.${key}`, meta, defaults);
-}
-
-/**
- * The cards on screen: two to a row in the main column, read off the column itself rather than the window, and
- * the side column beside it on wide screens. The two in a row are one height; a card that would sit alone takes
- * the whole row, so none is left half empty. Each card gets its own ⋮ to move it or take it off.
- */
-export function CardGrid<Id extends string>({ meta, view, render, screen }: {
-  meta: Record<Id, CardMeta>;
-  view: ViewLayoutState<Id>;
-  render: Record<Id, ReactNode>;
-  /** What the customize bar calls this screen. */
-  screen: string;
-}) {
-  const shown = view.cards;
-  const inArea = (area: CardMeta["area"]) => shown.filter((id) => meta[id].area === area);
-  const nudge = (id: Id, step: -1 | 1) => {
-    const mates = inArea(meta[id].area);
-    const neighbour = mates[mates.indexOf(id) + step];
-    if (neighbour) view.move(id, neighbour, step === 1);
-  };
-  const main = inArea("main");
-  const side = inArea("side");
-  const wide = (id: Id) => view.width(id) === "FULL";
-  // A half card with no half beside it takes the whole row, so none is left half empty.
-  const fullRow = useMemo(() => {
-    const alone = new Set<Id>();
-    let column = 0;
-    main.forEach((id, index) => {
-      if (wide(id)) {
-        column = 0;
-        return;
-      }
-      const next = main[index + 1];
-      if (column === 0 && (!next || wide(next))) {
-        alone.add(id);
-        return;
-      }
-      column = (column + 1) % 2;
-    });
-    return alone;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [main.join("|"), main.map((id) => view.width(id)).join("|")]);
-  const card = (id: Id) => {
-    const mates = inArea(meta[id].area);
-    const controls: CardControls = {
-      title: view.settings(id).title ?? meta[id].title,
-      earlier: mates[0] === id ? undefined : () => nudge(id, -1),
-      later: mates[mates.length - 1] === id ? undefined : () => nudge(id, 1),
-      remove: () => view.hide(id),
-    };
-    return (
-      <CardContext.Provider key={id} value={view.editing ? null : controls}>
-        <EditFrame id={id} view={view}
-          className={cn("flex min-w-0 flex-col [&>*:last-child]:flex-1", (wide(id) || fullRow.has(id)) && meta[id].area === "main" && "@2xl:col-span-2")}>
-          {render[id]}
-        </EditFrame>
-      </CardContext.Provider>
-    );
-  };
-  return (
-    <div className="space-y-4">
-      <CustomizeBar view={view} screen={screen} />
-      {view.adding && <AddCardDialog view={view} render={render} screen={screen} start={view.adding.card} onClose={view.closeAdd} />}
-      {shown.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
-          Nothing on your dashboard. Use Customize view to add the cards you want.
-        </p>
-      ) : (
-        <div className={cn("grid gap-5", side.length > 0 && "xl:grid-cols-[minmax(0,1fr)_20rem]")}>
-          <div className="@container min-w-0">
-            <div className="grid gap-5 @2xl:grid-cols-2">{main.map(card)}</div>
-          </div>
-          {side.length > 0 && <aside className="space-y-5">{side.map(card)}</aside>}
-        </div>
-      )}
-    </div>
-  );
 }
 
 /** Closes a pop-over when somebody clicks anywhere outside it, or presses Escape. */
@@ -135,10 +56,6 @@ export function useDismiss(open: boolean, close: () => void) {
 }
 
 
-/** What a card's ⋮ offers, handed down to whichever card is drawn inside it. */
-export type CardControls = { earlier?: () => void; later?: () => void; remove: () => void; title: string };
-
-export const CardContext = createContext<CardControls | null>(null);
 
 
 export function money(amount: number, currency: string) {
@@ -146,10 +63,6 @@ export function money(amount: number, currency: string) {
 }
 
 
-/** The dashboard's Customize view button; the bar and Add cards appear with the cards (CardGrid). */
-export function EditCards<Id extends string>({ view }: { view: ViewLayoutState<Id> }) {
-  return <CustomizeButton view={view} />;
-}
 
 
 /** A card's ⋮: move it either way, open the screen behind it, or take it off this view. */

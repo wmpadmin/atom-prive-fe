@@ -31,15 +31,14 @@ import { menuFor } from "../../menu";
 import {
   AskTheAssistant,
   Breakdown,
-  CardGrid,
   Counts,
-  EditCards,
   Loading,
   Panel,
   Strip,
   useDashboardCards,
   type CardMeta,
 } from "./dashboard-kit";
+import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
 
 /**
  * Operations' dashboard: clients being taken on, the prospect pipeline, the bank feeds, the requests Operations
@@ -238,7 +237,7 @@ export function OperationsDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards view={view} />
+          <CustomizeButton view={view} />
           <SelectInput id="operations-period" aria-label="Period new intakes, activations and feed runs are counted over"
             value={String(days)} onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -248,7 +247,7 @@ export function OperationsDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} view={view} render={render} screen="Operations dashboard" />
+      <LayoutGrid view={view} render={render} screen="Operations dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }

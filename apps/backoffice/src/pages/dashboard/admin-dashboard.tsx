@@ -50,11 +50,9 @@ import { Chart, ink } from "../book/overview-charts";
 import {
   AskTheAssistant,
   Breakdown,
-  CardGrid,
   CardMenu,
   ComingSoon,
   Counts,
-  EditCards,
   Loading,
   Panel,
   Row,
@@ -63,6 +61,7 @@ import {
   useDashboardCards,
   type CardMeta,
 } from "./dashboard-kit";
+import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
 
 /**
  * The Admin's dashboard: the firm's money and clients across the top, then everything waiting on somebody,
@@ -356,7 +355,7 @@ export function AdminDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards view={view} />
+          <CustomizeButton view={view} />
           <SelectInput id="firm-period" aria-label="Period the changes are measured over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -378,7 +377,7 @@ export function AdminDashboard() {
         </Alert>
       )}
 
-      <CardGrid meta={CARD} view={view} render={cards} screen="Admin dashboard" />
+      <LayoutGrid view={view} render={cards} screen="Admin dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }
