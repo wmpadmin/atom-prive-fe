@@ -49,6 +49,8 @@ function AssignAdvisorForm({ clients, onCancel, onAssigned }: { clients: ClientT
   const advisors = useListCustomerAdvisors<StaffMember[], ApiError>({ query: { staleTime: 5 * 60_000 } });
   const [advisorId, setAdvisorId] = useState("");
   const [errors, setErrors] = useState<FormErrors>(noErrors);
+  // Assign pressed before anyone is chosen: the list shows in red until somebody is.
+  const [tried, setTried] = useState(false);
   const assign = useAssignAdvisor<ApiError>({
     mutation: {
       onSuccess: (result) => {
@@ -61,16 +63,22 @@ function AssignAdvisorForm({ clients, onCancel, onAssigned }: { clients: ClientT
   });
 
   const alreadyTheirs = advisorId !== "" && clients.every((client) => client.advisors.some((advisor) => advisor.id === advisorId));
-  const error = errors.fields.advisorId ?? errors.fields.customerIds;
+  const error = (tried && advisorId === "" ? "Choose a relationship manager." : undefined)
+    ?? errors.fields.advisorId ?? errors.fields.customerIds;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (advisorId === "") {
+      setTried(true);
+      document.getElementById("assign-advisor")?.focus();
+      return;
+    }
     setErrors(noErrors);
     assign.mutate({ data: { customerIds: clients.map((client) => client.id), advisorId } });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="space-y-5">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       <div className="rounded-xl border border-line">
@@ -106,7 +114,7 @@ function AssignAdvisorForm({ clients, onCancel, onAssigned }: { clients: ClientT
         <Button variant="ghost" onClick={onCancel} disabled={assign.isPending}>
           Cancel
         </Button>
-        <Button type="submit" disabled={advisorId === "" || alreadyTheirs || assign.isPending}>
+        <Button type="submit" disabled={alreadyTheirs || assign.isPending}>
           {assign.isPending ? "Assigning…" : "Assign relationship manager"}
         </Button>
       </div>

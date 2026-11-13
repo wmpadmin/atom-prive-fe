@@ -99,6 +99,8 @@ export function AssetClassesTab({ lean = false }: {
   const [editing, setEditing] = useState<string>();
   /** The name being typed over, where a name is corrected in its own place on the list. */
   const [typedName, setTypedName] = useState("");
+  /** Set by a Save with the name cleared; the box then shows red until a name is typed. */
+  const [nameTried, setNameTried] = useState(false);
 
   function afterChange(message: string) {
     setNotice({ tone: "success", message });
@@ -138,7 +140,12 @@ export function AssetClassesTab({ lean = false }: {
 
   /** Saves the name typed over the one on the list. The short name is left as it was: it is not shown here. */
   function saveTheName() {
-    if (!beingRenamed || typedName.trim() === "") {
+    if (!beingRenamed) {
+      return;
+    }
+    if (typedName.trim() === "") {
+      setNameTried(true);
+      requestAnimationFrame(() => document.querySelector<HTMLElement>("[aria-invalid='true']")?.focus());
       return;
     }
     rename.mutate({
@@ -194,6 +201,7 @@ export function AssetClassesTab({ lean = false }: {
                   aria-label={`Name of ${row.name}`}
                   className="h-8 min-w-0 flex-1 text-sm"
                   value={typedName}
+                  aria-invalid={nameTried && typedName.trim() === ""}
                   disabled={busy}
                   onChange={(event) => setTypedName(event.target.value)}
                   onKeyDown={(event) => {
@@ -221,6 +229,7 @@ export function AssetClassesTab({ lean = false }: {
                       onClick={() => {
                         setEditing(row.code);
                         setTypedName(row.name);
+                        setNameTried(false);
                         setAdding(false);
                         setNotice(undefined);
                       }}
@@ -236,12 +245,13 @@ export function AssetClassesTab({ lean = false }: {
         </ul>
         {beingRenamed && (
           <div className="flex items-center gap-2">
-            <Button size="sm" disabled={busy || typedName.trim() === ""} onClick={saveTheName}>
+            <Button size="sm" disabled={busy} onClick={saveTheName}>
               {busy ? "Saving…" : "Save"}
             </Button>
             <Button size="sm" variant="secondary" disabled={busy} onClick={() => setEditing(undefined)}>
               Cancel
             </Button>
+            {nameTried && typedName.trim() === "" && <p className="text-xs text-red-600">Enter a name.</p>}
           </div>
         )}
         </div>
@@ -404,9 +414,18 @@ function ClassForm({
 }) {
   const [name, setName] = useState(held);
   const [shortName, setShortName] = useState(heldShort);
+  // Set by a Save with a box left empty; each such box then shows red until it is filled in.
+  const [tried, setTried] = useState(false);
+  const noName = name.trim() === "";
+  const noShortName = shortName.trim() === "";
 
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (noName || noShortName) {
+      setTried(true);
+      document.getElementById(noName ? "asset-class-name" : "asset-class-short")?.focus();
+      return;
+    }
     onSave(name.trim(), shortName.trim());
   }
 
@@ -414,18 +433,25 @@ function ClassForm({
     <form onSubmit={save} className="max-w-3xl rounded-xl border border-line bg-canvas/60 p-4">
       <h3 className="text-sm font-semibold">{title}</h3>
       <div className="mt-3 grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem_auto]">
-        <Field id="asset-class-name" label="Name">
+        <Field id="asset-class-name" label="Name" error={tried && noName ? "Enter a name." : undefined}>
           <TextInput
             id="asset-class-name"
+            aria-invalid={tried && noName}
             value={name}
             maxLength={80}
             placeholder="Private credit"
             onChange={(event) => setName(event.target.value)}
           />
         </Field>
-        <Field id="asset-class-short" label="Short name" hint="For crowded columns">
+        <Field
+          id="asset-class-short"
+          label="Short name"
+          hint="For crowded columns"
+          error={tried && noShortName ? "Enter a short name." : undefined}
+        >
           <TextInput
             id="asset-class-short"
+            aria-invalid={tried && noShortName}
             value={shortName}
             maxLength={16}
             placeholder="PC"
@@ -433,7 +459,7 @@ function ClassForm({
           />
         </Field>
         <div className="flex items-end gap-2 pb-0.5">
-          <Button type="submit" disabled={busy || name.trim() === "" || shortName.trim() === ""}>
+          <Button type="submit" disabled={busy}>
             {busy ? "Saving…" : "Save"}
           </Button>
           <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>

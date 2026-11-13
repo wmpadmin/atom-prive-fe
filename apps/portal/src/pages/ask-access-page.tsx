@@ -20,6 +20,8 @@ export function AskAccessPage() {
   const [who, setWho] = useState<string>("");
   const [bank, setBank] = useState<string>("");
   const [message, setMessage] = useState("");
+  // Set when Send is pressed with somebody or a bank not yet chosen; each step stays red until it is.
+  const [tried, setTried] = useState(false);
   const ask = useAsk<ApiError>({
     mutation: {
       onSuccess: () => {
@@ -42,6 +44,8 @@ export function AskAccessPage() {
 
   const chosen = family.data.find((one) => one.customerId === who);
   const banks = chosen?.banks ?? [];
+  const whoMissing = tried && who === "";
+  const bankMissing = tried && who !== "" && bank === "";
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
@@ -63,6 +67,11 @@ export function AskAccessPage() {
           className="space-y-5 rounded-2xl border border-slate-200 bg-white px-6 py-6"
           onSubmit={(event) => {
             event.preventDefault();
+            if (who === "" || bank === "") {
+              setTried(true);
+              document.querySelector<HTMLElement>(who === "" ? "[data-ask-who]:not(:disabled)" : "[data-ask-bank]")?.focus();
+              return;
+            }
             ask.mutate({ data: { ownerId: who, bankId: bank, message: message.trim() || null } });
           }}
         >
@@ -72,6 +81,9 @@ export function AskAccessPage() {
                 <li key={one.customerId}>
                   <button
                     type="button"
+                    data-ask-who
+                    aria-invalid={(whoMissing && !one.alreadyAsked) || undefined}
+                    aria-describedby={whoMissing ? "ask-who-error" : undefined}
                     disabled={one.alreadyAsked}
                     onClick={() => {
                       setWho(one.customerId);
@@ -80,7 +92,9 @@ export function AskAccessPage() {
                     className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left disabled:opacity-60 ${
                       who === one.customerId
                         ? "border-blue-500 bg-blue-50/60"
-                        : "border-slate-200 hover:border-slate-300"
+                        : whoMissing && !one.alreadyAsked
+                          ? "border-red-500"
+                          : "border-slate-200 hover:border-slate-300"
                     }`}
                   >
                     <Face name={one.fullName} photo={one.photo} small />
@@ -100,6 +114,7 @@ export function AskAccessPage() {
                 </li>
               ))}
             </ul>
+            {whoMissing && <p id="ask-who-error" className="mt-1.5 text-xs text-red-600">Choose who you want to ask.</p>}
           </Step>
 
           <Step number={2} label="Which bank">
@@ -114,11 +129,16 @@ export function AskAccessPage() {
                   <li key={one.bankId}>
                     <button
                       type="button"
+                      data-ask-bank
+                      aria-invalid={bankMissing || undefined}
+                      aria-describedby={bankMissing ? "ask-bank-error" : undefined}
                       onClick={() => setBank(one.bankId)}
                       className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left ${
                         bank === one.bankId
                           ? "border-blue-500 bg-blue-50/60"
-                          : "border-slate-200 hover:border-slate-300"
+                          : bankMissing
+                            ? "border-red-500"
+                            : "border-slate-200 hover:border-slate-300"
                       }`}
                     >
                       <span className="text-sm font-semibold text-slate-900">{one.bankName}</span>
@@ -130,6 +150,7 @@ export function AskAccessPage() {
                 ))}
               </ul>
             )}
+            {bankMissing && <p id="ask-bank-error" className="mt-1.5 text-xs text-red-600">Choose a bank.</p>}
           </Step>
 
           <Step number={3} label="What you would be given">
@@ -166,7 +187,7 @@ export function AskAccessPage() {
             </Link>
             <button
               type="submit"
-              disabled={ask.isPending || who === "" || bank === ""}
+              disabled={ask.isPending}
               className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"
             >
               {ask.isPending ? "Sending…" : "Send request"}
