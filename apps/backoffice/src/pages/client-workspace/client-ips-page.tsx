@@ -78,8 +78,8 @@ const CARDS: Record<IpsCard, LayoutMeta> = {
   log: { title: "Deviation & Exception Log", group: "Compliance", wide: true },
 };
 
-// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
-const DEFAULT_CARDS: IpsCard[] = ["summary", "scorecard", "allocation", "checks"];
+// The screen as the portal was set up, every card on it: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS = Object.keys(CARDS) as IpsCard[];
 
 function Monitoring({ data, view }: { data: ClientIps; view: ViewLayoutState<IpsCard> }) {
   return (

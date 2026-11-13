@@ -88,8 +88,8 @@ const CARDS: Record<DirectoryCardId, LayoutMeta> = {
   mandates: { title: "By Mandate", group: "Breakdowns", charts: ["table", "donut", "horizontal-bar", "mindmap"] },
 };
 
-// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
-const DEFAULT_CARDS: DirectoryCardId[] = ["kpis", "attention", "directory", "segments"];
+// The screen as the portal was set up, every card on it: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS = Object.keys(CARDS) as DirectoryCardId[];
 
 function Board({ data, view }: { data: ClientDirectory; view: ViewLayoutState<DirectoryCardId> }) {
   const cur = data.currency;

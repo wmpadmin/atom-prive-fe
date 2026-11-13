@@ -76,8 +76,8 @@ const CARDS: Record<StructureCard, LayoutMeta> = {
   governance: { title: "Governance Calendar & Documents", group: "Governance", wide: true },
 };
 
-// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
-const DEFAULT_CARDS: StructureCard[] = ["kpis", "ownership", "register", "mix"];
+// The screen as the portal was set up, every card on it: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS = Object.keys(CARDS) as StructureCard[];
 
 function Structure({ data, view }: { data: ClientStructure; view: ViewLayoutState<StructureCard> }) {
   return (
