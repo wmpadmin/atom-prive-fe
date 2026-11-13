@@ -10,7 +10,7 @@ import {
   useGetClientKycFile,
   type ClientKycFile,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, DateInput, Field, TextArea, cn } from "@atomprive/ui";
+import { Alert, Badge, Button, DateInput, describedBy, Field, TextArea, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ExternalLink } from "lucide-react";
 import { useState } from "react";
@@ -52,7 +52,11 @@ export function ReviewDocumentPage() {
   const [choice, setChoice] = useState<"APPROVE" | "REJECT">();
   const [reason, setReason] = useState("");
   const [problem, setProblem] = useState<string>();
+  // Which button was pressed with something it needs still missing. Each missing one stays red until it is in.
+  const [tried, setTried] = useState<"record" | "again" | null>(null);
   const busy = decide.isPending || askAgain.isPending;
+  const choiceError = tried === "record" && !choice ? "Choose Approve or Reject." : undefined;
+  const reasonError = tried && reason.trim().length === 0 ? "Enter a reason." : undefined;
 
   const paper = file.data?.documents.find((one) => one.id === documentId);
   const backTo = `/kyc/${customerId}${search.get("from") ? `?from=${search.get("from")}` : ""}`;
@@ -65,12 +69,21 @@ export function ReviewDocumentPage() {
   }
 
   function askForAnother() {
+    if (reason.trim().length === 0) {
+      setTried("again");
+      document.getElementById("reason")?.focus();
+      return;
+    }
     setProblem(undefined);
     askAgain.mutate({ documentId, data: { reason } }, { onSuccess: done, onError: (caught) => setProblem(caught.message) });
   }
 
   function record() {
-    if (!choice) return;
+    if (!choice || reason.trim().length === 0) {
+      setTried("record");
+      document.getElementById(!choice ? "decision-approve" : "reason")?.focus();
+      return;
+    }
     setProblem(undefined);
     decide.mutate(
       { documentId, data: { approved: choice === "APPROVE", reason } },
@@ -147,14 +160,18 @@ export function ReviewDocumentPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <button
+                id="decision-approve"
                 type="button"
                 aria-pressed={choice === "APPROVE"}
+                aria-describedby={choiceError ? "decision-error" : undefined}
                 onClick={() => setChoice("APPROVE")}
                 className={cn(
                   "rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors",
                   choice === "APPROVE"
                     ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                    : "border-line bg-white text-ink-soft hover:border-emerald-200",
+                    : choiceError
+                      ? "border-red-500 bg-white text-ink-soft hover:border-emerald-200"
+                      : "border-line bg-white text-ink-soft hover:border-emerald-200",
                 )}
               >
                 Approve
@@ -162,20 +179,25 @@ export function ReviewDocumentPage() {
               <button
                 type="button"
                 aria-pressed={choice === "REJECT"}
+                aria-describedby={choiceError ? "decision-error" : undefined}
                 onClick={() => setChoice("REJECT")}
                 className={cn(
                   "rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors",
                   choice === "REJECT"
                     ? "border-red-500 bg-red-50 text-red-700"
-                    : "border-line bg-white text-ink-soft hover:border-red-200",
+                    : choiceError
+                      ? "border-red-500 bg-white text-ink-soft hover:border-red-200"
+                      : "border-line bg-white text-ink-soft hover:border-red-200",
                 )}
               >
                 Reject
               </button>
             </div>
+            {choiceError && <p id="decision-error" className="-mt-2 text-xs text-red-600">{choiceError}</p>}
 
-            <Field id="reason" label="Decision reason — required" required>
+            <Field id="reason" label="Decision reason — required" required error={reasonError}>
               <TextArea
+                {...describedBy("reason", reasonError)}
                 id="reason"
                 rows={5}
                 maxLength={MOST_CHARACTERS}
@@ -193,14 +215,14 @@ export function ReviewDocumentPage() {
             </div>
 
             <div className="space-y-2 border-t border-line pt-4">
-              <Button className="w-full" disabled={busy || !choice || reason.trim().length === 0} onClick={record}>
+              <Button className="w-full" disabled={busy} onClick={record}>
                 {decide.isPending ? "Recording…" : "Record decision"}
               </Button>
               {/* Not a rejection: asking for a better copy of the same paper leaves the client pending. */}
               <Button
                 className="w-full"
                 variant="secondary"
-                disabled={busy || reason.trim().length === 0}
+                disabled={busy}
                 onClick={askForAnother}
               >
                 {askAgain.isPending ? "Asking…" : "Request re-upload"}

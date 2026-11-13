@@ -52,6 +52,8 @@ export function FormComments({
   const [forStaff, setForStaff] = useState("");
   const [body, setBody] = useState("");
   const [refused, setRefused] = useState<string>();
+  // Set by a press with nothing typed; the box then shows red until something is.
+  const [tried, setTried] = useState(false);
 
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: getListFormCommentsQueryKey(formId) });
@@ -61,7 +63,11 @@ export function FormComments({
 
   function add() {
     const said = body.trim();
-    if (said === "") return;
+    if (said === "") {
+      setTried(true);
+      requestAnimationFrame(() => document.getElementById("comment-body")?.focus());
+      return;
+    }
     setRefused(undefined);
     write.mutate(
       {
@@ -77,6 +83,7 @@ export function FormComments({
       {
         onSuccess: () => {
           setBody("");
+          setTried(false);
           refresh();
         },
         onError: (error) => setRefused(error.message),
@@ -170,9 +177,14 @@ export function FormComments({
 
       {canWrite && (
         <div className="space-y-4 border-t border-line px-6 py-5">
-          <Field id="comment-body" label="Ask for a change">
+          <Field
+            id="comment-body"
+            label="Ask for a change"
+            error={tried && body.trim() === "" ? "Write the change you are asking for." : undefined}
+          >
             <TextArea
               id="comment-body"
+              aria-invalid={tried && body.trim() === ""}
               rows={3}
               value={body}
               maxLength={2000}
@@ -208,7 +220,7 @@ export function FormComments({
             </Field>
           </div>
           <div className="flex justify-end">
-            <Button onClick={add} disabled={write.isPending || body.trim() === ""}>
+            <Button onClick={add} disabled={write.isPending}>
               {write.isPending ? "Adding…" : "Add the comment"}
             </Button>
           </div>

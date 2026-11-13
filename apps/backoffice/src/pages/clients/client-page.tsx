@@ -510,11 +510,14 @@ function AskToDeactivate({
   onClose: () => void;
 }) {
   const [why, setWhy] = useState(initialReason);
+  // Set by a press with no reason; the box then shows red until one is written.
+  const [tried, setTried] = useState(false);
   const queryClient = useQueryClient();
   const ask = useAskToDeactivate<ApiError>({
     mutation: {
       onSuccess: () => {
         setWhy("");
+        setTried(false);
         void queryClient.invalidateQueries();
         onClose();
       },
@@ -529,6 +532,7 @@ function AskToDeactivate({
       description="This goes to Operations, who ask every desk to clear their work on this client. Nothing changes until all of them have, and the Admin approves."
       onClose={() => {
         setWhy("");
+        setTried(false);
         ask.reset();
         onClose();
       }}
@@ -540,9 +544,11 @@ function AskToDeactivate({
           label="Why"
           required
           hint="The Admin sees this, and it stays on the client's record for good."
+          error={tried && said.length === 0 ? "Enter a reason." : undefined}
         >
           <TextArea
             id="why-deactivate"
+            aria-invalid={tried && said.length === 0}
             rows={3}
             maxLength={2000}
             value={why}
@@ -556,12 +562,19 @@ function AskToDeactivate({
           will be able to see them. Nothing is deleted, and the Admin can put them back within 90 days.
         </Alert>
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" disabled={ask.isPending} onClick={onClose}>
+          <Button variant="secondary" disabled={ask.isPending} onClick={() => { setTried(false); onClose(); }}>
             Cancel
           </Button>
           <Button
-            disabled={ask.isPending || said.length === 0}
-            onClick={() => ask.mutate({ customerId: clientId, data: { reason: said } })}
+            disabled={ask.isPending}
+            onClick={() => {
+              if (said.length === 0) {
+                setTried(true);
+                requestAnimationFrame(() => document.getElementById("why-deactivate")?.focus());
+                return;
+              }
+              ask.mutate({ customerId: clientId, data: { reason: said } });
+            }}
           >
             {ask.isPending ? "Sending…" : "Send it to Operations"}
           </Button>
@@ -584,6 +597,8 @@ function ClientAskBanner({ clientId, clientName, onRaise }: { clientId: string; 
   });
   const [keeping, setKeeping] = useState(false);
   const [note, setNote] = useState("");
+  // Set by a press with no note; the box then shows red until one is written.
+  const [tried, setTried] = useState(false);
   const keep = useKeepTheAccount<ApiError>({
     mutation: {
       onSuccess: () => {
@@ -608,7 +623,7 @@ function ClientAskBanner({ clientId, clientName, onRaise }: { clientId: string; 
         {ask.reason && <p className="text-ink-muted">“{ask.reason}”</p>}
       </div>
       <div className="flex gap-2">
-        <Button variant="secondary" size="sm" onClick={() => setKeeping(true)}>They&rsquo;ve changed their mind</Button>
+        <Button variant="secondary" size="sm" onClick={() => { setKeeping(true); setTried(false); }}>They&rsquo;ve changed their mind</Button>
         <Button size="sm" onClick={() => onRaise(`Client asked on ${day}${ask.reason ? `: ${ask.reason}` : "."}`)}>Ask for deactivation</Button>
       </div>
       <Dialog
@@ -619,12 +634,22 @@ function ClientAskBanner({ clientId, clientName, onRaise }: { clientId: string; 
       >
         <div className="space-y-3">
           {keep.error && <Alert tone="danger">{keep.error.message}</Alert>}
-          <Field id="keep-note" label="Note" required>
-            <TextArea id="keep-note" rows={3} maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Spoke to them on the phone; staying with the firm." />
+          <Field id="keep-note" label="Note" required error={tried && !note.trim() ? "Write what was agreed." : undefined}>
+            <TextArea id="keep-note" rows={3} aria-invalid={tried && !note.trim()} maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Spoke to them on the phone; staying with the firm." />
           </Field>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setKeeping(false)}>Cancel</Button>
-            <Button disabled={!note.trim() || keep.isPending} onClick={() => keep.mutate({ customerId: clientId, data: { note: note.trim() } })}>
+            <Button
+              disabled={keep.isPending}
+              onClick={() => {
+                if (!note.trim()) {
+                  setTried(true);
+                  requestAnimationFrame(() => document.getElementById("keep-note")?.focus());
+                  return;
+                }
+                keep.mutate({ customerId: clientId, data: { note: note.trim() } });
+              }}
+            >
               {keep.isPending ? "Saving…" : "Record it"}
             </Button>
           </div>

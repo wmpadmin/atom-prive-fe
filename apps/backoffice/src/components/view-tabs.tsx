@@ -86,6 +86,8 @@ export function ViewTabs({
 }) {
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
+  // A Save pressed with no name turns the box red until one is typed.
+  const [tried, setTried] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,7 +109,11 @@ export function ViewTabs({
 
   function keep() {
     const asked = name.trim();
-    if (asked === "") return;
+    if (asked === "") {
+      setTried(true);
+      box.current?.querySelector("input")?.focus();
+      return;
+    }
     onSave(asked);
     setName("");
     setNaming(false);
@@ -126,7 +132,7 @@ export function ViewTabs({
         type="button"
         aria-label="Save this arrangement as a view"
         aria-expanded={naming}
-        onClick={() => { setNaming((was) => !was); setName(""); }}
+        onClick={() => { setNaming((was) => !was); setName(""); setTried(false); }}
         className="grid size-7 place-items-center rounded-lg border border-line text-ink-muted hover:bg-slate-50 hover:text-ink"
       >
         <Plus aria-hidden="true" className="size-4" />
@@ -146,14 +152,16 @@ export function ViewTabs({
               value={name}
               placeholder="Name it"
               aria-label="Name this view"
+              aria-invalid={tried && name.trim() === ""}
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") { event.preventDefault(); keep(); }
                 if (event.key === "Escape") { event.stopPropagation(); setNaming(false); }
               }}
             />
-            <Button size="sm" onClick={keep} disabled={name.trim() === ""}>Save</Button>
+            <Button size="sm" onClick={keep}>Save</Button>
           </div>
+          {tried && name.trim() === "" && <p className="mt-1 text-xs text-red-600">Give the view a name.</p>}
         </div>
       )}
     </div>

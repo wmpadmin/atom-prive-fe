@@ -272,6 +272,12 @@ function NewPhoneDialog({ email, onClose, onMoved }: { email: string; onClose: (
   const [byEmail, setByEmail] = useState(false);
   const [setup, setSetup] = useState<NewPhone | null>(null);
   const [newCode, setNewCode] = useState("");
+  // Next or Finish pressed with something missing: each missing box shows in red until it is filled.
+  const [triedStart, setTriedStart] = useState(false);
+  const [triedFinish, setTriedFinish] = useState(false);
+  const noPassword = triedStart && !password;
+  const shortCode = triedStart && code.length < 6;
+  const shortNewCode = triedFinish && newCode.length < 6;
   const start = useStartMyNewPhone<ApiError>({ mutation: { onSuccess: (fresh) => setSetup(fresh) } });
   const sendCode = useEmailMyNewPhoneCode<ApiError>({ mutation: { onSuccess: () => setByEmail(true) } });
   const finish = useFinishMyNewPhone<ApiError>({ mutation: { onSuccess: onMoved } });
@@ -293,17 +299,23 @@ function NewPhoneDialog({ email, onClose, onMoved }: { email: string; onClose: (
             className="space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
+              if (!password || code.length < 6) {
+                setTriedStart(true);
+                document.getElementById(!password ? "phone-password" : "phone-code")?.focus();
+                return;
+              }
               start.mutate({ data: byEmail ? { password, code: null, emailedCode: code } : { password, code, emailedCode: null } });
             }}
           >
-            <Field id="phone-password" label="Your password" error={fields.password}>
-              <PasswordInput id="phone-password" value={password} autoComplete="current-password" onChange={(event) => setPassword(event.target.value)} />
+            <Field id="phone-password" label="Your password"
+              error={fields.password ?? (noPassword ? "Enter your password." : undefined)}>
+              <PasswordInput id="phone-password" aria-invalid={noPassword || undefined} value={password} autoComplete="current-password" onChange={(event) => setPassword(event.target.value)} />
             </Field>
             <Field id="phone-code" label={byEmail ? "Code we emailed you" : "Code from your old phone"}
-              error={fields.code ?? fields.emailedCode}>
-              <input id="phone-code" value={code} inputMode="numeric" autoComplete="one-time-code"
+              error={fields.code ?? fields.emailedCode ?? (shortCode ? "Enter the 6-digit code." : undefined)}>
+              <input id="phone-code" value={code} aria-invalid={shortCode || undefined} inputMode="numeric" autoComplete="one-time-code"
                 onChange={(event) => setCode(event.target.value.replaceAll(/\D/g, "").slice(0, 6))}
-                className="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-center font-mono text-xl tracking-[0.4em]" />
+                className="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-center font-mono text-xl tracking-[0.4em] aria-invalid:border-red-500" />
             </Field>
             {byEmail && <p className="text-sm text-ink-muted">Sent to {email}. It works for 10 minutes.</p>}
             {!byEmail && (
@@ -317,25 +329,37 @@ function NewPhoneDialog({ email, onClose, onMoved }: { email: string; onClose: (
             )}
             <div className="flex justify-end gap-2.5">
               <Button variant="secondary" onClick={onClose}>Cancel</Button>
-              <Button type="submit" disabled={!password || code.length < 6 || start.isPending}>Next</Button>
+              <Button type="submit" disabled={start.isPending}>Next</Button>
             </div>
           </form>
         ) : (
-          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); finish.mutate({ data: { code: newCode } }); }}>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (newCode.length < 6) {
+                setTriedFinish(true);
+                document.getElementById("new-phone-code")?.focus();
+                return;
+              }
+              finish.mutate({ data: { code: newCode } });
+            }}
+          >
             <div dangerouslySetInnerHTML={{ __html: setup.qrSvg }}
               className="mx-auto size-44 rounded-xl border border-line bg-white p-2 [&>svg]:size-full" />
             <p className="text-center text-xs text-ink-muted">
               Can't scan? Enter this key: <span className="font-mono font-bold text-ink">{(setup.secret.match(/.{1,4}/g) ?? []).join(" ")}</span>
             </p>
-            <Field id="new-phone-code" label="Then enter the code your new phone shows" error={fields.code}>
-              <input id="new-phone-code" value={newCode} inputMode="numeric" autoComplete="one-time-code"
+            <Field id="new-phone-code" label="Then enter the code your new phone shows"
+              error={fields.code ?? (shortNewCode ? "Enter the 6-digit code." : undefined)}>
+              <input id="new-phone-code" value={newCode} aria-invalid={shortNewCode || undefined} inputMode="numeric" autoComplete="one-time-code"
                 onChange={(event) => setNewCode(event.target.value.replaceAll(/\D/g, "").slice(0, 6))}
-                className="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-center font-mono text-xl tracking-[0.4em]" />
+                className="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-center font-mono text-xl tracking-[0.4em] aria-invalid:border-red-500" />
             </Field>
             <p className="text-xs text-ink-muted">Your old phone stops working once this is done.</p>
             <div className="flex justify-end gap-2.5">
               <Button variant="secondary" onClick={() => setSetup(null)}>Back</Button>
-              <Button type="submit" disabled={newCode.length < 6 || finish.isPending}>Finish</Button>
+              <Button type="submit" disabled={finish.isPending}>Finish</Button>
             </div>
           </form>
         )}

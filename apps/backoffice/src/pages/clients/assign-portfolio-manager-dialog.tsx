@@ -56,6 +56,8 @@ function AssignPortfolioManagerForm({ clients, onCancel, onAssigned }: { clients
   const managers = useListPortfolioManagers<StaffMember[], ApiError>({ query: { staleTime: 5 * 60_000 } });
   const [managerId, setManagerId] = useState("");
   const [errors, setErrors] = useState<FormErrors>(noErrors);
+  // Set by a press with nobody chosen; the picker then shows red until somebody is.
+  const [tried, setTried] = useState(false);
   const assign = useAssignPortfolioManager<ApiError>({
     mutation: {
       onSuccess: (result) => {
@@ -69,16 +71,23 @@ function AssignPortfolioManagerForm({ clients, onCancel, onAssigned }: { clients
 
   const alreadyTheirs = managerId !== ""
     && clients.every((client) => client.portfolioManagers.some((manager) => manager.id === managerId));
-  const error = errors.fields.managerId ?? errors.fields.customerIds;
+  const error = errors.fields.managerId ?? errors.fields.customerIds
+    ?? (tried && managerId === "" ? "Choose a portfolio manager." : undefined);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (managerId === "") {
+      setTried(true);
+      requestAnimationFrame(() => document.getElementById("assign-portfolio-manager")?.focus());
+      return;
+    }
     setErrors(noErrors);
     assign.mutate({ data: { customerIds: clients.map((client) => client.id), managerId } });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    // noValidate: an empty picker is answered in red here, not by the browser's own bubble.
+    <form onSubmit={handleSubmit} noValidate className="space-y-5">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       <div className="rounded-xl border border-line">
@@ -122,7 +131,7 @@ function AssignPortfolioManagerForm({ clients, onCancel, onAssigned }: { clients
         <Button variant="ghost" onClick={onCancel} disabled={assign.isPending}>
           Cancel
         </Button>
-        <Button type="submit" disabled={managerId === "" || alreadyTheirs || assign.isPending}>
+        <Button type="submit" disabled={alreadyTheirs || assign.isPending}>
           {assign.isPending ? "Assigning…" : "Assign portfolio manager"}
         </Button>
       </div>

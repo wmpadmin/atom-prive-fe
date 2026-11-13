@@ -14,7 +14,7 @@ import {
   type LostRequestReason,
   type ProspectDetail,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, DateInput, Dialog, Field, SelectInput, TextArea, TextInput, cn } from "@atomprive/ui";
+import { Alert, Button, DateInput, Dialog, describedBy, Field, SelectInput, TextArea, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Mail, X } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
@@ -292,6 +292,8 @@ function EmailBox({ detail }: { detail: ProspectDetail }) {
   const [message, setMessage] = useState("");
   const [next, setNext] = useState("");
   const [sent, setSent] = useState(false);
+  // Set when Send is pressed with the subject or message empty; each stays red until it is written.
+  const [tried, setTried] = useState(false);
   const email = useEmailProspect<ApiError>({
     mutation: {
       onSuccess: (saved) => {
@@ -299,6 +301,7 @@ function EmailBox({ detail }: { detail: ProspectDetail }) {
         setSubject("");
         setMessage("");
         setNext("");
+        setTried(false);
         setSent(true);
       },
     },
@@ -315,18 +318,25 @@ function EmailBox({ detail }: { detail: ProspectDetail }) {
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     setSent(false);
+    if (!subject.trim() || !message.trim()) {
+      setTried(true);
+      document.getElementById(!subject.trim() ? "email-subject" : "email-message")?.focus();
+      return;
+    }
     email.mutate({ id: row.id, data: { subject, message, nextFollowUp: next || null } });
   };
+  const subjectError = tried && !subject.trim() ? "Enter a subject." : undefined;
+  const messageError = tried && !message.trim() ? "Write the message." : undefined;
   return (
     <form id="prospect-email" onSubmit={onSubmit} className="space-y-3">
       <h3 className="text-2xs font-bold tracking-wider text-ink-muted uppercase">Send follow-up email</h3>
       <div className="space-y-3 rounded-xl border border-primary-100 bg-white p-4">
         <p className="text-sm text-ink-muted">To <span className="font-semibold text-ink">{row.email}</span></p>
-        <Field id="email-subject" label="Subject">
-          <TextInput id="email-subject" value={subject} onChange={(event) => setSubject(event.target.value)} />
+        <Field id="email-subject" label="Subject" required error={subjectError}>
+          <TextInput {...describedBy("email-subject", subjectError)} id="email-subject" value={subject} onChange={(event) => setSubject(event.target.value)} />
         </Field>
-        <Field id="email-message" label="Message">
-          <TextArea id="email-message" rows={5} value={message} onChange={(event) => setMessage(event.target.value)} />
+        <Field id="email-message" label="Message" required error={messageError}>
+          <TextArea {...describedBy("email-message", messageError)} id="email-message" rows={5} value={message} onChange={(event) => setMessage(event.target.value)} />
         </Field>
         <Field id="email-next" label="Next follow up">
           <DateInput id="email-next" name="nextFollowUp" value={next} min={new Date()} max={FAR_AHEAD} clearable onChange={setNext} />
@@ -334,7 +344,7 @@ function EmailBox({ detail }: { detail: ProspectDetail }) {
         {email.error && <Alert tone="danger">{email.error.problem?.errors ? "Give the email a subject and a message." : email.error.message}</Alert>}
         {sent && <Alert tone="success">Sent.</Alert>}
         <div className="flex justify-end">
-          <Button type="submit" disabled={email.isPending || !subject.trim() || !message.trim()}>
+          <Button type="submit" disabled={email.isPending}>
             {email.isPending ? "Sending…" : "Send"}
           </Button>
         </div>
