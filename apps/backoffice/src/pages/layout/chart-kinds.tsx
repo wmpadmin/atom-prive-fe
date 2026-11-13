@@ -15,6 +15,7 @@ import {
   Gauge,
   Grid3x3,
   LayoutDashboard,
+  LayoutGrid,
   Radar,
   Table2,
   Waypoints,
@@ -34,7 +35,9 @@ import type { ViewLayoutState } from "./custom-view";
  */
 export type ChartKind =
   | "line" | "area" | "stacked-area" | "bar" | "horizontal-bar" | "grouped-bar" | "stacked-bar" | "donut" | "table"
-  | "heatmap" | "gauge" | "funnel" | "radar" | "waterfall" | "treemap" | "scatter" | "bubble";
+  | "heatmap" | "gauge" | "funnel" | "radar" | "waterfall" | "treemap" | "scatter" | "bubble"
+  /** A card's own tiles, such as the Collectibles categories: only ever a card's own look, drawn by the card. */
+  | "tiles";
 
 export const KIND_LABEL: Record<ChartKind, string> = {
   line: "Line",
@@ -54,6 +57,7 @@ export const KIND_LABEL: Record<ChartKind, string> = {
   treemap: "Treemap",
   scatter: "Scatter",
   bubble: "Bubble",
+  tiles: "Tiles",
 };
 
 export const KIND_ICON: Record<ChartKind, LucideIcon> = {
@@ -74,6 +78,7 @@ export const KIND_ICON: Record<ChartKind, LucideIcon> = {
   treemap: LayoutDashboard,
   scatter: ChartScatter,
   bubble: Waypoints,
+  tiles: LayoutGrid,
 };
 
 /** A card's figures in the one shape every kind is drawn from. */
