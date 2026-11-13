@@ -1,4 +1,4 @@
-import { changeOwnCard, createOwnCard, deleteOwnCard, getGetViewLayoutQueryKey, getListOwnCardsQueryKey } from "@atomprive/api-client/backoffice";
+import { changeOwnCard, createOwnCard, deleteOwnCard, getGetViewLayoutQueryKey, getListOwnCardsQueryKey, type Breaks } from "@atomprive/api-client/backoffice";
 import { Button, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Move, Plus, Search, X } from "lucide-react";
@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CardSettingsContext, type Palette } from "./card-settings";
 import { CardChartContext, cardChart, KIND_LABEL, type ChartKind } from "./chart-kinds";
 import type { CardChoice, LayoutMeta, ViewLayoutState, Width } from "./custom-view";
-import { OWN, OWN_GROUP, OwnCardView, breakPoints, shapeLabel, type Figure, type Figures, type OwnCardDraft } from "./own-cards";
+import { OWN, OWN_GROUP, OwnCardView, POLICY_STEPS, breakPoints, rising, shapeLabel, times, type Figure, type Figures, type OwnCardDraft } from "./own-cards";
 
 /** A card of the reader's own as its step leaves it: what the card is, and where it goes. */
 type OwnStepDraft = OwnCardDraft & { width: Width; after: string | null };
@@ -141,7 +141,13 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
       setSaving(false);
     }
   };
-  const ready = (id: Id) => !isOwn(id) || (!!draftOf(id).title.trim() && !!figures?.[draftOf(id).source] && !!draftOf(id).chart);
+  // An own card is ready with a name, a figure and a type; and, where it is drawn with break points, points in order.
+  const ready = (id: Id) => {
+    if (!isOwn(id)) return true;
+    const draft = draftOf(id);
+    const banded = (draft.chart === "gauge" || draft.chart === "number") && draft.breaks;
+    return !!draft.title.trim() && !!figures?.[draft.source] && !!draft.chart && (!banded || !!rising(draft.breaks!.points));
+  };
 
   const current = step >= 1 && step <= picked.length ? picked[step - 1]! : null;
   const steps = [
@@ -623,12 +629,13 @@ function OwnStep({ draft, figures, isNew, busy, headings, places, onChange, onDe
                     </label>
                     <label className={cn("flex items-center gap-1.5", !figure.policy && "opacity-40")}>
                       <input type="radio" name="own-basis" disabled={!figure.policy} checked={draft.breaks?.basis === "POLICY"} className="size-4 accent-primary-600"
-                        onChange={() => onChange({ breaks: { basis: "POLICY", points: [0, 1, 2, 4], reversed: draft.breaks?.reversed ?? false } })} />
+                        onChange={() => onChange({ breaks: { basis: "POLICY", points: POLICY_STEPS, reversed: draft.breaks?.reversed ?? false } })} />
                       The client's IPS {figure.policy?.label ?? "limit"}
                     </label>
                   </div>
                   {draft.breaks?.basis === "POLICY" ? (
-                    <p className="text-xs text-ink-muted">Red below the client's limit, amber up to twice it, green beyond: each client's own limit.</p>
+                    <PolicySteps breaks={draft.breaks} label={figure.policy?.label ?? "limit"}
+                      onChange={(steps) => onChange({ breaks: { ...draft.breaks!, points: steps } })} />
                   ) : points && (
                     <>
                       <div className="flex items-center gap-2 text-xs">
@@ -706,5 +713,44 @@ function Field({ label, required, children }: { label: string; required?: boolea
       <p className="mb-1.5 text-xs font-bold text-ink-soft">{label}{required && <span className="text-red-600"> *</span>}</p>
       {children}
     </div>
+  );
+}
+
+/** Steps for each number of segments, each keeping the limit itself (1×) as a point. */
+const STEPS_BY_SEGMENTS: Record<number, number[]> = { 2: [0, 1, 2], 3: [0, 1, 2, 4], 4: [0, 0.5, 1, 2, 4], 5: [0, 0.5, 1, 1.5, 2, 4] };
+
+/**
+ * Where the colours change against the client's own limit, as multiples of it: 1× is the limit itself. The first is
+ * where the dial starts and the last where it ends; each client's dial is drawn from their own limit.
+ */
+function PolicySteps({ breaks, label, onChange }: { breaks: Breaks; label: string; onChange: (steps: number[]) => void }) {
+  const steps = breaks.points.map(Number);
+  const valid = rising(steps);
+  const inner = steps.slice(1, -1);
+  return (
+    <>
+      <div className="flex items-center gap-2 text-xs">
+        Segments
+        <select value={steps.length - 1} className="rounded-md border border-line bg-white px-1.5 py-1"
+          onChange={(event) => onChange(STEPS_BY_SEGMENTS[Number(event.target.value)]!)}>
+          {[2, 3, 4, 5].map((one) => <option key={one} value={one}>{one}</option>)}
+        </select>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {steps.map((one, at) => (
+          <span key={at} className="flex items-center gap-1">
+            <input type="number" min={0} step={0.25} value={one} aria-label={`Step ${at + 1}, times the ${label}`}
+              onChange={(event) => onChange(steps.map((step, index) => (index === at ? Number(event.target.value) : step)))}
+              className="w-16 rounded-md border border-line px-2 py-1 text-xs tabular-nums" />
+            <span className="text-xs text-ink-muted">×</span>
+          </span>
+        ))}
+      </div>
+      {valid ? (
+        <p className="text-xs text-ink-muted">
+          Multiples of each client's own {label}: colours change at {inner.map(times).join(", ") || "no point"}; the dial runs from {times(steps[0]!)} to {times(steps[steps.length - 1]!)}.
+        </p>
+      ) : <p className="text-xs text-red-700">Each step must be higher than the one before.</p>}
+    </>
   );
 }
