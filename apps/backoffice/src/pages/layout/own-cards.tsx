@@ -33,8 +33,11 @@ export type Figures = Record<string, Figure>;
 /** The layout's name for an own card: kept with the screen's own cards in the reader's layout. */
 export const OWN = "own:";
 
+/** The heading an own card is listed under when its maker chose none. */
+export const OWN_GROUP = "Your own cards";
+
 /** What an own card is set to, saved or still being built. */
-export type OwnCardDraft = Pick<OwnCard, "title" | "note" | "source" | "chart" | "palette" | "breaks">;
+export type OwnCardDraft = Pick<OwnCard, "title" | "note" | "group" | "source" | "chart" | "palette" | "breaks">;
 
 /** The reader's own cards on a screen. */
 export function useOwnCards(key: string) {

@@ -5,8 +5,8 @@ import { ArrowLeft, Check, ChevronDown, ChevronRight, Move, Plus, Search, X } fr
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CardSettingsContext, type Palette } from "./card-settings";
 import { CardChartContext, cardChart, KIND_LABEL, type ChartKind } from "./chart-kinds";
-import type { CardChoice, ViewLayoutState, Width } from "./custom-view";
-import { OWN, OwnCardView, breakPoints, shapeLabel, type Figure, type Figures, type OwnCardDraft } from "./own-cards";
+import type { CardChoice, LayoutMeta, ViewLayoutState, Width } from "./custom-view";
+import { OWN, OWN_GROUP, OwnCardView, breakPoints, shapeLabel, type Figure, type Figures, type OwnCardDraft } from "./own-cards";
 
 /** A card of the reader's own as its step leaves it: what the card is, and where it goes. */
 type OwnStepDraft = OwnCardDraft & { width: Width; after: string | null };
@@ -43,8 +43,8 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
   const draftOf = (id: Id): OwnStepDraft => {
     const own = view.meta[id]?.own;
     return drafts[id] ?? (own
-      ? { title: own.title, note: own.note, source: own.source, chart: own.chart, palette: own.palette, breaks: own.breaks, width: view.width(id), after: null }
-      : { title: "", note: null, source: "", chart: "", palette: null, breaks: null, width: "HALF", after: null });
+      ? { title: own.title, note: own.note, group: own.group, source: own.source, chart: own.chart, palette: own.palette, breaks: own.breaks, width: view.width(id), after: null }
+      : { title: "", note: null, group: null, source: "", chart: "", palette: null, breaks: null, width: "HALF", after: null });
   };
   // A card gone from the screen while the window is open (one just deleted) reads as such rather than breaking it.
   const nameOf = (id: Id) => (isOwn(id) ? draftOf(id).title.trim() || (isNew(id) ? "New card" : view.meta[id]?.title ?? "Deleted card")
@@ -53,7 +53,7 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
   const addNew = () => {
     const id = `${NEW}${built + 1}` as Id;
     setBuilt((now) => now + 1);
-    setDrafts((now) => ({ ...now, [id]: { title: "", note: null, source: "", chart: "", palette: null, breaks: null, width: "HALF", after: null } }));
+    setDrafts((now) => ({ ...now, [id]: { title: "", note: null, group: null, source: "", chart: "", palette: null, breaks: null, width: "HALF", after: null } }));
     setPicked((now) => [...now, id]);
   };
   const baseline = (id: Id): CardChoice<Id> => {
@@ -102,7 +102,7 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
           continue;
         }
         const draft = draftOf(id);
-        const body = { title: draft.title.trim(), note: draft.note?.trim() || null, source: draft.source, chart: draft.chart,
+        const body = { title: draft.title.trim(), note: draft.note?.trim() || null, group: draft.group, source: draft.source, chart: draft.chart,
           palette: draft.palette, breaks: draft.chart === "gauge" || draft.chart === "number" ? draft.breaks : null };
         let layoutId = id;
         if (isNew(id)) {
@@ -242,6 +242,7 @@ export function CustomizeDialog<Id extends string>({ view, render, screen, start
             </div>
           ) : current && isOwn(current) ? (
             <OwnStep key={current} draft={draftOf(current)} figures={figures ?? {}} isNew={isNew(current)} busy={saving}
+              headings={[...new Set((Object.values(view.meta) as LayoutMeta[]).filter((one) => !one.own && one.group).map((one) => one.group!))]}
               places={[...new Set([...view.cards, ...picked])].filter((one) => one !== current && !isNew(one)).map((one) => [one, nameOf(one)] as [string, string])}
               onChange={(next) => setDrafts((now) => ({ ...now, [current]: { ...draftOf(current), ...next } }))}
               onDelete={isNew(current) ? undefined : () => remove(current)} />
@@ -498,11 +499,13 @@ function CardStep<Id extends string>({ id, view, render, choice, picked, onChang
  * A card of the reader's own, built or changed: its name, which of the screen's figures it reports on, how it is
  * drawn, and for a gauge where its colours change — beside the card as it will draw for the client in view.
  */
-function OwnStep({ draft, figures, isNew, busy, places, onChange, onDelete }: {
+/** @param headings the screen's own groups in Add cards, any of which the card may be listed under */
+function OwnStep({ draft, figures, isNew, busy, headings, places, onChange, onDelete }: {
   draft: OwnStepDraft;
   figures: Figures;
   isNew: boolean;
   busy: boolean;
+  headings: string[];
   places: [string, string][];
   onChange: (next: Partial<OwnStepDraft>) => void;
   onDelete?: () => void;
@@ -534,7 +537,11 @@ function OwnStep({ draft, figures, isNew, busy, places, onChange, onDelete }: {
                 className="w-full rounded-lg border border-line px-2.5 py-2 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none" />
             </Field>
             <Field label="Group">
-              <p className="rounded-lg border border-line bg-canvas px-2.5 py-2 text-sm text-ink-soft">Your own cards</p>
+              <select value={draft.group ?? ""} onChange={(event) => onChange({ group: event.target.value || null })}
+                className="w-full rounded-lg border border-line bg-white px-2.5 py-2 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none">
+                <option value="">{OWN_GROUP}</option>
+                {headings.filter((one) => one !== OWN_GROUP).map((one) => <option key={one} value={one}>{one}</option>)}
+              </select>
             </Field>
             <div className="sm:col-span-2">
               <Field label="Description">
