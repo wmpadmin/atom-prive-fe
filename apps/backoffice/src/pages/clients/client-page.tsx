@@ -703,11 +703,14 @@ function AskToDeactivate({
   onClose: () => void;
 }) {
   const [why, setWhy] = useState("");
+  // Set by a press with no reason; the box then shows red until one is written.
+  const [tried, setTried] = useState(false);
   const queryClient = useQueryClient();
   const ask = useAskToDeactivate<ApiError>({
     mutation: {
       onSuccess: () => {
         setWhy("");
+        setTried(false);
         void queryClient.invalidateQueries();
         onClose();
       },
@@ -722,6 +725,7 @@ function AskToDeactivate({
       description="This goes to the Admin to decide. Nothing changes until they approve it."
       onClose={() => {
         setWhy("");
+        setTried(false);
         ask.reset();
         onClose();
       }}
@@ -733,9 +737,11 @@ function AskToDeactivate({
           label="Why"
           required
           hint="The Admin sees this, and it stays on the client's record for good."
+          error={tried && said.length === 0 ? "Enter a reason." : undefined}
         >
           <TextArea
             id="why-deactivate"
+            aria-invalid={(tried && said.length === 0) || undefined}
             rows={3}
             maxLength={2000}
             value={why}
@@ -753,8 +759,15 @@ function AskToDeactivate({
             Cancel
           </Button>
           <Button
-            disabled={ask.isPending || said.length === 0}
-            onClick={() => ask.mutate({ customerId: clientId, data: { reason: said } })}
+            disabled={ask.isPending}
+            onClick={() => {
+              if (said.length === 0) {
+                setTried(true);
+                document.getElementById("why-deactivate")?.focus();
+                return;
+              }
+              ask.mutate({ customerId: clientId, data: { reason: said } });
+            }}
           >
             {ask.isPending ? "Sending…" : "Send it to the Admin"}
           </Button>

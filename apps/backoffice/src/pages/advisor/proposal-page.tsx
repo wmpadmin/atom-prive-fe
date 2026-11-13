@@ -75,6 +75,8 @@ export function ProposalPage() {
   /** Whether the answer dialog is open, and which way it is being answered. */
   const [answering, setAnswering] = useState<"approve" | "reject" | null>(null);
   const [note, setNote] = useState("");
+  // Reject pressed with no reason: the box shows in red until one is written.
+  const [tried, setTried] = useState(false);
   // Typed rather than native: a number box takes "e" as scientific notation and then reports itself empty,
   // so a figure somebody fumbled would be dropped on the way out instead of questioned.
   // Null until somebody types: the box then shows what is on the proposal, and what was typed from then on.
@@ -223,6 +225,7 @@ export function ProposalPage() {
   /** Opens the answer dialog on an empty box, so neither way of answering inherits the other's note. */
   function asking(which: "approve" | "reject" | null) {
     setNote("");
+    setTried(false);
     setErrors(noErrors);
     setAnswering(which);
   }
@@ -705,10 +708,11 @@ export function ProposalPage() {
             id="answer-note"
             label={answering === "approve" ? "Anything to say about it" : "Why?"}
             required={answering === "reject"}
-            error={errors.fields.note}
+            error={errors.fields.note ?? (tried && answering === "reject" && note.trim() === "" ? "Enter a reason." : undefined)}
           >
             <TextArea
               {...describedBy("answer-note", errors.fields.note)}
+              aria-invalid={(tried && answering === "reject" && note.trim() === "") || undefined}
               id="answer-note"
               rows={3}
               value={note}
@@ -720,14 +724,19 @@ export function ProposalPage() {
               Cancel
             </Button>
             <Button
-              // A refusal owes a reason, so the button waits for one. An agreement does not.
-              disabled={deciding || (answering === "reject" && note.trim() === "")}
-              onClick={() =>
+              // A refusal owes a reason: pressed without one, the box shows in red. An agreement does not.
+              disabled={deciding}
+              onClick={() => {
+                if (answering === "reject" && note.trim() === "") {
+                  setTried(true);
+                  document.getElementById("answer-note")?.focus();
+                  return;
+                }
                 answer.mutate({
                   id: proposalId!,
                   data: { approved: answering === "approve", note: note.trim() || null },
-                })
-              }
+                });
+              }}
             >
               {answer.isPending
                 ? answering === "approve" ? "Approving…" : "Rejecting…"
