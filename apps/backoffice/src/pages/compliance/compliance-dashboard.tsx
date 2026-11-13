@@ -37,15 +37,14 @@ import { Chart, ink } from "../book/overview-charts";
 import {
   AskTheAssistant,
   Breakdown,
-  CardGrid,
   Counts,
-  EditCards,
   Loading,
   Panel,
   Strip,
   useDashboardCards,
   type CardMeta,
 } from "../dashboard/dashboard-kit";
+import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
 
 /**
  * Compliance's dashboard: the firm's KYC and AML across the whole book, what is waiting on Compliance, what is
@@ -214,7 +213,7 @@ export function ComplianceDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards view={view} />
+          <CustomizeButton view={view} />
           <SelectInput id="compliance-period" aria-label="Period the audit events are counted over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -224,7 +223,7 @@ export function ComplianceDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} view={view} render={render} screen="Compliance dashboard" />
+      <LayoutGrid view={view} render={render} screen="Compliance dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }

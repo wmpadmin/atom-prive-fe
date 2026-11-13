@@ -33,9 +33,7 @@ import { menuFor } from "../../menu";
 import {
   AskTheAssistant,
   Breakdown,
-  CardGrid,
   Counts,
-  EditCards,
   Loading,
   Panel,
   Strip,
@@ -43,6 +41,7 @@ import {
   useDashboardCards,
   type CardMeta,
 } from "../dashboard/dashboard-kit";
+import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
 
 /**
  * A relationship manager's dashboard: their own clients and nobody else's — where each stands, what waits on
@@ -228,7 +227,7 @@ export function AdvisorDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards view={view} />
+          <CustomizeButton view={view} />
           <SelectInput id="rm-period" aria-label="Period the changes are measured over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -244,7 +243,7 @@ export function AdvisorDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} view={view} render={render} screen="Relationship Manager dashboard" />
+      <LayoutGrid view={view} render={render} screen="Relationship Manager dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }
