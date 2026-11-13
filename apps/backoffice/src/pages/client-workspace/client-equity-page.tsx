@@ -50,8 +50,8 @@ const CARDS: Record<EquityCard, LayoutMeta> = {
   history: { title: "Valuation History · P/E", group: "Returns", charts: ["line", "area", "bar", "table"] },
 };
 
-// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
-const DEFAULT_CARDS: EquityCard[] = ["kpis", "segments", "sectors", "holdings"];
+// The screen as the portal was set up, every card on it: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS = Object.keys(CARDS) as EquityCard[];
 
 export function ClientEquityPage() {
   const { customerId = "" } = useParams();

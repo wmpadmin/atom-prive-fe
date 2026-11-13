@@ -91,8 +91,8 @@ const CARDS: Record<CollectiblesCard, LayoutMeta> = {
   locations: { title: "Locations & Custody", group: "Care & cover", charts: ["table", "donut", "horizontal-bar", "mindmap"] },
 };
 
-// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
-const DEFAULT_CARDS: CollectiblesCard[] = ["kpis", "categories", "register", "value"];
+// The screen as the portal was set up, every card on it: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS = Object.keys(CARDS) as CollectiblesCard[];
 
 const CATEGORIES: { key: string; label: string; short: string; icon: LucideIcon }[] = [
   { key: "YACHT", label: "Yacht", short: "Yacht", icon: Sailboat },
