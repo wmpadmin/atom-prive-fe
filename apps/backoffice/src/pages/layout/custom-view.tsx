@@ -12,7 +12,7 @@ import { Button, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, ExternalLink, GripVertical, LayoutGrid as LayoutIcon, MoreVertical, Plus, RotateCcw, Settings2, X } from "lucide-react";
 import { Link } from "react-router";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent, type ReactNode } from "react";
 import { CustomizeDialog } from "./add-card";
 import { CardSettingsContext, type CardSettings, type Palette } from "./card-settings";
 import { CardChartContext, cardChart, type ChartKind } from "./chart-kinds";
@@ -328,27 +328,16 @@ export function EditFrame<Id extends string>({ id, view, className, alone, child
 }) {
   const [over, setOver] = useState<"before" | "after" | null>(null);
   const [grabbed, setGrabbed] = useState(false);
+  // Faded only once it is really being dragged, not on every press of its header.
+  const [moving, setMoving] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!view.editing) setOver(null);
   }, [view.editing]);
   const settings = view.settings(id);
   const chart = view.meta[id]?.charts?.length ? cardChart(view, id) : null;
-  if (!view.editing) {
-    return (
-      <div className={className}>
-        <CardSettingsContext.Provider value={settings}>
-          <CardChartContext.Provider value={chart}>{children}</CardChartContext.Provider>
-        </CardSettingsContext.Provider>
-      </div>
-    );
-  }
-
   const meta = view.meta[id];
-  const name = settings.title ?? meta.title;
-  const area = meta.area ?? "main";
-  const mates = view.cards.filter((one) => (view.meta[one].area ?? "main") === area);
-  const at = mates.indexOf(id);
+  const area = meta?.area ?? "main";
   const side = (event: DragEvent) => {
     const rect = box.current?.getBoundingClientRect();
     if (!rect) return "before" as const;
@@ -356,33 +345,63 @@ export function EditFrame<Id extends string>({ id, view, className, alone, child
     return (wideRow ? event.clientX > rect.left + rect.width / 2 : event.clientY > rect.top + rect.height / 2) ? "after" as const : "before" as const;
   };
   const sameArea = () => dragging != null && dragging !== id && (view.meta[dragging as Id]?.area ?? "main") === area;
+  // Dragging, as the screen is read: a card is held by its header (or anywhere on one with no header), not by a
+  // button, link, box or chart inside it, and dropped before or after another card of its area. The order saves.
+  const drag = {
+    draggable: grabbed,
+    onPointerDown: (event: PointerEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement;
+      if (target.closest("button, a, input, select, textarea, label, canvas, [role=tab], [role=option], [contenteditable]")) return;
+      const card = box.current?.firstElementChild;
+      const header = card?.firstElementChild;
+      const titled = !!card?.querySelector("h2, h3");
+      if (!titled || header?.contains(target)) setGrabbed(true);
+    },
+    onPointerUp: () => setGrabbed(false),
+    onDragStart: (event: DragEvent<HTMLDivElement>) => {
+      dragging = id;
+      setMoving(true);
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", id);
+    },
+    onDragEnd: () => {
+      dragging = null;
+      setGrabbed(false);
+      setMoving(false);
+    },
+    onDragOver: (event: DragEvent<HTMLDivElement>) => {
+      if (!sameArea()) return;
+      event.preventDefault();
+      setOver(side(event));
+    },
+    onDragLeave: () => setOver(null),
+    onDrop: (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      if (sameArea()) view.move(dragging as Id, id, side(event) === "after");
+      setOver(null);
+    },
+  };
+  const marks = cn((moving || (view.editing && grabbed)) && "opacity-50",
+    over === "before" && "shadow-[-6px_0_0_0_var(--color-primary-500)]",
+    over === "after" && "shadow-[6px_0_0_0_var(--color-primary-500)]");
+  if (!view.editing) {
+    return (
+      <div ref={box} {...drag} className={cn(className, "rounded-2xl [&>*>*:first-child]:cursor-grab", marks)}>
+        <CardSettingsContext.Provider value={settings}>
+          <CardChartContext.Provider value={chart}>{children}</CardChartContext.Provider>
+        </CardSettingsContext.Provider>
+      </div>
+    );
+  }
+
+  const name = settings.title ?? meta.title;
+  const mates = view.cards.filter((one) => (view.meta[one].area ?? "main") === area);
+  const at = mates.indexOf(id);
 
   return (
-    <div ref={box} className={cn("relative flex min-w-0 flex-col rounded-2xl outline-2 outline-offset-2 outline-primary-300 outline-dashed", className,
-      grabbed && "opacity-50",
-      over === "before" && "shadow-[-6px_0_0_0_var(--color-primary-500)]",
-      over === "after" && "shadow-[6px_0_0_0_var(--color-primary-500)]")}
-      draggable={grabbed}
-      onDragStart={(event) => {
-        dragging = id;
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("text/plain", id);
-      }}
-      onDragEnd={() => {
-        dragging = null;
-        setGrabbed(false);
-      }}
-      onDragOver={(event) => {
-        if (!sameArea()) return;
-        event.preventDefault();
-        setOver(side(event));
-      }}
-      onDragLeave={() => setOver(null)}
-      onDrop={(event) => {
-        event.preventDefault();
-        if (sameArea()) view.move(dragging as Id, id, side(event) === "after");
-        setOver(null);
-      }}>
+    <div ref={box} className={cn("relative flex min-w-0 flex-col rounded-2xl outline-2 outline-offset-2 outline-primary-300 outline-dashed", className, marks)}
+      draggable={grabbed} onDragStart={drag.onDragStart} onDragEnd={drag.onDragEnd} onDragOver={drag.onDragOver}
+      onDragLeave={drag.onDragLeave} onDrop={drag.onDrop}>
       <div className="mb-1.5 flex items-center gap-1.5 rounded-xl bg-primary-50 px-2 py-1">
         <button type="button" aria-label={`Drag ${meta.title} to move it`} title="Drag to move"
           onMouseDown={() => setGrabbed(true)} onMouseUp={() => setGrabbed(false)}
