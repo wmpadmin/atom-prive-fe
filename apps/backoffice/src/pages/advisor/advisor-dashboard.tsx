@@ -59,11 +59,11 @@ const PERIODS = [
 type CardId = "clients" | "approvals" | "kyc" | "portfolios" | "chase" | "signatures" | "links" | "assistant";
 
 const CARD: Record<CardId, CardMeta> = {
-  clients: { title: "My clients overview", area: "main" },
-  approvals: { title: "My approvals & actions", area: "main" },
-  kyc: { title: "KYC status (my clients)", area: "main" },
-  portfolios: { title: "Portfolio summary", area: "main" },
-  chase: { title: "Client engagement & chase", area: "main" },
+  clients: { title: "My clients overview", area: "main", charts: ["donut", "horizontal-bar", "treemap", "table"] },
+  approvals: { title: "My approvals & actions", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  kyc: { title: "KYC status (my clients)", area: "main", charts: ["donut", "horizontal-bar", "table"] },
+  portfolios: { title: "Portfolio summary", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  chase: { title: "Client engagement & chase", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   signatures: { title: "Waiting on your signature", area: "main" },
   assistant: { title: "AI Assistant", area: "side" },
   links: { title: "Key links", area: "side" },
