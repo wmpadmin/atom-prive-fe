@@ -12,6 +12,11 @@ import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
+import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { useCardLabel } from "../layout/card-settings";
+import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
+import { kpiFigures, seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
+import { useDrill } from "./drill-panel";
 
 /**
  * A client's Fixed Income Analytics, laid out section by section as the firm's 10 Nov design draws it. Every figure —
@@ -20,10 +25,32 @@ import { INK } from "../portfolios/asset-classes";
  * benchmark analytics are demo figures, which the page says. A client whose figures come only from their bank's files
  * sees their bond lines as sent, and every other card in its place, not in bank file. Read only.
  */
+type FixedIncomeCard = "kpis" | "segments" | "ladder" | "quality" | "curve" | "sectors" | "holdings" | "key-rates"
+  | "scenarios" | "issuers" | "calendar";
+
+/** The screen's cards, in the firm's order: every card on by default. */
+const CARDS: Record<FixedIncomeCard, LayoutMeta> = {
+  kpis: { title: "Key figures", group: "Summary", wide: true },
+  segments: { title: "Fixed Income Segments · Target vs Actual", group: "Allocation", wide: true, charts: ["table", "grouped-bar", "horizontal-bar", "radar"] },
+  ladder: { title: "Maturity Ladder", group: "Maturity & income", charts: ["stacked-bar", "grouped-bar", "line", "table"] },
+  quality: { title: "Credit Quality", group: "Credit", charts: ["grouped-bar", "donut", "horizontal-bar", "table"] },
+  curve: { title: "Holdings on the Curve", group: "Rates", charts: ["bubble", "scatter", "table"] },
+  sectors: { title: "Sector Mix", group: "Credit", charts: ["donut", "horizontal-bar", "treemap", "table"] },
+  holdings: { title: "Bond & Fund Holdings", group: "Holdings", wide: true },
+  "key-rates": { title: "Key Rate Durations", group: "Rates", charts: ["grouped-bar", "line", "radar", "table"] },
+  scenarios: { title: "Rate & Spread Scenarios", group: "Rates", charts: ["horizontal-bar", "bar", "table"] },
+  issuers: { title: "Issuer Concentration", group: "Credit", charts: ["horizontal-bar", "treemap", "donut", "table"] },
+  calendar: { title: "Coupon & Redemption Calendar", group: "Maturity & income", wide: true, charts: ["stacked-bar", "grouped-bar", "line", "table"] },
+};
+
+// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
+const DEFAULT_CARDS: FixedIncomeCard[] = ["kpis", "ladder", "quality", "holdings"];
+
 export function ClientFixedIncomePage() {
   const { customerId = "" } = useParams();
   const fi = useGetClientWorkspaceFixedIncome<ClientFixedIncome, ApiError>(customerId);
   const data = fi.data;
+  const view = useViewLayout("workspace.fixed-income", CARDS, DEFAULT_CARDS);
 
   if (fi.isError) return <Alert tone="danger">{fi.error.message}</Alert>;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Reading the fixed income sleeve…</p>;
@@ -31,7 +58,8 @@ export function ClientFixedIncomePage() {
 
   return (
     <div className="space-y-5">
-      <header>
+      <header className="relative">
+        <div className="absolute top-0 right-0"><CustomizeButton view={view} /></div>
         <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Fixed Income
         </p>
@@ -42,23 +70,19 @@ export function ClientFixedIncomePage() {
         </p>
       </header>
 
-      <Kpis data={data} />
-      <Segments data={data} />
-      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-        <LadderCard data={data} />
-        <QualityCard data={data} />
-      </div>
-      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-        <CurveCard data={data} />
-        <SectorCard data={data} />
-      </div>
-      <Holdings data={data} />
-      <div className="grid gap-4 xl:grid-cols-3">
-        <KeyRateCard data={data} />
-        <ScenarioCard data={data} />
-        <IssuerCard data={data} />
-      </div>
-      <CalendarCard data={data} />
+      <LayoutGrid view={view} screen="Fixed Income Analytics" figures={data.bankFile ? undefined : incomeFigures(data)} render={{
+        kpis: <Kpis data={data} />,
+        segments: <Segments data={data} chart={cardChart(view, "segments")} />,
+        ladder: <LadderCard data={data} chart={cardChart(view, "ladder")} />,
+        quality: <QualityCard data={data} chart={cardChart(view, "quality")} />,
+        curve: <CurveCard data={data} chart={cardChart(view, "curve")} />,
+        sectors: <SectorCard data={data} chart={cardChart(view, "sectors")} />,
+        holdings: <Holdings data={data} />,
+        "key-rates": <KeyRateCard data={data} chart={cardChart(view, "key-rates")} />,
+        scenarios: <ScenarioCard data={data} chart={cardChart(view, "scenarios")} />,
+        issuers: <IssuerCard data={data} chart={cardChart(view, "issuers")} />,
+        calendar: <CalendarCard data={data} chart={cardChart(view, "calendar")} />,
+      }} />
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
@@ -100,15 +124,26 @@ function Kpis({ data }: { data: ClientFixedIncome }) {
   );
 }
 
-function Segments({ data }: { data: ClientFixedIncome }) {
+function Segments({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
   const rows = data.segments;
+  const drill = useDrill();
   const scale = Math.max(10, ...rows.map((one) => Math.max(one.max ?? 0, one.actual))) * 1.05;
   return (
     <Card title="Fixed Income Segments · Target vs Actual" lead={data.bankFile ? undefined : data.segmentsNote ?? undefined} flush
+      picker={!data.bankFile && rows.length > 0 && chart.picker}
       action={!data.bankFile && (
         <Link to={`/client-workspace/${data.customerId}/ips`} className="text-xs font-semibold text-primary-700 hover:underline">All asset classes</Link>
       )}>
-      {data.bankFile ? <div className="px-5"><FileBlock /></div> : rows.length === 0 ? <Empty>No model to measure against yet.</Empty> : (
+      {data.bankFile ? <div className="px-5"><FileBlock /></div> : rows.length === 0 ? <Empty>No model to measure against yet.</Empty> : !chart.own ? (
+        <div className="px-5">
+          <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={260} label="Each fixed income segment's actual weight against its target"
+            data={{ shape: "series", categories: rows.map((one) => one.name), series: [
+              { name: "Actual", values: rows.map((one) => one.actual) },
+              { name: "Target", values: rows.map((one) => one.target) },
+            ] }}
+            onPick={(at) => { const row = rows[at]; if (row) drill?.(row.assetClass ? { by: "class", key: row.key, name: row.name } : { by: "subClass", key: row.name, name: row.name }); }} />
+        </div>
+      ) : (
         <>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -145,12 +180,18 @@ const SEGMENT_STATUS: Record<string, [string, string]> = {
 };
 
 function SegmentLine({ row, scale, currency }: { row: IpsAllocationRow; scale: number; currency: string }) {
+  const drill = useDrill();
   const at = (value: number) => `${Math.min(100, (value / scale) * 100)}%`;
   const [label, tone] = SEGMENT_STATUS[row.status] ?? ["—", "text-ink-muted"];
   const pct = (value: number | null) => (value == null ? "—" : `${value.toFixed(row.assetClass ? 1 : 2)}%`);
   return (
     <tr className={cn(row.assetClass && "bg-slate-50 font-semibold")}>
-      <th scope="row" className={cn("py-2 pr-3 text-left", row.assetClass ? "pl-5" : "pl-9 font-normal")}>{row.name}</th>
+      <th scope="row" className={cn("py-2 pr-3 text-left", row.assetClass ? "pl-5" : "pl-9 font-normal")}>
+        <button type="button" className="text-left hover:text-primary-700 hover:underline"
+          onClick={() => drill?.(row.assetClass ? { by: "class", key: row.key, name: row.name } : { by: "subClass", key: row.name, name: row.name })}>
+          {row.name}
+        </button>
+      </th>
       <td className="px-2 py-2 text-right tabular-nums">{pct(row.min)}</td>
       <td className="px-2 py-2 text-right tabular-nums">{pct(row.target)}</td>
       <td className="px-2 py-2 text-right tabular-nums">{pct(row.max)}</td>
@@ -176,7 +217,8 @@ function SegmentLine({ row, scale, currency }: { row: IpsAllocationRow; scale: n
   );
 }
 
-function LadderCard({ data }: { data: ClientFixedIncome }) {
+function LadderCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
+  const drill = useDrill();
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -195,10 +237,20 @@ function LadderCard({ data }: { data: ClientFixedIncome }) {
   }, [data.ladder, data.currency]);
   const s = data.ladderSummary;
   return (
-    <Card title="Maturity Ladder" lead="Market value by final maturity (to call for callables) · funds looked through">
+    <Card title="Maturity Ladder" lead="Market value by final maturity (to call for callables) · funds looked through" picker={!data.bankFile && chart.picker}>
       {data.bankFile ? <FileBlock /> : (
         <>
-          <Chart option={option} height={220} label="Market value falling due each year" />
+          {chart.own ? (
+            <Chart option={option} height={220} label="Market value falling due each year"
+              onPick={(year) => drill?.({ by: "maturity", key: year, name: `Falling due ${year}` })} />
+          ) : (
+            <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={220} label="Market value falling due each year"
+              data={{ shape: "series", categories: data.ladder.map((one) => String(one.year)), series: [
+                { name: "Government & agency", values: data.ladder.map((one) => one.government), colour: ink().primary },
+                { name: "Credit & other", values: data.ladder.map((one) => one.credit), colour: "#d6c7a6" },
+              ] }}
+              onPick={(at) => { const one = data.ladder[at]; if (one) drill?.({ by: "maturity", key: String(one.year), name: `Falling due ${one.year}` }); }} />
+          )}
           {s && (
             <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
               <Stat label="Maturing ≤ 2Y" value={`${compact(s.shortValue, data.currency)} · ${s.shortPercent.toFixed(1)}%`} />
@@ -212,7 +264,8 @@ function LadderCard({ data }: { data: ClientFixedIncome }) {
   );
 }
 
-function QualityCard({ data }: { data: ClientFixedIncome }) {
+function QualityCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
+  const drill = useDrill();
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -231,10 +284,26 @@ function QualityCard({ data }: { data: ClientFixedIncome }) {
   }, [data.quality]);
   const q = data.qualitySummary;
   return (
-    <Card title="Credit Quality" lead="Composite of S&P and Moody's (lower of the two)">
+    <Card title="Credit Quality" lead="Composite of S&P and Moody's (lower of the two)" picker={!data.bankFile && chart.picker}>
       {data.bankFile ? <FileBlock /> : (
         <>
-          <Chart option={option} height={210} label="The sleeve by rating against the Bloomberg Global Agg" />
+          {chart.own ? (
+            <Chart option={option} height={210} label="The sleeve by rating against the Bloomberg Global Agg"
+              onPick={(rating) => drill?.({ by: "rating", key: rating, name: rating })} />
+          ) : (
+            <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={210} label="The sleeve by rating against the Bloomberg Global Agg"
+              data={chart.kind === "donut"
+                ? { shape: "shares", items: data.quality.filter((one) => one.portfolio > 0).map((one) => ({ name: one.key, value: one.portfolio })) }
+                : { shape: "series", categories: data.quality.map((one) => one.key), series: [
+                    { name: "Portfolio", values: data.quality.map((one) => one.portfolio), colour: ink().primary },
+                    { name: "Bloomberg Global Agg", values: data.quality.map((one) => one.benchmark), colour: ink().neutral },
+                  ] }}
+              onPick={(at) => {
+                const rows = chart.kind === "donut" ? data.quality.filter((one) => one.portfolio > 0) : data.quality;
+                const one = rows[at];
+                if (one) drill?.({ by: "rating", key: one.key, name: one.key });
+              }} />
+          )}
           {q && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               <Pill tone="bg-amber-50 text-amber-800">Investment grade {q.investmentGrade.toFixed(1)}%</Pill>
@@ -248,7 +317,7 @@ function QualityCard({ data }: { data: ClientFixedIncome }) {
   );
 }
 
-function CurveCard({ data }: { data: ClientFixedIncome }) {
+function CurveCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
   const option = useMemo(() => {
     const colours = ink();
     const largest = Math.max(1, ...data.curve.map((one) => one.value));
@@ -277,8 +346,12 @@ function CurveCard({ data }: { data: ClientFixedIncome }) {
     };
   }, [data.curve, data.curveToday, data.curveYearAgo]);
   return (
-    <Card title="Holdings on the Curve" lead="Yield to maturity (local currency) vs years to maturity · bubble = market value">
-      {data.bankFile ? <FileBlock /> : data.curve.length === 0 ? <Empty>No bonds held.</Empty> : (
+    <Card title="Holdings on the Curve" lead="Yield to maturity (local currency) vs years to maturity · bubble = market value"
+      picker={!data.bankFile && data.curve.length > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : data.curve.length === 0 ? <Empty>No bonds held.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={280} label="Each bond's yield against its years to maturity"
+          data={{ shape: "points", xName: "Years to maturity", yName: "YTM %", sizeName: "Market value", items: data.curve.map((one) => ({ name: one.label, x: one.years, y: one.ytm, size: one.value })) }} />
+      ) : (
         // As tall as the card, which the Sector Mix beside it sets: no blank space under the legend.
         <div className="relative min-h-[280px] flex-1">
           <div className="absolute inset-0">
@@ -290,7 +363,7 @@ function CurveCard({ data }: { data: ClientFixedIncome }) {
   );
 }
 
-function SectorCard({ data }: { data: ClientFixedIncome }) {
+function SectorCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -301,8 +374,11 @@ function SectorCard({ data }: { data: ClientFixedIncome }) {
     };
   }, [data.sectors, data.currency]);
   return (
-    <Card title="Sector Mix" lead="By issuer type">
-      {data.bankFile ? <FileBlock /> : data.sectors.length === 0 ? <Empty>Nothing held.</Empty> : (
+    <Card title="Sector Mix" lead="By issuer type" picker={!data.bankFile && data.sectors.length > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : data.sectors.length === 0 ? <Empty>Nothing held.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={240} label="The sleeve by issuer type"
+          data={{ shape: "shares", items: data.sectors.map((one) => ({ name: one.key, value: one.value })) }} />
+      ) : (
         <>
           <div className="relative mx-auto w-full max-w-48">
             <Chart option={option} height={180} label="The sleeve by issuer type" />
@@ -333,6 +409,7 @@ function SectorCard({ data }: { data: ClientFixedIncome }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 
 function Holdings({ data }: { data: ClientFixedIncome }) {
+  const drill = useDrill();
   const [tab, setTab] = useState<"analytics" | "cashflows">("analytics");
   const cur = data.currency;
   const rows = [...data.holdings, ...(data.total ? [data.total] : [])];
@@ -387,7 +464,14 @@ function Holdings({ data }: { data: ClientFixedIncome }) {
               {rows.map((one, at) => (
                 <tr key={`${one.name}-${at}`} className={cn(one.kind === "TOTAL" && "border-t-2 border-line font-bold", one.kind === "OTHER" && "text-ink-soft")}>
                   <th scope="row" className="py-2 pr-2 pl-5 text-left font-normal">
-                    <span className={cn(one.kind !== "OTHER" && "font-semibold")}>{one.name}</span>
+                    {one.kind === "BOND" || one.kind === "FUND" ? (
+                      <button type="button" className="text-left font-semibold hover:text-primary-700 hover:underline"
+                        onClick={() => drill?.(one.kind === "BOND" ? { by: "bond", key: one.name, name: one.name } : { by: "subClass", key: one.name, name: one.name })}>
+                        {one.name}
+                      </button>
+                    ) : (
+                      <span className={cn(one.kind !== "OTHER" && "font-semibold")}>{one.name}</span>
+                    )}
                     {one.isin && <span className="block text-2xs text-ink-muted">{one.isin}</span>}
                   </th>
                   <td className="px-1.5 py-2 text-xs">{one.sector ?? "—"}</td>
@@ -450,7 +534,7 @@ function FileLines({ data }: { data: ClientFixedIncome }) {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 
-function KeyRateCard({ data }: { data: ClientFixedIncome }) {
+function KeyRateCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -468,17 +552,27 @@ function KeyRateCard({ data }: { data: ClientFixedIncome }) {
     };
   }, [data.keyRates, data.portfolioDuration, data.benchmarkDuration]);
   return (
-    <Card title="Key Rate Durations" lead="Years of duration by curve point">
-      {data.bankFile ? <FileBlock /> : <Chart option={option} height={200} label="Duration at each curve point against the Agg" />}
+    <Card title="Key Rate Durations" lead="Years of duration by curve point" picker={!data.bankFile && chart.picker}>
+      {data.bankFile ? <FileBlock /> : chart.own ? <Chart option={option} height={200} label="Duration at each curve point against the Agg" /> : (
+        <KindChart kind={chart.kind!} format={(value) => value.toFixed(2)} height={200} label="Duration at each curve point against the Agg"
+          data={{ shape: "series", categories: data.keyRates.map((one) => one.key), series: [
+            { name: "Portfolio", values: data.keyRates.map((one) => one.portfolio), colour: ink().primary },
+            { name: "Agg", values: data.keyRates.map((one) => one.benchmark), colour: ink().neutral },
+          ] }} />
+      )}
     </Card>
   );
 }
 
-function ScenarioCard({ data }: { data: ClientFixedIncome }) {
+function ScenarioCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
   const largest = Math.max(0.01, ...data.scenarios.map((one) => Math.abs(one.percent)));
   return (
-    <Card title="Rate & Spread Scenarios" lead="Instantaneous P&L incl. convexity · bar = % of sleeve">
-      {data.bankFile ? <FileBlock /> : (
+    <Card title="Rate & Spread Scenarios" lead="Instantaneous P&L incl. convexity · bar = % of sleeve" picker={!data.bankFile && chart.picker}>
+      {data.bankFile ? <FileBlock /> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => `${value > 0 ? "+" : ""}${compact(value, data.currency)}`} height={60 + data.scenarios.length * 28}
+          label="What each rate or spread move would do to the sleeve"
+          data={{ shape: "series", categories: data.scenarios.map((one) => one.name), series: [{ name: "P&L", values: data.scenarios.map((one) => one.amount) }] }} />
+      ) : (
         <ul className="space-y-1.5">
           {data.scenarios.map((one) => (
             <li key={one.name} className="grid grid-cols-[minmax(0,9rem)_1fr_4.75rem] items-center gap-2 text-xs">
@@ -499,12 +593,15 @@ function ScenarioCard({ data }: { data: ClientFixedIncome }) {
   );
 }
 
-function IssuerCard({ data }: { data: ClientFixedIncome }) {
+function IssuerCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
   const limit = data.issuerLimitOfSleeve;
   const scale = Math.max(1, limit ?? 0, ...data.issuers.map((one) => one.sharePercent)) * 1.05;
   return (
-    <Card title="Issuer Concentration" lead="% of fixed income sleeve">
-      {data.bankFile ? <FileBlock /> : data.issuers.length === 0 ? <Empty>No bond names an issuer.</Empty> : (
+    <Card title="Issuer Concentration" lead="% of fixed income sleeve" picker={!data.bankFile && data.issuers.length > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : data.issuers.length === 0 ? <Empty>No bond names an issuer.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={260} label="Each issuer's share of the fixed income sleeve"
+          data={{ shape: "shares", items: data.issuers.map((one) => ({ name: one.issuer, value: one.sharePercent })) }} />
+      ) : (
         <>
           {/* Roomy rows, names wrapping rather than cut; sovereigns in the app's blue (slate-800 vanished on dark). */}
           <ul className="divide-y divide-line">
@@ -537,7 +634,7 @@ function IssuerCard({ data }: { data: ClientFixedIncome }) {
   );
 }
 
-function CalendarCard({ data }: { data: ClientFixedIncome }) {
+function CalendarCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -558,23 +655,71 @@ function CalendarCard({ data }: { data: ClientFixedIncome }) {
     };
   }, [data.calendar, data.couponsNext12, data.principalNext12, data.currency]);
   return (
-    <Card title="Coupon & Redemption Calendar" lead="Next 12 months · contractual, excl. fund distributions">
-      {data.bankFile ? <FileBlock /> : <Chart option={option} height={240} label="Coupons and principal falling due each month for the next twelve" />}
+    <Card title="Coupon & Redemption Calendar" lead="Next 12 months · contractual, excl. fund distributions" picker={!data.bankFile && chart.picker}>
+      {data.bankFile ? <FileBlock /> : chart.own ? <Chart option={option} height={240} label="Coupons and principal falling due each month for the next twelve" /> : (
+        <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={240} label="Coupons and principal falling due each month for the next twelve"
+          data={{ shape: "series", categories: data.calendar.map((one) => new Date(one.month).toLocaleString("en-GB", { month: "short" })), series: [
+            { name: "Coupons", values: data.calendar.map((one) => one.coupons), colour: "#d6c7a6" },
+            { name: "Principal", values: data.calendar.map((one) => one.principal), colour: ink().primary },
+          ] }} />
+      )}
     </Card>
   );
 }
 
 /* ------------------------------------------------------------------------------------------------------------ */
 
-function Card({ title, lead, action, flush, children }: { title: string; lead?: string; action?: ReactNode; flush?: boolean; children: ReactNode }) {
+/** What Fixed Income Analytics offers for a card of the reader's own: its key figures, ladder, credit and rates. */
+function incomeFigures(data: ClientFixedIncome): Figures {
+  const amount = (value: number) => compact(value, data.currency);
+  const pc = (value: number) => `${value.toFixed(1)}%`;
+  const unitFormat = (unit: string) => (value: number) => unit === "PERCENT" ? `${value.toFixed(2)}%` : unit === "YEARS" ? `${value.toFixed(1)} yrs`
+    : unit === "BP" ? `${value} bp` : unit === "MONEY" ? compact(value, data.currency) : String(value);
+  return {
+    ...kpiFigures(data.kpis.filter((one) => one.unit !== "RATING"), unitFormat),
+    "ladder.years": seriesFigure("Maturity ladder", "Maturity & income", data.ladder.map((one) => String(one.year)), [
+      { name: "Government & agency", values: data.ladder.map((one) => one.government) }, { name: "Credit & other", values: data.ladder.map((one) => one.credit) },
+    ], amount, ["stacked-bar", "grouped-bar", "line", "table"]),
+    "calendar.months": seriesFigure("Coupons and principal due, next 12 months", "Maturity & income", data.calendar.map((one) => new Date(one.month).toLocaleString("en-GB", { month: "short" })), [
+      { name: "Coupons", values: data.calendar.map((one) => one.coupons) }, { name: "Principal", values: data.calendar.map((one) => one.principal) },
+    ], amount, ["stacked-bar", "grouped-bar", "line", "table"]),
+    "quality.ratings": seriesFigure("Credit quality against the Global Agg", "Credit", data.quality.map((one) => one.key), [
+      { name: "Portfolio", values: data.quality.map((one) => one.portfolio) }, { name: "Global Agg", values: data.quality.map((one) => one.benchmark) },
+    ], pc, ["grouped-bar", "horizontal-bar", "table"]),
+    "quality.mix": sharesFigure("Sleeve by rating", "Credit", data.quality.filter((one) => one.portfolio > 0).map((one) => ({ name: one.key, value: one.portfolio })), pc),
+    "sectors.mix": sharesFigure("Sleeve by issuer type", "Credit", data.sectors.map((one) => ({ name: one.key, value: one.value })), amount),
+    "issuers.top": sharesFigure("Largest issuers, % of the sleeve", "Credit", data.issuers.map((one) => ({ name: one.issuer, value: one.sharePercent })), pc,
+      ["horizontal-bar", "treemap", "donut", "table"]),
+    "rates.keyrates": seriesFigure("Key rate durations against the Agg", "Rates", data.keyRates.map((one) => one.key), [
+      { name: "Portfolio", values: data.keyRates.map((one) => one.portfolio) }, { name: "Agg", values: data.keyRates.map((one) => one.benchmark) },
+    ], (value) => value.toFixed(2), ["grouped-bar", "line", "radar", "table"]),
+    "rates.scenarios": seriesFigure("Rate and spread scenarios", "Rates", data.scenarios.map((one) => one.name),
+      [{ name: "P&L", values: data.scenarios.map((one) => one.amount) }], amount, ["horizontal-bar", "bar", "table"]),
+    "segments.bands": seriesFigure("Fixed income segments, actual against target", "Allocation", data.segments.map((one) => one.name), [
+      { name: "Actual", values: data.segments.map((one) => one.actual) }, { name: "Target", values: data.segments.map((one) => one.target) },
+    ], pc, ["grouped-bar", "horizontal-bar", "radar", "table"]),
+  };
+}
+
+/** @param picker the chart type switcher, beside the card's own action, for a card that draws a chart */
+function Card({ title, lead, action, flush, picker, children }: {
+  title: string;
+  lead?: string;
+  action?: ReactNode;
+  flush?: boolean;
+  picker?: ReactNode;
+  children: ReactNode;
+}) {
+  // The reader's own name and line for the card, where they set them through Add card.
+  const label = useCardLabel(title, lead);
   return (
     <section className={cn("flex min-w-0 flex-col rounded-2xl border border-line bg-white", flush ? "py-5" : "p-5")}>
       <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", flush && "px-5")}>
         <div>
-          <h2 className="text-lg font-bold">{title}</h2>
-          {lead && <p className="mt-0.5 text-xs text-ink-muted">{lead}</p>}
+          <h2 className="text-lg font-bold">{label.title}</h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        {action}
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
       </div>
       {children}
     </section>

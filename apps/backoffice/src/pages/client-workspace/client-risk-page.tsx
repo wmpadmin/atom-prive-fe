@@ -7,6 +7,11 @@ import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
+import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { useCardLabel } from "../layout/card-settings";
+import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
+import { seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
+import { useDrill } from "./drill-panel";
 
 /**
  * A client's Risk & Exposure, laid out section by section as the firm's 10 Nov design draws it. Every figure is worked
@@ -14,17 +19,40 @@ import { INK } from "../portfolios/asset-classes";
  * today's holdings, look-through from what each line states — and shown here as it comes, judgements included. A card
  * that cannot be measured stays in its place and says why. Read only.
  */
+type RiskCard = "kpis" | "contribution" | "factors" | "stress" | "correlation" | "geography" | "sectors" | "currencies"
+  | "issuers" | "var" | "ladder";
+
+/** The screen's cards, in the firm's order: every card on by default. */
+const CARDS: Record<RiskCard, LayoutMeta> = {
+  kpis: { title: "Key figures", group: "Summary", wide: true },
+  contribution: { title: "Risk Contribution vs Capital", group: "Risk model", charts: ["horizontal-bar", "grouped-bar", "scatter", "table"] },
+  factors: { title: "Factor Exposures", group: "Risk model", charts: ["horizontal-bar", "radar", "grouped-bar", "table"] },
+  stress: { title: "Stress Tests & Scenarios", group: "Scenarios", charts: ["table", "horizontal-bar", "bar"] },
+  correlation: { title: "Correlation Matrix", group: "Risk model", charts: ["heatmap", "table"] },
+  geography: { title: "Geographic Look-through", group: "Look-through", charts: ["stacked-bar", "donut", "horizontal-bar", "treemap", "table"] },
+  sectors: { title: "Sector Look-through", group: "Look-through", charts: ["horizontal-bar", "donut", "treemap", "table"] },
+  currencies: { title: "Currency Exposure", group: "Look-through", wide: true, charts: ["table", "grouped-bar", "horizontal-bar", "donut"] },
+  issuers: { title: "Issuer Look-through · Top 8", group: "Look-through", wide: true, charts: ["table", "stacked-bar", "horizontal-bar", "treemap"] },
+  var: { title: "VaR History · 24 Months", group: "Scenarios", charts: ["line", "area", "bar", "table"] },
+  ladder: { title: "Liquidity Ladder by Asset Class", group: "Liquidity", charts: ["stacked-bar", "grouped-bar", "table"] },
+};
+
+// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
+const DEFAULT_CARDS: RiskCard[] = ["kpis", "contribution", "stress", "var"];
+
 export function ClientRiskPage() {
   const { customerId = "" } = useParams();
   const risk = useGetClientRisk<ClientRisk, ApiError>(customerId);
   const data = risk.data;
+  const view = useViewLayout("workspace.risk", CARDS, DEFAULT_CARDS);
 
   if (risk.isError) return <Alert tone="danger">{risk.error.message}</Alert>;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Measuring the risk…</p>;
 
   return (
     <div className="space-y-5">
-      <header>
+      <header className="relative">
+        <div className="absolute top-0 right-0"><CustomizeButton view={view} /></div>
         <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Risk &amp; Exposure
         </p>
@@ -37,46 +65,34 @@ export function ClientRiskPage() {
           {data.model}
         </p>
       </header>
-      <Kpis data={data} />
-      <div className="grid gap-4 xl:grid-cols-[1.1fr_1fr]">
-        <Card title="Risk Contribution vs Capital" lead="Ex-ante, investable assets, private assets de-smoothed">
-          {data.classRisk.length > 0 ? <ClassRisk data={data} /> : <Missing data={data} reason={data.riskContribution.reason} />}
-        </Card>
-        <Card title="Factor Exposures" lead="Barra-style standardised loadings vs policy benchmark">
-          {data.factors.length > 0 ? <Factors data={data} /> : <Missing data={data} reason={data.factorExposures.reason} />}
-        </Card>
-      </div>
-      <div className="grid gap-4 xl:grid-cols-[1.55fr_1fr]">
-        <Stress data={data} />
-        <Card title="Correlation Matrix" lead={data.correlationMatrix ? "Monthly class returns, last 3 years · private assets de-smoothed" : "5Y monthly · private assets de-smoothed"}>
-          {data.correlationMatrix ? <Correlation data={data} /> : <Missing data={data} reason={data.correlation.reason} />}
-        </Card>
-      </div>
-      <div className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
-        <Geography data={data} />
-        <Card title="Sector Look-through" lead="Across equity, credit, private assets" foot={data.bankFile ? null : data.sectorNote}>
-          {data.bankFile ? <Missing data={data} reason="" /> : data.sectors.length === 0 ? <Empty>No lines to look through.</Empty> : (
-            <ul className="space-y-2">
-              {data.sectors.map((one, at) => (
-                <li key={one.key} className="grid grid-cols-[minmax(0,10rem)_1fr_3.5rem] items-center gap-3 text-sm">
-                  <span className="leading-snug break-words">{one.name}</span>
-                  <span className="block h-2 rounded-full bg-slate-100" aria-hidden="true">
-                    <span className={cn("block h-full rounded-full", at < 3 ? "bg-primary-600" : "bg-amber-600")}
-                      style={{ width: `${Math.min(100, (one.sharePercent / Math.max(20, data.sectors[0].sharePercent)) * 100)}%` }} />
-                  </span>
-                  <span className="text-right tabular-nums">{one.sharePercent.toFixed(1)}%</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
-      <Currencies data={data} />
-      <Issuers data={data} />
-      <div className="grid gap-4 xl:grid-cols-2">
-        <VarHistory data={data} />
-        <Ladder data={data} />
-      </div>
+      <LayoutGrid view={view} screen="Risk & Exposure" figures={data.bankFile ? undefined : riskFigures(data)} render={{
+        kpis: <Kpis data={data} />,
+        contribution: (
+          <Card title="Risk Contribution vs Capital" lead="Ex-ante, investable assets, private assets de-smoothed"
+            picker={data.classRisk.length > 0 && cardChart(view, "contribution").picker}>
+            {data.classRisk.length > 0 ? <ClassRisk data={data} chart={cardChart(view, "contribution")} /> : <Missing data={data} reason={data.riskContribution.reason} />}
+          </Card>
+        ),
+        factors: (
+          <Card title="Factor Exposures" lead="Barra-style standardised loadings vs policy benchmark"
+            picker={data.factors.length > 0 && cardChart(view, "factors").picker}>
+            {data.factors.length > 0 ? <Factors data={data} chart={cardChart(view, "factors")} /> : <Missing data={data} reason={data.factorExposures.reason} />}
+          </Card>
+        ),
+        stress: <Stress data={data} chart={cardChart(view, "stress")} />,
+        correlation: (
+          <Card title="Correlation Matrix" lead={data.correlationMatrix ? "Monthly class returns, last 3 years · private assets de-smoothed" : "5Y monthly · private assets de-smoothed"}
+            picker={!!data.correlationMatrix && cardChart(view, "correlation").picker}>
+            {data.correlationMatrix ? <Correlation data={data} chart={cardChart(view, "correlation")} /> : <Missing data={data} reason={data.correlation.reason} />}
+          </Card>
+        ),
+        geography: <Geography data={data} chart={cardChart(view, "geography")} />,
+        sectors: <Sectors data={data} chart={cardChart(view, "sectors")} />,
+        currencies: <Currencies data={data} chart={cardChart(view, "currencies")} />,
+        issuers: <Issuers data={data} chart={cardChart(view, "issuers")} />,
+        var: <VarHistory data={data} chart={cardChart(view, "var")} />,
+        ladder: <Ladder data={data} chart={cardChart(view, "ladder")} />,
+      }} />
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>Values in {data.bankFile ? "the bank's own currencies" : data.currency} unless stated; market data as of {formatDate(data.asOf)} close.</span>
         <span>atom privé · Portfolio Management · Internal use only</span>
@@ -117,14 +133,19 @@ function Kpis({ data }: { data: ClientRisk }) {
   );
 }
 
-function Stress({ data }: { data: ClientRisk }) {
+function Stress({ data, chart }: { data: ClientRisk; chart: CardChart }) {
   const rows = data.stress;
   const tolerance = data.stressTolerance;
   const largest = Math.max(1, ...rows.map((one) => Math.abs(one.impactPercent)));
   return (
     <Card title="Stress Tests & Scenarios" lead="Full revaluation on current holdings · private assets with lagged beta"
-      foot={data.bankFile || rows.length === 0 ? null : data.stressNote} flush>
-      {data.bankFile ? <div className="px-5"><Missing data={data} reason="" /></div> : rows.length === 0 ? <Empty>{data.stressNote}</Empty> : (
+      foot={data.bankFile || rows.length === 0 ? null : data.stressNote} flush picker={!data.bankFile && rows.length > 0 && chart.picker}>
+      {data.bankFile ? <div className="px-5"><Missing data={data} reason="" /></div> : rows.length === 0 ? <Empty>{data.stressNote}</Empty> : !chart.own ? (
+        <div className="px-5">
+          <KindChart kind={chart.kind!} format={(value) => signed(value)} height={60 + rows.length * 30} label="What each scenario would do to the portfolio"
+            data={{ shape: "series", categories: rows.map((one) => one.name), series: [{ name: "Impact %", values: rows.map((one) => one.impactPercent) }] }} />
+        </div>
+      ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -159,11 +180,42 @@ function Stress({ data }: { data: ClientRisk }) {
   );
 }
 
-function Geography({ data }: { data: ClientRisk }) {
-  const rows = data.geography;
+/** The look-through by sector, across equity, credit and private assets. */
+function Sectors({ data, chart }: { data: ClientRisk; chart: CardChart }) {
   return (
-    <Card title="Geographic Look-through" lead="All asset classes by country of risk · funds looked through" foot={data.bankFile ? null : data.geographyNote}>
-      {data.bankFile ? <Missing data={data} reason="" /> : rows.every((one) => one.value === 0) ? <Empty>No lines to look through.</Empty> : (
+    <Card title="Sector Look-through" lead="Across equity, credit, private assets" foot={data.bankFile ? null : data.sectorNote}
+      picker={!data.bankFile && data.sectors.length > 0 && chart.picker}>
+      {data.bankFile ? <Missing data={data} reason="" /> : data.sectors.length === 0 ? <Empty>No lines to look through.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={260} label="Holdings by sector, looked through"
+          data={{ shape: "shares", items: data.sectors.map((one) => ({ name: one.name, value: one.sharePercent })) }} />
+      ) : (
+        <ul className="space-y-2">
+          {data.sectors.map((one, at) => (
+            <li key={one.key} className="grid grid-cols-[minmax(0,10rem)_1fr_3.5rem] items-center gap-3 text-sm">
+              <span className="leading-snug break-words">{one.name}</span>
+              <span className="block h-2 rounded-full bg-slate-100" aria-hidden="true">
+                <span className={cn("block h-full rounded-full", at < 3 ? "bg-primary-600" : "bg-amber-600")}
+                  style={{ width: `${Math.min(100, (one.sharePercent / Math.max(20, data.sectors[0].sharePercent)) * 100)}%` }} />
+              </span>
+              <span className="text-right tabular-nums">{one.sharePercent.toFixed(1)}%</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function Geography({ data, chart }: { data: ClientRisk; chart: CardChart }) {
+  const rows = data.geography;
+  const empty = rows.every((one) => one.value === 0);
+  return (
+    <Card title="Geographic Look-through" lead="All asset classes by country of risk · funds looked through" foot={data.bankFile ? null : data.geographyNote}
+      picker={!data.bankFile && !empty && chart.picker}>
+      {data.bankFile ? <Missing data={data} reason="" /> : empty ? <Empty>No lines to look through.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => money(value, data.currency)} height={240} label="Holdings by country of risk, looked through"
+          data={{ shape: "shares", items: rows.filter((one) => one.value > 0).map((one) => ({ name: one.name, value: one.value })) }} />
+      ) : (
         <>
           <span className="flex h-3 overflow-hidden rounded-xs bg-slate-100" aria-hidden="true">
             {rows.map((one, at) => one.sharePercent > 0 && (
@@ -188,16 +240,30 @@ function Geography({ data }: { data: ClientRisk }) {
   );
 }
 
-function Currencies({ data }: { data: ClientRisk }) {
+function Currencies({ data, chart }: { data: ClientRisk; chart: CardChart }) {
   const file = data.bankFile;
+  const drill = useDrill();
   const rows = file
     ? data.fileCurrencies.map((one) => ({ currency: one.currency, gross: one.amount, hedged: null, net: null, netPercent: null }))
     : data.currencies;
   const total = data.currencyTotal;
   return (
     <Card title="Currency Exposure" lead="Hedge overlays via share-class and forwards (reported by custodians)"
-      foot={file ? "Summed per currency from the bank's file lines, as sent and unconverted." : null} flush>
-      {rows.length === 0 ? <Empty>{file ? "No lines in the bank's file." : "No lines to read."}</Empty> : (
+      foot={file ? "Summed per currency from the bank's file lines, as sent and unconverted." : null} flush
+      picker={!file && rows.length > 0 && chart.picker}>
+      {rows.length === 0 ? <Empty>{file ? "No lines in the bank's file." : "No lines to read."}</Empty> : !file && !chart.own ? (
+        <div className="px-5">
+          <KindChart kind={chart.kind!} format={(value) => money(value, data.currency)} height={240} label="Exposure to each currency, gross, hedged and net"
+            data={chart.kind === "grouped-bar"
+              ? { shape: "series", categories: data.currencies.map((one) => one.currency), series: [
+                  { name: "Gross", values: data.currencies.map((one) => one.gross) },
+                  { name: "Hedged", values: data.currencies.map((one) => one.hedged) },
+                  { name: "Net", values: data.currencies.map((one) => one.net) },
+                ] }
+              : { shape: "shares", items: data.currencies.map((one) => ({ name: one.currency, value: one.net })) }}
+            onPick={(at) => { const one = data.currencies[at]; if (one) drill?.({ by: "currency", key: one.currency, name: one.currency }); }} />
+        </div>
+      ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -213,7 +279,12 @@ function Currencies({ data }: { data: ClientRisk }) {
             <tbody className="divide-y divide-line">
               {rows.map((one) => (
                 <tr key={one.currency}>
-                  <th scope="row" className="py-2 pr-3 pl-5 text-left font-bold">{one.currency}</th>
+                  <th scope="row" className="py-2 pr-3 pl-5 text-left font-bold">
+                    {file ? one.currency : (
+                      <button type="button" className="hover:text-primary-700 hover:underline" title="Open the lines held in this currency"
+                        onClick={() => drill?.({ by: "currency", key: one.currency, name: one.currency })}>{one.currency}</button>
+                    )}
+                  </th>
                   <td className="px-2 py-2 text-right tabular-nums">{file ? plain(one.gross) : money(one.gross, data.currency)}</td>
                   <td className={cn("px-2 py-2 text-right tabular-nums", one.hedged != null && one.hedged < 0 && "text-red-700")}>
                     {one.hedged == null ? <NotInFile /> : one.hedged === 0 ? "—" : money(one.hedged, data.currency)}
@@ -249,7 +320,7 @@ function Currencies({ data }: { data: ClientRisk }) {
   );
 }
 
-function Issuers({ data }: { data: ClientRisk }) {
+function Issuers({ data, chart }: { data: ClientRisk; chart: CardChart }) {
   return (
     <Card title="Issuer Look-through · Top 8" lead="Combined exposure to one obligor across instruments"
       foot={data.bankFile ? null : (
@@ -257,8 +328,19 @@ function Issuers({ data }: { data: ClientRisk }) {
           <Key colour="bg-slate-800">Direct equity</Key><Key colour="bg-amber-600">Bonds</Key><Key colour="bg-amber-200">Via ETFs &amp; funds</Key>
           {data.issuerNote && <span>{data.issuerNote}</span>}
         </span>
-      )} flush>
-      {data.bankFile ? <div className="px-5"><Missing data={data} reason="" /></div> : data.issuers.length === 0 ? <Empty>No line names an issuer.</Empty> : (
+      )} flush picker={!data.bankFile && data.issuers.length > 0 && chart.picker}>
+      {data.bankFile ? <div className="px-5"><Missing data={data} reason="" /></div> : data.issuers.length === 0 ? <Empty>No line names an issuer.</Empty> : !chart.own ? (
+        <div className="px-5">
+          <KindChart kind={chart.kind!} format={(value) => money(value, data.currency)} height={260} label="Exposure to each issuer across instruments"
+            data={chart.kind === "stacked-bar"
+              ? { shape: "series", categories: data.issuers.map((one) => one.issuer), series: [
+                  { name: "Direct equity", values: data.issuers.map((one) => one.equity) },
+                  { name: "Bonds", values: data.issuers.map((one) => one.bonds) },
+                  { name: "Via ETFs & funds", values: data.issuers.map((one) => one.viaFunds) },
+                ] }
+              : { shape: "shares", items: data.issuers.map((one) => ({ name: one.issuer, value: one.total })) }} />
+        </div>
+      ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -298,7 +380,7 @@ function Issuers({ data }: { data: ClientRisk }) {
   );
 }
 
-function VarHistory({ data }: { data: ClientRisk }) {
+function VarHistory({ data, chart }: { data: ClientRisk; chart: CardChart }) {
   const points = data.varHistory;
   const limit = data.varLimit;
   const option = useMemo(() => {
@@ -321,7 +403,7 @@ function VarHistory({ data }: { data: ClientRisk }) {
     };
   }, [points, limit]);
   return (
-    <Card title="VaR History · 24 Months"
+    <Card title="VaR History · 24 Months" picker={!data.bankFile && points.length > 1 && chart.picker}
       foot={data.bankFile ? null : (
         <span className="flex flex-wrap gap-4">
           <Key colour="bg-slate-800">95% 1M VaR, % of investable</Key>
@@ -330,7 +412,13 @@ function VarHistory({ data }: { data: ClientRisk }) {
       )}>
       {data.bankFile ? <Missing data={data} reason="" /> : points.length === 0 ? <Empty>{data.varHistoryNote ?? "Not enough months to draw."}</Empty> : (
         <>
-          <Chart option={option} height={190} label="Value at risk at each month end over the trailing twelve months" />
+          {chart.own ? <Chart option={option} height={190} label="Value at risk at each month end over the trailing twelve months" /> : (
+            <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={190} label="Value at risk at each month end over the trailing twelve months"
+              data={{ shape: "series", categories: points.map((one) => monthLabel(one.on)), series: [
+                { name: "95% 1M VaR", values: points.map((one) => one.var95) },
+                ...(limit == null ? [] : [{ name: "IPS risk limit", values: points.map(() => limit), colour: ink().danger }]),
+              ] }} />
+          )}
           {points.length === 1 && <p className="mt-1 text-3xs text-ink-muted italic">One reading on file so far: it is marked as a point, and the line starts with the next.</p>}
         </>
       )}
@@ -338,7 +426,8 @@ function VarHistory({ data }: { data: ClientRisk }) {
   );
 }
 
-function Ladder({ data }: { data: ClientRisk }) {
+function Ladder({ data, chart }: { data: ClientRisk; chart: CardChart }) {
+  const drill = useDrill();
   const rows = data.liquidity;
   const rungs = data.liquidityTotals;
   const option = useMemo(() => {
@@ -359,21 +448,32 @@ function Ladder({ data }: { data: ClientRisk }) {
   }, [rows, rungs, data.currency]);
   return (
     <Card title="Liquidity Ladder by Asset Class" lead="Time to liquidate at fair value under normal markets"
-      foot={data.bankFile ? null : data.liquidityNote}>
+      foot={data.bankFile ? null : data.liquidityNote} picker={!data.bankFile && rows.length > 0 && chart.picker}>
       {data.bankFile ? <Missing data={data} reason="" /> : rows.length === 0 ? <Empty>No line states how quickly it turns to cash.</Empty> : (
         <>
-          <Chart option={option} height={200} label="What each liquidity rung holds, stacked by asset class" />
+          {chart.own ? (
+            <Chart option={option} height={200} label="What each liquidity rung holds, stacked by asset class"
+              onPick={(name) => drill?.({ by: "liquidity", key: name, name })} />
+          ) : (
+            <KindChart kind={chart.kind!} format={(value) => money(value, data.currency)} height={200} label="What each liquidity rung holds, by asset class"
+              data={{ shape: "series", categories: rungs.map((one) => one.name), series: rows.map((row) => ({ name: row.name, values: row.buckets.map((one) => one.value) })) }}
+              onPick={(at) => { const rung = rungs[at]; if (rung) drill?.({ by: "liquidity", key: rung.name, name: rung.name }); }} />
+          )}
           <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
             {rows.map((row, at) => (
-              <span key={row.key} className="inline-flex items-center gap-1.5">
+              <button key={row.key} type="button" className="inline-flex items-center gap-1.5 hover:text-primary-700 hover:underline"
+                onClick={() => drill?.({ by: "class", key: row.key, name: row.name })}>
                 <span className="size-2.5 rounded-xs" style={{ background: INK[at % INK.length] }} aria-hidden="true" />
                 {row.name}
-              </span>
+              </button>
             ))}
           </p>
           <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-soft">
             {rungs.map((one) => (
-              <span key={one.key}>{one.name}: <b className="text-ink tabular-nums">{money(one.value, data.currency)}</b></span>
+              <button key={one.key} type="button" className="hover:text-primary-700 hover:underline"
+                onClick={() => drill?.({ by: "liquidity", key: one.name, name: one.name })}>
+                {one.name}: <b className="text-ink tabular-nums">{money(one.value, data.currency)}</b>
+              </button>
             ))}
           </p>
         </>
@@ -385,16 +485,32 @@ function Ladder({ data }: { data: ClientRisk }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 
 /** Each class's share of capital beside its share of risk, both as bars on one scale. */
-function ClassRisk({ data }: { data: ClientRisk }) {
+function ClassRisk({ data, chart }: { data: ClientRisk; chart: CardChart }) {
+  const drill = useDrill();
   const rows = data.classRisk;
   const largest = Math.max(1, ...rows.flatMap((one) => [one.capitalPercent, one.riskPercent]));
+  const open = (at: number) => { const one = rows[at]; if (one) drill?.({ by: "class", key: one.key, name: one.name }); };
+  if (!chart.own) return (
+    <>
+      <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={240} label="Each class's share of capital beside its share of risk"
+        data={chart.kind === "scatter"
+          ? { shape: "points", xName: "Share of capital %", yName: "Share of risk %", items: rows.map((one) => ({ name: one.name, x: one.capitalPercent, y: one.riskPercent })) }
+          : { shape: "series", categories: rows.map((one) => one.name), series: [
+              { name: "Share of capital", values: rows.map((one) => one.capitalPercent), colour: ink().neutral },
+              { name: "Share of risk", values: rows.map((one) => one.riskPercent), colour: ink().primary },
+            ] }}
+        onPick={open} />
+      <p className="mt-1 text-3xs text-ink-muted italic">{data.riskContribution.reason}</p>
+    </>
+  );
   return (
     <>
       <ul className="divide-y divide-line">
         {rows.map((one) => (
           <li key={one.key} className="grid grid-cols-[minmax(0,11rem)_1fr_7.5rem] items-center gap-3 py-2 text-sm">
             <span className="leading-snug break-words">
-              {one.name}
+              <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                onClick={() => drill?.({ by: "class", key: one.key, name: one.name })}>{one.name}</button>
               <span className="block text-3xs text-ink-muted">vol {one.volatilityPercent.toFixed(1)}%</span>
             </span>
             <span className="space-y-1" aria-hidden="true">
@@ -424,7 +540,7 @@ function ClassRisk({ data }: { data: ClientRisk }) {
 }
 
 /** Each factor's loading, the client's beside the policy benchmark's, about a centred zero line. */
-function Factors({ data }: { data: ClientRisk }) {
+function Factors({ data, chart }: { data: ClientRisk; chart: CardChart }) {
   const largest = Math.max(0.1, ...data.factors.flatMap((one) => [Math.abs(one.loading), Math.abs(one.benchmarkLoading ?? 0)]));
   const bar = (value: number, tone: string) => (
     <span className="relative block h-2" aria-hidden="true">
@@ -432,6 +548,16 @@ function Factors({ data }: { data: ClientRisk }) {
       <span className={cn("absolute top-0 h-2", tone, value >= 0 ? "left-1/2 rounded-r-sm" : "right-1/2 rounded-l-sm")}
         style={{ width: `${(Math.abs(value) / largest) * 50}%` }} />
     </span>
+  );
+  if (!chart.own) return (
+    <>
+      <KindChart kind={chart.kind!} format={(value) => `${value > 0 ? "+" : ""}${value.toFixed(2)}`} height={260} label="Each factor's loading against the policy benchmark's"
+        data={{ shape: "series", categories: data.factors.map((one) => one.label), series: [
+          { name: "Portfolio", values: data.factors.map((one) => one.loading), colour: ink().primary },
+          { name: "Policy benchmark", values: data.factors.map((one) => one.benchmarkLoading), colour: ink().neutral },
+        ] }} />
+      <p className="mt-1 text-3xs text-ink-muted italic">{data.factorExposures.reason}</p>
+    </>
   );
   return (
     <>
@@ -460,9 +586,13 @@ function Factors({ data }: { data: ClientRisk }) {
 }
 
 /** Class by class, a soft tint for how closely each pair moves: blue together, red apart. */
-function Correlation({ data }: { data: ClientRisk }) {
+function Correlation({ data, chart }: { data: ClientRisk; chart: CardChart }) {
   const matrix = data.correlationMatrix;
   if (!matrix) return null;
+  if (!chart.own) return (
+    <KindChart kind={chart.kind!} format={(value) => value.toFixed(2)} label="How closely each pair of classes moves together"
+      data={{ shape: "series", categories: matrix.names, series: matrix.values.map((row, at) => ({ name: matrix.names[at]!, values: row })) }} />
+  );
   return (
     <>
       <div className="-mx-5 overflow-x-auto">
@@ -495,12 +625,58 @@ function Correlation({ data }: { data: ClientRisk }) {
   );
 }
 
-function Card({ title, lead, foot, flush, children }: { title: string; lead?: string; foot?: ReactNode; flush?: boolean; children: ReactNode }) {
+/** What Risk & Exposure offers for a card of the reader's own: its risk figures, scenarios and look-throughs. */
+function riskFigures(data: ClientRisk): Figures {
+  const amount = (value: number) => money(value, data.currency);
+  const pc = (value: number) => `${value.toFixed(1)}%`;
+  const k = data.kpis;
+  return {
+    "kpi.var": singleFigure("95% 1-month VaR, % of investable", "Key figures", k.var95, pc,
+      { gauge: true, max: Math.max(10, (k.varLimit ?? k.var95 ?? 0) * 2), policy: k.varLimit != null ? { value: k.varLimit, label: "VaR limit" } : null }),
+    "kpi.var-amount": singleFigure("95% 1-month VaR", "Key figures", k.var95Amount, amount),
+    "kpi.es": singleFigure("97.5% expected shortfall, % of investable", "Key figures", k.es975, pc, { gauge: true, max: Math.max(10, (k.es975 ?? 0) * 2) }),
+    "kpi.volatility": singleFigure("Volatility, ex-ante", "Key figures", k.exAnteVolatility, pc,
+      { gauge: true, max: Math.max(20, (k.volatilityBudget ?? k.exAnteVolatility ?? 0) * 2), policy: k.volatilityBudget != null ? { value: k.volatilityBudget, label: "volatility budget" } : null }),
+    "kpi.beta": singleFigure("Beta", "Key figures", k.beta, (value) => value.toFixed(2), { gauge: true, max: 2 }),
+    "stress.impact": seriesFigure("Stress test impact by scenario", "Scenarios", data.stress.map((one) => one.name),
+      [{ name: "Impact %", values: data.stress.map((one) => one.impactPercent) }], pc, ["horizontal-bar", "bar", "table"]),
+    "var.history": seriesFigure("VaR over the last 24 months", "Scenarios", data.varHistory.map((one) => monthLabel(one.on)),
+      [{ name: "95% 1M VaR", values: data.varHistory.map((one) => one.var95) }], pc, ["line", "area", "bar", "table"]),
+    "risk.classes": seriesFigure("Share of risk against share of capital, by class", "Risk model", data.classRisk.map((one) => one.name), [
+      { name: "Capital", values: data.classRisk.map((one) => one.capitalPercent) }, { name: "Risk", values: data.classRisk.map((one) => one.riskPercent) },
+    ], pc, ["grouped-bar", "horizontal-bar", "table"]),
+    "risk.factors": seriesFigure("Factor loadings against the benchmark", "Risk model", data.factors.map((one) => one.label), [
+      { name: "Portfolio", values: data.factors.map((one) => one.loading) }, { name: "Benchmark", values: data.factors.map((one) => one.benchmarkLoading) },
+    ], (value) => value.toFixed(2), ["horizontal-bar", "radar", "grouped-bar", "table"]),
+    "look.geography": sharesFigure("Holdings by country of risk", "Look-through", data.geography.filter((one) => one.value > 0).map((one) => ({ name: one.name, value: one.value })), amount),
+    "look.sectors": sharesFigure("Holdings by sector, % of the book", "Look-through", data.sectors.map((one) => ({ name: one.name, value: one.sharePercent })), pc),
+    "look.currencies": sharesFigure("Net exposure by currency", "Look-through", data.currencies.map((one) => ({ name: one.currency, value: one.net ?? 0 })), amount),
+    "look.issuers": sharesFigure("Exposure to the largest issuers", "Look-through", data.issuers.map((one) => ({ name: one.issuer, value: one.total })), amount,
+      ["horizontal-bar", "treemap", "donut", "table"]),
+    "liquidity.ladder": seriesFigure("Liquidity ladder by asset class", "Liquidity", data.liquidityTotals.map((one) => one.name),
+      data.liquidity.map((row) => ({ name: row.name, values: row.buckets.map((one) => one.value) })), amount, ["stacked-bar", "grouped-bar", "table"]),
+  };
+}
+
+/** @param picker the chart type switcher, beside the title, for a card that draws a chart */
+function Card({ title, lead, foot, flush, picker, children }: {
+  title: string;
+  lead?: string;
+  foot?: ReactNode;
+  flush?: boolean;
+  picker?: ReactNode;
+  children: ReactNode;
+}) {
+  // The reader's own name and line for the card, where they set them through Add card.
+  const label = useCardLabel(title, lead);
   return (
     <section className={cn("flex min-w-0 flex-col rounded-2xl border border-line bg-white", flush ? "py-5" : "p-5")}>
-      <div className={cn("mb-3", flush && "px-5")}>
-        <h2 className="text-lg font-bold">{title}</h2>
-        {lead && <p className="mt-0.5 text-xs text-ink-muted">{lead}</p>}
+      <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", flush && "px-5")}>
+        <div>
+          <h2 className="text-lg font-bold">{label.title}</h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">{picker}<CardMenu /></div>
       </div>
       <div className="flex-1">{children}</div>
       {foot && <div className={cn("mt-3 border-t border-line pt-3 text-xs text-ink-muted", flush && "px-5")}>{foot}</div>}
