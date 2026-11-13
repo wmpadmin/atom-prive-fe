@@ -9,7 +9,7 @@ import {
   type RelationshipAsk,
 } from "@atomprive/api-client/portal";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router";
 import { when } from "../lib/dates";
 import { initialsOf, toneAt, treeOf, type Branch, type TONES } from "./family-tree";
@@ -490,6 +490,9 @@ function Action({ to, children }: { to: string; children: React.ReactNode }) {
 function AskToBeCalled({ now }: { now: string | null }) {
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
+  // Set by a Send request with nothing chosen; the picker then shows red until something is.
+  const [tried, setTried] = useState(false);
+  const picker = useRef<HTMLSelectElement>(null);
   const queryClient = useQueryClient();
   const ask = useAskToBeCalled<ApiError>({
     mutation: {
@@ -505,7 +508,7 @@ function AskToBeCalled({ now }: { now: string | null }) {
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => { setOpen(true); setTried(false); }}
         className="mt-3 block text-xs font-semibold text-blue-700 underline hover:text-blue-800"
       >
         {now ? `You are down as a ${now.toLowerCase()} — ask to change it` : "Ask to set your relationship"}
@@ -515,10 +518,12 @@ function AskToBeCalled({ now }: { now: string | null }) {
   return (
     <div className="mt-3 space-y-2">
       <select
+        ref={picker}
         aria-label="What you are to this family"
+        aria-invalid={tried && code === ""}
         value={code}
         onChange={(event) => setCode(event.target.value)}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        className={`w-full rounded-lg border px-3 py-2 text-sm ${tried && code === "" ? "border-red-500" : "border-slate-300"}`}
       >
         <option value="">Choose one…</option>
         {RELATIONSHIPS.map((one) => (
@@ -527,11 +532,19 @@ function AskToBeCalled({ now }: { now: string | null }) {
           </option>
         ))}
       </select>
+      {tried && code === "" && <p className="text-xs text-red-600">Choose a relationship.</p>}
       <div className="flex gap-2">
         <button
           type="button"
-          disabled={ask.isPending || code === ""}
-          onClick={() => ask.mutate({ data: { relationshipCode: code } })}
+          disabled={ask.isPending}
+          onClick={() => {
+            if (code === "") {
+              setTried(true);
+              picker.current?.focus();
+              return;
+            }
+            ask.mutate({ data: { relationshipCode: code } });
+          }}
           className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60"
         >
           {ask.isPending ? "Asking…" : "Send request"}

@@ -54,12 +54,15 @@ function OneList({ kind, title, about, one }: (typeof LISTS)[number]) {
   const [renaming, setRenaming] = useState<string>();
   const [typed, setTyped] = useState("");
   const [errors, setErrors] = useState<FormErrors>(noErrors);
+  // Set by an Add or Save with the box empty; the box then shows red until something is typed.
+  const [tried, setTried] = useState(false);
 
   function kept() {
     setAdding("");
     setRenaming(undefined);
     setTyped("");
     setErrors(noErrors);
+    setTried(false);
     void queryClient.invalidateQueries({ queryKey: getListEntriesQueryKey(kind) });
   }
   const onError = (caught: ApiError) => setErrors(toFormErrors(caught));
@@ -71,6 +74,11 @@ function OneList({ kind, title, about, one }: (typeof LISTS)[number]) {
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    if ((renaming ? typed : adding).trim() === "") {
+      setTried(true);
+      document.getElementById(renaming ? `rename-${renaming}` : `add-${kind}`)?.focus();
+      return;
+    }
     setErrors(noErrors);
     if (renaming) {
       rename.mutate({ kind, code: renaming, data: { name: typed.trim() } });
@@ -80,6 +88,8 @@ function OneList({ kind, title, about, one }: (typeof LISTS)[number]) {
   }
 
   const entries = listed.data ?? [];
+  const typedMissing = tried && typed.trim() === "";
+  const addingMissing = tried && adding.trim() === "";
 
   return (
     <section className="rounded-2xl border border-line bg-white">
@@ -107,16 +117,17 @@ function OneList({ kind, title, about, one }: (typeof LISTS)[number]) {
           <li key={entry.code} className="flex flex-wrap items-center justify-between gap-3 px-6 py-3">
             {renaming === entry.code ? (
               <form onSubmit={submit} className="flex flex-1 flex-wrap items-end gap-3">
-                <Field id={`rename-${entry.code}`} label="Name" error={errors.fields.name} className="min-w-60 flex-1">
+                <Field id={`rename-${entry.code}`} label="Name" error={errors.fields.name ?? (typedMissing ? "Enter a name." : undefined)} className="min-w-60 flex-1">
                   <TextInput
                     id={`rename-${entry.code}`}
+                    aria-invalid={typedMissing}
                     value={typed}
                     onChange={(event) => setTyped(event.target.value)}
                     autoFocus
                   />
                 </Field>
                 <div className="flex gap-2 pb-0.5">
-                  <Button type="submit" size="sm" disabled={busy || typed.trim().length === 0}>
+                  <Button type="submit" size="sm" disabled={busy}>
                     Save
                   </Button>
                   <Button type="button" size="sm" variant="ghost" onClick={kept}>
@@ -145,6 +156,7 @@ function OneList({ kind, title, about, one }: (typeof LISTS)[number]) {
                       setRenaming(entry.code);
                       setTyped(entry.name);
                       setErrors(noErrors);
+                      setTried(false);
                     }}
                     className="text-sm font-medium text-primary-700 hover:underline"
                   >
@@ -167,15 +179,16 @@ function OneList({ kind, title, about, one }: (typeof LISTS)[number]) {
 
       {!renaming && (
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3 border-t border-line px-6 py-4">
-          <Field id={`add-${kind}`} label={`Add a ${one}`} error={errors.fields.name} className="min-w-60 flex-1">
+          <Field id={`add-${kind}`} label={`Add a ${one}`} error={errors.fields.name ?? (addingMissing ? `Type the ${one} to add.` : undefined)} className="min-w-60 flex-1">
             <TextInput
               id={`add-${kind}`}
+              aria-invalid={addingMissing}
               value={adding}
               onChange={(event) => setAdding(event.target.value)}
               placeholder="What the firm calls it"
             />
           </Field>
-          <Button type="submit" disabled={busy || adding.trim().length === 0} className="mb-0.5">
+          <Button type="submit" disabled={busy} className="mb-0.5">
             {add.isPending ? "Adding…" : "Add"}
           </Button>
         </form>

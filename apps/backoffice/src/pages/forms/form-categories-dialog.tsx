@@ -19,9 +19,13 @@ export function FormCategoriesDialog({ form, onClose, onChanged }: FormCategorie
   const [chosen, setChosen] = useState<CatalogueEntryCategoriesItem[] | null>(null);
   const categories = chosen ?? form?.categories ?? [];
   const change = useSetFormCategories<ApiError>();
+  // Set when Save is pressed with no category ticked; the list stays red until one is.
+  const [tried, setTried] = useState(false);
+  const noneChosen = tried && categories.length === 0;
 
   function close() {
     setChosen(null);
+    setTried(false);
     change.reset();
     onClose();
   }
@@ -37,12 +41,13 @@ export function FormCategoriesDialog({ form, onClose, onChanged }: FormCategorie
           Which kinds of account this form is used for. The same form can be used by more than one.
         </p>
         {change.isError && <Alert tone="danger">{change.error.message}</Alert>}
-        <ul className="space-y-2">
+        <ul className="space-y-2" aria-describedby={noneChosen ? "form-categories-error" : undefined}>
           {formCategories.map((category) => (
             <li key={category}>
-              <label className="flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-sm">
+              <label className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${noneChosen ? "border-red-500" : "border-line"}`}>
                 <input
                   type="checkbox"
+                  aria-invalid={noneChosen || undefined}
                   className="size-4 accent-primary-600"
                   checked={categories.includes(category)}
                   onChange={() => toggle(category)}
@@ -52,14 +57,20 @@ export function FormCategoriesDialog({ form, onClose, onChanged }: FormCategorie
             </li>
           ))}
         </ul>
+        {noneChosen && <p id="form-categories-error" className="text-xs text-red-600">Tick at least one category.</p>}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={close} disabled={change.isPending}>
             Cancel
           </Button>
           <Button
-            disabled={categories.length === 0 || change.isPending || !form}
-            onClick={() =>
-              form &&
+            disabled={change.isPending || !form}
+            onClick={() => {
+              if (!form) return;
+              if (categories.length === 0) {
+                setTried(true);
+                requestAnimationFrame(() => document.querySelector<HTMLElement>("[aria-invalid='true']")?.focus());
+                return;
+              }
               change.mutate(
                 { kind: form.kind, data: { categories } },
                 {
@@ -68,8 +79,8 @@ export function FormCategoriesDialog({ form, onClose, onChanged }: FormCategorie
                     close();
                   },
                 },
-              )
-            }
+              );
+            }}
           >
             {change.isPending ? "Saving…" : "Save categories"}
           </Button>

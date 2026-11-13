@@ -179,9 +179,12 @@ function Answer({
   onClose: () => void;
 }) {
   const [note, setNote] = useState("");
+  // Turn it down pressed with no reason: the box shows in red until one is typed.
+  const [tried, setTried] = useState(false);
   const queryClient = useQueryClient();
   const done = () => {
     setNote("");
+    setTried(false);
     void queryClient.invalidateQueries();
     onClose();
   };
@@ -191,6 +194,7 @@ function Answer({
   const failed = approve.error ?? reject.error;
   const agreeing = answering?.agreeing === true;
   const said = note.trim();
+  const noReason = tried && !agreeing && said.length === 0;
 
   return (
     <Dialog
@@ -209,6 +213,7 @@ function Answer({
       }
       onClose={() => {
         setNote("");
+        setTried(false);
         approve.reset();
         reject.reset();
         onClose();
@@ -220,6 +225,7 @@ function Answer({
           id="deactivation-note"
           label={agreeing ? "Anything to add" : "Why"}
           required={!agreeing}
+          error={noReason ? "Enter a reason." : undefined}
           hint={
             agreeing
               ? "Optional. The desk's own reason is already on the record."
@@ -228,6 +234,7 @@ function Answer({
         >
           <TextArea
             id="deactivation-note"
+            aria-invalid={noReason || undefined}
             rows={3}
             maxLength={MOST}
             value={note}
@@ -240,14 +247,19 @@ function Answer({
           />
         </Field>
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" disabled={busy} onClick={onClose}>
+          <Button variant="secondary" disabled={busy} onClick={() => { setTried(false); onClose(); }}>
             Cancel
           </Button>
           <Button
             variant={agreeing ? "danger" : "primary"}
-            disabled={busy || !answering || (!agreeing && said.length === 0)}
+            disabled={busy || !answering}
             onClick={() => {
               if (!answering) return;
+              if (!agreeing && said.length === 0) {
+                setTried(true);
+                document.getElementById("deactivation-note")?.focus();
+                return;
+              }
               const customerId = answering.row.customerId;
               if (agreeing) {
                 approve.mutate({ customerId, data: { note: said || null } });

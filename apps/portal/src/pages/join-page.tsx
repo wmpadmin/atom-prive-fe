@@ -33,6 +33,9 @@ export function JoinPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [again, setAgain] = useState("");
+  // Continue or Create pressed with something missing: each box still missing it shows in red until it is filled in.
+  const [triedName, setTriedName] = useState(false);
+  const [triedPassword, setTriedPassword] = useState(false);
 
   const invitation = useOpen<Invitation, ApiError>(token);
   const join = useJoin<ApiError>({
@@ -136,7 +139,10 @@ export function JoinPage() {
 
   const tooShort = password.length > 0 && password.length < LEAST;
   const mismatched = again.length > 0 && again !== password;
-  const canFinish = password.length >= LEAST && again === password && !join.isPending;
+  const canFinish = password.length >= LEAST && again === password;
+  const nameMissing = triedName && fullName.trim().length === 0;
+  const passwordMissing = triedPassword && password.length < LEAST;
+  const againMissing = triedPassword && again.length === 0;
 
   return (
     <div className="grid min-h-screen place-items-center bg-slate-100 px-4 py-10">
@@ -160,8 +166,14 @@ export function JoinPage() {
         {at === "details" ? (
           <form
             className="mt-7 grid gap-x-10 gap-y-7 sm:grid-cols-[1fr_15rem] sm:grid-rows-[auto_auto]"
+            noValidate
             onSubmit={(event) => {
               event.preventDefault();
+              if (fullName.trim().length === 0) {
+                setTriedName(true);
+                document.getElementById("join-name")?.focus();
+                return;
+              }
               setAt("password");
               setStep(2);
             }}
@@ -186,9 +198,11 @@ export function JoinPage() {
                 required
                 autoComplete="name"
                 value={fullName}
+                aria-invalid={nameMissing || undefined}
                 onChange={(event) => setFullName(event.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm aria-invalid:border-red-500"
               />
+              {nameMissing && <p className="mt-1 text-xs text-red-600">Enter your full name.</p>}
 
               <Label htmlFor="join-phone" className="mt-4">
                 Phone <span className="font-normal text-slate-400">(optional)</span>
@@ -217,7 +231,6 @@ export function JoinPage() {
             <div className="sm:col-span-2 sm:row-start-2">
               <button
                 type="submit"
-                disabled={fullName.trim().length === 0}
                 className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"
               >
                 Continue
@@ -234,8 +247,14 @@ export function JoinPage() {
         ) : (
           <form
             className="mt-7 grid gap-x-10 gap-y-7 sm:grid-cols-[1fr_15rem] sm:grid-rows-[auto_auto]"
+            noValidate
             onSubmit={(event) => {
               event.preventDefault();
+              if (!canFinish) {
+                setTriedPassword(true);
+                document.getElementById(password.length < LEAST ? "join-password" : "join-again")?.focus();
+                return;
+              }
               join.mutate({
                 token,
                 data: { fullName: fullName.trim(), phone: phone.trim() || null, password },
@@ -250,10 +269,11 @@ export function JoinPage() {
               autoComplete="new-password"
               required
               value={password}
+              aria-invalid={passwordMissing || undefined}
               onChange={(event) => setPassword(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm aria-invalid:border-red-500"
             />
-            <p className={`mt-1 text-xs ${tooShort ? "text-red-600" : "text-slate-400"}`}>
+            <p className={`mt-1 text-xs ${tooShort || passwordMissing ? "text-red-600" : "text-slate-400"}`}>
               At least {LEAST} characters.
             </p>
 
@@ -266,10 +286,12 @@ export function JoinPage() {
               autoComplete="new-password"
               required
               value={again}
+              aria-invalid={againMissing || mismatched || undefined}
               onChange={(event) => setAgain(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm aria-invalid:border-red-500"
             />
             {mismatched && <p className="mt-1 text-xs text-red-600">These two do not match.</p>}
+            {againMissing && <p className="mt-1 text-xs text-red-600">Enter the password again.</p>}
 
               <p className="mt-5 text-xs text-slate-500">
                 Signing in as <b className="font-semibold text-slate-700">{asked.email}</b>
@@ -282,7 +304,7 @@ export function JoinPage() {
             <div className="sm:col-span-2 sm:row-start-2">
               <button
                 type="submit"
-                disabled={!canFinish}
+                disabled={join.isPending}
                 className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"
               >
                 {join.isPending ? "Setting you up…" : "Create my account"}

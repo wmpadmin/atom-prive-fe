@@ -419,6 +419,10 @@ export function ModelDialog({
   );
   // The one hard rule a model has to satisfy. Saying so on the button saves a trip to the server to be told.
   const addsUp = total === 100;
+  // Set when Save is pressed with the plan not yet whole; what is missing goes red until it is put right.
+  const [tried, setTried] = useState(false);
+  const whyMissing = signOff !== undefined && signOff.why.trim() === "";
+  const whyError = tried && whyMissing ? "Say why it should change." : undefined;
   // Carried from the model and sent back as they came: the dialog no longer asks for a spread by country
   // or by sector, and a model that already has one keeps it.
   const countries = sharesOf(model?.geographyTargets);
@@ -482,7 +486,15 @@ export function ModelDialog({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!readable || !addsUp) return;
+    if (!readable || !addsUp || whyMissing) {
+      setTried(true);
+      // The first box marked, or the first target where the split is what is wrong.
+      requestAnimationFrame(() => {
+        const marked = form.current?.querySelector<HTMLElement>("[aria-invalid='true']");
+        (marked ?? (codes[0] ? document.getElementById(`target-${codes[0]}`) : null))?.focus();
+      });
+      return;
+    }
     const wanted: Record<string, number> = {};
     for (const assetClass of codes) {
       if (targets[assetClass].trim()) wanted[assetClass] = Number(targets[assetClass]);
@@ -721,6 +733,7 @@ export function ModelDialog({
                 <div className="relative w-20 shrink-0">
                   <TextInput
                     id={`target-${assetClass}`}
+                    aria-invalid={(tried && untouched) || undefined}
                     inputMode="decimal"
                     className="pr-7 text-right"
                     value={targets[assetClass]}
@@ -801,6 +814,7 @@ export function ModelDialog({
                 under=""
                 usedNames={usedNames}
                 depth={0}
+                tried={tried}
               />
             </div>
           ))}
@@ -867,8 +881,8 @@ export function ModelDialog({
             <span
               className={cn(
                 "text-xs font-medium",
-                untouched ? "text-ink-muted" : addsUp ? "text-emerald-700"
-                  : total < 100 ? "text-amber-700" : "text-red-600",
+                addsUp ? "text-emerald-700" : tried || total > 100 ? "text-red-600"
+                  : untouched ? "text-ink-muted" : "text-amber-700",
               )}
             >
               {untouched
@@ -928,12 +942,14 @@ export function ModelDialog({
               Why it should change
             </label>
             <TextInput
+              {...describedBy("model-why", whyError)}
               id="model-why"
               className="mt-1.5"
               value={signOff.why}
               placeholder="The committee moved the equity weight at the October review."
               onChange={(event) => signOff.onWhy(event.target.value)}
             />
+            {whyError && <p id="model-why-error" className="mt-1 text-xs text-red-600">{whyError}</p>}
             <p className="mt-2 text-xs text-ink-muted">
               This plan is live, so {signOff.holders === 0
                 ? "any client put on it"
@@ -947,7 +963,7 @@ export function ModelDialog({
         <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-line pt-4">
           {/* Said beside the button as well as against the field. Somebody who presses Save at the foot of a
               long form has to be told here that it was refused, not only where the fault is. */}
-          {Object.keys(errors.fields).length > 0 && (
+          {(Object.keys(errors.fields).length > 0 || (tried && (!readable || !addsUp || whyMissing))) && (
             <p className="mr-auto text-xs text-red-600">
               Something above still needs putting right.
             </p>
@@ -956,7 +972,7 @@ export function ModelDialog({
             Cancel
           </Button>
           <Button type="submit"
-            disabled={busy || !readable || !addsUp || (signOff !== undefined && signOff.why.trim() === "")}>
+            disabled={busy}>
             {busy
               ? (signOff ? "Asking…" : "Saving…")
               : signOff ? "Ask for this change" : model ? "Save the model" : "Create the model"}
@@ -1006,7 +1022,7 @@ const BAND_ROW = "grid grid-cols-1 items-center gap-x-3 gap-y-1 rounded-lg bg-sl
  * in their head while typing the next line.
  */
 function LineList({
-  lines, set, where, ofWhatItSitsIn, assetClass, under, usedNames, depth,
+  lines, set, where, ofWhatItSitsIn, assetClass, under, usedNames, depth, tried = false,
 }: {
   lines: TypedLine[];
   set: (next: TypedLine[]) => void;
@@ -1019,6 +1035,8 @@ function LineList({
   under: string;
   usedNames: Record<string, string[]>;
   depth: number;
+  /** Save was pressed: a line with no name is marked until it has one. */
+  tried?: boolean;
 }) {
   const offered = usedNames[nameKey(assetClass, under)] ?? [];
 
@@ -1032,6 +1050,7 @@ function LineList({
         {lines.map((line, at) => {
           const ofAll = ofWholePortfolio(ofWhatItSitsIn, line.shareOfClass);
           const named = line.name.trim();
+          const unnamed = tried && named === "";
           return (
             <li key={at}>
               {/* Four columns and no fifth standing empty. The two ways of naming a line are different
@@ -1050,6 +1069,7 @@ function LineList({
                 {line.written || (line.name !== "" && !offered.includes(line.name)) ? (
                   <TextInput
                     aria-label={`Name of line ${at + 1} inside ${where}`}
+                    aria-invalid={unnamed || undefined}
                     placeholder="A name nobody has used yet"
                     className="min-w-0"
                     value={line.name}
@@ -1059,6 +1079,7 @@ function LineList({
                 ) : (
                   <SelectInput
                     aria-label={`Name of line ${at + 1} inside ${where}`}
+                    aria-invalid={unnamed || undefined}
                     className="min-w-0 w-full"
                     value={line.name}
                     onChange={(event) =>
@@ -1111,6 +1132,7 @@ function LineList({
                   <Trash2 aria-hidden="true" className="size-4" />
                 </button>
               </div>
+              {unnamed && <p className="mt-1 text-xs text-red-600">Name this line, or pick one from the list.</p>}
 
               {/* What is inside this line, indented under it and ruled off, so the eye can see which share
                   belongs to which parent without reading the labels. */}
@@ -1135,6 +1157,7 @@ function LineList({
                     under={named}
                     usedNames={usedNames}
                     depth={depth + 1}
+                    tried={tried}
                   />
                 </div>
               )}

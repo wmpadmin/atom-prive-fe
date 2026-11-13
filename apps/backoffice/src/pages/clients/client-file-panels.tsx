@@ -1048,6 +1048,8 @@ function InviteFamilyMember({
   const [email, setEmail] = useState("");
   const [relationship, setRelationship] = useState("");
   const [message, setMessage] = useState("");
+  // Send pressed with the email or relationship missing: each one left shows in red until it is filled in.
+  const [tried, setTried] = useState(false);
   // What was sent, once it has been. The window does not close on success: the password is minted by the
   // send and is the one thing on this screen that cannot be looked up again, so closing on success would
   // mean handing it over and taking it away in the same instant.
@@ -1072,6 +1074,7 @@ function InviteFamilyMember({
   });
 
   const shut = () => {
+    setTried(false);
     setEmail("");
     setRelationship("");
     setMessage("");
@@ -1122,18 +1125,21 @@ function InviteFamilyMember({
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="invite-email" label="Email address" required>
+          <Field id="invite-email" label="Email address" required error={tried && address.length === 0 ? "Enter an email address." : undefined}>
             <TextInput
               id="invite-email"
+              aria-invalid={(tried && address.length === 0) || undefined}
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="rohan.khan@example.com"
             />
           </Field>
-          <Field id="invite-relationship" label={`Relationship to ${firstWordOf(parentName)}`} required>
+          <Field id="invite-relationship" label={`Relationship to ${firstWordOf(parentName)}`} required
+            error={tried && relationship.length === 0 ? "Choose a relationship." : undefined}>
             <SelectInput
               id="invite-relationship"
+              aria-invalid={(tried && relationship.length === 0) || undefined}
               value={relationship}
               onChange={(event) => setRelationship(event.target.value)}
             >
@@ -1170,8 +1176,13 @@ function InviteFamilyMember({
             Cancel
           </Button>
           <Button
-            disabled={invite.isPending || address.length === 0 || relationship.length === 0}
-            onClick={() =>
+            disabled={invite.isPending}
+            onClick={() => {
+              if (address.length === 0 || relationship.length === 0) {
+                setTried(true);
+                document.getElementById(address.length === 0 ? "invite-email" : "invite-relationship")?.focus();
+                return;
+              }
               invite.mutate({
                 id: clientId,
                 data: {
@@ -1180,8 +1191,8 @@ function InviteFamilyMember({
                   personalMessage: message.trim() || null,
                   inviteUnder: under,
                 },
-              })
-            }
+              });
+            }}
           >
             {invite.isPending ? "Sending…" : "Send invite"}
           </Button>

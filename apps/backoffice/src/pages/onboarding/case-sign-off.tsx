@@ -47,6 +47,8 @@ export function CaseSignOff({
   const queryClient = useQueryClient();
   const [sendingBack, setSendingBack] = useState(false);
   const [comment, setComment] = useState("");
+  // Set by a Send it back with nothing written; the box then shows red until something is.
+  const [tried, setTried] = useState(false);
 
   const send = useSendCaseForSignOff<ApiError>();
   const decide = useDecideCaseSignOff<ApiError>();
@@ -76,7 +78,7 @@ export function CaseSignOff({
       )}
       {decides && signOff === "AWAITING" && (
         <>
-          <Button variant="secondary" size="sm" disabled={busy} onClick={() => setSendingBack(true)}>
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => { setSendingBack(true); setTried(false); }}>
             Send back
           </Button>
           <Button
@@ -94,8 +96,9 @@ export function CaseSignOff({
         <div className="space-y-4">
           <p className="text-sm text-ink-muted">Operations will see what you write here and put it right.</p>
           {decide.isError && <Alert tone="danger">{decide.error.message}</Alert>}
-          <Field id="send-back-comment" label="What needs putting right?" required>
-            <TextArea id="send-back-comment" rows={3} value={comment} onChange={(event) => setComment(event.target.value)} />
+          <Field id="send-back-comment" label="What needs putting right?" required
+            error={tried && !comment.trim() ? "Say what needs putting right." : undefined}>
+            <TextArea id="send-back-comment" rows={3} aria-invalid={tried && !comment.trim()} value={comment} onChange={(event) => setComment(event.target.value)} />
           </Field>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setSendingBack(false)} disabled={busy}>
@@ -103,8 +106,13 @@ export function CaseSignOff({
             </Button>
             <Button
               variant="danger"
-              disabled={!comment.trim() || busy}
-              onClick={() =>
+              disabled={busy}
+              onClick={() => {
+                if (!comment.trim()) {
+                  setTried(true);
+                  document.getElementById("send-back-comment")?.focus();
+                  return;
+                }
                 decide.mutate(
                   { id: detail.summary.id, data: { approved: false, comment } },
                   {
@@ -114,8 +122,8 @@ export function CaseSignOff({
                       setComment("");
                     },
                   },
-                )
-              }
+                );
+              }}
             >
               Send it back
             </Button>

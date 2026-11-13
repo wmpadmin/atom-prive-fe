@@ -215,11 +215,14 @@ function Answer({ request }: { request: RequestRow }) {
   const [chosen, setChosen] = useState<string[]>(request.accounts.map((one) => one.id));
   const [until, setUntil] = useState("");
   const [comment, setComment] = useState("");
+  // Set by a refusal sent with no reason; the box then shows red until one is written.
+  const [tried, setTried] = useState(false);
   const answer = useAnswer<ApiError>({
     mutation: { onSuccess: () => void queryClient.invalidateQueries() },
   });
 
   const refusing = chosen.length === 0;
+  const noReason = refusing && comment.trim() === "";
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-6 py-5">
@@ -273,12 +276,17 @@ function Answer({ request }: { request: RequestRow }) {
         <label className="text-xs font-semibold text-slate-600">
           {refusing ? "Why (required)" : "A comment (optional)"}
           <textarea
+            id="access-answer-comment"
             rows={3}
             maxLength={500}
             value={comment}
+            aria-invalid={tried && noReason}
             onChange={(event) => setComment(event.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
+            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm font-normal ${
+              tried && noReason ? "border-red-500" : "border-slate-300"
+            }`}
           />
+          {tried && noReason && <span className="mt-1 block text-xs font-normal text-red-600">Say why you are refusing.</span>}
         </label>
       </div>
 
@@ -297,13 +305,18 @@ function Answer({ request }: { request: RequestRow }) {
         </Link>
         <button
           type="button"
-          disabled={answer.isPending || (refusing && comment.trim() === "")}
-          onClick={() =>
+          disabled={answer.isPending}
+          onClick={() => {
+            if (noReason) {
+              setTried(true);
+              document.getElementById("access-answer-comment")?.focus();
+              return;
+            }
             answer.mutate({
               id: request.id,
               data: { accounts: chosen, expiresOn: until || null, comment: comment.trim() || null },
-            })
-          }
+            });
+          }}
           className={`rounded-xl px-4 py-2 text-sm font-bold text-white disabled:opacity-60 ${
             refusing ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
           }`}
