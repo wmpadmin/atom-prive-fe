@@ -248,8 +248,10 @@ function optionFor(data: ChartData, kind: ChartKind, format: (value: number) => 
       lineStyle: { color: one.colour, width: 1.5 }, itemStyle: { color: one.colour },
       areaStyle: area ? { color: one.colour, opacity: stack ? 0.55 : 0.18 } : undefined,
     }));
+    // A lone series of gains and losses shows its losses in red.
     const bars = (stack: boolean) => coloured.map((one) => ({
-      type: "bar", name: one.name, data: one.values, stack: stack ? "all" : undefined, barMaxWidth: 32, itemStyle: { color: one.colour },
+      type: "bar", name: one.name, data: one.values, stack: stack ? "all" : undefined, barMaxWidth: 32,
+      itemStyle: { color: many ? one.colour : ({ value }: { value: number }) => (value < 0 ? c.danger : one.colour) },
     }));
     switch (kind) {
       case "line":
