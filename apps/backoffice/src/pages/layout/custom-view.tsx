@@ -11,6 +11,7 @@ import { Button, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, GripVertical, LayoutGrid as LayoutIcon, Plus, RotateCcw, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import type { ChartKind } from "./chart-kinds";
 
 /**
  * A screen made of cards that each member of staff lays out for themselves, the way Autotask's dashboards are: drag a
@@ -18,7 +19,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type
  * kept on the server for each person and screen (view-layouts), so it follows them to any browser; Reset puts back
  * the screen as the firm set it.
  *
- * <p>Changes made while customizing wait for Done; Cancel throws them away. A card the code no longer has is skipped,
+ * <p>A card that draws a chart may also be switched to another kind of chart that fits its figures; the choice is kept
+ * with the layout. Changes made while customizing wait for Done; Cancel throws them away. A card the code no longer has is skipped,
  * and one it gained since the person saved shows where the firm's default puts it.
  */
 
@@ -33,9 +35,12 @@ export type LayoutMeta = {
   wide?: boolean;
   /** A card down the side column moves only among the side cards and has no width of its own. */
   area?: "main" | "side";
+  /** The kinds of chart the card can be drawn as, its own look first; none where it draws no chart. */
+  charts?: ChartKind[];
 };
 
-type Placed<Id extends string> = { id: Id; width: Width; hidden: boolean };
+/** @param chart the kind picked for the card, or null for its own look */
+type Placed<Id extends string> = { id: Id; width: Width; hidden: boolean; chart: ChartKind | null };
 
 export type ViewLayoutState<Id extends string> = ReturnType<typeof useViewLayout<Id>>;
 
@@ -50,8 +55,8 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
   const widthOf = useCallback((id: Id): Width => (meta[id]?.wide ? "FULL" : "HALF"), [meta]);
   const standard = useMemo<Placed<Id>[]>(
     () => [
-      ...defaults.filter((id) => ids.includes(id)).map((id) => ({ id, width: widthOf(id), hidden: false })),
-      ...ids.filter((id) => !defaults.includes(id)).map((id) => ({ id, width: widthOf(id), hidden: true })),
+      ...defaults.filter((id) => ids.includes(id)).map((id) => ({ id, width: widthOf(id), hidden: false, chart: null })),
+      ...ids.filter((id) => !defaults.includes(id)).map((id) => ({ id, width: widthOf(id), hidden: true, chart: null })),
     ],
     [defaults, ids, widthOf],
   );
@@ -59,7 +64,11 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
     const layout = saved.data;
     if (!layout?.savedAt) return standard;
     const known = layout.cards.filter((one): one is LayoutCard & { id: Id } => ids.includes(one.id as Id))
-      .map((one) => ({ id: one.id as Id, width: meta[one.id as Id]?.area === "side" ? widthOf(one.id as Id) : one.width, hidden: one.hidden }));
+      .map((one) => ({
+        id: one.id as Id, width: meta[one.id as Id]?.area === "side" ? widthOf(one.id as Id) : one.width, hidden: one.hidden,
+        // A kind the card no longer offers falls back to its own look.
+        chart: meta[one.id as Id]?.charts?.includes(one.chart as ChartKind) ? one.chart as ChartKind : null,
+      }));
     // A card the screen gained after the person saved: shown where the default shows it, hidden if the default hides it.
     const added = standard.filter((one) => !known.some((line) => line.id === one.id));
     return [...known, ...added];
@@ -72,7 +81,7 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
   const persist = (next: Placed<Id>[]) => {
     const isStandard = next.length === standard.length && next.every((one, at) => {
       const other = standard[at]!;
-      return other.id === one.id && other.width === one.width && other.hidden === one.hidden;
+      return other.id === one.id && other.width === one.width && other.hidden === one.hidden && other.chart === one.chart;
     });
     const done = (layout: ViewLayout) => queryClient.setQueryData(getGetViewLayoutQueryKey(key), layout);
     if (isStandard) {
@@ -98,7 +107,7 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
     /** Whether the layout differs from the firm's default. */
     changed: placed.some((one, at) => {
       const other = standard[at];
-      return !other || other.id !== one.id || other.width !== one.width || other.hidden !== one.hidden;
+      return !other || other.id !== one.id || other.width !== one.width || other.hidden !== one.hidden || other.chart !== one.chart;
     }),
     begin: () => setDraft(stored),
     cancel: () => setDraft(null),
@@ -110,12 +119,22 @@ export function useViewLayout<Id extends string>(key: string, meta: Record<Id, L
     /** The shown cards in a new order (or fewer of them); a card left out is hidden, keeping its place among the rest. */
     change: (cards: Id[]) => {
       const next = [
-        ...cards.map((id) => ({ id, width: placed.find((one) => one.id === id)?.width ?? widthOf(id), hidden: false })),
+        ...cards.map((id) => {
+          const was = placed.find((one) => one.id === id);
+          return { id, width: was?.width ?? widthOf(id), hidden: false, chart: was?.chart ?? null };
+        }),
         ...placed.filter((one) => !cards.includes(one.id)).map((one) => ({ ...one, hidden: true })),
       ];
       apply(next);
     },
     setWidth: (id: Id, width: Width) => apply(placed.map((one) => (one.id === id ? { ...one, width } : one))),
+    /** The kind of chart the card is drawn as: the one picked, or its own look. Null for a card with no chart. */
+    chart: (id: Id): ChartKind | null => placed.find((one) => one.id === id)?.chart ?? meta[id]?.charts?.[0] ?? null,
+    /** Draws the card as another kind; its own look is kept as no choice at all. */
+    setChart: (id: Id, kind: ChartKind) => {
+      const chart = kind === meta[id]?.charts?.[0] ? null : kind;
+      apply(placed.map((one) => (one.id === id ? { ...one, chart } : one)));
+    },
     hide: (id: Id) => apply(placed.map((one) => (one.id === id ? { ...one, hidden: true } : one))),
     /** Puts a hidden card back at the end of its area. */
     show: (id: Id) => {

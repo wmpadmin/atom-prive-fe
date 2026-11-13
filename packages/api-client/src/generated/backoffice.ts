@@ -37,6 +37,11 @@ export interface LayoutCard {
   id: string;
   width: LayoutCardWidth;
   hidden: boolean;
+  /**
+     * @nullable
+     * @pattern [a-z][a-z-]{0,19}
+     */
+  chart: string | null;
 }
 
 export interface LayoutRequest {
