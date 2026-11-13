@@ -534,6 +534,17 @@ export function LayoutGrid<Id extends string>({ view, render: screenRender, scre
     }
     column = (column + 1) % 2;
   });
+  // The main cards row by row (a full card a row of its own, two ½ cards a row together): the first rows sit beside the
+  // side panel, about two rows to each side card, and the rest run the whole width below it, so no column stands empty.
+  const rows: Id[][] = [];
+  main.forEach((id) => {
+    const last = rows[rows.length - 1];
+    if (!wide(id) && !alone.has(id) && last && last.length === 1 && !wide(last[0]!) && !alone.has(last[0]!)) last.push(id);
+    else rows.push([id]);
+  });
+  const besideRows = side.length > 0 ? Math.max(1, side.length * 2) : rows.length;
+  const beside = rows.slice(0, besideRows).flat();
+  const below = rows.slice(besideRows).flat();
   const nudge = (id: Id, step: -1 | 1) => {
     const mates = inArea(areaOf(id));
     const neighbour = mates[mates.indexOf(id) + step];
@@ -565,11 +576,19 @@ export function LayoutGrid<Id extends string>({ view, render: screenRender, scre
           {empty ?? "Every card is hidden. Use Customize view to add the cards you want."}
         </p>
       ) : (
-        <div className={cn("grid gap-4", side.length > 0 && "xl:grid-cols-[minmax(0,1fr)_20rem]")}>
-          <div className="@container min-w-0">
-            <div className="grid gap-4 @2xl:grid-cols-2">{main.map(card)}</div>
+        // On a narrow screen the side panel comes after every main card; on a wide one it sits beside the first rows.
+        <div className="flex flex-col gap-4">
+          <div className={cn("max-xl:contents", side.length > 0 ? "xl:grid xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start xl:gap-4" : "contents")}>
+            <div className="@container min-w-0">
+              <div className="grid gap-4 @2xl:grid-cols-2">{beside.map(card)}</div>
+            </div>
+            {side.length > 0 && <aside className="space-y-4 max-xl:order-last">{side.map(card)}</aside>}
           </div>
-          {side.length > 0 && <aside className="space-y-4">{side.map(card)}</aside>}
+          {below.length > 0 && (
+            <div className="@container min-w-0">
+              <div className="grid gap-4 @2xl:grid-cols-2">{below.map(card)}</div>
+            </div>
+          )}
         </div>
       )}
     </div>
