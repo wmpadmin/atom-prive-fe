@@ -21,6 +21,7 @@ import { downloadTextFile } from "../../lib/download";
 import { formatDate, formatRelative } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
@@ -87,7 +88,7 @@ type BookCard = "kpis" | "aum" | "mandates" | "clients" | "alerts" | "upcoming" 
 
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<BookCard, LayoutMeta> = {
-  kpis: { title: "Key figures", group: "Summary", wide: true },
+  kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   aum: { title: "Assets Under Management", group: "Summary", charts: ["area", "line", "bar", "table"] },
   mandates: { title: "AUM by Mandate", group: "Summary", charts: ["donut", "horizontal-bar", "treemap", "table"] },
   clients: { title: "Client Book", group: "Clients", wide: true },
@@ -132,7 +133,7 @@ function Kpis({ data }: { data: BookOverview }) {
   const { aum, netFlows, bookReturn, entitiesAccounts, openAlerts, capitalCalls } = data.kpis;
   return (
     <>
-      <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+      <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
         <Kpi label="Book AUM" value={compact(aum.total, cur)} spark={data.aumHistory.slice(-13)}
           note={
             <>
@@ -180,7 +181,7 @@ function Kpis({ data }: { data: BookOverview }) {
           } />
         <Kpi label="Capital calls · 30 days" value={compact(capitalCalls.total, cur)}
           note={`${capitalCalls.clients} ${plural(capitalCalls.clients, "client", "clients")} · ${capitalCalls.notices} ${plural(capitalCalls.notices, "notice", "notices")} · ${compact(capitalCalls.dueThisWeek, cur)} due this week`} />
-      </div>
+      </FigureStrip>
     </>
   );
 }
@@ -231,6 +232,7 @@ function Card({ title, lead, action, picker, children, className }: {
 }
 
 function Kpi({ label, value, note, spark }: { label: string; value: string; note: ReactNode; spark?: BookAumPoint[] }) {
+  if (useFigureRow()) return <FigureRow label={label} value={value} note={note} />;
   return (
     <div className="rounded-2xl border border-line bg-white px-4 py-3.5">
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>

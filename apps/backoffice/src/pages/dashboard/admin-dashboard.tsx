@@ -62,6 +62,7 @@ import {
   type CardMeta,
 } from "./dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { seriesFigure, sharesFigure, singleFigure } from "../layout/own-cards";
 import { KindChart, useCardChart, type ChartKind } from "../layout/chart-kinds";
 
@@ -132,7 +133,7 @@ type CardId = "summary" | "trend" | "asset-classes" | "lifecycle" | "operations"
  * the side; everything else two to a row, the wide ones taking the whole row.
  */
 const CARD: Record<CardId, CardMeta> = {
-  summary: { title: "Firm summary", area: "main", wide: true },
+  summary: { title: "Firm summary", area: "main", wide: true, charts: [...FIGURE_KINDS] },
   trend: { title: "AUM trend", area: "main", charts: ["bar", "line", "area", "table"] },
   "asset-classes": { title: "AUM by asset class", area: "main", charts: ["donut", "horizontal-bar", "treemap", "table"] },
   lifecycle: { title: "Clients by lifecycle", area: "main", charts: ["donut", "funnel", "bar", "table"] },
@@ -186,7 +187,7 @@ export function AdminDashboard() {
   const cards: Record<CardId, ReactNode> = {
     summary: (
       <Panel icon={Layers} title="Firm summary">
-        <dl className="grid grid-cols-2 gap-y-4 sm:grid-cols-3 xl:grid-cols-5 xl:divide-x xl:divide-line">
+        <FigureStrip bare list className="grid grid-cols-2 gap-y-4 sm:grid-cols-3 xl:grid-cols-5 xl:divide-x xl:divide-line">
           <Figure label="Total AUM" value={data ? money(data.headline.totalAum, cur) : undefined}
             change={data?.headline.aumChangePercent} to={goTo("/client-management", "/clients")} />
           <Figure label="Relationship Managers" value={data?.headline.relationshipManagers} to={goTo("/users")} />
@@ -195,7 +196,7 @@ export function AdminDashboard() {
           <Figure label="Active staff" value={data?.headline.activeStaff} to={goTo("/users")} />
           <Figure label="Open items" value={openItems} tone={openItems ? "danger" : undefined}
             to={goTo("/approvals", "/deactivation-requests")} />
-        </dl>
+        </FigureStrip>
       </Panel>
     ),
     trend: (
@@ -408,6 +409,10 @@ function Figure({ label, value, change, tone, to }: {
   tone?: "danger";
   to?: string;
 }) {
+  if (useFigureRow()) {
+    return <FigureRow label={to ? <Link to={to} className="hover:text-primary-700">{label}</Link> : label} value={value ?? "—"} tone={tone === "danger" ? "text-red-600" : undefined}
+      note={change == null ? null : <span className={change < 0 ? "text-red-600" : "text-emerald-600"}>{change > 0 ? "+" : ""}{change}%</span>} />;
+  }
   const body = (
     <>
       <dt className="text-sm text-ink-muted">{label}</dt>

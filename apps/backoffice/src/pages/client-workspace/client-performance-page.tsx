@@ -12,6 +12,7 @@ import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/chart-kinds";
 import type { Figures } from "../layout/own-cards";
@@ -95,7 +96,7 @@ type PerformanceCard = "kpis" | "growth" | "benchmark" | "classes" | "bridge" | 
 
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<PerformanceCard, LayoutMeta> = {
-  kpis: { title: "Key figures", group: "Summary", wide: true },
+  kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   growth: { title: "Growth of $100 · Since Inception", group: "Returns", charts: ["line", "area", "table"] },
   benchmark: { title: "Benchmark", group: "Summary", charts: ["line", "area", "grouped-bar", "table"] },
   classes: { title: "Returns by Asset Class", group: "Returns", wide: true, charts: ["table", "heatmap", "bar"] },
@@ -237,7 +238,7 @@ function Kpis({ data, weighting, basis }: { data: ClientPerformance; weighting: 
   const ytd = basis === "gross" ? k.ytdGross : k.ytd;
   const window = k.window ?? "3Y";
   return (
-    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+    <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
       <Kpi label={`Return · YTD (TWR${basis === "gross" ? ", gross" : ""})`} value={pct(ytd)} tone={toneOf(ytd)}
         note={k.ytdBenchmark == null ? "No benchmark on the mandate" : <>Benchmark {pct(k.ytdBenchmark)}{k.ytdExcess != null && <span className={toneOf(k.ytdExcess)}> · {pp(k.ytdExcess)}</span>}</>} />
       <Kpi label="Money-weighted · YTD" value={pct(k.ytdMoneyWeighted)} tone={toneOf(k.ytdMoneyWeighted)}
@@ -257,7 +258,7 @@ function Kpis({ data, weighting, basis }: { data: ClientPerformance; weighting: 
         note={k.upCapture == null ? (k.riskWhyNot ?? "—") : `vs policy benchmark, ${window} monthly`} />
       <Kpi label="Value added · ITD" value={k.valueAdded == null ? "—" : signedMoney(k.valueAdded, data.currency)} tone={toneOf(k.valueAdded)}
         note={k.valueAdded == null ? "No benchmark history on the mandate" : "vs benchmark-equivalent after flows"} />
-    </div>
+    </FigureStrip>
   );
 }
 
@@ -893,6 +894,7 @@ function Card({ title, lead, action, picker, children }: { title: string; lead?:
 }
 
 function Kpi({ label, value, note, tone, emphasised }: { label: string; value: string; note: ReactNode; tone?: string; emphasised?: boolean }) {
+  if (useFigureRow()) return <FigureRow label={label} value={value} note={note} tone={tone} />;
   return (
     <div className={cn("rounded-2xl border bg-white px-4 py-3.5", emphasised ? "border-primary-200 ring-1 ring-primary-200" : "border-line")}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>

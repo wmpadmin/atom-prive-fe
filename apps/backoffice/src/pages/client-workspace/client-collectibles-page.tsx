@@ -12,6 +12,7 @@ import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFiguresAsTable } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
@@ -81,7 +82,7 @@ type CollectiblesCard = "kpis" | "categories" | "register" | "value" | "obligati
 
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<CollectiblesCard, LayoutMeta> = {
-  kpis: { title: "Key figures", group: "Summary", wide: true },
+  kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   categories: { title: "Categories", group: "Summary", wide: true, charts: ["tiles", "donut", "treemap", "horizontal-bar"] },
   register: { title: "Asset Register & Item record", group: "Register", wide: true },
   value: { title: "Register Value Over Time", group: "Register", charts: ["stacked-bar", "stacked-area", "grouped-bar", "line", "table"] },
@@ -107,10 +108,13 @@ const iconOf = (key: string) => CATEGORIES.find((one) => one.key === key)?.icon 
 const KPI_LABELS = ["Register value", "Items", "Insured value", "Appraisals due · 120 days", "Carrying cost · annual", "Documentation"];
 
 function Kpis({ data }: { data: ClientCollectibles }) {
+  const rows = useFiguresAsTable();
   const kpis: (CoKpi | null)[] = data.bankFile ? KPI_LABELS.map(() => null) : data.kpis;
   return (
-    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
-      {kpis.map((one, at) => (
+    <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+      {kpis.map((one, at) => rows ? (
+        <FigureRow key={one?.key ?? KPI_LABELS[at]} label={one?.label ?? KPI_LABELS[at]} value={!one ? <NotInFile /> : kpiValue(one, data.currency)} note={one?.detail && <>{one.detail}{one.extra && <> <span className={cn("font-semibold", one.extraTone === "UP" ? "text-emerald-700" : "text-red-700")}>{one.extra}</span></>}{one.after && <> {one.after}</>}</>} />
+      ) : (
         <div key={one?.key ?? KPI_LABELS[at]} className="rounded-2xl border border-line bg-white px-4 py-3.5">
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? KPI_LABELS[at]}</p>
           {!one ? <div className="mt-2"><NotInFile /></div> : (
@@ -127,7 +131,7 @@ function Kpis({ data }: { data: ClientCollectibles }) {
           )}
         </div>
       ))}
-    </div>
+    </FigureStrip>
   );
 }
 
