@@ -122,11 +122,11 @@ export function cardChart<Id extends string>(view: ViewLayoutState<Id>, id: Id) 
       const now = kind();
       return now == null || now === kinds[0];
     },
-    /** The switcher, showing the type being drawn: in Add card's preview, the one being tried. */
-    get picker() {
-      const now = kind() ?? kinds[0];
-      return kinds.length > 1 && now ? <ChartPicker kinds={kinds} value={now} onChange={(next) => view.setChart(id, next)} /> : null;
-    },
+    /**
+     * The switcher on the card itself: none since 13 Nov 2026 — a card's type is changed only in Customize view, so a
+     * card's header carries no type button on any screen or dashboard.
+     */
+    picker: null as ReactNode,
   };
 }
 

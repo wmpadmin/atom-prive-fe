@@ -13,6 +13,7 @@ import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFiguresAsTable } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
@@ -30,7 +31,7 @@ type FixedIncomeCard = "kpis" | "segments" | "ladder" | "quality" | "curve" | "s
 
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<FixedIncomeCard, LayoutMeta> = {
-  kpis: { title: "Key figures", group: "Summary", wide: true },
+  kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   segments: { title: "Fixed Income Segments · Target vs Actual", group: "Allocation", wide: true, charts: ["table", "grouped-bar", "horizontal-bar", "radar"] },
   ladder: { title: "Maturity Ladder", group: "Maturity & income", charts: ["stacked-bar", "grouped-bar", "line", "table"] },
   quality: { title: "Credit Quality", group: "Credit", charts: ["grouped-bar", "donut", "horizontal-bar", "table"] },
@@ -101,10 +102,13 @@ const KPI_LABELS = ["Yield to maturity", "Yield to worst", "Modified duration", 
   "Average rating", "OAS · credit spread", "DV01", "Spread duration", "Weighted avg. maturity", "Income · next 12M"];
 
 function Kpis({ data }: { data: ClientFixedIncome }) {
+  const rows = useFiguresAsTable();
   const kpis: (FiKpi | null)[] = data.bankFile ? KPI_LABELS.map(() => null) : data.kpis;
   return (
-    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
-      {kpis.map((one, at) => (
+    <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+      {kpis.map((one, at) => rows ? (
+        <FigureRow key={one?.key ?? KPI_LABELS[at]} label={one?.label ?? KPI_LABELS[at]} value={!one ? <NotInFile /> : <>{kpiValue(one, data.currency)}{one.delta != null && one.deltaUnit !== "NONE" && <span className={cn("ml-2 rounded-md px-1.5 py-0.5 text-2xs font-semibold", kpiTone(one))}>{kpiDelta(one)}</span>}</>} note={one?.note} />
+      ) : (
         <div key={one?.key ?? KPI_LABELS[at]} className="rounded-2xl border border-line bg-white px-4 py-3.5">
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? KPI_LABELS[at]}</p>
           {!one ? <div className="mt-2"><NotInFile /></div> : (
@@ -120,7 +124,7 @@ function Kpis({ data }: { data: ClientFixedIncome }) {
           )}
         </div>
       ))}
-    </div>
+    </FigureStrip>
   );
 }
 

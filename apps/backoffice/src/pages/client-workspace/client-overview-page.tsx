@@ -17,6 +17,7 @@ import { formatDate, formatDateTime } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow, useFiguresAsTable } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/chart-kinds";
 import type { Figures } from "../layout/own-cards";
@@ -32,7 +33,7 @@ import { useDrill } from "./drill-panel";
  */
 /** The Overview's cards, in the firm's order, with the kinds of chart each can be drawn as (its own look first). */
 const CARDS: Record<OverviewCard, LayoutMeta> = {
-  headline: { title: "Net worth & key figures", group: "Summary", wide: true },
+  headline: { title: "Net worth & key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   facts: { title: "Mandate & relationship", group: "Summary", wide: true },
   worth: { title: "Net Worth Evolution", group: "Summary", charts: ["line", "area", "bar", "table"] },
   allocation: { title: "Asset Allocation", group: "Allocation & performance", charts: ["donut", "horizontal-bar", "treemap", "table"] },
@@ -177,6 +178,36 @@ function Headline({ data }: { data: ClientWorkspace }) {
   const { headline: h, currency: cur, bankFile: file } = data;
   const ytd = data.performance?.periods.find((one) => one.key === "YTD");
   const mtd = data.performance?.periods.find((one) => one.key === "MTD");
+  const rows = useFiguresAsTable();
+  const stats = (
+    <>
+      <Stat label="MTD" file={!!file}
+        value={mtd?.portfolio == null ? null : signedPercent(mtd.portfolio)}
+        note={mtd?.benchmark == null ? null : `Bench ${signedPercent(mtd.benchmark)}`} />
+      <Stat label="YTD (TWR)" file={!!file}
+        value={ytd?.portfolio == null ? null : signedPercent(ytd.portfolio)}
+        note={ytd?.benchmark == null ? null : `Bench ${signedPercent(ytd.benchmark)}${ytd.excess == null ? "" : ` · ${signedPoints(ytd.excess)}`}`} />
+      <Stat label="Liquid ≤ 30 days" file={!!file}
+        value={h.liquidWithin30Days == null ? null : compact(h.liquidWithin30Days, cur)}
+        note={h.liquidShareOfNetWorth == null ? null : `${h.liquidShareOfNetWorth.toFixed(1)}% of net worth`} />
+      <Stat label="Unfunded commitments" file={!!file}
+        value={h.unfunded == null ? (file ? null : compact(0, cur)) : compact(h.unfunded, cur)}
+        note={h.unfunded == null ? "Nothing committed and uncalled" : `${h.vehicles} vehicle${h.vehicles === 1 ? "" : "s"}${h.liquidCover == null ? "" : ` · ${h.liquidCover}× liquid cover`}`} />
+      <Stat label="Income · next 12M" file={!!file}
+        value={h.incomeNext12Months == null ? null : compact(h.incomeNext12Months, cur)}
+        note="Coupons, dividends, distributions" />
+    </>
+  );
+  // As a table: net worth first, then the same figures one to a row.
+  if (rows) {
+    return (
+      <FigureStrip>
+        <FigureRow label="Total net worth" value={file ? file.holdings.map((one) => compact(one.amount, one.currency)).join(" · ") : h.netWorth == null ? "—" : compact(h.netWorth, cur)}
+          note={file ? "As in bank file · not converted" : `Investable ${money(h.investable, cur)} · Owned outright ${money(h.ownedOutright, cur)} · Liabilities ${money(h.liabilities, cur)}`} />
+        {stats}
+      </FigureStrip>
+    );
+  }
   return (
     <section className="rounded-2xl border border-line bg-white p-5">
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Total net worth · consolidated</p>
@@ -215,27 +246,14 @@ function Headline({ data }: { data: ClientWorkspace }) {
         )}
       </p>
       <div className="mt-4 grid gap-3 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat label="MTD" file={!!file}
-          value={mtd?.portfolio == null ? null : signedPercent(mtd.portfolio)}
-          note={mtd?.benchmark == null ? null : `Bench ${signedPercent(mtd.benchmark)}`} />
-        <Stat label="YTD (TWR)" file={!!file}
-          value={ytd?.portfolio == null ? null : signedPercent(ytd.portfolio)}
-          note={ytd?.benchmark == null ? null : `Bench ${signedPercent(ytd.benchmark)}${ytd.excess == null ? "" : ` · ${signedPoints(ytd.excess)}`}`} />
-        <Stat label="Liquid ≤ 30 days" file={!!file}
-          value={h.liquidWithin30Days == null ? null : compact(h.liquidWithin30Days, cur)}
-          note={h.liquidShareOfNetWorth == null ? null : `${h.liquidShareOfNetWorth.toFixed(1)}% of net worth`} />
-        <Stat label="Unfunded commitments" file={!!file}
-          value={h.unfunded == null ? (file ? null : compact(0, cur)) : compact(h.unfunded, cur)}
-          note={h.unfunded == null ? "Nothing committed and uncalled" : `${h.vehicles} vehicle${h.vehicles === 1 ? "" : "s"}${h.liquidCover == null ? "" : ` · ${h.liquidCover}× liquid cover`}`} />
-        <Stat label="Income · next 12M" file={!!file}
-          value={h.incomeNext12Months == null ? null : compact(h.incomeNext12Months, cur)}
-          note="Coupons, dividends, distributions" />
+        {stats}
       </div>
     </section>
   );
 }
 
 function Stat({ label, value, note, file }: { label: string; value: string | null; note: ReactNode; file: boolean }) {
+  if (useFigureRow()) return <FigureRow label={label} value={value ?? (file ? <NotInFile /> : "—")} note={file ? null : note} />;
   return (
     <div>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>

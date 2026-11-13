@@ -16,6 +16,8 @@ export type CardSettings = {
   palette: Palette;
   /** A chart type being previewed, not yet saved. */
   chart?: ChartKind | null;
+  /** Drawn in Customize view's preview: the card's own switcher stays off, since the window sets the type. */
+  preview?: boolean;
 };
 
 export const CardSettingsContext = createContext<CardSettings | null>(null);
