@@ -175,6 +175,8 @@ export interface ReviewStep {
   group: string;
   label: string;
   complete: boolean;
+  /** The fields this step still needs, as keys of {@link Review.problems}, in form order. */
+  fields: string[];
 }
 
 export interface Review {
@@ -233,7 +235,8 @@ export function reviewApplication(application: FormApplication, managers: StaffM
   const step = (id: string, group: string, label: string, checks: () => void) => {
     const before = Object.keys(problems).length;
     checks();
-    steps.push({ id, group, label, complete: Object.keys(problems).length === before });
+    const fields = Object.keys(problems).slice(before);
+    steps.push({ id, group, label, complete: fields.length === 0, fields });
   };
 
   step("client", "Client", "Client type", () => {
