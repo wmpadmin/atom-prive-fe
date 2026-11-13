@@ -356,7 +356,7 @@ function CardOptions<Id extends string>({ ids, view, query, picked, nameOf, icon
   return (
     <div className="space-y-5" role="listbox" aria-multiselectable="true" aria-label="Cards">
       <button type="button" onClick={() => onAll(listed, !all)} aria-pressed={all}
-        className="-mb-2 flex w-full items-center gap-3 border-b border-line pb-3 text-left text-sm font-semibold">
+        className="flex w-full items-center gap-3 border-b border-line py-2.5 text-left text-sm font-semibold">
         <span className={cn("grid size-[18px] shrink-0 place-items-center rounded border-[1.5px]",
           ticked > 0 ? "border-primary-600 bg-primary-600 text-on-accent" : "border-slate-300")} aria-hidden="true">
           {all ? <Check className="size-3" strokeWidth={3} /> : ticked > 0 && <span className="h-0.5 w-2 rounded bg-current" />}
@@ -366,7 +366,7 @@ function CardOptions<Id extends string>({ ids, view, query, picked, nameOf, icon
       </button>
       {groups.map((group) => (
         <section key={group}>
-          <h4 className="mb-1 text-sm font-bold">{group}</h4>
+          <h4 className="mb-1.5 pt-1 text-sm leading-6 font-bold">{group}</h4>
           <div className="divide-y divide-line">
             {listed.filter((id) => (view.meta[id].group ?? "Cards") === group).map((id) => {
               const on = picked.includes(id);
