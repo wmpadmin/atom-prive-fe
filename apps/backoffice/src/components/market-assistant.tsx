@@ -37,6 +37,9 @@ export function MarketAssistantChat() {
   const user = useStaffUser();
   const [said, setSaid] = useState<Said[]>(() => marketChatFor<Said>(user.id));
   const [draft, setDraft] = useState("");
+  // Set when Send is pressed with nothing typed; the box goes red until a question is in it.
+  const [tried, setTried] = useState(false);
+  const box = useRef<HTMLTextAreaElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const ask = useAskMarketAssistant<ApiError>({
     mutation: {
@@ -63,12 +66,23 @@ export function MarketAssistantChat() {
     });
     setSaid((all) => [...all, { who: "me", text, at: new Date().toISOString() }]);
     setDraft("");
+    setTried(false);
     ask.mutate({ data: { question: text, earlier: earlier.slice(-REMEMBERED), model: null } });
+  };
+  // The typed question: an empty box is not sent, it is pointed at.
+  const sendDraft = () => {
+    if (!draft.trim()) {
+      setTried(true);
+      box.current?.focus();
+      return;
+    }
+    send(draft);
   };
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    send(draft);
+    sendDraft();
   };
+  const missing = tried && !draft.trim();
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -125,19 +139,23 @@ export function MarketAssistantChat() {
       <div className="space-y-3 px-6 pt-3 pb-5">
         <form
           onSubmit={onSubmit}
-          className="flex items-end gap-2 rounded-2xl border border-line bg-white p-3 focus-within:border-violet-400
-            focus-within:ring-2 focus-within:ring-violet-200"
+          className={`flex items-end gap-2 rounded-2xl border bg-white p-3 focus-within:ring-2 ${
+            missing ? "border-red-500 focus-within:ring-red-200" : "border-line focus-within:border-violet-400 focus-within:ring-violet-200"
+          }`}
         >
           <label htmlFor="market-question" className="sr-only">Ask the market assistant</label>
           <textarea
+            ref={box}
             id="market-question"
             rows={2}
+            aria-invalid={missing || undefined}
+            aria-describedby={missing ? "market-question-error" : undefined}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
-                send(draft);
+                sendDraft();
               }
             }}
             placeholder="Ask about market news, a share's price or today's movers…"
@@ -145,13 +163,14 @@ export function MarketAssistantChat() {
           />
           <button
             type="submit"
-            disabled={!draft.trim() || ask.isPending}
+            disabled={ask.isPending}
             className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40"
           >
             <SendHorizontal className="size-5" aria-hidden="true" />
             <span className="sr-only">Send</span>
           </button>
         </form>
+        {missing && <p id="market-question-error" className="text-xs text-red-600">Type a question first.</p>}
         <p className="flex items-start gap-2 rounded-xl bg-slate-50 px-4 py-3 text-xs">
           <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>

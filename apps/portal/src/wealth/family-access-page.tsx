@@ -170,6 +170,10 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState("");
   const [relationshipCode, setRelationshipCode] = useState<string>("SPOUSE");
   const [message, setMessage] = useState("");
+  // Set when Send is pressed with the name or email empty; each box stays red until it is filled.
+  const [tried, setTried] = useState(false);
+  const nameMissing = tried && !fullName.trim();
+  const emailMissing = tried && !email.trim();
   const ask = useAskToInvite<ApiError>({
     mutation: {
       onSuccess: () => {
@@ -178,7 +182,7 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
       },
     },
   });
-  const field = "h-10 w-full rounded-xl border border-line bg-white px-3 text-sm focus-visible:border-primary-600 focus-visible:outline-2 focus-visible:outline-primary-600";
+  const field = "h-10 w-full rounded-xl border border-line bg-white px-3 text-sm focus-visible:border-primary-600 focus-visible:outline-2 focus-visible:outline-primary-600 aria-invalid:border-red-500";
   const label = "mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase";
 
   return (
@@ -190,18 +194,29 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
     >
       <form
         className="space-y-4"
+        // Checked here rather than by the browser, so what is missing is marked on the page in red.
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
+          if (!fullName.trim() || !email.trim()) {
+            setTried(true);
+            document.getElementById(!fullName.trim() ? "invite-name" : "invite-email")?.focus();
+            return;
+          }
           ask.mutate({ data: { fullName, email, relationshipCode, personalMessage: message || null } });
         }}
       >
         <div>
           <label htmlFor="invite-name" className={label}>Full name</label>
-          <input id="invite-name" name="invite-name" required maxLength={200} value={fullName} onChange={(event) => setFullName(event.target.value)} className={field} />
+          <input id="invite-name" name="invite-name" required maxLength={200} value={fullName} onChange={(event) => setFullName(event.target.value)} className={field}
+            aria-invalid={nameMissing || undefined} aria-describedby={nameMissing ? "invite-name-error" : undefined} />
+          {nameMissing && <p id="invite-name-error" className="mt-1 text-xs text-red-600">Enter their full name.</p>}
         </div>
         <div>
           <label htmlFor="invite-email" className={label}>Email</label>
-          <input id="invite-email" name="invite-email" type="email" required maxLength={320} value={email} onChange={(event) => setEmail(event.target.value)} className={field} />
+          <input id="invite-email" name="invite-email" type="email" required maxLength={320} value={email} onChange={(event) => setEmail(event.target.value)} className={field}
+            aria-invalid={emailMissing || undefined} aria-describedby={emailMissing ? "invite-email-error" : undefined} />
+          {emailMissing && <p id="invite-email-error" className="mt-1 text-xs text-red-600">Enter their email.</p>}
         </div>
         <div>
           <label htmlFor="invite-relationship" className={label}>They are your</label>
@@ -230,7 +245,7 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
           <Button variant="secondary" onClick={onClose} disabled={ask.isPending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!fullName.trim() || !email.trim() || ask.isPending}>
+          <Button type="submit" disabled={ask.isPending}>
             <Send aria-hidden="true" />
             {ask.isPending ? "Sending…" : "Send to my relationship manager"}
           </Button>
@@ -357,6 +372,9 @@ function RelationshipDialog({ now, holderName, onClose, onSent }: {
 }) {
   const nowCode = RELATIONSHIPS.find((one) => one.name.toLowerCase() === now?.toLowerCase())?.code;
   const [code, setCode] = useState<string>("");
+  // Set when Send is pressed with nothing chosen; the choices stay red until one is.
+  const [tried, setTried] = useState(false);
+  const noneChosen = tried && !code;
   const ask = useAskToBeCalled<ApiError>({ mutation: { onSuccess: onSent } });
   return (
     <Dialog
@@ -367,7 +385,8 @@ function RelationshipDialog({ now, holderName, onClose, onSent }: {
     >
       <div className="space-y-4">
         {ask.error && <Alert tone="danger">{ask.error.message}</Alert>}
-        <div role="radiogroup" aria-label="Relationship" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div role="radiogroup" aria-label="Relationship" aria-invalid={noneChosen || undefined}
+          aria-describedby={noneChosen ? "relationship-error" : undefined} className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {RELATIONSHIPS.map((one) => {
             const current = one.code === nowCode;
             const chosen = one.code === code;
@@ -380,7 +399,7 @@ function RelationshipDialog({ now, holderName, onClose, onSent }: {
                 disabled={current}
                 onClick={() => setCode(one.code)}
                 className={`rounded-xl border px-3 py-2.5 text-left text-sm font-semibold ${
-                  chosen ? "border-primary-600 bg-primary-50 text-primary-700" : current ? "border-line bg-sidebar text-ink-muted" : "border-line bg-white text-ink hover:bg-sidebar"
+                  chosen ? "border-primary-600 bg-primary-50 text-primary-700" : current ? "border-line bg-sidebar text-ink-muted" : noneChosen ? "border-red-500 bg-white text-ink hover:bg-sidebar" : "border-line bg-white text-ink hover:bg-sidebar"
                 }`}
               >
                 {one.name}
@@ -389,9 +408,20 @@ function RelationshipDialog({ now, holderName, onClose, onSent }: {
             );
           })}
         </div>
+        {noneChosen && <p id="relationship-error" className="-mt-2 text-xs text-red-600">Choose a relationship.</p>}
         <div className="flex justify-end gap-2.5">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button disabled={!code || ask.isPending} onClick={() => ask.mutate({ data: { relationshipCode: code } })}>
+          <Button
+            disabled={ask.isPending}
+            onClick={() => {
+              if (!code) {
+                setTried(true);
+                document.querySelector<HTMLElement>("[role='radiogroup'][aria-label='Relationship'] [role='radio']:not(:disabled)")?.focus();
+                return;
+              }
+              ask.mutate({ data: { relationshipCode: code } });
+            }}
+          >
             {ask.isPending ? "Sending…" : `Send to ${holderName}`}
           </Button>
         </div>

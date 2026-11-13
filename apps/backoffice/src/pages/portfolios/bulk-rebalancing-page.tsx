@@ -149,6 +149,9 @@ export function BulkRebalancingPage() {
   const [on, setOn] = useState<string>(new Date().toISOString().slice(0, 10));
   /** Whether the dialog that asks for the date, and writes it, is open. */
   const [recording, setRecording] = useState(false);
+  // Set when Record is pressed with nobody ticked, or with no date in the dialog; what is missing stays red until it is in.
+  const [triedRecord, setTriedRecord] = useState(false);
+  const [triedDate, setTriedDate] = useState(false);
 
   const models = useListModelPortfolios<ModelsPage, ApiError>();
   // The screen opens on a plan rather than on an empty picker. Nobody arrives here to choose nothing, and
@@ -194,6 +197,8 @@ export function BulkRebalancingPage() {
   // than the button beside it says.
   const worthDoing = clients.filter((client) => client.standing !== null && client.standing !== "WITHIN_BAND");
   const allChosen = worthDoing.length > 0 && worthDoing.every((client) => chosen.has(client.customerId));
+  const noneChosen = triedRecord && chosen.size === 0;
+  const noDate = triedDate && !on;
 
   function toggle(customerId: string) {
     const next = new Set(chosen);
@@ -340,15 +345,29 @@ export function BulkRebalancingPage() {
                     work. Asked when the button is pressed, it can only be the date being written. */}
                 <Button
                   className="border-l border-line pl-3"
-                  disabled={chosen.size === 0 || record.isPending}
-                  onClick={() => setRecording(true)}
+                  disabled={record.isPending}
+                  onClick={() => {
+                    if (chosen.size === 0) {
+                      setTriedRecord(true);
+                      document.querySelector<HTMLElement>("[aria-label='Choose everyone that has wandered']")?.focus();
+                      return;
+                    }
+                    setTriedDate(false);
+                    setRecording(true);
+                  }}
                 >
                   {chosen.size === 0
-                    ? "Record no rebalances"
+                    ? "Record rebalances"
                     : `Record ${chosen.size} rebalance${chosen.size === 1 ? "" : "s"}`}
                 </Button>
               </div>
             </div>
+
+            {noneChosen && (
+              <p id="record-chosen-error" className="px-5 pt-4 text-xs text-red-600">
+                Tick at least one client to record.
+              </p>
+            )}
 
             {proposals.isError && (
               <div className="px-5 pt-4">
@@ -406,6 +425,9 @@ export function BulkRebalancingPage() {
                       <input
                         type="checkbox"
                         aria-label="Choose everyone that has wandered"
+                        aria-invalid={noneChosen || undefined}
+                        aria-describedby={noneChosen ? "record-chosen-error" : undefined}
+                        className={noneChosen ? "outline-2 outline-red-500" : undefined}
                         checked={allChosen}
                         disabled={worthDoing.length === 0}
                         onChange={() =>
@@ -498,7 +520,10 @@ export function BulkRebalancingPage() {
               min={yearsAgo(20)}
               max={today()}
               onChange={(next) => setOn(next ?? "")}
+              aria-invalid={noDate || undefined}
+              aria-describedby={noDate ? "rebalanced-on-error" : undefined}
             />
+            {noDate && <span id="rebalanced-on-error" className="mt-1 block text-xs text-red-600">Choose the day the trades were done.</span>}
           </label>
           {record.isError && <Alert tone="danger">{record.error.message}</Alert>}
           <div className="flex justify-end gap-2">
@@ -506,8 +531,15 @@ export function BulkRebalancingPage() {
               Cancel
             </Button>
             <Button
-              disabled={!on || record.isPending}
-              onClick={() => record.mutate({ id: modelId, data: { customerIds: [...chosen], on } })}
+              disabled={record.isPending}
+              onClick={() => {
+                if (!on) {
+                  setTriedDate(true);
+                  document.getElementById("rebalanced-on")?.focus();
+                  return;
+                }
+                record.mutate({ id: modelId, data: { customerIds: [...chosen], on } });
+              }}
             >
               {record.isPending ? "Recording…" : `Record ${on ? formatDate(on) : "…"}`}
             </Button>
