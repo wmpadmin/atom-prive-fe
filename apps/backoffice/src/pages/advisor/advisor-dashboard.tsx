@@ -71,8 +71,8 @@ const CARD: Record<CardId, CardMeta> = {
 };
 
 
-/** What the dashboard opens on, as the firm drew it on 4 Nov 2026; the rest wait in Customize view's Add cards. */
-const DEFAULT_CARDS: CardId[] = ["clients", "approvals", "kyc", "portfolios", "chase", "assistant"];
+/** What the dashboard opens on: the four that matter most, chosen 13 Nov 2026; the rest wait in Add cards. A layout someone saved is kept. */
+const DEFAULT_CARDS: CardId[] = ["clients", "approvals", "kyc", "portfolios"];
 
 /** Which screen each counted line is worked from. A line whose screen the reader's menu lacks has no link. */
 const WORKED_FROM: Record<string, string[]> = {

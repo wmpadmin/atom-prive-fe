@@ -84,7 +84,8 @@ const CARDS: Record<DirectoryCardId, LayoutMeta> = {
   mandates: { title: "By Mandate", group: "Breakdowns" },
 };
 
-const DEFAULT_CARDS = Object.keys(CARDS) as DirectoryCardId[];
+// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
+const DEFAULT_CARDS: DirectoryCardId[] = ["kpis", "attention", "directory", "segments"];
 
 function Board({ data, view }: { data: ClientDirectory; view: ViewLayoutState<DirectoryCardId> }) {
   const cur = data.currency;
