@@ -1,6 +1,6 @@
 import type { LinePoint } from "@atomprive/api-client/backoffice";
-import { BarChart, LineChart as LineSeries, PieChart } from "echarts/charts";
-import { DataZoomComponent, GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
+import { BarChart, FunnelChart, GaugeChart, HeatmapChart, LineChart as LineSeries, PieChart, RadarChart, ScatterChart, TreemapChart } from "echarts/charts";
+import { DataZoomComponent, GridComponent, LegendComponent, RadarComponent, TooltipComponent, VisualMapComponent } from "echarts/components";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { cn } from "@atomprive/ui";
@@ -11,7 +11,9 @@ import { INK, inkFor } from "../portfolios/asset-classes";
 import type { Row } from "./overview-data";
 import type { ChartType } from "./overview-model";
 
-echarts.use([LineSeries, BarChart, PieChart, GridComponent, TooltipComponent, DataZoomComponent, LegendComponent, CanvasRenderer]);
+// The kinds a card can be switched to (layout/chart-kinds) need treemaps, funnels, radars, heatmaps, gauges and scatters too.
+echarts.use([LineSeries, BarChart, PieChart, TreemapChart, FunnelChart, RadarChart, HeatmapChart, GaugeChart, ScatterChart,
+  GridComponent, TooltipComponent, DataZoomComponent, LegendComponent, RadarComponent, VisualMapComponent, CanvasRenderer]);
 
 /**
  * The platform's own colours, read off the theme rather than written in here, so a chart is drawn in the
@@ -19,7 +21,25 @@ echarts.use([LineSeries, BarChart, PieChart, GridComponent, TooltipComponent, Da
  */
 function token(name: string, fallback: string) {
   if (typeof document === "undefined") return fallback;
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+  return plain(getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
+}
+
+let pixel: CanvasRenderingContext2D | null | undefined;
+
+/**
+ * Any CSS colour as rgba(). The light theme's Tailwind colours are oklch(), which ECharts cannot read: it draws them
+ * at rest but loses them when it lightens a bar under the pointer, so the bar vanished on hover. Painting one pixel
+ * and reading it back turns whatever the browser understands into figures ECharts does.
+ */
+function plain(colour: string) {
+  if (colour.startsWith("#") || colour.startsWith("rgb")) return colour;
+  if (pixel === undefined) pixel = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+  if (!pixel) return colour;
+  pixel.clearRect(0, 0, 1, 1);
+  pixel.fillStyle = colour;
+  pixel.fillRect(0, 0, 1, 1);
+  const [r, g, b, a] = pixel.getImageData(0, 0, 1, 1).data;
+  return `rgba(${r}, ${g}, ${b}, ${Math.round((a / 255) * 100) / 100})`;
 }
 
 export function ink() {
@@ -64,15 +84,34 @@ function themedTooltip(option: echarts.EChartsCoreOption): echarts.EChartsCoreOp
 
 /** One ECharts canvas, sized by its box and redrawn whenever its option changes. */
 /** @param height in pixels, or nothing to fill whatever panel the chart is in */
-export function Chart({ option, height, label }: { option: echarts.EChartsCoreOption; height?: number; label: string }) {
+export function Chart({ option, height, label, onPick }: {
+  option: echarts.EChartsCoreOption;
+  height?: number;
+  label: string;
+  /** Called with the clicked slice, bar or point: its name and place in its series. */
+  onPick?: (name: string, index: number) => void;
+}) {
   const box = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
+  const picked = useRef(onPick);
+  picked.current = onPick;
 
   useEffect(() => {
     const el = box.current;
     if (!el) return;
     const drawn = echarts.init(el, undefined, { renderer: "canvas" });
     chart.current = drawn;
+    drawn.on("click", (event) => picked.current?.(String(event.name), event.dataIndex));
+    // A line hides its points, and a bar near zero is a sliver: a click anywhere over a category of the plot picks it.
+    drawn.getZr().on("click", (event) => {
+      if (event.target || !picked.current || !drawn.containPixel("grid", [event.offsetX, event.offsetY])) return;
+      const at = drawn.convertFromPixel({ gridIndex: 0 }, [event.offsetX, event.offsetY]);
+      const index = Array.isArray(at) ? Math.round(at[0]!) : null;
+      const axis = (drawn.getOption() as { xAxis?: { type?: string; data?: unknown[] }[] }).xAxis?.[0];
+      if (axis?.type !== "category" || typeof index !== "number" || !axis.data?.[index]) return;
+      const name = axis.data[index];
+      picked.current(String(typeof name === "object" && name && "value" in name ? (name as { value: unknown }).value : name), index);
+    });
     const watching = new ResizeObserver(() => drawn.resize());
     watching.observe(el);
     return () => {
@@ -86,7 +125,8 @@ export function Chart({ option, height, label }: { option: echarts.EChartsCoreOp
     chart.current?.setOption(themedTooltip(option), true);
   }, [option]);
 
-  return <div ref={box} role="img" aria-label={label} style={height ? { height } : undefined} className={cn("w-full", !height && "h-full min-h-40")} />;
+  return <div ref={box} role="img" aria-label={label} style={height ? { height } : undefined}
+    className={cn("w-full", !height && "h-full min-h-40", onPick && "cursor-pointer")} />;
 }
 
 /** A second line drawn beside the first, such as a benchmark. */
