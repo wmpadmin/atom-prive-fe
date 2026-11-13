@@ -1,5 +1,5 @@
 import type { ExportColumn, ExportRow, ExportSheet, ReportBar, ReportFigure, ReportPair, ReportPanel } from "@atomprive/api-client/backoffice";
-import { getClientScreenReportUrl, getExportClientOverviewUrl } from "@atomprive/api-client/backoffice";
+import { getBookScreenExportUrl, getBookScreenReportUrl, getClientScreenReportUrl, getExportClientOverviewUrl } from "@atomprive/api-client/backoffice";
 import { Button, cn } from "@atomprive/ui";
 import * as echarts from "echarts/core";
 import { ChevronDown, FileDown, FileSpreadsheet, FileText } from "lucide-react";
@@ -47,15 +47,17 @@ export function ReportButton() {
       const read = readScreen(box.current);
       if (read.panels.length === 0 && read.figures.length === 0) throw new Error("There is nothing on this screen to report yet.");
       const day = new Date().toISOString().slice(0, 10);
-      const name = `${read.client} — ${read.screen} — ${day}`.replace(/[\\/:*?"<>|]/g, " ");
+      // A client's screen is reported as theirs; a screen of the whole book (no client in view) as the book's.
+      const book = !customerId;
+      const name = (book ? `${read.screen} — ${day}` : `${read.client} — ${read.screen} — ${day}`).replace(/[\\/:*?"<>|]/g, " ");
       if (kind === "pdf") {
-        await saveApiPost(getClientScreenReportUrl(customerId), {
+        await saveApiPost(book ? getBookScreenReportUrl() : getClientScreenReportUrl(customerId), {
           screen: read.screen, status: null, subtitle: read.subtitle, asOf: read.asOf,
           figures: read.figures.slice(0, 24),
           panels: (read.panels.length ? read.panels : [{ ...EMPTY, title: "Key figures", pairs: [] }]).slice(0, 40),
         }, `${name}.pdf`);
       } else {
-        await saveApiPost(getExportClientOverviewUrl(customerId), {
+        await saveApiPost(book ? getBookScreenExportUrl() : getExportClientOverviewUrl(customerId), {
           tab: read.screen, about: [read.subtitle, read.asOf].filter(Boolean).slice(0, 8), sheets: sheetsOf(read).slice(0, 20),
         }, `${name}.xlsx`);
       }
@@ -205,6 +207,14 @@ function fromChart(option: Option): Read | null {
   const axis = option.xAxis?.find((one) => one?.type === "category") ?? option.yAxis?.find((one) => one?.type === "category");
   const categories = (axis?.data ?? []).map((one) => (typeof one === "object" && one && "value" in one ? String((one as { value: unknown }).value) : String(one)));
   if (categories.length === 0) {
+    if (first.type === "scatter") {
+      const points = series.flatMap((one) => (one.data ?? []).map((item, at) => ({ name: named(item, at), value: (item as { value?: number[] }).value ?? (Array.isArray(item) ? (item as number[]) : []) })));
+      const width = Math.max(2, ...points.map((one) => one.value.length));
+      // Named after the chart's own axes where it names them.
+      const axes = [(option.xAxis?.[0] as { name?: string } | undefined)?.name, (option.yAxis?.[0] as { name?: string } | undefined)?.name, "Size"];
+      const heads = ["", ...Array.from({ length: width }, (_, at) => axes[at] || `Value ${at + 1}`)];
+      return tableRead(heads, points.map((one) => [one.name, ...Array.from({ length: width }, (_, at) => (Number.isFinite(one.value[at]) ? one.value[at]! : null))]), plainNumber);
+    }
     if (first.type === "radar") {
       const names = (option.radar?.[0]?.indicator ?? []).map((one) => one.name ?? "");
       const rows = names.map((name, at) => [name, ...series.flatMap((one) => (one.data ?? []).map((item) => (item as { value?: number[] }).value?.[at] ?? null))]);
@@ -258,10 +268,16 @@ function fromTable(table: HTMLTableElement): Read | null {
 function fromLines(card: HTMLElement, title: string): Read | null {
   const header = card.querySelector("h2, h3")?.parentElement;
   const skip = new Set([title, text(header?.querySelector("p"))].filter(Boolean));
-  const items = [...card.querySelectorAll<HTMLElement>("li, [role=row], dl > div, dl > a")];
+  const listed = [...card.querySelectorAll<HTMLElement>("li, [role=row], dl > div, dl > a")];
+  const tiles = tilesOf(card, header);
+  // Tiles that each hold a small list of their own (a family and its figures) are the items, not those lists.
+  const items = tiles.length >= 2 && listed.length > 0 && tiles.every((tile) => listed.some((one) => tile.contains(one))) ? tiles
+    : listed.length ? listed : tiles;
   let groups: { label: string; values: string[] }[];
   if (items.length) {
-    groups = items.map(linesOf).filter((one) => one.length > 0).map((one) => ({ label: one[0]!, values: one.slice(1) }));
+    // An avatar's initials are not the item's name.
+    groups = items.map((one) => linesOf(one).filter((line) => !/^[A-Z]{1,2}$/.test(line))).filter((one) => one.length > 0)
+      .map((one) => ({ label: one[0]!, values: one.slice(1) }));
   } else {
     // A name, then the figures that belong to it, until the next name.
     groups = [];
@@ -277,7 +293,8 @@ function fromLines(card: HTMLElement, title: string): Read | null {
   // An amount of money (a currency, or K / M / B), not a ratio or a count, is what a whole is made of.
   const amountOf = (values: string[]) => values.find((one) => numberOf(one) != null && !one.trim().endsWith("%") && /[$€£₹¥]|\b[A-Z]{3}\b|\d[KMB]$/.test(one.trim()));
   const shareOf = (values: string[]) => values.find((one) => one.trim().endsWith("%") && numberOf(one) != null);
-  if (groups.length >= 2 && groups.every((one) => amountOf(one.values) || shareOf(one.values))) {
+  // Parts of a whole are a name with its amount and share, no more: a line carrying more is a record, not a part.
+  if (groups.length >= 2 && groups.every((one) => one.values.length <= 2 && (amountOf(one.values) || shareOf(one.values)))) {
     const amounts = groups.map((one) => numberOf(amountOf(one.values) ?? "") ?? 0);
     const total = amounts.reduce((sum, one) => sum + Math.abs(one), 0);
     const shares = groups.map((one, at) => {
@@ -290,8 +307,25 @@ function fromLines(card: HTMLElement, title: string): Read | null {
       sheet: { columns: [col("Item"), col("Value", "NUMBER"), col("Share", "PERCENT")], rows: groups.map((one, at) => [one.label, amountOf(one.values) ? round(amounts[at]!) : null, round(shares[at]!)]) },
     };
   }
-  const pairs: ReportPair[] = groups.slice(0, 40).map((one) => ({ label: clip(one.label, 60), value: one.values.length ? clip(one.values.join(" · "), 300) : "", tone: "PLAIN" as const }));
+  // A line with nothing after it is written in full on the right, so a long one wraps rather than running over.
+  const pairs: ReportPair[] = groups.slice(0, 40).map((one) => (one.values.length
+    ? { label: clip(one.label, 60), value: clip(one.values.join(" · "), 300), tone: "PLAIN" as const }
+    : { label: "•", value: clip(one.label, 300), tone: "PLAIN" as const }));
   return { panel: { ...EMPTY, title: "", place: "LEFT", pairs }, sheet: { columns: [col("Item"), col("Value")], rows: pairs.map((one) => [one.label, one.value ?? ""]) } };
+}
+
+/**
+ * A card drawn as tiles (a heading, a figure and a line in each) rather than as a list: the container whose children
+ * all carry two lines or more, the most of them — each child is one item.
+ */
+function tilesOf(card: HTMLElement, header: Element | null | undefined): HTMLElement[] {
+  let best: HTMLElement[] = [];
+  for (const box of card.querySelectorAll<HTMLElement>("div, ul, section")) {
+    if (header?.contains(box)) continue;
+    const kids = [...box.children].filter((one): one is HTMLElement => one instanceof HTMLElement && linesOf(one).length >= 2);
+    if (kids.length >= 2 && kids.length === box.children.length && kids.length > best.length) best = kids;
+  }
+  return best;
 }
 
 /** The workbook: the key figures first, then a sheet a card. */
@@ -314,7 +348,10 @@ function text(element: Element | null | undefined) {
 
 /** A cell as read on screen: its lines once each, side by side — a name and the line under it, not run together. */
 function cellText(cell: HTMLElement) {
-  return [...new Set(linesOf(cell))].join(" · ");
+  const lines = [...new Set(linesOf(cell))];
+  // An avatar's initials before a name are not part of it.
+  const said = lines.length > 1 ? lines.filter((one) => !/^[A-Z]{1,2}$/.test(one)) : lines;
+  return said.join(" · ");
 }
 
 function linesOf(element: HTMLElement) {
