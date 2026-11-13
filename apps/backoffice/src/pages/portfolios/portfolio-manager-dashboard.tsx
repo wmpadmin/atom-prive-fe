@@ -53,9 +53,9 @@ const PERIODS = [
 type CardId = "overview" | "health" | "proposals" | "models" | "deviations" | "assistant";
 
 const CARD: Record<CardId, CardMeta> = {
-  overview: { title: "AUM & portfolio overview", area: "main" },
-  health: { title: "Portfolio health", area: "main" },
-  proposals: { title: "Proposals & rebalancing", area: "main" },
+  overview: { title: "AUM & portfolio overview", area: "main", charts: ["donut", "horizontal-bar", "treemap", "table"] },
+  health: { title: "Portfolio health", area: "main", charts: ["donut", "horizontal-bar", "table"] },
+  proposals: { title: "Proposals & rebalancing", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   models: { title: "Model portfolios", area: "main" },
   deviations: { title: "Top deviations", area: "main" },
   assistant: { title: "AI Assistant", area: "side" },

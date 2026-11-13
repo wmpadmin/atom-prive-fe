@@ -55,11 +55,11 @@ const PERIODS = [
 type CardId = "tickets" | "sessions" | "health" | "users" | "security" | "links" | "assistant";
 
 const CARD: Record<CardId, CardMeta> = {
-  tickets: { title: "Support tickets overview", area: "main" },
-  sessions: { title: "Access & sessions", area: "main" },
+  tickets: { title: "Support tickets overview", area: "main", charts: ["donut", "horizontal-bar", "bar", "table"] },
+  sessions: { title: "Access & sessions", area: "main", charts: ["donut", "horizontal-bar", "bar", "table"] },
   health: { title: "System health", area: "main" },
-  users: { title: "User management", area: "main" },
-  security: { title: "Security & compliance", area: "main" },
+  users: { title: "User management", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  security: { title: "Security & compliance", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   assistant: { title: "AI Assistant", area: "side" },
   links: { title: "Key links", area: "side" },
 };
