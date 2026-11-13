@@ -16,6 +16,7 @@ import { Link, useNavigate } from "react-router";
 import { Chart, ink } from "../book/overview-charts";
 import { CardContext, useViewLayout } from "../layout/custom-view";
 import { useCardLabel } from "../layout/card-settings";
+import { KindChart, useCardChart, type ChartKind } from "../layout/chart-kinds";
 
 /**
  * The pieces every role's dashboard is built from: the panels, lists and rings its cards are drawn with, and each
@@ -27,7 +28,7 @@ import { useCardLabel } from "../layout/card-settings";
 export type Waiting = { key: string; label: string; count: number };
 
 /** Where a card sits and what it is called: the side column holds the assistant and shortcuts. */
-export type CardMeta = { title: string; area: "main" | "side"; wide?: boolean; group?: string };
+export type CardMeta = { title: string; area: "main" | "side"; wide?: boolean; group?: string; charts?: ChartKind[] };
 
 /** The cards on one role's dashboard as the reader laid them out, kept on the server under dashboard.{key}. */
 export function useDashboardCards<Id extends string>(key: string, meta: Record<Id, CardMeta>, defaults: Id[]) {
@@ -113,8 +114,9 @@ export function Panel({ icon: Icon, title, to, children }: {
   to?: string;
   children: ReactNode;
 }) {
-  // The reader's own name and line for the card, where they set them through Add card.
+  // The reader's own name and line for the card, where they set them through Add card, and its chart type switcher.
   const label = useCardLabel(title);
+  const chart = useCardChart();
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white">
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
@@ -126,6 +128,7 @@ export function Panel({ icon: Icon, title, to, children }: {
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
         <div className="flex items-center gap-1">
+          {chart?.picker}
           {to && (
             <Link to={to} className="inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-primary-700 hover:underline">
               View all
@@ -170,6 +173,7 @@ export function Breakdown({ rows, centre, centreLabel, currency }: {
   currency?: string;
 }) {
   const ringed = rows.filter((one) => !one.apart);
+  const chart = useCardChart();
   const option = useMemo(() => {
     const c = ink();
     return {
@@ -185,6 +189,13 @@ export function Breakdown({ rows, centre, centreLabel, currency }: {
   }, [ringed, currency]);
   if (rows.length === 0) {
     return <p className="py-10 text-center text-sm text-ink-muted">Nothing on file yet.</p>;
+  }
+  if (chart && !chart.own) {
+    return (
+      <KindChart kind={chart.kind!} height={220} label={centreLabel}
+        format={(value) => (currency ? money(value, currency) : String(Math.round(value)))}
+        data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: Number(one.value) })) }} />
+    );
   }
   return (
     // The ring on the left and what makes it up beside it; one above the other when narrow.
@@ -228,8 +239,21 @@ export function Counts({ rows, linkFor, iconFor = {}, countFirst = false, limit,
   /** Where the lines left out are read. */
   more?: string;
 }) {
+  const chart = useCardChart();
+  const navigate = useNavigate();
   const ordered = limit === undefined ? rows
     : [...rows.filter((one) => one.count > 0), ...rows.filter((one) => one.count === 0)];
+  // Drawn as another kind, the counts are a chart of what is waiting; a click opens where it is worked.
+  if (chart && !chart.own) {
+    const waiting = rows.filter((one) => one.count > 0);
+    if (waiting.length === 0) return <p className="py-8 text-center text-sm text-ink-muted">Nothing waiting.</p>;
+    return (
+      <KindChart kind={chart.kind!} height={Math.max(180, 40 + waiting.length * 28)} label="What is waiting, counted"
+        format={(value) => String(Math.round(value))}
+        data={{ shape: "shares", items: waiting.map((one) => ({ name: one.label, value: one.count })) }}
+        onPick={(at) => { const to = waiting[at] && linkFor(waiting[at].key); if (to) navigate(to); }} />
+    );
+  }
   const shown = limit === undefined ? ordered : ordered.slice(0, limit);
   const left = ordered.length - shown.length;
   return (

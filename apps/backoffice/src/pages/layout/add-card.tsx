@@ -2,7 +2,7 @@ import { Button, cn } from "@atomprive/ui";
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Move, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CardSettingsContext, type Palette } from "./card-settings";
-import { KIND_LABEL } from "./chart-kinds";
+import { CardChartContext, cardChart, KIND_LABEL } from "./chart-kinds";
 import type { CardChoice, ViewLayoutState, Width } from "./custom-view";
 
 /**
@@ -366,7 +366,9 @@ function CardStep<Id extends string>({ id, view, render, choice, picked, onChang
       <section aria-label="Preview" className="min-w-0">
         <p className="mb-2 text-2xs font-bold tracking-wider text-ink-muted uppercase">Preview</p>
         <div className="pointer-events-none flex flex-col select-none [&>*]:flex-1">
-          <CardSettingsContext.Provider value={preview}>{render[id]}</CardSettingsContext.Provider>
+          <CardSettingsContext.Provider value={preview}>
+            <CardChartContext.Provider value={kinds.length ? cardChart(view, id) : null}>{render[id]}</CardChartContext.Provider>
+          </CardSettingsContext.Provider>
         </div>
       </section>
     </div>
