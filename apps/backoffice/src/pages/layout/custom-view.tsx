@@ -16,7 +16,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { CustomizeDialog } from "./add-card";
 import { CardSettingsContext, type CardSettings, type Palette } from "./card-settings";
 import { CardChartContext, cardChart, type ChartKind } from "./chart-kinds";
-import { OWN, OwnCardView, useOwnCards, type Figures } from "./own-cards";
+import { OWN, OWN_GROUP, OwnCardView, useOwnCards, type Figures } from "./own-cards";
 
 /**
  * A screen made of cards that each member of staff lays out for themselves, the way Autotask's dashboards are: drag a
@@ -114,7 +114,7 @@ export function useViewLayout<Id extends string>(key: string, screenMeta: Record
   const own = useOwnCards(key);
   const meta = useMemo(() => ({
     ...screenMeta,
-    ...Object.fromEntries(own.map((card) => [`${OWN}${card.id}`, { title: card.title, group: "Your own cards", own: card }])),
+    ...Object.fromEntries(own.map((card) => [`${OWN}${card.id}`, { title: card.title, group: card.group ?? OWN_GROUP, own: card }])),
   }) as Record<Id, LayoutMeta>, [screenMeta, own]);
   const ids = useMemo(() => Object.keys(meta) as Id[], [meta]);
   const queryClient = useQueryClient();
