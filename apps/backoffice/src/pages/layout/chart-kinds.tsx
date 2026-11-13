@@ -122,7 +122,11 @@ export function cardChart<Id extends string>(view: ViewLayoutState<Id>, id: Id) 
       const now = kind();
       return now == null || now === kinds[0];
     },
-    picker: kinds.length > 1 && saved ? <ChartPicker kinds={kinds} value={saved} onChange={(next) => view.setChart(id, next)} /> : null,
+    /** The switcher, showing the type being drawn: in Add card's preview, the one being tried. */
+    get picker() {
+      const now = kind() ?? kinds[0];
+      return kinds.length > 1 && now ? <ChartPicker kinds={kinds} value={now} onChange={(next) => view.setChart(id, next)} /> : null;
+    },
   };
 }
 
@@ -234,7 +238,7 @@ export function KindChart({ data, kind, format, height = 240, label, onPick }: {
 }
 
 /** Green, amber and red, for a reader who picked them over the app's own colours. */
-const TRAFFIC = ["#16a34a", "#f59e0b", "#dc2626"];
+export const TRAFFIC = ["#16a34a", "#f59e0b", "#dc2626"];
 
 function colourOf(at: number, own?: string, palette: Palette = "theme") {
   if (palette === "traffic") return TRAFFIC[at % TRAFFIC.length]!;
