@@ -13,7 +13,7 @@ import { ArrowLeft, ArrowRight, GripVertical, LayoutGrid as LayoutIcon, Plus, Ro
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { CustomizeDialog } from "./add-card";
 import { CardSettingsContext, type CardSettings, type Palette } from "./card-settings";
-import type { ChartKind } from "./chart-kinds";
+import { CardChartContext, cardChart, type ChartKind } from "./chart-kinds";
 
 /**
  * A screen made of cards that each member of staff lays out for themselves, the way Autotask's dashboards are: drag a
@@ -306,8 +306,15 @@ export function EditFrame<Id extends string>({ id, view, className, children }: 
     if (!view.editing) setOver(null);
   }, [view.editing]);
   const settings = view.settings(id);
+  const chart = view.meta[id]?.charts?.length ? cardChart(view, id) : null;
   if (!view.editing) {
-    return <div className={className}><CardSettingsContext.Provider value={settings}>{children}</CardSettingsContext.Provider></div>;
+    return (
+      <div className={className}>
+        <CardSettingsContext.Provider value={settings}>
+          <CardChartContext.Provider value={chart}>{children}</CardChartContext.Provider>
+        </CardSettingsContext.Provider>
+      </div>
+    );
   }
 
   const meta = view.meta[id];
@@ -384,7 +391,9 @@ export function EditFrame<Id extends string>({ id, view, className, children }: 
         </button>
       </div>
       <div className="pointer-events-none flex min-w-0 flex-1 flex-col select-none [&>*]:flex-1">
-        <CardSettingsContext.Provider value={settings}>{children}</CardSettingsContext.Provider>
+        <CardSettingsContext.Provider value={settings}>
+          <CardChartContext.Provider value={chart}>{children}</CardChartContext.Provider>
+        </CardSettingsContext.Provider>
       </div>
     </div>
   );

@@ -21,7 +21,7 @@ import {
   Waypoints,
   type LucideIcon,
 } from "lucide-react";
-import { use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
 import { CardSettingsContext, type Palette } from "./card-settings";
@@ -119,6 +119,17 @@ export function cardChart<Id extends string>(view: ViewLayoutState<Id>, id: Id) 
 }
 
 export type CardChart = ReturnType<typeof cardChart>;
+
+/**
+ * The card being drawn's chart type and switcher, handed down by the screen's grid, so a card built from shared
+ * pieces (a dashboard's panel, ring or list of counts) picks them up without being handed them one by one.
+ */
+export const CardChartContext = createContext<CardChart | null>(null);
+
+/** The chart type and switcher of the card being drawn; null for a card that draws no chart. */
+export function useCardChart() {
+  return use(CardChartContext);
+}
 
 /** The small button beside a card's title: the kind in use, and on a click the kinds this card can be drawn as. */
 export function ChartPicker({ kinds, value, onChange }: { kinds: ChartKind[]; value: ChartKind; onChange: (kind: ChartKind) => void }) {
