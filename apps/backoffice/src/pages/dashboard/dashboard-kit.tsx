@@ -14,7 +14,9 @@ import {
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { Chart, ink } from "../book/overview-charts";
-import { CardLibrary, CustomizeBar, CustomizeButton, EditFrame, useViewLayout, type ViewLayoutState } from "../layout/custom-view";
+import { CustomizeBar, CustomizeButton, EditFrame, useViewLayout, type ViewLayoutState } from "../layout/custom-view";
+import { AddCardDialog } from "../layout/add-card";
+import { useCardLabel } from "../layout/card-settings";
 
 /**
  * The pieces every role's dashboard is built from: cards in a grid of two, each with its ⋮, a Customize view that
@@ -77,7 +79,7 @@ export function CardGrid<Id extends string>({ meta, view, render, screen }: {
   const card = (id: Id) => {
     const mates = inArea(meta[id].area);
     const controls: CardControls = {
-      title: meta[id].title,
+      title: view.settings(id).title ?? meta[id].title,
       earlier: mates[0] === id ? undefined : () => nudge(id, -1),
       later: mates[mates.length - 1] === id ? undefined : () => nudge(id, 1),
       remove: () => view.hide(id),
@@ -92,9 +94,9 @@ export function CardGrid<Id extends string>({ meta, view, render, screen }: {
     );
   };
   return (
-    <div className={cn("space-y-4", view.editing && "pr-0 lg:pr-80")}>
+    <div className="space-y-4">
       <CustomizeBar view={view} screen={screen} />
-      <CardLibrary view={view} />
+      {view.adding && <AddCardDialog view={view} render={render} screen={screen} start={view.adding.card} onClose={view.closeAdd} />}
       {shown.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
           Nothing on your dashboard. Use Customize view to add the cards you want.
@@ -198,13 +200,18 @@ export function Panel({ icon: Icon, title, to, children }: {
   to?: string;
   children: ReactNode;
 }) {
+  // The reader's own name and line for the card, where they set them through Add card.
+  const label = useCardLabel(title);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white">
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
-        <h2 className="flex items-center gap-2 text-base font-bold">
-          <Icon className="size-4.5 text-primary-600" aria-hidden="true" />
-          {to ? <Link to={to} className="hover:text-primary-700 hover:underline">{title}</Link> : title}
-        </h2>
+        <div className="min-w-0">
+          <h2 className="flex items-center gap-2 text-base font-bold">
+            <Icon className="size-4.5 text-primary-600" aria-hidden="true" />
+            {to ? <Link to={to} className="hover:text-primary-700 hover:underline">{label.title}</Link> : label.title}
+          </h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
+        </div>
         <div className="flex items-center gap-1">
           {to && (
             <Link to={to} className="inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-primary-700 hover:underline">
