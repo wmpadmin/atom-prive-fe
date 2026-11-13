@@ -30480,6 +30480,170 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getAddClientNoteMutationOptions(options), queryClient);
     }
 
+export const getBookScreenReportUrl = () => {
+
+
+
+
+  return `/api/backoffice/book-reports/pdf`
+}
+
+export const bookScreenReport = async (screenReportRequest: ScreenReportRequest, options?: Parameters<typeof http>[1]): Promise<Blob> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<Blob>(getBookScreenReportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(screenReportRequest)
+  }
+);}
+
+
+
+
+
+export const getBookScreenReportMutationKey = () => ['bookScreenReport'] as const;
+
+export const getBookScreenReportMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookScreenReport>>, TError,BookScreenReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof bookScreenReport>>, TError,BookScreenReportMutationVariables, TContext> => {
+
+const mutationKey = getBookScreenReportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bookScreenReport>>, BookScreenReportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  bookScreenReport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BookScreenReportMutationResult = NonNullable<Awaited<ReturnType<typeof bookScreenReport>>>
+    export type BookScreenReportMutationBody = ScreenReportRequest
+    export type BookScreenReportMutationError = unknown
+    export type BookScreenReportMutationVariables = {data: ScreenReportRequest}
+
+    export const useBookScreenReport = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookScreenReport>>, TError,BookScreenReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bookScreenReport>>,
+        TError,
+        BookScreenReportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBookScreenReportMutationOptions(options), queryClient);
+    }
+
+export const getBookScreenExportUrl = () => {
+
+
+
+
+  return `/api/backoffice/book-reports/excel`
+}
+
+export const bookScreenExport = async (overviewExportRequest: OverviewExportRequest, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<string>(getBookScreenExportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(overviewExportRequest)
+  }
+);}
+
+
+
+
+
+export const getBookScreenExportMutationKey = () => ['bookScreenExport'] as const;
+
+export const getBookScreenExportMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookScreenExport>>, TError,BookScreenExportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof bookScreenExport>>, TError,BookScreenExportMutationVariables, TContext> => {
+
+const mutationKey = getBookScreenExportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bookScreenExport>>, BookScreenExportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  bookScreenExport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BookScreenExportMutationResult = NonNullable<Awaited<ReturnType<typeof bookScreenExport>>>
+    export type BookScreenExportMutationBody = OverviewExportRequest
+    export type BookScreenExportMutationError = unknown
+    export type BookScreenExportMutationVariables = {data: OverviewExportRequest}
+
+    export const useBookScreenExport = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookScreenExport>>, TError,BookScreenExportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bookScreenExport>>,
+        TError,
+        BookScreenExportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBookScreenExportMutationOptions(options), queryClient);
+    }
+
 export const getReadNotificationUrl = (id: string,) => {
 
 

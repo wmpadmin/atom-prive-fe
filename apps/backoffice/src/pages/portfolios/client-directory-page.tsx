@@ -9,15 +9,15 @@ import {
   type DirectoryClient,
   type DirectoryNamed,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, Pagination, SelectInput, TextInput, cn } from "@atomprive/ui";
+import { Alert, Pagination, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { CalendarClock, Clock, Download, Search, ShieldCheck, Target, type LucideIcon } from "lucide-react";
+import { CalendarClock, Clock, Search, ShieldCheck, Target, type LucideIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
-import { downloadTextFile } from "../../lib/download";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
 import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
@@ -55,6 +55,7 @@ export function ClientDirectoryPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <ReportButton />
           <CustomizeButton view={view} />
           <SelectInput id="directory-currency" aria-label="Currency the directory is shown in" value={currency}
             onChange={(event) => setCurrency(event.target.value)} className="w-28">
@@ -247,10 +248,6 @@ function DirectoryCard({ data }: { data: ClientDirectory }) {
           <h2 className="text-lg font-bold">Client Directory</h2>
           <p className="mt-0.5 text-xs text-ink-muted">All client families under coverage · select a family to open its workspace</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => exportCsv(shown, data.currency)}>
-          <Download aria-hidden="true" />
-          Export list
-        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -759,32 +756,6 @@ function Percent({ value }: { value: number | null }) {
 function Points({ value }: { value: number | null }) {
   if (value == null) return <Muted>—</Muted>;
   return <span className={toneOf(value)}>{value > 0 ? "+" : ""}{value.toFixed(1)} pp</span>;
-}
-
-function exportCsv(rows: DirectoryClient[], currency: string) {
-  const header = ["Client", "Code", "Segment", "City", "Country", "Region", "Status", `AUM (${currency})`,
-    "Bank file holdings (as stated, unconverted)", "YTD %", "vs Bench (pp)", "Entities", "Mandate", "Portfolio managers",
-    "Relationship manager", "Next review"];
-  const cell = (value: unknown) => {
-    const text = value == null ? "" : String(value);
-    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
-  const NOT = "not in bank file";
-  const lines = rows.map((one) => {
-    const file = one.bankFile;
-    return [
-      one.name, one.code, file ? NOT : segmentLabel(one.segment), one.city, one.country, one.region,
-      one.status ? statusLabel(one.status) : file ? NOT : "", file ? "" : one.aum,
-      file ? file.holdings.map((amount) => `${amount.currency} ${amount.amount}`).join("; ") : "",
-      file ? NOT : one.yearToDate, file ? NOT : one.versusBenchmark, one.entities, file ? NOT : one.mandate,
-      one.portfolioManagers.join("; "), one.relationshipManager, file ? NOT : one.nextReviewOn,
-    ].map(cell).join(",");
-  });
-  downloadTextFile(`client-directory-${new Date().toISOString().slice(0, 10)}.csv`, [header.join(","), ...lines].join("\n"), "text/csv");
-}
-
-function statusLabel(status: string) {
-  return STATUSES.find((one) => one.id === status)?.label ?? status;
 }
 
 function segmentLabel(segment: string | null | undefined) {

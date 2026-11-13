@@ -14,13 +14,13 @@ import { Alert, Button, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { ScatterChart } from "echarts/charts";
 import * as echarts from "echarts/core";
-import { CalendarDays, Columns3, Download } from "lucide-react";
+import { CalendarDays, Columns3 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
-import { downloadTextFile } from "../../lib/download";
 import { formatDate, formatRelative } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
 import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
@@ -64,6 +64,7 @@ export function BookOverviewPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <ReportButton />
           <CustomizeButton view={view} />
           <SelectInput id="book-currency" aria-label="Currency the book is shown in" value={currency}
             onChange={(event) => setCurrency(event.target.value)} className="w-28">
@@ -482,10 +483,6 @@ function ClientBookCard({ data }: { data: BookOverview }) {
             ))}
           </div>
           <ColumnsMenu hidden={hidden} onChange={setHidden} />
-          <Button variant="secondary" size="sm" onClick={() => exportCsv(shown, data.currency)}>
-            <Download aria-hidden="true" />
-            Export
-          </Button>
         </div>
       }>
       <div className="-mx-5 overflow-x-auto">
@@ -966,24 +963,6 @@ function Percent({ value }: { value: number | null }) {
   return <span className={toneOf(value)}>{signedPercent(value)}</span>;
 }
 
-function exportCsv(rows: BookOverviewClient[], currency: string) {
-  const header = ["Client", "Code", "Type", "City", "Mandate", `AUM (${currency})`, "Bank file holdings (as stated, unconverted)",
-    "Share %", "MTD %", "YTD %", "vs Bench (pp)", "Max deviation (pp)", "Deviating", "IPS status", "Next event", "Next event date",
-    "Last review", "Data", "Delayed (hours)"];
-  const cell = (value: unknown) => {
-    const text = value == null ? "" : String(value);
-    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
-  const lines = rows.map((row) => [
-    row.name, row.code, typeLabel(row.customerType), row.city, row.bankFile ? "not in bank file" : row.mandate,
-    row.bankFile ? "" : row.aum,
-    row.bankFile ? row.bankFile.holdings.map((one) => `${one.currency} ${one.amount}`).join("; ") : "",
-    row.sharePercent, row.monthToDate, row.yearToDate, row.versusBenchmark, row.maxDeviation,
-    row.bankFile ? "" : row.deviating ? "yes" : "no", row.ipsStatus, row.nextEvent?.title, row.nextEvent?.on,
-    row.bankFile ? "not in bank file" : row.lastReviewOn, row.data, row.delayedHours,
-  ].map(cell).join(","));
-  downloadTextFile(`book-overview-${new Date().toISOString().slice(0, 10)}.csv`, [header.join(","), ...lines].join("\n"), "text/csv");
-}
 
 /**
  * Whether a feed's files are current, as the server reads it. A client's shows how long ago, as the design does; a
