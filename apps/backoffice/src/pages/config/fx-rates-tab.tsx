@@ -385,24 +385,33 @@ function UpdateRateForm({ rate, onCancel, onSaved }: { rate: FxRateRow; onCancel
   const update = useUpdateFxRate<ApiError>({ mutation: { onSuccess: onSaved, onError: (error) => setErrors(toFormErrors(error)) } });
   const parsed = Number(value);
   const valid = value.trim() !== "" && Number.isFinite(parsed) && parsed > 0;
+  // Save pressed without a usable rate: the box shows in red until it holds one.
+  const [tried, setTried] = useState(false);
+  const missing = tried && !valid ? (value.trim() === "" ? "Enter the rate." : "Enter a number above 0.") : undefined;
+  const error = missing ?? errors.fields.unitsPerUsd;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!valid) {
+      setTried(true);
+      document.getElementById("unitsPerUsd")?.focus();
+      return;
+    }
     setErrors(noErrors);
     update.mutate({ code: rate.code, data: { unitsPerUsd: parsed } });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
       <Field
         id="unitsPerUsd"
         label={`${rate.code} per 1 USD`}
         hint={valid ? `So 1 ${rate.code} = ${formatConverted(1 / parsed)} USD` : "How much one US dollar buys, for example 1.3142."}
-        error={errors.fields.unitsPerUsd}
+        error={error}
       >
         <TextInput
-          {...describedBy("unitsPerUsd", errors.fields.unitsPerUsd)}
+          {...describedBy("unitsPerUsd", error)}
           name="unitsPerUsd"
           inputMode="decimal"
           autoComplete="off"
@@ -416,7 +425,7 @@ function UpdateRateForm({ rate, onCancel, onSaved }: { rate: FxRateRow; onCancel
         <Button variant="ghost" onClick={onCancel} disabled={update.isPending}>
           Cancel
         </Button>
-        <Button type="submit" disabled={update.isPending || !valid}>
+        <Button type="submit" disabled={update.isPending}>
           {update.isPending ? "Saving…" : "Save rate"}
         </Button>
       </div>

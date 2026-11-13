@@ -96,11 +96,11 @@ function ReorderList<T extends string>({ items, labels, onChange, addLabel }: {
   );
 }
 
-function Footer({ onCancel, onApply, applyDisabled }: { onCancel: () => void; onApply: () => void; applyDisabled?: boolean }) {
+function Footer({ onCancel, onApply }: { onCancel: () => void; onApply: () => void }) {
   return (
     <div className="mt-5 flex justify-end gap-2 border-t border-line pt-4">
       <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-      <Button onClick={onApply} disabled={applyDisabled}>Apply</Button>
+      <Button onClick={onApply}>Apply</Button>
     </div>
   );
 }
@@ -131,19 +131,29 @@ export function EditTableDialog({ cfg, onApply, onClose }: {
 }) {
   const [title, setTitle] = useState(cfg?.title ?? "Holdings");
   const [columns, setColumns] = useState<Column[]>((cfg?.columns?.length ? cfg.columns : DEFAULT_COLUMNS) as Column[]);
+  // Apply with the title cleared marks the box in red rather than being greyed out.
+  const [tried, setTried] = useState(false);
+  const untitled = tried && !title.trim();
+  const apply = () => {
+    if (!title.trim()) {
+      setTried(true);
+      document.getElementById("table-title")?.focus();
+      return;
+    }
+    onApply({ ...(cfg ?? config()), title: title.trim(), columns });
+  };
   return (
     <Dialog open title="Edit table" description="Name the table, and choose its columns and their order." onClose={onClose}>
       <div className="space-y-4">
-        <Field id="table-title" label="Title">
-          <TextInput id="table-title" value={title} maxLength={80} onChange={(event) => setTitle(event.target.value)} />
+        <Field id="table-title" label="Title" error={untitled ? "Enter a title." : undefined}>
+          <TextInput id="table-title" aria-invalid={untitled || undefined} value={title} maxLength={80} onChange={(event) => setTitle(event.target.value)} />
         </Field>
         <div>
           <p className="mb-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Columns</p>
           <ReorderList items={columns} labels={COLUMNS} onChange={setColumns} addLabel="Add a column…" />
         </div>
       </div>
-      <Footer onCancel={onClose} applyDisabled={!title.trim()}
-        onApply={() => onApply({ ...(cfg ?? config()), title: title.trim(), columns })} />
+      <Footer onCancel={onClose} onApply={apply} />
     </Dialog>
   );
 }
@@ -259,16 +269,27 @@ export function SaveAsDialog({ busy, error, onSave, onClose }: {
   onClose: () => void;
 }) {
   const [name, setName] = useState("");
+  // Save with no name marks the box in red rather than being greyed out.
+  const [tried, setTried] = useState(false);
+  const unnamed = tried && !name.trim();
   return (
     <Dialog open title="Save as a new view" description="It gets its own tab, and opens the same way on every client you look after." onClose={onClose}>
-      <form onSubmit={(event) => { event.preventDefault(); if (name.trim()) onSave(name.trim()); }} className="space-y-4">
-        <Field id="view-name" label="Name" required error={error ?? undefined}>
-          <TextInput id="view-name" autoFocus value={name} maxLength={60} placeholder="Equities and cash"
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (name.trim()) return onSave(name.trim());
+          setTried(true);
+          document.getElementById("view-name")?.focus();
+        }}
+        className="space-y-4"
+      >
+        <Field id="view-name" label="Name" required error={unnamed ? "Enter a name." : (error ?? undefined)}>
+          <TextInput id="view-name" autoFocus aria-invalid={unnamed || undefined} value={name} maxLength={60} placeholder="Equities and cash"
             onChange={(event) => setName(event.target.value)} />
         </Field>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={busy || !name.trim()}>{busy ? "Saving…" : "Save"}</Button>
+          <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
         </div>
       </form>
     </Dialog>

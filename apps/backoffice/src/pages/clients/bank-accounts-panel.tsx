@@ -15,7 +15,7 @@ import {
 import { Alert, Badge, Button, Dialog, Field, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Banknote } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useStaffUser } from "../../auth/session";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
@@ -297,16 +297,24 @@ function LinkAccountDialog({
   const [currency, setCurrency] = useState("AED");
   const currencies = useListCurrencies<Currency[], ApiError>({ query: { enabled: open } });
   const [nickname, setNickname] = useState("");
+  // Set when Link is pressed with something it needs still empty; each such box stays red until filled.
+  const [tried, setTried] = useState(false);
+  useEffect(() => {
+    if (!open) setTried(false);
+  }, [open]);
 
   const offered = banks.data?.items ?? [];
+  const bankError = tried && !bankId ? "Choose the bank." : undefined;
+  const numberError = tried && !accountNumber.trim() ? "Enter the account number." : undefined;
+  const heldByError = tried && !heldBy.trim() ? "Enter the name the bank holds it in." : undefined;
 
   return (
     <Dialog open={open} title="Link a bank account" onClose={onClose}>
       <div className="space-y-4">
         {link.isError && <Alert tone="danger">{link.error.message}</Alert>}
 
-        <Field id="bank" label="Bank" required>
-          <SelectInput id="bank" value={bankId} onChange={(event) => setBankId(event.target.value)}>
+        <Field id="bank" label="Bank" required error={bankError}>
+          <SelectInput id="bank" aria-invalid={bankError ? true : undefined} value={bankId} onChange={(event) => setBankId(event.target.value)}>
             <option value="">Choose the bank</option>
             {offered.map((bank) => (
               <option key={bank.id} value={bank.id}>
@@ -316,13 +324,15 @@ function LinkAccountDialog({
           </SelectInput>
         </Field>
 
-        <Field id="account-number" label="Account number" required hint="Taken once. Only the last four are shown afterwards.">
-          <TextInput id="account-number" value={accountNumber} autoComplete="off"
+        <Field id="account-number" label="Account number" required hint="Taken once. Only the last four are shown afterwards."
+          error={numberError}>
+          <TextInput id="account-number" aria-invalid={numberError ? true : undefined} value={accountNumber} autoComplete="off"
             onChange={(event) => setAccountNumber(event.target.value)} />
         </Field>
 
-        <Field id="held-by" label="Name the bank holds it in" required hint="It has to read as the client's registered name.">
-          <TextInput id="held-by" value={heldBy} onChange={(event) => setHeldBy(event.target.value)} />
+        <Field id="held-by" label="Name the bank holds it in" required hint="It has to read as the client's registered name."
+          error={heldByError}>
+          <TextInput id="held-by" aria-invalid={heldByError ? true : undefined} value={heldBy} onChange={(event) => setHeldBy(event.target.value)} />
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -360,8 +370,13 @@ function LinkAccountDialog({
             Cancel
           </Button>
           <Button
-            disabled={!bankId || !accountNumber.trim() || !heldBy.trim() || link.isPending}
-            onClick={() =>
+            disabled={link.isPending}
+            onClick={() => {
+              if (!bankId || !accountNumber.trim() || !heldBy.trim()) {
+                setTried(true);
+                requestAnimationFrame(() => document.querySelector<HTMLElement>("[aria-invalid='true']")?.focus());
+                return;
+              }
               link.mutate(
                 {
                   customerId: clientId,
@@ -375,8 +390,8 @@ function LinkAccountDialog({
                   },
                 },
                 { onSuccess: onLinked },
-              )
-            }
+              );
+            }}
           >
             {link.isPending ? "Linking…" : "Link the account"}
           </Button>
