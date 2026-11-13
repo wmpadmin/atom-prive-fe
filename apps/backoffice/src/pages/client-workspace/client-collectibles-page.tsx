@@ -12,6 +12,7 @@ import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
 import { FIGURE_KINDS, FigureRow, FigureStrip, useFiguresAsTable } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
@@ -47,7 +48,7 @@ export function ClientCollectiblesPage() {
           <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Collectibles &amp; Real Assets</h1>
           <p className="mt-1 text-sm text-ink-muted">Register of yachts, art, cars, watches, wine and jewellery · valuations, provenance, custody and insurance</p>
         </div>
-        <CustomizeButton view={view} />
+        <div className="flex items-start gap-2"><ReportButton /><CustomizeButton view={view} /></div>
       </header>
 
       <LayoutGrid view={view} screen="Collectibles & Real Assets" figures={file ? undefined : collectiblesFigures(data)} render={{

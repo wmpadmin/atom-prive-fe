@@ -12,6 +12,7 @@ import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
 import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/chart-kinds";
@@ -45,7 +46,7 @@ export function ClientPerformancePage() {
             Time- and money-weighted returns, Brinson attribution and risk-adjusted statistics against the IPS policy benchmark
           </p>
         </div>
-        {!data.bankFile && <CustomizeButton view={view} />}
+        <div className="flex items-start gap-2"><ReportButton />{!data.bankFile && <CustomizeButton view={view} />}</div>
       </header>
       {data.bankFile ? <FileClient /> : <Board data={data} view={view} />}
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">

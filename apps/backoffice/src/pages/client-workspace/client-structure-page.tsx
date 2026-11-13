@@ -13,6 +13,7 @@ import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { INK } from "../portfolios/asset-classes";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
 import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
@@ -49,7 +50,7 @@ export function ClientStructurePage() {
             Trusts, companies and SPVs with ownership, look-through value and beneficial interest
           </p>
         </div>
-        {!data.bankFile && <CustomizeButton view={view} />}
+        <div className="flex items-start gap-2"><ReportButton />{!data.bankFile && <CustomizeButton view={view} />}</div>
       </header>
 
       {data.bankFile ? <FileContainers name={data.name} accounts={data.bankFile} data={data} /> : <Structure data={data} view={view} />}

@@ -13,6 +13,7 @@ import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
 import { FIGURE_KINDS, FigureRow, FigureStrip, useFiguresAsTable } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
@@ -60,7 +61,7 @@ export function ClientFixedIncomePage() {
   return (
     <div className="space-y-5">
       <header className="relative">
-        <div className="absolute top-0 right-0"><CustomizeButton view={view} /></div>
+        <div className="absolute top-0 right-0 flex items-start gap-2"><ReportButton /><CustomizeButton view={view} /></div>
         <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Fixed Income
         </p>

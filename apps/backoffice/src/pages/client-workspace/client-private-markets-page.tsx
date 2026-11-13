@@ -18,6 +18,7 @@ import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
 import { FIGURE_KINDS, FigureRow, FigureStrip, useFiguresAsTable } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
@@ -75,7 +76,7 @@ export function ClientPrivateMarketsPage() {
           <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Private Markets &amp; Alternatives</h1>
           <p className="mt-1 text-sm text-ink-muted">Commitments, cash flows and performance across private equity, venture, credit, infrastructure and hedge funds</p>
         </div>
-        <CustomizeButton view={view} />
+        <div className="flex items-start gap-2"><ReportButton /><CustomizeButton view={view} /></div>
       </header>
 
       <LayoutGrid view={view} screen="Private Markets" figures={data.bankFile ? undefined : privateFigures(data)} render={{

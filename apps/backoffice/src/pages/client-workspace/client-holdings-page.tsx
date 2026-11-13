@@ -16,6 +16,7 @@ import { formatDate } from "../../lib/labels";
 import { HoldingsCheckBody } from "../bank-syncs/holdings-check-client-page";
 import { INK } from "../portfolios/asset-classes";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
 import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/chart-kinds";
@@ -65,7 +66,7 @@ export function ClientHoldingsPage() {
             {data.name} · all entities and custodians · positions as of {formatDate(data.asOf)} close
           </p>
         </div>
-        <CustomizeButton view={view} />
+        <div className="flex items-start gap-2"><ReportButton /><CustomizeButton view={view} /></div>
       </header>
       <LayoutGrid view={view} screen="Consolidated Holdings" figures={data.bankFile ? undefined : holdingsFigures(data)} render={{
         kpis: <Kpis data={data} reconciliation={reconciliation} />,
