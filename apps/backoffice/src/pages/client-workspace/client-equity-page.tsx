@@ -15,6 +15,11 @@ import { Chart, ink } from "../book/overview-charts";
 import { ScatterChart } from "echarts/charts";
 import { LabelLayout } from "echarts/features";
 import * as echarts from "echarts/core";
+import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { useCardLabel } from "../layout/card-settings";
+import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
+import { kpiFigures, seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
+import { useDrill } from "./drill-panel";
 
 // Names that would land on one another are left to the tooltip.
 echarts.use([ScatterChart, LabelLayout]);
@@ -26,11 +31,33 @@ echarts.use([ScatterChart, LabelLayout]);
  * says. A client whose figures come only from their bank's files sees their equity lines as sent, and every other card
  * in its place, not in bank file. Read only.
  */
+type EquityCard = "kpis" | "segments" | "sectors" | "regions" | "holdings" | "scatter" | "contributions" | "caps"
+  | "concentration" | "history";
+
+/** The screen's cards below the sleeve strip, in the firm's order: every card on by default. */
+const CARDS: Record<EquityCard, LayoutMeta> = {
+  // Its figures are in different units (×, %, a currency), so no one chart can put them side by side.
+  kpis: { title: "Fundamentals vs benchmark", group: "Summary", wide: true },
+  segments: { title: "Equity Segments · Target vs Actual", group: "Allocation", wide: true, charts: ["table", "grouped-bar", "horizontal-bar", "radar"] },
+  sectors: { title: "Sector Allocation vs Benchmark", group: "Allocation", charts: ["horizontal-bar", "grouped-bar", "radar", "table"] },
+  regions: { title: "Region & Style", group: "Allocation", charts: ["table", "grouped-bar", "horizontal-bar", "donut"] },
+  holdings: { title: "Equity Holdings · Fundamentals", group: "Holdings", wide: true },
+  scatter: { title: "Valuation vs Quality", group: "Holdings", charts: ["bubble", "scatter", "table"] },
+  contributions: { title: "Contribution to Return · YTD", group: "Returns", charts: ["horizontal-bar", "waterfall", "bar", "table"] },
+  caps: { title: "Market-cap Distribution", group: "Holdings", charts: ["grouped-bar", "horizontal-bar", "radar", "table"] },
+  concentration: { title: "Concentration", group: "Holdings", charts: ["line", "bar", "table"] },
+  history: { title: "Valuation History · P/E", group: "Returns", charts: ["line", "area", "bar", "table"] },
+};
+
+// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
+const DEFAULT_CARDS: EquityCard[] = ["kpis", "segments", "sectors", "holdings"];
+
 export function ClientEquityPage() {
   const { customerId = "" } = useParams();
   const [view, setView] = useState<"LOOK_THROUGH" | "DIRECT">("LOOK_THROUGH");
   const equity = useGetClientEquity<ClientEquity, ApiError>(customerId, { view }, { query: { placeholderData: keepPreviousData } });
   const data = equity.data;
+  const layout = useViewLayout("workspace.equity", CARDS, DEFAULT_CARDS);
 
   if (equity.isError) return <Alert tone="danger">{equity.error.message}</Alert>;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Reading the equity sleeve…</p>;
@@ -38,31 +65,30 @@ export function ClientEquityPage() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Equity Analytics
-        </p>
-        <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Equity Analytics</h1>
-        <p className="mt-1 text-sm text-ink-muted">Portfolio-weighted fundamentals, positioning and contribution against MSCI ACWI</p>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Equity Analytics
+          </p>
+          <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Equity Analytics</h1>
+          <p className="mt-1 text-sm text-ink-muted">Portfolio-weighted fundamentals, positioning and contribution against MSCI ACWI</p>
+        </div>
+        <CustomizeButton view={layout} />
       </header>
 
       <Strip data={data} view={view} setView={setView} />
-      <Kpis data={data} />
-      <Segments data={data} />
-      <div className="grid gap-4 xl:grid-cols-[1.03fr_1fr]">
-        <Sectors data={data} />
-        <RegionStyle data={data} />
-      </div>
-      <Holdings data={data} />
-      <div className="grid gap-4 xl:grid-cols-[1.55fr_1fr]">
-        <Scatter data={data} />
-        <Contributions data={data} />
-      </div>
-      <div className="grid gap-4 xl:grid-cols-3">
-        <CapCard data={data} />
-        <ConcentrationCard data={data} />
-        <HistoryCard data={data} />
-      </div>
+      <LayoutGrid view={layout} screen="Equity Analytics" figures={data.bankFile ? undefined : equityFigures(data)} render={{
+        kpis: <Kpis data={data} />,
+        segments: <Segments data={data} chart={cardChart(layout, "segments")} />,
+        sectors: <Sectors data={data} chart={cardChart(layout, "sectors")} />,
+        regions: <RegionStyle data={data} chart={cardChart(layout, "regions")} />,
+        holdings: <Holdings data={data} />,
+        scatter: <Scatter data={data} chart={cardChart(layout, "scatter")} />,
+        contributions: <Contributions data={data} chart={cardChart(layout, "contributions")} />,
+        caps: <CapCard data={data} chart={cardChart(layout, "caps")} />,
+        concentration: <ConcentrationCard data={data} chart={cardChart(layout, "concentration")} />,
+        history: <HistoryCard data={data} chart={cardChart(layout, "history")} />,
+      }} />
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
@@ -158,15 +184,26 @@ function Kpis({ data }: { data: ClientEquity }) {
   );
 }
 
-function Segments({ data }: { data: ClientEquity }) {
+function Segments({ data, chart }: { data: ClientEquity; chart: CardChart }) {
   const rows = data.segments;
+  const drill = useDrill();
   const scale = Math.max(10, ...rows.map((one) => Math.max(one.max ?? 0, one.actual))) * 1.05;
   return (
     <Card title="Equity Segments · Target vs Actual" lead={data.bankFile ? undefined : data.segmentsNote ?? undefined} flush
+      picker={!data.bankFile && rows.length > 0 && chart.picker}
       action={!data.bankFile && (
         <Link to={`/client-workspace/${data.customerId}/ips`} className="text-xs font-semibold text-primary-700 hover:underline">All asset classes</Link>
       )}>
-      {data.bankFile ? <div className="px-5"><FileBlock /></div> : rows.length === 0 ? <Empty>No model to measure against yet.</Empty> : (
+      {data.bankFile ? <div className="px-5"><FileBlock /></div> : rows.length === 0 ? <Empty>No model to measure against yet.</Empty> : !chart.own ? (
+        <div className="px-5">
+          <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={260} label="Each equity segment's actual weight against its target"
+            data={{ shape: "series", categories: rows.map((one) => one.name), series: [
+              { name: "Actual", values: rows.map((one) => one.actual) },
+              { name: "Target", values: rows.map((one) => one.target) },
+            ] }}
+            onPick={(at) => { const row = rows[at]; if (row) drill?.(row.assetClass ? { by: "class", key: row.key, name: row.name } : { by: "subClass", key: row.name, name: row.name }); }} />
+        </div>
+      ) : (
         <>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -207,12 +244,18 @@ const SEGMENT_STATUS: Record<string, [string, string]> = {
 };
 
 function SegmentLine({ row, scale, currency }: { row: IpsAllocationRow; scale: number; currency: string }) {
+  const drill = useDrill();
   const at = (value: number) => `${Math.min(100, (value / scale) * 100)}%`;
   const [label, tone] = SEGMENT_STATUS[row.status] ?? ["—", "text-ink-muted"];
   const pct = (value: number | null) => (value == null ? "—" : `${value.toFixed(row.assetClass ? 1 : 2)}%`);
   return (
     <tr className={cn(row.assetClass && "bg-slate-50 font-semibold")}>
-      <th scope="row" className={cn("py-2 pr-3 text-left", row.assetClass ? "pl-5" : "pl-9 font-normal")}>{row.name}</th>
+      <th scope="row" className={cn("py-2 pr-3 text-left", row.assetClass ? "pl-5" : "pl-9 font-normal")}>
+        <button type="button" className="text-left hover:text-primary-700 hover:underline"
+          onClick={() => drill?.(row.assetClass ? { by: "class", key: row.key, name: row.name } : { by: "subClass", key: row.name, name: row.name })}>
+          {row.name}
+        </button>
+      </th>
       <td className="px-2 py-2 text-right tabular-nums">{pct(row.min)}</td>
       <td className="px-2 py-2 text-right tabular-nums">{pct(row.target)}</td>
       <td className="px-2 py-2 text-right tabular-nums">{pct(row.max)}</td>
@@ -238,19 +281,33 @@ function SegmentLine({ row, scale, currency }: { row: IpsAllocationRow; scale: n
   );
 }
 
-function Sectors({ data }: { data: ClientEquity }) {
+function Sectors({ data, chart }: { data: ClientEquity; chart: CardChart }) {
+  const drill = useDrill();
   const largest = Math.max(1, ...data.sectors.flatMap((one) => [one.portfolio, one.benchmark ?? 0]));
   return (
     <Card title="Sector Allocation vs Benchmark"
-      lead={data.view === "LOOK_THROUGH" ? "GICS level 1 · fund look-through applied" : "GICS level 1 · lines as held, funds not looked through"}>
-      {data.bankFile ? <FileBlock /> : (
+      lead={data.view === "LOOK_THROUGH" ? "GICS level 1 · fund look-through applied" : "GICS level 1 · lines as held, funds not looked through"}
+      picker={!data.bankFile && chart.picker}>
+      {data.bankFile ? <FileBlock /> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={300} label="Each sector's weight against MSCI ACWI"
+          data={{ shape: "series", categories: data.sectors.map((one) => one.name), series: [
+            { name: "Portfolio", values: data.sectors.map((one) => one.portfolio), colour: ink().primary },
+            { name: "MSCI ACWI", values: data.sectors.map((one) => one.benchmark), colour: ink().neutral },
+          ] }}
+          onPick={(at) => { const one = data.sectors[at]; if (one && one.portfolio > 0 && data.view === "LOOK_THROUGH") drill?.({ by: "sector", key: one.key, name: one.name }); }} />
+      ) : (
         <>
           {/* Roomy rows with a faint rule between them, names wrapping rather than cut, and the portfolio in the app's
               blue (slate-800 all but vanished on the dark theme). */}
           <ul className="divide-y divide-line">
             {data.sectors.map((one) => (
               <li key={one.key} className="grid min-h-9 grid-cols-[minmax(0,10rem)_1fr_5.5rem_2.5rem] items-center gap-2 py-1.5 text-xs">
-                <span className="leading-snug break-words">{one.name}</span>
+                <span className="leading-snug break-words">
+                  {one.portfolio > 0 && data.view === "LOOK_THROUGH" ? (
+                    <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                      onClick={() => drill?.({ by: "sector", key: one.key, name: one.name })}>{one.name}</button>
+                  ) : one.name}
+                </span>
                 <span className="space-y-1" aria-hidden="true">
                   <span className="block h-2 rounded-full bg-primary-600" style={{ width: `${(one.portfolio / largest) * 100}%` }} />
                   <span className="block h-2 rounded-full bg-slate-300" style={{ width: `${((one.benchmark ?? 0) / largest) * 100}%` }} />
@@ -267,12 +324,22 @@ function Sectors({ data }: { data: ClientEquity }) {
   );
 }
 
-function RegionStyle({ data }: { data: ClientEquity }) {
+function RegionStyle({ data, chart }: { data: ClientEquity; chart: CardChart }) {
   const cells = data.styleBox;
   const deepest = Math.max(1, ...cells.map((one) => one.portfolio));
   return (
-    <Card title="Region & Style" lead="Domicile of risk · style by valuation & growth" flush>
-      {data.bankFile ? <div className="px-5"><FileBlock /></div> : (
+    <Card title="Region & Style" lead="Domicile of risk · style by valuation & growth" flush picker={!data.bankFile && chart.picker}>
+      {data.bankFile ? <div className="px-5"><FileBlock /></div> : !chart.own ? (
+        <div className="px-5">
+          <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={240} label="Each region's weight against the benchmark"
+            data={chart.kind === "donut"
+              ? { shape: "shares", items: data.regions.filter((one) => one.portfolio > 0).map((one) => ({ name: one.name, value: one.portfolio })) }
+              : { shape: "series", categories: data.regions.map((one) => one.name), series: [
+                  { name: "Portfolio", values: data.regions.map((one) => one.portfolio), colour: ink().primary },
+                  { name: "Benchmark", values: data.regions.map((one) => one.benchmark), colour: ink().neutral },
+                ] }} />
+        </div>
+      ) : (
         <>
           <table className="min-w-full text-sm">
             <thead>
@@ -335,6 +402,7 @@ const TABS = [["fundamentals", "Fundamentals"], ["performance", "Performance"], 
 type Tab = (typeof TABS)[number][0];
 
 function Holdings({ data }: { data: ClientEquity }) {
+  const drill = useDrill();
   const [tab, setTab] = useState<Tab>("fundamentals");
   const rows = [...data.holdings, ...(data.portfolio ? [data.portfolio] : []), ...(data.benchmarkRow ? [data.benchmarkRow] : [])];
   const cur = data.currency;
@@ -384,7 +452,14 @@ function Holdings({ data }: { data: ClientEquity }) {
               {rows.map((one, at) => (
                 <tr key={`${one.name}-${at}`} className={cn(one.kind === "PORTFOLIO" && "border-t-2 border-line font-bold", one.kind === "BENCHMARK" && "text-ink-soft")}>
                   <th scope="row" className="py-2 pr-2 pl-5 text-left font-normal">
-                    <span className={cn(one.kind !== "BENCHMARK" && "font-semibold")}>{one.kind === "BENCHMARK" ? `${one.name} (benchmark)` : one.name}</span>
+                    {one.kind === "COMPANY" || one.kind === "FUND" ? (
+                      <button type="button" className="text-left font-semibold hover:text-primary-700 hover:underline"
+                        onClick={() => drill?.(one.kind === "COMPANY" ? { by: "company", key: one.name, name: one.name } : { by: "subClass", key: one.name, name: one.name })}>
+                        {one.name}
+                      </button>
+                    ) : (
+                      <span className={cn(one.kind !== "BENCHMARK" && "font-semibold")}>{one.kind === "BENCHMARK" ? `${one.name} (benchmark)` : one.name}</span>
+                    )}
                     {one.ticker && <span className="block text-2xs text-ink-muted">{one.ticker}</span>}
                   </th>
                   <td className="px-1.5 py-2 text-xs">{short(one.sector)}</td>
@@ -447,7 +522,7 @@ function FileLines({ data }: { data: ClientEquity }) {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 
-function Scatter({ data }: { data: ClientEquity }) {
+function Scatter({ data, chart }: { data: ClientEquity; chart: CardChart }) {
   const option = useMemo(() => {
     const colours = ink();
     const groups: [string, string, string][] = [["IT", "Info. Tech.", colours.primary], ["FINANCIALS", "Financials", "#a16207"], ["OTHER", "Other sectors", "#d6c7a6"]];
@@ -492,20 +567,29 @@ function Scatter({ data }: { data: ClientEquity }) {
     };
   }, [data.scatter, data.benchmarkForwardPe, data.benchmarkRoe]);
   return (
-    <Card title="Valuation vs Quality" lead="Forward P/E against ROE · bubble = position weight · ROE above 78% capped">
-      {data.bankFile ? <FileBlock /> : data.scatter.length === 0 ? <Empty>No holding has fundamentals on file.</Empty> : (
+    <Card title="Valuation vs Quality" lead="Forward P/E against ROE · bubble = position weight · ROE above 78% capped"
+      picker={!data.bankFile && data.scatter.length > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : data.scatter.length === 0 ? <Empty>No holding has fundamentals on file.</Empty> : chart.own ? (
         <Chart option={option} height={300} label="Each holding's forward P/E against its return on equity" />
+      ) : (
+        <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(2)}%`} height={300} label="Each holding's forward P/E against its return on equity"
+          data={{ shape: "points", xName: "Forward P/E", yName: "ROE %", sizeName: "Weight", items: data.scatter.map((one) => ({ name: one.name, x: one.forwardPe, y: one.roe, size: one.weight })) }} />
       )}
     </Card>
   );
 }
 
-function Contributions({ data }: { data: ClientEquity }) {
+function Contributions({ data, chart }: { data: ClientEquity; chart: CardChart }) {
   const largest = Math.max(1, ...data.contributions.map((one) => Math.abs(one.basisPoints)));
   return (
     <Card title="Contribution to Return · YTD"
-      lead={data.bankFile ? undefined : `Basis points of equity sleeve return (${signed(data.strip.ytd)})`}>
-      {data.bankFile ? <FileBlock /> : data.contributions.length === 0 ? <Empty>No return on file to attribute.</Empty> : (
+      lead={data.bankFile ? undefined : `Basis points of equity sleeve return (${signed(data.strip.ytd)})`}
+      picker={!data.bankFile && data.contributions.length > 0 && chart.picker}>
+      {data.bankFile ? <FileBlock /> : data.contributions.length === 0 ? <Empty>No return on file to attribute.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => `${value > 0 ? "+" : ""}${Math.round(value)} bp`} height={260}
+          label={chart.kind === "waterfall" ? "Each holding's contribution, walked to the sleeve's return" : "What each holding added to or took from the return"}
+          data={{ shape: "series", categories: data.contributions.map((one) => one.label), series: [{ name: "Contribution", values: data.contributions.map((one) => one.basisPoints) }] }} />
+      ) : (
         <ul className="divide-y divide-line">
           {data.contributions.map((one) => (
             <li key={one.label} className="grid min-h-9 grid-cols-[minmax(0,9.5rem)_1fr_4.5rem] items-center gap-2 py-1.5 text-xs">
@@ -524,7 +608,7 @@ function Contributions({ data }: { data: ClientEquity }) {
   );
 }
 
-function CapCard({ data }: { data: ClientEquity }) {
+function CapCard({ data, chart }: { data: ClientEquity; chart: CardChart }) {
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -544,13 +628,19 @@ function CapCard({ data }: { data: ClientEquity }) {
     };
   }, [data.capBuckets]);
   return (
-    <Card title="Market-cap Distribution" lead="% of equity sleeve">
-      {data.bankFile ? <FileBlock /> : <Chart option={option} height={210} label="The equity sleeve by company size against MSCI ACWI" />}
+    <Card title="Market-cap Distribution" lead="% of equity sleeve" picker={!data.bankFile && chart.picker}>
+      {data.bankFile ? <FileBlock /> : chart.own ? <Chart option={option} height={210} label="The equity sleeve by company size against MSCI ACWI" /> : (
+        <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={210} label="The equity sleeve by company size against MSCI ACWI"
+          data={{ shape: "series", categories: data.capBuckets.map((one) => one.name), series: [
+            { name: "Portfolio", values: data.capBuckets.map((one) => one.portfolio), colour: ink().primary },
+            { name: "MSCI ACWI", values: data.capBuckets.map((one) => one.benchmark), colour: ink().neutral },
+          ] }} />
+      )}
     </Card>
   );
 }
 
-function ConcentrationCard({ data }: { data: ClientEquity }) {
+function ConcentrationCard({ data, chart }: { data: ClientEquity; chart: CardChart }) {
   const c = data.concentration;
   const option = useMemo(() => {
     const colours = ink();
@@ -569,10 +659,16 @@ function ConcentrationCard({ data }: { data: ClientEquity }) {
     };
   }, [c]);
   return (
-    <Card title="Concentration" lead="Cumulative weight vs equal-weight line">
+    <Card title="Concentration" lead="Cumulative weight vs equal-weight line" picker={!data.bankFile && !!c && chart.picker}>
       {data.bankFile ? <FileBlock /> : !c ? <Empty>Nothing held.</Empty> : (
         <>
-          <Chart option={option} height={160} label="Cumulative weight of holdings, largest first, against an equal-weight line" />
+          {chart.own ? <Chart option={option} height={160} label="Cumulative weight of holdings, largest first, against an equal-weight line" /> : (
+            <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={160} label="Cumulative weight of holdings, largest first, against an equal-weight line"
+              data={{ shape: "series", categories: c.cumulative.map((_, at) => String(at + 1)), series: [
+                { name: "Cumulative weight", values: c.cumulative },
+                { name: "Equal weight", values: c.cumulative.map((_, at) => ((at + 1) / c.cumulative.length) * 100), colour: ink().neutral },
+              ] }} />
+          )}
           <dl className="mt-2 grid grid-cols-4 gap-2 text-xs">
             <Stat label="Top 10 weight" value={`${c.topTen.toFixed(1)}%`} />
             <Stat label="Effective # names" value={c.effectiveNames.toFixed(1)} />
@@ -585,7 +681,7 @@ function ConcentrationCard({ data }: { data: ClientEquity }) {
   );
 }
 
-function HistoryCard({ data }: { data: ClientEquity }) {
+function HistoryCard({ data, chart }: { data: ClientEquity; chart: CardChart }) {
   const option = useMemo(() => {
     const colours = ink();
     const points = data.valuationHistory;
@@ -603,10 +699,16 @@ function HistoryCard({ data }: { data: ClientEquity }) {
     };
   }, [data.valuationHistory]);
   return (
-    <Card title="Valuation History · P/E" lead="Trailing 12M, quarterly">
+    <Card title="Valuation History · P/E" lead="Trailing 12M, quarterly" picker={!data.bankFile && data.valuationHistory.length > 1 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.valuationHistory.length === 0 ? <Empty>No history on file.</Empty> : (
         <>
-          <Chart option={option} height={180} label="The equity sleeve's trailing P/E each quarter, at today's weights, against MSCI ACWI" />
+          {chart.own ? <Chart option={option} height={180} label="The equity sleeve's trailing P/E each quarter, at today's weights, against MSCI ACWI" /> : (
+            <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}×`} height={180} label="The equity sleeve's trailing P/E each quarter, at today's weights, against MSCI ACWI"
+              data={{ shape: "series", categories: data.valuationHistory.map((one) => one.on.slice(0, 7)), series: [
+                { name: "Portfolio", values: data.valuationHistory.map((one) => one.portfolio) },
+                { name: "MSCI ACWI", values: data.valuationHistory.map((one) => one.benchmark), colour: ink().danger },
+              ] }} />
+          )}
           {data.valuationHistory.length === 1 && <p className="mt-1 text-3xs text-ink-muted italic">One reading on file so far: it is marked as a point, and the line starts with the next.</p>}
           <p className="mt-2 text-xs text-ink-muted">
             Premium to benchmark: <b className="text-ink">{signed(data.premiumNow)}</b> · 5Y average {signed(data.premiumAverage)}
@@ -619,15 +721,54 @@ function HistoryCard({ data }: { data: ClientEquity }) {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 
-function Card({ title, lead, action, flush, children }: { title: string; lead?: string; action?: ReactNode; flush?: boolean; children: ReactNode }) {
+/** What Equity Analytics offers for a card of the reader's own: its fundamentals, allocations and history. */
+function equityFigures(data: ClientEquity): Figures {
+  const pc = (value: number) => `${value.toFixed(1)}%`;
+  const both = (rows: { name: string; portfolio: number | null; benchmark: number | null }[]) => [
+    { name: "Portfolio", values: rows.map((one) => one.portfolio) }, { name: "Benchmark", values: rows.map((one) => one.benchmark) },
+  ];
+  return {
+    ...kpiFigures(data.kpis, (unit) => (value) => figure(value, unit), "Fundamentals"),
+    "sectors.weights": seriesFigure("Sector weights against MSCI ACWI", "Allocation", data.sectors.map((one) => one.name), both(data.sectors), pc,
+      ["grouped-bar", "horizontal-bar", "radar", "table"]),
+    "sectors.mix": sharesFigure("Equity sleeve by sector", "Allocation", data.sectors.filter((one) => one.portfolio > 0).map((one) => ({ name: one.name, value: one.portfolio })), pc),
+    "regions.weights": seriesFigure("Region weights against the benchmark", "Allocation", data.regions.map((one) => one.name), both(data.regions), pc,
+      ["grouped-bar", "horizontal-bar", "table"]),
+    "regions.mix": sharesFigure("Equity sleeve by region", "Allocation", data.regions.filter((one) => one.portfolio > 0).map((one) => ({ name: one.name, value: one.portfolio })), pc),
+    "segments.bands": seriesFigure("Equity segments, actual against target", "Allocation", data.segments.map((one) => one.name), [
+      { name: "Actual", values: data.segments.map((one) => one.actual) }, { name: "Target", values: data.segments.map((one) => one.target) },
+    ], pc, ["grouped-bar", "horizontal-bar", "radar", "table"]),
+    "caps.mix": seriesFigure("Market-cap distribution", "Holdings", data.capBuckets.map((one) => one.name), both(data.capBuckets), pc,
+      ["grouped-bar", "horizontal-bar", "table"]),
+    "contributions.ytd": seriesFigure("Contribution to return this year", "Returns", data.contributions.map((one) => one.label),
+      [{ name: "Contribution", values: data.contributions.map((one) => one.basisPoints) }], (value) => `${value > 0 ? "+" : ""}${Math.round(value)} bp`,
+      ["horizontal-bar", "waterfall", "bar", "table"]),
+    "valuation.history": seriesFigure("Trailing P/E over time", "Returns", data.valuationHistory.map((one) => one.on.slice(0, 7)), [
+      { name: "Portfolio", values: data.valuationHistory.map((one) => one.portfolio) }, { name: "MSCI ACWI", values: data.valuationHistory.map((one) => one.benchmark) },
+    ], (value) => `${value.toFixed(1)}×`, ["line", "area", "table"]),
+    "concentration.top10": singleFigure("Top 10 holdings, % of the sleeve", "Holdings", data.concentration?.topTen, pc, { gauge: true, max: 100 }),
+  };
+}
+
+/** @param picker the chart type switcher, beside the card's own action, for a card that draws a chart */
+function Card({ title, lead, action, flush, picker, children }: {
+  title: string;
+  lead?: string;
+  action?: ReactNode;
+  flush?: boolean;
+  picker?: ReactNode;
+  children: ReactNode;
+}) {
+  // The reader's own name and line for the card, where they set them through Add card.
+  const label = useCardLabel(title, lead);
   return (
     <section className={cn("flex min-w-0 flex-col rounded-2xl border border-line bg-white", flush ? "py-5" : "p-5")}>
       <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", flush && "px-5")}>
         <div>
-          <h2 className="text-lg font-bold">{title}</h2>
-          {lead && <p className="mt-0.5 text-xs text-ink-muted">{lead}</p>}
+          <h2 className="text-lg font-bold">{label.title}</h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        {action}
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
       </div>
       {children}
     </section>

@@ -17,6 +17,11 @@ import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { INK } from "../portfolios/asset-classes";
+import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { useCardLabel } from "../layout/card-settings";
+import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
+import { kpiFigures, seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
+import { useDrill } from "./drill-panel";
 
 echarts.use([ScatterChart, MarkLineComponent, LabelLayout]);
 
@@ -29,10 +34,31 @@ echarts.use([ScatterChart, MarkLineComponent, LabelLayout]);
  * whose figures come only from their bank's files holds no private funds in them, so every card is not in bank file.
  * Read only.
  */
+type PrivateMarketsCard = "kpis" | "multiples" | "segments" | "jcurve" | "diversification" | "funds" | "scorecard"
+  | "pacing" | "notices" | "hedge";
+
+/** The screen's cards, in the firm's order: every card on by default. */
+const CARDS: Record<PrivateMarketsCard, LayoutMeta> = {
+  kpis: { title: "Key figures", group: "Summary", wide: true },
+  multiples: { title: "Multiples", group: "Summary", wide: true },
+  segments: { title: "Alternative Segments · Target vs Actual", group: "Allocation", wide: true, charts: ["table", "grouped-bar", "horizontal-bar", "radar"] },
+  jcurve: { title: "J-Curve & Cash-flow History", group: "Cash flows", charts: ["stacked-bar", "grouped-bar", "waterfall", "line", "table"] },
+  diversification: { title: "Diversification", group: "Allocation", charts: ["donut", "horizontal-bar", "treemap", "table"] },
+  funds: { title: "Fund Commitments", group: "Funds", wide: true, charts: ["table", "stacked-bar", "horizontal-bar", "treemap"] },
+  scorecard: { title: "Manager Scorecard", group: "Funds", charts: ["bubble", "scatter", "table"] },
+  pacing: { title: "Pacing Forecast · 8 Quarters", group: "Cash flows", charts: ["stacked-bar", "grouped-bar", "waterfall", "line", "table"] },
+  notices: { title: "Notices & Cash Events", group: "Cash flows", wide: true },
+  hedge: { title: "Hedge Funds", group: "Funds", wide: true, charts: ["table", "horizontal-bar", "grouped-bar"] },
+};
+
+// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
+const DEFAULT_CARDS: PrivateMarketsCard[] = ["kpis", "jcurve", "funds", "pacing"];
+
 export function ClientPrivateMarketsPage() {
   const { customerId = "" } = useParams();
   const pm = useGetClientWorkspacePrivateMarkets<ClientPrivateMarkets, ApiError>(customerId);
   const data = pm.data;
+  const view = useViewLayout("workspace.private-markets", CARDS, DEFAULT_CARDS);
 
   if (pm.isError) return <Alert tone="danger">{pm.error.message}</Alert>;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Reading the private markets program…</p>;
@@ -40,36 +66,29 @@ export function ClientPrivateMarketsPage() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
-          Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Private Markets
-        </p>
-        <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Private Markets &amp; Alternatives</h1>
-        <p className="mt-1 text-sm text-ink-muted">Commitments, cash flows and performance across private equity, venture, credit, infrastructure and hedge funds</p>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            Portfolio Management / <Link to="/client-directory" className="hover:text-primary-700">Clients</Link> / {data.name} / Private Markets
+          </p>
+          <h1 className="mt-1 text-[1.625rem] leading-tight font-bold">Private Markets &amp; Alternatives</h1>
+          <p className="mt-1 text-sm text-ink-muted">Commitments, cash flows and performance across private equity, venture, credit, infrastructure and hedge funds</p>
+        </div>
+        <CustomizeButton view={view} />
       </header>
 
-      <Kpis data={data} />
-      <Multiples data={data} />
-      <Segments data={data} />
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-        <JCurveCard data={data} />
-        <DiversificationCard data={data} />
-      </div>
-      <FundsCard data={data} />
-      {/* A scorecard with nothing to plot yet is a short card on its own rather than a tall empty one beside Pacing. */}
-      {data.scorecard.length === 0 && !data.bankFile ? (
-        <>
-          <ScorecardCard data={data} />
-          <PacingCard data={data} />
-        </>
-      ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
-          <ScorecardCard data={data} />
-          <PacingCard data={data} />
-        </div>
-      )}
-      <NoticesCard data={data} />
-      <HedgeFundsCard data={data} />
+      <LayoutGrid view={view} screen="Private Markets" figures={data.bankFile ? undefined : privateFigures(data)} render={{
+        kpis: <Kpis data={data} />,
+        multiples: <Multiples data={data} />,
+        segments: <Segments data={data} chart={cardChart(view, "segments")} />,
+        jcurve: <JCurveCard data={data} chart={cardChart(view, "jcurve")} />,
+        diversification: <DiversificationCard data={data} chart={cardChart(view, "diversification")} />,
+        funds: <FundsCard data={data} chart={cardChart(view, "funds")} />,
+        scorecard: <ScorecardCard data={data} chart={cardChart(view, "scorecard")} />,
+        pacing: <PacingCard data={data} chart={cardChart(view, "pacing")} />,
+        notices: <NoticesCard data={data} />,
+        hedge: <HedgeFundsCard data={data} chart={cardChart(view, "hedge")} />,
+      }} />
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
@@ -134,15 +153,26 @@ function Multiples({ data }: { data: ClientPrivateMarkets }) {
   );
 }
 
-function Segments({ data }: { data: ClientPrivateMarkets }) {
+function Segments({ data, chart }: { data: ClientPrivateMarkets; chart: CardChart }) {
   const rows = data.segments;
+  const drill = useDrill();
   const scale = Math.max(10, ...rows.map((one) => Math.max(one.max ?? 0, one.actual))) * 1.05;
   return (
     <Card title="Alternative Segments · Target vs Actual" lead={data.bankFile ? undefined : data.segmentsNote ?? undefined} flush
+      picker={!data.bankFile && rows.length > 0 && chart.picker}
       action={!data.bankFile && (
         <Link to={`/client-workspace/${data.customerId}/ips`} className="text-xs font-semibold text-primary-700 hover:underline">All asset classes</Link>
       )}>
-      {data.bankFile ? <div className="px-5"><FileBlock /></div> : rows.length === 0 ? <Empty>No model to measure against yet.</Empty> : (
+      {data.bankFile ? <div className="px-5"><FileBlock /></div> : rows.length === 0 ? <Empty>No model to measure against yet.</Empty> : !chart.own ? (
+        <div className="px-5">
+          <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={260} label="Each alternative segment's actual weight against its target"
+            data={{ shape: "series", categories: rows.map((one) => one.name), series: [
+              { name: "Actual", values: rows.map((one) => one.actual) },
+              { name: "Target", values: rows.map((one) => one.target) },
+            ] }}
+            onPick={(at) => { const row = rows[at]; if (row) drill?.(row.assetClass ? { by: "class", key: row.key, name: row.name } : { by: "subClass", key: row.name, name: row.name }); }} />
+        </div>
+      ) : (
         <>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -172,11 +202,17 @@ function Segments({ data }: { data: ClientPrivateMarkets }) {
 }
 
 function SegmentLine({ row, scale, currency }: { row: IpsAllocationRow; scale: number; currency: string }) {
+  const drill = useDrill();
   const at = (value: number) => `${Math.min(100, (value / scale) * 100)}%`;
   const pct = (value: number | null) => (value == null ? "—" : `${value.toFixed(row.assetClass ? 1 : 2)}%`);
   return (
     <tr className={cn(row.assetClass && "bg-slate-50 font-semibold")}>
-      <th scope="row" className={cn("py-2 pr-3 text-left", row.assetClass ? "pl-5" : "pl-9 font-normal")}>{row.name}</th>
+      <th scope="row" className={cn("py-2 pr-3 text-left", row.assetClass ? "pl-5" : "pl-9 font-normal")}>
+        <button type="button" className="text-left hover:text-primary-700 hover:underline"
+          onClick={() => drill?.(row.assetClass ? { by: "class", key: row.key, name: row.name } : { by: "subClass", key: row.name, name: row.name })}>
+          {row.name}
+        </button>
+      </th>
       <td className="px-2 py-2 text-right tabular-nums">{pct(row.min)}</td>
       <td className="px-2 py-2 text-right tabular-nums">{pct(row.target)}</td>
       <td className="px-2 py-2 text-right tabular-nums">{pct(row.max)}</td>
@@ -203,7 +239,7 @@ function SegmentLine({ row, scale, currency }: { row: IpsAllocationRow; scale: n
 
 /* ------------------------------------------------------------------------------------------------------------ */
 
-function JCurveCard({ data }: { data: ClientPrivateMarkets }) {
+function JCurveCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardChart }) {
   const bars = useMemo(() => {
     const colours = ink();
     return {
@@ -241,10 +277,17 @@ function JCurveCard({ data }: { data: ClientPrivateMarkets }) {
     };
   }, [data.years, data.currency, data.cumulativeNet, data.valueCreated]);
   return (
-    <Card title="J-Curve & Cash-flow History" lead={data.bankFile ? undefined : `Program level · ${data.currency} · calls shown below zero`}>
+    <Card title="J-Curve & Cash-flow History" lead={data.bankFile ? undefined : `Program level · ${data.currency} · calls shown below zero`}
+      picker={!data.bankFile && data.years.length > 0 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.years.length === 0 ? <Empty>No calls or distributions on file.</Empty> : (
         <>
-          <Chart option={bars} height={230} label="Capital calls and distributions by year" />
+          {chart.own ? <Chart option={bars} height={230} label="Capital calls and distributions by year" /> : (
+            <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={230} label="Capital calls and distributions by year"
+              data={{ shape: "series", categories: data.years.map((one) => String(one.year)), series: [
+                { name: "Distributions", values: data.years.map((one) => one.distributions), colour: ink().primary },
+                { name: "Capital calls", values: data.years.map((one) => one.calls), colour: ink().danger },
+              ] }} />
+          )}
           <p className="mt-4 text-3xs font-semibold tracking-wider text-ink-muted uppercase">Cumulative position</p>
           <Chart option={lines} height={220} label="Cumulative net cash flow and value created by year" />
         </>
@@ -253,7 +296,8 @@ function JCurveCard({ data }: { data: ClientPrivateMarkets }) {
   );
 }
 
-function DiversificationCard({ data }: { data: ClientPrivateMarkets }) {
+function DiversificationCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardChart }) {
+  const drill = useDrill();
   const donut = useMemo(() => {
     const colours = ink();
     return {
@@ -277,11 +321,19 @@ function DiversificationCard({ data }: { data: ClientPrivateMarkets }) {
     };
   }, [data.vintages, data.currency]);
   return (
-    <Card title="Diversification" lead={data.bankFile ? undefined : "Strategy by NAV · vintage by commitment"}>
+    <Card title="Diversification" lead={data.bankFile ? undefined : "Strategy by NAV · vintage by commitment"}
+      picker={!data.bankFile && data.strategies.length > 0 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.strategies.length === 0 ? <Empty>No funds held.</Empty> : (
         <>
+          {!chart.own ? (
+            <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={240} label="NAV by strategy"
+              data={{ shape: "shares", items: data.strategies.map((one) => ({ name: one.label, value: one.value })) }}
+              onPick={(at) => { const one = data.strategies[at]; if (one) drill?.({ by: "strategy", key: one.key, name: one.label }); }} />
+          ) : (
+          <>
           <div className="relative mx-auto w-full max-w-48">
-            <Chart option={donut} height={180} label="NAV by strategy" />
+            <Chart option={donut} height={180} label="NAV by strategy"
+              onPick={(_, at) => { const one = data.strategies[at]; if (one) drill?.({ by: "strategy", key: one.key, name: one.label }); }} />
             <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
               <div>
                 <p className="text-lg font-bold tabular-nums">{data.nav == null ? "—" : compact(data.nav, data.currency)}</p>
@@ -293,15 +345,24 @@ function DiversificationCard({ data }: { data: ClientPrivateMarkets }) {
             <tbody className="divide-y divide-line">
               {data.strategies.map((one, at) => (
                 <tr key={one.key}>
-                  <td className="py-1.5"><span className="flex items-center gap-2"><span className="size-2.5 rounded-xs" style={{ background: INK[at % INK.length] }} aria-hidden="true" />{one.label}</span></td>
+                  <td className="py-1.5">
+                    <span className="flex items-center gap-2">
+                      <span className="size-2.5 rounded-xs" style={{ background: INK[at % INK.length] }} aria-hidden="true" />
+                      <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                        onClick={() => drill?.({ by: "strategy", key: one.key, name: one.label })}>{one.label}</button>
+                    </span>
+                  </td>
                   <td className="py-1.5 text-right font-semibold tabular-nums">{compact(one.value, data.currency)}</td>
                   <td className="w-14 py-1.5 text-right text-ink-muted tabular-nums">{one.percent == null ? "—" : `${one.percent.toFixed(0)}%`}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </>
+          )}
           <p className="mt-4 text-3xs font-semibold tracking-wider text-ink-muted uppercase">Commitments by vintage</p>
-          <Chart option={vintages} height={170} label="Commitments by vintage year" />
+          <Chart option={vintages} height={170} label="Commitments by vintage year"
+            onPick={(year) => drill?.({ by: "vintage", key: year, name: `Vintage ${year}` })} />
         </>
       )}
     </Card>
@@ -312,12 +373,13 @@ function DiversificationCard({ data }: { data: ClientPrivateMarkets }) {
 
 const TABS: [string, string][] = [["PE_CREDIT", "Private equity & credit"], ["REAL_ESTATE", "Real estate funds"], ["ALL", "All"]];
 
-function FundsCard({ data }: { data: ClientPrivateMarkets }) {
+function FundsCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardChart }) {
+  const drill = useDrill();
   const [tab, setTab] = useState("PE_CREDIT");
   const rows = data.funds.filter((one) => tab === "ALL" || one.tab === tab);
   const total = data.totals.find((one) => one.tab === tab);
   return (
-    <Card title="Fund Commitments" flush
+    <Card title="Fund Commitments" flush picker={!data.bankFile && chart.picker}
       lead={data.bankFile ? undefined : data.funds.some((one) => one.quartile)
         ? "Quartile on TVPI against demo vintage break-points by strategy and vintage · IRR not meaningful (n.m.) under 3 years"
         : "Quartile not measured: no vintage benchmarks on file · IRR not meaningful (n.m.) under 3 years"}
@@ -331,7 +393,22 @@ function FundsCard({ data }: { data: ClientPrivateMarkets }) {
           ))}
         </div>
       )}>
-      {data.bankFile ? <div className="px-5"><FileBlock /></div> : rows.length === 0 ? <Empty>No funds in this group.</Empty> : (
+      {data.bankFile ? <div className="px-5"><FileBlock /></div> : rows.length === 0 ? <Empty>No funds in this group.</Empty> : !chart.own ? (
+        <div className="px-5">
+          <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={60 + rows.length * 26} label="Each fund's value: what it has paid back and what it holds"
+            data={chart.kind === "stacked-bar"
+              ? { shape: "series", categories: rows.map((one) => one.name), series: [
+                  { name: "Distributed", values: rows.map((one) => one.distributed) },
+                  { name: "NAV", values: rows.map((one) => one.nav) },
+                ] }
+              : { shape: "shares", items: rows.filter((one) => one.nav > 0).map((one) => ({ name: one.name, value: one.nav })) }}
+            onPick={(at) => {
+              const list = chart.kind === "stacked-bar" ? rows : rows.filter((one) => one.nav > 0);
+              const one = list[at];
+              if (one) drill?.({ by: "fund", key: one.name, name: one.name });
+            }} />
+        </div>
+      ) : (
         <>
           <div className="overflow-x-auto">
             <table className="min-w-full text-xs">
@@ -367,11 +444,15 @@ function FundsCard({ data }: { data: ClientPrivateMarkets }) {
 }
 
 function FundLine({ row, currency }: { row: PmFund; currency: string }) {
+  const drill = useDrill();
   const money = (value: number) => compact(value, currency);
   return (
     <tr className={cn(row.total && "bg-slate-50 font-semibold")}>
       <th scope="row" className="py-2 pr-2 pl-5 text-left font-semibold">
-        <span className="block whitespace-nowrap">{row.name}</span>
+        {row.total ? <span className="block whitespace-nowrap">{row.name}</span> : (
+          <button type="button" className="block text-left whitespace-nowrap hover:text-primary-700 hover:underline"
+            onClick={() => drill?.({ by: "fund", key: row.name, name: row.name })}>{row.name}</button>
+        )}
         {row.administrator && <span className="block text-3xs font-normal text-ink-muted">Admin: {row.administrator}</span>}
       </th>
       <td className="px-1.5 py-2 whitespace-nowrap">{row.strategy}</td>
@@ -409,7 +490,7 @@ function FundLine({ row, currency }: { row: PmFund; currency: string }) {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 
-function ScorecardCard({ data }: { data: ClientPrivateMarkets }) {
+function ScorecardCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardChart }) {
   const option = useMemo(() => {
     const colours = ink();
     const largest = Math.max(1, ...data.scorecard.map((one) => one.committed));
@@ -436,10 +517,14 @@ function ScorecardCard({ data }: { data: ClientPrivateMarkets }) {
     };
   }, [data.scorecard, data.scorecardPme]);
   return (
-    <Card title="Manager Scorecard" lead={data.bankFile ? undefined : "TVPI vs net IRR · bubble = commitment · each fund against its own MSCI ACWI PME"}>
+    <Card title="Manager Scorecard" lead={data.bankFile ? undefined : "TVPI vs net IRR · bubble = commitment · each fund against its own MSCI ACWI PME"}
+      picker={!data.bankFile && data.scorecard.length > 0 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.scorecard.length === 0 ? <Empty>No fund has a meaningful IRR yet: under 3 years since vintage or under a year of own flows.</Empty> : (
         <>
-          <Chart option={option} height={300} label="Each fund's TVPI against its net IRR" />
+          {chart.own ? <Chart option={option} height={300} label="Each fund's TVPI against its net IRR" /> : (
+            <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={300} label="Each fund's TVPI against its net IRR"
+              data={{ shape: "points", xName: "Net IRR %", yName: "TVPI ×", sizeName: "Committed", items: data.scorecard.map((one) => ({ name: one.name, x: one.irr, y: one.tvpi, size: one.committed })) }} />
+          )}
           {data.scorecardNote && <p className="mt-2 text-xs text-ink-muted">{data.scorecardNote}.</p>}
         </>
       )}
@@ -447,7 +532,7 @@ function ScorecardCard({ data }: { data: ClientPrivateMarkets }) {
   );
 }
 
-function PacingCard({ data }: { data: ClientPrivateMarkets }) {
+function PacingCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardChart }) {
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -467,10 +552,17 @@ function PacingCard({ data }: { data: ClientPrivateMarkets }) {
     };
   }, [data.pacing, data.currency, data.pacingDistributions, data.pacingCalls]);
   return (
-    <Card title="Pacing Forecast · 8 Quarters" lead={data.bankFile ? undefined : "Expected cash flows on existing commitments"}>
+    <Card title="Pacing Forecast · 8 Quarters" lead={data.bankFile ? undefined : "Expected cash flows on existing commitments"}
+      picker={!data.bankFile && data.pacing.length > 0 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.pacing.length === 0 ? <Empty>No commitments to pace.</Empty> : (
         <>
-          <Chart option={option} height={280} label="Projected calls and distributions by quarter" />
+          {chart.own ? <Chart option={option} height={280} label="Projected calls and distributions by quarter" /> : (
+            <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={280} label="Projected calls and distributions by quarter"
+              data={{ shape: "series", categories: data.pacing.map((one) => one.label), series: [
+                { name: "Projected distributions", values: data.pacing.map((one) => one.distributions), colour: ink().primary },
+                { name: "Projected calls", values: data.pacing.map((one) => one.calls), colour: ink().danger },
+              ] }} />
+          )}
           <p className="mt-2 text-xs text-ink-muted">
             Takahashi-Alexander model · base case.{" "}
             {data.positiveFrom ? <>Program turns net cash-flow positive from <strong className="text-ink">{data.positiveFrom}</strong>.</>
@@ -492,6 +584,7 @@ const NOTICE_TONE: Record<string, string> = {
 };
 
 function NoticesCard({ data }: { data: ClientPrivateMarkets }) {
+  const drill = useDrill();
   return (
     <Card title="Notices & Cash Events" lead={data.bankFile ? undefined : "From the capital calls and distributions on file"} flush>
       {data.bankFile ? <div className="px-5"><FileBlock /></div> : data.notices.length === 0 ? <Empty>No calls or distributions from 60 days back to 90 days ahead.</Empty> : (
@@ -509,7 +602,10 @@ function NoticesCard({ data }: { data: ClientPrivateMarkets }) {
             <tbody className="divide-y divide-line">
               {data.notices.map((one, at) => (
                 <tr key={`${one.fund}-${one.on}-${at}`}>
-                  <th scope="row" className="py-2 pr-3 pl-5 text-left font-semibold">{one.fund}</th>
+                  <th scope="row" className="py-2 pr-3 pl-5 text-left font-semibold">
+                    <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                      onClick={() => drill?.({ by: "fund", key: one.fund, name: one.fund })}>{one.fund}</button>
+                  </th>
                   <td className="px-2 py-2">
                     {one.kind === "CAPITAL_CALL" ? <Pill tone="bg-red-50 text-red-700">Capital call</Pill> : <Pill tone="bg-emerald-50 text-emerald-700">Distribution</Pill>}
                   </td>
@@ -528,10 +624,24 @@ function NoticesCard({ data }: { data: ClientPrivateMarkets }) {
   );
 }
 
-function HedgeFundsCard({ data }: { data: ClientPrivateMarkets }) {
+function HedgeFundsCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardChart }) {
+  const funds = data.hedgeFunds;
   return (
-    <Card title="Hedge Funds" lead={data.bankFile ? undefined : data.hedgeNote ?? undefined} flush>
-      {data.bankFile ? <div className="px-5"><FileBlock /></div> : data.hedgeFunds.length === 0 ? <Empty>No hedge funds in the client's alternatives lines.</Empty> : (
+    <Card title="Hedge Funds" lead={data.bankFile ? undefined : data.hedgeNote ?? undefined} flush picker={!data.bankFile && funds.length > 0 && chart.picker}>
+      {data.bankFile ? <div className="px-5"><FileBlock /></div> : funds.length === 0 ? <Empty>No hedge funds in the client's alternatives lines.</Empty> : !chart.own ? (
+        <div className="px-5">
+          {chart.kind === "grouped-bar" ? (
+            <KindChart kind="grouped-bar" format={(value) => `${value > 0 ? "+" : ""}${value.toFixed(1)}%`} height={240} label="Each hedge fund's return this year and over three years"
+              data={{ shape: "series", categories: funds.map((one) => one.name), series: [
+                { name: "YTD", values: funds.map((one) => one.ytd) },
+                { name: "3Y ann.", values: funds.map((one) => one.threeYear) },
+              ] }} />
+          ) : (
+            <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={60 + funds.length * 28} label="What each hedge fund holds for the client"
+              data={{ shape: "shares", items: funds.map((one) => ({ name: one.name, value: one.value })) }} />
+          )}
+        </div>
+      ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -578,15 +688,52 @@ function HedgeLine({ row, currency, sleeve }: { row: PmHedgeFund; currency: stri
 
 /* ------------------------------------------------------------------------------------------------------------ */
 
-function Card({ title, lead, action, flush, children }: { title: string; lead?: string; action?: ReactNode; flush?: boolean; children: ReactNode }) {
+/** What Private Markets offers for a card of the reader's own: its key figures, cash flows and commitments. */
+function privateFigures(data: ClientPrivateMarkets): Figures {
+  const amount = (value: number) => compact(value, data.currency);
+  const unitFormat = (unit: string) => (value: number) => unit === "PERCENT" ? `${value.toFixed(1)}%` : unit === "MULTIPLE" ? `${value.toFixed(2)}×`
+    : unit === "MONEY" ? compact(value, data.currency) : String(value);
+  return {
+    ...kpiFigures([...data.kpis, ...data.multiples], unitFormat),
+    "flows.years": seriesFigure("Calls and distributions by year", "Cash flows", data.years.map((one) => String(one.year)), [
+      { name: "Distributions", values: data.years.map((one) => one.distributions) }, { name: "Capital calls", values: data.years.map((one) => one.calls) },
+    ], amount, ["stacked-bar", "grouped-bar", "waterfall", "line", "table"]),
+    "flows.cumulative": seriesFigure("Cumulative net cash flow and value created", "Cash flows", data.years.map((one) => String(one.year)), [
+      { name: "Cumulative net cash flow", values: data.years.map((one) => one.cumulativeNet) }, { name: "Value created", values: data.years.map((one) => one.valueCreated) },
+    ], amount, ["line", "area", "table"]),
+    "flows.pacing": seriesFigure("Projected calls and distributions, next 8 quarters", "Cash flows", data.pacing.map((one) => one.label), [
+      { name: "Distributions", values: data.pacing.map((one) => one.distributions) }, { name: "Calls", values: data.pacing.map((one) => one.calls) },
+    ], amount, ["stacked-bar", "grouped-bar", "waterfall", "line", "table"]),
+    "mix.strategy": sharesFigure("NAV by strategy", "Diversification", data.strategies.map((one) => ({ name: one.label, value: one.value })), amount),
+    "mix.vintage": sharesFigure("Commitments by vintage", "Diversification", data.vintages.map((one) => ({ name: one.label, value: one.value })), amount,
+      ["bar", "horizontal-bar", "donut", "table"]),
+    "funds.nav": sharesFigure("NAV by fund", "Funds", data.funds.filter((one) => !one.total && one.nav > 0).map((one) => ({ name: one.name, value: one.nav })), amount,
+      ["horizontal-bar", "treemap", "donut", "table"]),
+    "segments.bands": seriesFigure("Alternative segments, actual against target", "Allocation", data.segments.map((one) => one.name), [
+      { name: "Actual", values: data.segments.map((one) => one.actual) }, { name: "Target", values: data.segments.map((one) => one.target) },
+    ], (value) => `${value.toFixed(1)}%`, ["grouped-bar", "horizontal-bar", "radar", "table"]),
+  };
+}
+
+/** @param picker the chart type switcher, beside the card's own action, for a card that draws a chart */
+function Card({ title, lead, action, flush, picker, children }: {
+  title: string;
+  lead?: string;
+  action?: ReactNode;
+  flush?: boolean;
+  picker?: ReactNode;
+  children: ReactNode;
+}) {
+  // The reader's own name and line for the card, where they set them through Add card.
+  const label = useCardLabel(title, lead);
   return (
     <section className={cn("flex min-w-0 flex-col rounded-2xl border border-line bg-white", flush ? "py-5" : "p-5")}>
       <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", flush && "px-5")}>
         <div>
-          <h2 className="text-lg font-bold">{title}</h2>
-          {lead && <p className="mt-0.5 text-xs text-ink-muted">{lead}</p>}
+          <h2 className="text-lg font-bold">{label.title}</h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        {action}
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
       </div>
       {children}
     </section>
