@@ -36,7 +36,7 @@ import {
   RegisteredAddressStep,
 } from "./onboarding-steps";
 
-const REVIEW: ReviewStep = { id: "review", group: "Finish", label: "Review & submit", complete: false };
+const REVIEW: ReviewStep = { id: "review", group: "Finish", label: "Review & submit", complete: false, fields: [] };
 
 const descriptions: Record<string, string> = {
   client: "Is the client a person or an organisation, and which relationship manager will look after them?",
@@ -74,6 +74,8 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
   const [formError, setFormError] = useState<string>();
   const [justSaved, setJustSaved] = useState(false);
   const [removingHolder, setRemovingHolder] = useState<number | null>(null);
+  // The step whose Continue (or Submit) was pressed with required details still missing: it lists them until they're in.
+  const [tried, setTried] = useState<string | null>(null);
 
   const review = useMemo(() => reviewApplication(application, managers), [application, managers]);
   const steps = [...review.steps, REVIEW];
@@ -100,9 +102,37 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
   function goTo(id: string) {
     setFormError(undefined);
     setJustSaved(false);
+    setTried(null);
     setCurrentId(id);
     window.scrollTo({ top: 0 });
   }
+
+  /**
+   * Continue is always there to press. With a required detail missing it stays on the step, marks every missing field
+   * and lists them at the top; with everything in, it moves on.
+   */
+  function proceed() {
+    if (current.complete) {
+      goTo(steps[index + 1]?.id ?? REVIEW.id);
+      return;
+    }
+    setTouched((seen) => new Set([...seen, ...current.fields]));
+    setTried(current.id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    // The first field still missing takes the focus, once its error is drawn.
+    requestAnimationFrame(() => document.querySelector<HTMLElement>("[aria-invalid='true']")?.focus({ preventScroll: true }));
+  }
+
+  function trySubmit() {
+    if (everyStepComplete) {
+      void submitDetails();
+      return;
+    }
+    setTried(REVIEW.id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  const missingHere = tried === current.id ? current.fields.map((key) => review.problems[key]).filter(Boolean) : [];
+  const unfinished = tried === REVIEW.id && current.id === REVIEW.id ? review.steps.filter((step) => !step.complete) : [];
 
   const start = useStartOnboardingCase<ApiError>();
   const save = useSaveOnboardingDraft<ApiError>();
@@ -245,6 +275,29 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
 
           <div key={current.id} className="space-y-6 px-6 py-6">
             {formError && <Alert tone="danger">{formError}</Alert>}
+            {missingHere.length > 0 && (
+              <Alert tone="danger">
+                <p className="font-semibold">Fill in {missingHere.length === 1 ? "this required detail" : `these ${missingHere.length} required details`} to continue:</p>
+                <ul className="mt-1.5 list-disc space-y-0.5 pl-5">
+                  {missingHere.map((message) => <li key={message}>{message}</li>)}
+                </ul>
+              </Alert>
+            )}
+            {unfinished.length > 0 && (
+              <Alert tone="danger">
+                <p className="font-semibold">Some steps still need details before this can be submitted:</p>
+                <ul className="mt-1.5 space-y-0.5">
+                  {unfinished.map((step) => (
+                    <li key={step.id}>
+                      <button type="button" onClick={() => goTo(step.id)} className="font-semibold underline underline-offset-2">
+                        {step.group} · {step.label}
+                      </button>
+                      {" "}— {step.fields.length} missing
+                    </li>
+                  ))}
+                </ul>
+              </Alert>
+            )}
             {renderStep()}
           </div>
 
@@ -271,11 +324,11 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
                 Back
               </Button>
               {current.id === "review" ? (
-                <Button onClick={() => void submitDetails()} disabled={!everyStepComplete || busy}>
+                <Button onClick={trySubmit} disabled={busy}>
                   {submit.isPending ? "Submitting…" : "Submit"}
                 </Button>
               ) : (
-                <Button onClick={() => goTo(steps[index + 1]?.id ?? REVIEW.id)} disabled={!current.complete}>
+                <Button onClick={proceed}>
                   Continue
                   <ChevronRight aria-hidden="true" />
                 </Button>
