@@ -36,6 +36,9 @@ export function ClientHoldingsPage() {
   const check = useReconcileClientHoldings<ClientHoldingsCheck, ApiError>(customerId, { query: { retry: false } });
   const data = book.data;
   const view = useViewLayout("workspace.holdings", CARDS, DEFAULT_CARDS);
+  // The line picked on the Positions tab, whose tax lots their own card shows; and the tab open on the lines card.
+  const [tab, setTab] = useState<Tab>("positions");
+  const [pickedId, setPickedId] = useState<string | null>(null);
 
   if (book.isError) return <Alert tone="danger">{book.error.message}</Alert>;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Reading the holdings…</p>;
@@ -43,6 +46,11 @@ export function ClientHoldingsPage() {
   const reconciliation: Reconciliation = check.data ? { kind: "data", data: check.data }
     : check.isError ? { kind: "none", message: check.error.status === 404 ? "No bank has sent this client's holdings." : check.error.message }
     : { kind: "loading" };
+  const picked = data.positions.find((one) => one.id === pickedId) ?? data.positions[0] ?? null;
+  const fullLedger = view.cards.includes("lines") ? () => {
+    setTab("transactions");
+    document.getElementById("holdings-lines")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  } : null;
 
   return (
     <div className="space-y-5">
@@ -63,7 +71,9 @@ export function ClientHoldingsPage() {
         custodian: <CustodianCard data={data} chart={cardChart(view, "custodian")} />,
         currency: <CurrencyCard data={data} chart={cardChart(view, "currency")} />,
         pnl: <PnlCard data={data} chart={cardChart(view, "pnl")} />,
-        lines: <Tabs data={data} reconciliation={reconciliation} />,
+        lines: <Tabs data={data} reconciliation={reconciliation} tab={tab} onTab={setTab} picked={picked} onPick={(one) => setPickedId(one.id)} />,
+        lots: <LotsCard data={data} picked={tab === "positions" ? picked : null} />,
+        recent: <RecentCard data={data} onFullLedger={fullLedger} />,
       }} />
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
@@ -75,7 +85,7 @@ export function ClientHoldingsPage() {
   );
 }
 
-type HoldingsCard = "kpis" | "custodian" | "currency" | "pnl" | "lines";
+type HoldingsCard = "kpis" | "custodian" | "currency" | "pnl" | "lines" | "lots" | "recent";
 
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<HoldingsCard, LayoutMeta> = {
@@ -84,10 +94,13 @@ const CARDS: Record<HoldingsCard, LayoutMeta> = {
   currency: { title: "By Currency", group: "Breakdowns", charts: ["stacked-bar", "donut", "horizontal-bar", "treemap", "table"] },
   pnl: { title: "Unrealised P&L by Asset Class", group: "Breakdowns", charts: ["horizontal-bar", "bar", "waterfall", "table"] },
   lines: { title: "Positions, lots, transactions & reconciliation", group: "Lines", wide: true },
+  lots: { title: "Tax Lots of the selected line", group: "Lines", wide: true },
+  recent: { title: "Recent Transactions", group: "Lines", wide: true },
 };
 
-// The four that matter most open the screen; every other card waits in Add cards. A layout someone saved is kept.
-const DEFAULT_CARDS: HoldingsCard[] = ["kpis", "custodian", "currency", "lines"];
+// The four that matter most open the screen, the lines card with the two cards that were once part of it; every other
+// card waits in Add cards. A layout someone saved is kept.
+const DEFAULT_CARDS: HoldingsCard[] = ["kpis", "custodian", "currency", "lines", "lots", "recent"];
 
 type Reconciliation = { kind: "data"; data: ClientHoldingsCheck } | { kind: "none"; message: string } | { kind: "loading" };
 
@@ -315,44 +328,65 @@ const TABS = [
 
 type Tab = (typeof TABS)[number][0];
 
-function Tabs({ data, reconciliation }: { data: ClientHoldingsBook; reconciliation: Reconciliation }) {
-  const [tab, setTab] = useState<Tab>("positions");
-  const [picked, setPicked] = useState<HoldingsPosition | null>(data.positions[0] ?? null);
+function Tabs({ data, reconciliation, tab, onTab, picked, onPick }: {
+  data: ClientHoldingsBook;
+  reconciliation: Reconciliation;
+  tab: Tab;
+  onTab: (tab: Tab) => void;
+  picked: HoldingsPosition | null;
+  onPick: (one: HoldingsPosition) => void;
+}) {
   return (
-    <>
-      <section className="rounded-2xl border border-line bg-white p-5">
-        <div role="tablist" aria-label="Holdings" className="-mx-5 mb-4 flex gap-1 overflow-x-auto border-b border-line px-5">
+    <section id="holdings-lines" className="scroll-mt-4 rounded-2xl border border-line bg-white p-5">
+      <div className="-mx-5 mb-4 flex items-end gap-2 border-b border-line px-5">
+        <div role="tablist" aria-label="Holdings" className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
           {TABS.map(([id, label]) => (
-            <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+            <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => onTab(id)}
               className={cn("-mb-px border-b-2 px-3 py-2 text-sm font-semibold whitespace-nowrap",
                 tab === id ? "border-primary-600 text-primary-700" : "border-transparent text-ink-soft hover:text-ink")}>
               {label}
             </button>
           ))}
         </div>
-        {tab === "positions" && <Positions data={data} onPick={setPicked} picked={picked} />}
-        {tab === "lots" && (data.bankFile ? <FileNote what="Tax lots" /> : <LotsTable data={data} position={null} />)}
-        {tab === "transactions" && <Ledger data={data} limit={null} />}
-        {tab === "actions" && (data.bankFile ? <FileNote what="Corporate actions" /> : <Actions data={data} />)}
-        {tab === "reconciliation" && (
-          reconciliation.kind === "data" ? <HoldingsCheckBody data={reconciliation.data} />
-            : reconciliation.kind === "none" ? <Empty>{reconciliation.message}</Empty> : <Empty>Comparing holdings…</Empty>
-        )}
-      </section>
-      {tab === "positions" && picked && !data.bankFile && (
-        <Card title={`Tax Lots · ${picked.name}`}
-          lead={[picked.quantity == null ? null : `${plain(picked.quantity)} units`, picked.entity].filter(Boolean).join(" · ") || undefined}>
-          <LotsTable data={data} position={picked} />
-        </Card>
+        <div className="pb-1.5"><CardMenu /></div>
+      </div>
+      {tab === "positions" && <Positions data={data} onPick={onPick} picked={picked} />}
+      {tab === "lots" && (data.bankFile ? <FileNote what="Tax lots" /> : <LotsTable data={data} position={null} />)}
+      {tab === "transactions" && <Ledger data={data} limit={null} />}
+      {tab === "actions" && (data.bankFile ? <FileNote what="Corporate actions" /> : <Actions data={data} />)}
+      {tab === "reconciliation" && (
+        reconciliation.kind === "data" ? <HoldingsCheckBody data={reconciliation.data} />
+          : reconciliation.kind === "none" ? <Empty>{reconciliation.message}</Empty> : <Empty>Comparing holdings…</Empty>
       )}
-      {tab === "positions" && picked && data.bankFile && (
-        <Card title={`Tax Lots · ${picked.name}`}><FileNote what="Tax lots" /></Card>
-      )}
-      <Card title="Recent Transactions" lead={data.bankFile ? "As the bank's files state them" : "From bank statements, recorded flows, capital calls and events"}
-        action={<button type="button" onClick={() => setTab("transactions")} className="text-xs font-semibold text-primary-700 hover:underline">Full ledger</button>}>
-        <Ledger data={data} limit={8} />
+    </section>
+  );
+}
+
+/** The tax lots of the line picked on the Positions tab; with another tab open there is no line to show. */
+function LotsCard({ data, picked }: { data: ClientHoldingsBook; picked: HoldingsPosition | null }) {
+  if (!picked) {
+    return (
+      <Card title="Tax Lots">
+        <Empty>{data.positions.length === 0 ? "No lines on file." : "Pick a line on the Positions tab to see its tax lots."}</Empty>
       </Card>
-    </>
+    );
+  }
+  if (data.bankFile) return <Card title={`Tax Lots · ${picked.name}`}><FileNote what="Tax lots" /></Card>;
+  return (
+    <Card title={`Tax Lots · ${picked.name}`}
+      lead={[picked.quantity == null ? null : `${plain(picked.quantity)} units`, picked.entity].filter(Boolean).join(" · ") || undefined}>
+      <LotsTable data={data} position={picked} />
+    </Card>
+  );
+}
+
+/** The latest movements; "Full ledger" opens the Transactions tab, where the lines card is on the screen. */
+function RecentCard({ data, onFullLedger }: { data: ClientHoldingsBook; onFullLedger: (() => void) | null }) {
+  return (
+    <Card title="Recent Transactions" lead={data.bankFile ? "As the bank's files state them" : "From bank statements, recorded flows, capital calls and events"}
+      action={onFullLedger && <button type="button" onClick={onFullLedger} className="text-xs font-semibold text-primary-700 hover:underline">Full ledger</button>}>
+      <Ledger data={data} limit={8} />
+    </Card>
   );
 }
 
