@@ -20,6 +20,7 @@ import { Chart, ink } from "../book/overview-charts";
 import { CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
+import { sharesFigure, type Figures } from "../layout/own-cards";
 import { INK } from "./asset-classes";
 
 /**
@@ -94,7 +95,7 @@ function Board({ data, view }: { data: ClientDirectory; view: ViewLayoutState<Di
   const { attention } = data;
   return (
     <>
-      <LayoutGrid view={view} screen="Client Directory" render={{
+      <LayoutGrid view={view} screen="Client Directory" figures={directoryFigures(data)} render={{
         kpis: <Kpis data={data} />,
         attention: (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -583,6 +584,20 @@ function AumChart({ rows, currency, chart, label }: { rows: { name: string; aum:
     <KindChart kind={chart.kind!} format={(value) => compact(value, currency)} height={240} label={label}
       data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: one.aum })) }} />
   );
+}
+
+/** What the Client Directory offers for a card of the reader's own: the book's AUM broken down four ways. */
+function directoryFigures(data: ClientDirectory): Figures {
+  const amount = (value: number) => compact(value, data.currency);
+  const rows = (list: { name: string; aum: number }[]) => list.map((one) => ({ name: one.name, value: one.aum }));
+  return {
+    "aum.segments": sharesFigure("AUM by segment", "Breakdowns", rows(data.bySegment), amount),
+    "aum.managers": sharesFigure("AUM by relationship manager", "Breakdowns", rows(data.byRelationshipManager), amount),
+    "aum.regions": sharesFigure("AUM by region of residence", "Breakdowns", rows(data.byRegion), amount),
+    "aum.mandates": sharesFigure("AUM by mandate", "Breakdowns", rows(data.byMandate), amount),
+    "clients.segments": sharesFigure("Client families by segment", "Clients", data.bySegment.map((one) => ({ name: one.name, value: one.clients })),
+      (value) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+  };
 }
 
 /** @param picker the chart type switcher, beside the title, for a card that draws a chart */

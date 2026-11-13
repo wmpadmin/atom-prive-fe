@@ -36,6 +36,7 @@ import {
   type CardMeta,
 } from "../dashboard/dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { sharesFigure, singleFigure } from "../layout/own-cards";
 
 /**
  * A portfolio manager's dashboard: the clients assigned to them — what they hold, how far each sits from plan,
@@ -266,7 +267,16 @@ export function PortfolioManagerDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <LayoutGrid view={view} render={render} screen="Portfolio Manager dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
+      <LayoutGrid view={view} render={render} figures={data ? {
+        "book.classes": sharesFigure("AUM by asset class", "Book", data.byAssetClass.map((one) => ({ name: one.name, value: Number(one.amount) })),
+          (value) => money(value, cur)),
+        "book.aum": singleFigure("AUM I manage", "Book", Number(data.book.aum), (value) => money(value, cur)),
+        "health.plan": sharesFigure("Portfolios on and off plan", "Health", [
+          { name: "On plan", value: data.health.onPlan }, { name: "Off plan", value: data.health.offPlan }, { name: "No model", value: data.health.noModel },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "health.on-plan": singleFigure("Portfolios on plan", "Health", data.health.onPlanPercent, (value) => `${Math.round(value)}%`, { gauge: true, max: 100 }),
+        "proposals.counts": sharesFigure("Proposals & rebalancing, counted", "Work", (data.proposals).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+      } : undefined} screen="Portfolio Manager dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }
