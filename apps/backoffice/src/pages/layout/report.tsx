@@ -3,7 +3,7 @@ import { getBookScreenExportUrl, getBookScreenReportUrl, getClientScreenReportUr
 import { Button, cn } from "@atomprive/ui";
 import * as echarts from "echarts/core";
 import { ChevronDown, FileDown, FileSpreadsheet, FileText } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { saveApiPost } from "../../lib/download";
 
@@ -19,28 +19,11 @@ import { saveApiPost } from "../../lib/download";
  */
 export function ReportButton() {
   const { customerId = "" } = useParams();
-  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<"pdf" | "excel" | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (event: MouseEvent) => {
-      if (!box.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const key = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", key);
-    return () => {
-      document.removeEventListener("mousedown", away);
-      document.removeEventListener("keydown", key);
-    };
-  }, [open]);
 
   async function run(kind: "pdf" | "excel") {
-    setOpen(false);
     setProblem(null);
     setBusy(kind);
     try {
@@ -69,20 +52,54 @@ export function ReportButton() {
   }
 
   return (
+    <ReportMenu ref={box} size="sm" busy={busy} problem={problem} onPick={(kind) => void run(kind)}
+      excel="One sheet per card, figures as numbers" note="The cards on your screen, as you have them. Recorded in the audit log." />
+  );
+}
+
+/** The Report button and its menu — PDF or Excel — shared by screens and lists; what each makes is the caller's. */
+export function ReportMenu({ ref, busy, problem, onPick, excel, note, size }: {
+  ref?: Ref<HTMLDivElement>; size?: "sm"; busy: "pdf" | "excel" | null; problem: string | null;
+  onPick: (kind: "pdf" | "excel") => void; excel: string; note: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useImperativeHandle(ref, () => box.current!, []);
+  useEffect(() => {
+    if (!open) return;
+    const away = (event: MouseEvent) => {
+      if (!box.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", key);
+    };
+  }, [open]);
+  const pick = (kind: "pdf" | "excel") => {
+    setOpen(false);
+    onPick(kind);
+  };
+
+  return (
     <div ref={box} data-report-ignore className="relative">
-      <Button variant="secondary" size="sm" onClick={() => setOpen((now) => !now)} aria-haspopup="menu" aria-expanded={open} disabled={busy !== null}>
+      <Button variant="secondary" size={size} onClick={() => setOpen((now) => !now)} aria-haspopup="menu" aria-expanded={open} disabled={busy !== null}>
         <FileDown aria-hidden="true" />
         {busy ? "Preparing…" : "Report"}
         <ChevronDown aria-hidden="true" className={cn("transition", open && "rotate-180")} />
       </Button>
       {open && (
         <div role="menu" aria-label="Report" className="absolute top-full right-0 z-30 mt-1.5 w-64 rounded-xl border border-line bg-white p-1.5 shadow-xl">
-          <ReportItem icon={FileText} tone="text-red-600" label="Download PDF" lead="On the firm's letterhead, ready to print" onClick={() => void run("pdf")} />
-          <ReportItem icon={FileSpreadsheet} tone="text-emerald-600" label="Download Excel" lead="One sheet per card, figures as numbers" onClick={() => void run("excel")} />
-          <p className="px-2.5 pt-1.5 pb-1 text-2xs text-ink-muted">The cards on your screen, as you have them. Recorded in the audit log.</p>
+          <ReportItem icon={FileText} tone="text-red-600" label="Download PDF" lead="On the firm's letterhead, ready to print" onClick={() => pick("pdf")} />
+          <ReportItem icon={FileSpreadsheet} tone="text-emerald-600" label="Download Excel" lead={excel} onClick={() => pick("excel")} />
+          <p className="px-2.5 pt-1.5 pb-1 text-2xs text-ink-muted">{note}</p>
         </div>
       )}
-      {problem && <p role="alert" className="absolute top-full right-0 mt-1.5 w-64 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-800">{problem}</p>}
+      {problem && <p role="alert" className="absolute top-full right-0 z-30 mt-1.5 w-64 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-800">{problem}</p>}
     </div>
   );
 }
@@ -359,12 +376,12 @@ function linesOf(element: HTMLElement) {
 }
 
 /** What the letterhead's fonts can print: a true minus, ≤ and arrows written plainly. */
-function printable(value: string) {
+export function printable(value: string) {
   return value.replace(/[−–—]/g, "-").replace(/≤/g, "<=").replace(/≥/g, ">=").replace(/▲|↑/g, "+").replace(/▼|↓/g, "-")
     .replace(/→/g, "->").replace(/←/g, "<-").replace(/…/g, "...").replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
 }
 
-function clip(value: string, most: number) {
+export function clip(value: string, most: number) {
   const plain = printable(value);
   return plain.length > most ? `${plain.slice(0, most - 3)}...` : plain;
 }
@@ -386,7 +403,7 @@ function row(cells: (string | number | null | undefined)[]): ExportRow {
 }
 
 /** "$1.42M", "−3.2%", "1,204", "+0.6 pp" as a number; null for words. Compact amounts come back as the screen rounded them. */
-function numberOf(value: string): number | null {
+export function numberOf(value: string): number | null {
   const cleaned = value.replace(/[−–]/g, "-").replace(/[,\s]/g, "").replace(/^[A-Z]{3}|[A-Z]{3}$/g, "").replace(/[$€£₹¥]|pp$|bps$/gi, "");
   const match = /^([+-]?\d+(?:\.\d+)?)([KMBT%×x])?$/i.exec(cleaned);
   if (!match) return null;
