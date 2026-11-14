@@ -284,6 +284,230 @@ export interface GrantRequest {
   expiresOn: string | null;
 }
 
+export interface ReportBar {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  label: string;
+  share: number;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  amount: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type ReportFigureChange = typeof ReportFigureChange[keyof typeof ReportFigureChange] | null;
+
+
+export const ReportFigureChange = {
+  UP: 'UP',
+  DOWN: 'DOWN',
+} as const;
+
+export interface ReportFigure {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  label: string;
+  /**
+     * @minLength 0
+     * @maxLength 60
+     * @nullable
+     */
+  value: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 80
+     * @nullable
+     */
+  note: string | null;
+  /** @nullable */
+  change: ReportFigureChange;
+}
+
+export type ReportPairTone = typeof ReportPairTone[keyof typeof ReportPairTone];
+
+
+export const ReportPairTone = {
+  PLAIN: 'PLAIN',
+  GOOD: 'GOOD',
+  PENDING: 'PENDING',
+  MUTED: 'MUTED',
+} as const;
+
+export interface ReportPair {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  label: string;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     * @nullable
+     */
+  value: string | null;
+  tone: ReportPairTone;
+}
+
+export type ReportPanelPlace = typeof ReportPanelPlace[keyof typeof ReportPanelPlace];
+
+
+export const ReportPanelPlace = {
+  LEFT: 'LEFT',
+  MIDDLE: 'MIDDLE',
+  RIGHT: 'RIGHT',
+  BOTTOM: 'BOTTOM',
+} as const;
+
+export interface ReportPanel {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  title: string;
+  place: ReportPanelPlace;
+  /**
+     * @minItems 0
+     * @maxItems 40
+     */
+  pairs: ReportPair[];
+  /**
+     * @minItems 0
+     * @maxItems 30
+     */
+  bars: ReportBar[];
+  /**
+     * @minItems 0
+     * @maxItems 12
+     * @items.minLength 0
+     * @items.maxLength 60
+     */
+  columns: string[];
+  /**
+     * @minItems 0
+     * @maxItems 300
+     * @items.minItems 0
+     * @items.maxItems 12
+     */
+  rows: string[][];
+  alignRight: number[];
+}
+
+export interface ScreenReportRequest {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  screen: string;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  status: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     */
+  subtitle: string;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     */
+  asOf: string;
+  /**
+     * @minItems 0
+     * @maxItems 24
+     */
+  figures: ReportFigure[];
+  /**
+     * @minItems 1
+     * @maxItems 40
+     */
+  panels: ReportPanel[];
+}
+
+export type ExportColumnKind = typeof ExportColumnKind[keyof typeof ExportColumnKind];
+
+
+export const ExportColumnKind = {
+  TEXT: 'TEXT',
+  MONEY: 'MONEY',
+  PERCENT: 'PERCENT',
+  NUMBER: 'NUMBER',
+} as const;
+
+export interface ExportColumn {
+  /**
+     * @minLength 0
+     * @maxLength 120
+     */
+  label: string;
+  kind: ExportColumnKind;
+}
+
+export interface ExportRow {
+  /**
+     * @minItems 0
+     * @maxItems 30
+     * @items.minLength 0
+     * @items.maxLength 500
+     */
+  cells: string[];
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  level: number;
+  strong: boolean;
+}
+
+export interface ExportSheet {
+  /**
+     * @minLength 0
+     * @maxLength 80
+     */
+  name: string;
+  /**
+     * @minItems 1
+     * @maxItems 30
+     */
+  columns: ExportColumn[];
+  /**
+     * @minItems 0
+     * @maxItems 5000
+     */
+  rows: ExportRow[];
+}
+
+export interface OverviewExportRequest {
+  /**
+     * @minLength 0
+     * @maxLength 80
+     */
+  tab: string;
+  /**
+     * @minItems 0
+     * @maxItems 8
+     * @items.minLength 0
+     * @items.maxLength 300
+     */
+  about: string[];
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  sheets: ExportSheet[];
+}
+
 export interface ClientAnswer {
   approved: boolean;
   /**
@@ -2996,6 +3220,170 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getGrantMutationOptions(options), queryClient);
+    }
+
+export const getOwnReportUrl = () => {
+
+
+
+
+  return `/api/portal/reports/pdf`
+}
+
+export const ownReport = async (screenReportRequest: ScreenReportRequest, options?: Parameters<typeof http>[1]): Promise<Blob> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<Blob>(getOwnReportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(screenReportRequest)
+  }
+);}
+
+
+
+
+
+export const getOwnReportMutationKey = () => ['ownReport'] as const;
+
+export const getOwnReportMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ownReport>>, TError,OwnReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof ownReport>>, TError,OwnReportMutationVariables, TContext> => {
+
+const mutationKey = getOwnReportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof ownReport>>, OwnReportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  ownReport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OwnReportMutationResult = NonNullable<Awaited<ReturnType<typeof ownReport>>>
+    export type OwnReportMutationBody = ScreenReportRequest
+    export type OwnReportMutationError = unknown
+    export type OwnReportMutationVariables = {data: ScreenReportRequest}
+
+    export const useOwnReport = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ownReport>>, TError,OwnReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof ownReport>>,
+        TError,
+        OwnReportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getOwnReportMutationOptions(options), queryClient);
+    }
+
+export const getOwnExportUrl = () => {
+
+
+
+
+  return `/api/portal/reports/excel`
+}
+
+export const ownExport = async (overviewExportRequest: OverviewExportRequest, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<string>(getOwnExportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(overviewExportRequest)
+  }
+);}
+
+
+
+
+
+export const getOwnExportMutationKey = () => ['ownExport'] as const;
+
+export const getOwnExportMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ownExport>>, TError,OwnExportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof ownExport>>, TError,OwnExportMutationVariables, TContext> => {
+
+const mutationKey = getOwnExportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof ownExport>>, OwnExportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  ownExport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OwnExportMutationResult = NonNullable<Awaited<ReturnType<typeof ownExport>>>
+    export type OwnExportMutationBody = OverviewExportRequest
+    export type OwnExportMutationError = unknown
+    export type OwnExportMutationVariables = {data: OverviewExportRequest}
+
+    export const useOwnExport = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ownExport>>, TError,OwnExportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof ownExport>>,
+        TError,
+        OwnExportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getOwnExportMutationOptions(options), queryClient);
     }
 
 export const getAnswerMyProposalUrl = (id: string,) => {

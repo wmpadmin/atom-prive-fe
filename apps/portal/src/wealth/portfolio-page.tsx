@@ -7,8 +7,9 @@ import { Card } from "./card";
 import { RestatedNote } from "./restated-note";
 import { shownInsights, type Shown } from "./shown";
 import { AllocationRing, BarChart, LineChart, ValueChart } from "./dashboard-charts";
-import { INK, compact, percent } from "./figures";
-import { writeDate } from "../lib/display";
+import { INK, compact, percent, whole } from "./figures";
+import { ReportExport, type Report } from "./report-export";
+import { writeDate, writeDay } from "../lib/display";
 
 /**
  * The client's portfolio, in the sections of the firm's reference wealth report — Overview, Asset Allocation,
@@ -566,6 +567,41 @@ function Holdings({ data }: { data: Shown<PortfolioInsights> }) {
   );
 }
 
+/**
+ * The portfolio as its report, whichever tab is open: the figures, how it is spread, how it has done and the cash
+ * that moved — every tab's numbers for the period chosen, so one file answers what any tab would.
+ */
+function portfolioReport(data: PortfolioInsights, period: string): Report {
+  const c = data.currency;
+  const money = (value: number) => whole(value, c);
+  const twr = (value: number | null) => (value === null ? "-" : percent(value));
+  const weights = (title: string, rows: PortfolioInsights["byAssetClass"]) => ({ title, parts: rows.map((one) => ({ label: one.name, value: one.value })), format: money });
+  return {
+    screen: "Portfolio",
+    subtitle: `Performance, returns and allocation, in ${c}, for ${period}${data.from ? ` (${writeDay(data.from)} to ${writeDay(data.to)})` : ""}.`,
+    figures: [
+      { label: "Market value", value: money(data.marketValue) },
+      { label: "Assets", value: money(data.assets) },
+      { label: "Liabilities", value: money(data.liabilities) },
+      { label: "TWR month to date", value: twr(data.twrMonthToDate) },
+      { label: "TWR year to date", value: twr(data.twrYearToDate) },
+      { label: "TWR since start", value: twr(data.twrSinceStart) },
+      // The period's own return, unless the period is the year to date, already said above.
+      ...(period === "YTD" ? [] : [{ label: `TWR ${period}`, value: twr(data.twrPeriod) }]),
+    ],
+    sections: [
+      weights("Weight by asset class", data.byAssetClass),
+      weights("Weight by sub-class", data.bySubClass),
+      weights("Weight by geography", data.byCountry),
+      { title: "Net gain/loss by asset class", head: ["Asset class", `Change (${c})`, "Change %"], rows: data.gainByAssetClass.map((one) => [one.name, one.change, one.percent === null ? "-" : percent(one.percent)]), format: money },
+      { title: "TWR by day", head: ["Date", "TWR %"], rows: data.performance.map((one) => [writeDay(one.on), percent(one.value)]) },
+      { title: "Market value", head: ["Date", `Value (${c})`], rows: data.valueLine.map((one) => [writeDay(one.on), one.value]), format: money },
+      { title: "Net cash flow by month", head: ["Month", `Net (${c})`], rows: data.cashByMonth.map((one) => [one.month, one.net]), format: money },
+      { title: "Top cash flow movers", head: ["Date", "Amount", "Currency"], rows: data.topFlows.map((one) => [writeDay(one.on), one.amount, one.currency]), format: (value) => value.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+    ],
+  };
+}
+
 export function PortfolioPage() {
   const [params, setParams] = useSearchParams();
   const period = (PERIODS as readonly string[]).includes(params.get("period") ?? "") ? params.get("period")! : "YTD";
@@ -590,9 +626,12 @@ export function PortfolioPage() {
           <p className="mt-1 text-sm text-ink-muted">View performance, returns and portfolio allocation.</p>
           <RestatedNote heldIn={insights.data?.heldIn} shownIn={insights.data?.currency} />
         </div>
-        {tab !== "overview" && (
-          <Toggle label="Period" value={period} onChange={(next) => change("period", next)} options={PERIODS.map((one) => ({ id: one, label: one }))} />
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {tab !== "overview" && (
+            <Toggle label="Period" value={period} onChange={(next) => change("period", next)} options={PERIODS.map((one) => ({ id: one, label: one }))} />
+          )}
+          {insights.data && <ReportExport build={() => portfolioReport(insights.data!, period)} />}
+        </div>
       </div>
 
       <div role="tablist" aria-label="Portfolio" className="flex gap-6 overflow-x-auto border-b border-line">
