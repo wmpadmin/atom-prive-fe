@@ -22,6 +22,8 @@ import { when } from "../lib/dates";
 import { initialsOf } from "../lib/money";
 import { treeOf, type Branch } from "../pages/family-tree";
 import { Card } from "./card";
+import { ReportExport } from "./report-export";
+import { writeDay } from "../lib/display";
 import { RestatedNote } from "./restated-note";
 import { shownFamilyWealth } from "./shown";
 import { AllocationRing, LineChart } from "./dashboard-charts";
@@ -335,10 +337,33 @@ export function FamilyWealthPage() {
           <p className="mt-1 text-sm text-ink-muted">Your wealth, and that of family members who have shared theirs with you.</p>
           <RestatedNote heldIn={wealth.data?.wealth.heldIn} shownIn={wealth.data?.wealth.currency} />
         </div>
-        <Button onClick={() => setSharing(true)} disabled={!family.data}>
-          <Share2 aria-hidden="true" />
-          Share my wealth
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {shown && data && (
+            // Whoever is picked — the whole family or one member — as the screen shows them, for the period chosen.
+            <ReportExport build={() => ({
+              screen: "Family Wealth",
+              subtitle: `${shown.name}, in ${currency}, for ${period}.${counted < people.length ? ` ${people.length - counted} of ${people.length} members have not shared their wealth.` : ""}`,
+              figures: [
+                { label: "Net worth", value: whole(shown.netWorth, currency) },
+                { label: "Managed portfolio", value: shown.managed === null ? "-" : whole(shown.managed, currency) },
+                { label: "Owned outside the portfolio", value: whole(shown.owned, currency) },
+                { label: "Loans", value: whole(shown.loans, currency) },
+                { label: "Return (YTD)", value: shown.twr === null ? "-" : percent(shown.twr) },
+              ],
+              sections: [
+                { title: "Asset allocation", parts: shown.slices.map((one) => ({ label: one.name, value: one.value })), format: (value) => whole(value, currency) },
+                ...(member ? [] : [{ title: "Members", head: ["Member", `Net worth (${currency})`, "Share"],
+                  rows: data.wealth.members.map((one) => [one.name, one.netWorth, `${one.share.toFixed(1)}%`] as (string | number)[]), format: (value: number) => whole(value, currency) }]),
+                { title: "Top holdings", head: ["Holding", "Kind", `Value (${currency})`], rows: shown.holdings.map((one) => [one.name, one.kind, one.value]), format: (value) => whole(value, currency) },
+                { title: "Net worth", wide: true, head: ["Date", `Net worth (${currency})`], rows: shown.line.map((one) => [writeDay(one.on), one.value]), format: (value) => whole(value, currency) },
+              ],
+            })} />
+          )}
+          <Button onClick={() => setSharing(true)} disabled={!family.data}>
+            <Share2 aria-hidden="true" />
+            Share my wealth
+          </Button>
+        </div>
       </div>
 
       <Card title="Family tree" action={<span className="text-xs font-medium text-ink-muted">{counted} of {people.length || counted} counted</span>}>

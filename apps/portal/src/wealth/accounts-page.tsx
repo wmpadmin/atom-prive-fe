@@ -16,6 +16,8 @@ import { useNavigate } from "react-router";
 import { accountKind, initialsOf } from "../lib/money";
 import { accountName, balance } from "./account-labels";
 import { AccessPill } from "./access-pill";
+import { ReportExport, type Report } from "./report-export";
+import { writeDay } from "../lib/display";
 
 /**
  * The client's bank accounts: their own, and any a relative has let them see. Their own carry Full Access, a
@@ -143,6 +145,27 @@ export function GrantDialog({ own, onClose }: { own: AccountRow[]; onClose: () =
   );
 }
 
+/** Every account on the screen, theirs and those shared with them, with its balance in its own currency. */
+function accountsReport(rows: AccountRow[]): Report {
+  const two = (value: number) => value.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return {
+    screen: "Accounts",
+    subtitle: "Your accounts, balances and access details.",
+    figures: [
+      { label: "Your accounts", value: String(rows.filter((one) => one.mine).length) },
+      { label: "Shared with you", value: String(rows.filter((one) => !one.mine).length) },
+    ],
+    sections: [{
+      title: "Accounts", wide: true,
+      head: ["Account", "Bank", "Type", "Number", "Currency", "Balance", "Held by", "Shared until", "Last updated"],
+      rows: rows.map((one) => [accountName(one), one.bankName, accountKind(one.accountType), `•••• ${one.lastFour}`, one.currency, one.balance,
+        one.mine ? "You" : `${one.sharedBy ?? "A family member"}${one.sharedByRelationship ? ` (${one.sharedByRelationship})` : ""}`,
+        one.until ? writeDay(one.until) : "", one.lastUpdated ? writeDay(one.lastUpdated) : ""]),
+      format: two,
+    }],
+  };
+}
+
 export function AccountsPage() {
   const accounts = useAccounts<AccountRow[], ApiError>();
   const navigate = useNavigate();
@@ -156,12 +179,15 @@ export function AccountsPage() {
           <h1 className="text-[1.625rem] font-bold text-balance text-ink">Accounts</h1>
           <p className="mt-1 text-sm text-ink-muted">View your accounts, balances and access details.</p>
         </div>
-        {own.length > 0 && (
-          <Button onClick={() => setGranting(true)}>
-            <Plus aria-hidden="true" />
-            Grant access
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {accounts.data && accounts.data.length > 0 && <ReportExport build={() => accountsReport(accounts.data!)} />}
+          {own.length > 0 && (
+            <Button onClick={() => setGranting(true)}>
+              <Plus aria-hidden="true" />
+              Grant access
+            </Button>
+          )}
+        </div>
       </div>
 
       <section className="rounded-2xl border border-line bg-white p-5">

@@ -8,6 +8,8 @@ import { accountKind, initialsOf } from "../lib/money";
 import { AccessPill } from "./access-pill";
 import { accountName, balance } from "./account-labels";
 import { Card } from "./card";
+import { ReportExport } from "./report-export";
+import { writeDay } from "../lib/display";
 
 /**
  * One account: what is in it, whose it is, who else may see it, and what has gone through it. A relative's account
@@ -51,7 +53,25 @@ export function AccountPage() {
             {account.bankName} · {accountKind(account.accountType)} · •••• {account.lastFour} · {account.currency}
           </p>
         </div>
-        <AccessPill mine={account.mine} />
+        <div className="flex flex-wrap items-center gap-3">
+          <AccessPill mine={account.mine} />
+          <ReportExport build={() => ({
+            screen: accountName(account),
+            subtitle: [`${account.bankName} · ${accountKind(account.accountType)} · •••• ${account.lastFour} · ${account.currency}`,
+              search.trim() && `Search: ${search.trim()}`, from && `From ${from}`, to && `To ${to}`].filter(Boolean).join(" · "),
+            figures: [
+              { label: "Balance", value: balance(account.balance, account.currency) },
+              { label: "Money in", value: balance(moneyIn, account.currency) },
+              { label: "Money out", value: balance(moneyOut, account.currency) },
+              { label: "Transactions", value: String(shown.length) },
+            ],
+            sections: [{
+              title: "Transactions", wide: true, head: ["Date", "Type", "Description", `Amount (${account.currency})`],
+              rows: shown.map((one) => [writeDay(one.bookedOn), one.type ?? "", one.description, one.amount]),
+              format: (value) => value.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            }],
+          })} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
