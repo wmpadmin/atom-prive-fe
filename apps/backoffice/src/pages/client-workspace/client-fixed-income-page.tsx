@@ -99,7 +99,7 @@ export function ClientFixedIncomePage() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 
-const KPI_LABELS = ["Yield to maturity", "Yield to worst", "Modified duration", "Effective duration", "Convexity", "Average coupon",
+const KPI_LABELS = ["Yield to maturity", "Yield to worst", "Modified duration", "Effective duration", "Convexity", "Weighted avg. coupon (WAC)",
   "Average rating", "OAS · credit spread", "DV01", "Spread duration", "Weighted avg. maturity", "Income · next 12M"];
 
 function Kpis({ data }: { data: ClientFixedIncome }) {
