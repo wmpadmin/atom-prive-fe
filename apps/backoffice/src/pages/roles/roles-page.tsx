@@ -10,13 +10,13 @@ import {
   type PermissionOption,
   type RoleAccessView,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, cn } from "@atomprive/ui";
+import { Alert, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Download, LoaderCircle, Lock } from "lucide-react";
+import { ChevronDown, LoaderCircle, Lock } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { useSearchParams } from "react-router";
 import { useSession, useStaffUser } from "../../auth/session";
-import { downloadTextFile } from "../../lib/download";
+import { ListReportButton } from "../layout/list-report";
 
 type Level = PermissionGrant["level"];
 type Role = RoleAccessView["role"];
@@ -33,21 +33,7 @@ const levelColours: Record<Level, { dot: string; control: string }> = {
 
 export function RolesPage() {
   const matrix = useGetPermissionMatrix<PermissionMatrix, ApiError>();
-  const [notice, setNotice] = useState<Notice>();
-  const [exporting, setExporting] = useState(false);
 
-  async function exportCsv() {
-    setExporting(true);
-    setNotice(undefined);
-    try {
-      const csv = await exportPermissionMatrix();
-      downloadTextFile(`permission-matrix-${new Date().toISOString().slice(0, 10)}.csv`, csv, "text/csv;charset=utf-8");
-    } catch (caught) {
-      setNotice({ tone: "danger", message: caught instanceof ApiError ? caught.message : "Couldn't export. Try again." });
-    } finally {
-      setExporting(false);
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -58,13 +44,9 @@ export function RolesPage() {
             Defines what each role may access — customer fields, exports, proposal sends. Changes apply on next request.
           </p>
         </div>
-        <Button variant="secondary" onClick={() => void exportCsv()} disabled={exporting}>
-          <Download aria-hidden="true" />
-          {exporting ? "Exporting…" : "Export"}
-        </Button>
+        <ListReportButton list="Permission matrix" load={() => exportPermissionMatrix()} />
       </header>
 
-      {notice && <Alert tone={notice.tone}>{notice.message}</Alert>}
 
       <section aria-labelledby="role-capabilities-title" className="rounded-2xl border border-line bg-white p-5">
         <h2 id="role-capabilities-title" className="text-base font-bold">

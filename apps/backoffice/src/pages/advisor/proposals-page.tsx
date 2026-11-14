@@ -24,7 +24,8 @@ import { formatDate } from "../../lib/labels";
 import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { QueueBar } from "../portfolios/queue-bar";
 import { QueueFilters } from "../portfolios/queue-filters";
-import { csvOf, download, EXPORT_LIMIT } from "./proposal-export";
+import { saidFilters } from "../layout/list-report";
+import { csvOf, EXPORT_LIMIT } from "./proposal-export";
 import { ProposalsHeader } from "./proposals-header";
 import {
   answeredLabel,
@@ -268,31 +269,18 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
   );
   const proposals = onMe ? mineToAnswer : listed;
 
-  const [exporting, setExporting] = useState(false);
-  /** What the last export left behind, and the list it was taken from. */
-  const [lastExport, setLastExport] = useState<{ carried: number; of: number; under: string } | null>(null);
-  const showing = JSON.stringify(asked);
-  // The note belongs to the export it describes. It tells somebody to narrow the list, so the moment they
-  // do it is about a file nobody has asked for yet — read against the list on screen rather than cleared
-  // by hand, so no filter can be changed by a path that forgets to.
-  const cappedAt = (lastExport !== null && lastExport.under === showing) ? lastExport : null;
   /**
-   * Everything the filters select, not only the page being looked at — a list exported a page at a time is
-   * the kind of thing somebody takes to a meeting without noticing what is missing.
+   * Everything the filters select, every page, not only the one being looked at — a list exported a page at a
+   * time is the kind of thing somebody takes to a meeting without noticing what is missing.
    */
-  async function exportFiltered() {
-    setExporting(true);
-    try {
-      const all = await listProposals({ ...asked, page: 0, size: EXPORT_LIMIT });
-      download(csvOf(all.items, everyAdvisors), `proposals-${new Date().toISOString().slice(0, 10)}.csv`);
-      // Said from what came back rather than from what the screen thinks it asked for, so the figures
-      // are the file's own.
-      setLastExport(all.totalItems > all.items.length
-        ? { carried: all.items.length, of: all.totalItems, under: showing }
-        : null);
-    } finally {
-      setExporting(false);
+  async function wholeList() {
+    const rows: ProposalPage["items"] = [];
+    for (let at = 0; ; at++) {
+      const one = await listProposals({ ...asked, page: at, size: EXPORT_LIMIT });
+      rows.push(...one.items);
+      if (one.items.length === 0 || rows.length >= one.totalItems) break;
     }
+    return csvOf(rows, everyAdvisors);
   }
 
   // Whose work it is matters on any list holding more than one person's, and the queue is other people's
@@ -377,12 +365,12 @@ export function ProposalsPage({ fromRebalance }: { fromRebalance?: boolean }) {
 
   return (
     <div className="space-y-6">
-      <ProposalsHeader
-        onExport={() => void exportFiltered()}
-        exporting={exporting}
-        canExport={total > 0}
-        cappedAt={cappedAt}
-      />
+      <ProposalsHeader report={{
+        list: fromRebalance ? "Trade logs" : "Proposals", load: wholeList,
+        // The summary is the one column a printed page can do without; Excel keeps it.
+        columns: ["Reference", "Proposal", "Client", "Client code", "Written by", "Sent", "Value", "Currency", "Answered", "Answered by", "Status"],
+        filters: saidFilters({ Showing: tab === "all" ? undefined : chosen.label, Search: search, From: from, To: to }),
+      }} />
 
       {onMe && yoursHere > 0 && (
         <Alert tone="info">
