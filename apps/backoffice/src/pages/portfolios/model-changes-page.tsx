@@ -1,6 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import { ArchivedMark } from "../../components/archived-client";
 import {
+  listModelChanges,
   useAnswerModelChange,
   useListModelChanges,
   type ModelChangePage,
@@ -8,6 +9,9 @@ import {
   type ModelChangeRowStatus,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Pagination } from "@atomprive/ui";
+import { QueueActions } from "../../components/queue-actions";
+import { ListReportButton, saidFilters } from "../layout/list-report";
+import { everyPage, toCsv } from "../layout/list-rows";
 import { AnswerDialog } from "./answer-dialog";
 import { QueueBar } from "./queue-bar";
 import { QueueFilters } from "./queue-filters";
@@ -51,7 +55,7 @@ export function ModelChangesPage() {
   const [deciding, setDeciding] = useState<{ row: ModelChangeRow; approved: boolean } | null>(null);
   const [note, setNote] = useState("");
 
-  const requests = useListModelChanges<ModelChangePage, ApiError>({
+  const asked = {
     status: tab === "all" ? undefined : tab,
     // Matched against the client's name by the server: a request holds their id and not their name, so
     // this is the one end that can turn the one into the other.
@@ -60,9 +64,8 @@ export function ModelChangesPage() {
     // A date range people read as "up to and including", so the day asked for is counted whole.
     to: to === "" ? undefined : new Date(new Date(to).getTime() + 86_400_000).toISOString(),
     newestFirst,
-    page,
-    size,
-  });
+  };
+  const requests = useListModelChanges<ModelChangePage, ApiError>({ ...asked, page, size });
   const answer = useAnswerModelChange<ApiError>({
     mutation: {
       onSuccess: () => {
@@ -75,8 +78,21 @@ export function ModelChangesPage() {
 
   const rows = requests.data?.items ?? [];
 
+  /** Every request the filters turned up, every page, as CSV — the list report's rows. */
+  async function wholeList() {
+    const all = await everyPage((at) => listModelChanges({ ...asked, page: at, size: 100 }));
+    return toCsv(["Client", "Client code", "From model", "To model", "Why", "Asked by", "Asked on", "Answered by", "Answered on", "Note", "Status"],
+      all.map((row) => [row.clientName, row.clientCode, row.fromModelName, row.toModelName, row.why, row.raisedByName, formatDateTime(row.raisedAt),
+        row.decidedByName ?? "", row.decidedAt ? formatDateTime(row.decidedAt) : "", row.decisionNote ?? "", row.statusLabel]));
+  }
+
   return (
     <div className="space-y-6">
+      <QueueActions className="flex flex-wrap items-center justify-end gap-2">
+        <ListReportButton list="Model switch requests" load={wholeList} filters={saidFilters({
+          Showing: TABS.find((one) => one.id === tab)?.label, Search: search.trim(), From: from, To: to,
+        })} />
+      </QueueActions>
       {requests.isError && <Alert tone="danger">{requests.error.message}</Alert>}
       {answer.isError && <Alert tone="danger">{answer.error.message}</Alert>}
 

@@ -1,6 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   getListSyncRunsQueryKey,
+  listSyncRuns,
   useListSyncRuns,
   useRetrySyncRun,
   useStartSyncNow,
@@ -19,6 +20,8 @@ import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
 import { hasAuthority } from "../../lib/permissions";
 import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
+import { ListReportButton, saidFilters } from "../layout/list-report";
+import { everyPage, toCsv } from "../layout/list-rows";
 import { formatDateTime } from "../../lib/labels";
 import { useTableView } from "../../lib/table-view";
 
@@ -171,6 +174,14 @@ export function SyncRunsPage() {
             round, and the ones somebody asked for.
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-3">
+        <ListReportButton list="Ingestion log" load={async () => toCsv(
+          ["Bank", "Account", "Started", "Finished", "Fetched", "Inserted", "Skipped", "Errors", "Result", "Detail"],
+          (await everyPage((at) => listSyncRuns({ ...filters, page: at, size: 100 }))).map((run) => [
+            run.bankName, run.accountLabel, formatDateTime(run.startedAt), run.finishedAt ? formatDateTime(run.finishedAt) : "",
+            run.fetched, run.inserted, run.skipped, run.validationErrors, outcomeLabels[run.outcome], run.errorDetail ?? "",
+          ]),
+        )} filters={saidFilters({ Bank: banks.find((bank) => bank.id === bankId)?.name, Result: outcome ? outcomeLabels[outcome] : undefined })} />
         {canRun && (
           <RunNow
             // A bank whose files come only by upload has nothing to run: Upload file on Bank feeds takes them.
@@ -179,6 +190,7 @@ export function SyncRunsPage() {
             onRun={(bank, account) => start.mutate({ bankId: bank, data: { accountLabel: account || null } })}
           />
         )}
+        </div>
       </header>
 
       {refused && <Alert tone="danger">{refused.message}</Alert>}

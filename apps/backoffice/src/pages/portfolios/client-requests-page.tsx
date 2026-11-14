@@ -24,6 +24,8 @@ import { ClientAskingRows, EMPTY_ROW, isAsked, legsFromRows, type AskedRow } fro
 import { ClientHoldingsPanel } from "./client-holdings-panel";
 import { ColumnPicker } from "../../components/column-picker";
 import { QueueActions } from "../../components/queue-actions";
+import { ListReportButton, saidFilters } from "../layout/list-report";
+import { toCsv } from "../layout/list-rows";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
@@ -728,11 +730,16 @@ export function ClientRequestsPage() {
       {/* Up on the line the tabs are on, at the right, which is where this screen's other queues put
           what they do. In the filter row it sat among the things that narrow the list — a button that
           writes something, lined up with four controls that only read. */}
-      {writes && (
-        <QueueActions className="flex flex-wrap items-center justify-end gap-2">
-          <Button onClick={() => setChoosing(true)}>Create client request</Button>
-        </QueueActions>
-      )}
+      <QueueActions className="flex flex-wrap items-center justify-end gap-2">
+        <ListReportButton list="Client requests" load={() => Promise.resolve(toCsv(
+          ["Client", "Client code", "What they asked for", "Amount", "Currency", "Why", "Asked by", "Asked on", "Answered by", "Answered on", "Note", "Status"],
+          shown.map((row) => [row.clientName, row.clientCode, row.legs.map((leg) => `${leg.fromSubClass ?? leg.fromAssetClass} -> ${leg.toSubClass ?? leg.toAssetClass} ${leg.amount.toLocaleString("en-GB")}`).join("; "), row.amount, row.currency, row.why,
+            row.raisedByName, formatDateTime(row.raisedAt), row.decidedByName ?? "", row.decidedAt ? formatDateTime(row.decidedAt) : "", row.decisionNote ?? "", row.statusSaid]),
+        ))} filters={saidFilters({
+          Showing: status === "all" ? undefined : STATUS_TABS.find((one) => one.id === status)?.label, Search: search.trim(), From: from, To: to,
+        })} />
+        {writes && <Button onClick={() => setChoosing(true)}>Create client request</Button>}
+      </QueueActions>
 
       <QueueFilters
         search={search}
