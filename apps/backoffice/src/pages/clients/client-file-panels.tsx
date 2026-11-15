@@ -505,9 +505,6 @@ export function FamilyPanel({
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {roleOf(member, labelFor)}
-                      {member.parentName && member.relationshipToPrimary && !member.relationshipToPrimary.includes(member.parentName) && (
-                        <span className="block text-2xs text-ink-muted">under {member.parentName}</span>
-                      )}
                     </td>
                     <td className="px-4 py-3 font-mono text-sm">{member.code}</td>
                     <td className="px-4 py-3 text-sm font-semibold whitespace-nowrap tabular-nums">
