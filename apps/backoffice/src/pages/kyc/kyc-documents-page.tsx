@@ -1,6 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   getReadKycDocumentUrl,
+  listKycDocuments,
   useListKycDocuments,
   type KycDocumentRow,
   type KycDocumentRowReviewState,
@@ -8,7 +9,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Pagination, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { ChevronRight, Download, Search } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { SelectInput, TextInput } from "@atomprive/ui";
@@ -17,7 +18,8 @@ import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
-import { downloadTextFile, openApiFile } from "../../lib/download";
+import { openApiFile } from "../../lib/download";
+import { ListReportButton, saidFilters } from "../layout/list-report";
 import { formatRelative } from "../../lib/labels";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { clientLine, fileMark, pageCount, reviewStateLabels, reviewStateTones } from "./kyc-labels";
@@ -125,9 +127,16 @@ export function KycDocumentReviewPage() {
   const byId = new Map(MOVABLE.map((one) => [one.id, one]));
   const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
-  function exportQueue() {
+  /** The queue as filtered, every page of it, as CSV — the list report's rows. */
+  async function wholeQueue() {
+    const rows: KycDocumentRow[] = [];
+    for (let at = 0; ; at++) {
+      const one = await listKycDocuments({ state, query: words || undefined, newestFirst, page: at, size: 100 });
+      rows.push(...one.items);
+      if (one.items.length === 0 || rows.length >= one.totalItems) break;
+    }
     const header = ["Document", "Type", "Client", "Client code", "Pages", "Uploaded", "Status"];
-    const lines = shown.map((row) => [
+    const lines = rows.map((row) => [
       row.fileName,
       row.kindTitle,
       row.clientName,
@@ -136,10 +145,9 @@ export function KycDocumentReviewPage() {
       row.uploadedAt,
       reviewStateLabels[row.reviewState],
     ]);
-    const csv = [header, ...lines]
+    return [header, ...lines]
       .map((line) => line.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))
       .join("\r\n");
-    downloadTextFile(`kyc-${state.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`, csv, "text/csv");
   }
 
   return (
@@ -153,10 +161,8 @@ export function KycDocumentReviewPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="secondary" onClick={exportQueue} disabled={shown.length === 0}>
-            <Download aria-hidden="true" />
-            Export
-          </Button>
+          <ListReportButton list="KYC document review" load={wholeQueue}
+            filters={saidFilters({ Status: reviewStateLabels[state], Search: words })} />
           <Button
             variant="secondary"
             disabled={oldest === undefined}

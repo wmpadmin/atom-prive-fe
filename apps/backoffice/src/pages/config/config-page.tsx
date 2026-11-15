@@ -7,11 +7,11 @@ import {
   useGetFieldMappingSummary,
   type MappingSummary,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, cn } from "@atomprive/ui";
-import { Download, PencilLine } from "lucide-react";
+import { Button, cn } from "@atomprive/ui";
+import { PencilLine } from "lucide-react";
 import { useState, type KeyboardEvent } from "react";
 import { useSearchParams } from "react-router";
-import { downloadTextFile } from "../../lib/download";
+import { ListReportButton } from "../layout/list-report";
 import { AssetClassesTab } from "./asset-classes-tab";
 import { BanksTab } from "./banks-tab";
 import { EmailTemplatesTab } from "./email-templates-tab";
@@ -35,14 +35,11 @@ export function ConfigPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const active: TabId = tabs.find((tab) => tab.id === searchParams.get("tab"))?.id ?? "banks";
   const summary = useGetFieldMappingSummary<MappingSummary, ApiError>();
-  const [exporting, setExporting] = useState(false);
-  const [exportError, setExportError] = useState<string>();
   const [creatingTemplate, setCreatingTemplate] = useState(false);
   // The mapping tab shows the first bank until one is picked.
   const bankId = searchParams.get("bank") ?? summary.data?.banks[0]?.bankId ?? null;
 
   function select(tab: TabId) {
-    setExportError(undefined);
     setSearchParams({ tab }, { replace: true });
   }
 
@@ -56,35 +53,22 @@ export function ConfigPage() {
     document.getElementById(`config-tab-${tab.id}`)?.focus();
   }
 
-  // The four the function below actually has a branch for. Kept beside it so the two are read together.
-  const EXPORTS_A_CSV = ["banks", "mapping", "fx", "templates"];
-
-  async function exportActiveTab() {
-    setExporting(true);
-    setExportError(undefined);
-    const today = new Date().toISOString().slice(0, 10);
-    try {
-      if (active === "banks") downloadCsv(`supported-banks-${today}.csv`, await exportSupportedBanks());
-      if (active === "mapping" && bankId) downloadCsv(`field-mapping-${today}.csv`, await exportBankFieldMapping(bankId));
-      if (active === "fx") downloadCsv(`fx-rates-${today}.csv`, await exportFxRates());
-      if (active === "templates") downloadCsv(`email-templates-${today}.csv`, await exportEmailTemplates());
-    } catch (caught) {
-      setExportError(caught instanceof ApiError ? caught.message : "Couldn't export. Try again.");
-    } finally {
-      setExporting(false);
-    }
-  }
-
   /**
-   * Only the tabs the API will actually hand back a CSV for; the rest leave the button off rather than
-   * offering an export that answers with nothing.
+   * The tabs the API hands back a list for, each with its own export; the rest show no Report at all rather than
+   * one that answers with nothing.
    *
-   * <p>Named rather than excluded. Written as "not asset-classes", it said yes to every tab added after
-   * it — and one was: Product & relationship types has no branch in exportActiveTab, so its button was
-   * enabled, pressing it ran the spinner and produced no file and no error. A list of what can be
-   * exported cannot drift out of step with the four branches below; a list of what cannot, does.
+   * <p>Named rather than excluded. Written as "not asset-classes", it said yes to every tab added after it — and
+   * one was: Product & relationship types has no export, so its button produced no file and no error.
    */
-  const canExport = EXPORTS_A_CSV.includes(active) && !(active === "mapping" && !bankId);
+  const bankName = summary.data?.banks.find((bank) => bank.bankId === bankId)?.bankName;
+  const exports: Partial<Record<TabId, () => Promise<string>>> = {
+    banks: () => exportSupportedBanks(),
+    ...(bankId ? { mapping: () => exportBankFieldMapping(bankId) } : {}),
+    fx: () => exportFxRates(),
+    templates: () => exportEmailTemplates(),
+  };
+  const load = exports[active];
+  const tabTitle = tabs.find((tab) => tab.id === active)!.title;
 
   return (
     <div className="space-y-6">
@@ -97,10 +81,9 @@ export function ConfigPage() {
           </p>
         </div>
         <div className="flex shrink-0 gap-3">
-          <Button variant="secondary" onClick={() => void exportActiveTab()} disabled={exporting || !canExport}>
-            <Download aria-hidden="true" />
-            {exporting ? "Exporting…" : "Export"}
-          </Button>
+          {load && (
+            <ListReportButton key={active} list={active === "mapping" && bankName ? `${tabTitle} — ${bankName}` : tabTitle} load={load} />
+          )}
           {active === "templates" && (
             <Button onClick={() => setCreatingTemplate(true)}>
               <PencilLine aria-hidden="true" />
@@ -109,8 +92,6 @@ export function ConfigPage() {
           )}
         </div>
       </header>
-
-      {exportError && <Alert tone="danger">{exportError}</Alert>}
 
       <div
         role="tablist"
@@ -166,8 +147,4 @@ export function ConfigPage() {
       </div>
     </div>
   );
-}
-
-function downloadCsv(filename: string, csv: string) {
-  downloadTextFile(filename, csv, "text/csv;charset=utf-8");
 }

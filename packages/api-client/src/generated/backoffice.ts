@@ -24,6 +24,58 @@ import type {
 } from '@tanstack/react-query';
 
 import { http } from '../http';
+export type LayoutCardWidth = typeof LayoutCardWidth[keyof typeof LayoutCardWidth];
+
+
+export const LayoutCardWidth = {
+  HALF: 'HALF',
+  FULL: 'FULL',
+} as const;
+
+export interface LayoutCard {
+  /** @pattern [A-Za-z0-9][A-Za-z0-9._:-]{0,79} */
+  id: string;
+  width: LayoutCardWidth;
+  hidden: boolean;
+  /**
+     * @nullable
+     * @pattern [a-z][a-z-]{0,19}
+     */
+  chart: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 80
+     * @nullable
+     */
+  title: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  note: string | null;
+  /**
+     * @nullable
+     * @pattern [a-z][a-z-]{0,11}
+     */
+  palette: string | null;
+}
+
+export interface LayoutRequest {
+  /**
+     * @minItems 0
+     * @maxItems 80
+     */
+  cards: LayoutCard[];
+}
+
+export interface ViewLayout {
+  key: string;
+  cards: LayoutCard[];
+  /** @nullable */
+  savedAt: string | null;
+}
+
 export type DeclarationCycleWantedCadence = typeof DeclarationCycleWantedCadence[keyof typeof DeclarationCycleWantedCadence];
 
 
@@ -1458,6 +1510,65 @@ export interface BenchmarkLevelRequest {
 export interface BenchmarkLevelRow {
   onDate: string;
   level: number;
+}
+
+export interface Breaks {
+  /** @pattern VALUES|POLICY */
+  basis: string;
+  /**
+     * @minItems 2
+     * @maxItems 8
+     * @items.minimum -1000000000000
+     * @items.maximum 1000000000000
+     */
+  points: number[];
+  reversed: boolean;
+}
+
+export interface OwnCardRequest {
+  /**
+     * @minLength 0
+     * @maxLength 80
+     */
+  title: string;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  note: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  group: string | null;
+  /** @pattern [a-z][a-z0-9.-]{0,59} */
+  source: string;
+  /** @pattern [a-z][a-z-]{0,19} */
+  chart: string;
+  /**
+     * @nullable
+     * @pattern [a-z][a-z-]{0,11}
+     */
+  palette: string | null;
+  breaks: Breaks | null;
+}
+
+export interface OwnCard {
+  id: string;
+  key: string;
+  title: string;
+  /** @nullable */
+  note: string | null;
+  /** @nullable */
+  group: string | null;
+  source: string;
+  chart: string;
+  /** @nullable */
+  palette: string | null;
+  breaks: Breaks | null;
+  savedAt: string;
 }
 
 /**
@@ -4321,15 +4432,19 @@ export interface WhatIf {
   netChange: number;
 }
 
-export interface OwnedAssetFileRow {
-  id: string;
-  kind: string;
-  fileName: string;
-  contentType: string;
-  size: number;
-  /** @nullable */
-  uploadedBy: string | null;
-  uploadedAt: string;
+export interface ReportBar {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  label: string;
+  share: number;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  amount: string | null;
 }
 
 /**
@@ -4365,16 +4480,6 @@ export interface ReportFigure {
   change: ReportFigureChange;
 }
 
-export type ReportPanelPlace = typeof ReportPanelPlace[keyof typeof ReportPanelPlace];
-
-
-export const ReportPanelPlace = {
-  LEFT: 'LEFT',
-  MIDDLE: 'MIDDLE',
-  RIGHT: 'RIGHT',
-  BOTTOM: 'BOTTOM',
-} as const;
-
 export type ReportPairTone = typeof ReportPairTone[keyof typeof ReportPairTone];
 
 
@@ -4400,20 +4505,15 @@ export interface ReportPair {
   tone: ReportPairTone;
 }
 
-export interface ReportBar {
-  /**
-     * @minLength 0
-     * @maxLength 60
-     */
-  label: string;
-  share: number;
-  /**
-     * @minLength 0
-     * @maxLength 40
-     * @nullable
-     */
-  amount: string | null;
-}
+export type ReportPanelPlace = typeof ReportPanelPlace[keyof typeof ReportPanelPlace];
+
+
+export const ReportPanelPlace = {
+  LEFT: 'LEFT',
+  MIDDLE: 'MIDDLE',
+  RIGHT: 'RIGHT',
+  BOTTOM: 'BOTTOM',
+} as const;
 
 export interface ReportPanel {
   /**
@@ -4424,29 +4524,74 @@ export interface ReportPanel {
   place: ReportPanelPlace;
   /**
      * @minItems 0
-     * @maxItems 30
+     * @maxItems 40
      */
   pairs: ReportPair[];
   /**
      * @minItems 0
-     * @maxItems 20
+     * @maxItems 30
      */
   bars: ReportBar[];
   /**
      * @minItems 0
-     * @maxItems 8
+     * @maxItems 12
      * @items.minLength 0
      * @items.maxLength 60
      */
   columns: string[];
   /**
      * @minItems 0
-     * @maxItems 200
+     * @maxItems 300
      * @items.minItems 0
-     * @items.maxItems 8
+     * @items.maxItems 12
      */
   rows: string[][];
   alignRight: number[];
+}
+
+export interface ScreenReportRequest {
+  /**
+     * @minLength 0
+     * @maxLength 60
+     */
+  screen: string;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  status: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     */
+  subtitle: string;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     */
+  asOf: string;
+  /**
+     * @minItems 0
+     * @maxItems 24
+     */
+  figures: ReportFigure[];
+  /**
+     * @minItems 1
+     * @maxItems 40
+     */
+  panels: ReportPanel[];
+}
+
+export interface OwnedAssetFileRow {
+  id: string;
+  kind: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  /** @nullable */
+  uploadedBy: string | null;
+  uploadedAt: string;
 }
 
 export interface OverviewReportRequest {
@@ -8027,6 +8172,7 @@ export interface Headline {
   /** @nullable */
   clientsChangePercent: number | null;
   activeStaff: number;
+  relationshipManagers: number;
   onboarding: number;
   openApprovals: number;
   openRequests: number;
@@ -11513,6 +11659,252 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
+export const getGetViewLayoutUrl = (key: string,) => {
+
+
+
+
+  return `/api/backoffice/view-layouts/${key}`
+}
+
+export const getViewLayout = async (key: string, options?: Parameters<typeof http>[1]): Promise<ViewLayout> => {
+
+  return http<ViewLayout>(getGetViewLayoutUrl(key),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetViewLayoutQueryKey = (key: string,) => {
+    return [
+    `/api/backoffice/view-layouts/${key}`
+    ] as const;
+    }
+
+
+export const getGetViewLayoutQueryOptions = <TData = Awaited<ReturnType<typeof getViewLayout>>, TError = unknown>(key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewLayout>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetViewLayoutQueryKey(key);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getViewLayout>>> = ({ signal }) => getViewLayout(key, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: key !== null && key !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getViewLayout>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetViewLayoutQueryResult = NonNullable<Awaited<ReturnType<typeof getViewLayout>>>
+export type GetViewLayoutQueryError = unknown
+
+
+export function useGetViewLayout<TData = Awaited<ReturnType<typeof getViewLayout>>, TError = unknown>(
+ key: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewLayout>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getViewLayout>>,
+          TError,
+          Awaited<ReturnType<typeof getViewLayout>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetViewLayout<TData = Awaited<ReturnType<typeof getViewLayout>>, TError = unknown>(
+ key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewLayout>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getViewLayout>>,
+          TError,
+          Awaited<ReturnType<typeof getViewLayout>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetViewLayout<TData = Awaited<ReturnType<typeof getViewLayout>>, TError = unknown>(
+ key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewLayout>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetViewLayout<TData = Awaited<ReturnType<typeof getViewLayout>>, TError = unknown>(
+ key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewLayout>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetViewLayoutQueryOptions(key,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveViewLayoutUrl = (key: string,) => {
+
+
+
+
+  return `/api/backoffice/view-layouts/${key}`
+}
+
+export const saveViewLayout = async (key: string,
+    layoutRequest: LayoutRequest, options?: Parameters<typeof http>[1]): Promise<ViewLayout> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ViewLayout>(getSaveViewLayoutUrl(key),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(layoutRequest)
+  }
+);}
+
+
+
+
+
+export const getSaveViewLayoutMutationKey = () => ['saveViewLayout'] as const;
+
+export const getSaveViewLayoutMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveViewLayout>>, TError,SaveViewLayoutMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveViewLayout>>, TError,SaveViewLayoutMutationVariables, TContext> => {
+
+const mutationKey = getSaveViewLayoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveViewLayout>>, SaveViewLayoutMutationVariables> = (props) => {
+          const {key,data} = props ?? {};
+
+          return  saveViewLayout(key,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveViewLayoutMutationResult = NonNullable<Awaited<ReturnType<typeof saveViewLayout>>>
+    export type SaveViewLayoutMutationBody = LayoutRequest
+    export type SaveViewLayoutMutationError = unknown
+    export type SaveViewLayoutMutationVariables = {key: string;data: LayoutRequest}
+
+    export const useSaveViewLayout = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveViewLayout>>, TError,SaveViewLayoutMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveViewLayout>>,
+        TError,
+        SaveViewLayoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveViewLayoutMutationOptions(options), queryClient);
+    }
+
+export const getResetViewLayoutUrl = (key: string,) => {
+
+
+
+
+  return `/api/backoffice/view-layouts/${key}`
+}
+
+export const resetViewLayout = async (key: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getResetViewLayoutUrl(key),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getResetViewLayoutMutationKey = () => ['resetViewLayout'] as const;
+
+export const getResetViewLayoutMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetViewLayout>>, TError,ResetViewLayoutMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetViewLayout>>, TError,ResetViewLayoutMutationVariables, TContext> => {
+
+const mutationKey = getResetViewLayoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetViewLayout>>, ResetViewLayoutMutationVariables> = (props) => {
+          const {key} = props ?? {};
+
+          return  resetViewLayout(key,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetViewLayoutMutationResult = NonNullable<Awaited<ReturnType<typeof resetViewLayout>>>
+
+    export type ResetViewLayoutMutationError = unknown
+    export type ResetViewLayoutMutationVariables = {key: string}
+
+    export const useResetViewLayout = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetViewLayout>>, TError,ResetViewLayoutMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resetViewLayout>>,
+        TError,
+        ResetViewLayoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResetViewLayoutMutationOptions(options), queryClient);
+    }
+
 export const getCycleUrl = () => {
 
 
@@ -14736,6 +15128,161 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordBenchmarkLevelMutationOptions(options), queryClient);
+    }
+
+export const getChangeOwnCardUrl = (key: string,
+    id: string,) => {
+
+
+
+
+  return `/api/backoffice/own-cards/${key}/${id}`
+}
+
+export const changeOwnCard = async (key: string,
+    id: string,
+    ownCardRequest: OwnCardRequest, options?: Parameters<typeof http>[1]): Promise<OwnCard> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<OwnCard>(getChangeOwnCardUrl(key,id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ownCardRequest)
+  }
+);}
+
+
+
+
+
+export const getChangeOwnCardMutationKey = () => ['changeOwnCard'] as const;
+
+export const getChangeOwnCardMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeOwnCard>>, TError,ChangeOwnCardMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeOwnCard>>, TError,ChangeOwnCardMutationVariables, TContext> => {
+
+const mutationKey = getChangeOwnCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeOwnCard>>, ChangeOwnCardMutationVariables> = (props) => {
+          const {key,id,data} = props ?? {};
+
+          return  changeOwnCard(key,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeOwnCardMutationResult = NonNullable<Awaited<ReturnType<typeof changeOwnCard>>>
+    export type ChangeOwnCardMutationBody = OwnCardRequest
+    export type ChangeOwnCardMutationError = unknown
+    export type ChangeOwnCardMutationVariables = {key: string;id: string;data: OwnCardRequest}
+
+    export const useChangeOwnCard = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeOwnCard>>, TError,ChangeOwnCardMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeOwnCard>>,
+        TError,
+        ChangeOwnCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeOwnCardMutationOptions(options), queryClient);
+    }
+
+export const getDeleteOwnCardUrl = (key: string,
+    id: string,) => {
+
+
+
+
+  return `/api/backoffice/own-cards/${key}/${id}`
+}
+
+export const deleteOwnCard = async (key: string,
+    id: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getDeleteOwnCardUrl(key,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteOwnCardMutationKey = () => ['deleteOwnCard'] as const;
+
+export const getDeleteOwnCardMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOwnCard>>, TError,DeleteOwnCardMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteOwnCard>>, TError,DeleteOwnCardMutationVariables, TContext> => {
+
+const mutationKey = getDeleteOwnCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteOwnCard>>, DeleteOwnCardMutationVariables> = (props) => {
+          const {key,id} = props ?? {};
+
+          return  deleteOwnCard(key,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteOwnCardMutationResult = NonNullable<Awaited<ReturnType<typeof deleteOwnCard>>>
+
+    export type DeleteOwnCardMutationError = unknown
+    export type DeleteOwnCardMutationVariables = {key: string;id: string}
+
+    export const useDeleteOwnCard = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOwnCard>>, TError,DeleteOwnCardMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteOwnCard>>,
+        TError,
+        DeleteOwnCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteOwnCardMutationOptions(options), queryClient);
     }
 
 export const getGetOnboardingCaseUrl = (id: string,) => {
@@ -22190,6 +22737,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getWhatIfMutationOptions(options), queryClient);
     }
 
+export const getClientScreenReportUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/clients/${customerId}/screen-report`
+}
+
+export const clientScreenReport = async (customerId: string,
+    screenReportRequest: ScreenReportRequest, options?: Parameters<typeof http>[1]): Promise<Blob> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<Blob>(getClientScreenReportUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(screenReportRequest)
+  }
+);}
+
+
+
+
+
+export const getClientScreenReportMutationKey = () => ['clientScreenReport'] as const;
+
+export const getClientScreenReportMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clientScreenReport>>, TError,ClientScreenReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof clientScreenReport>>, TError,ClientScreenReportMutationVariables, TContext> => {
+
+const mutationKey = getClientScreenReportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clientScreenReport>>, ClientScreenReportMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  clientScreenReport(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClientScreenReportMutationResult = NonNullable<Awaited<ReturnType<typeof clientScreenReport>>>
+    export type ClientScreenReportMutationBody = ScreenReportRequest
+    export type ClientScreenReportMutationError = unknown
+    export type ClientScreenReportMutationVariables = {customerId: string;data: ScreenReportRequest}
+
+    export const useClientScreenReport = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clientScreenReport>>, TError,ClientScreenReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof clientScreenReport>>,
+        TError,
+        ClientScreenReportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getClientScreenReportMutationOptions(options), queryClient);
+    }
+
 export const getListOwnedAssetsUrl = (customerId: string,) => {
 
 
@@ -23580,6 +24210,184 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCreateBenchmarkMutationOptions(options), queryClient);
     }
 
+export const getListOwnCardsUrl = (key: string,) => {
+
+
+
+
+  return `/api/backoffice/own-cards/${key}`
+}
+
+export const listOwnCards = async (key: string, options?: Parameters<typeof http>[1]): Promise<OwnCard[]> => {
+
+  return http<OwnCard[]>(getListOwnCardsUrl(key),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOwnCardsQueryKey = (key: string,) => {
+    return [
+    `/api/backoffice/own-cards/${key}`
+    ] as const;
+    }
+
+
+export const getListOwnCardsQueryOptions = <TData = Awaited<ReturnType<typeof listOwnCards>>, TError = unknown>(key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnCards>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOwnCardsQueryKey(key);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOwnCards>>> = ({ signal }) => listOwnCards(key, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: key !== null && key !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOwnCards>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListOwnCardsQueryResult = NonNullable<Awaited<ReturnType<typeof listOwnCards>>>
+export type ListOwnCardsQueryError = unknown
+
+
+export function useListOwnCards<TData = Awaited<ReturnType<typeof listOwnCards>>, TError = unknown>(
+ key: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnCards>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOwnCards>>,
+          TError,
+          Awaited<ReturnType<typeof listOwnCards>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOwnCards<TData = Awaited<ReturnType<typeof listOwnCards>>, TError = unknown>(
+ key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnCards>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOwnCards>>,
+          TError,
+          Awaited<ReturnType<typeof listOwnCards>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListOwnCards<TData = Awaited<ReturnType<typeof listOwnCards>>, TError = unknown>(
+ key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnCards>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListOwnCards<TData = Awaited<ReturnType<typeof listOwnCards>>, TError = unknown>(
+ key: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnCards>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListOwnCardsQueryOptions(key,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateOwnCardUrl = (key: string,) => {
+
+
+
+
+  return `/api/backoffice/own-cards/${key}`
+}
+
+export const createOwnCard = async (key: string,
+    ownCardRequest: OwnCardRequest, options?: Parameters<typeof http>[1]): Promise<OwnCard> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<OwnCard>(getCreateOwnCardUrl(key),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ownCardRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateOwnCardMutationKey = () => ['createOwnCard'] as const;
+
+export const getCreateOwnCardMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOwnCard>>, TError,CreateOwnCardMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOwnCard>>, TError,CreateOwnCardMutationVariables, TContext> => {
+
+const mutationKey = getCreateOwnCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOwnCard>>, CreateOwnCardMutationVariables> = (props) => {
+          const {key,data} = props ?? {};
+
+          return  createOwnCard(key,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOwnCardMutationResult = NonNullable<Awaited<ReturnType<typeof createOwnCard>>>
+    export type CreateOwnCardMutationBody = OwnCardRequest
+    export type CreateOwnCardMutationError = unknown
+    export type CreateOwnCardMutationVariables = {key: string;data: OwnCardRequest}
+
+    export const useCreateOwnCard = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOwnCard>>, TError,CreateOwnCardMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createOwnCard>>,
+        TError,
+        CreateOwnCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateOwnCardMutationOptions(options), queryClient);
+    }
+
 export const getListOnboardingCasesUrl = (params?: ListOnboardingCasesParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -24312,6 +25120,170 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAskMarketAssistantMutationOptions(options), queryClient);
+    }
+
+export const getListReportUrl = () => {
+
+
+
+
+  return `/api/backoffice/list-reports/pdf`
+}
+
+export const listReport = async (screenReportRequest: ScreenReportRequest, options?: Parameters<typeof http>[1]): Promise<Blob> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<Blob>(getListReportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(screenReportRequest)
+  }
+);}
+
+
+
+
+
+export const getListReportMutationKey = () => ['listReport'] as const;
+
+export const getListReportMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof listReport>>, TError,ListReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof listReport>>, TError,ListReportMutationVariables, TContext> => {
+
+const mutationKey = getListReportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof listReport>>, ListReportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  listReport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ListReportMutationResult = NonNullable<Awaited<ReturnType<typeof listReport>>>
+    export type ListReportMutationBody = ScreenReportRequest
+    export type ListReportMutationError = unknown
+    export type ListReportMutationVariables = {data: ScreenReportRequest}
+
+    export const useListReport = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof listReport>>, TError,ListReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof listReport>>,
+        TError,
+        ListReportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getListReportMutationOptions(options), queryClient);
+    }
+
+export const getListExportUrl = () => {
+
+
+
+
+  return `/api/backoffice/list-reports/excel`
+}
+
+export const listExport = async (overviewExportRequest: OverviewExportRequest, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<string>(getListExportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(overviewExportRequest)
+  }
+);}
+
+
+
+
+
+export const getListExportMutationKey = () => ['listExport'] as const;
+
+export const getListExportMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof listExport>>, TError,ListExportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof listExport>>, TError,ListExportMutationVariables, TContext> => {
+
+const mutationKey = getListExportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof listExport>>, ListExportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  listExport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ListExportMutationResult = NonNullable<Awaited<ReturnType<typeof listExport>>>
+    export type ListExportMutationBody = OverviewExportRequest
+    export type ListExportMutationError = unknown
+    export type ListExportMutationVariables = {data: OverviewExportRequest}
+
+    export const useListExport = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof listExport>>, TError,ListExportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof listExport>>,
+        TError,
+        ListExportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getListExportMutationOptions(options), queryClient);
     }
 
 export const getListKycPapersUrl = () => {
@@ -29670,6 +30642,170 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAddClientNoteMutationOptions(options), queryClient);
+    }
+
+export const getBookScreenReportUrl = () => {
+
+
+
+
+  return `/api/backoffice/book-reports/pdf`
+}
+
+export const bookScreenReport = async (screenReportRequest: ScreenReportRequest, options?: Parameters<typeof http>[1]): Promise<Blob> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<Blob>(getBookScreenReportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(screenReportRequest)
+  }
+);}
+
+
+
+
+
+export const getBookScreenReportMutationKey = () => ['bookScreenReport'] as const;
+
+export const getBookScreenReportMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookScreenReport>>, TError,BookScreenReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof bookScreenReport>>, TError,BookScreenReportMutationVariables, TContext> => {
+
+const mutationKey = getBookScreenReportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bookScreenReport>>, BookScreenReportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  bookScreenReport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BookScreenReportMutationResult = NonNullable<Awaited<ReturnType<typeof bookScreenReport>>>
+    export type BookScreenReportMutationBody = ScreenReportRequest
+    export type BookScreenReportMutationError = unknown
+    export type BookScreenReportMutationVariables = {data: ScreenReportRequest}
+
+    export const useBookScreenReport = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookScreenReport>>, TError,BookScreenReportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bookScreenReport>>,
+        TError,
+        BookScreenReportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBookScreenReportMutationOptions(options), queryClient);
+    }
+
+export const getBookScreenExportUrl = () => {
+
+
+
+
+  return `/api/backoffice/book-reports/excel`
+}
+
+export const bookScreenExport = async (overviewExportRequest: OverviewExportRequest, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<string>(getBookScreenExportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(overviewExportRequest)
+  }
+);}
+
+
+
+
+
+export const getBookScreenExportMutationKey = () => ['bookScreenExport'] as const;
+
+export const getBookScreenExportMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookScreenExport>>, TError,BookScreenExportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof bookScreenExport>>, TError,BookScreenExportMutationVariables, TContext> => {
+
+const mutationKey = getBookScreenExportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bookScreenExport>>, BookScreenExportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  bookScreenExport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BookScreenExportMutationResult = NonNullable<Awaited<ReturnType<typeof bookScreenExport>>>
+    export type BookScreenExportMutationBody = OverviewExportRequest
+    export type BookScreenExportMutationError = unknown
+    export type BookScreenExportMutationVariables = {data: OverviewExportRequest}
+
+    export const useBookScreenExport = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookScreenExport>>, TError,BookScreenExportMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bookScreenExport>>,
+        TError,
+        BookScreenExportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBookScreenExportMutationOptions(options), queryClient);
     }
 
 export const getReadNotificationUrl = (id: string,) => {

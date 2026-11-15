@@ -1,6 +1,7 @@
-import { Alert, Button } from "@atomprive/ui";
+import { Button } from "@atomprive/ui";
 import { Download } from "lucide-react";
 import { QueueActions } from "../../components/queue-actions";
+import { ListReportButton } from "../layout/list-report";
 
 /**
  * The top of the proposals screen: what it is and what can be done from it.
@@ -20,56 +21,31 @@ import { QueueActions } from "../../components/queue-actions";
  * <p>It sits above an open proposal as well as above the list, so opening one never loses the way back to
  * everything else — the screen is the list, and a proposal is read within it.
  */
-export function ProposalsHeader({
-  onExport,
-  exporting,
-  canExport,
-  cappedAt,
-  reading = false,
-}: {
+export function ProposalsHeader(props: {
+  /** Above the list: the whole list as filtered, as PDF or Excel. */
+  report: { list: string; load: () => Promise<string>; filters?: string; columns?: string[] };
+} | {
+  /** Above one open proposal: that proposal, as a PDF. */
   onExport: () => void;
   exporting: boolean;
-  canExport: boolean;
-  /**
-   * What the last export actually carried, where it could not carry everything. An export that quietly
-   * stops at its limit is worse than no export: the file looks whole, and whoever takes it to a meeting
-   * finds out what was missing from it there.
-   */
-  cappedAt: { carried: number; of: number } | null;
-  /**
-   * Whether a proposal is open below this.
-   *
-   * <p>The header sits above the list AND above one open proposal, which is what keeps the way back on
-   * the page. What Export means changes with it — the list exports the list, and a proposal exports
-   * itself.
-   */
-  reading?: boolean;
 }) {
   return (
     // No box of its own. Above a list the buttons go up to the screen's heading row, where there was room
-    // for them, and what is left here is the alert and the search — each spaced by whatever holds them.
-    <>
-      {/* Only what can be done, at the end of the row. There is nothing on the left of it to justify
-          against any more, so the row ends at the right edge rather than spanning a width of nothing.
-
-          Export alone. This header stands above the approvals queue and above Trade logs, and on neither
-          of them does starting a fresh piece of advice belong: one is a queue of what is waiting on
-          somebody, the other the record of rebalances already asked for. A button that took the reader
-          off both screens sat on both. */}
-      <QueueActions className="flex flex-wrap items-center justify-end gap-2">
-        <Button variant="secondary" disabled={exporting || !canExport} onClick={onExport}>
+    // for them.
+    //
+    // Only what can be done, at the end of the row. This header stands above the approvals queue and above
+    // Trade logs, and on neither of them does starting a fresh piece of advice belong: one is a queue of what
+    // is waiting on somebody, the other the record of rebalances already asked for. What the button makes
+    // changes with what is below it — the list reports the list, and a proposal prints itself.
+    <QueueActions className="flex flex-wrap items-center justify-end gap-2">
+      {"report" in props ? (
+        <ListReportButton list={props.report.list} load={props.report.load} filters={props.report.filters} columns={props.report.columns} />
+      ) : (
+        <Button variant="secondary" disabled={props.exporting} onClick={props.onExport}>
           <Download aria-hidden="true" />
-          {exporting ? (reading ? "Preparing…" : "Exporting…") : reading ? "Download PDF" : "Export"}
+          {props.exporting ? "Preparing…" : "Download PDF"}
         </Button>
-      </QueueActions>
-
-      {cappedAt && (
-        <Alert tone="warning">
-          That file holds the first {cappedAt.carried.toLocaleString()} of{" "}
-          {cappedAt.of.toLocaleString()} proposals — {(cappedAt.of - cappedAt.carried).toLocaleString()}{" "}
-          are not in it. Narrow it by tab, by date or by search and export again to carry the rest.
-        </Alert>
       )}
-    </>
+    </QueueActions>
   );
 }

@@ -27,9 +27,7 @@ import { menuFor } from "../../menu";
 import {
   AskTheAssistant,
   Breakdown,
-  CardGrid,
   Counts,
-  EditCards,
   Loading,
   Panel,
   Strip,
@@ -37,11 +35,13 @@ import {
   useDashboardCards,
   type CardMeta,
 } from "../dashboard/dashboard-kit";
+import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { sharesFigure, singleFigure } from "../layout/own-cards";
 
 /**
  * A portfolio manager's dashboard: the clients assigned to them — what they hold, how far each sits from plan,
- * the models they are on, the furthest from plan, and what this manager has raised. One dashboard with Edit view
- * to tick cards on and off, the same as every other role's.
+ * the models they are on, the furthest from plan, and what this manager has raised. One dashboard with Customize view
+ * to move, size and hide cards, the same as every other role's.
  */
 
 const PERIODS = [
@@ -54,17 +54,17 @@ const PERIODS = [
 type CardId = "overview" | "health" | "proposals" | "models" | "deviations" | "assistant";
 
 const CARD: Record<CardId, CardMeta> = {
-  overview: { title: "AUM & portfolio overview", area: "main" },
-  health: { title: "Portfolio health", area: "main" },
-  proposals: { title: "Proposals & rebalancing", area: "main" },
+  overview: { title: "AUM & portfolio overview", area: "main", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
+  health: { title: "Portfolio health", area: "main", charts: ["donut", "horizontal-bar", "table"] },
+  proposals: { title: "Proposals & rebalancing", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   models: { title: "Model portfolios", area: "main" },
   deviations: { title: "Top deviations", area: "main" },
   assistant: { title: "AI Assistant", area: "side" },
 };
 
-const CARD_IDS = Object.keys(CARD) as CardId[];
 
-/** What the dashboard opens on, as the firm drew it on 4 Nov 2026. */
+/** What the dashboard opens on: the four that matter most, chosen 13 Nov 2026; the rest wait in Add cards. A layout someone saved is kept. */
+// What the dashboard showed when the portal was set up: what a new person sees, and what Reset to default view brings back.
 const DEFAULT_CARDS: CardId[] = ["overview", "health", "proposals", "models", "deviations", "assistant"];
 
 /** Which screen each counted line is worked from. A line whose screen the reader's menu lacks has no link. */
@@ -111,8 +111,7 @@ export function PortfolioManagerDashboard() {
     { query: { placeholderData: keepPreviousData, refetchInterval: 60_000 } },
   );
   const currencies = useListCurrencies<Currency[], ApiError>();
-  const view = useDashboardCards("portfolio-manager", CARD_IDS, DEFAULT_CARDS);
-  const [editing, setEditing] = useState(false);
+  const view = useDashboardCards("portfolio-manager", CARD, DEFAULT_CARDS);
   // Every screen on the reader's menu, the ones drawn under a section heading included.
   const reachable = useMemo(
     () => new Set(menuFor(user).flatMap((one) => [one.to, ...(one.below ?? []).map((under) => under.to)])),
@@ -253,8 +252,7 @@ export function PortfolioManagerDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards meta={CARD} shown={view.cards} editing={editing} onEditing={setEditing} onChange={view.change}
-            changed={view.changed} onReset={view.reset} />
+          <CustomizeButton view={view} />
           <SelectInput id="pm-period" aria-label="Period the changes are measured over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -270,7 +268,16 @@ export function PortfolioManagerDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} shown={view.cards} render={render} editing={editing} onChange={view.change} />
+      <LayoutGrid view={view} render={render} figures={data ? {
+        "book.classes": sharesFigure("AUM by asset class", "Book", data.byAssetClass.map((one) => ({ name: one.name, value: Number(one.amount) })),
+          (value) => money(value, cur)),
+        "book.aum": singleFigure("AUM I manage", "Book", Number(data.book.aum), (value) => money(value, cur)),
+        "health.plan": sharesFigure("Portfolios on and off plan", "Health", [
+          { name: "On plan", value: data.health.onPlan }, { name: "Off plan", value: data.health.offPlan }, { name: "No model", value: data.health.noModel },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "health.on-plan": singleFigure("Portfolios on plan", "Health", data.health.onPlanPercent, (value) => `${Math.round(value)}%`, { gauge: true, max: 100 }),
+        "proposals.counts": sharesFigure("Proposals & rebalancing, counted", "Work", (data.proposals).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+      } : undefined} screen="Portfolio Manager dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }

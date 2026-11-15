@@ -42,7 +42,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatRelative, roleLabel } from "../../lib/labels";
 import { menuFor } from "../../menu";
@@ -50,11 +50,9 @@ import { Chart, ink } from "../book/overview-charts";
 import {
   AskTheAssistant,
   Breakdown,
-  CardGrid,
   CardMenu,
   ComingSoon,
   Counts,
-  EditCards,
   Loading,
   Panel,
   Row,
@@ -63,6 +61,10 @@ import {
   useDashboardCards,
   type CardMeta,
 } from "./dashboard-kit";
+import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
+import { seriesFigure, sharesFigure, singleFigure } from "../layout/own-cards";
+import { KindChart, useCardChart, type ChartKind } from "../layout/chart-kinds";
 
 /**
  * The Admin's dashboard: the firm's money and clients across the top, then everything waiting on somebody,
@@ -131,30 +133,30 @@ type CardId = "summary" | "trend" | "asset-classes" | "lifecycle" | "operations"
  * the side; everything else two to a row, the wide ones taking the whole row.
  */
 const CARD: Record<CardId, CardMeta> = {
-  summary: { title: "Firm summary", area: "main", wide: true },
-  trend: { title: "AUM trend", area: "main" },
-  "asset-classes": { title: "AUM by asset class", area: "main" },
-  lifecycle: { title: "Clients by lifecycle", area: "main" },
-  operations: { title: "Operational health", area: "main" },
-  approvals: { title: "Approvals & queues", area: "main" },
-  upcoming: { title: "Upcoming & due", area: "main" },
-  attention: { title: "Items requiring attention", area: "main" },
+  summary: { title: "Firm summary", area: "main", wide: true, charts: [...FIGURE_KINDS] },
+  trend: { title: "AUM trend", area: "main", charts: ["bar", "line", "area", "table"] },
+  "asset-classes": { title: "AUM by asset class", area: "main", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
+  lifecycle: { title: "Clients by lifecycle", area: "main", charts: ["donut", "funnel", "bar", "table"] },
+  operations: { title: "Operational health", area: "main", charts: ["table", "horizontal-bar", "donut", "bar"] },
+  approvals: { title: "Approvals & queues", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  upcoming: { title: "Upcoming & due", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  attention: { title: "Items requiring attention", area: "main", charts: ["table", "horizontal-bar", "donut", "bar"] },
   activity: { title: "Firm activity", area: "main", wide: true },
   health: { title: "System health", area: "main" },
   tasks: { title: "Task summary", area: "main" },
-  "by-rm": { title: "AUM by RM", area: "main" },
-  "by-pm": { title: "AUM by PM", area: "main" },
+  "by-rm": { title: "AUM by RM", area: "main", charts: ["horizontal-bar", "donut", "mindmap", "table"] },
+  "by-pm": { title: "AUM by PM", area: "main", charts: ["horizontal-bar", "donut", "mindmap", "table"] },
   "rm-count": { title: "Relationship managers", area: "main" },
-  "rm-book": { title: "AUM by relationship manager", area: "main" },
+  "rm-book": { title: "AUM by relationship manager", area: "main", charts: ["table", "horizontal-bar", "donut", "mindmap"] },
   assistant: { title: "AI Assistant", area: "side" },
   quick: { title: "Quick actions", area: "side" },
   links: { title: "Key links", area: "side" },
 };
 
-const CARD_IDS = Object.keys(CARD) as CardId[];
 
-/** What the dashboard opens on until the Admin changes it: the firm's own choice, 4 Nov 2026. */
-const DEFAULT_CARDS: CardId[] = ["summary", "asset-classes", "operations", "approvals", "upcoming", "assistant"];
+/** What the dashboard opens on: the four that matter most, chosen 13 Nov 2026; the rest wait in Add cards. A layout someone saved is kept. */
+// The Admin dashboard as set up in the portal (agreed 13 Nov): what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS: CardId[] = ["summary", "asset-classes", "operations", "approvals", "upcoming", "lifecycle", "trend", "assistant"];
 
 export function AdminDashboard() {
   const user = useStaffUser();
@@ -180,22 +182,22 @@ export function AdminDashboard() {
   const data = firm.data;
   const cur = data?.currency ?? currency;
 
-  const view = useDashboardCards("admin", CARD_IDS, DEFAULT_CARDS);
-  const [editing, setEditing] = useState(false);
+  const view = useDashboardCards("admin", CARD, DEFAULT_CARDS);
   const openItems = data ? data.headline.openApprovals + data.headline.openRequests : undefined;
 
   const cards: Record<CardId, ReactNode> = {
     summary: (
       <Panel icon={Layers} title="Firm summary">
-        <dl className="grid grid-cols-2 gap-y-4 sm:grid-cols-4 sm:divide-x sm:divide-line">
+        <FigureStrip bare list className="grid grid-cols-2 gap-y-4 sm:grid-cols-3 xl:grid-cols-5 xl:divide-x xl:divide-line">
           <Figure label="Total AUM" value={data ? money(data.headline.totalAum, cur) : undefined}
             change={data?.headline.aumChangePercent} to={goTo("/client-management", "/clients")} />
+          <Figure label="Relationship Managers" value={data?.headline.relationshipManagers} to={goTo("/users")} />
           <Figure label="Total clients" value={data?.headline.clients} change={data?.headline.clientsChangePercent}
             to={goTo("/clients")} />
           <Figure label="Active staff" value={data?.headline.activeStaff} to={goTo("/users")} />
           <Figure label="Open items" value={openItems} tone={openItems ? "danger" : undefined}
             to={goTo("/approvals", "/deactivation-requests")} />
-        </dl>
+        </FigureStrip>
       </Panel>
     ),
     trend: (
@@ -224,6 +226,12 @@ export function AdminDashboard() {
     ),
     operations: (
       <Panel icon={Activity} title="Operational health">
+        <OpsChart rows={data ? [
+          { name: "Onboarding", value: data.operations.onboarding, to: goTo("/clients") },
+          { name: "KYC & compliance", value: data.operations.kycInReview, to: goTo("/kyc-documents", "/kyc", "/clients") },
+          { name: "Portfolio proposals", value: data.operations.proposalsPending, to: goTo("/approvals?queue=proposals") },
+          { name: "Bank feeds failed", value: data.operations.bankFeedsFailed, to: goTo("/ingestion") },
+        ] : []}>
         <ul className="space-y-2">
           <OpsRow icon={CheckCircle2} label="Onboarding" state="In progress" value={data?.operations.onboarding}
             tone="good" to={goTo("/clients")} />
@@ -237,6 +245,7 @@ export function AdminDashboard() {
             value={data?.operations.bankFeedsFailed} tone={data?.operations.bankFeedsFailed ? "danger" : "good"}
             to={goTo("/ingestion")} />
         </ul>
+        </OpsChart>
       </Panel>
     ),
     approvals: (
@@ -343,7 +352,6 @@ export function AdminDashboard() {
     ),
   };
 
-  const shown = view.cards;
 
   return (
     <div className="space-y-4">
@@ -358,8 +366,7 @@ export function AdminDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards meta={CARD} shown={shown} editing={editing} onEditing={setEditing} onChange={view.change}
-            changed={view.changed} onReset={view.reset} />
+          <CustomizeButton view={view} />
           <SelectInput id="firm-period" aria-label="Period the changes are measured over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -381,7 +388,23 @@ export function AdminDashboard() {
         </Alert>
       )}
 
-      <CardGrid meta={CARD} shown={shown} render={cards} editing={editing} onChange={view.change} />
+      <LayoutGrid view={view} render={cards} figures={data ? {
+        "aum.classes": sharesFigure("AUM by asset class", "Money", data.byAssetClass.map((one) => ({ name: one.name, value: Number(one.amount) })), (value) => money(value, cur)),
+        "aum.total": singleFigure("Total AUM", "Money", Number(data.headline.totalAum), (value) => money(value, cur)),
+        "aum.trend": seriesFigure("AUM at each month end, last six months", "Money", data.growth.map((one) => one.on.slice(0, 7)),
+          [{ name: "AUM", values: data.growth.map((one) => Number(one.aum)) }], (value) => money(value, cur), ["bar", "line", "area", "table"]),
+        "aum.rm": sharesFigure("AUM by relationship manager", "Money", (data.everyRelationshipManager ?? []).map((one) => ({ name: one.name, value: Number(one.amount) })),
+          (value) => money(value, cur), ["horizontal-bar", "donut", "mindmap", "table"]),
+        "aum.pm": sharesFigure("AUM by portfolio manager", "Money", (data.byPortfolioManager ?? []).map((one) => ({ name: one.name, value: Number(one.amount) })),
+          (value) => money(value, cur), ["horizontal-bar", "donut", "mindmap", "table"]),
+        "clients.lifecycle": sharesFigure("Clients by lifecycle", "Clients", [
+          { name: "Active", value: data.lifecycle.active }, { name: "KYC not yet approved", value: data.lifecycle.onboarding },
+          { name: "KYC expired", value: data.lifecycle.kycExpired }, { name: "Deactivation", value: data.lifecycle.deactivating },
+        ], (value: number) => String(Math.round(value)), ["donut", "funnel", "bar", "table"]),
+        "clients.total": singleFigure("Total clients", "Clients", data.headline.clients, (value: number) => String(Math.round(value))),
+        "approvals.counts": sharesFigure("Approvals & queues, counted", "Work", ([...data.approvals, ...data.requests]).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+        "upcoming.counts": sharesFigure("Upcoming & due, counted", "Work", (data.upcoming).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+      } : undefined} screen="Admin dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }
@@ -394,6 +417,10 @@ function Figure({ label, value, change, tone, to }: {
   tone?: "danger";
   to?: string;
 }) {
+  if (useFigureRow()) {
+    return <FigureRow label={to ? <Link to={to} className="hover:text-primary-700">{label}</Link> : label} value={value ?? "—"} tone={tone === "danger" ? "text-red-600" : undefined}
+      note={change == null ? null : <span className={change < 0 ? "text-red-600" : "text-emerald-600"}>{change > 0 ? "+" : ""}{change}%</span>} />;
+  }
   const body = (
     <>
       <dt className="text-sm text-ink-muted">{label}</dt>
@@ -409,6 +436,19 @@ function Figure({ label, value, change, tone, to }: {
   );
   return to ? <Link to={to} className="block px-4 first:pl-0 hover:[&_dd]:text-primary-700">{body}</Link>
     : <div className="px-4 first:pl-0">{body}</div>;
+}
+
+/** Operational health as its own rows, or as a chart of the same counts; a click opens where each is worked. */
+function OpsChart({ rows, children }: { rows: { name: string; value: number; to?: string }[]; children: ReactNode }) {
+  const chart = useCardChart();
+  const navigate = useNavigate();
+  if (!chart || chart.own || rows.length === 0) return <>{children}</>;
+  return (
+    <KindChart kind={chart.kind!} height={Math.max(180, 40 + rows.length * 28)} label="Operational health, counted"
+      format={(value) => String(Math.round(value))}
+      data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: one.value })) }}
+      onPick={(at) => { const to = rows[at]?.to; if (to) navigate(to); }} />
+  );
 }
 
 /** One line of Operational health: what, where it stands, how many, and the way in. */
@@ -446,6 +486,7 @@ function OpsRow({ icon: Icon, label, state, value, tone, to }: {
 
 /** The firm's money as columns and its client count as a line, month by month. */
 function GrowthChart({ data }: { data: FirmDashboard }) {
+  const chart = useCardChart();
   const option = useMemo(() => {
     const c = ink();
     const months = data.growth.map((one, index) =>
@@ -474,6 +515,19 @@ function GrowthChart({ data }: { data: FirmDashboard }) {
       ],
     };
   }, [data]);
+  if (chart && !chart.own) {
+    // AUM alone: the clients' count is on a scale of its own, kept to the card's own look and the table.
+    const months = data.growth.map((one, index) => (index === data.growth.length - 1 ? "Now"
+      : new Date(`${one.on}T00:00:00`).toLocaleDateString("en-GB", { month: "short" })));
+    return (
+      <KindChart kind={chart.kind!} height={220} label="AUM at the end of each of the last six months"
+        format={(value) => (value > 9999 ? money(value, data.currency) : String(Math.round(value)))}
+        data={{ shape: "series", categories: months, series: [
+          { name: `AUM (${data.currency})`, values: data.growth.map((one) => Number(one.aum)) },
+          ...(chart.kind === "table" ? [{ name: "Clients", values: data.growth.map((one) => one.clients) }] : []),
+        ] }} />
+    );
+  }
   return <Chart option={option} height={220} label="AUM and number of clients at the end of each of the last six months" />;
 }
 
@@ -493,8 +547,20 @@ const ICON_FOR: Record<string, LucideIcon> = {
 };
 
 function Attention({ rows, linkFor, loaded }: { rows: FirmWaiting[]; linkFor: (key: string) => string | undefined; loaded: boolean }) {
+  const chart = useCardChart();
+  const navigate = useNavigate();
   if (loaded && rows.length === 0) {
     return <p className="py-8 text-center text-sm text-ink-muted">Nothing needs attention right now.</p>;
+  }
+  // Drawn as another kind, what needs attention is a chart of its counts; a click opens where it is worked.
+  if (chart && !chart.own) {
+    const shown = rows.slice(0, 5);
+    return (
+      <KindChart kind={chart.kind!} height={Math.max(180, 40 + shown.length * 28)} label="What needs attention, counted"
+        format={(value) => String(Math.round(value))}
+        data={{ shape: "shares", items: shown.map((one) => ({ name: one.label, value: one.count })) }}
+        onPick={(at) => { const to = shown[at] && linkFor(shown[at].key); if (to) navigate(to); }} />
+    );
   }
   return (
     <ul className="divide-y divide-line text-sm">
@@ -600,9 +666,11 @@ function FirmActivity({ platform, attention, linkFor, to }: {
 }
 
 function Managers({ rows, currency }: { rows: ManagerAum[] | undefined; currency: string }) {
+  const chart = useCardChart();
   if (rows && rows.length === 0) {
     return <p className="py-8 text-center text-sm text-ink-muted">No assigned clients hold anything yet.</p>;
   }
+  if (rows && chart && !chart.own) return <ManagerChart rows={rows} currency={currency} kind={chart.kind!} />;
   const most = Math.max(...(rows ?? []).map((one) => Number(one.amount)), 1);
   return (
     <ul className="space-y-2.5 text-sm">
@@ -623,17 +691,28 @@ function Managers({ rows, currency }: { rows: ManagerAum[] | undefined; currency
   );
 }
 
+/** What each manager's clients hold, drawn as the kind picked for the card. */
+function ManagerChart({ rows, currency, kind }: { rows: ManagerAum[]; currency: string; kind: ChartKind }) {
+  return (
+    <KindChart kind={kind} height={Math.max(200, 40 + rows.length * 28)} label="What each manager's clients hold"
+      format={(value) => money(value, currency)}
+      data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: Number(one.amount) })) }} />
+  );
+}
+
 /**
  * Every relationship manager with a client: how many clients, what they hold and their share of the firm. A
  * client with two RMs counts in full for each, so the shares can add up to more than the whole.
  */
 function RelationshipBook({ rows, currency }: { rows: ManagerAum[] | undefined; currency: string }) {
+  const chart = useCardChart();
   if (!rows) {
     return <Loading />;
   }
   if (rows.length === 0) {
     return <p className="py-8 text-center text-sm text-ink-muted">No relationship manager has a client yet.</p>;
   }
+  if (chart && !chart.own) return <ManagerChart rows={rows} currency={currency} kind={chart.kind!} />;
   const overlap = rows.reduce((sum, one) => sum + Number(one.sharePercent), 0) > 100;
   return (
     <div className="overflow-x-auto">

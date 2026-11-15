@@ -4,6 +4,8 @@ import { FileSignature, FileText, KeyRound, LineChart, Mail, Search, ShieldCheck
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { dayOf as dayOnClientClock, writeDate } from "../lib/display";
+import { when } from "../lib/dates";
+import { ReportExport } from "./report-export";
 
 /**
  * Everything that happened on the client's record, newest first, under the day it happened: their papers and
@@ -80,9 +82,23 @@ export function ActivityPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-[1.625rem] font-bold text-balance text-ink">Activity</h1>
-        <p className="mt-1 text-sm text-ink-muted">Everything that has happened on your account, newest first.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[1.625rem] font-bold text-balance text-ink">Activity</h1>
+          <p className="mt-1 text-sm text-ink-muted">Everything that has happened on your account, newest first.</p>
+        </div>
+        {/* Everything the filters match, not only the lines loaded so far. */}
+        {matching.length > 0 && (
+          <ReportExport build={() => ({
+            screen: "Activity",
+            subtitle: [
+              "Everything that has happened on your account, newest first.",
+              kind !== "all" && `Kind: ${KINDS.find((one) => one.id === kind)?.label ?? kind}`, wanted && `Search: ${search.trim()}`, from && `From ${from}`, to && `To ${to}`,
+            ].filter(Boolean).join(" · "),
+            figures: [{ label: "Events", value: String(matching.length) }],
+            sections: [{ title: "Activity", wide: true, head: ["When", "What", "Detail"], rows: matching.map((one) => [when(one.at), one.title, one.detail]) }],
+          })} />
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Kind of activity">

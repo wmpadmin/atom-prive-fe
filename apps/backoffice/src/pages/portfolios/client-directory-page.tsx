@@ -9,14 +9,19 @@ import {
   type DirectoryClient,
   type DirectoryNamed,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, Pagination, SelectInput, TextInput, cn } from "@atomprive/ui";
+import { Alert, Pagination, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { CalendarClock, Clock, Download, Search, ShieldCheck, Target, type LucideIcon } from "lucide-react";
+import { CalendarClock, Clock, Search, ShieldCheck, Target, type LucideIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
-import { downloadTextFile } from "../../lib/download";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
+import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
+import { useCardLabel } from "../layout/card-settings";
+import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
+import { sharesFigure, type Figures } from "../layout/own-cards";
 import { INK } from "./asset-classes";
 
 /**
@@ -37,6 +42,7 @@ export function ClientDirectoryPage() {
   );
   const currencies = useListCurrencies<Currency[], ApiError>();
   const data = directory.data;
+  const view = useViewLayout("client-directory", CARDS, DEFAULT_CARDS);
 
   return (
     <div className="space-y-5">
@@ -48,27 +54,81 @@ export function ClientDirectoryPage() {
             Directory of all client families · open a family to see its overview, entity structure, holdings and analytics
           </p>
         </div>
-        <SelectInput id="directory-currency" aria-label="Currency the directory is shown in" value={currency}
-          onChange={(event) => setCurrency(event.target.value)} className="w-28">
-          {(currencies.data ?? [{ code: "USD", name: "US dollar" }]).map((one) => (
-            <option key={one.code} value={one.code}>{one.code}</option>
-          ))}
-        </SelectInput>
+        <div className="flex flex-wrap gap-2">
+          <ReportButton />
+          <CustomizeButton view={view} />
+          <SelectInput id="directory-currency" aria-label="Currency the directory is shown in" value={currency}
+            onChange={(event) => setCurrency(event.target.value)} className="w-28">
+            {(currencies.data ?? [{ code: "USD", name: "US dollar" }]).map((one) => (
+              <option key={one.code} value={one.code}>{one.code}</option>
+            ))}
+          </SelectInput>
+        </div>
       </header>
 
       {directory.isError && <Alert tone="danger">{directory.error.message}</Alert>}
       {!data ? (
         !directory.isError && <p className="py-16 text-center text-sm text-ink-muted">Reading the directory…</p>
       ) : (
-        <Board data={data} />
+        <Board data={data} view={view} />
       )}
     </div>
   );
 }
 
-function Board({ data }: { data: ClientDirectory }) {
+type DirectoryCardId = "kpis" | "attention" | "directory" | "segments" | "managers" | "regions" | "mandates";
+
+/** The screen's cards, in the firm's order: every card on by default. */
+const CARDS: Record<DirectoryCardId, LayoutMeta> = {
+  kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
+  attention: { title: "Needs attention", group: "Summary", wide: true },
+  directory: { title: "Client Directory", group: "Clients", wide: true },
+  segments: { title: "By Segment", group: "Breakdowns", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
+  managers: { title: "By Relationship Manager", group: "Breakdowns", charts: ["table", "horizontal-bar", "donut", "mindmap"] },
+  regions: { title: "By Region of Residence", group: "Breakdowns", charts: ["horizontal-bar", "donut", "mindmap", "table"] },
+  mandates: { title: "By Mandate", group: "Breakdowns", charts: ["table", "donut", "horizontal-bar", "mindmap"] },
+};
+
+// The screen as the portal was set up, every card on it: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS = Object.keys(CARDS) as DirectoryCardId[];
+
+function Board({ data, view }: { data: ClientDirectory; view: ViewLayoutState<DirectoryCardId> }) {
   const cur = data.currency;
-  const { kpis, attention } = data;
+  const { attention } = data;
+  return (
+    <>
+      <LayoutGrid view={view} screen="Client Directory" figures={directoryFigures(data)} render={{
+        kpis: <Kpis data={data} />,
+        attention: (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <AttentionTile icon={Target} tone="danger" label="Deviation from IPS" named={attention.deviations} />
+            <AttentionTile icon={CalendarClock} tone="warning" label="Reviews overdue" named={attention.reviewsOverdue}
+              extra={(one) => (one.on ? ` (${shortDate(one.on)})` : "")} />
+            <AttentionTile icon={Clock} tone="warning" label="Custodian data delayed" named={attention.dataDelayed} />
+            <AttentionTile icon={ShieldCheck} tone="neutral" label="KYC / CRS refresh due" named={attention.kycDue}
+              count={attention.kycDue.reduce((sum, one) => sum + one.count, 0)} noun={["entity", "entities"]}
+              extra={(one) => ` (${one.count})`} />
+          </div>
+        ),
+        directory: <DirectoryCard data={data} />,
+        segments: <SegmentCard data={data} chart={cardChart(view, "segments")} />,
+        managers: <ManagerCard data={data} chart={cardChart(view, "managers")} />,
+        regions: <RegionCard data={data} chart={cardChart(view, "regions")} />,
+        mandates: <MandateCard data={data} chart={cardChart(view, "mandates")} />,
+      }} />
+
+      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
+        <span>Values in {cur} unless stated; market data as of {formatDate(data.asOf)} close.</span>
+        <span>atom privé · Portfolio Management · Internal use only</span>
+      </footer>
+    </>
+  );
+}
+
+/** The six figures across the top. */
+function Kpis({ data }: { data: ClientDirectory }) {
+  const cur = data.currency;
+  const { kpis } = data;
   const fileNote = data.bankFileClients.join(", ");
   const segments = kpis.segments
     .filter((one) => one.segment != null)
@@ -76,7 +136,7 @@ function Board({ data }: { data: ClientDirectory }) {
     .join(" · ");
   return (
     <>
-      <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+      <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
         <Kpi label="Client families" value={String(kpis.clients)} note={segments || "No segment recorded yet"} />
         <Kpi label="Assets under management" value={compact(kpis.totalAum, cur)}
           note={
@@ -119,34 +179,7 @@ function Board({ data }: { data: ClientDirectory }) {
               </FootNote>
             </>
           } />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <AttentionTile icon={Target} tone="danger" label="Deviation from IPS" named={attention.deviations} />
-        <AttentionTile icon={CalendarClock} tone="warning" label="Reviews overdue" named={attention.reviewsOverdue}
-          extra={(one) => (one.on ? ` (${shortDate(one.on)})` : "")} />
-        <AttentionTile icon={Clock} tone="warning" label="Custodian data delayed" named={attention.dataDelayed} />
-        <AttentionTile icon={ShieldCheck} tone="neutral" label="KYC / CRS refresh due" named={attention.kycDue}
-          count={attention.kycDue.reduce((sum, one) => sum + one.count, 0)} noun={["entity", "entities"]}
-          extra={(one) => ` (${one.count})`} />
-      </div>
-
-      <DirectoryCard data={data} />
-
-      {/* Two by two, paired by height: the segment donut beside the managers, the region bars beside the
-          mandates. Alone across the page the segment card was mostly empty space above three short ones; in a
-          grid each pair stretches to the taller of the two, so a row ends level. */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SegmentCard data={data} />
-        <ManagerCard data={data} />
-        <RegionCard data={data} />
-        <MandateCard data={data} />
-      </div>
-
-      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
-        <span>Values in {cur} unless stated; market data as of {formatDate(data.asOf)} close.</span>
-        <span>atom privé · Portfolio Management · Internal use only</span>
-      </footer>
+      </FigureStrip>
     </>
   );
 }
@@ -215,10 +248,6 @@ function DirectoryCard({ data }: { data: ClientDirectory }) {
           <h2 className="text-lg font-bold">Client Directory</h2>
           <p className="mt-0.5 text-xs text-ink-muted">All client families under coverage · select a family to open its workspace</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => exportCsv(shown, data.currency)}>
-          <Download aria-hidden="true" />
-          Export list
-        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -399,7 +428,7 @@ function StatusPill({ one }: { one: DirectoryClient }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 /* Breakdowns                                                                                                    */
 
-function SegmentCard({ data }: { data: ClientDirectory }) {
+function SegmentCard({ data, chart }: { data: ClientDirectory; chart: CardChart }) {
   const slices = data.bySegment;
   const option = useMemo(() => {
     const colours = ink();
@@ -417,8 +446,10 @@ function SegmentCard({ data }: { data: ClientDirectory }) {
   }, [slices, data.currency]);
   const total = slices.reduce((sum, one) => sum + one.aum, 0);
   return (
-    <Card title="By Segment">
-      {slices.length === 0 ? <Empty>No client families yet.</Empty> : (
+    <Card title="By Segment" picker={slices.length > 0 && chart.picker}>
+      {slices.length === 0 ? <Empty>No client families yet.</Empty> : !chart.own ? (
+        <AumChart rows={slices} currency={data.currency} chart={chart} label="AUM by segment" />
+      ) : (
         <>
           <div className="relative mx-auto w-full max-w-48">
             <Chart option={option} height={180} label="AUM by segment" />
@@ -451,11 +482,13 @@ function SegmentCard({ data }: { data: ClientDirectory }) {
   );
 }
 
-function RegionCard({ data }: { data: ClientDirectory }) {
+function RegionCard({ data, chart }: { data: ClientDirectory; chart: CardChart }) {
   const largest = Math.max(1, ...data.byRegion.map((one) => one.aum));
   return (
-    <Card title="By Region of Residence">
-      {data.byRegion.length === 0 ? <Empty>No client families yet.</Empty> : (
+    <Card title="By Region of Residence" picker={data.byRegion.length > 0 && chart.picker}>
+      {data.byRegion.length === 0 ? <Empty>No client families yet.</Empty> : !chart.own ? (
+        <AumChart rows={data.byRegion} currency={data.currency} chart={chart} label="AUM by region of residence" />
+      ) : (
         <ul className="space-y-2.5">
           {data.byRegion.map((one) => (
             <li key={one.key} className="grid grid-cols-[7rem_1fr_5rem] items-center gap-3 text-sm">
@@ -474,10 +507,12 @@ function RegionCard({ data }: { data: ClientDirectory }) {
   );
 }
 
-function MandateCard({ data }: { data: ClientDirectory }) {
+function MandateCard({ data, chart }: { data: ClientDirectory; chart: CardChart }) {
   return (
-    <Card title="By Mandate">
-      {data.byMandate.length === 0 ? <Empty>No client families yet.</Empty> : (
+    <Card title="By Mandate" picker={data.byMandate.length > 0 && chart.picker}>
+      {data.byMandate.length === 0 ? <Empty>No client families yet.</Empty> : !chart.own ? (
+        <AumChart rows={data.byMandate} currency={data.currency} chart={chart} label="AUM by mandate" />
+      ) : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -508,10 +543,12 @@ function MandateCard({ data }: { data: ClientDirectory }) {
   );
 }
 
-function ManagerCard({ data }: { data: ClientDirectory }) {
+function ManagerCard({ data, chart }: { data: ClientDirectory; chart: CardChart }) {
   return (
-    <Card title="By Relationship Manager">
-      {data.byRelationshipManager.length === 0 ? <Empty>No client families yet.</Empty> : (
+    <Card title="By Relationship Manager" picker={data.byRelationshipManager.length > 0 && chart.picker}>
+      {data.byRelationshipManager.length === 0 ? <Empty>No client families yet.</Empty> : !chart.own ? (
+        <AumChart rows={data.byRelationshipManager} currency={data.currency} chart={chart} label="AUM by relationship manager" />
+      ) : (
         <ul className="divide-y divide-line">
           {data.byRelationshipManager.map((one) => (
             <li key={one.key} className="flex items-center gap-3 py-2.5">
@@ -539,12 +576,40 @@ function ManagerCard({ data }: { data: ClientDirectory }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 /* Small pieces                                                                                                  */
 
-function Card({ title, lead, children }: { title: string; lead?: string; children: ReactNode }) {
+/** A breakdown of the book's AUM drawn as the kind picked for its card. */
+function AumChart({ rows, currency, chart, label }: { rows: { name: string; aum: number }[]; currency: string; chart: CardChart; label: string }) {
+  return (
+    <KindChart kind={chart.kind!} format={(value) => compact(value, currency)} height={240} label={label}
+      data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: one.aum })) }} />
+  );
+}
+
+/** What the Client Directory offers for a card of the reader's own: the book's AUM broken down four ways. */
+function directoryFigures(data: ClientDirectory): Figures {
+  const amount = (value: number) => compact(value, data.currency);
+  const rows = (list: { name: string; aum: number }[]) => list.map((one) => ({ name: one.name, value: one.aum }));
+  return {
+    "aum.segments": sharesFigure("AUM by segment", "Breakdowns", rows(data.bySegment), amount),
+    "aum.managers": sharesFigure("AUM by relationship manager", "Breakdowns", rows(data.byRelationshipManager), amount),
+    "aum.regions": sharesFigure("AUM by region of residence", "Breakdowns", rows(data.byRegion), amount),
+    "aum.mandates": sharesFigure("AUM by mandate", "Breakdowns", rows(data.byMandate), amount),
+    "clients.segments": sharesFigure("Client families by segment", "Clients", data.bySegment.map((one) => ({ name: one.name, value: one.clients })),
+      (value) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+  };
+}
+
+/** @param picker the chart type switcher, beside the title, for a card that draws a chart */
+function Card({ title, lead, picker, children }: { title: string; lead?: string; picker?: ReactNode; children: ReactNode }) {
+  // The reader's own name and line for the card, where they set them through Add card.
+  const label = useCardLabel(title, lead);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white p-5">
-      <div className="mb-3">
-        <h2 className="text-lg font-bold">{title}</h2>
-        {lead && <p className="mt-0.5 text-xs text-ink-muted">{lead}</p>}
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold">{label.title}</h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">{picker}<CardMenu /></div>
       </div>
       {children}
     </section>
@@ -552,6 +617,7 @@ function Card({ title, lead, children }: { title: string; lead?: string; childre
 }
 
 function Kpi({ label, value, note }: { label: string; value: ReactNode; note: ReactNode }) {
+  if (useFigureRow()) return <FigureRow label={label} value={value} note={note} />;
   return (
     <div className="rounded-2xl border border-line bg-white px-4 py-3.5">
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
@@ -690,32 +756,6 @@ function Percent({ value }: { value: number | null }) {
 function Points({ value }: { value: number | null }) {
   if (value == null) return <Muted>—</Muted>;
   return <span className={toneOf(value)}>{value > 0 ? "+" : ""}{value.toFixed(1)} pp</span>;
-}
-
-function exportCsv(rows: DirectoryClient[], currency: string) {
-  const header = ["Client", "Code", "Segment", "City", "Country", "Region", "Status", `AUM (${currency})`,
-    "Bank file holdings (as stated, unconverted)", "YTD %", "vs Bench (pp)", "Entities", "Mandate", "Portfolio managers",
-    "Relationship manager", "Next review"];
-  const cell = (value: unknown) => {
-    const text = value == null ? "" : String(value);
-    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
-  const NOT = "not in bank file";
-  const lines = rows.map((one) => {
-    const file = one.bankFile;
-    return [
-      one.name, one.code, file ? NOT : segmentLabel(one.segment), one.city, one.country, one.region,
-      one.status ? statusLabel(one.status) : file ? NOT : "", file ? "" : one.aum,
-      file ? file.holdings.map((amount) => `${amount.currency} ${amount.amount}`).join("; ") : "",
-      file ? NOT : one.yearToDate, file ? NOT : one.versusBenchmark, one.entities, file ? NOT : one.mandate,
-      one.portfolioManagers.join("; "), one.relationshipManager, file ? NOT : one.nextReviewOn,
-    ].map(cell).join(",");
-  });
-  downloadTextFile(`client-directory-${new Date().toISOString().slice(0, 10)}.csv`, [header.join(","), ...lines].join("\n"), "text/csv");
-}
-
-function statusLabel(status: string) {
-  return STATUSES.find((one) => one.id === status)?.label ?? status;
 }
 
 function segmentLabel(segment: string | null | undefined) {

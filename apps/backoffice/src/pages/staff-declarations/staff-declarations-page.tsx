@@ -12,9 +12,9 @@ import {
   type StaffDeclarations,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, StaffAvatar, TextInput, cn } from "@atomprive/ui";
-import { CalendarCog, Download, Mail, Search } from "lucide-react";
+import { CalendarCog, Mail, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { downloadTextFile } from "../../lib/download";
+import { ListReportButton } from "../layout/list-report";
 import { formatDate } from "../../lib/labels";
 import { DeclarationsProgress, DeclarationsTable } from "./declarations-table";
 import { HowOftenDialog } from "./how-often-dialog";
@@ -73,7 +73,6 @@ export function StaffDeclarationsPage() {
   const [only, setOnly] = useState<RegisterRowStanding | "ALL">("ALL");
   const [chosen, setChosen] = useState<string>();
   const [notice, setNotice] = useState<{ tone: "success" | "info" | "danger"; message: string }>();
-  const [exporting, setExporting] = useState(false);
   const [howOften, setHowOften] = useState(false);
   const reminders = useSendReminders<ApiError>();
 
@@ -103,21 +102,6 @@ export function StaffDeclarationsPage() {
 
   const outstandingAcross = register.data?.outstanding ?? 0;
 
-  /** The register as a sheet: every employee against every one of the nine. */
-  async function exportTheRegister() {
-    setNotice(undefined);
-    setExporting(true);
-    try {
-      const csv = await exportRegister();
-      downloadTextFile(`staff-declarations-${new Date().toISOString().slice(0, 10)}.csv`, csv, "text/csv");
-    }
-    catch (caught) {
-      setNotice({ tone: "danger", message: caught instanceof Error ? caught.message : "The export didn't run." });
-    }
-    finally {
-      setExporting(false);
-    }
-  }
 
   /** Writes to everyone who still owes the firm a declaration, in the firm's own words. */
   function remind() {
@@ -145,10 +129,10 @@ export function StaffDeclarationsPage() {
             <CalendarCog aria-hidden="true" />
             How often
           </Button>
-          <Button variant="secondary" onClick={() => void exportTheRegister()} disabled={exporting || !register.data}>
-            <Download aria-hidden="true" />
-            {exporting ? "Exporting…" : "Export register"}
-          </Button>
+          {/* The register as a sheet: every employee against every one of the nine. Printed, the columns
+              that say where each stands; Excel keeps the employee's ID, department and start date too. */}
+          <ListReportButton list="Staff declarations register" load={() => exportRegister()}
+            columns={["Employee", "Designation", "Declaration", "Cycle", "Status", "Signed on", "Next due", "Overdue"]} />
           <Button
             onClick={remind}
             disabled={reminders.isPending || outstandingAcross === 0}

@@ -37,20 +37,21 @@ import { Chart, ink } from "../book/overview-charts";
 import {
   AskTheAssistant,
   Breakdown,
-  CardGrid,
   Counts,
-  EditCards,
   Loading,
   Panel,
   Strip,
   useDashboardCards,
   type CardMeta,
 } from "../dashboard/dashboard-kit";
+import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { seriesFigure, sharesFigure, singleFigure } from "../layout/own-cards";
+import { KindChart, useCardChart } from "../layout/chart-kinds";
 
 /**
  * Compliance's dashboard: the firm's KYC and AML across the whole book, what is waiting on Compliance, what is
- * about to lapse, and the staff side — declarations and the audit trail. One dashboard with Edit view to tick
- * cards on and off, the same as the Admin's; every figure opens the screen it was counted from.
+ * about to lapse, and the staff side — declarations and the audit trail. One dashboard with Customize view to
+ * move, size and hide cards, the same as the Admin's; every figure opens the screen it was counted from.
  */
 
 const PERIODS = [
@@ -63,20 +64,20 @@ const PERIODS = [
 type CardId = "kyc" | "aml" | "queue" | "expiring" | "trail" | "sign-off" | "expired" | "mine" | "assistant";
 
 const CARD: Record<CardId, CardMeta> = {
-  kyc: { title: "KYC overview", area: "main" },
-  aml: { title: "AML risk overview", area: "main" },
-  queue: { title: "Review queue", area: "main" },
-  expiring: { title: "Expiring documents", area: "main" },
-  trail: { title: "Declarations & audit", area: "main" },
+  kyc: { title: "KYC overview", area: "main", charts: ["donut", "horizontal-bar", "table"] },
+  aml: { title: "AML risk overview", area: "main", charts: ["donut", "horizontal-bar", "table"] },
+  queue: { title: "Review queue", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  expiring: { title: "Expiring documents", area: "main", charts: ["bar", "horizontal-bar", "donut", "table"] },
+  trail: { title: "Declarations & audit", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   "sign-off": { title: "Awaiting your sign-off", area: "main" },
   expired: { title: "KYC expired", area: "main" },
   mine: { title: "Your own declarations", area: "main" },
   assistant: { title: "AI Assistant", area: "side" },
 };
 
-const CARD_IDS = Object.keys(CARD) as CardId[];
 
-/** What the dashboard opens on, as the firm drew it on 4 Nov 2026; the rest are under Edit view. */
+/** What the dashboard opens on: the four that matter most, chosen 13 Nov 2026; the rest wait in Add cards. A layout someone saved is kept. */
+// What the dashboard showed when the portal was set up: what a new person sees, and what Reset to default view brings back.
 const DEFAULT_CARDS: CardId[] = ["kyc", "aml", "queue", "expiring", "trail", "assistant"];
 
 /** Which screen each counted line is worked from. A line whose screen the reader's menu lacks has no link. */
@@ -116,8 +117,7 @@ export function ComplianceDashboard() {
     { days },
     { query: { placeholderData: keepPreviousData, refetchInterval: 60_000 } },
   );
-  const view = useDashboardCards("compliance", CARD_IDS, DEFAULT_CARDS);
-  const [editing, setEditing] = useState(false);
+  const view = useDashboardCards("compliance", CARD, DEFAULT_CARDS);
   // Every screen on the reader's menu, the ones drawn under a section heading included.
   const reachable = useMemo(
     () => new Set(menuFor(user).flatMap((one) => [one.to, ...(one.below ?? []).map((under) => under.to)])),
@@ -216,8 +216,7 @@ export function ComplianceDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards meta={CARD} shown={view.cards} editing={editing} onEditing={setEditing} onChange={view.change}
-            changed={view.changed} onReset={view.reset} />
+          <CustomizeButton view={view} />
           <SelectInput id="compliance-period" aria-label="Period the audit events are counted over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -227,13 +226,27 @@ export function ComplianceDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} shown={view.cards} render={render} editing={editing} onChange={view.change} />
+      <LayoutGrid view={view} render={render} figures={data ? {
+        "kyc.status": sharesFigure("KYC status across the firm", "KYC", [
+          { name: "Approved", value: data.kyc.approved }, { name: "In review", value: data.kyc.inReview }, { name: "Needs action", value: data.kyc.needsAction },
+          { name: "Not started", value: data.kyc.notStarted },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "kyc.compliant": singleFigure("KYC compliant", "KYC", data.kyc.compliantPercent, (value) => `${Math.round(value)}%`, { gauge: true, max: 100 }),
+        "aml.bands": sharesFigure("Clients by AML risk band", "AML", [
+          ...data.aml.bands.map((one) => ({ name: one.name, value: one.clients })), { name: "Never scored", value: data.aml.neverScored },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "expiring.months": seriesFigure("Papers expiring in the next three months", "Documents", ["0–30 days", "31–60 days", "61–90 days"],
+          [{ name: "Papers expiring", values: [data.expiring.within30, data.expiring.within60, data.expiring.within90] }], (value: number) => String(Math.round(value)), ["bar", "horizontal-bar", "table"]),
+        "queue.counts": sharesFigure("Review queue, counted", "Work", (data.queue).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+        "declarations.counts": sharesFigure("Declarations & audit, counted", "Work", (data.declarations).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+      } : undefined} screen="Compliance dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }
 
 /** Approved papers by how soon they run out, in three columns of thirty days. */
 function ExpiringChart({ within30, within60, within90 }: { within30: number; within60: number; within90: number }) {
+  const chart = useCardChart();
   const option = useMemo(() => {
     const c = ink();
     return {
@@ -250,6 +263,14 @@ function ExpiringChart({ within30, within60, within90 }: { within30: number; wit
       }],
     };
   }, [within30, within60, within90]);
+  if (chart && !chart.own) {
+    return (
+      <KindChart kind={chart.kind!} height={200} label="Papers expiring in each of the next three months" format={(value) => String(Math.round(value))}
+        data={chart.kind === "donut"
+          ? { shape: "shares", items: [{ name: "0–30 days", value: within30 }, { name: "31–60 days", value: within60 }, { name: "61–90 days", value: within90 }] }
+          : { shape: "series", categories: ["0–30 days", "31–60 days", "61–90 days"], series: [{ name: "Papers expiring", values: [within30, within60, within90] }] }} />
+    );
+  }
   return <Chart option={option} height={170} label={`Papers expiring: ${within30} within 30 days, ${within60} in 31 to 60, ${within90} in 61 to 90`} />;
 }
 
