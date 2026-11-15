@@ -10,7 +10,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Button, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, ExternalLink, GripVertical, LayoutGrid as LayoutIcon, MoreVertical, Plus, RotateCcw, Settings2, X } from "lucide-react";
+import { ExternalLink, GripVertical, LayoutGrid as LayoutIcon, MoreVertical, Plus, RotateCcw, Settings2, X } from "lucide-react";
 import { Link } from "react-router";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent, type ReactNode } from "react";
 import { CustomizeDialog } from "./add-card";
@@ -396,8 +396,6 @@ export function EditFrame<Id extends string>({ id, view, className, alone, child
   }
 
   const name = settings.title ?? meta.title;
-  const mates = view.cards.filter((one) => (view.meta[one].area ?? "main") === area);
-  const at = mates.indexOf(id);
 
   return (
     <div ref={box} className={cn("relative flex min-w-0 flex-col rounded-2xl outline-2 outline-offset-2 outline-primary-300 outline-dashed", className, marks)}
@@ -413,14 +411,6 @@ export function EditFrame<Id extends string>({ id, view, className, alone, child
         <button type="button" aria-label={`Settings of ${name}`} title="Card settings" onClick={() => view.openAdd(id)}
           className="rounded p-0.5 text-ink-muted hover:text-ink">
           <Settings2 className="size-3.5" aria-hidden="true" />
-        </button>
-        <button type="button" aria-label={`Move ${meta.title} earlier`} disabled={at <= 0}
-          onClick={() => view.move(id, mates[at - 1]!, false)} className="rounded p-0.5 text-ink-muted hover:text-ink disabled:opacity-30">
-          <ArrowLeft className="size-3.5" aria-hidden="true" />
-        </button>
-        <button type="button" aria-label={`Move ${meta.title} later`} disabled={at < 0 || at >= mates.length - 1}
-          onClick={() => view.move(id, mates[at + 1]!, true)} className="rounded p-0.5 text-ink-muted hover:text-ink disabled:opacity-30">
-          <ArrowRight className="size-3.5" aria-hidden="true" />
         </button>
         {area === "main" && (
           <span className="flex rounded-md bg-white p-0.5 ring-1 ring-line" role="group" aria-label={`Width of ${meta.title}`}>
@@ -451,12 +441,12 @@ export function EditFrame<Id extends string>({ id, view, className, alone, child
   );
 }
 
-/** What a card's ⋮ offers outside customizing — move it either way or take it off — for a card that draws one. */
-export type CardControls = { earlier?: () => void; later?: () => void; remove: () => void; title: string };
+/** What a card's ⋮ offers outside customizing — take it off — for a card that draws one. */
+export type CardControls = { remove: () => void; title: string };
 
 export const CardContext = createContext<CardControls | null>(null);
 
-/** A card's ⋮: move it either way, open the screen behind it, or take it off this view. */
+/** A card's ⋮: open the screen behind it, or take it off this view. */
 export function CardMenu({ to }: { to?: string }) {
   const controls = useContext(CardContext);
   const [open, setOpen] = useState(false);
@@ -491,12 +481,6 @@ export function CardMenu({ to }: { to?: string }) {
       </button>
       {open && (
         <div className="absolute right-0 z-30 mt-1 w-52 rounded-xl border border-line bg-white p-1.5 shadow-lg">
-          <button type="button" className={item} onClick={act(controls.earlier)} disabled={!controls.earlier}>
-            <ArrowLeft aria-hidden="true" />Move earlier
-          </button>
-          <button type="button" className={item} onClick={act(controls.later)} disabled={!controls.later}>
-            <ArrowRight aria-hidden="true" />Move later
-          </button>
           {to && (
             <Link to={to} className={item}>
               <ExternalLink aria-hidden="true" />Open full screen
@@ -516,7 +500,7 @@ export function CardMenu({ to }: { to?: string }) {
  * order: two to a row in the main column, read off the column itself rather than the window, a full-width card taking
  * the row and a half card with no half beside it stretched across, and a side column beside it on wide screens for
  * the cards that sit there. Customizing draws the bar, Add card and each card's frame; outside it each card may offer
- * its ⋮ to move or remove it.
+ * its ⋮ to open or remove it.
  */
 export function LayoutGrid<Id extends string>({ view, render: screenRender, screen, empty, figures }: {
   view: ViewLayoutState<Id>;
@@ -565,17 +549,9 @@ export function LayoutGrid<Id extends string>({ view, render: screenRender, scre
   const besideRows = side.length > 0 ? Math.max(1, side.length * 2) : rows.length;
   const beside = rows.slice(0, besideRows).flat();
   const below = rows.slice(besideRows).flat();
-  const nudge = (id: Id, step: -1 | 1) => {
-    const mates = inArea(areaOf(id));
-    const neighbour = mates[mates.indexOf(id) + step];
-    if (neighbour) view.move(id, neighbour, step === 1);
-  };
   const card = (id: Id) => {
-    const mates = inArea(areaOf(id));
     const controls: CardControls = {
       title: view.settings(id).title ?? view.meta[id].title,
-      earlier: mates[0] === id ? undefined : () => nudge(id, -1),
-      later: mates[mates.length - 1] === id ? undefined : () => nudge(id, 1),
       remove: () => view.hide(id),
     };
     return (
