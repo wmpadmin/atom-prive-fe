@@ -14,7 +14,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, cn, DateInput, SelectInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { Briefcase, Download, UserRoundCog } from "lucide-react";
+import { Briefcase, UserRoundCog } from "lucide-react";
 import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { BackToOverview } from "../../components/back-to-overview";
@@ -25,7 +25,7 @@ import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
 import { formatDate, formatRelative } from "../../lib/labels";
-import { downloadTextFile } from "../../lib/download";
+import { ListReportButton, saidFilters } from "../layout/list-report";
 import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
@@ -343,27 +343,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const filtered = query !== "" || advisorId !== "" || from !== "" || to !== "";
   const canExport = hasAuthority(user, "EXPORT_CUSTOMER_DATA:CHANGE");
   const canOnboard = hasAnyAuthority(user, ...ONBOARDS_CLIENTS_CHANGE);
-  const [exporting, setExporting] = useState(false);
-  const [exportFailed, setExportFailed] = useState<string>();
 
-  /** The clients the filters turned up, as a spreadsheet — what is on screen, not more. */
-  async function exportTheList() {
-    setExportFailed(undefined);
-    setExporting(true);
-    try {
-      const csv = await exportCustomers({
-        ...filters,
-        query: query || undefined,
-      });
-      downloadTextFile(`clients-${new Date().toISOString().slice(0, 10)}.csv`, csv, "text/csv");
-    }
-    catch (caught) {
-      setExportFailed(caught instanceof Error ? caught.message : "The export didn't run.");
-    }
-    finally {
-      setExporting(false);
-    }
-  }
   const today = new Date();
   const movable = movableFor({ mine, newestProposal });
   // Cases still being entered. The server decides whether to send any — first page, nothing filtered —
@@ -422,16 +402,17 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
           />
           {/* Carrying the list out of the building is its own permission, so the button follows it. */}
           {canExport && (
-            <Button variant="secondary" disabled={exporting} onClick={exportTheList}>
-              <Download aria-hidden="true" />
-              {exporting ? "Exporting…" : "Export"}
-            </Button>
+            <ListReportButton list={mine ? "My clients" : "All clients"} load={() => exportCustomers({ ...filters, query: query || undefined })}
+              filters={saidFilters({
+                Search: query,
+                "Relationship manager": (advisors.data ?? []).find((advisor) => advisor.id === advisorId)?.fullName,
+                "Registered from": from, "Registered to": to,
+              })} />
           )}
         </div>
       </ListPageHeader>
 
       {notice && <Alert tone="success">{notice}</Alert>}
-      {exportFailed && <Alert tone="danger">{exportFailed}</Alert>}
       {customers.isError && <Alert tone="danger">{customers.error.message}</Alert>}
 
       {/* Above the table: which of their arrangements a reader is in is read before anything in it. */}

@@ -338,13 +338,7 @@ export function ProposalPage() {
 
       {/* The screen is the list; a proposal is read within it, so the way back is never off the page. */}
       {!writing && (
-        <ProposalsHeader
-          onExport={() => void printThisOne()}
-          exporting={exporting}
-          canExport
-          cappedAt={null}
-          reading
-        />
+        <ProposalsHeader onExport={() => void printThisOne()} exporting={exporting} />
       )}
 
       {/* Back a screen, not back to a place. Somebody who opened this from Trade logs, or from a search,

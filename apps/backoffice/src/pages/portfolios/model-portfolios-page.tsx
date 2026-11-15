@@ -18,6 +18,8 @@ import { ListPageHeader, RecordList } from "../../components/record-list";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
+import { ListReportButton, saidFilters } from "../layout/list-report";
+import { toCsv } from "../layout/list-rows";
 import { ModelDialog } from "./model-dialog";
 import { formatRelative } from "../../lib/labels";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
@@ -134,7 +136,7 @@ export function ModelPortfoliosPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const models = useListModelPortfolios<ModelsPage, ApiError>();
-  const { all } = useAssetClasses();
+  const { all, names } = useAssetClasses();
   // Every class, not only those still in use: a model written before one was retired still targets it, and a
   // bar that quietly left the slice out would show a plan that no longer came to 100%.
   const codes = all.map((one) => one.code);
@@ -188,7 +190,18 @@ export function ModelPortfoliosPage() {
       <ListPageHeader
         title="Model portfolios"
         lead="What a client's money is supposed to be spread across, and how far it may wander before somebody looks."
-      />
+      >
+        {/* Each model with its target in every class, so the file says what the plan is, not only its name. */}
+        <ListReportButton list="Model portfolios" load={() => {
+          const classes = codes.filter((code) => shown.some((model) => (model.targets as Record<string, number | undefined>)[code]));
+          return Promise.resolve(toCsv(
+            ["Model", "Risk profile", "Status", "Benchmark", "Clients", "AUM tracked", "Currency", "Avg drift", "Revision", ...classes.map((code) => `${names[code] ?? code} %`)],
+            shown.map((model) => [model.name, riskProfileLabel(model.riskProfile), modelStatusLabels[model.status as ModelStatus], model.benchmarkName ?? "",
+              model.clients, model.aumTracked, model.aumCurrency, model.averageDrift == null ? "" : averageDriftLabel(model.averageDrift), `v${model.revision}`,
+              ...classes.map((code) => (model.targets as Record<string, number | undefined>)[code] ?? 0)]),
+          ));
+        }} filters={saidFilters({ Search: search.trim() })} />
+      </ListPageHeader>
 
       {/* Above the table: which of their arrangements a reader is in is read before anything in it. */}
       <ViewTabs

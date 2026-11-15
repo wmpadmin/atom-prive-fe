@@ -31,19 +31,20 @@ import { menuFor } from "../../menu";
 import {
   AskTheAssistant,
   Breakdown,
-  CardGrid,
   Counts,
-  EditCards,
   Loading,
   Panel,
   Strip,
   useDashboardCards,
   type CardMeta,
 } from "./dashboard-kit";
+import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { sharesFigure, singleFigure } from "../layout/own-cards";
+import { KindChart, useCardChart } from "../layout/chart-kinds";
 
 /**
  * Operations' dashboard: clients being taken on, the prospect pipeline, the bank feeds, the requests Operations
- * answer and what to do next. One dashboard with Edit view to tick cards on and off, the same as the Admin's and
+ * answer and what to do next. One dashboard with Customize view to move, size and hide cards, the same as the Admin's and
  * Compliance's; every figure opens the screen it was counted from.
  */
 
@@ -57,19 +58,19 @@ const PERIODS = [
 type CardId = "onboarding" | "pipeline" | "feeds" | "requests" | "to-do" | "applications" | "links" | "assistant";
 
 const CARD: Record<CardId, CardMeta> = {
-  onboarding: { title: "Onboarding overview", area: "main" },
-  pipeline: { title: "Prospects & pipeline", area: "main" },
-  feeds: { title: "Bank feed health", area: "main" },
-  requests: { title: "Open requests", area: "main" },
-  "to-do": { title: "To do", area: "main" },
+  onboarding: { title: "Onboarding overview", area: "main", charts: ["donut", "funnel", "horizontal-bar", "table"] },
+  pipeline: { title: "Prospects & pipeline", area: "main", charts: ["funnel", "bar", "horizontal-bar", "table"] },
+  feeds: { title: "Bank feed health", area: "main", charts: ["donut", "horizontal-bar", "table"] },
+  requests: { title: "Open requests", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  "to-do": { title: "To do", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   applications: { title: "Applications in progress", area: "main" },
   assistant: { title: "AI Assistant", area: "side" },
   links: { title: "Key links", area: "side" },
 };
 
-const CARD_IDS = Object.keys(CARD) as CardId[];
 
-/** What the dashboard opens on, as the firm drew it on 4 Nov 2026; the rest are under Edit view. */
+/** What the dashboard opens on: the four that matter most, chosen 13 Nov 2026; the rest wait in Add cards. A layout someone saved is kept. */
+// What the dashboard showed when the portal was set up: what a new person sees, and what Reset to default view brings back.
 const DEFAULT_CARDS: CardId[] = ["onboarding", "pipeline", "feeds", "requests", "to-do", "assistant"];
 
 /** Which screen each counted line is worked from. A line whose screen the reader's menu lacks has no link. */
@@ -119,8 +120,7 @@ export function OperationsDashboard() {
     { days },
     { query: { placeholderData: keepPreviousData, refetchInterval: 60_000 } },
   );
-  const view = useDashboardCards("operations", CARD_IDS, DEFAULT_CARDS);
-  const [editing, setEditing] = useState(false);
+  const view = useDashboardCards("operations", CARD, DEFAULT_CARDS);
   // Every screen on the reader's menu, the ones drawn under a section heading included.
   const reachable = useMemo(
     () => new Set(menuFor(user).flatMap((one) => [one.to, ...(one.below ?? []).map((under) => under.to)])),
@@ -240,8 +240,7 @@ export function OperationsDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards meta={CARD} shown={view.cards} editing={editing} onEditing={setEditing} onChange={view.change}
-            changed={view.changed} onReset={view.reset} />
+          <CustomizeButton view={view} />
           <SelectInput id="operations-period" aria-label="Period new intakes, activations and feed runs are counted over"
             value={String(days)} onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -251,13 +250,32 @@ export function OperationsDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} shown={view.cards} render={render} editing={editing} onChange={view.change} />
+      <LayoutGrid view={view} render={render} figures={data ? {
+        "onboarding.stage": sharesFigure("Clients in onboarding, by stage", "Onboarding", [
+          { name: "Application being filled in", value: data.onboarding.fillingIn }, { name: "Waiting on the client", value: data.onboarding.awaitingClient },
+          { name: "KYC with Compliance", value: data.onboarding.inReview },
+        ], (value: number) => String(Math.round(value)), ["funnel", "donut", "horizontal-bar", "table"]),
+        "onboarding.activated": singleFigure("Clients activated in the period", "Onboarding", data.onboarding.activated, (value: number) => String(Math.round(value))),
+        "feeds.runs": sharesFigure("Bank feed runs by outcome", "Bank feeds", [
+          { name: "Succeeded", value: data.feeds.succeeded }, { name: "Failed", value: data.feeds.failed }, { name: "Running", value: data.feeds.running },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "feeds.success": singleFigure("Bank feed success rate", "Bank feeds", data.feeds.successPercent, (value) => `${Math.round(value)}%`, { gauge: true, max: 100 }),
+        "requests.counts": sharesFigure("Open requests, counted", "Work", (data.requests).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+        "todo.counts": sharesFigure("To do, counted", "Work", (data.toDo).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+      } : undefined} screen="Operations dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }
 
 /** The pipeline as one arrow of stages, the converted stage lit as the one that counts. */
 function Funnel({ stages }: { stages: { label: string; value: number; done?: boolean }[] }) {
+  const chart = useCardChart();
+  if (chart && !chart.own) {
+    return (
+      <KindChart kind={chart.kind!} height={220} label="Clients at each stage of the pipeline" format={(value) => String(Math.round(value))}
+        data={{ shape: "shares", items: stages.map((one) => ({ name: one.label, value: one.value })) }} />
+    );
+  }
   return (
     <ol className="flex">
       {stages.map((one, index) => (

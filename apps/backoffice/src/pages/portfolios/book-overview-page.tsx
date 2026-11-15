@@ -14,12 +14,17 @@ import { Alert, Button, SelectInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { ScatterChart } from "echarts/charts";
 import * as echarts from "echarts/core";
-import { CalendarDays, Columns3, Download } from "lucide-react";
+import { CalendarDays, Columns3 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
-import { downloadTextFile } from "../../lib/download";
 import { formatDate, formatRelative } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
+import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
+import { ReportButton } from "../layout/report";
+import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
+import { useCardLabel } from "../layout/card-settings";
+import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
+import { seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
 import { INK } from "./asset-classes";
 
 echarts.use([ScatterChart]);
@@ -42,6 +47,7 @@ export function BookOverviewPage() {
   );
   const currencies = useListCurrencies<Currency[], ApiError>();
   const data = overview.data;
+  const view = useViewLayout("book-overview", CARDS, DEFAULT_CARDS);
 
   return (
     <div className="space-y-5">
@@ -57,32 +63,78 @@ export function BookOverviewPage() {
               : "Reading the book…"}
           </p>
         </div>
-        <SelectInput id="book-currency" aria-label="Currency the book is shown in" value={currency}
-          onChange={(event) => setCurrency(event.target.value)} className="w-28">
-          {(currencies.data ?? [{ code: "USD", name: "US dollar" }]).map((one) => (
-            <option key={one.code} value={one.code}>{one.code}</option>
-          ))}
-        </SelectInput>
+        <div className="flex flex-wrap gap-2">
+          <ReportButton />
+          <CustomizeButton view={view} />
+          <SelectInput id="book-currency" aria-label="Currency the book is shown in" value={currency}
+            onChange={(event) => setCurrency(event.target.value)} className="w-28">
+            {(currencies.data ?? [{ code: "USD", name: "US dollar" }]).map((one) => (
+              <option key={one.code} value={one.code}>{one.code}</option>
+            ))}
+          </SelectInput>
+        </div>
       </header>
 
       {overview.isError && <Alert tone="danger">{overview.error.message}</Alert>}
       {!data ? (
         !overview.isError && <p className="py-16 text-center text-sm text-ink-muted">Reading the book…</p>
       ) : (
-        <Board data={data} />
+        <Board data={data} view={view} />
       )}
     </div>
   );
 }
 
-function Board({ data }: { data: BookOverview }) {
+type BookCard = "kpis" | "aum" | "mandates" | "clients" | "alerts" | "upcoming" | "feeds" | "risk-return" | "dispersion";
+
+/** The screen's cards, in the firm's order: every card on by default. */
+const CARDS: Record<BookCard, LayoutMeta> = {
+  kpis: { title: "Key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
+  aum: { title: "Assets Under Management", group: "Summary", charts: ["area", "line", "bar", "table"] },
+  mandates: { title: "AUM by Mandate", group: "Summary", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
+  clients: { title: "Client Book", group: "Clients", wide: true },
+  alerts: { title: "Alert Queue", group: "Attention" },
+  upcoming: { title: "Next 30 Days", group: "Attention" },
+  feeds: { title: "Custodian Data Feeds", group: "Attention", charts: ["table", "donut", "horizontal-bar"] },
+  "risk-return": { title: "Return vs Risk — All Clients", group: "Performance", charts: ["bubble", "scatter", "table"] },
+  dispersion: { title: "YTD Dispersion by Mandate", group: "Performance", charts: ["horizontal-bar", "grouped-bar", "table"] },
+};
+
+// The screen as the portal was set up, every card on it: what a new person sees, and what Reset to default view brings back.
+const DEFAULT_CARDS = Object.keys(CARDS) as BookCard[];
+
+function Board({ data, view }: { data: BookOverview; view: ViewLayoutState<BookCard> }) {
+  const cur = data.currency;
+  return (
+    <>
+      <LayoutGrid view={view} screen="Book Overview" figures={bookFigures(data)} render={{
+        kpis: <Kpis data={data} />,
+        aum: <AumCard data={data} chart={cardChart(view, "aum")} />,
+        mandates: <MandateCard data={data} chart={cardChart(view, "mandates")} />,
+        clients: <ClientBookCard data={data} />,
+        alerts: <AlertQueue alerts={data.alerts} />,
+        upcoming: <NextThirtyDays upcoming={data.upcoming} />,
+        feeds: <CustodianFeeds data={data} chart={cardChart(view, "feeds")} />,
+        "risk-return": <RiskReturnCard data={data} chart={cardChart(view, "risk-return")} />,
+        dispersion: <DispersionCard data={data} chart={cardChart(view, "dispersion")} />,
+      }} />
+
+      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
+        <span>Values in {cur} unless stated; market data as of {formatDate(data.asOf)} close.</span>
+        <span>atom privé · Portfolio Management · Internal use only</span>
+      </footer>
+    </>
+  );
+}
+
+/** Six figures, as the design's first row. */
+function Kpis({ data }: { data: BookOverview }) {
   const cur = data.currency;
   const fileNote = bankFileNote(data.bankFileClients);
   const { aum, netFlows, bookReturn, entitiesAccounts, openAlerts, capitalCalls } = data.kpis;
   return (
     <>
-      {/* Six figures, as the design's first row. */}
-      <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+      <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
         <Kpi label="Book AUM" value={compact(aum.total, cur)} spark={data.aumHistory.slice(-13)}
           note={
             <>
@@ -130,30 +182,7 @@ function Board({ data }: { data: BookOverview }) {
           } />
         <Kpi label="Capital calls · 30 days" value={compact(capitalCalls.total, cur)}
           note={`${capitalCalls.clients} ${plural(capitalCalls.clients, "client", "clients")} · ${capitalCalls.notices} ${plural(capitalCalls.notices, "notice", "notices")} · ${compact(capitalCalls.dueThisWeek, cur)} due this week`} />
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-        <AumCard data={data} />
-        <MandateCard data={data} />
-      </div>
-
-      <ClientBookCard data={data} />
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <AlertQueue alerts={data.alerts} />
-        <NextThirtyDays upcoming={data.upcoming} />
-        <CustodianFeeds data={data} />
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-        <RiskReturnCard data={data} />
-        <DispersionCard data={data} />
-      </div>
-
-      <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
-        <span>Values in {cur} unless stated; market data as of {formatDate(data.asOf)} close.</span>
-        <span>atom privé · Portfolio Management · Internal use only</span>
-      </footer>
+      </FigureStrip>
     </>
   );
 }
@@ -161,21 +190,42 @@ function Board({ data }: { data: BookOverview }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 /* Cards                                                                                                         */
 
-function Card({ title, lead, action, children, className }: {
+/** What the Book Overview offers for a card of the reader's own: the book's AUM, mix and dispersion. */
+function bookFigures(data: BookOverview): Figures {
+  const amount = (value: number) => compact(value, data.currency);
+  return {
+    "aum.history": seriesFigure("Book AUM at each month end", "Summary", data.aumHistory.map((one) => monthLabel(one.on)),
+      [{ name: "Book AUM", values: data.aumHistory.map((one) => one.amount) }], amount, ["area", "line", "bar", "table"]),
+    "aum.mandates": sharesFigure("AUM by mandate", "Summary", data.byMandate.map((one) => ({ name: one.name, value: one.amount })), amount),
+    "aum.mix": sharesFigure("Book asset mix, %", "Summary", data.assetMix.map((one) => ({ name: one.name, value: one.sharePercent })), (value) => `${value.toFixed(1)}%`),
+    "feeds.accounts": sharesFigure("Accounts linked at each custodian", "Attention", data.custodians.map((one) => ({ name: one.bank, value: one.accounts })),
+      (value) => `${Math.round(value)} accounts`, ["donut", "horizontal-bar", "table"]),
+    "returns.dispersion": seriesFigure("YTD returns within each mandate", "Performance", data.dispersion.map((one) => one.mandate), [
+      { name: "Lowest", values: data.dispersion.map((one) => one.lowest) }, { name: "Median", values: data.dispersion.map((one) => one.median) },
+      { name: "Highest", values: data.dispersion.map((one) => one.highest) }, { name: "Benchmark", values: data.dispersion.map((one) => one.benchmark) },
+    ], (value) => `${value.toFixed(1)}%`, ["grouped-bar", "table"]),
+  };
+}
+
+/** @param picker the chart type switcher, beside the card's own action, for a card that draws a chart */
+function Card({ title, lead, action, picker, children, className }: {
   title: string;
   lead?: ReactNode;
   action?: ReactNode;
+  picker?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
+  // The reader's own name and line for the card, where they set them through Add card.
+  const label = useCardLabel(title, lead);
   return (
     <section className={cn("flex min-w-0 flex-col rounded-2xl border border-line bg-white p-5", className)}>
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold">{title}</h2>
-          {lead && <p className="mt-0.5 text-xs text-ink-muted">{lead}</p>}
+          <h2 className="text-lg font-bold">{label.title}</h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        {action}
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
       </div>
       {children}
     </section>
@@ -183,6 +233,7 @@ function Card({ title, lead, action, children, className }: {
 }
 
 function Kpi({ label, value, note, spark }: { label: string; value: string; note: ReactNode; spark?: BookAumPoint[] }) {
+  if (useFigureRow()) return <FigureRow label={label} value={value} note={note} />;
   return (
     <div className="rounded-2xl border border-line bg-white px-4 py-3.5">
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
@@ -222,7 +273,7 @@ const RANGES = [
   { id: "ITD", months: null },
 ] as const;
 
-function AumCard({ data }: { data: BookOverview }) {
+function AumCard({ data, chart }: { data: BookOverview; chart: CardChart }) {
   const [range, setRange] = useState<(typeof RANGES)[number]["id"]>("2Y");
   const months = RANGES.find((one) => one.id === range)?.months ?? null;
   const points = months == null ? data.aumHistory : data.aumHistory.slice(-(months + 1));
@@ -261,7 +312,7 @@ function AumCard({ data }: { data: BookOverview }) {
   }, [points, data.currency]);
   const mix = data.assetMix;
   return (
-    <Card title="Assets Under Management" lead={`Month-end AUM, all client families, ${data.currency}`}
+    <Card title="Assets Under Management" lead={`Month-end AUM, all client families, ${data.currency}`} picker={points.length >= 2 && chart.picker}
       action={
         <div role="group" aria-label="Period shown" className="flex rounded-lg border border-line p-0.5">
           {RANGES.map((one) => (
@@ -276,7 +327,10 @@ function AumCard({ data }: { data: BookOverview }) {
       {points.length < 2 ? (
         <Empty>There is no valuation history to draw yet.</Empty>
       ) : (
-        <Chart option={option} height={240} label="Book AUM at each month end" />
+        chart.own ? <Chart option={option} height={240} label="Book AUM at each month end" /> : (
+          <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={240} label="Book AUM at each month end"
+            data={{ shape: "series", categories: points.map((one) => monthLabel(one.on)), series: [{ name: "Book AUM", values: points.map((one) => one.amount) }] }} />
+        )
       )}
       <p className="mt-4 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Book asset mix</p>
       {mix.length === 0 ? (
@@ -309,7 +363,7 @@ function AumCard({ data }: { data: BookOverview }) {
   );
 }
 
-function MandateCard({ data }: { data: BookOverview }) {
+function MandateCard({ data, chart }: { data: BookOverview; chart: CardChart }) {
   const total = data.byMandate.reduce((sum, one) => sum + one.amount, 0);
   const option = useMemo(() => {
     const colours = ink();
@@ -327,9 +381,12 @@ function MandateCard({ data }: { data: BookOverview }) {
     };
   }, [data.byMandate, data.currency]);
   return (
-    <Card title="AUM by Mandate" lead="Model per signed IPS">
+    <Card title="AUM by Mandate" lead="Model per signed IPS" picker={data.byMandate.length > 0 && chart.picker}>
       {data.byMandate.length === 0 ? (
         <Empty>No client family is on a model yet.</Empty>
+      ) : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={260} label="AUM by mandate"
+          data={{ shape: "shares", items: data.byMandate.map((one) => ({ name: one.name, value: one.amount })) }} />
       ) : (
         <>
           <div className="relative mx-auto w-full max-w-56">
@@ -426,10 +483,6 @@ function ClientBookCard({ data }: { data: BookOverview }) {
             ))}
           </div>
           <ColumnsMenu hidden={hidden} onChange={setHidden} />
-          <Button variant="secondary" size="sm" onClick={() => exportCsv(shown, data.currency)}>
-            <Download aria-hidden="true" />
-            Export
-          </Button>
         </div>
       }>
       <div className="-mx-5 overflow-x-auto">
@@ -699,10 +752,14 @@ function NextThirtyDays({ upcoming }: { upcoming: BookUpcoming[] }) {
   );
 }
 
-function CustodianFeeds({ data }: { data: BookOverview }) {
+function CustodianFeeds({ data, chart }: { data: BookOverview; chart: CardChart }) {
   return (
-    <Card title="Custodian Data Feeds" lead="Overnight bank position files · IST">
-      {data.custodians.length === 0 ? <Empty>No client family has a bank account linked.</Empty> : (
+    <Card title="Custodian Data Feeds" lead="Overnight bank position files · IST" picker={data.custodians.length > 0 && chart.picker}>
+      {data.custodians.length === 0 ? <Empty>No client family has a bank account linked.</Empty> : !chart.own ? (
+        // Accounts, not AUM: the files state holdings in each bank's own currencies, which do not add up.
+        <KindChart kind={chart.kind!} format={(value) => `${Math.round(value)} accounts`} height={220} label="Accounts linked at each custodian"
+          data={{ shape: "shares", items: data.custodians.map((one) => ({ name: one.bank, value: one.accounts })) }} />
+      ) : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -744,7 +801,7 @@ function CustodianFeeds({ data }: { data: BookOverview }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 /* Return against risk, and dispersion                                                                           */
 
-function RiskReturnCard({ data }: { data: BookOverview }) {
+function RiskReturnCard({ data, chart }: { data: BookOverview; chart: CardChart }) {
   const mandates = useMemo(
     () => [...new Set(data.riskReturn.map((one) => one.mandate ?? "No model"))],
     [data.riskReturn],
@@ -802,11 +859,16 @@ function RiskReturnCard({ data }: { data: BookOverview }) {
     };
   }, [data.riskReturn, data.frontier, data.currency, mandates]);
   return (
-    <Card title="Return vs Risk — All Clients" lead="YTD return against 3-year annualised volatility · bubble size = AUM">
+    <Card title="Return vs Risk — All Clients" lead="YTD return against 3-year annualised volatility · bubble size = AUM"
+      picker={data.riskReturn.length > 0 && chart.picker}>
       {data.riskReturn.length === 0 ? (
         <Empty>No client has both a year-to-date return and a volatility on file yet.</Empty>
-      ) : (
+      ) : chart.own ? (
         <Chart option={option} height={300} label="Each client's year-to-date return against its volatility" />
+      ) : (
+        <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={300} label="Each client's year-to-date return against its volatility"
+          data={{ shape: "points", xName: "Volatility 3Y %", yName: "YTD %", sizeName: "AUM",
+            items: data.riskReturn.map((one) => ({ name: one.name, x: one.volatility, y: one.yearToDate, size: one.aum })) }} />
       )}
       {data.bankFileClients.length > 0 && (
         <p className="mt-2 text-3xs text-ink-muted italic">{bankFileNote(data.bankFileClients)}: no return or volatility in the bank file.</p>
@@ -815,15 +877,23 @@ function RiskReturnCard({ data }: { data: BookOverview }) {
   );
 }
 
-function DispersionCard({ data }: { data: BookOverview }) {
+function DispersionCard({ data, chart }: { data: BookOverview; chart: CardChart }) {
   const rows = data.dispersion;
   const values = rows.flatMap((one) => [one.lowest, one.highest, ...(one.benchmark == null ? [] : [one.benchmark])]);
   const low = Math.min(0, ...values);
   const high = Math.max(1, ...values);
   const at = (value: number) => `${((value - low) / (high - low || 1)) * 100}%`;
   return (
-    <Card title="YTD Dispersion by Mandate" lead="Min–max of client returns within each mandate">
-      {rows.length === 0 ? <Empty>No client on a mandate has a year-to-date return yet.</Empty> : (
+    <Card title="YTD Dispersion by Mandate" lead="Min–max of client returns within each mandate" picker={rows.length > 0 && chart.picker}>
+      {rows.length === 0 ? <Empty>No client on a mandate has a year-to-date return yet.</Empty> : !chart.own ? (
+        <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={260} label="Lowest, median and highest client return in each mandate"
+          data={{ shape: "series", categories: rows.map((one) => one.mandate), series: [
+            { name: "Lowest", values: rows.map((one) => one.lowest) },
+            { name: "Median", values: rows.map((one) => one.median) },
+            { name: "Highest", values: rows.map((one) => one.highest) },
+            { name: "Benchmark", values: rows.map((one) => one.benchmark) },
+          ] }} />
+      ) : (
         <>
           {/* The rows spread over the card's height, which the chart beside it sets, instead of leaving it empty. */}
           <ul className="flex flex-1 flex-col justify-around gap-3">
@@ -893,24 +963,6 @@ function Percent({ value }: { value: number | null }) {
   return <span className={toneOf(value)}>{signedPercent(value)}</span>;
 }
 
-function exportCsv(rows: BookOverviewClient[], currency: string) {
-  const header = ["Client", "Code", "Type", "City", "Mandate", `AUM (${currency})`, "Bank file holdings (as stated, unconverted)",
-    "Share %", "MTD %", "YTD %", "vs Bench (pp)", "Max deviation (pp)", "Deviating", "IPS status", "Next event", "Next event date",
-    "Last review", "Data", "Delayed (hours)"];
-  const cell = (value: unknown) => {
-    const text = value == null ? "" : String(value);
-    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
-  const lines = rows.map((row) => [
-    row.name, row.code, typeLabel(row.customerType), row.city, row.bankFile ? "not in bank file" : row.mandate,
-    row.bankFile ? "" : row.aum,
-    row.bankFile ? row.bankFile.holdings.map((one) => `${one.currency} ${one.amount}`).join("; ") : "",
-    row.sharePercent, row.monthToDate, row.yearToDate, row.versusBenchmark, row.maxDeviation,
-    row.bankFile ? "" : row.deviating ? "yes" : "no", row.ipsStatus, row.nextEvent?.title, row.nextEvent?.on,
-    row.bankFile ? "not in bank file" : row.lastReviewOn, row.data, row.delayedHours,
-  ].map(cell).join(","));
-  downloadTextFile(`book-overview-${new Date().toISOString().slice(0, 10)}.csv`, [header.join(","), ...lines].join("\n"), "text/csv");
-}
 
 /**
  * Whether a feed's files are current, as the server reads it. A client's shows how long ago, as the design does; a

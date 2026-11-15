@@ -29,9 +29,7 @@ import { menuFor } from "../../menu";
 import {
   AskTheAssistant,
   Breakdown,
-  CardGrid,
   Counts,
-  EditCards,
   Loading,
   Panel,
   Row,
@@ -39,11 +37,13 @@ import {
   useDashboardCards,
   type CardMeta,
 } from "./dashboard-kit";
+import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { sharesFigure, singleFigure } from "../layout/own-cards";
 
 /**
  * The IT Admin's dashboard: support tickets, who is signed in and who was looked at as somebody else, whether the
- * platform is well, the staff accounts and the security trail. One dashboard with Edit view to tick cards on and
- * off, the same as every other role's.
+ * platform is well, the staff accounts and the security trail. One dashboard with Customize view to move, size and
+ * hide cards, the same as every other role's.
  */
 
 const PERIODS = [
@@ -56,18 +56,18 @@ const PERIODS = [
 type CardId = "tickets" | "sessions" | "health" | "users" | "security" | "links" | "assistant";
 
 const CARD: Record<CardId, CardMeta> = {
-  tickets: { title: "Support tickets overview", area: "main" },
-  sessions: { title: "Access & sessions", area: "main" },
+  tickets: { title: "Support tickets overview", area: "main", charts: ["donut", "horizontal-bar", "bar", "table"] },
+  sessions: { title: "Access & sessions", area: "main", charts: ["donut", "horizontal-bar", "bar", "table"] },
   health: { title: "System health", area: "main" },
-  users: { title: "User management", area: "main" },
-  security: { title: "Security & compliance", area: "main" },
+  users: { title: "User management", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  security: { title: "Security & compliance", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   assistant: { title: "AI Assistant", area: "side" },
   links: { title: "Key links", area: "side" },
 };
 
-const CARD_IDS = Object.keys(CARD) as CardId[];
 
-/** What the dashboard opens on, as the firm drew it on 4 Nov 2026; the rest are under Edit view. */
+/** What the dashboard opens on: the four that matter most, chosen 13 Nov 2026; the rest wait in Add cards. A layout someone saved is kept. */
+// What the dashboard showed when the portal was set up: what a new person sees, and what Reset to default view brings back.
 const DEFAULT_CARDS: CardId[] = ["tickets", "sessions", "health", "users", "security", "assistant"];
 
 /** Which screen each counted line is worked from. A line whose screen the reader's menu lacks has no link. */
@@ -118,8 +118,7 @@ export function ItAdminDashboard() {
     { days },
     { query: { placeholderData: keepPreviousData, refetchInterval: 60_000 } },
   );
-  const view = useDashboardCards("it-admin", CARD_IDS, DEFAULT_CARDS);
-  const [editing, setEditing] = useState(false);
+  const view = useDashboardCards("it-admin", CARD, DEFAULT_CARDS);
   // Every screen on the reader's menu, the ones drawn under a section heading included.
   const reachable = useMemo(
     () => new Set(menuFor(user).flatMap((one) => [one.to, ...(one.below ?? []).map((under) => under.to)])),
@@ -246,8 +245,7 @@ export function ItAdminDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards meta={CARD} shown={view.cards} editing={editing} onEditing={setEditing} onChange={view.change}
-            changed={view.changed} onReset={view.reset} />
+          <CustomizeButton view={view} />
           <SelectInput id="it-period" aria-label="Period tickets, sign-ins and security events are counted over"
             value={String(days)} onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -257,7 +255,17 @@ export function ItAdminDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} shown={view.cards} render={render} editing={editing} onChange={view.change} />
+      <LayoutGrid view={view} render={render} figures={data ? {
+        "tickets.status": sharesFigure("Support tickets by status", "Support", [
+          { name: "Open", value: data.tickets.open }, { name: "In progress", value: data.tickets.inProgress }, { name: "Waiting on the person", value: data.tickets.waiting },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "tickets.open": singleFigure("Open tickets", "Support", data.tickets.open + data.tickets.inProgress + data.tickets.waiting, (value: number) => String(Math.round(value))),
+        "sessions.kind": sharesFigure("Who is signed in", "Access", [
+          { name: "Staff sessions", value: data.sessions.staff }, { name: "Client sessions", value: data.sessions.clients }, { name: "Sign in as (running)", value: data.sessions.signedInAs },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "users.counts": sharesFigure("User management, counted", "Users", (data.users).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+        "security.counts": sharesFigure("Security & compliance, counted", "Security", (data.security).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+      } : undefined} screen="IT Admin dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }

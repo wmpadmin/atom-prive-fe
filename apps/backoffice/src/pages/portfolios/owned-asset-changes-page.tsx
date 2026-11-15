@@ -9,7 +9,6 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Dialog, Field, Pagination, TextArea, cn, type FilterOption } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Download } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { ColumnPicker } from "../../components/column-picker";
@@ -19,7 +18,8 @@ import { useColumnDrag } from "../../lib/column-drag";
 import { formatDate, formatDateTime } from "../../lib/labels";
 import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { useTableView } from "../../lib/table-view";
-import { download, quoted } from "../advisor/proposal-export";
+import { quoted } from "../advisor/proposal-export";
+import { ListReportButton, saidFilters } from "../layout/list-report";
 import { QueueBar } from "./queue-bar";
 import { QueueFilters } from "./queue-filters";
 
@@ -176,23 +176,23 @@ export function OwnedAssetChangesPage() {
   const shown: FilterOption<Tab>[] = TABS.map((one) => ({ id: one.id, label: one.label, count: countFor(one.id) }));
   const reset = () => setPage(0);
 
-  const exportListed = () => {
+  /** Every change the filters turned up, every page, as CSV — the list report's rows. */
+  const listedCsv = async () => {
     const head = ["Client", "Client code", "Change", "Kind", "Asked by", "Asked on", "Answered by", "Answered on", "Reason", "Status"];
     const lines = listed.map((one) => [
       one.clientName, one.clientCode ?? "", asked(one), KINDS[one.kind] ?? one.kind, one.raisedBy, formatDate(one.raisedAt.slice(0, 10)),
       one.answeredBy ?? "", one.answeredAt ? formatDate(one.answeredAt.slice(0, 10)) : "", one.reason ?? "", LABELS[one.status as Status] ?? one.status,
     ].map(quoted).join(","));
-    download([head.map(quoted).join(","), ...lines].join("\r\n"), "owned-asset-changes.csv");
+    return [head.map(quoted).join(","), ...lines].join("\r\n");
   };
 
   if (queue.isError) return <Alert tone="danger">{queue.error.message}</Alert>;
   return (
     <div className="space-y-6">
       <QueueActions className="flex flex-wrap items-center justify-end gap-2">
-        <Button variant="secondary" disabled={listed.length === 0} onClick={exportListed}>
-          <Download aria-hidden="true" />
-          Export
-        </Button>
+        <ListReportButton list="Owned-asset changes" load={listedCsv} filters={saidFilters({
+          Status: tab === "all" ? undefined : TABS.find((one) => one.id === tab)?.label, Search: search.trim(), From: from, To: to,
+        })} />
       </QueueActions>
       {error && <Alert tone="danger">{error}</Alert>}
 

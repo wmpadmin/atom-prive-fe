@@ -31,7 +31,9 @@ import {
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { when } from "../lib/dates";
+import { writeDay } from "../lib/display";
 import { Card } from "./card";
+import { ReportExport, type Report } from "./report-export";
 import { RestatedNote } from "./restated-note";
 import { shownDashboard, type Shown } from "./shown";
 import { AllocationRing, ValueChart } from "./dashboard-charts";
@@ -179,6 +181,26 @@ function Recent({ activity }: { activity: Happening[] }) {
   );
 }
 
+/** The dashboard as its report: the four figures, the year's value by day, the allocation and what has happened. */
+function dashboardReport(dashboard: PortalDashboard, accounts: number | undefined): Report {
+  const money = (value: number) => whole(value, dashboard.currency);
+  return {
+    screen: "Dashboard",
+    subtitle: `Your wealth overview, in ${dashboard.currency}.`,
+    figures: [
+      { label: "Portfolio value", value: money(dashboard.netWorth) },
+      { label: "Total return (YTD)", value: dashboard.returnYearToDate === null ? "-" : percent(dashboard.returnYearToDate) },
+      { label: "Active accounts", value: accounts === undefined ? "-" : String(accounts) },
+      { label: "KYC status", value: (KYC[dashboard.kycStatus] ?? KYC.NOT_SUBMITTED!).label },
+    ],
+    sections: [
+      { title: "Asset allocation", parts: dashboard.allocation.map((one) => ({ label: one.name, value: one.value })), format: money },
+      { title: "Portfolio performance", head: ["Date", `Value (${dashboard.currency})`], rows: dashboard.valueThisYear.map((one) => [writeDay(one.on), one.value]), format: money },
+      { title: "Recent activity", wide: true, head: ["When", "What", "Detail"], rows: dashboard.activity.map((one) => [when(one.at), one.title, one.detail]) },
+    ],
+  };
+}
+
 export function DashboardPage() {
   const me = useMe<Me, ApiError>();
   const dashboard = useDashboard<Shown<PortalDashboard>, ApiError>({ query: { select: shownDashboard } });
@@ -187,10 +209,13 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-[1.625rem] font-bold text-balance text-ink">Welcome{firstName ? `, ${firstName}` : ""}</h1>
-        <p className="mt-1 text-sm text-ink-muted">Here's your wealth overview and key updates.</p>
-        <RestatedNote heldIn={dashboard.data?.heldIn} shownIn={dashboard.data?.currency} />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[1.625rem] font-bold text-balance text-ink">Welcome{firstName ? `, ${firstName}` : ""}</h1>
+          <p className="mt-1 text-sm text-ink-muted">Here's your wealth overview and key updates.</p>
+          <RestatedNote heldIn={dashboard.data?.heldIn} shownIn={dashboard.data?.currency} />
+        </div>
+        {dashboard.data && <ReportExport build={() => dashboardReport(dashboard.data!, accounts.data?.filter((one) => one.mine).length)} />}
       </div>
 
       {dashboard.isError ? (

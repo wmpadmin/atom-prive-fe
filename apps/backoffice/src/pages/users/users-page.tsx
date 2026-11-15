@@ -2,7 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import { exportStaffUsers, useListStaffUsers, type StaffUserPage, type StaffUserSummary } from "@atomprive/api-client/backoffice";
 import { Alert, Button, cn, IconButton, Pagination, SelectInput, StaffAvatar, StatCard, TextInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { Ban, CircleCheck, Download, Mail, Pencil, Power, Search, Users } from "lucide-react";
+import { Ban, CircleCheck, Mail, Pencil, Power, Search, Users } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { ColumnPicker } from "../../components/column-picker";
@@ -11,7 +11,7 @@ import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
 import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { useStaffUser } from "../../auth/session";
-import { downloadTextFile } from "../../lib/download";
+import { ListReportButton, saidFilters } from "../layout/list-report";
 import { roleLabels, roleList, roles, statusLabels, statuses, type StaffRole, type StaffStatus } from "../../lib/labels";
 import { formatMobileNumber } from "../../lib/mobile-numbers";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
@@ -130,7 +130,6 @@ export function UsersPage() {
   const [adding, setAdding] = useState(false);
   const [deactivating, setDeactivating] = useState<{ id: string; fullName: string } | null>(null);
   const [notice, setNotice] = useState<{ tone: "success" | "danger"; message: string }>();
-  const [exporting, setExporting] = useState(false);
   // How this reader has arranged the table, read with the rest of the state and above anything that could
   // return early: it is a thing about their own screen rather than about the staff, and a hook React sees
   // on one render and not the next is a hook it cannot keep in order.
@@ -142,18 +141,6 @@ export function UsersPage() {
     setPage(0);
   }
 
-  async function exportCsv() {
-    setExporting(true);
-    setNotice(undefined);
-    try {
-      const csv = await exportStaffUsers(filters);
-      downloadTextFile(`staff-users-${new Date().toISOString().slice(0, 10)}.csv`, csv, "text/csv;charset=utf-8");
-    } catch (caught) {
-      setNotice({ tone: "danger", message: caught instanceof ApiError ? caught.message : "Couldn't export. Try again." });
-    } finally {
-      setExporting(false);
-    }
-  }
 
   const counts = staff.data?.counts;
   const rows = staff.data?.items ?? [];
@@ -171,10 +158,8 @@ export function UsersPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="secondary" onClick={() => void exportCsv()} disabled={exporting}>
-            <Download aria-hidden="true" />
-            {exporting ? "Exporting…" : "Export"}
-          </Button>
+          <ListReportButton list="Staff users" load={() => exportStaffUsers(filters)}
+            filters={saidFilters({ Search: filters.query, Role: filters.role, Status: filters.status })} />
           <Button onClick={() => setAdding(true)}>
             New user
           </Button>

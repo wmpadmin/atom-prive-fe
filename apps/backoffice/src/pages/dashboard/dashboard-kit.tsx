@@ -1,137 +1,36 @@
-import { Button, cn } from "@atomprive/ui";
+import { cn } from "@atomprive/ui";
 import {
-  ArrowLeft,
-  ArrowRight,
   ChevronRight,
-  ExternalLink,
   FileText,
-  MoreVertical,
-  Pencil,
-  RotateCcw,
-  Search,
   SendHorizontal,
   Sparkles,
-  X,
   type LucideIcon,
 } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { Chart, ink } from "../book/overview-charts";
+import { CardMenu, useViewLayout } from "../layout/custom-view";
+
+/** The ⋮ every card of a screen has, kept with the grid that gives it; still offered from here to the dashboards. */
+export { CardMenu };
+import { useCardLabel } from "../layout/card-settings";
+import { KindChart, useCardChart, type ChartKind } from "../layout/chart-kinds";
 
 /**
- * The pieces every role's dashboard is built from: cards in a grid of two, each with its ⋮, an Edit view that
- * ticks cards on and off, and the panels, lists and rings the cards are drawn with. One dashboard per role and
- * no named views, at the firm's request; what a person ticks is kept in their browser.
+ * The pieces every role's dashboard is built from: the panels, lists and rings its cards are drawn with, and each
+ * card's ⋮. The cards are laid out, and Customize view works, exactly as on every other screen of cards
+ * (layout/custom-view.tsx: CustomizeButton and LayoutGrid). One layout per person and dashboard, kept on the server so it follows them to any browser (12 Nov 2026).
  */
 
 /** Something waiting, counted: the key says which screen it is worked from. */
 export type Waiting = { key: string; label: string; count: number };
 
 /** Where a card sits and what it is called: the side column holds the assistant and shortcuts. */
-export type CardMeta = { title: string; area: "main" | "side"; wide?: boolean };
+export type CardMeta = { title: string; area: "main" | "side"; wide?: boolean; group?: string; charts?: ChartKind[] };
 
-/**
- * The cards on one dashboard, in order, kept in this browser under {@code key}. Whatever is ticked in Edit view
- * is what the dashboard shows from then on; a card the code no longer has is quietly dropped.
- */
-export function useDashboardCards<Id extends string>(key: string, ids: readonly Id[], defaults: Id[]) {
-  const where = `atomprive.dashboard-cards.v1.${key}`;
-  const [cards, setCards] = useState<Id[]>(() => {
-    try {
-      const found = window.localStorage.getItem(where);
-      if (!found) return defaults;
-      const parsed: unknown = JSON.parse(found);
-      return Array.isArray(parsed) ? [...new Set(parsed.filter((one): one is Id => ids.includes(one as Id)))] : defaults;
-    } catch {
-      return defaults;
-    }
-  });
-  const change = (next: Id[]) => {
-    setCards(next);
-    try {
-      window.localStorage.setItem(where, JSON.stringify(next));
-    } catch {
-      // A browser that keeps nothing still shows the change; it lasts until the page is left.
-    }
-  };
-  return { cards, change, changed: cards.join("|") !== defaults.join("|"), reset: () => change(defaults) };
-}
-
-/**
- * The cards on screen: two to a row in the main column, read off the column itself rather than the window, and
- * the side column beside it on wide screens. The two in a row are one height; a card that would sit alone takes
- * the whole row, so none is left half empty. Each card gets its own ⋮ to move it or take it off.
- */
-export function CardGrid<Id extends string>({ meta, shown, render, editing, onChange }: {
-  meta: Record<Id, CardMeta>;
-  shown: Id[];
-  render: Record<Id, ReactNode>;
-  editing: boolean;
-  onChange: (cards: Id[]) => void;
-}) {
-  const inArea = (area: CardMeta["area"]) => shown.filter((id) => meta[id].area === area);
-  const nudge = (id: Id, step: -1 | 1) => {
-    const mates = inArea(meta[id].area);
-    const neighbour = mates[mates.indexOf(id) + step];
-    if (!neighbour) return;
-    const next = [...shown];
-    const from = next.indexOf(id);
-    const to = next.indexOf(neighbour);
-    next[from] = neighbour;
-    next[to] = id;
-    onChange(next);
-  };
-  const main = inArea("main");
-  const side = inArea("side");
-  const fullRow = useMemo(() => {
-    const alone = new Set<Id>();
-    let column = 0;
-    main.forEach((id, index) => {
-      if (meta[id].wide) {
-        column = 0;
-        return;
-      }
-      const next = main[index + 1];
-      if (column === 0 && (!next || meta[next].wide)) {
-        alone.add(id);
-        return;
-      }
-      column = (column + 1) % 2;
-    });
-    return alone;
-  }, [main, meta]);
-  const card = (id: Id) => {
-    const mates = inArea(meta[id].area);
-    const controls: CardControls = {
-      title: meta[id].title,
-      earlier: mates[0] === id ? undefined : () => nudge(id, -1),
-      later: mates[mates.length - 1] === id ? undefined : () => nudge(id, 1),
-      remove: () => onChange(shown.filter((one) => one !== id)),
-    };
-    return (
-      <CardContext.Provider key={id} value={controls}>
-        <div className={cn("flex min-w-0 flex-col [&>*]:flex-1", (meta[id].wide || fullRow.has(id)) && "@2xl:col-span-2",
-          editing && "rounded-2xl outline-2 outline-offset-2 outline-primary-300 outline-dashed")}>
-          {render[id]}
-        </div>
-      </CardContext.Provider>
-    );
-  };
-  if (shown.length === 0) {
-    return (
-      <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-muted">
-        Nothing on your dashboard. Use Edit view to tick the cards you want.
-      </p>
-    );
-  }
-  return (
-    <div className={cn("grid gap-5", side.length > 0 && "xl:grid-cols-[minmax(0,1fr)_20rem]")}>
-      <div className="@container min-w-0">
-        <div className="grid gap-5 @2xl:grid-cols-2">{main.map(card)}</div>
-      </div>
-      {side.length > 0 && <aside className="space-y-5">{side.map(card)}</aside>}
-    </div>
-  );
+/** The cards on one role's dashboard as the reader laid them out, kept on the server under dashboard.{key}. */
+export function useDashboardCards<Id extends string>(key: string, meta: Record<Id, CardMeta>, defaults: Id[]) {
+  return useViewLayout(`dashboard.${key}`, meta, defaults);
 }
 
 /** Closes a pop-over when somebody clicks anywhere outside it, or presses Escape. */
@@ -156,10 +55,6 @@ export function useDismiss(open: boolean, close: () => void) {
 }
 
 
-/** What a card's ⋮ offers, handed down to whichever card is drawn inside it. */
-export type CardControls = { earlier?: () => void; later?: () => void; remove: () => void; title: string };
-
-export const CardContext = createContext<CardControls | null>(null);
 
 
 export function money(amount: number, currency: string) {
@@ -167,112 +62,8 @@ export function money(amount: number, currency: string) {
 }
 
 
-/**
- * Edit view: every card, ticked where it is on the dashboard. Ticking one puts it on straight away and unticking
- * takes it off; nothing waits on a button. Reset puts back the dashboard as the firm set it.
- */
-export function EditCards<Id extends string>({ meta, shown, editing, onEditing, onChange, changed, onReset }: {
-  meta: Record<Id, CardMeta>;
-  shown: Id[];
-  editing: boolean;
-  onEditing: (editing: boolean) => void;
-  onChange: (cards: Id[]) => void;
-  changed: boolean;
-  onReset: () => void;
-}) {
-  const [query, setQuery] = useState("");
-  const close = useCallback(() => onEditing(false), [onEditing]);
-  const box = useDismiss(editing, close);
-  const listed = (Object.keys(meta) as Id[]).filter((id) => meta[id].title.toLowerCase().includes(query.trim().toLowerCase()));
-  const flip = (id: Id) => onChange(shown.includes(id) ? shown.filter((one) => one !== id) : [...shown, id]);
-  return (
-    <div ref={box} className="relative">
-      <Button variant={editing ? "primary" : "secondary"} onClick={() => { setQuery(""); onEditing(!editing); }}
-        aria-expanded={editing}>
-        <Pencil aria-hidden="true" />
-        Edit view
-      </Button>
-      {editing && (
-        <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-line bg-white p-3 shadow-lg">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold">Cards on your dashboard</p>
-            <button type="button" aria-label="Close" onClick={close} className="rounded p-1 text-ink-muted hover:bg-slate-100">
-              <X className="size-4" aria-hidden="true" />
-            </button>
-          </div>
-          <p className="mt-0.5 text-2xs text-ink-muted">Tick to add a card, untick to take it off. Kept in this browser.</p>
-          <div className="relative mt-2">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
-            <input aria-label="Search cards" value={query} onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search cards…"
-              className="w-full rounded-xl border border-line bg-white py-1.5 pr-3 pl-8 text-sm focus:border-primary-400 focus:outline-none" />
-          </div>
-          <ul className="mt-2 max-h-80 space-y-0.5 overflow-y-auto">
-            {listed.map((id) => (
-              <li key={id}>
-                <label className={cn("flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50",
-                  shown.includes(id) && "bg-primary-50/60")}>
-                  <input type="checkbox" checked={shown.includes(id)} onChange={() => flip(id)}
-                    className="size-4 accent-primary-600" />
-                  {meta[id].title}
-                </label>
-              </li>
-            ))}
-            {listed.length === 0 && <li className="px-2 py-3 text-sm text-ink-muted">No card is called that.</li>}
-          </ul>
-          <div className="mt-3 flex justify-between gap-2">
-            <Button variant="secondary" size="sm" onClick={onReset} disabled={!changed}>
-              <RotateCcw aria-hidden="true" />
-              Reset to default
-            </Button>
-            <Button size="sm" onClick={close}>Done</Button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 
-/** A card's ⋮: move it either way, open the screen behind it, or take it off this view. */
-export function CardMenu({ to }: { to?: string }) {
-  const controls = useContext(CardContext);
-  const [open, setOpen] = useState(false);
-  const close = useCallback(() => setOpen(false), []);
-  const box = useDismiss(open, close);
-  if (!controls) return null;
-  const item = "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-slate-50 disabled:opacity-40 [&_svg]:size-4";
-  const act = (run?: () => void) => () => {
-    run?.();
-    setOpen(false);
-  };
-  return (
-    <div ref={box} className="relative">
-      <button type="button" aria-label={`Options for ${controls.title}`} aria-expanded={open} onClick={() => setOpen((now) => !now)}
-        className="grid size-7 place-items-center rounded-lg text-ink-muted hover:bg-slate-100 hover:text-ink">
-        <MoreVertical className="size-4" aria-hidden="true" />
-      </button>
-      {open && (
-        <div className="absolute right-0 z-30 mt-1 w-52 rounded-xl border border-line bg-white p-1.5 shadow-lg">
-          <button type="button" className={item} onClick={act(controls.earlier)} disabled={!controls.earlier}>
-            <ArrowLeft aria-hidden="true" />Move earlier
-          </button>
-          <button type="button" className={item} onClick={act(controls.later)} disabled={!controls.later}>
-            <ArrowRight aria-hidden="true" />Move later
-          </button>
-          {to && (
-            <Link to={to} className={item}>
-              <ExternalLink aria-hidden="true" />Open full screen
-            </Link>
-          )}
-          <button type="button" className={cn(item, "text-red-600 hover:bg-red-50")} onClick={act(controls.remove)}>
-            <X aria-hidden="true" />Remove from this view
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 
 export function Panel({ icon: Icon, title, to, children }: {
@@ -282,16 +73,23 @@ export function Panel({ icon: Icon, title, to, children }: {
   to?: string;
   children: ReactNode;
 }) {
+  // The reader's own name and line for the card, where they set them through Add card, and its chart type switcher.
+  const label = useCardLabel(title);
+  const chart = useCardChart();
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white">
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
-        <h2 className="flex items-center gap-2 text-base font-bold">
-          <Icon className="size-4.5 text-primary-600" aria-hidden="true" />
-          {to ? <Link to={to} className="hover:text-primary-700 hover:underline">{title}</Link> : title}
-        </h2>
+        <div className="min-w-0">
+          <h2 className="flex items-center gap-2 text-base font-bold">
+            <Icon className="size-4.5 text-primary-600" aria-hidden="true" />
+            {to ? <Link to={to} className="hover:text-primary-700 hover:underline">{label.title}</Link> : label.title}
+          </h2>
+          {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
+        </div>
         <div className="flex items-center gap-1">
+          {chart?.picker}
           {to && (
-            <Link to={to} className="inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-primary-700 hover:underline">
+            <Link to={to} data-view-all className="inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-primary-700 hover:underline">
               View all
               <ChevronRight className="size-3.5" aria-hidden="true" />
             </Link>
@@ -334,6 +132,7 @@ export function Breakdown({ rows, centre, centreLabel, currency }: {
   currency?: string;
 }) {
   const ringed = rows.filter((one) => !one.apart);
+  const chart = useCardChart();
   const option = useMemo(() => {
     const c = ink();
     return {
@@ -349,6 +148,13 @@ export function Breakdown({ rows, centre, centreLabel, currency }: {
   }, [ringed, currency]);
   if (rows.length === 0) {
     return <p className="py-10 text-center text-sm text-ink-muted">Nothing on file yet.</p>;
+  }
+  if (chart && !chart.own) {
+    return (
+      <KindChart kind={chart.kind!} height={220} label={centreLabel}
+        format={(value) => (currency ? money(value, currency) : String(Math.round(value)))}
+        data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: Number(one.value) })) }} />
+    );
   }
   return (
     // The ring on the left and what makes it up beside it; one above the other when narrow.
@@ -392,8 +198,21 @@ export function Counts({ rows, linkFor, iconFor = {}, countFirst = false, limit,
   /** Where the lines left out are read. */
   more?: string;
 }) {
+  const chart = useCardChart();
+  const navigate = useNavigate();
   const ordered = limit === undefined ? rows
     : [...rows.filter((one) => one.count > 0), ...rows.filter((one) => one.count === 0)];
+  // Drawn as another kind, the counts are a chart of what is waiting; a click opens where it is worked.
+  if (chart && !chart.own) {
+    const waiting = rows.filter((one) => one.count > 0);
+    if (waiting.length === 0) return <p className="py-8 text-center text-sm text-ink-muted">Nothing waiting.</p>;
+    return (
+      <KindChart kind={chart.kind!} height={Math.max(180, 40 + waiting.length * 28)} label="What is waiting, counted"
+        format={(value) => String(Math.round(value))}
+        data={{ shape: "shares", items: waiting.map((one) => ({ name: one.label, value: one.count })) }}
+        onPick={(at) => { const to = waiting[at] && linkFor(waiting[at].key); if (to) navigate(to); }} />
+    );
+  }
   const shown = limit === undefined ? ordered : ordered.slice(0, limit);
   const left = ordered.length - shown.length;
   return (

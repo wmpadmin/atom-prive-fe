@@ -1,4 +1,5 @@
 import {
+  listProspects,
   useListProspectAssignees,
   useListProspects,
   type ListProspectsStatusItem,
@@ -13,6 +14,8 @@ import { BackToOverview } from "../../components/back-to-overview";
 import { ListPageHeader, RecordList } from "../../components/record-list";
 import { formatDate } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
+import { ListReportButton, saidFilters } from "../layout/list-report";
+import { everyPage, toCsv } from "../layout/list-rows";
 import { ProspectForm } from "./prospect-form";
 import { ProspectPanel } from "./prospect-panel";
 import { SOURCE_LABELS, STATUS_LABELS, STATUS_PILLS } from "./prospect-labels";
@@ -44,13 +47,12 @@ export function ProspectiveClientsPage() {
   const [size, setSize] = useState(10);
   const [form, setForm] = useState<{ editing: ProspectDetail | null } | null>(null);
 
-  const prospects = useListProspects({
+  const asked = {
     query: query.trim() || undefined,
     status: status === "OPEN" ? undefined : [status],
     assignedTo: assignedTo === "ALL" ? undefined : assignedTo,
-    page,
-    size,
-  });
+  };
+  const prospects = useListProspects({ ...asked, page, size });
   const assignees = useListProspectAssignees({ query: { enabled: everyone } });
 
   const open = (id: string | null) => {
@@ -76,7 +78,19 @@ export function ProspectiveClientsPage() {
       <ListPageHeader
         title="Prospective Clients"
         lead="Potential clients with their basic details. Track follow-ups and convert them to clients."
-      />
+      >
+        <ListReportButton list="Prospective clients" load={async () => toCsv(
+          ["Reference", "Name", "Type", "Email", "Phone", "Source", "Assigned to", "Next follow-up", "Overdue", "Status"],
+          (await everyPage(async (at) => { const one = await listProspects({ ...asked, page: at, size: 100 }); return { items: one.items, totalItems: one.total }; })).map((row) => [
+            row.reference, row.fullName, row.clientType === "ENTITY" ? "Entity" : "Individual", row.email ?? "", row.phone ?? "", SOURCE_LABELS[row.source],
+            row.assignedTo?.fullName ?? "", row.nextFollowUp ? formatDate(row.nextFollowUp) : "", row.overdue ? "Yes" : "No", STATUS_LABELS[row.status],
+          ]),
+        )} filters={saidFilters({
+          Status: status === "OPEN" ? "Open" : STATUS_LABELS[status],
+          "Assigned to": assignedTo === "ALL" ? undefined : assignees.data?.find((one) => one.id === assignedTo)?.fullName,
+          Search: query.trim(),
+        })} />
+      </ListPageHeader>
 
       <RecordList
         caption="Prospective clients"

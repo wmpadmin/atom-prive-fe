@@ -8,14 +8,14 @@ import {
   type ListAuditEventsOutcome,
   type ListAuditEventsParams,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, cn, Pagination, SelectInput, StaffAvatar, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, cn, Pagination, SelectInput, StaffAvatar, TextInput } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
-import { Cog, Download, Search } from "lucide-react";
+import { Cog, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
-import { downloadTextFile } from "../../lib/download";
+import { ListReportButton, saidFilters } from "../layout/list-report";
 import { formatDateTime, formatRelative, roleLabel, roleLabels, roles, type StaffRole } from "../../lib/labels";
 import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { useTableView } from "../../lib/table-view";
@@ -42,11 +42,6 @@ const outcomeLabels: Record<ListAuditEventsOutcome, string> = { SUCCESS: "Succes
  * this page's to choose. The API says the same thing in its own Content-Disposition; if that is ever read
  * instead, these have to agree.
  */
-const FILE_NAMES: Record<string, string> = {
-  "proposal.": "proposal-trail",
-  "access.": "family-access-trail",
-};
-
 const dateOnly = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" });
 
 interface MovableColumn {
@@ -123,8 +118,6 @@ interface AuditLogPageProps {
    * one of them shared letter for letter with a client's own asking, which belongs to a different trail.
    */
   actions?: string[];
-  /** What the saved file is called, where the trail has a name of its own. */
-  fileName?: string;
   /**
    * What period it opens on.
    *
@@ -159,7 +152,6 @@ export function AuditLogPage({
   description = "Who logged in, viewed which customer and exported what. Searchable by user, action and date.",
   embedded = false,
   actions,
-  fileName: namedFile,
   defaultPeriod = "24h",
   customerId,
 }: AuditLogPageProps = {}) {
@@ -179,12 +171,7 @@ export function AuditLogPage({
     setPageSize(size);
     setPage(0);
   }
-  const [notice, setNotice] = useState<string>();
-  const [exporting, setExporting] = useState(false);
   const query = useDebouncedValue(search.trim());
-  // Three screens, one table, three files. Named after the whole audit log they were indistinguishable in a
-  // downloads folder, and the two narrowed ones were the misnamed pair.
-  const fileName = namedFile ?? ((actionPrefix && FILE_NAMES[actionPrefix]) || "audit-log");
 
   const filters: ListAuditEventsParams = {
     actionPrefix,
@@ -212,19 +199,11 @@ export function AuditLogPage({
     setPage(0);
   }
 
-  async function exportCsv() {
-    setExporting(true);
-    setNotice(undefined);
-    try {
-      const csv = await exportAuditEvents(filters);
-      downloadTextFile(`${fileName}-${new Date().toISOString().slice(0, 10)}.csv`, csv, "text/csv;charset=utf-8");
-      // The export is itself recorded, so show it.
-      await queryClient.invalidateQueries({ queryKey: getListAuditEventsQueryKey() });
-    } catch (caught) {
-      setNotice(caught instanceof ApiError ? caught.message : "Couldn't export. Try again.");
-    } finally {
-      setExporting(false);
-    }
+  /** The trail as filtered, every page; the export is itself recorded, so the table is read again to show it. */
+  async function exported() {
+    const csv = await exportAuditEvents(filters);
+    void queryClient.invalidateQueries({ queryKey: getListAuditEventsQueryKey() });
+    return csv;
   }
 
   const rows = events.data?.items ?? [];
@@ -232,10 +211,10 @@ export function AuditLogPage({
   const filtered = Boolean(query || role || outcome);
 
   const exportButton = (
-    <Button variant="secondary" onClick={() => void exportCsv()} disabled={exporting}>
-      <Download aria-hidden="true" />
-      {exporting ? "Exporting…" : "Export"}
-    </Button>
+    <ListReportButton list={title} load={exported} filters={saidFilters({
+      Period: period === "custom" ? [fromDate, toDate].filter(Boolean).join(" to ") || "Custom dates" : periods[period].label,
+      Search: query, Role: role, Result: outcome,
+    })} />
   );
 
   return (
@@ -250,7 +229,6 @@ export function AuditLogPage({
         </header>
       )}
 
-      {notice && <Alert tone="danger">{notice}</Alert>}
       {events.isError && <Alert tone="danger">{events.error.message}</Alert>}
 
       <div className="flex flex-wrap items-center justify-between gap-3">

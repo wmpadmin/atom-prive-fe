@@ -33,9 +33,7 @@ import { menuFor } from "../../menu";
 import {
   AskTheAssistant,
   Breakdown,
-  CardGrid,
   Counts,
-  EditCards,
   Loading,
   Panel,
   Strip,
@@ -43,10 +41,12 @@ import {
   useDashboardCards,
   type CardMeta,
 } from "../dashboard/dashboard-kit";
+import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
+import { sharesFigure, singleFigure } from "../layout/own-cards";
 
 /**
  * A relationship manager's dashboard: their own clients and nobody else's — where each stands, what waits on
- * their answer, and who to chase. One dashboard with Edit view to tick cards on and off, the same as every other
+ * their answer, and who to chase. One dashboard with Customize view to move, size and hide cards, the same as every other
  * role's; every figure opens the screen it was counted from.
  */
 
@@ -60,19 +60,19 @@ const PERIODS = [
 type CardId = "clients" | "approvals" | "kyc" | "portfolios" | "chase" | "signatures" | "links" | "assistant";
 
 const CARD: Record<CardId, CardMeta> = {
-  clients: { title: "My clients overview", area: "main" },
-  approvals: { title: "My approvals & actions", area: "main" },
-  kyc: { title: "KYC status (my clients)", area: "main" },
-  portfolios: { title: "Portfolio summary", area: "main" },
-  chase: { title: "Client engagement & chase", area: "main" },
+  clients: { title: "My clients overview", area: "main", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
+  approvals: { title: "My approvals & actions", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  kyc: { title: "KYC status (my clients)", area: "main", charts: ["donut", "horizontal-bar", "table"] },
+  portfolios: { title: "Portfolio summary", area: "main", charts: ["table", "horizontal-bar", "donut"] },
+  chase: { title: "Client engagement & chase", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   signatures: { title: "Waiting on your signature", area: "main" },
   assistant: { title: "AI Assistant", area: "side" },
   links: { title: "Key links", area: "side" },
 };
 
-const CARD_IDS = Object.keys(CARD) as CardId[];
 
-/** What the dashboard opens on, as the firm drew it on 4 Nov 2026; the rest are under Edit view. */
+/** What the dashboard opens on: the four that matter most, chosen 13 Nov 2026; the rest wait in Add cards. A layout someone saved is kept. */
+// What the dashboard showed when the portal was set up: what a new person sees, and what Reset to default view brings back.
 const DEFAULT_CARDS: CardId[] = ["clients", "approvals", "kyc", "portfolios", "chase", "assistant"];
 
 /** Which screen each counted line is worked from. A line whose screen the reader's menu lacks has no link. */
@@ -124,8 +124,7 @@ export function AdvisorDashboard() {
     { query: { placeholderData: keepPreviousData, refetchInterval: 60_000 } },
   );
   const currencies = useListCurrencies<Currency[], ApiError>();
-  const view = useDashboardCards("relationship-manager", CARD_IDS, DEFAULT_CARDS);
-  const [editing, setEditing] = useState(false);
+  const view = useDashboardCards("relationship-manager", CARD, DEFAULT_CARDS);
   // Every screen on the reader's menu, the ones drawn under a section heading included.
   const reachable = useMemo(
     () => new Set(menuFor(user).flatMap((one) => [one.to, ...(one.below ?? []).map((under) => under.to)])),
@@ -230,8 +229,7 @@ export function AdvisorDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <EditCards meta={CARD} shown={view.cards} editing={editing} onEditing={setEditing} onChange={view.change}
-            changed={view.changed} onReset={view.reset} />
+          <CustomizeButton view={view} />
           <SelectInput id="rm-period" aria-label="Period the changes are measured over" value={String(days)}
             onChange={(event) => setDays(Number(event.target.value))} className="w-40">
             {PERIODS.map((one) => <option key={one.days} value={one.days}>{one.label}</option>)}
@@ -247,7 +245,20 @@ export function AdvisorDashboard() {
 
       {figures.isError && <Alert tone="danger">{figures.error.message}</Alert>}
 
-      <CardGrid meta={CARD} shown={view.cards} render={render} editing={editing} onChange={view.change} />
+      <LayoutGrid view={view} render={render} figures={data ? {
+        "clients.status": sharesFigure("My clients by status", "Clients", [
+          { name: "Active", value: data.clients.active }, { name: "Onboarding", value: data.clients.onboarding }, { name: "KYC expired", value: data.clients.kycExpired },
+          { name: "Deactivation", value: data.clients.deactivating },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "clients.total": singleFigure("My clients", "Clients", data.clients.total, (value: number) => String(Math.round(value))),
+        "kyc.status": sharesFigure("KYC status of my clients", "KYC", [
+          { name: "Approved", value: data.kyc.approved }, { name: "In review", value: data.kyc.inReview }, { name: "Needs action", value: data.kyc.needsAction },
+          { name: "Not started", value: data.kyc.notStarted },
+        ], (value: number) => String(Math.round(value)), ["donut", "horizontal-bar", "bar", "table"]),
+        "kyc.complete": singleFigure("KYC complete", "KYC", data.kyc.completePercent, (value) => `${Math.round(value)}%`, { gauge: true, max: 100 }),
+        "approvals.counts": sharesFigure("My approvals & actions, counted", "Work", (data.approvals).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+        "chase.counts": sharesFigure("Client engagement & chase, counted", "Work", (data.chase).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
+      } : undefined} screen="Relationship Manager dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
   );
 }
