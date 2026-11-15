@@ -176,7 +176,8 @@ function isSpouse(member: FamilyMember) {
 
 /**
  * The family as a tree: the holders along the top, the people under each beneath them on a connecting line, and a
- * spouse drawn beside the person they are married to with a link between them rather than a tier below.
+ * spouse drawn beside the person they are married to on a dashed "married" line rather than a tier below. Every badge
+ * says whose relative the person is ("Sarah's spouse"), since a bare "Spouse" reads as the holder's.
  */
 export function FamilyTree({ roots, currency, valueOf, openTheir, clientId }: {
   roots: Branch[];
@@ -202,11 +203,10 @@ export function FamilyTree({ roots, currency, valueOf, openTheir, clientId }: {
               {node(branch.member)}
               {partners.map((partner) => (
                 <span key={partner.member.id} className="flex items-center">
-                  <span aria-hidden="true" className="h-px w-5 bg-primary-300" />
-                  <span title="Married" className="grid size-8 place-items-center rounded-full border border-primary-300 bg-white text-primary-600 [&_svg]:size-4">
-                    <Link2 aria-hidden="true" />
+                  <span className="flex w-20 flex-col items-center gap-1">
+                    <span className="text-2xs font-semibold text-ink-muted">married</span>
+                    <span aria-hidden="true" className="w-full border-t-2 border-dashed border-violet-400" />
                   </span>
-                  <span aria-hidden="true" className="h-px w-5 bg-primary-300" />
                   {node(partner.member)}
                 </span>
               ))}
@@ -240,6 +240,10 @@ export function FamilyTree({ roots, currency, valueOf, openTheir, clientId }: {
           <div className="flex items-start gap-6">{roots.map((root) => <div key={root.member.id}>{level([root])}</div>)}</div>
         ) : level(roots)}
       </div>
+      <p className="mt-6 flex flex-wrap justify-center gap-5 text-xs text-ink-muted">
+        <span className="flex items-center gap-1.5"><span aria-hidden="true" className="w-5 border-t border-primary-300" />Parent, child or sibling</span>
+        <span className="flex items-center gap-1.5"><span aria-hidden="true" className="w-5 border-t-2 border-dashed border-violet-400" />Married</span>
+      </p>
     </div>
   );
 }
