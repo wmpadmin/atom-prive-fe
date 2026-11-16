@@ -1,8 +1,8 @@
 import { ApiError } from "@atomprive/api-client";
 import { useRenameFamily, type FamilyGroupSummary, type FamilyMember } from "@atomprive/api-client/backoffice";
-import { Avatar, Badge, Button, TextInput, cn } from "@atomprive/ui";
+import { Avatar, Badge, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Layers, Link2, Maximize2, Minimize2, PencilLine, UsersRound, Network, Rows3 } from "lucide-react";
+import { Check, Layers, Link2, Maximize2, Minimize2, PencilLine, UsersRound, Network, Rows3, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useRelationshipTypes } from "../../lib/relationship-types";
@@ -63,7 +63,7 @@ function Tile({ icon, children }: { icon: ReactNode; children: ReactNode }) {
       <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-full bg-primary-50 text-primary-700 [&_svg]:size-6">
         {icon}
       </span>
-      <div className="min-w-0">{children}</div>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }
@@ -82,15 +82,25 @@ function FamilyName({ clientId, name, mayEdit }: { clientId: string; name: strin
     },
   });
   if (editing) {
+    const save = () => rename.mutate({ id: clientId, data: { name: typed.trim() || null } });
+    const cancel = () => { setTyped(name); setEditing(false); };
+    const icon = "grid size-8 shrink-0 place-items-center rounded-lg border [&_svg]:size-4 disabled:opacity-50";
     return (
-      <span className="flex flex-wrap items-center gap-2">
-        <TextInput id="family-name" aria-label="What the firm calls this family" className="h-8 w-44" value={typed} maxLength={120}
-          onChange={(event) => setTyped(event.target.value)} />
-        <Button size="sm" disabled={rename.isPending} onClick={() => rename.mutate({ id: clientId, data: { name: typed.trim() || null } })}>
-          {rename.isPending ? "Saving…" : "Save"}
-        </Button>
-        <Button variant="secondary" size="sm" disabled={rename.isPending} onClick={() => { setTyped(name); setEditing(false); }}>Cancel</Button>
-        {rename.error && <span className="w-full text-xs text-red-600">{rename.error.message}</span>}
+      <span className="block">
+        <span className="flex items-center gap-1.5">
+          <TextInput id="family-name" aria-label="What the firm calls this family" className="h-8 min-w-0 flex-1" value={typed} maxLength={120}
+            autoFocus onChange={(event) => setTyped(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter") save(); if (event.key === "Escape") cancel(); }} />
+          <button type="button" aria-label="Save the name" title="Save (Enter)" disabled={rename.isPending} onClick={save}
+            className={cn(icon, "border-primary-600 bg-primary-600 text-on-accent hover:bg-primary-700")}>
+            <Check aria-hidden="true" />
+          </button>
+          <button type="button" aria-label="Cancel renaming" title="Cancel (Esc)" disabled={rename.isPending} onClick={cancel}
+            className={cn(icon, "border-line text-ink-muted hover:text-ink")}>
+            <X aria-hidden="true" />
+          </button>
+        </span>
+        {rename.error && <span className="mt-1 block text-xs text-red-600">{rename.error.message}</span>}
       </span>
     );
   }
