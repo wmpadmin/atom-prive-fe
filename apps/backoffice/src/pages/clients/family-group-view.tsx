@@ -198,6 +198,7 @@ const BRACKET = 22;
 
 type Placed = { member: FamilyMember; x: number; generation: number };
 type Edge = { from: string; to: string; tie: Tie | "JOINT"; label: string };
+type Line = { key: string; path: string; tie: Edge["tie"]; label: string; lx: number; ly: number };
 
 /**
  * Lays the family out a generation to a row: the holders on the first, a spouse or sibling beside the person they
@@ -287,7 +288,7 @@ export function FamilyTree({ roots, currency, valueOf, openTheir, clientId }: {
   }]));
   const width = Math.max(...[...at.values()].map((one) => one.x + CARD_WIDTH));
   const depth = Math.max(...[...at.values()].map((one) => one.y + height));
-  const lines = edges.flatMap((edge) => {
+  const lines = edges.flatMap((edge): Line[] => {
     const a = at.get(edge.from);
     const b = at.get(edge.to);
     if (!a || !b) return [];
