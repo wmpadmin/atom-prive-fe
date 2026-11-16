@@ -47,7 +47,9 @@ export function Switch({ on, label, onLabel = "On", offLabel = "Off", disabled, 
         <span
           aria-hidden="true"
           className={cn(
-            "absolute top-[3px] size-4 rounded-full bg-white shadow-sm transition-[left]",
+            // A real white, not the theme's "white": in dark mode that is the page's own dark surface, and the
+            // knob vanished into the track.
+            "absolute top-[3px] size-4 rounded-full bg-[#ffffff] shadow-sm transition-[left]",
             on ? "left-[19px]" : "left-[3px]",
           )}
         />
