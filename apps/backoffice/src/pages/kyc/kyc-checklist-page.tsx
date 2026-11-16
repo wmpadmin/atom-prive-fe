@@ -1,6 +1,8 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  backToTheList,
   exceptOneClient,
+  stopAskingForPaper,
   useAskForPaper,
   useGetKycChecklist,
   useListCustomers,
@@ -9,14 +11,22 @@ import {
   type ChecklistForA,
   type ChecklistView,
   type CustomerPage,
+  type PaperRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, Switch, TextInput, cn } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
-import { X } from "lucide-react";
+import { PencilLine, X } from "lucide-react";
 import { useState } from "react";
 
 type ClientType = ChecklistForA["clientType"];
 type Reach = "ALL" | "NEW" | "EXISTING";
+
+/** Who one paper is asked of: the kinds whose list it is on and which of them, or clients by name. */
+interface Asked {
+  kinds: ClientType[];
+  which: Reach | "SPECIFIC";
+  clients: { id: string; name: string }[];
+}
 
 /** Which clients of a kind a paper on the list is asked of, as a row says it. Every client says nothing. */
 const REACH_NOTE: Record<Reach, string | null> = {
@@ -77,6 +87,8 @@ export function KycChecklistPage() {
 
 function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => void }) {
   const [managing, setManaging] = useState(false);
+  // The paper whose clients are being changed, or null while adding a new one.
+  const [editing, setEditing] = useState<PaperRow | null>(null);
   const ask = useAskForPaper<ApiError>({ mutation: { onSuccess: onChanged } });
   const stop = useStopAskingForPaper<ApiError>({ mutation: { onSuccess: onChanged } });
   const failed = ask.error ?? stop.error;
@@ -92,6 +104,13 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
   }
   const reachOf = (clientType: ClientType, paperId: string): Reach =>
     view.lists.find((list) => list.clientType === clientType)?.appliesTo[paperId] ?? "ALL";
+  /** Who a paper is asked of now, as the box starts out when it is opened to change that. */
+  const nowAskedOf = (paper: PaperRow): Asked => {
+    const kinds = askedFor.get(paper.id) ?? [];
+    const clients = view.askedOfClients[paper.id] ?? [];
+    const which = kinds.length > 0 ? reachOf(kinds[0]!, paper.id) : clients.length > 0 ? "SPECIFIC" : "ALL";
+    return { kinds, which, clients };
+  };
   const counted = view.lists
     .map((list) => `${list.papers.length} for ${KIND_OF_CLIENT[list.clientType].toLowerCase()}`)
     .join(" · ");
@@ -123,9 +142,10 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
 
         {failed && <div className="px-5 pt-4"><Alert tone="danger">{failed.message}</Alert></div>}
 
-        <div className="mt-4 grid grid-cols-3 items-center gap-x-5 px-5 pb-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_4.5rem] items-center gap-x-5 px-5 pb-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           <span>Paper</span>
           {BOTH.map((clientType) => <span key={clientType}>{KIND_OF_CLIENT[clientType]}</span>)}
+          <span className="sr-only">Change</span>
         </div>
 
         <ul>
@@ -134,7 +154,7 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
             return (
               <li
                 key={paper.id}
-                className="grid grid-cols-3 items-center gap-x-5 border-t border-line px-5 hover:bg-slate-50"
+                className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_4.5rem] items-center gap-x-5 border-t border-line px-5 hover:bg-slate-50"
               >
                 {/* The name and whether it is still in use. Nothing about who named it: the list is read
                     to see what the firm asks for, and a tag on half the rows says nothing about that. The
@@ -146,9 +166,10 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
                     </span>
                     {paper.retired && <Badge tone="neutral">Out of use</Badge>}
                   </span>
-                  {(view.askedOfClients[paper.id] ?? 0) > 0 && (
-                    <span className="block text-xs text-ink-muted">
-                      Also asked of {view.askedOfClients[paper.id] === 1 ? "1 client" : `${view.askedOfClients[paper.id]} clients`} on their own file
+                  {(view.askedOfClients[paper.id]?.length ?? 0) > 0 && (
+                    <span className="block truncate text-xs text-ink-muted">
+                      {kinds.length > 0 ? "Also asked of " : "Asked of "}
+                      {view.askedOfClients[paper.id]!.map((one) => one.name).join(", ")}
                     </span>
                   )}
                 </span>
@@ -172,15 +193,29 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
                     )}
                   </span>
                 ))}
+                <span className="flex justify-end">
+                  <Button variant="ghost" size="sm" disabled={paper.retired} onClick={() => setEditing(paper)}
+                    aria-label={`Change who is asked for ${paper.name}`}>
+                    <PencilLine aria-hidden="true" />
+                    Edit
+                  </Button>
+                </span>
               </li>
             );
           })}
         </ul>
       </section>
 
+      {/* Keyed by what it is opened for, so each opening starts from that paper's own answers. */}
       <PapersTheFirmKnowsOf
-        open={managing}
-        onClose={() => setManaging(false)}
+        key={editing?.id ?? "new"}
+        open={managing || editing !== null}
+        paper={editing}
+        was={editing ? nowAskedOf(editing) : undefined}
+        onClose={() => {
+          setManaging(false);
+          setEditing(null);
+        }}
         onChanged={onChanged}
       />
     </div>
@@ -198,15 +233,19 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
  * <p>Taking a paper out of use is not offered anywhere on this screen. The endpoint is there and tested,
  * and nothing reaches it.
  */
-function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
+function PapersTheFirmKnowsOf({ open, paper: editing, was, onClose, onChanged }: {
   open: boolean;
+  /** The paper being changed; left out, a new one is named. */
+  paper?: PaperRow | null;
+  /** Who that paper is asked of now. */
+  was?: Asked;
   onClose: () => void;
   onChanged: () => void;
 }) {
-  const [name, setName] = useState("");
-  const [kinds, setKinds] = useState<ClientType[]>([]);
-  const [which, setWhich] = useState<Reach | "SPECIFIC">("ALL");
-  const [chosen, setChosen] = useState<{ id: string; name: string }[]>([]);
+  const [name, setName] = useState(editing?.name ?? "");
+  const [kinds, setKinds] = useState<ClientType[]>(was?.kinds ?? []);
+  const [which, setWhich] = useState<Reach | "SPECIFIC">(was?.which ?? "ALL");
+  const [chosen, setChosen] = useState<{ id: string; name: string }[]>(was?.clients ?? []);
   const specific = which === "SPECIFIC";
   const [failed, setFailed] = useState<string>();
   const [adding, setAdding] = useState(false);
@@ -218,10 +257,10 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
   const ask = useAskForPaper<ApiError>();
 
   function clear() {
-    setName("");
-    setKinds([]);
-    setWhich("ALL");
-    setChosen([]);
+    setName(editing?.name ?? "");
+    setKinds(was?.kinds ?? []);
+    setWhich(was?.which ?? "ALL");
+    setChosen(was?.clients ?? []);
     setFailed(undefined);
     setTried(false);
   }
@@ -248,23 +287,39 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
     setFailed(undefined);
     setAdding(true);
     try {
-      const paper = await named.mutateAsync({ data: { name: name.trim() } });
+      const paper = editing ?? await named.mutateAsync({ data: { name: name.trim() } });
+      const before = was ?? { kinds: [], which: "ALL", clients: [] };
+      // The choice made here replaces the one before it: off the lists it no longer belongs on, and off the
+      // file of any client it is no longer asked of by name (the firm, 16 Nov 2026).
       if (specific) {
-        // On each chosen client's own file, the way one client is asked for something extra there.
+        for (const clientType of before.kinds) {
+          await stopAskingForPaper(clientType, paper.id);
+        }
         for (const client of chosen) {
-          await exceptOneClient(client.id, { paperId: paper.id, required: true, why: null });
+          if (!before.clients.some((one) => one.id === client.id)) {
+            // On each chosen client's own file, the way one client is asked for something extra there.
+            await exceptOneClient(client.id, { paperId: paper.id, required: true, why: null });
+          }
+        }
+        for (const client of before.clients) {
+          if (!chosen.some((one) => one.id === client.id)) await backToTheList(client.id, paper.id);
         }
       } else {
-        for (const clientType of kinds) {
-          await ask.mutateAsync({ clientType, data: { paperId: paper.id, appliesTo: which } });
+        for (const clientType of BOTH) {
+          if (kinds.includes(clientType)) {
+            await ask.mutateAsync({ clientType, data: { paperId: paper.id, appliesTo: which } });
+          } else if (before.kinds.includes(clientType)) {
+            await stopAskingForPaper(clientType, paper.id);
+          }
         }
+        for (const client of before.clients) await backToTheList(client.id, paper.id);
       }
       onChanged();
       clear();
       onClose();
     }
     catch (caught) {
-      setFailed(caught instanceof ApiError ? caught.message : "Couldn't add it. Try again.");
+      setFailed(caught instanceof ApiError ? caught.message : editing ? "Couldn't save it. Try again." : "Couldn't add it. Try again.");
     }
     finally {
       setAdding(false);
@@ -274,8 +329,10 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
   return (
     <Dialog
       open={open}
-      title="Add a paper"
-      description="Names a paper the firm asks for, so it can go on the checklist before anybody has sent one."
+      title={editing ? `Edit “${editing.name}”` : "Add a paper"}
+      description={editing
+        ? "Change which clients are asked for it. Clients no longer covered stop being asked; nothing already on a file moves."
+        : "Names a paper the firm asks for, so it can go on the checklist before anybody has sent one."}
       onClose={() => {
         clear();
         onClose();
@@ -287,11 +344,12 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
         <Field
           id="name-a-paper"
           label="What is it called?"
-          hint="A name already on the list is matched rather than added twice, whatever its case or spacing."
+          hint={editing ? "The name stays as it is." : "A name already on the list is matched rather than added twice, whatever its case or spacing."}
           error={unnamed ? "Enter a name." : undefined}
         >
           <TextInput
             id="name-a-paper"
+            readOnly={Boolean(editing)}
             aria-invalid={unnamed || undefined}
             value={name}
             maxLength={120}
@@ -374,7 +432,7 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
             Cancel
           </Button>
           <Button disabled={adding} onClick={() => void add()}>
-            {adding ? "Adding\u2026" : "Add it"}
+            {editing ? (adding ? "Saving\u2026" : "Save") : adding ? "Adding\u2026" : "Add it"}
           </Button>
         </div>
       </div>
