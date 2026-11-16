@@ -427,7 +427,7 @@ function PapersTheFirmKnowsOf({ open, paper: editing, was, onClose, onChanged }:
                 <Switch
                   // A fixed width, or the two tracks sit at different x because "Asked for" is wider
                   // than "No" and the control is pushed to the right-hand edge.
-                  className="w-[7.5rem] shrink-0"
+                  className="w-[8.5rem] shrink-0"
                   label={`Asked of ${KIND_OF_CLIENT[clientType].toLowerCase()}`}
                   on={kinds.includes(clientType)}
                   onLabel="Asked for"

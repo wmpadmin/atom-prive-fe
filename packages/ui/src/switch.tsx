@@ -37,10 +37,12 @@ export function Switch({ on, label, onLabel = "On", offLabel = "Off", disabled, 
         disabled={disabled || busy}
         onClick={() => onChange(!on)}
         className={cn(
-          "relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors",
+          // The rounded pill the firm asked for (16 Nov 2026): a wide track and a large round knob that fills
+          // its height, sitting just inside the edge.
+          "relative h-[26px] w-[50px] shrink-0 rounded-full transition-colors duration-200 motion-reduce:transition-none",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
           "disabled:cursor-not-allowed",
-          on ? "bg-primary-600" : "bg-slate-200",
+          on ? "bg-primary-600" : "bg-slate-300",
           (disabled || busy) && "opacity-50",
         )}
       >
@@ -48,9 +50,10 @@ export function Switch({ on, label, onLabel = "On", offLabel = "Off", disabled, 
           aria-hidden="true"
           className={cn(
             // A real white, not the theme's "white": in dark mode that is the page's own dark surface, and the
-            // knob vanished into the track.
-            "absolute top-[3px] size-4 rounded-full bg-[#ffffff] shadow-sm transition-[left]",
-            on ? "left-[19px]" : "left-[3px]",
+            // knob vanished into the track. The faint ring keeps its edge against a light track.
+            "absolute top-[2px] size-[22px] rounded-full bg-[#ffffff] shadow-[0_1px_3px_rgba(0,0,0,0.25)] ring-1 ring-black/10",
+            "transition-[left] duration-200 motion-reduce:transition-none",
+            on ? "left-[26px]" : "left-[2px]",
           )}
         />
       </button>
