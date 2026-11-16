@@ -331,7 +331,7 @@ export function ClientOverviewTab({
           ))}
         </div>
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_max-content]">
-          <div className="h-44 min-w-0">
+          <div className="h-56 min-w-0">
             {ranged.data && ranged.data.performance.length > 1 ? (
               <TimeChart
                 key={range}
@@ -928,7 +928,7 @@ const ROWS: { ids: string[]; className: string; boxed?: string }[] = [
   { ids: ["profile", "allocation", "access"], className: "grid grid-cols-1 gap-4" },
   { ids: ["relations", "compliance", "family"], className: "grid grid-cols-1 gap-4" },
   { ids: ["banks", "activity", "documents"], className: "grid grid-cols-1 gap-4" },
-  { ids: ["performance", "proposals"], className: "grid grid-cols-1 items-start gap-4", boxed: "h-[20rem]" },
+  { ids: ["performance", "proposals"], className: "grid grid-cols-1 items-start gap-4", boxed: "h-[24rem]" },
   { ids: ["portfolio"], className: "grid grid-cols-1" },
   { ids: ["application"], className: "grid grid-cols-1" },
 ];

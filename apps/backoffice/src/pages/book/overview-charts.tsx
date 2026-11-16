@@ -242,7 +242,9 @@ function timeOption(points: LinePoint[], label: string, axisTitle: string, forma
       // which flattened a 2% move into a ruler. A return keeps nought on the axis: whether it is above or
       // below nought is the point of it, and so do columns, whose height is their size.
       scale: !columns && axisTitle !== "TWR" && axisTitle !== "%",
-      axisLabel: { ...axisText, formatter: (value: number) => axisFormat(value) },
+      // On a short chart five steps crowd into a few pixels and their labels sit on one another: drop the ones that
+      // would touch, so the axis reads 0%, 2%, 4% with room between rather than a stack.
+      axisLabel: { ...axisText, hideOverlap: true, formatter: (value: number) => axisFormat(value) },
       splitLine: gridLine,
     },
     dataZoom: [
