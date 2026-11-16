@@ -1,15 +1,22 @@
-import { ApiError } from "@atomprive/api-client";
+import { ApiError, httpFile } from "@atomprive/api-client";
 import {
+  attachToOwnedAsset,
+  getGetClientWorkspaceCollectiblesQueryKey,
+  getReadOwnedAssetFileUrl,
   useGetClientWorkspaceCollectibles,
   type ClientCollectibles,
   type CoItem,
   type CoKpi,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
-import { Car, FileText, Frame, Gem, MapPin, Sailboat, Watch, Wine, X, type LucideIcon } from "lucide-react";
-import { createElement, useMemo, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Car, FileText, Frame, Gem, ImagePlus, MapPin, RefreshCw, Sailboat, Watch, Wine, X, type LucideIcon } from "lucide-react";
+import { createElement, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
+import { useStaffUser } from "../../auth/session";
+import { openApiFile } from "../../lib/download";
 import { formatDate } from "../../lib/labels";
+import { writesProposals } from "../../lib/permissions";
 import { Chart, ink } from "../book/overview-charts";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
 import { ReportButton } from "../layout/report";
@@ -23,7 +30,7 @@ import { useDrill } from "./drill-panel";
  * A client's Collectibles & Real Assets register, laid out section by section as the firm's 10 Nov design draws it.
  * The items are the client's assets owned outright in the six collectible categories — the same rows Owned outright
  * counts on every other screen — and every figure, from the register value and cover to the documentation share and
- * what falls due, is worked out on the server. Photos are the design's placeholders. The items, appraisals, insurance,
+ * what falls due, is worked out on the server. Photos are the ones staff put on the item, the category's placeholder until then. The items, appraisals, insurance,
  * carrying costs and provenance are demo figures, which the page says. A client whose figures come only from their
  * bank's files holds no collectibles in them, so every card is not in bank file. Read only.
  */
@@ -214,10 +221,10 @@ function Register({ data, filter, onFilter }: { data: ClientCollectibles; filter
             {view === "GALLERY" ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {items.map((one) => (
-                  <button key={one.id} type="button" onClick={() => setPicked(one.id)}
+                  <div key={one.id}
                     className={cn("overflow-hidden rounded-xl border text-left", open?.id === one.id ? "border-ink ring-1 ring-ink" : "border-line hover:border-ink-muted")}>
-                    <Photo category={one.category} tall />
-                    <span className="block p-3">
+                    <Photo item={one} tall onOpen={() => setPicked(one.id)} />
+                    <button type="button" onClick={() => setPicked(one.id)} className="block w-full p-3 text-left">
                       <span className="block font-semibold">{one.name}</span>
                       <span className="block text-xs text-ink-muted">{one.line ?? one.categoryLabel}</span>
                       <span className="mt-1.5 flex items-baseline justify-between gap-2">
@@ -228,8 +235,8 @@ function Register({ data, filter, onFilter }: { data: ClientCollectibles; filter
                         <span className="flex min-w-0 items-center gap-1"><MapPin className="size-3 shrink-0" aria-hidden="true" /><span className="truncate">{one.location ?? "—"}</span></span>
                         <Status item={one} />
                       </span>
-                    </span>
-                  </button>
+                    </button>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -301,7 +308,7 @@ function ItemPanel({ item, currency, onClose }: { item: CoItem | null; currency:
           <X className="size-4" aria-hidden="true" />
         </button>
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-2">{[0, 1, 2].map((at) => <Photo key={at} category={item.category} />)}</div>
+      <div className="mt-3 grid grid-cols-3 gap-2">{[0, 1, 2].map((at) => <Photo key={at} item={item} at={at} />)}</div>
 
       <dl className="mt-4 grid grid-cols-3 gap-3 border-b border-line pb-4">
         <Figure label="Current value" value={compact(item.value, currency)} />
@@ -537,14 +544,88 @@ function Status({ item }: { item: CoItem }) {
   return <Pill tone={STATUS_TONE[item.statusTone] ?? "bg-slate-100 text-ink-soft"}>{item.status}</Pill>;
 }
 
-function Photo({ category, tall }: { category: string; tall?: boolean }) {
+/**
+ * One of an item's photos: the newest staff put on it in the gallery, the next ones in its record, and the category's
+ * placeholder where there is none. Whoever may change a client's record adds one here — on the placeholder, or with
+ * Change on the gallery's photo — and it is kept with the item's other photos under Owned assets.
+ */
+function Photo({ item, at = 0, tall, onOpen }: { item: CoItem; at?: number; tall?: boolean; onOpen?: () => void }) {
+  const { customerId = "" } = useParams();
+  const user = useStaffUser();
+  const queryClient = useQueryClient();
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileId = item.photos[at];
+  const url = fileId ? getReadOwnedAssetFileUrl(customerId, item.id, fileId) : null;
+  const src = usePhoto(url);
+  const adds = writesProposals(user) && (at === 0 || at === item.photos.length);
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await attachToOwnedAsset(customerId, item.id, { kind: "PHOTO" }, { file });
+      await queryClient.invalidateQueries({ queryKey: getGetClientWorkspaceCollectiblesQueryKey(customerId) });
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "The photo could not be added.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const pick = () => input.current?.click();
+  // The theme's own fill and muted ink, so it follows the app's light/dark choice rather than the computer's.
+  const box = cn("relative block overflow-hidden bg-slate-100 text-ink-muted", tall ? "h-32" : "h-20 rounded-lg");
+  const blank = "flex size-full flex-col items-center justify-center gap-1.5";
   return (
-    // The theme's own fill and muted ink, so it follows the app's light/dark choice rather than the computer's.
-    <span className={cn("flex flex-col items-center justify-center gap-1.5 bg-slate-100 text-ink-muted", tall ? "h-32" : "h-20 rounded-lg")} aria-hidden="true">
-      {createElement(iconOf(category), { className: "size-5" })}
-      <span className="text-3xs font-semibold tracking-widest">PHOTO</span>
-    </span>
+    <div className={box}>
+      {url ? (
+        <button type="button" className="size-full" aria-label={onOpen ? `Open ${item.name}` : `${item.name}, full size`}
+          onClick={onOpen ?? (() => void openApiFile(url, item.name))}>
+          {src && <img src={src} alt={item.name} className="size-full object-cover" />}
+        </button>
+      ) : adds ? (
+        <button type="button" disabled={busy} onClick={pick} className={cn(blank, "hover:text-ink")}>
+          {createElement(iconOf(item.category), { className: "size-5", "aria-hidden": true })}
+          <span className="inline-flex items-center gap-1 text-xs font-semibold"><ImagePlus className="size-3.5" aria-hidden="true" />{busy ? "Adding…" : "Add photo"}</span>
+        </button>
+      ) : (
+        <button type="button" tabIndex={onOpen ? 0 : -1} onClick={onOpen} className={cn(blank, !onOpen && "cursor-default")} aria-label={onOpen ? `Open ${item.name}` : "No photo yet"}>
+          {createElement(iconOf(item.category), { className: "size-5", "aria-hidden": true })}
+          <span className="text-3xs font-semibold tracking-widest">PHOTO</span>
+        </button>
+      )}
+      {url && adds && at === 0 && (
+        <button type="button" disabled={busy} onClick={pick}
+          className="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-md bg-black/60 px-2 py-1 text-2xs font-semibold text-white hover:bg-black/75">
+          <RefreshCw className={cn("size-3", busy && "animate-spin")} aria-hidden="true" /> {busy ? "Adding…" : "Change"}
+        </button>
+      )}
+      {error && <span role="alert" className="absolute inset-x-0 bottom-0 bg-red-600/90 px-2 py-1 text-2xs text-white">{error}</span>}
+      {adds && <input ref={input} type="file" accept="image/*" hidden onChange={(event) => { void upload(event.target.files?.[0]); event.target.value = ""; }} />}
+    </div>
   );
+}
+
+/** A photo fetched with the session's token (an img pointing at the API would send none) as an object URL. */
+function usePhoto(url: string | null) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    setSrc(null);
+    if (!url) return;
+    let gone = false;
+    let made: string | null = null;
+    void httpFile(url).then((blob) => {
+      if (gone) return;
+      made = URL.createObjectURL(blob);
+      setSrc(made);
+    }).catch(() => undefined);
+    return () => {
+      gone = true;
+      if (made) URL.revokeObjectURL(made);
+    };
+  }, [url]);
+  return src;
 }
 
 function Segmented({ value, onChange, options }: { value: string; onChange: (next: string) => void; options: [string, string][] }) {
