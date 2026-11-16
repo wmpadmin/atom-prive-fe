@@ -918,23 +918,24 @@ function Cell({ children }: { id: string; children: ReactNode }) {
   return <>{children}</>;
 }
 
-/** The places on the overview, row by row: the reference layout, then the firm's own panels. */
+/**
+ * The places on the overview, row by row: the reference layout, then the firm's own panels. A row is as many
+ * columns wide as it has cards on this page, so a card the reader is not shown (Who can see this client, for anyone
+ * who cannot change it) leaves no hole: the others share the row.
+ */
 const ROWS: { ids: string[]; className: string; boxed?: string }[] = [
   { ids: ["kpis"], className: "grid grid-cols-1" },
-  { ids: ["profile", "allocation", "access"], className: "grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-12" },
-  { ids: ["relations", "compliance", "family"], className: "grid grid-cols-1 gap-4 lg:grid-cols-3" },
-  { ids: ["banks", "activity", "documents"], className: "grid grid-cols-1 gap-4 lg:grid-cols-3" },
-  { ids: ["performance", "proposals"], className: "grid grid-cols-1 items-start gap-4 sm:grid-cols-2", boxed: "h-[20rem]" },
+  { ids: ["profile", "allocation", "access"], className: "grid grid-cols-1 gap-4" },
+  { ids: ["relations", "compliance", "family"], className: "grid grid-cols-1 gap-4" },
+  { ids: ["banks", "activity", "documents"], className: "grid grid-cols-1 gap-4" },
+  { ids: ["performance", "proposals"], className: "grid grid-cols-1 items-start gap-4", boxed: "h-[20rem]" },
   { ids: ["portfolio"], className: "grid grid-cols-1" },
   { ids: ["application"], className: "grid grid-cols-1" },
 ];
 
-/** The width a place takes in its row; it belongs to the place, so a card moved there takes it. */
-const SPANS: Record<string, string> = {
-  profile: "xl:col-span-4",
-  allocation: "xl:col-span-4",
-  access: "lg:col-span-2 xl:col-span-4",
-};
+/** How a row of so many cards is split: the first row on the widest screens, the rest from a laptop up. */
+const SPLIT: Record<number, string> = { 1: "", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3" };
+const SPLIT_WIDE: Record<number, string> = { 1: "", 2: "lg:grid-cols-2", 3: "lg:grid-cols-2 xl:grid-cols-3" };
 
 /** Kept in this browser for this person: which card sits in which place, the same on every client. */
 function whereKept(userId: string) {
@@ -1025,9 +1026,10 @@ function OverviewBoard({ children, extra, arranging, onDone }: {
         {ROWS.map((row, at) => {
           const here = row.ids.filter((id) => pieces.has(id));
           if (here.length === 0) return null;
+          const first = row.ids.includes("access");
           return (
-            <div key={at} className={row.className}>
-              {here.map((place) => {
+            <div key={at} className={cn(row.className, (first ? SPLIT_WIDE : SPLIT)[here.length])}>
+              {here.map((place, spot) => {
                 const card = placed[place];
                 return (
                   <div
@@ -1053,7 +1055,8 @@ function OverviewBoard({ children, extra, arranging, onDone }: {
                     }}
                     className={cn(
                       "min-w-0 rounded-2xl",
-                      SPANS[place],
+                      // Three on the first row sit two and one on a laptop: the odd one out takes its row.
+                      first && here.length === 3 && spot === 2 && "lg:col-span-2 xl:col-span-1",
                       row.boxed,
                       arranging && "cursor-move [&_*]:cursor-move",
                       arranging && "outline-2 outline-offset-2 outline-dashed outline-primary-200",
