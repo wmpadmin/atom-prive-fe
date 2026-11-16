@@ -15,8 +15,25 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, Switch, TextInput, cn } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
-import { PencilLine, X } from "lucide-react";
-import { useState } from "react";
+import {
+  BookUser,
+  Building2,
+  CircleCheck,
+  Coins,
+  FileBadge,
+  FileSpreadsheet,
+  FileText,
+  Gavel,
+  Gem,
+  IdCard,
+  MapPin,
+  PencilLine,
+  ShieldCheck,
+  Users,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import { createElement, useState } from "react";
 
 type ClientType = ChecklistForA["clientType"];
 type Reach = "ALL" | "NEW" | "EXISTING";
@@ -27,6 +44,20 @@ interface Asked {
   which: Reach | "SPECIFIC";
   clients: { id: string; name: string }[];
 }
+
+/** Each built-in paper's picture; a paper the firm named itself is a plain page. */
+const PAPER_ICON: Record<string, LucideIcon> = {
+  PASSPORT: BookUser,
+  NATIONAL_ID: IdCard,
+  PROOF_OF_ADDRESS: MapPin,
+  SOURCE_OF_FUNDS: Coins,
+  SOURCE_OF_WEALTH: Gem,
+  TRADE_LICENCE: FileBadge,
+  CERTIFICATE_OF_INCUMBENCY: ShieldCheck,
+  BOARD_RESOLUTION: Gavel,
+  AUDITED_ACCOUNTS: FileSpreadsheet,
+  SHAREHOLDER_REGISTER: Users,
+};
 
 /** Which clients of a kind a paper on the list is asked of, as a row says it. Every client says nothing. */
 const REACH_NOTE: Record<Reach, string | null> = {
@@ -111,20 +142,42 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
     const which = kinds.length > 0 ? reachOf(kinds[0]!, paper.id) : clients.length > 0 ? "SPECIFIC" : "ALL";
     return { kinds, which, clients };
   };
+  const listFor = (clientType: ClientType) => view.lists.find((list) => list.clientType === clientType)?.papers.length ?? 0;
   const counted = view.lists
     .map((list) => `${list.papers.length} for ${KIND_OF_CLIENT[list.clientType].toLowerCase()}`)
     .join(" · ");
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-[1.625rem] font-bold">What KYC asks for</h1>
-        <p className="mt-1 max-w-[74ch] text-sm text-ink-muted">
-          The papers a client's KYC waits on, and who has to hand each one over. Switch one on and every
-          client of that kind is asked for it from that moment; switch it off and the firm stops waiting —
-          nothing already on a file moves either way. One client who owes something different is excepted on
-          their own file, not here.
-        </p>
+      <header className="space-y-5">
+        <div className="flex items-center gap-4">
+          <span className="grid size-14 shrink-0 place-items-center rounded-full bg-primary-50 text-primary-600">
+            <ShieldCheck aria-hidden="true" className="size-7" />
+          </span>
+          <div>
+            <h1 className="text-[1.625rem] font-bold">KYC Compliance</h1>
+            <p className="mt-0.5 text-sm text-ink-muted">
+              Manage the required KYC documents and compliance settings for your clients.
+            </p>
+          </div>
+        </div>
+        <dl className="grid gap-3 sm:grid-cols-3">
+          {[
+            { label: "Total documents", value: view.papers.filter((one) => !one.retired).length, icon: FileText, tone: "bg-primary-50 text-primary-600" },
+            { label: "Enabled for individuals", value: listFor("INDIVIDUAL"), icon: CircleCheck, tone: "bg-emerald-50 text-emerald-600" },
+            { label: "Enabled for companies", value: listFor("ENTITY"), icon: Building2, tone: "bg-violet-50 text-violet-600" },
+          ].map((tile) => (
+            <div key={tile.label} className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3.5">
+              <span className={cn("grid size-11 shrink-0 place-items-center rounded-full", tile.tone)}>
+                <tile.icon aria-hidden="true" className="size-5" />
+              </span>
+              <div className="flex flex-col-reverse">
+                <dt className="text-xs font-semibold text-ink-muted">{tile.label}</dt>
+                <dd className="text-2xl font-bold tabular-nums">{tile.value}</dd>
+              </div>
+            </div>
+          ))}
+        </dl>
       </header>
 
       <section className="rounded-2xl border border-line bg-white">
@@ -159,19 +212,24 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
                 {/* The name and whether it is still in use. Nothing about who named it: the list is read
                     to see what the firm asks for, and a tag on half the rows says nothing about that. The
                     "Add a paper" box says which are the firm's own, where it matters. */}
-                <span className="min-w-0 py-2">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className={cn("truncate text-sm font-semibold", paper.retired && "text-ink-muted line-through")}>
-                      {paper.name}
-                    </span>
-                    {paper.retired && <Badge tone="neutral">Out of use</Badge>}
+                <span className="flex min-w-0 items-center gap-3 py-2">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-600">
+                    {createElement(PAPER_ICON[paper.kind ?? ""] ?? FileText, { "aria-hidden": true, className: "size-4" })}
                   </span>
-                  {(view.askedOfClients[paper.id]?.length ?? 0) > 0 && (
-                    <span className="block truncate text-xs text-ink-muted">
-                      {kinds.length > 0 ? "Also asked of " : "Asked of "}
-                      {view.askedOfClients[paper.id]!.map((one) => one.name).join(", ")}
+                  <span className="min-w-0">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className={cn("truncate text-sm font-semibold", paper.retired && "text-ink-muted line-through")}>
+                        {paper.name}
+                      </span>
+                      {paper.retired && <Badge tone="neutral">Out of use</Badge>}
                     </span>
-                  )}
+                    {(view.askedOfClients[paper.id]?.length ?? 0) > 0 && (
+                      <span className="block truncate text-xs text-ink-muted">
+                        {kinds.length > 0 ? "Also asked of " : "Asked of "}
+                        {view.askedOfClients[paper.id]!.map((one) => one.name).join(", ")}
+                      </span>
+                    )}
+                  </span>
                 </span>
                 {BOTH.map((clientType) => (
                   <span key={clientType} className="py-2">
