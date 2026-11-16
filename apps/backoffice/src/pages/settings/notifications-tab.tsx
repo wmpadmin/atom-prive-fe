@@ -63,10 +63,10 @@ export function NotificationsTab() {
         <div>
           {events.map((event) => (
             <SwitchRow key={event.title} title={event.title} lead={event.lead}>
-              <span className="w-[3.75rem] text-center">
+              <span className="w-[5.5rem] text-center">
                 <Switch on={event.email} label={`Email me about: ${event.title}`} disabled onChange={() => {}} />
               </span>
-              <span className="w-[3.75rem] text-center">
+              <span className="w-[5.5rem] text-center">
                 <Switch on={event.inApp} label={`Show me on screen: ${event.title}`} disabled onChange={() => {}} />
               </span>
             </SwitchRow>
@@ -88,12 +88,12 @@ export function NotificationsTab() {
         lead="One message gathering the day or the week, rather than one message each time."
       >
         <SwitchRow title="Daily summary" lead="Everything waiting at your desk, once each morning.">
-          <span className="w-[3.75rem] text-center">
+          <span className="w-[5.5rem] text-center">
             <Switch on={false} label="Send me a daily summary" disabled onChange={() => {}} />
           </span>
         </SwitchRow>
         <SwitchRow title="Weekly summary" lead="What moved on your clients over the week.">
-          <span className="w-[3.75rem] text-center">
+          <span className="w-[5.5rem] text-center">
             <Switch on={false} label="Send me a weekly summary" disabled onChange={() => {}} />
           </span>
         </SwitchRow>
@@ -106,12 +106,12 @@ export function NotificationsTab() {
         lead="Hold everything but the urgent until the morning, and over the weekend."
       >
         <SwitchRow title="Hold notifications overnight" lead="From 8pm to 8am, in your own timezone.">
-          <span className="w-[3.75rem] text-center">
+          <span className="w-[5.5rem] text-center">
             <Switch on={false} label="Hold notifications overnight" disabled onChange={() => {}} />
           </span>
         </SwitchRow>
         <SwitchRow title="Hold notifications at the weekend" lead="Saturday and Sunday.">
-          <span className="w-[3.75rem] text-center">
+          <span className="w-[5.5rem] text-center">
             <Switch on={false} label="Hold notifications at the weekend" disabled onChange={() => {}} />
           </span>
         </SwitchRow>
