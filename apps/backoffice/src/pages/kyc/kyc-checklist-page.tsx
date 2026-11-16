@@ -1,18 +1,37 @@
 import { ApiError } from "@atomprive/api-client";
 import {
+  exceptOneClient,
   useAskForPaper,
   useGetKycChecklist,
+  useListCustomers,
   useNameKycPaper,
   useStopAskingForPaper,
   type ChecklistForA,
   type ChecklistView,
+  type CustomerPage,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, Switch, TextInput, cn } from "@atomprive/ui";
-import { useQueryClient } from "@tanstack/react-query";
-import {  } from "lucide-react";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { useState } from "react";
 
 type ClientType = ChecklistForA["clientType"];
+type Reach = "ALL" | "NEW" | "EXISTING";
+
+/** Which clients of a kind a paper on the list is asked of, as a row says it. Every client says nothing. */
+const REACH_NOTE: Record<Reach, string | null> = {
+  ALL: null,
+  NEW: "New clients only",
+  EXISTING: "Existing clients only",
+};
+
+/** The choices in Add a paper: the three a list can hold, and a few clients picked by name. */
+const WHICH_CLIENTS: { key: Reach | "SPECIFIC"; label: string; hint: string }[] = [
+  { key: "ALL", label: "All clients", hint: "Existing and new" },
+  { key: "NEW", label: "New clients only", hint: "Those added from today" },
+  { key: "EXISTING", label: "Existing clients only", hint: "Not those added later" },
+  { key: "SPECIFIC", label: "Specific clients", hint: "Picked by name" },
+];
 
 const KIND_OF_CLIENT: Record<ClientType, string> = {
   INDIVIDUAL: "An individual",
@@ -71,6 +90,8 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
       askedFor.set(paper.id, [...(askedFor.get(paper.id) ?? []), list.clientType]);
     }
   }
+  const reachOf = (clientType: ClientType, paperId: string): Reach =>
+    view.lists.find((list) => list.clientType === clientType)?.appliesTo[paperId] ?? "ALL";
   const counted = view.lists
     .map((list) => `${list.papers.length} for ${KIND_OF_CLIENT[list.clientType].toLowerCase()}`)
     .join(" · ");
@@ -118,28 +139,38 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
                 {/* The name and whether it is still in use. Nothing about who named it: the list is read
                     to see what the firm asks for, and a tag on half the rows says nothing about that. The
                     "Add a paper" box says which are the firm's own, where it matters. */}
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className={cn("truncate text-sm font-semibold", paper.retired && "text-ink-muted line-through")}>
-                    {paper.name}
+                <span className="min-w-0 py-2">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className={cn("truncate text-sm font-semibold", paper.retired && "text-ink-muted line-through")}>
+                      {paper.name}
+                    </span>
+                    {paper.retired && <Badge tone="neutral">Out of use</Badge>}
                   </span>
-                  {paper.retired && <Badge tone="neutral">Out of use</Badge>}
+                  {(view.askedOfClients[paper.id] ?? 0) > 0 && (
+                    <span className="block text-xs text-ink-muted">
+                      Also asked of {view.askedOfClients[paper.id] === 1 ? "1 client" : `${view.askedOfClients[paper.id]} clients`} on their own file
+                    </span>
+                  )}
                 </span>
                 {BOTH.map((clientType) => (
-                  <Switch
-                    key={clientType}
-                    className="py-2"
-                    label={`${paper.name}, asked of ${KIND_OF_CLIENT[clientType].toLowerCase()}`}
-                    on={kinds.includes(clientType)}
-                    onLabel="Asked for"
-                    offLabel="No"
-                    disabled={paper.retired}
-                    busy={busy}
-                    onChange={(on) =>
-                      on
-                        ? ask.mutate({ clientType, data: { paperId: paper.id } })
-                        : stop.mutate({ clientType, paperId: paper.id })
-                    }
-                  />
+                  <span key={clientType} className="py-2">
+                    <Switch
+                      label={`${paper.name}, asked of ${KIND_OF_CLIENT[clientType].toLowerCase()}`}
+                      on={kinds.includes(clientType)}
+                      onLabel="Asked for"
+                      offLabel="No"
+                      disabled={paper.retired}
+                      busy={busy}
+                      onChange={(on) =>
+                        on
+                          ? ask.mutate({ clientType, data: { paperId: paper.id, appliesTo: null } })
+                          : stop.mutate({ clientType, paperId: paper.id })
+                      }
+                    />
+                    {kinds.includes(clientType) && REACH_NOTE[reachOf(clientType, paper.id)] && (
+                      <span className="mt-0.5 block text-xs text-ink-muted">{REACH_NOTE[reachOf(clientType, paper.id)]}</span>
+                    )}
+                  </span>
                 ))}
               </li>
             );
@@ -174,10 +205,14 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
 }) {
   const [name, setName] = useState("");
   const [kinds, setKinds] = useState<ClientType[]>([]);
+  const [which, setWhich] = useState<Reach | "SPECIFIC">("ALL");
+  const [chosen, setChosen] = useState<{ id: string; name: string }[]>([]);
+  const specific = which === "SPECIFIC";
   const [failed, setFailed] = useState<string>();
   const [adding, setAdding] = useState(false);
   // Add it pressed with no name: the box shows in red until one is typed.
   const [tried, setTried] = useState(false);
+  const noneChosen = tried && specific && chosen.length === 0;
   const unnamed = tried && name.trim().length === 0;
   const named = useNameKycPaper<ApiError>();
   const ask = useAskForPaper<ApiError>();
@@ -185,6 +220,8 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
   function clear() {
     setName("");
     setKinds([]);
+    setWhich("ALL");
+    setChosen([]);
     setFailed(undefined);
     setTried(false);
   }
@@ -203,12 +240,24 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
       document.getElementById("name-a-paper")?.focus();
       return;
     }
+    if (specific && chosen.length === 0) {
+      setTried(true);
+      document.getElementById("pick-a-client")?.focus();
+      return;
+    }
     setFailed(undefined);
     setAdding(true);
     try {
       const paper = await named.mutateAsync({ data: { name: name.trim() } });
-      for (const clientType of kinds) {
-        await ask.mutateAsync({ clientType, data: { paperId: paper.id } });
+      if (specific) {
+        // On each chosen client's own file, the way one client is asked for something extra there.
+        for (const client of chosen) {
+          await exceptOneClient(client.id, { paperId: paper.id, required: true, why: null });
+        }
+      } else {
+        for (const clientType of kinds) {
+          await ask.mutateAsync({ clientType, data: { paperId: paper.id, appliesTo: which } });
+        }
       }
       onChanged();
       clear();
@@ -255,7 +304,7 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Asked of</p>
           {/* The kind first, the switch after it, so the two switches line up as a pair instead of each
               one being read as part of the words beside it — "No An individual". */}
-          <div className="mt-2 divide-y divide-line rounded-xl border border-line">
+          <div className={cn("mt-2 divide-y divide-line rounded-xl border border-line", specific && "opacity-50")}>
             {BOTH.map((clientType) => (
               <div key={clientType} className="flex items-center justify-between gap-3 px-3 py-2">
                 <span className="text-sm text-ink">{KIND_OF_CLIENT[clientType]}</span>
@@ -268,6 +317,7 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
                   onLabel="Asked for"
                   offLabel="No"
                   busy={adding}
+                  disabled={specific}
                   onChange={(on) =>
                     setKinds((was) =>
                       on ? [...was, clientType] : was.filter((one) => one !== clientType))
@@ -277,11 +327,41 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
             ))}
           </div>
           <p className="mt-2 text-xs text-ink-muted">
-            {kinds.length === 0
-              ? "Left off, the paper is named but nobody is asked for it yet. You can switch it on from the list."
-              : "Every client of that kind is asked for it from the moment this is added."}
+            {specific
+              ? "Not used for specific clients: the paper goes on each chosen client's own file."
+              : kinds.length === 0
+                ? "Left off, the paper is named but nobody is asked for it yet. You can switch it on from the list."
+                : which === "NEW"
+                  ? "Clients of that kind added from today are asked for it. Those already on the books are not."
+                  : which === "EXISTING"
+                    ? "Clients of that kind already on the books are asked for it. Those added later are not."
+                    : "Every client of that kind is asked for it from the moment this is added."}
           </p>
         </div>
+
+        <fieldset>
+          <legend className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Which clients</legend>
+          <div className="mt-2 divide-y divide-line rounded-xl border border-line">
+            {WHICH_CLIENTS.map((one) => (
+              <label key={one.key} className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm">
+                <input type="radio" name="which-clients" value={one.key} checked={which === one.key}
+                  onChange={() => setWhich(one.key)} className="size-4 accent-primary-600" />
+                <span className="text-ink">{one.label}</span>
+                <span className="text-xs text-ink-muted">{one.hint}</span>
+              </label>
+            ))}
+          </div>
+          {specific && (
+            <div className="mt-3">
+              <PickClients chosen={chosen} invalid={noneChosen}
+                onPick={(client) => setChosen((was) => was.some((one) => one.id === client.id) ? was : [...was, client])}
+                onDrop={(id) => setChosen((was) => was.filter((one) => one.id !== id))} />
+            </div>
+          )}
+          <p className="mt-2 text-xs text-ink-muted">
+            A client already approved stays approved; the paper shows as outstanding on their file until they send it.
+          </p>
+        </fieldset>
 
         <div className="flex justify-end gap-2.5">
           <Button
@@ -299,5 +379,57 @@ function PapersTheFirmKnowsOf({ open, onClose, onChanged }: {
         </div>
       </div>
     </Dialog>
+  );
+}
+
+/** Clients picked by name for a paper asked of them in particular: a search box, its matches, and the picks. */
+function PickClients({ chosen, invalid, onPick, onDrop }: {
+  chosen: { id: string; name: string }[];
+  invalid: boolean;
+  onPick: (client: { id: string; name: string }) => void;
+  onDrop: (id: string) => void;
+}) {
+  const [typed, setTyped] = useState("");
+  const query = typed.trim();
+  const found = useListCustomers<CustomerPage, ApiError>(
+    { query, page: 0, size: 6 },
+    { query: { enabled: query.length > 0, placeholderData: keepPreviousData } },
+  );
+  const matches = (found.data?.items ?? []).filter((one) => !chosen.some((picked) => picked.id === one.id));
+  return (
+    <Field id="pick-a-client" label="Clients" error={invalid ? "Choose at least one client." : undefined}>
+      <div className="space-y-2">
+        <TextInput id="pick-a-client" aria-invalid={invalid || undefined} value={typed} placeholder="Search a client by name or code"
+          autoComplete="off" onChange={(event) => setTyped(event.target.value)} />
+        {query.length > 0 && (
+          <ul className="max-h-48 overflow-y-auto rounded-xl border border-line">
+            {matches.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-ink-muted">{found.isFetching ? "Searching…" : `No clients match “${query}”.`}</li>
+            ) : matches.map((one) => (
+              <li key={one.id}>
+                <button type="button" className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-slate-50"
+                  onClick={() => { onPick({ id: one.id, name: one.fullName }); setTyped(""); }}>
+                  <span className="truncate font-semibold text-ink">{one.fullName}</span>
+                  <span className="shrink-0 font-mono text-xs text-ink-muted">{one.code}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {chosen.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {chosen.map((one) => (
+              <span key={one.id} className="inline-flex items-center gap-1 rounded-full border border-line bg-slate-50 py-0.5 pr-1 pl-2.5 text-xs font-semibold text-ink">
+                {one.name}
+                <button type="button" aria-label={`Take ${one.name} off`} onClick={() => onDrop(one.id)}
+                  className="rounded-full p-0.5 text-ink-muted hover:text-ink">
+                  <X aria-hidden="true" className="size-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </Field>
   );
 }

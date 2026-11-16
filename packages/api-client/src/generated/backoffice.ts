@@ -5025,14 +5025,20 @@ export const ChecklistForAClientType = {
   ENTITY: 'ENTITY',
 } as const;
 
+export type ChecklistForAAppliesTo = {[key: string]: 'ALL' | 'NEW' | 'EXISTING'};
+
 export interface ChecklistForA {
   clientType: ChecklistForAClientType;
   papers: PaperRow[];
+  appliesTo: ChecklistForAAppliesTo;
 }
+
+export type ChecklistViewAskedOfClients = {[key: string]: number};
 
 export interface ChecklistView {
   papers: PaperRow[];
   lists: ChecklistForA[];
+  askedOfClients: ChecklistViewAskedOfClients;
 }
 
 export interface ReUploadRequest {
@@ -5279,8 +5285,22 @@ export interface ClientKycFile {
   lastReminder: KycReminder | null;
 }
 
+/**
+ * @nullable
+ */
+export type ChecklistPaperRequestAppliesTo = typeof ChecklistPaperRequestAppliesTo[keyof typeof ChecklistPaperRequestAppliesTo] | null;
+
+
+export const ChecklistPaperRequestAppliesTo = {
+  ALL: 'ALL',
+  NEW: 'NEW',
+  EXISTING: 'EXISTING',
+} as const;
+
 export interface ChecklistPaperRequest {
   paperId: string;
+  /** @nullable */
+  appliesTo: ChecklistPaperRequestAppliesTo;
 }
 
 export interface UseRequest {
