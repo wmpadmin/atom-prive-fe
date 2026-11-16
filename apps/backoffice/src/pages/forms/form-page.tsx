@@ -285,6 +285,9 @@ function FilledForm<T>({
   const save = useSaveFormDraft<ApiError>();
   // A finished form goes to the client's relationship manager to be signed; nothing holds it up on the way.
   const busy = save.isPending;
+  const [askedToSend, setAskedToSend] = useState(false);
+  const stillToAnswerRef = useRef<HTMLDivElement>(null);
+  const stillToAnswer = review.steps.filter((step) => !step.complete);
 
   // An attached document is kept straight away: it is the client's paper, not a draft answer.
   const keptNow = (saved: FormDetail) => queryClient.setQueryData(getGetFormQueryKey(saved.summary.id), saved);
@@ -371,7 +374,7 @@ function FilledForm<T>({
     return { ...(value as unknown as Record<string, unknown>), ...firmEdits };
   }
 
-  function saveDraft() {
+  function saveDraft(then?: () => void) {
     setFormError(undefined);
     save.mutate(
       { id: detail.summary.id, data: { answers: answersToSave(), dueOn: null } },
@@ -380,10 +383,26 @@ function FilledForm<T>({
           afterWrite(saved);
           setSavedFirmJson(JSON.stringify(firmEdits));
           setJustSaved(true);
+          then?.();
         },
         onError: (caught) => failed(caught, "Couldn't save the draft. Try again."),
       },
     );
+  }
+
+  /**
+   * Send can always be pressed, as Submit can in onboarding. With a part still unanswered it stays put and lists
+   * those parts, each a link, above the form; the list shrinks as they are answered. With everything answered,
+   * unsaved changes are saved first and then it goes.
+   */
+  function trySend() {
+    if (!everythingDone) {
+      setAskedToSend(true);
+      requestAnimationFrame(() => stillToAnswerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+      return;
+    }
+    if (dirty) saveDraft(sendItAgain);
+    else sendItAgain();
   }
 
   /** Written up and sent to the client's relationship manager to be signed. */
@@ -407,7 +426,7 @@ function FilledForm<T>({
             <span role="status" className="text-xs text-ink-muted">
               {justSaved && !dirty ? "Draft saved" : dirty ? "Unsaved changes" : "All changes saved"}
             </span>
-            <Button variant="secondary" size="sm" onClick={saveDraft} disabled={busy}>
+            <Button variant="secondary" size="sm" onClick={() => saveDraft()} disabled={busy}>
               {save.isPending ? "Saving…" : "Save draft"}
             </Button>
           </>
@@ -427,7 +446,7 @@ function FilledForm<T>({
         {/* Review & submit carries this button of its own, so here it is for the parts before it: a form
             taken back for one correction is sent from wherever that correction was made. */}
         {!locked && detail.summary.takenBack && current.id !== "review" && (
-          <Button size="sm" disabled={busy || sendAgain.isPending || dirty} onClick={sendItAgain}>
+          <Button size="sm" disabled={busy || sendAgain.isPending} onClick={trySend}>
             {sendAgain.isPending ? "Sending…" : "Send to the client to sign"}
           </Button>
         )}
@@ -573,6 +592,22 @@ function FilledForm<T>({
 
           <div key={current.id} className="space-y-6 px-6 py-6 sm:px-8">
             {formError && <Alert tone="danger">{formError}</Alert>}
+            {askedToSend && stillToAnswer.length > 0 && (
+              <div ref={stillToAnswerRef}>
+                <Alert tone="danger">
+                  <p className="font-semibold">It can't be sent yet. These parts still need answers:</p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                    {stillToAnswer.map((step) => (
+                      <li key={step.id}>
+                        <button type="button" className="font-semibold underline underline-offset-2" onClick={() => goTo(step.id)}>
+                          {step.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </Alert>
+              </div>
+            )}
             {current.id !== "review" && (
               <p className="text-xs text-ink-muted">
                 Anything already on the client's record has been filled in. Check it and change whatever is out of date.
@@ -606,7 +641,7 @@ function FilledForm<T>({
             <p className="text-xs text-ink-muted">
               {everythingDone
                 ? dirty
-                  ? "Every part is answered. Save it, then send it when you are ready."
+                  ? "Every part is answered. Sending saves your changes first."
                   // Nothing goes until somebody sends it, so the words say what to press rather than
                   // guessing at why it has not gone.
                   : "Every part is answered. Nothing goes out until you send it."
@@ -619,12 +654,12 @@ function FilledForm<T>({
               </Button>
               {current.id === "review" ? (
                 <>
-                  <Button variant="secondary" onClick={saveDraft} disabled={busy || !dirty}>
+                  <Button variant="secondary" onClick={() => saveDraft()} disabled={busy || !dirty}>
                     {save.isPending ? "Saving…" : "Save draft"}
                   </Button>
                   {/* Answering the last question used to be the send. Putting it on a button of its own is
                       what lets somebody finish a form on Friday and read it again on Monday. */}
-                  <Button onClick={sendItAgain} disabled={busy || sendAgain.isPending || dirty || !everythingDone}>
+                  <Button onClick={trySend} disabled={busy || sendAgain.isPending}>
                     {sendAgain.isPending ? "Sending…" : "Send to the client to sign"}
                   </Button>
                 </>
