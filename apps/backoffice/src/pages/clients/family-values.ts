@@ -16,9 +16,24 @@ export function amount(currency: string, value: number | null) {
   return value === null ? null : `${currency} ${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
-/** What somebody is to the family, in a word: the holder, a co-holder, or their relationship. */
+/**
+ * What somebody is to the family: the holder, a co-holder, or whose relative they are ("Rahul's sibling", "Sarah's
+ * spouse"). A bare "Spouse" reads as the holder's, so the person they hang off is always named.
+ */
 export function roleOf(member: FamilyMember, labelFor: (code: string | null | undefined) => string) {
   if (member.primaryHolder) return "Primary holder";
   if (member.accountHolder) return "Joint holder";
+  if (member.parentName && member.relationship) return `${firstName(member.parentName)}'s ${labelFor(member.relationship).toLowerCase()}`;
   return member.relationshipToPrimary ?? labelFor(member.relationship);
+}
+
+/** What an invitation asks somebody to join as, named against whose relative: "Rahul's spouse". */
+export function invitedAs(invitation: { inviteUnder: string | null; relationship: string }, family: FamilyMember[]) {
+  const under = family.find((one) => one.id === invitation.inviteUnder) ?? family.find((one) => one.primaryHolder);
+  return under ? `${firstName(under.fullName)}'s ${invitation.relationship.toLowerCase()}` : invitation.relationship;
+}
+
+/** "Rahul" off "Rahul Family" or "Rahul Mehta": the name a relative is called by in "Rahul's sibling". */
+function firstName(fullName: string) {
+  return fullName.trim().split(/\s+/)[0] ?? fullName;
 }

@@ -70,7 +70,24 @@ export function treeOf(family: FamilyMember[], invitations: FamilyInvitationRow[
     roots.push(branch);
   }
 
+  // Closest first under each person: their spouse, their children, their parents, then their siblings, then anyone
+  // else; A to Z within each. The list and the tree both read in this order.
+  const order = (branches: Branch[]) => {
+    branches.sort((a, b) => closeness(a.member) - closeness(b.member) || a.member.fullName.localeCompare(b.member.fullName));
+    branches.forEach((one) => order(one.children));
+  };
+  roots.forEach((one) => order(one.children));
   return roots;
+}
+
+/** How near someone stands to the person they hang off, for ordering: a spouse first, anyone unnamed last. */
+function closeness(member: FamilyMember) {
+  const said = (member.relationship ?? "").toLowerCase();
+  if (/spouse|wife|husband|partner/.test(said)) return 0;
+  if (/child|son|daughter/.test(said)) return 1;
+  if (/parent|father|mother/.test(said)) return 2;
+  if (/sibling|brother|sister/.test(said)) return 3;
+  return 4;
 }
 
 /** Every branch, flattened back out in reading order, for the list that shows the same tree indented. */
