@@ -36,7 +36,7 @@ import { useDrill } from "./drill-panel";
 const CARDS: Record<OverviewCard, LayoutMeta> = {
   headline: { title: "Net worth & key figures", charts: [...FIGURE_KINDS], group: "Summary", wide: true },
   facts: { title: "Mandate & relationship", group: "Summary", wide: true },
-  worth: { title: "Net Worth Evolution", group: "Summary", charts: ["line", "area", "bar", "table"] },
+  worth: { title: "Net Worth Evaluation", group: "Summary", charts: ["line", "area", "bar", "table"] },
   allocation: { title: "Asset Allocation", group: "Allocation & performance", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
   bands: { title: "Target vs Actual Allocation", group: "Allocation & performance", charts: ["table", "grouped-bar", "horizontal-bar", "radar"] },
   performance: { title: "Performance", group: "Allocation & performance", charts: ["table", "grouped-bar", "bar"] },
@@ -375,7 +375,7 @@ function WorthCard({ data, chart }: { data: ClientWorkspace; chart: CardChart })
   }, [worth, bench, total]);
   const format = useMemo(() => (value: number) => compact(value, data.currency), [data.currency]);
   return (
-    <Card title="Net Worth Evolution" picker={!data.bankFile && chart.picker}
+    <Card title="Net Worth Evaluation" picker={!data.bankFile && chart.picker}
       lead={data.bankFile ? undefined : `Quarter-end values, ${data.currency} · after net external flows of ${signedCompact(flows, data.currency)}`}
       action={!data.bankFile && <Toggle label="Period shown" value={range} onChange={setRange} options={RANGES.map((one) => [one.id, one.id])} />}>
       {data.bankFile ? <FileBlock /> : (
