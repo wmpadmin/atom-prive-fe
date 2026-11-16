@@ -312,6 +312,10 @@ function LinkAccountDialog({
     <Dialog open={open} title="Link a bank account" onClose={onClose}>
       <div className="space-y-4">
         {link.isError && <Alert tone="danger">{link.error.message}</Alert>}
+        {banks.isError && <Alert tone="danger">The list of banks could not be loaded: {banks.error.message}</Alert>}
+        {banks.isSuccess && offered.length === 0 && (
+          <Alert tone="warning">No bank is switched on yet. An admin adds or switches one on under Configuration → Supported banks.</Alert>
+        )}
 
         <Field id="bank" label="Bank" required error={bankError}>
           <SelectInput id="bank" aria-invalid={bankError ? true : undefined} value={bankId} onChange={(event) => setBankId(event.target.value)}>
