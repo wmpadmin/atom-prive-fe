@@ -27,6 +27,12 @@ export function roleOf(member: FamilyMember, labelFor: (code: string | null | un
   return member.relationshipToPrimary ?? labelFor(member.relationship);
 }
 
+/** What an invitation asks somebody to join as, named against whose relative: "Rahul's spouse". */
+export function invitedAs(invitation: { inviteUnder: string | null; relationship: string }, family: FamilyMember[]) {
+  const under = family.find((one) => one.id === invitation.inviteUnder) ?? family.find((one) => one.primaryHolder);
+  return under ? `${firstName(under.fullName)}'s ${invitation.relationship.toLowerCase()}` : invitation.relationship;
+}
+
 /** "Rahul" off "Rahul Family" or "Rahul Mehta": the name a relative is called by in "Rahul's sibling". */
 function firstName(fullName: string) {
   return fullName.trim().split(/\s+/)[0] ?? fullName;

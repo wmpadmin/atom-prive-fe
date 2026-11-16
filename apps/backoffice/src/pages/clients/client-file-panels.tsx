@@ -34,7 +34,7 @@ import { useRelationshipTypes } from "../../lib/relationship-types";
 import { useTableView } from "../../lib/table-view";
 import { ClassStandingTable } from "../portfolios/class-standing-table";
 import { FamilyStructure, FamilyTiles, FamilyTree } from "./family-group-view";
-import { amount, roleOf, useFamilyValues } from "./family-values";
+import { amount, invitedAs, roleOf, useFamilyValues } from "./family-values";
 import { downTheTree, treeOf, whoCanBeInvitedUnder } from "./family-tree";
 import { TemporaryPassword } from "./temporary-password";
 import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
@@ -537,13 +537,13 @@ export function FamilyPanel({
                 );
               })}
               {waiting.map((one) => (
-                <InvitedRow key={one.id} clientId={client.id} invitation={one} mayAct={mayAdd} />
+                <InvitedRow key={one.id} clientId={client.id} invitation={one} family={family} mayAct={mayAdd} />
               ))}
             </tbody>
           </table>
         </div>
         <ClientInviteAsks clientId={client.id} mayAct={mayAdd} />
-        <Invitations clientId={client.id} invitations={invitations} mayAct={mayAdd} />
+        <Invitations clientId={client.id} invitations={invitations} family={family} mayAct={mayAdd} />
       </section>
     </div>
   );
@@ -610,10 +610,12 @@ function RowActions({ actions }: { actions: { label: string; go: () => void }[] 
 function InvitedRow({
   clientId,
   invitation,
+  family,
   mayAct,
 }: {
   clientId: string;
   invitation: FamilyInvitationRow;
+  family: FamilyMember[];
   mayAct: boolean;
 }) {
   const queryClient = useQueryClient();
@@ -647,7 +649,7 @@ function InvitedRow({
         </span>
       </td>
       <td className="px-4 py-3">
-        <Badge tone="neutral">{invitation.relationship}</Badge>
+        <Badge tone="neutral">{invitedAs(invitation, family)}</Badge>
       </td>
       {/* Nothing to say yet: they have not joined, so they have no code, no portfolio and no access. */}
       <td className="px-4 py-3 text-sm text-ink-muted">Not yet</td>
@@ -693,10 +695,12 @@ function InvitedRow({
 function Invitations({
   clientId,
   invitations,
+  family,
   mayAct,
 }: {
   clientId: string;
   invitations: FamilyInvitationRow[];
+  family: FamilyMember[];
   mayAct: boolean;
 }) {
   if (invitations.length === 0) {
@@ -720,7 +724,7 @@ function Invitations({
             {invitations.map((one) => (
               <tr key={one.id} className="border-b border-line text-sm last:border-0">
                 <td className="py-2.5 pr-4">{one.email}</td>
-                <td className="px-4 py-2.5">{one.relationship}</td>
+                <td className="px-4 py-2.5">{invitedAs(one, family)}</td>
                 <td className="px-4 py-2.5 whitespace-nowrap">
                   {formatDate((one.lastSentAt ?? one.invitedAt).slice(0, 10))}
                 </td>
