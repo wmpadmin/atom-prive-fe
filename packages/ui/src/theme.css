@@ -220,6 +220,14 @@
   --color-rose-400: #e8707f;
   --color-rose-700: #f291a0;
 
+  /* Violet marks prospects (an icon tile, a badge): a dark tint under a lifted ink, as emerald and amber have. */
+  --color-violet-50: #1f1a36;
+  --color-violet-100: #2a2347;
+  --color-violet-200: #3a3062;
+  --color-violet-600: #b29cf5;
+  --color-violet-700: #c4b3f8;
+  --color-violet-800: #d6cafa;
+
   /* The few hues that only ever draw a chart slice; lifted so a thin bar still reads. */
   --color-sky-400: #4cb3ef;
   --color-violet-500: #9b7cf0;
