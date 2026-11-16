@@ -5017,6 +5017,11 @@ export interface RetirePaperRequest {
   retired: boolean;
 }
 
+export interface AskedClient {
+  id: string;
+  name: string;
+}
+
 export type ChecklistForAClientType = typeof ChecklistForAClientType[keyof typeof ChecklistForAClientType];
 
 
@@ -5033,7 +5038,7 @@ export interface ChecklistForA {
   appliesTo: ChecklistForAAppliesTo;
 }
 
-export type ChecklistViewAskedOfClients = {[key: string]: number};
+export type ChecklistViewAskedOfClients = {[key: string]: AskedClient[]};
 
 export interface ChecklistView {
   papers: PaperRow[];
