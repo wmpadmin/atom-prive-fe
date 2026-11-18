@@ -94,8 +94,8 @@ function SourceTag({ source }: { source: Source | "files" }) {
 
 const TRY_ON_THE_BOOK: { question: string; sources: Source[] }[] = [
   { question: "Which of my clients are breaching their drift limits?", sources: ["firm"] },
-  { question: "Who needs rebalancing first?", sources: ["firm"] },
   { question: "Summarise today's market movement.", sources: ["market"] },
+  { question: "Who needs rebalancing first?", sources: ["firm"] },
   { question: "What are the top performing shares today?", sources: ["market"] },
   { question: "Which client has drifted the most?", sources: ["firm"] },
   { question: "What is the latest finance news?", sources: ["market"] },
@@ -167,36 +167,24 @@ export function AssistantPage() {
   const started = chat.entries.length > 0 || chat.pending;
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <div className="space-y-4">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold tracking-[0.14em] text-ink-muted uppercase">Workspace</p>
           <span aria-hidden="true" className="mt-1.5 block h-0.5 w-8 rounded bg-primary-600" />
           <h1 className="mt-2 text-[1.75rem] font-bold text-balance">AI Assistant</h1>
           <p className="mt-1 text-sm text-ink-muted">Ask about clients, markets and your files in one place.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/assistant/apps"
-            className="inline-flex h-10 items-center rounded-lg border border-line bg-white px-4 text-sm font-semibold hover:border-primary-300">
-            Connected apps
-          </Link>
-          {hasAuthority(user, "MANAGE_USERS_AND_ROLES:VIEW") && (
-            <Link to="/assistant/settings"
-              className="inline-flex h-10 items-center rounded-lg border border-line bg-white px-4 text-sm font-semibold hover:border-primary-300">
-              AI settings
-            </Link>
-          )}
-          <Button variant="secondary" onClick={chat.restart} disabled={chat.pending}>
-            <Plus aria-hidden="true" />
-            New conversation
-          </Button>
-        </div>
+        <Button variant="secondary" onClick={chat.restart} disabled={chat.pending}>
+          <Plus aria-hidden="true" />
+          New conversation
+        </Button>
       </header>
 
       <ContextBar clientId={clientId} clientName={clientName} onChoose={chooseClient} sources={sources} onToggle={toggle} />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="min-w-0 space-y-5">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]">
+        <div className="min-w-0 space-y-4">
           {chat.off && (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Client and portfolio questions aren&rsquo;t switched on for this server yet. They need the firm&rsquo;s Gemini API key.
@@ -209,7 +197,7 @@ export function AssistantPage() {
           )}
         </div>
 
-        <aside aria-label="About this conversation" className="space-y-5">
+        <aside aria-label="About this conversation" className="space-y-4">
           {clientId ? (
             <ClientCard clientId={clientId} detail={client.data} onClear={() => chooseClient(null)} />
           ) : (
@@ -347,7 +335,7 @@ function ContextBar({ clientId, clientName, onChoose, sources, onToggle }: {
   onToggle: (source: Source) => void;
 }) {
   return (
-    <section aria-label="Client and sources" className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl border border-line bg-white px-5 py-3.5">
+    <section aria-label="Client and sources" className="flex flex-wrap items-center gap-x-5 gap-y-2.5 rounded-2xl border border-line bg-white px-5 py-3">
       <div className="flex min-w-0 flex-wrap items-center gap-3">
         <span className="text-xs font-semibold tracking-[0.12em] text-ink-muted uppercase">Client</span>
         {clientId ? (
@@ -362,10 +350,10 @@ function ContextBar({ clientId, clientName, onChoose, sources, onToggle }: {
           <ClientPicker onChoose={onChoose} />
         )}
         <span className="text-xs text-ink-muted">
-          {clientId ? "Questions are about this client" : "Optional · leave empty for general or multi-client questions"}
+          {clientId ? "Questions are about this client" : "Optional"}
         </span>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 xl:border-l xl:border-line xl:pl-5">
         <span className="mr-1 text-xs font-semibold tracking-[0.12em] text-ink-muted uppercase">Sources</span>
         {(["firm", "market"] as Source[]).map((source) => (
           <button
@@ -385,10 +373,10 @@ function ContextBar({ clientId, clientName, onChoose, sources, onToggle }: {
           title="Outlook, OneDrive and SharePoint are not connected yet"
           className="rounded-lg border border-dashed border-rose-400/40 px-3 py-1.5 text-sm font-medium text-rose-400 hover:border-rose-400"
         >
-          Files & apps · not connected yet
+          Files & apps · not connected
         </Link>
         <span className="text-xs text-ink-muted">
-          {sources.firm && sources.market ? "All on · picked per question" : "Only the source that is on is used"}
+          {sources.firm && sources.market ? "Picked per question" : "Only the source that is on"}
         </span>
       </div>
     </section>
@@ -479,36 +467,36 @@ function ClientPicker({ onChoose }: { onChoose: (id: string) => void }) {
 
 /** The opening view: a greeting, the box to ask in, and questions to start from. */
 function Welcome({ chat, portfolioDesk, clientName }: { chat: Chat; portfolioDesk: boolean; clientName: string | null }) {
-  const tries = portfolioDesk ? TRY_ON_THE_BOOK : TRY_FOR_ANY_DESK;
+  const tries = (portfolioDesk ? TRY_ON_THE_BOOK : TRY_FOR_ANY_DESK).slice(0, 3);
   return (
     <>
-      <section className="rounded-2xl border border-line bg-white px-6 py-7 sm:px-8">
-        <h2 className="max-w-[24ch] text-[1.75rem] leading-tight font-bold text-balance">
+      <section className="rounded-2xl border border-line bg-white px-6 py-5">
+        <h2 className="text-xl leading-snug font-bold text-balance">
           {greeting()}. What would you like to look into{clientName ? ` for ${clientName}` : ""}?
         </h2>
-        <p className="mt-6 mb-2 text-xs font-semibold tracking-[0.12em] text-ink-muted uppercase">Ask the assistant</p>
+        <p className="mt-4 mb-2 text-xs font-semibold tracking-[0.12em] text-ink-muted uppercase">Ask the assistant</p>
         <Composer
           chat={chat}
-          rows={3}
+          rows={2}
           placeholder={clientName
             ? `e.g. Is ${clientName}'s portfolio within its drift limit, and what KYC papers are outstanding?`
             : "e.g. Which of my clients are breaching their drift limits?"}
         />
-        <p className="mt-3 text-xs text-ink-muted">
-          The assistant reads each question and picks the source it needs. Switch a source off above to leave it out.
+        <p className="mt-2 text-xs text-ink-muted">
+          The assistant picks the source each question needs. Switch a source off above to leave it out.
         </p>
       </section>
 
-      <section aria-labelledby="try-asking" className="space-y-3">
-        <h2 id="try-asking" className="text-lg font-bold">Try asking</h2>
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <section aria-labelledby="try-asking" className="space-y-2.5">
+        <h2 id="try-asking" className="text-base font-bold">Try asking</h2>
+        <ul className="grid gap-3 sm:grid-cols-3">
           {tries.map((one) => (
             <li key={one.question}>
               <button
                 type="button"
                 disabled={chat.pending}
                 onClick={() => chat.send(one.question)}
-                className="flex h-full w-full flex-col items-start gap-3 rounded-xl border border-line bg-white px-4 py-4 text-left text-sm
+                className="flex h-full w-full flex-col items-start gap-2 rounded-xl border border-line bg-white px-4 py-3 text-left text-sm
                   hover:border-primary-300 hover:shadow-sm disabled:opacity-50"
               >
                 <span className="font-medium">{one.question}</span>
@@ -519,7 +507,6 @@ function Welcome({ chat, portfolioDesk, clientName }: { chat: Chat; portfolioDes
             </li>
           ))}
         </ul>
-        <p className="text-xs text-ink-muted">Tags show the source the assistant would use.</p>
       </section>
     </>
   );
@@ -711,8 +698,8 @@ function Composer({ chat, rows, placeholder, quick }: { chat: Chat; rows: number
 
 function Panel({ title, children, dark = false }: { title: ReactNode; children: ReactNode; dark?: boolean }) {
   return (
-    <section className={`rounded-2xl border px-5 py-5 ${dark ? "border-brand-900 bg-brand-900 text-on-fill" : "border-line bg-white"}`}>
-      <h2 className="mb-3 text-lg font-bold">{title}</h2>
+    <section className={`rounded-2xl border px-5 py-4 ${dark ? "border-brand-900 bg-brand-900 text-on-fill" : "border-line bg-white"}`}>
+      <h2 className="mb-2.5 text-base font-bold">{title}</h2>
       {children}
     </section>
   );
@@ -833,6 +820,7 @@ const ACCESS: Record<string, string> = {
 
 function YourAccess({ role }: { role: string | null | undefined }) {
   const [more, setMore] = useState(false);
+  const admin = hasAuthority(useStaffUser(), "MANAGE_USERS_AND_ROLES:VIEW");
   const label = role ? roleLabels[role as keyof typeof roleLabels] ?? role : "Staff";
   return (
     <Panel dark title={<span className="flex items-start gap-2"><Lock className="mt-1.5 size-4 shrink-0" aria-hidden="true" />Your access: {label}</span>}>
@@ -840,9 +828,13 @@ function YourAccess({ role }: { role: string | null | undefined }) {
         {(role && ACCESS[role]) ?? "You see what your screens already show, and nothing more."} Client names are replaced with
         aliases before anything is sent to the AI.
       </p>
-      <button type="button" onClick={() => setMore((was) => !was)} className="mt-3 text-sm font-medium text-on-fill underline underline-offset-2">
-        {more ? "Less" : "How we protect data"}
-      </button>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm font-medium text-on-fill">
+        <button type="button" onClick={() => setMore((was) => !was)} className="underline underline-offset-2">
+          {more ? "Less" : "How we protect data"}
+        </button>
+        <Link to="/assistant/apps" className="underline underline-offset-2">Connected apps</Link>
+        {admin && <Link to="/assistant/settings" className="underline underline-offset-2">AI settings</Link>}
+      </div>
       {more && (
         <p className="mt-2 text-xs text-on-fill/70">
           Every client name and code in a question is swapped for an alias such as &ldquo;Client K7QM&rdquo; before it leaves
