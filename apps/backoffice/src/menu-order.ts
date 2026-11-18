@@ -63,7 +63,7 @@ export const MENU_ORDER: string[] = [
   "/trails", "/family-access-trail", "/audit-log",
 
   // Then the rest of the client's file, and what the platform will print.
-  "/deactivation-requests", "/archived-clients", "/aml-risk",
+  "/deactivation-requests", "/archived-clients", "/aml-risk", "/aml-risk/matrix",
 
   // Then what exists before any client does and would still exist with none: the firm's own setup and
   // the people who run it.
