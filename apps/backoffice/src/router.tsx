@@ -1,6 +1,7 @@
 import { Navigate, createBrowserRouter } from "react-router";
 import { AssistantPage } from "./pages/assistant/assistant-page";
 import { ConnectedAppsPage } from "./pages/assistant/connected-apps-page";
+import { AiSettingsPage } from "./pages/assistant/ai-settings-page";
 import { AppLayout } from "./app-layout";
 import { Landing } from "./pages/landing";
 import { RequireAuthority, RequireSignIn } from "./auth/guards";
@@ -517,6 +518,8 @@ export const router = createBrowserRouter([
               { path: "users", element: <UsersPage /> },
               { path: "users/:userId", element: <UserDetailPage /> },
               { path: "roles", element: <RolesPage /> },
+              // The AI Assistant's settings and its trail: the administrators', like the roles they are read from.
+              { path: "assistant/settings", element: <AiSettingsPage /> },
             ],
           },
           {
