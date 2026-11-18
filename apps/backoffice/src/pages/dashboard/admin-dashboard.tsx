@@ -184,11 +184,12 @@ export function AdminDashboard() {
 
   const view = useDashboardCards("admin", CARD, DEFAULT_CARDS);
   const openItems = data ? data.headline.openApprovals + data.headline.openRequests : undefined;
+  const tiles = platform.data?.tiles;
 
   const cards: Record<CardId, ReactNode> = {
     summary: (
       <Panel icon={Layers} title="Firm summary">
-        <FigureStrip bare list className="grid grid-cols-2 gap-y-4 sm:grid-cols-3 xl:grid-cols-5 xl:divide-x xl:divide-line">
+        <FigureStrip bare list className="grid grid-cols-2 gap-y-4 sm:grid-cols-4 xl:divide-x xl:divide-line">
           <Figure label="Total AUM" value={data ? money(data.headline.totalAum, cur) : undefined}
             change={data?.headline.aumChangePercent} to={goTo("/client-management", "/clients")} />
           <Figure label="Relationship Managers" value={data?.headline.relationshipManagers} to={goTo("/users")} />
@@ -197,6 +198,12 @@ export function AdminDashboard() {
           <Figure label="Active staff" value={data?.headline.activeStaff} to={goTo("/users")} />
           <Figure label="Open items" value={openItems} tone={openItems ? "danger" : undefined}
             to={goTo("/approvals", "/deactivation-requests")} />
+          {/* Three counts the platform already sent and the summary never showed (#76). */}
+          <Figure label="Family groups" value={tiles?.familyGroups} to={goTo("/clients")} />
+          <Figure label="Linked bank accounts" value={tiles ? (tiles.linkedBankAccounts ?? undefined) : undefined}
+            to={goTo("/ingestion")} />
+          <Figure label="New registrations today" value={tiles?.registeredToday}
+            to={goTo("/clients") && `/clients?from=${localToday()}`} />
         </FigureStrip>
       </Panel>
     ),
@@ -749,4 +756,10 @@ function RelationshipBook({ rows, currency }: { rows: ManagerAum[] | undefined; 
       )}
     </div>
   );
+}
+
+/** Today here, as yyyy-mm-dd, the way the client list reads its registration filter. */
+function localToday() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
