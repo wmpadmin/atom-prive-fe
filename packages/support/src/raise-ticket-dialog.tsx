@@ -15,6 +15,8 @@ export function RaiseTicketDialog({
   onClose,
   onRaised,
   askCategory = false,
+  initialSubject = "",
+  initialDescription = "",
 }: {
   /** Where the ticket is posted: the portal's or the back office's own address for it. */
   url: string;
@@ -24,10 +26,13 @@ export function RaiseTicketDialog({
   onRaised: (raised: TicketDetail) => void;
   /** Whether to ask what the ticket is about. The back office asks; a ticket raised without it is "Other". */
   askCategory?: boolean;
+  /** Words to start the ticket with, when the screen opening it knows what it is about. */
+  initialSubject?: string;
+  initialDescription?: string;
 }) {
   const [category, setCategory] = useState("OTHER");
-  const [subject, setSubject] = useState("");
-  const [description, setDescription] = useState("");
+  const [subject, setSubject] = useState(initialSubject);
+  const [description, setDescription] = useState(initialDescription);
   const [page, setPage] = useState(pageUrl);
   const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
