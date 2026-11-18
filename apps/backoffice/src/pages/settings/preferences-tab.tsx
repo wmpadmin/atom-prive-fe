@@ -1,5 +1,5 @@
 import { SelectInput, Switch, cn } from "@atomprive/ui";
-import { Accessibility, Globe, Monitor, Moon, Palette, Sun } from "lucide-react";
+import { Accessibility, Globe, Moon, Palette, Sun } from "lucide-react";
 import { NotYet, Pair, Panel, Setting, Settings, SwitchRow } from "./settings-parts";
 import { useTheme } from "../../lib/theme";
 
@@ -17,23 +17,13 @@ export function PreferencesTab() {
 
   return (
     <div className="space-y-6">
-      <Panel icon={<Palette />} title="Appearance" lead="Light, dark, or whatever this machine is set to.">
-        <div className="grid gap-3 sm:grid-cols-3">
+      <Panel icon={<Palette />} title="Appearance" lead="Light or dark.">
+        <div className="grid gap-3 sm:grid-cols-2">
           <ThemeChoice on={preference === "light"} onChoose={() => choose("light")} title="Light" icon={<Sun aria-hidden="true" className="size-4" />} swatch="#ffffff" ink="#334155" />
           <ThemeChoice on={preference === "dark"} onChoose={() => choose("dark")} title="Dark" icon={<Moon aria-hidden="true" className="size-4" />} swatch="#0f172a" ink="#cbd5e1" />
-          <ThemeChoice
-            on={preference === "system"}
-            onChoose={() => choose("system")}
-            title="This machine"
-            icon={<Monitor aria-hidden="true" className="size-4" />}
-            // Split down the middle rather than blended: it is two themes, not a third one between them.
-            swatch="linear-gradient(110deg, #ffffff 0%, #ffffff 50%, #0f172a 50%, #0f172a 100%)"
-            ink="#64748b"
-          />
         </div>
         <p className="mt-4 text-xs text-ink-muted">
-          Kept in this browser only. "This machine" keeps following it, so a laptop that darkens at dusk
-          takes the platform with it.
+          Kept in this browser only.
         </p>
       </Panel>
 
@@ -101,7 +91,7 @@ export function PreferencesTab() {
 }
 
 /**
- * One of the three themes, shown as the thing it does.
+ * One of the two themes, shown as the thing it does.
  *
  * <p>The little window is painted in LITERAL colours rather than the palette's. Every other colour on
  * this screen is a token that changes with the theme — which is right everywhere except here, where the
