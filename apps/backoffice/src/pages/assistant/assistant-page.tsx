@@ -80,8 +80,8 @@ function pick(question: string, sources: Record<Source, boolean>, clientChosen: 
 const SOURCE_LABEL: Record<Source, string> = { firm: "Client & portfolio data", market: "Market data" };
 const SOURCE_TONE: Record<Source | "files", string> = {
   firm: "border-amber-200 bg-amber-50 text-amber-900",
-  market: "border-slate-300 bg-slate-100 text-slate-700",
-  files: "border-rose-200 bg-rose-50 text-rose-700",
+  market: "border-slate-300 bg-slate-100 text-ink-soft",
+  files: "border-rose-400/40 bg-rose-400/10 text-rose-700",
 };
 
 function SourceTag({ source }: { source: Source | "files" }) {
@@ -339,9 +339,9 @@ function ContextBar({ clientId, clientName, onChoose, sources, onToggle }: {
       <div className="flex min-w-0 flex-wrap items-center gap-3">
         <span className="text-xs font-semibold tracking-[0.12em] text-ink-muted uppercase">Client</span>
         {clientId ? (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-ink py-1 pr-1 pl-3 text-sm font-semibold text-white">
+          <span className="inline-flex items-center gap-1 rounded-lg bg-brand-900 py-1 pr-1 pl-3 text-sm font-semibold text-on-fill">
             {clientName ?? "Chosen client"}
-            <button type="button" onClick={() => onChoose(null)} className="grid size-6 place-items-center rounded-md hover:bg-white/15"
+            <button type="button" onClick={() => onChoose(null)} className="grid size-6 place-items-center rounded-md hover:bg-on-fill/15"
               aria-label="Stop focusing on this client">
               <X className="size-3.5" aria-hidden="true" />
             </button>
@@ -371,7 +371,7 @@ function ContextBar({ clientId, clientName, onChoose, sources, onToggle }: {
         <span
           aria-disabled="true"
           title="Outlook, OneDrive and SharePoint are not connected yet"
-          className="cursor-not-allowed rounded-lg border border-dashed border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-400"
+          className="cursor-not-allowed rounded-lg border border-dashed border-rose-400/40 px-3 py-1.5 text-sm font-medium text-rose-400"
         >
           Files & apps · not connected yet
         </span>
@@ -532,7 +532,7 @@ function Conversation({ chat, clientName, portfolioDesk, clientChosen }: {
       {chat.entries.map((one, index) =>
         one.kind === "question" ? (
           <div key={index} className="flex justify-end">
-            <p className="max-w-[85%] rounded-xl bg-ink px-4 py-3 text-sm whitespace-pre-wrap text-white">{one.text}</p>
+            <p className="max-w-[85%] rounded-xl bg-brand-900 px-4 py-3 text-sm whitespace-pre-wrap text-on-fill">{one.text}</p>
           </div>
         ) : one.kind === "firm" ? (
           <AnswerCard key={index} source="firm" at={one.at} by={modelLabel(one.reply.answeredBy)}
@@ -545,7 +545,7 @@ function Conversation({ chat, clientName, portfolioDesk, clientChosen }: {
                 <h3 className="text-base font-bold">Things to look at</h3>
                 <ul className="space-y-2">
                   {one.reply.notes.map((note, at) => (
-                    <li key={at} className="rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-950">{note}</li>
+                    <li key={at} className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-ink">{note}</li>
                   ))}
                 </ul>
               </div>
@@ -699,7 +699,7 @@ function Composer({ chat, rows, placeholder, quick }: { chat: Chat; rows: number
 
 function Panel({ title, children, dark = false }: { title: ReactNode; children: ReactNode; dark?: boolean }) {
   return (
-    <section className={`rounded-2xl border px-5 py-5 ${dark ? "border-ink bg-ink text-white" : "border-line bg-white"}`}>
+    <section className={`rounded-2xl border px-5 py-5 ${dark ? "border-brand-900 bg-brand-900 text-on-fill" : "border-line bg-white"}`}>
       <h2 className="mb-3 text-lg font-bold">{title}</h2>
       {children}
     </section>
@@ -760,15 +760,15 @@ function HowSourcesArePicked() {
     <Panel title="How sources are picked">
       <p className="mb-3 text-sm text-ink-muted">No need to choose a mode. The assistant reads each question and uses the source it needs:</p>
       <dl className="space-y-2.5 text-sm">
-        <div className="grid grid-cols-[auto_1fr] items-start gap-3">
+        <div className="space-y-1">
           <dt><SourceTag source="firm" /></dt>
           <dd className="text-ink-muted">clients, portfolios, drift, KYC, onboarding, your tickets</dd>
         </div>
-        <div className="grid grid-cols-[auto_1fr] items-start gap-3">
+        <div className="space-y-1">
           <dt><SourceTag source="market" /></dt>
           <dd className="text-ink-muted">prices, market news, today&rsquo;s movers</dd>
         </div>
-        <div className="grid grid-cols-[auto_1fr] items-start gap-3">
+        <div className="space-y-1">
           <dt><SourceTag source="files" /></dt>
           <dd className="text-ink-muted">emails, notes, documents: not connected yet</dd>
         </div>
@@ -821,15 +821,15 @@ function YourAccess({ role }: { role: string | null | undefined }) {
   const label = role ? roleLabels[role as keyof typeof roleLabels] ?? role : "Staff";
   return (
     <Panel dark title={<span className="flex items-start gap-2"><Lock className="mt-1.5 size-4 shrink-0" aria-hidden="true" />Your access: {label}</span>}>
-      <p className="text-sm text-white/80">
+      <p className="text-sm text-on-fill/80">
         {(role && ACCESS[role]) ?? "You see what your screens already show, and nothing more."} Client names are replaced with
         aliases before anything is sent to the AI.
       </p>
-      <button type="button" onClick={() => setMore((was) => !was)} className="mt-3 text-sm font-medium text-white underline underline-offset-2">
+      <button type="button" onClick={() => setMore((was) => !was)} className="mt-3 text-sm font-medium text-on-fill underline underline-offset-2">
         {more ? "Less" : "How we protect data"}
       </button>
       {more && (
-        <p className="mt-2 text-xs text-white/70">
+        <p className="mt-2 text-xs text-on-fill/70">
           Every client name and code in a question is swapped for an alias such as &ldquo;Client K7QM&rdquo; before it leaves
           Atom Privé, and names are put back only on your screen. Each answer is looked up with your own permissions.
           Market questions go to public news and price providers and never carry client data. Nothing is traded or sent
