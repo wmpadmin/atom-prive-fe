@@ -180,6 +180,12 @@ export function AssistantPage() {
             className="inline-flex h-10 items-center rounded-lg border border-line bg-white px-4 text-sm font-semibold hover:border-primary-300">
             Connected apps
           </Link>
+          {hasAuthority(user, "MANAGE_USERS_AND_ROLES:VIEW") && (
+            <Link to="/assistant/settings"
+              className="inline-flex h-10 items-center rounded-lg border border-line bg-white px-4 text-sm font-semibold hover:border-primary-300">
+              AI settings
+            </Link>
+          )}
           <Button variant="secondary" onClick={chat.restart} disabled={chat.pending}>
             <Plus aria-hidden="true" />
             New conversation
