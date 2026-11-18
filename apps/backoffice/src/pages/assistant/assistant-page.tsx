@@ -175,10 +175,16 @@ export function AssistantPage() {
           <h1 className="mt-2 text-[1.75rem] font-bold text-balance">AI Assistant</h1>
           <p className="mt-1 text-sm text-ink-muted">Ask about clients, markets and your files in one place.</p>
         </div>
-        <Button variant="secondary" onClick={chat.restart} disabled={chat.pending}>
-          <Plus aria-hidden="true" />
-          New conversation
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/assistant/apps"
+            className="inline-flex h-10 items-center rounded-lg border border-line bg-white px-4 text-sm font-semibold hover:border-primary-300">
+            Connected apps
+          </Link>
+          <Button variant="secondary" onClick={chat.restart} disabled={chat.pending}>
+            <Plus aria-hidden="true" />
+            New conversation
+          </Button>
+        </div>
       </header>
 
       <ContextBar clientId={clientId} clientName={clientName} onChoose={chooseClient} sources={sources} onToggle={toggle} />
@@ -368,13 +374,13 @@ function ContextBar({ clientId, clientName, onChoose, sources, onToggle }: {
             {SOURCE_LABEL[source]}
           </button>
         ))}
-        <span
-          aria-disabled="true"
+        <Link
+          to="/assistant/apps"
           title="Outlook, OneDrive and SharePoint are not connected yet"
-          className="cursor-not-allowed rounded-lg border border-dashed border-rose-400/40 px-3 py-1.5 text-sm font-medium text-rose-400"
+          className="rounded-lg border border-dashed border-rose-400/40 px-3 py-1.5 text-sm font-medium text-rose-400 hover:border-rose-400"
         >
           Files & apps · not connected yet
-        </span>
+        </Link>
         <span className="text-xs text-ink-muted">
           {sources.firm && sources.market ? "All on · picked per question" : "Only the source that is on is used"}
         </span>
@@ -774,6 +780,9 @@ function HowSourcesArePicked() {
         </div>
       </dl>
       <p className="mt-3 border-t border-line pt-3 text-xs text-ink-muted">Switch a source off above to keep it out of every answer.</p>
+      <Link to="/assistant/apps" className="mt-2 inline-block text-sm font-medium text-primary-700 underline-offset-2 hover:underline">
+        Manage connected apps
+      </Link>
     </Panel>
   );
 }
