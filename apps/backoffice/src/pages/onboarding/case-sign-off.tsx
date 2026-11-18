@@ -49,6 +49,8 @@ export function CaseSignOff({
   const [comment, setComment] = useState("");
   // Set by a Send it back with nothing written; the box then shows red until something is.
   const [tried, setTried] = useState(false);
+  // Why the portal refused to send or sign off the case, such as a holder whose KYC is not yet approved.
+  const [refused, setRefused] = useState<string | null>(null);
 
   const send = useSendCaseForSignOff<ApiError>();
   const decide = useDecideCaseSignOff<ApiError>();
@@ -71,7 +73,11 @@ export function CaseSignOff({
     <>
       <Badge tone={signOffTones[signOff]}>{signOffLabels[signOff]}</Badge>
       {canSend && (
-        <Button size="sm" disabled={busy} onClick={() => send.mutate({ id: detail.summary.id }, { onSuccess: sent })}>
+        <Button
+          size="sm"
+          disabled={busy}
+          onClick={() => send.mutate({ id: detail.summary.id }, { onSuccess: sent, onError: (error) => setRefused(error.message) })}
+        >
           <ShieldCheck aria-hidden="true" />
           {send.isPending ? "Sending…" : "Submit for KYC sign-off"}
         </Button>
@@ -84,13 +90,29 @@ export function CaseSignOff({
           <Button
             size="sm"
             disabled={busy}
-            onClick={() => decide.mutate({ id: detail.summary.id, data: { approved: true, comment: null } }, { onSuccess: kept })}
+            onClick={() =>
+              decide.mutate(
+                { id: detail.summary.id, data: { approved: true, comment: null } },
+                { onSuccess: kept, onError: (error) => setRefused(error.message) },
+              )
+            }
           >
             <ShieldCheck aria-hidden="true" />
             {decide.isPending ? "Signing off…" : "Sign off KYC"}
           </Button>
         </>
       )}
+
+      <Dialog open={refused !== null} title="Not ready for sign-off" onClose={() => setRefused(null)}>
+        <div className="space-y-4">
+          <Alert tone="warning">{refused}</Alert>
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={() => setRefused(null)}>
+              OK
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       <Dialog open={sendingBack} title="Send this case back?" onClose={() => setSendingBack(false)}>
         <div className="space-y-4">
