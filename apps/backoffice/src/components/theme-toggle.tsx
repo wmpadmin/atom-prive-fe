@@ -1,18 +1,14 @@
 import { cn } from "@atomprive/ui";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTheme, type ThemePreference } from "../lib/theme";
 
 const CHOICES: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
-  { value: "system", label: "Match my system", icon: Monitor },
   { value: "light", label: "Light", icon: Sun },
   { value: "dark", label: "Dark", icon: Moon },
 ];
 
-/**
- * Light, dark, or whatever the machine is set to. Three choices rather than a switch, because "follow my
- * system" is a real answer and a two-state switch cannot say it.
- */
+/** Light or dark. */
 export function ThemeToggle() {
   const { preference, choose } = useTheme();
   const [open, setOpen] = useState(false);
