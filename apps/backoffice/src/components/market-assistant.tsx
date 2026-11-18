@@ -67,7 +67,7 @@ export function MarketAssistantChat() {
     setSaid((all) => [...all, { who: "me", text, at: new Date().toISOString() }]);
     setDraft("");
     setTried(false);
-    ask.mutate({ data: { question: text, earlier: earlier.slice(-REMEMBERED), model: null } });
+    ask.mutate({ data: { question: text, earlier: earlier.slice(-REMEMBERED), model: null, conversationId: null } });
   };
   // The typed question: an empty box is not sent, it is pointed at.
   const sendDraft = () => {

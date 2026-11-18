@@ -1976,14 +1976,14 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  floatingPointNumber?: boolean;
   number?: boolean;
   container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
+  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -4943,6 +4943,8 @@ export interface MarketQuestion {
   earlier: MarketTurn[] | null;
   /** @nullable */
   model: string | null;
+  /** @nullable */
+  conversationId: string | null;
 }
 
 export interface MarketQuote {
@@ -10747,6 +10749,14 @@ export interface AssistantStatus {
   defaultModel: string;
 }
 
+export interface ConversationSummary {
+  conversationId: string;
+  title: string;
+  startedAt: string;
+  lastAskedAt: string;
+  questions: number;
+}
+
 export interface AssistantTurn {
   question: string;
   /** @nullable */
@@ -10755,9 +10765,16 @@ export interface AssistantTurn {
   reply: AssistantReply;
 }
 
+export interface MarketAnswer {
+  question: string;
+  answeredAt: string;
+  reply: MarketReply;
+}
+
 export interface AssistantConversation {
   conversationId: string;
   turns: AssistantTurn[];
+  market: MarketAnswer[];
 }
 
 export interface RatedClientRow {
@@ -47254,6 +47271,101 @@ export function useGetAssistantStatus<TData = Awaited<ReturnType<typeof getAssis
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetAssistantStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAssistantConversationsUrl = () => {
+
+
+
+
+  return `/api/backoffice/assistant/conversations`
+}
+
+export const listAssistantConversations = async ( options?: Parameters<typeof http>[1]): Promise<ConversationSummary[]> => {
+
+  return http<ConversationSummary[]>(getListAssistantConversationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAssistantConversationsQueryKey = () => {
+    return [
+    `/api/backoffice/assistant/conversations`
+    ] as const;
+    }
+
+
+export const getListAssistantConversationsQueryOptions = <TData = Awaited<ReturnType<typeof listAssistantConversations>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantConversations>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAssistantConversationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAssistantConversations>>> = ({ signal }) => listAssistantConversations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAssistantConversations>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAssistantConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAssistantConversations>>>
+export type ListAssistantConversationsQueryError = unknown
+
+
+export function useListAssistantConversations<TData = Awaited<ReturnType<typeof listAssistantConversations>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantConversations>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAssistantConversations>>,
+          TError,
+          Awaited<ReturnType<typeof listAssistantConversations>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAssistantConversations<TData = Awaited<ReturnType<typeof listAssistantConversations>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantConversations>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAssistantConversations>>,
+          TError,
+          Awaited<ReturnType<typeof listAssistantConversations>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAssistantConversations<TData = Awaited<ReturnType<typeof listAssistantConversations>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantConversations>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListAssistantConversations<TData = Awaited<ReturnType<typeof listAssistantConversations>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAssistantConversations>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListAssistantConversationsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

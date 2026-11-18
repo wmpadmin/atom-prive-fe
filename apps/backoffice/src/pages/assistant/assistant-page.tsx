@@ -7,20 +7,23 @@ import {
   useGetCustomer,
   useListCustomers,
   useListMyClients,
+  useListAssistantConversations,
+  getListAssistantConversationsQueryKey,
+  type ConversationSummary,
   type AssistantReply,
   type CustomerDetail,
   type CustomerPage,
   type MarketReply,
 } from "@atomprive/api-client/backoffice";
 import { Button } from "@atomprive/ui";
-import { keepPreviousData } from "@tanstack/react-query";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ChevronDown, Clock, ExternalLink, Globe, Layers, Lock, Plus, Search, Sparkles, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { Quotes } from "../../components/market-assistant";
 import { ActionCard, FollowUps, ModelPicker, Suggestion } from "../../components/portfolio-assistant";
-import { conversationFor, keepMarketChat, marketChatFor, startNewConversation } from "../../lib/assistant-conversation";
+import { conversationFor, openConversation, startNewConversation } from "../../lib/assistant-conversation";
 import { roleLabels } from "../../lib/labels";
 import { clientFileHref, clientListHref, hasAuthority } from "../../lib/permissions";
 import { usePreferences } from "../../lib/preferences";
@@ -43,10 +46,6 @@ type Entry =
   | { kind: "firm"; reply: AssistantReply; at: string }
   | { kind: "market"; reply: MarketReply; at: string }
   | { kind: "problem"; text: string; at: string };
-
-/** The Market Assistant's turns as it has always kept them in this browser. */
-type MarketKept = { who: "me"; text: string; at: string } | { who: "assistant"; reply: MarketReply; at: string }
-  | { who: "problem"; text: string; at: string };
 
 const SOURCES_KEY = "atomprive.assistant.sources";
 
@@ -204,7 +203,7 @@ export function AssistantPage() {
             <YourClients onChoose={chooseClient} />
           )}
           {started && <HowSourcesArePicked />}
-          <Recent entries={chat.entries} onAsk={chat.send} busy={chat.pending} />
+          <History chat={chat} />
           <YourAccess role={user.activeRole} />
         </aside>
       </div>
@@ -212,7 +211,7 @@ export function AssistantPage() {
   );
 }
 
-/** Both assistants' conversations, as one: the firm's kept on the server, the market's in this browser. */
+/** Both assistants' answers as one conversation, kept on the server against its id and its owner. */
 function useConversation(clientId: string | null, sources: Record<Source, boolean>) {
   const user = useStaffUser();
   const status = useGetAssistantStatus();
@@ -228,30 +227,17 @@ function useConversation(clientId: string | null, sources: Record<Source, boolea
       { kind: "question", text: turn.question, at: turn.answeredAt, source: "firm" },
       { kind: "firm", reply: turn.reply, at: turn.answeredAt },
     ] satisfies Entry[]);
-    const market: Entry[] = marketChatFor<MarketKept>(user.id).map((one): Entry =>
-      one.who === "me" ? { kind: "question", text: one.text, at: one.at, source: "market" }
-        : one.who === "assistant" ? { kind: "market", reply: one.reply, at: one.at }
-          : { kind: "problem", text: one.text, at: one.at });
+    const market: Entry[] = kept.data.market.flatMap((turn) => [
+      { kind: "question", text: turn.question, at: turn.answeredAt, source: "market" },
+      { kind: "market", reply: turn.reply, at: turn.answeredAt },
+    ] satisfies Entry[]);
     // Interleaved by time, ahead of anything asked while it was loading.
     const earlier = [...firm, ...market].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
     setEntries((now) => [...earlier, ...now]);
-  }, [kept.data, kept.isFetching, conversationId, restored, user.id]);
+  }, [kept.data, kept.isFetching, conversationId, restored]);
 
-  // The market's half kept as it always was, so the Market Assistant's follow-ups still see its earlier turns.
-  useEffect(() => {
-    if (restored !== conversationId) return;
-    const market: MarketKept[] = [];
-    entries.forEach((one, index) => {
-      if (one.kind === "question" && one.source === "market") market.push({ who: "me", text: one.text, at: one.at });
-      if (one.kind === "market") market.push({ who: "assistant", reply: one.reply, at: one.at });
-      const before = entries[index - 1];
-      if (one.kind === "problem" && before?.kind === "question" && before.source === "market") {
-        market.push({ who: "problem", text: one.text, at: one.at });
-      }
-    });
-    keepMarketChat(user.id, market);
-  }, [entries, conversationId, restored, user.id]);
-
+  const queryClient = useQueryClient();
+  const listed = () => void queryClient.invalidateQueries({ queryKey: getListAssistantConversationsQueryKey() });
   const now = () => new Date().toISOString();
   const failed = (error: ApiError) => setEntries((all) => [...all, { kind: "problem", text: error.message, at: now() }]);
   const askFirm = useAskAssistant<ApiError>({
@@ -259,6 +245,7 @@ function useConversation(clientId: string | null, sources: Record<Source, boolea
       onSuccess: (reply) => {
         setEntries((all) => [...all, { kind: "firm", reply, at: now() }]);
         void status.refetch();
+        listed();
       },
       onError: (error) => {
         failed(error);
@@ -268,7 +255,10 @@ function useConversation(clientId: string | null, sources: Record<Source, boolea
   });
   const askMarket = useAskMarketAssistant<ApiError>({
     mutation: {
-      onSuccess: (reply) => setEntries((all) => [...all, { kind: "market", reply, at: now() }]),
+      onSuccess: (reply) => {
+        setEntries((all) => [...all, { kind: "market", reply, at: now() }]);
+        listed();
+      },
       onError: failed,
     },
   });
@@ -300,15 +290,23 @@ function useConversation(clientId: string | null, sources: Record<Source, boolea
         });
       }
     });
-    askMarket.mutate({ data: { question: text, earlier: earlier.slice(-6), model: null } });
+    askMarket.mutate({ data: { question: text, earlier: earlier.slice(-6), model: null, conversationId } });
   };
 
   const restart = () => {
     const fresh = startNewConversation(user.id);
-    keepMarketChat(user.id, []);
     setRestored(fresh);
     setEntries([]);
     setConversationId(fresh);
+  };
+
+  /** An earlier conversation from the history list, read back from the server and carried on from. */
+  const reopen = (id: string) => {
+    if (id === conversationId || pending) return;
+    openConversation(user.id, id);
+    setRestored(null);
+    setEntries([]);
+    setConversationId(id);
   };
 
   return {
@@ -318,6 +316,8 @@ function useConversation(clientId: string | null, sources: Record<Source, boolea
     ready: restored === conversationId && Boolean(status.data),
     send,
     restart,
+    reopen,
+    conversationId,
     models,
     model,
     pickModel: (to: string) => change("assistantModel", to),
@@ -780,35 +780,56 @@ function HowSourcesArePicked() {
   );
 }
 
-/** The last questions in this conversation, newest first, to ask again. */
-function Recent({ entries, onAsk, busy }: { entries: Entry[]; onAsk: (question: string) => void; busy: boolean }) {
-  const recent = useMemo(() => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const one of [...entries].reverse()) {
-      if (one.kind !== "question" || seen.has(one.text)) continue;
-      seen.add(one.text);
-      out.push(one.text);
-      if (out.length === 4) break;
-    }
-    return out;
-  }, [entries]);
-  if (recent.length === 0) return null;
+/**
+ * The asker's own conversations, newest first, each named by its first question. Opening one brings it back with
+ * both sources' answers, on any computer; New conversation starts another and leaves this one in the list.
+ */
+function History({ chat }: { chat: Chat }) {
+  const list = useListAssistantConversations<ConversationSummary[], ApiError>({ query: { staleTime: 30_000 } });
+  const [all, setAll] = useState(false);
+  const items = list.data ?? [];
+  if (list.isError || (list.data && items.length === 0)) return null;
+  const shown = all ? items : items.slice(0, 5);
   return (
-    <Panel title="Recent">
+    <Panel title="Recent conversations">
+      {list.isPending && <p className="text-sm text-ink-muted">Loading…</p>}
       <ul className="divide-y divide-line">
-        {recent.map((text) => (
-          <li key={text}>
-            <button type="button" disabled={busy} onClick={() => onAsk(text)} title="Ask again"
-              className="flex w-full items-start gap-2.5 py-2.5 text-left text-sm hover:text-primary-700 disabled:opacity-50">
-              <Clock className="mt-0.5 size-4 shrink-0 text-ink-muted" aria-hidden="true" />
-              <span className="line-clamp-2">{text}</span>
-            </button>
-          </li>
-        ))}
+        {shown.map((one) => {
+          const here = one.conversationId === chat.conversationId;
+          return (
+            <li key={one.conversationId}>
+              <button type="button" disabled={chat.pending || here} onClick={() => chat.reopen(one.conversationId)}
+                aria-current={here ? "true" : undefined}
+                className={`flex w-full items-start gap-2.5 py-2.5 text-left text-sm disabled:cursor-default ${here
+                  ? "font-semibold text-primary-700" : "hover:text-primary-700"}`}>
+                <Clock className="mt-0.5 size-4 shrink-0 text-ink-muted" aria-hidden="true" />
+                <span className="min-w-0">
+                  <span className="line-clamp-2">{one.title}</span>
+                  <span className="block text-xs font-normal text-ink-muted">
+                    {when(one.lastAskedAt)} · {one.questions === 1 ? "1 question" : `${one.questions} questions`}
+                    {here && " · open now"}
+                  </span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
+      {items.length > 5 && (
+        <button type="button" onClick={() => setAll((was) => !was)} className="mt-1 text-sm font-medium text-primary-700 hover:underline">
+          {all ? "Show fewer" : `Show all ${items.length}`}
+        </button>
+      )}
     </Panel>
   );
+}
+
+function when(at: string) {
+  const date = new Date(at);
+  const today = new Date();
+  return date.toDateString() === today.toDateString()
+    ? `Today ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+    : date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 const ACCESS: Record<string, string> = {
