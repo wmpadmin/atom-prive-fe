@@ -239,7 +239,7 @@ function Answer({ reply, at }: { reply: MarketReply; at: string }) {
 }
 
 /** The prices the answer was given, as Twelve Data gave them. */
-function Quotes({ quotes }: { quotes: MarketQuote[] }) {
+export function Quotes({ quotes }: { quotes: MarketQuote[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line">
       <table className="w-full text-sm tabular-nums">
