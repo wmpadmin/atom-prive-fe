@@ -15,10 +15,8 @@
     <script>
       (function () {
         try {
-          var held = localStorage.getItem("atomprive.theme");
-          var dark = held === "dark"
-            || ((held === null || held === "system") && window.matchMedia("(prefers-color-scheme: dark)").matches);
-          document.documentElement.dataset.theme = dark ? "dark" : "light";
+          // Light unless Dark was chosen: the machine's own setting is no longer followed.
+          document.documentElement.dataset.theme = localStorage.getItem("atomprive.theme") === "dark" ? "dark" : "light";
         } catch (blocked) {
           document.documentElement.dataset.theme = "light";
         }
