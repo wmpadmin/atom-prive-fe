@@ -1976,14 +1976,13 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
-  number?: boolean;
   container?: boolean;
   floatingPointNumber?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
-  missingNode?: boolean;
-  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1995,6 +1994,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  number?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -5978,6 +5978,14 @@ export const StaffProfileOpensIn = {
   IT_ADMIN: 'IT_ADMIN',
 } as const;
 
+export type StaffProfileSpace = typeof StaffProfileSpace[keyof typeof StaffProfileSpace];
+
+
+export const StaffProfileSpace = {
+  DEMO: 'DEMO',
+  REAL: 'REAL',
+} as const;
+
 export interface StaffProfile {
   id: string;
   fullName: string;
@@ -5991,6 +5999,8 @@ export interface StaffProfile {
   opensIn: StaffProfileOpensIn;
   /** @nullable */
   photo: string | null;
+  space: StaffProfileSpace;
+  canSwitchSpace: boolean;
 }
 
 export interface SignInResponse {
@@ -31067,6 +31077,74 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getEnterWorkspaceMutationOptions(options), queryClient);
+    }
+
+export const getSwitchSpaceUrl = () => {
+
+
+
+
+  return `/api/backoffice/auth/space`
+}
+
+export const switchSpace = async ( options?: Parameters<typeof http>[1]): Promise<SignInResponse> => {
+
+  return http<SignInResponse>(getSwitchSpaceUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSwitchSpaceMutationKey = () => ['switchSpace'] as const;
+
+export const getSwitchSpaceMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof switchSpace>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof switchSpace>>, TError,void, TContext> => {
+
+const mutationKey = getSwitchSpaceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof switchSpace>>, void> = () => {
+
+
+          return  switchSpace(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SwitchSpaceMutationResult = NonNullable<Awaited<ReturnType<typeof switchSpace>>>
+
+    export type SwitchSpaceMutationError = unknown
+
+
+    export const useSwitchSpace = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof switchSpace>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof switchSpace>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSwitchSpaceMutationOptions(options), queryClient);
     }
 
 export const getRefreshUrl = () => {
