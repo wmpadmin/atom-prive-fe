@@ -1,5 +1,7 @@
 import { Navigate, createBrowserRouter } from "react-router";
 import { AssistantPage } from "./pages/assistant/assistant-page";
+import { ConnectedAppsPage } from "./pages/assistant/connected-apps-page";
+import { AiSettingsPage } from "./pages/assistant/ai-settings-page";
 import { AppLayout } from "./app-layout";
 import { Landing } from "./pages/landing";
 import { RequireAuthority, RequireSignIn } from "./auth/guards";
@@ -145,6 +147,8 @@ export const router = createBrowserRouter([
           { path: "settings", element: <SettingsPage /> },
           // Everybody's: what the Firm Assistant answers is decided by the server, from the asker's own permissions.
           { path: "assistant", element: <AssistantPage /> },
+          // What the assistant may read from outside apps; open to the same people as the assistant itself.
+          { path: "assistant/apps", element: <ConnectedAppsPage /> },
           // Whoever runs the platform gets the firm's figures here; everybody else gets their own day.
           { path: "dashboard", element: <DashboardPage /> },
           {
@@ -514,6 +518,8 @@ export const router = createBrowserRouter([
               { path: "users", element: <UsersPage /> },
               { path: "users/:userId", element: <UserDetailPage /> },
               { path: "roles", element: <RolesPage /> },
+              // The AI Assistant's settings and its trail: the administrators', like the roles they are read from.
+              { path: "assistant/settings", element: <AiSettingsPage /> },
             ],
           },
           {

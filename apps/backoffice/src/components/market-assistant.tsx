@@ -67,7 +67,7 @@ export function MarketAssistantChat() {
     setSaid((all) => [...all, { who: "me", text, at: new Date().toISOString() }]);
     setDraft("");
     setTried(false);
-    ask.mutate({ data: { question: text, earlier: earlier.slice(-REMEMBERED), model: null } });
+    ask.mutate({ data: { question: text, earlier: earlier.slice(-REMEMBERED), model: null, conversationId: null } });
   };
   // The typed question: an empty box is not sent, it is pointed at.
   const sendDraft = () => {
@@ -239,7 +239,7 @@ function Answer({ reply, at }: { reply: MarketReply; at: string }) {
 }
 
 /** The prices the answer was given, as Twelve Data gave them. */
-function Quotes({ quotes }: { quotes: MarketQuote[] }) {
+export function Quotes({ quotes }: { quotes: MarketQuote[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line">
       <table className="w-full text-sm tabular-nums">

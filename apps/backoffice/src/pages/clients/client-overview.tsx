@@ -928,6 +928,7 @@ const ROWS: { ids: string[]; className: string; boxed?: string }[] = [
   { ids: ["profile", "allocation", "access"], className: "grid grid-cols-1 gap-4" },
   { ids: ["relations", "compliance", "family"], className: "grid grid-cols-1 gap-4" },
   { ids: ["banks", "activity", "documents"], className: "grid grid-cols-1 gap-4" },
+  { ids: ["kyc-papers"], className: "grid grid-cols-1" },
   { ids: ["performance", "proposals"], className: "grid grid-cols-1 items-start gap-4", boxed: "h-[24rem]" },
   { ids: ["portfolio"], className: "grid grid-cols-1" },
   { ids: ["application"], className: "grid grid-cols-1" },
