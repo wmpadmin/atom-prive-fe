@@ -28,6 +28,7 @@ import {
 import { ThemeToggle } from "./components/theme-toggle";
 import { TopSearch } from "./components/top-search";
 import { NotificationBell } from "./components/notification-bell";
+import { WorkspaceStrip, WorkspaceSwitch } from "./components/workspace-switch";
 import { AssistantButton } from "./components/portfolio-assistant";
 import {
   Check,
@@ -958,7 +959,10 @@ export function AppLayout() {
           out of view — role headings read "DMIN" and the footer was cut off. */}
       <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
         <header className="flex h-20 items-center justify-between gap-4 px-8">
-          <p className="min-w-0 truncate text-2xl font-bold">{user.activeRole ? roleLabels[user.activeRole] : ""}</p>
+          <div className="flex min-w-0 items-center gap-4">
+            <p className="min-w-0 truncate text-2xl font-bold">{user.activeRole ? roleLabels[user.activeRole] : ""}</p>
+            <WorkspaceSwitch />
+          </div>
           <div className="flex min-w-0 items-center gap-3">
             <TopSearch />
             <div className="flex items-center gap-1">
@@ -968,6 +972,7 @@ export function AppLayout() {
             </div>
           </div>
         </header>
+        <WorkspaceStrip />
         <main className="flex-1 px-8 pb-10">
           <Outlet />
         </main>
