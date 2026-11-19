@@ -36,6 +36,7 @@ import {
   UsersRound,
   Scale,
   KeyRound,
+  Table2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -43,6 +44,7 @@ import {
   hasAuthority,
   ANSWERS_MOVE_PLANS,
   ONBOARDS_EVERY_CLIENT,
+  READS_AML_MATRIX,
   READS_AML_RISK,
   READS_CLIENT_PORTFOLIOS,
   READS_PROPOSALS,
@@ -465,7 +467,24 @@ const allNavigation: {
   { to: "/notifications", label: "Notification log", icon: Mail, authority: "MANAGE_CONFIGURATION:VIEW" },
   // The firm's AML sheet and where each client sits on it. On Compliance's menu since 4 Nov 2026: their
   // dashboard counts what is due on it, and a figure with no way to its screen is no use to them.
-  { to: "/aml-risk", label: "AML risk", icon: ShieldAlert, authority: READS_AML_RISK, onlyFor: ["COMPLIANCE"] },
+  {
+    to: "/aml-risk",
+    label: "AML risk",
+    icon: ShieldAlert,
+    authority: READS_AML_RISK,
+    onlyFor: ["COMPLIANCE"],
+    // The matrix has its own entry below, so it lights that rather than this one.
+    at: (path) => path.startsWith("/aml-risk") && !path.startsWith("/aml-risk/matrix"),
+  },
+  // The score sheet itself, back on Compliance's menu on 18 Nov 2026 at the firm's request: it is theirs to
+  // keep, and with no entry the only way to it was a typed address.
+  {
+    to: "/aml-risk/matrix",
+    label: "AML risk matrix",
+    icon: Table2,
+    authority: READS_AML_MATRIX,
+    onlyFor: ["COMPLIANCE"],
+  },
   { to: "/audit-log", label: "Audit log", icon: Landmark, authority: "VIEW_AUDIT_LOG:VIEW" },
   // Beside the audit log rather than inside it. "Who has been reading whose money" is a question somebody
   // comes to the screen already holding, and finding it meant knowing to filter the whole trail by a

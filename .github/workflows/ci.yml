@@ -4,7 +4,7 @@ on:
   # Every branch the work lands on, not only the one it ends on: a push that breaks the build should say so
   # the day it lands rather than when somebody opens a pull request weeks of commits later.
   push:
-    branches: [main, staging, develop]
+    branches: [develop, staging, production]
   pull_request:
 
 jobs:

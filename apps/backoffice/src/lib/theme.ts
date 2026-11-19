@@ -1,30 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
 
-/** What somebody asked for. "System" follows whatever their machine is set to, and keeps following it. */
-export type ThemePreference = "system" | "light" | "dark";
+/** What somebody asked for: light or dark. Light until they choose; "follow my machine" was taken away on 18 Nov 2026. */
+export type ThemePreference = "light" | "dark";
 
 export const THEME_KEY = "atomprive.theme";
 
-const PREFERENCES: ThemePreference[] = ["system", "light", "dark"];
+const PREFERENCES: ThemePreference[] = ["light", "dark"];
 
 function stored(): ThemePreference {
   try {
     const held = localStorage.getItem(THEME_KEY);
-    return PREFERENCES.includes(held as ThemePreference) ? (held as ThemePreference) : "system";
+    return PREFERENCES.includes(held as ThemePreference) ? (held as ThemePreference) : "light";
   } catch {
-    // A browser with site data blocked still gets a working screen; it just starts from the machine's own
-    // setting every time, which is the same answer it would have had on a first visit.
-    return "system";
+    // A browser with site data blocked still gets a working screen; it just starts light every time, which is
+    // the same answer it would have had on a first visit. A "system" kept from before reads as light too.
+    return "light";
   }
-}
-
-function systemIsDark() {
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
 }
 
 /** Writes the theme that is actually in force, so the stylesheet never has to work it out twice. */
 export function applyTheme(preference: ThemePreference) {
-  const dark = preference === "dark" || (preference === "system" && systemIsDark());
+  const dark = preference === "dark";
   document.documentElement.dataset.theme = dark ? "dark" : "light";
 }
 
@@ -37,12 +33,6 @@ export function useTheme() {
 
   useEffect(() => {
     applyTheme(preference);
-    if (preference !== "system") return;
-    // Following the machine means following it as it changes, not only as it was when the page loaded.
-    const watch = window.matchMedia("(prefers-color-scheme: dark)");
-    const follow = () => applyTheme("system");
-    watch.addEventListener("change", follow);
-    return () => watch.removeEventListener("change", follow);
   }, [preference]);
 
   const choose = useCallback((wanted: ThemePreference) => {

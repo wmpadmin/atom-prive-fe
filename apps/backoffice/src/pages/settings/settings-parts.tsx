@@ -121,7 +121,7 @@ export function SwitchHeadings({ of }: { of: string[] }) {
   return (
     <div className="flex items-center justify-end gap-8 border-b border-line pb-2">
       {of.map((one) => (
-        <span key={one} className="w-[3.75rem] text-center text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+        <span key={one} className="w-[5.5rem] text-center text-2xs font-semibold tracking-wider text-ink-muted uppercase">
           {one}
         </span>
       ))}

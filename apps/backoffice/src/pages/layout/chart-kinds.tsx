@@ -108,6 +108,9 @@ export function cardChart<Id extends string>(view: ViewLayoutState<Id>, id: Id) 
   // card's props after drawing, when a context cannot be read; they get the saved type.
   const kind = (): ChartKind | null => {
     try {
+      // The getter below is read only while a card draws, which is where use() belongs; the linter cannot follow a
+      // getter, so it takes this for a call outside a component.
+      // oxlint-disable-next-line react-hooks/rules-of-hooks
       return use(CardSettingsContext)?.chart ?? saved;
     } catch {
       return saved;

@@ -338,7 +338,7 @@ function AssistantMark() {
  * back office, rather than the Mac's native list drawn over it. A model that has used its free allowance says
  * until when, and can still be picked — the next model answers meanwhile.
  */
-function ModelPicker({ models, value, onChange }: {
+export function ModelPicker({ models, value, onChange }: {
   models: AssistantModel[];
   value: string;
   onChange: (to: string) => void;
@@ -403,7 +403,7 @@ function Answer({ reply, at, models }: { reply: AssistantReply; at: Date; models
  * Something the assistant offers to do, waiting on the person. Approving calls the same endpoint as the button on
  * the screen the action belongs to, with the person's own permissions; until then nothing has happened.
  */
-function ActionCard({ action }: { action: AssistantAction }) {
+export function ActionCard({ action }: { action: AssistantAction }) {
   const queryClient = useQueryClient();
   const [state, setState] = useState<"offered" | "sent" | "cancelled">("offered");
   const send = useSendKycReminder<ApiError>({
@@ -462,7 +462,7 @@ function ActionCard({ action }: { action: AssistantAction }) {
   );
 }
 
-function Suggestion({ suggestion }: { suggestion: RebalanceSuggestion }) {
+export function Suggestion({ suggestion }: { suggestion: RebalanceSuggestion }) {
   const money = new Intl.NumberFormat("en-US", { style: "currency", currency: suggestion.currency, maximumFractionDigits: 0 });
   return (
     // A container, so the table can give way to stacked rows when the panel is dragged narrow: five columns
@@ -548,7 +548,7 @@ function Action({ row, money, className }: { row: SuggestionRow; money: Intl.Num
 }
 
 /** What can be done with the last answer: the three actions under it in the picture. */
-function FollowUps({ reply, onAsk }: { reply: AssistantReply; onAsk: (question: string) => void }) {
+export function FollowUps({ reply, onAsk }: { reply: AssistantReply; onAsk: (question: string) => void }) {
   const navigate = useNavigate();
   const [problem, setProblem] = useState<string | null>(null);
   const create = useCreateProposal<ApiError>({
