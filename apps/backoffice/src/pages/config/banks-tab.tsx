@@ -348,9 +348,6 @@ export function BanksTab() {
           />
         </div>
       )}
-      <p className="mt-2 text-xs text-ink-muted">
-        Disabling a bank pauses its syncs but keeps all historical data.
-      </p>
 
       <BankDialog
         bank={editing}
