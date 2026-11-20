@@ -315,9 +315,12 @@ function ChildBox({ node, show, currency }: { node: StructureNode; show: Show; c
 
 function RegisterCard({ data }: { data: ClientStructure }) {
   const drill = useDrill();
+  // A bank-file client's entities are staff's record, never valued: their worth would be read from the file's holdings.
+  const valued = !data.bankFile;
   return (
-    <Card title="Entity Register" lead="Every entity on file for this family, with who runs it and where its accounts are held">
-      {data.bankFile ? <FileBlock /> : data.register.length === 0 ? <Empty>No entity is on file for this client yet.</Empty> : (
+    <Card title="Entity Register" lead="Every entity on file for this family, with who runs it and where its accounts are held"
+      action={data.bankFile && data.register.length > 0 && <StaffEntered />}>
+      {data.bankFile && data.register.length === 0 ? <FileBlock /> : data.register.length === 0 ? <Empty>No entity is on file for this client yet.</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -329,8 +332,8 @@ function RegisterCard({ data }: { data: ClientStructure }) {
                 <th scope="col" className="px-3 py-2">Tax classification</th>
                 <th scope="col" className="px-3 py-2">Trustee / directors</th>
                 <th scope="col" className="px-3 py-2">Custodians</th>
-                <th scope="col" className="px-3 py-2 text-right">Value</th>
-                <th scope="col" className="px-3 py-2 text-right">% NW</th>
+                {valued && <th scope="col" className="px-3 py-2 text-right">Value</th>}
+                {valued && <th scope="col" className="px-3 py-2 text-right">% NW</th>}
                 <th scope="col" className="py-2 pr-5 pl-3">Docs &amp; KYC</th>
               </tr>
             </thead>
@@ -348,8 +351,8 @@ function RegisterCard({ data }: { data: ClientStructure }) {
                   <td className="px-3 py-2">{one.taxClassification ?? <Muted>—</Muted>}</td>
                   <td className="px-3 py-2">{officers(one.officers)}</td>
                   <td className="px-3 py-2">{one.custodians.join(" · ") || <Muted>—</Muted>}</td>
-                  <td className="px-3 py-2 text-right font-semibold whitespace-nowrap tabular-nums">{compact(one.value, data.currency)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{one.netWorthPercent == null ? <Muted>—</Muted> : `${one.netWorthPercent.toFixed(1)}%`}</td>
+                  {valued && <td className="px-3 py-2 text-right font-semibold whitespace-nowrap tabular-nums">{compact(one.value, data.currency)}</td>}
+                  {valued && <td className="px-3 py-2 text-right tabular-nums">{one.netWorthPercent == null ? <Muted>—</Muted> : `${one.netWorthPercent.toFixed(1)}%`}</td>}
                   <td className="py-2 pr-5 pl-3 whitespace-nowrap">
                     {one.refreshKind == null || one.refreshDue == null
                       ? <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-2xs font-semibold text-emerald-700">Nothing due</span>
@@ -383,8 +386,9 @@ function InterestCard({ data, chart }: { data: ClientStructure; chart: CardChart
   const largest = Math.max(1, ...data.interests.flatMap((row) => (row.cells as (number | null)[]).map((cell) => cell ?? 0)));
   return (
     <Card title="Beneficial Interest Matrix" lead="Economic interest by entity and beneficiary · as recorded"
-      picker={!data.bankFile && data.beneficiaries.length > 0 && chart.picker}>
-      {data.bankFile ? <FileBlock /> : data.beneficiaries.length === 0 ? <Empty>No beneficiary is on file for this client yet.</Empty> : !chart.own ? (
+      picker={!data.bankFile && data.beneficiaries.length > 0 && chart.picker}
+      action={data.bankFile && data.beneficiaries.length > 0 && <StaffEntered />}>
+      {data.bankFile ? <FileBeneficiaries data={data} /> : data.beneficiaries.length === 0 ?<Empty>No beneficiary is on file for this client yet.</Empty> : !chart.own ? (
         chart.kind === "donut" ? (
           <KindChart kind="donut" format={(value) => compact(value, cur)} height={260} label="Each beneficiary's economic interest across every entity"
             data={{ shape: "shares", items: data.beneficiaries.map((one) => ({ name: one.name, value: one.value })) }}
@@ -456,6 +460,29 @@ function InterestCard({ data, chart }: { data: ClientStructure; chart: CardChart
   );
 }
 
+/**
+ * A bank-file client's beneficiaries: who they are, as staff recorded them. What each is entitled to is a share of
+ * entity values, and those would be read from the file's holdings, so the amounts stay out.
+ */
+function FileBeneficiaries({ data }: { data: ClientStructure }) {
+  if (data.beneficiaries.length === 0) return <FileBlock />;
+  return (
+    <>
+      <ul className="divide-y divide-line">
+        {data.beneficiaries.map((one) => (
+          <li key={one.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+            <span className="font-semibold">{one.name}</span>
+            <span className="text-xs text-ink-muted">
+              {[one.generation, one.kind === "CHARITY" ? "Charity" : "Person"].filter(Boolean).join(" · ")}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-ink-muted">Interest values: <NotInFile /></p>
+    </>
+  );
+}
+
 function MixCard({ data, chart }: { data: ClientStructure; chart: CardChart }) {
   const drill = useDrill();
   const names = [...new Set(data.assetMix.flatMap((row) => row.slices.map((one) => one.name)))];
@@ -505,8 +532,9 @@ function MixCard({ data, chart }: { data: ClientStructure; chart: CardChart }) {
 
 function GovernanceCard({ data }: { data: ClientStructure }) {
   return (
-    <Card title="Governance Calendar & Documents">
-      {data.bankFile ? <FileBlock /> : (<>
+    <Card title="Governance Calendar & Documents"
+      action={data.bankFile && staffEntered(data) && <StaffEntered />}>
+      {data.bankFile && data.governance.length === 0 && data.documents.length === 0 ? <FileBlock /> : (<>
       {data.governance.length === 0 ? <Empty>Nothing is on the governance calendar.</Empty> : (
         <ul className="divide-y divide-line">
           {data.governance.map((one, at) => (
@@ -554,11 +582,18 @@ const OWN_LOOK: CardChart = { kind: null, own: true, picker: null };
 function FileContainers({ name, accounts, data }: { name: string; accounts: StructureFileAccount[]; data: ClientStructure }) {
   return (
     <>
-      <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
-        {["Legal entities", "Jurisdictions", "Beneficiaries", "Trustees & directors", "KYC / CRS refresh due"].map((label) => (
-          <Kpi key={label} label={label} value={<NotInFile />} note="The bank file holds no entity, trust or beneficiary data" />
-        ))}
-      </div>
+      {staffEntered(data) ? (
+        <div className="space-y-2">
+          <StaffEntered />
+          <Kpis data={data} />
+        </div>
+      ) : (
+        <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
+          {["Legal entities", "Jurisdictions", "Beneficiaries", "Trustees & directors", "KYC / CRS refresh due"].map((label) => (
+            <Kpi key={label} label={label} value={<NotInFile />} note="The bank file holds no entity, trust or beneficiary data" />
+          ))}
+        </div>
+      )}
       <Card title="Ownership Structure" lead="Settlors → trusts & personal holdings → companies, SPVs and accounts · his accounts as the bank's files state them">
         <div className="overflow-x-auto">
           <div className="flex min-w-[44rem] items-center">
@@ -605,6 +640,23 @@ function FileContainers({ name, accounts, data }: { name: string; accounts: Stru
 
 /* ------------------------------------------------------------------------------------------------------------ */
 /* Small pieces                                                                                                  */
+
+/**
+ * Whether staff have entered anything about a bank-file client's family. The server sends it beside the file, never
+ * valued: who the entities and beneficiaries are, who runs them and what is due.
+ */
+function staffEntered(data: ClientStructure) {
+  return data.register.length > 0 || data.beneficiaries.length > 0 || data.governance.length > 0 || data.documents.length > 0;
+}
+
+/** Says a bank-file client's card is the firm's own record, so nobody reads it as something the bank sent. */
+function StaffEntered() {
+  return (
+    <span className="inline-block w-fit rounded-sm border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-3xs font-semibold whitespace-nowrap text-amber-800">
+      Entered by staff · not from the bank file
+    </span>
+  );
+}
 
 /** A card his bank's files hold nothing for: it stays in its place and says so. */
 function FileBlock() {
