@@ -20,6 +20,8 @@ import { SupportTicketPage } from "./pages/support/support-ticket-page";
 import { IngestionMonitoringPage } from "./pages/bank-syncs/ingestion-monitoring-page";
 import { BankFeedDetailPage } from "./pages/bank-syncs/bank-feed-detail-page";
 import { SyncErrorsPage } from "./pages/bank-syncs/sync-errors-page";
+import { BankHoldingsFilePage } from "./pages/bank-holdings/bank-holdings-file-page";
+import { BankHoldingsPage } from "./pages/bank-holdings/bank-holdings-page";
 import { HoldingsCheckClientPage } from "./pages/bank-syncs/holdings-check-client-page";
 import { HoldingsCheckPage } from "./pages/bank-syncs/holdings-check-page";
 import { SyncRunsPage } from "./pages/bank-syncs/sync-runs-page";
@@ -57,6 +59,7 @@ import {
   READS_CLIENT_FORMS,
   READS_AML_MATRIX,
   READS_AML_RISK,
+  READS_BANK_HOLDINGS,
   READS_PROPOSALS,
   STARTS_PROPOSALS,
 } from "./lib/permissions";
@@ -358,6 +361,15 @@ export const router = createBrowserRouter([
             element: <RequireAuthority authority={STARTS_PROPOSALS} />,
             children: [
               { path: "proposals/new", element: <ProposalPage /> },
+            ],
+          },
+          {
+            // The banks' holdings files, for the Admin and the portfolio manager.
+            element: <RequireAuthority authority={READS_BANK_HOLDINGS} />,
+            children: [
+              { path: "bank-holdings", element: <BankHoldingsPage /> },
+              // One bank's file, grouped by its asset classes, and every line of it.
+              { path: "bank-holdings/:fileId", element: <BankHoldingsFilePage /> },
             ],
           },
           {

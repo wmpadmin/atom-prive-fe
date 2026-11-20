@@ -27,7 +27,7 @@ export const MENU_ORDER: string[] = [
 
   // The portfolio desk's own book, in the order the desk works it: the whole book at a glance, who is on a
   // plan, what the plans are, how they are doing, who has wandered off one, and putting them back.
-  "/book-overview", "/client-directory", "/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing",
+  "/book-overview", "/client-directory", "/bank-holdings", "/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing",
   // What the desk reads back off its book: management information, then the client reports. Reports was further
   // down, after the paper, until the sidebar put the two under one heading on 11 Nov 2026; only the portfolio
   // desk has it, so moving it here moves nobody else's menu.

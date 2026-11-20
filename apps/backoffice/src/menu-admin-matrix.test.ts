@@ -41,7 +41,7 @@ describe("an Admin's menu", () => {
     // the platform, oversight, and the person's own.
     expect(menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to)).toEqual([
       "/dashboard", "/approvals", "/assistant", "/users", "/roles", "/staff-tracker", "/clients",
-      "/deactivation-requests", "/archived-clients", "/config", "/ingestion", "/holdings-check", "/reports",
+      "/deactivation-requests", "/archived-clients", "/config", "/ingestion", "/holdings-check", "/bank-holdings", "/reports",
       "/family-access-trail", "/audit-log", "/my-clearances", "/my-declarations", "/support", "/settings",
     ]);
   });
