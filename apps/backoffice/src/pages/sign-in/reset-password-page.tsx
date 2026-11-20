@@ -1,6 +1,6 @@
 import { ApiError } from "@atomprive/api-client";
 import { checkPasswordResetLink, resetPassword, useGetSignInOptions, type SignInOptions } from "@atomprive/api-client/backoffice";
-import { Alert, Button, describedBy, Field, isStrongPassword, PasswordChecklist, TextInput } from "@atomprive/ui";
+import { Alert, Button, describedBy, Field, isStrongPassword, PasswordChecklist, PasswordInput } from "@atomprive/ui";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
@@ -122,10 +122,9 @@ export function ResetPasswordPage() {
           </div>
           {errors.form && <Alert tone="danger">{errors.form}</Alert>}
           <Field id="newPassword" label="New password">
-            <TextInput
+            <PasswordInput
               id="newPassword"
               name="newPassword"
-              type="password"
               autoComplete="new-password"
               required
               autoFocus
@@ -141,10 +140,9 @@ export function ResetPasswordPage() {
             <PasswordChecklist id="newPassword-rules" password={newPassword} showMissing={triedToSave} />
           </Field>
           <Field id="confirmPassword" label="Confirm new password" error={confirmPasswordError}>
-            <TextInput
+            <PasswordInput
               {...describedBy("confirmPassword", confirmPasswordError)}
               name="confirmPassword"
-              type="password"
               autoComplete="new-password"
               required
               onChange={(event) => setConfirmPassword(event.target.value)}
