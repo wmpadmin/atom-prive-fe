@@ -284,9 +284,9 @@ function Facts({ data }: { data: ClientWorkspace }) {
       )}
       <Fact label="Relationship lead" value={f.relationshipManager ?? <Muted>Not recorded</Muted>} />
       <Fact label="Mandate" value={fromFile(f.mandate)} />
-      {/* Which model the client is measured against, by the model's name alone: the blended benchmark's long name and
-          its composition were more than this tile needs, and are on Performance. */}
-      <Fact label="Benchmark" value={fromFile(f.benchmark && (f.mandate ?? f.benchmark))} />
+      {/* Which model the client is measured against, by the model's name alone, whether or not an index is recorded for
+          it: the blended benchmark's long name and composition, where there is one, are on Performance. */}
+      <Fact label="Benchmark" value={fromFile(f.mandate ?? f.benchmark)} />
       <Fact label="Base currency" value={f.baseCurrency ?? <Muted>Not recorded</Muted>} />
       <Fact label="Client since" value={f.clientSince ? formatDate(f.clientSince) : <Muted>—</Muted>} />
       <Fact label="Last review" value={fromFile(f.lastReview && formatDate(f.lastReview))} />
