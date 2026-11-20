@@ -5,33 +5,84 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Check, Layers, Link2, Maximize2, Minimize2, PencilLine, UsersRound, Network, Rows3, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
+import { formatDate } from "../../lib/labels";
+import { useBookPanel } from "../../components/book-panel";
 import { useRelationshipTypes } from "../../lib/relationship-types";
+import { opens } from "../portfolios/figure-opens";
 import { amount, roleOf, useFamilyValues } from "./family-values";
 import type { Branch } from "./family-tree";
 
 /** The four facts across the top: the group, how many are in it, what it is worth, and who is linked. */
-export function FamilyTiles({ clientId, group, family, mayEdit }: {
+export function FamilyTiles({ clientId, group, family, mayEdit, openTheir }: {
   clientId: string;
   group: FamilyGroupSummary | null;
   family: FamilyMember[];
   mayEdit: boolean;
+  /** Where a member's own file is, for the side panel's lines. */
+  openTheir?: (id: string) => string;
 }) {
   const { sees, wealth } = useFamilyValues(clientId);
+  const { labelFor } = useRelationshipTypes();
   const holder = group?.primaryHolderName ?? family.find((one) => one.primaryHolder)?.fullName ?? null;
   const twr = wealth?.twrYearToDate ?? null;
+  const panel = useBookPanel();
+  const familyName = group?.name ?? "Family group";
+  const memberRows = (people: FamilyMember[]) => people.map((one) => [one.fullName, roleOf(one, labelFor), formatDate(one.joinedOn), one.bankAccounts]);
+  const memberLinks = (people: FamilyMember[]) => people.map((one) => (one.id === clientId || !openTheir ? null : openTheir(one.id)));
+  const showMembers = () =>
+    panel?.({
+      name: familyName,
+      figure: {
+        label: "Family members",
+        value: String(group?.members ?? family.length),
+        note: group && group.invited > 0 ? `${group.invited} more invited and not yet joined.` : "Everyone in the family group.",
+        table: { columns: ["Member", "Role", "Joined", "Bank accounts"], rows: memberRows(family), links: memberLinks(family) },
+      },
+    });
+  const showWealth = () => {
+    if (!sees || !wealth) return;
+    const ccy = wealth.currency;
+    panel?.({
+      name: familyName,
+      figure: {
+        label: "Family wealth",
+        value: amount(ccy, wealth.managed) ?? undefined,
+        note: "The managed portfolios of everyone in the family, member by member.",
+        facts: twr !== null ? [{ label: "Return YTD", value: `${twr > 0 ? "+" : ""}${twr.toFixed(1)}%` }] : undefined,
+        chart: wealth.members.length ? { title: "By member", data: { shape: "shares", items: wealth.members.map((one) => ({ name: one.name, value: one.managed ?? 0 })) }, kind: "donut", format: "money", currency: ccy } : undefined,
+        table: {
+          columns: ["Member", "Managed", "Share", "Return YTD"],
+          rows: wealth.members.map((one) => [one.name, amount(ccy, one.managed), `${one.share.toFixed(1)}%`, one.twrYearToDate == null ? null : `${one.twrYearToDate.toFixed(1)}%`]),
+          total: ["Family", amount(ccy, wealth.managed), "100%", twr === null ? null : `${twr.toFixed(1)}%`],
+          links: wealth.members.map((one) => (one.customerId === clientId || !openTheir ? null : openTheir(one.customerId))),
+        },
+      },
+    });
+  };
+  const others = family.filter((one) => one.id !== clientId);
+  const showLinked = () =>
+    panel?.({
+      name: familyName,
+      figure: {
+        label: "Linked clients",
+        value: String(Math.max(0, family.length - 1)),
+        note: "The other clients in this family group.",
+        table: { columns: ["Member", "Role", "Joined", "Bank accounts"], rows: memberRows(others), links: memberLinks(others) },
+      },
+    });
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Tile icon={<UsersRound />}>
         <FamilyName clientId={clientId} name={group?.name ?? "Family group"} mayEdit={mayEdit && group !== null} />
         {holder && <p className="truncate text-sm text-ink-muted">Primary holder: {holder}</p>}
       </Tile>
-      <Tile icon={<UsersRound />}>
+      <Tile icon={<UsersRound />} onOpen={panel ? showMembers : undefined}>
         <p className="text-2xl font-bold tabular-nums">{group?.members ?? family.length}</p>
         <p className="text-sm text-ink-muted">
           Family members{group && group.invited > 0 ? ` · ${group.invited} invited` : ""}
         </p>
       </Tile>
-      <Tile icon={<Layers />}>
+      <Tile icon={<Layers />} onOpen={panel && sees && wealth ? showWealth : undefined}>
         {sees && wealth ? (
           <>
             <p className="text-2xl font-bold whitespace-nowrap tabular-nums">{amount(wealth.currency, wealth.managed)}</p>
@@ -49,7 +100,7 @@ export function FamilyTiles({ clientId, group, family, mayEdit }: {
           </>
         )}
       </Tile>
-      <Tile icon={<Link2 />}>
+      <Tile icon={<Link2 />} onOpen={panel ? showLinked : undefined}>
         <p className="text-2xl font-bold tabular-nums">{Math.max(0, family.length - 1)}</p>
         <p className="text-sm text-ink-muted">Linked clients</p>
       </Tile>
@@ -57,9 +108,10 @@ export function FamilyTiles({ clientId, group, family, mayEdit }: {
   );
 }
 
-function Tile({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+function Tile({ icon, children, onOpen }: { icon: ReactNode; children: ReactNode; onOpen?: () => void }) {
   return (
-    <div className="flex min-w-0 items-center gap-4 rounded-2xl border border-line bg-white px-5 py-4">
+    <div className={cn("flex min-w-0 items-center gap-4 rounded-2xl border border-line bg-white px-5 py-4", onOpen && "cursor-pointer hover:bg-canvas")}
+      {...(onOpen ? opens(onOpen) : {})}>
       <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-full bg-primary-50 text-primary-700 [&_svg]:size-6">
         {icon}
       </span>

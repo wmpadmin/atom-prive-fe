@@ -1,10 +1,15 @@
 import { ApiError } from "@atomprive/api-client";
 import { useGetManagementInformation, type ManagementFigures } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
+import { useBookPanel } from "../../components/book-panel";
 import { ListPageHeader } from "../../components/record-list";
 import { formatDate } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
+import type { FigureDetail } from "../client-workspace/figure-panel";
+import { ModelClients } from "./book-panel-lists";
 import { underManagementLabel } from "./portfolio-labels";
+
+const workspace = (customerId: string) => `/client-workspace/${customerId}`;
 
 /**
  * The firm's own figures, for the partners rather than for the working day: how much, which way it is
@@ -16,6 +21,7 @@ export function ManagementInformationPage() {
   // called on only some of a component's renders. Optional chaining carries it while nothing is counted yet.
   const byModel = figures.data?.byModel ?? [];
   const paged = usePagedRows(byModel);
+  const panel = useBookPanel();
 
   if (figures.isError) return <Alert tone="danger">{figures.error.message}</Alert>;
   if (!figures.data) {
@@ -24,6 +30,38 @@ export function ManagementInformationPage() {
   const { underModels, currency, clientsOnAModel, clientsAltogether, rebalancedThisMonth, quarter, asOf } =
     figures.data;
   const withoutAPlan = clientsAltogether - clientsOnAModel;
+  const asAt = `As at ${formatDate(asOf)}, in ${currency}.`;
+  const open = panel ? (name: string, figure: FigureDetail) => () => panel({ name, figure }) : undefined;
+  const modelShares = { shape: "shares" as const, items: byModel.map((row) => ({ name: row.modelName, value: row.assets })) };
+  const modelTable = (title: string): FigureDetail["table"] => ({
+    title,
+    columns: ["Model", "Clients", "Value", "Share"],
+    rows: byModel.map((row) => [row.modelName, row.clients, underManagementLabel(row.assets, currency), `${row.share.toFixed(0)}%`]),
+    links: byModel.map((row) => `/model-portfolios/${row.modelPortfolioId}`),
+  });
+  const quarterFigure: FigureDetail = {
+    label: "Money moved",
+    value: signed(quarter.net, currency),
+    note: `Paid in less taken out, ${formatDate(quarter.from)} to ${formatDate(quarter.to)}, in ${currency}. Totals only: these figures carry no per-client flows, so the clients behind them are not listed.`,
+    facts: [
+      { label: "Paid in", value: `+${underManagementLabel(quarter.paidIn, currency)}` },
+      { label: "Taken out", value: `−${underManagementLabel(quarter.takenOut, currency)}` },
+      { label: "Net", value: signed(quarter.net, currency) },
+    ],
+    chart: { title: "Paid in and taken out", kind: "bar", format: "money", currency,
+      data: { shape: "series", categories: ["Paid in", "Taken out"], series: [{ name: "This quarter", values: [quarter.paidIn, quarter.takenOut] }] } },
+  };
+  const openModel = (row: (typeof byModel)[number]) => panel?.({ name: row.modelName, figure: {
+    label: "Model",
+    value: underManagementLabel(row.assets, currency),
+    note: `What the clients on ${row.modelName} hold, ${row.share.toFixed(0)}% of everything under models. ${asAt}`,
+    facts: [
+      { label: "Clients", value: String(row.clients) },
+      { label: "Share", value: `${row.share.toFixed(0)}%` },
+    ],
+    link: { to: `/model-portfolios/${row.modelPortfolioId}`, label: "Open the model" },
+    more: <ModelClients modelId={row.modelPortfolioId} linkFor={workspace} />,
+  } });
 
   return (
     <div className="space-y-6">
@@ -33,14 +71,45 @@ export function ManagementInformationPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Tile label="Under models" value={underManagementLabel(underModels, currency)} />
+        <Tile label="Under models" value={underManagementLabel(underModels, currency)}
+          onClick={open?.("Under models", {
+            label: "MIS",
+            value: underManagementLabel(underModels, currency),
+            note: `What every client on a model holds, added up. ${asAt}`,
+            facts: [
+              { label: "Models in use", value: String(byModel.length) },
+              { label: "Clients on a model", value: String(clientsOnAModel) },
+            ],
+            chart: byModel.length > 0 ? { title: "Assets by model", data: modelShares, kind: "donut", format: "money", currency } : undefined,
+            table: modelTable("The models behind it"),
+          })} />
         <Tile
           label="Net in this quarter"
           value={signed(quarter.net, currency)}
           tone={quarter.net < 0 ? "bad" : quarter.net > 0 ? "good" : undefined}
+          onClick={open?.("Net in this quarter", quarterFigure)}
         />
-        <Tile label="Clients on a model" value={`${clientsOnAModel} / ${clientsAltogether}`} />
-        <Tile label="Rebalances this month" value={String(rebalancedThisMonth)} />
+        <Tile label="Clients on a model" value={`${clientsOnAModel} / ${clientsAltogether}`}
+          onClick={open?.("Clients on a model", {
+            label: "MIS",
+            value: `${clientsOnAModel} / ${clientsAltogether}`,
+            note: `Clients measured against a model, out of all clients. ${asAt}`,
+            facts: [
+              { label: "On a model", value: String(clientsOnAModel) },
+              { label: "On no model", value: String(withoutAPlan) },
+              { label: "All clients", value: String(clientsAltogether) },
+            ],
+            chart: { title: "Clients on and off a model", kind: "donut", format: "number",
+              data: { shape: "shares", items: [{ name: "On a model", value: clientsOnAModel }, { name: "On no model", value: withoutAPlan }] } },
+            table: modelTable("Clients by model"),
+          })} />
+        <Tile label="Rebalances this month" value={String(rebalancedThisMonth)}
+          onClick={open?.("Rebalances this month", {
+            label: "MIS",
+            value: String(rebalancedThisMonth),
+            note: "Portfolios recorded as put back to their model this month. The figure is a count only: it names no clients and no trades.",
+            link: { to: "/bulk-rebalancing", label: "Open bulk rebalancing" },
+          })} />
       </div>
 
       {/* The deck calls this the number to watch, so it is said in words and not left to be subtracted. */}
@@ -77,7 +146,10 @@ export function ManagementInformationPage() {
                   </tr>
                 )}
                 {paged.shown.map((row) => (
-                  <tr key={row.modelPortfolioId}>
+                  <tr key={row.modelPortfolioId} className={panel ? "cursor-pointer hover:bg-canvas" : undefined}
+                    onClick={panel ? () => openModel(row) : undefined}
+                    onKeyDown={panel ? (event) => { if (event.key === "Enter") openModel(row); } : undefined}
+                    tabIndex={panel ? 0 : undefined}>
                     <th scope="row" className="py-3 pr-4 pl-6 text-left font-semibold">
                       {row.modelName}
                       {/* The share drawn under the name, so the shape of the book reads without arithmetic. */}
@@ -112,9 +184,12 @@ export function ManagementInformationPage() {
             This quarter: {formatDate(quarter.from)} to {formatDate(quarter.to)}.
           </p>
           <dl className="mt-4 divide-y divide-line">
-            <Moved label="Paid in" value={quarter.paidIn} currency={currency} sign="+" tone="good" />
-            <Moved label="Taken out" value={quarter.takenOut} currency={currency} sign="−" tone="bad" />
-            <Moved label="Net" value={Math.abs(quarter.net)} currency={currency} sign={quarter.net < 0 ? "−" : "+"} strong />
+            <Moved label="Paid in" value={quarter.paidIn} currency={currency} sign="+" tone="good"
+              onClick={open?.("Paid in this quarter", { ...quarterFigure, value: `+${underManagementLabel(quarter.paidIn, currency)}` })} />
+            <Moved label="Taken out" value={quarter.takenOut} currency={currency} sign="−" tone="bad"
+              onClick={open?.("Taken out this quarter", { ...quarterFigure, value: `−${underManagementLabel(quarter.takenOut, currency)}` })} />
+            <Moved label="Net" value={Math.abs(quarter.net)} currency={currency} sign={quarter.net < 0 ? "−" : "+"} strong
+              onClick={open?.("Net in this quarter", quarterFigure)} />
           </dl>
           {/* Nothing records what a rebalance actually traded, so the figure is not invented. */}
           <p className="mt-4 border-t border-line pt-3 text-xs text-ink-muted">
@@ -127,9 +202,10 @@ export function ManagementInformationPage() {
   );
 }
 
-function Tile({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) {
+function Tile({ label, value, tone, onClick }: { label: string; value: string; tone?: "good" | "bad"; onClick?: () => void }) {
   return (
-    <div className="rounded-2xl border border-line bg-white px-5 py-4">
+    <div className={cn("rounded-2xl border border-line bg-white px-5 py-4", onClick && "cursor-pointer hover:border-primary-300")}
+      {...clickable(onClick)}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
       <p
         className={cn(
@@ -150,6 +226,7 @@ function Moved({
   sign,
   tone,
   strong = false,
+  onClick,
 }: {
   label: string;
   value: number;
@@ -157,9 +234,11 @@ function Moved({
   sign: string;
   tone?: "good" | "bad";
   strong?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 py-2.5">
+    <div className={cn("flex items-baseline justify-between gap-4 py-2.5", onClick && "cursor-pointer hover:bg-canvas")}
+      {...clickable(onClick)}>
       <dt className={cn("text-sm", strong ? "font-semibold text-ink" : "text-ink-soft")}>{label}</dt>
       <dd
         className={cn(
@@ -178,4 +257,14 @@ function Moved({
 /** A net figure carries its direction: money leaving the firm is not the same news as money arriving. */
 function signed(net: number, currency: string) {
   return `${net < 0 ? "−" : "+"}${underManagementLabel(Math.abs(net), currency)}`;
+}
+
+/** What makes a tile or a line open the side panel: a button to the keyboard as well as to the mouse. */
+function clickable(onClick?: () => void) {
+  return onClick ? {
+    role: "button" as const,
+    tabIndex: 0,
+    onClick,
+    onKeyDown: (event: { key: string }) => { if (event.key === "Enter") onClick(); },
+  } : {};
 }

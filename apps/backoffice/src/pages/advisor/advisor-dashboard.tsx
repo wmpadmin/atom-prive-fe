@@ -26,9 +26,10 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { useBookPanel } from "../../components/book-panel";
 import { menuFor } from "../../menu";
 import {
   AskTheAssistant,
@@ -43,6 +44,8 @@ import {
 } from "../dashboard/dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
 import { sharesFigure, singleFigure } from "../layout/own-cards";
+import { DriftClients } from "../portfolios/book-panel-lists";
+import { ClientsByAum, ClientsInKyc, NoListYet, PacksToSign, type LineLink } from "../dashboard/role-dashboard-lists";
 
 /**
  * A relationship manager's dashboard: their own clients and nobody else's — where each stands, what waits on
@@ -135,13 +138,73 @@ export function AdvisorDashboard() {
   const data = figures.data;
   const cur = data?.currency ?? currency;
   const waiting = (data?.approvals ?? []).reduce((sum, one) => sum + one.count, 0);
+  const panel = useBookPanel();
+  const clientLink: LineLink = (id) => (goTo("/my-clients") ? `/my-clients/${id}` : null);
+  const listLink = goTo("/my-clients") ? { to: "/my-clients", label: "Open my clients" } : undefined;
+  const clientFacts = data ? [
+    { label: "My clients", value: String(data.clients.total) },
+    { label: "Active", value: String(data.clients.active) },
+    { label: "Onboarding", value: String(data.clients.onboarding) },
+    { label: "KYC expired", value: String(data.clients.kycExpired) },
+  ] : [];
+  const openClients = (name: string, value: string, more: ReactNode, note?: string) => panel?.({ name, figure: {
+    label: "My clients overview", value, note, facts: clientFacts, link: listLink, more,
+  } });
+  const pickClients = (at: number) => {
+    if (!data) return;
+    if (at === 0) openClients("Active", String(data.clients.active),
+      <ClientsInKyc mine status="APPROVED" activeOnly title="Active clients" linkFor={clientLink} />,
+      "Your clients who are active with KYC approved.");
+    if (at === 1) openClients("Onboarding", String(data.clients.onboarding), <>
+      {(["NOT_SUBMITTED", "PENDING", "REJECTED"] as const).map((status) => (
+        <ClientsInKyc key={status} mine status={status} linkFor={clientLink}
+          title={`KYC ${status === "PENDING" ? "in review" : status.toLowerCase().replace("_", " ")}`} />
+      ))}
+    </>, "Your clients whose KYC is not submitted, in review or rejected.");
+    if (at === 2) openClients("KYC expired", String(data.clients.kycExpired),
+      <ClientsInKyc mine status="EXPIRED" title="KYC expired" linkFor={clientLink} />);
+    if (at === 3) openClients("Deactivation", String(data.clients.deactivating),
+      <NoListYet what="your clients with a deactivation asked" />, "Your clients with a deactivation request asked.");
+  };
+  const openAum = () => data && panel?.({ name: "AUM (my clients)", figure: {
+    label: "Portfolio summary",
+    value: money(data.clients.aum, cur),
+    facts: [
+      { label: `Change, ${PERIODS.find((one) => one.days === days)?.label.toLowerCase() ?? `${days} days`}`,
+        value: data.clients.aumChangePercent == null ? "—" : `${data.clients.aumChangePercent > 0 ? "+" : ""}${data.clients.aumChangePercent}%` },
+      { label: "With a portfolio", value: String(data.portfolios.withPortfolio) },
+      { label: "My clients", value: String(data.clients.total) },
+    ],
+    link: listLink,
+    more: <ClientsByAum currency={cur} linkFor={clientLink} />,
+  } });
+  const kycRows = data ? [
+    { name: "Approved", value: data.kyc.approved, statuses: ["APPROVED"] as const },
+    { name: "In review", value: data.kyc.inReview, statuses: ["PENDING"] as const },
+    { name: "Needs action", value: data.kyc.needsAction, statuses: ["REJECTED", "EXPIRED"] as const },
+    { name: "Not started", value: data.kyc.notStarted, statuses: ["NOT_SUBMITTED"] as const },
+  ] : [];
+  const pickKyc = (at: number) => {
+    const row = kycRows[at];
+    if (!data || !row) return;
+    panel?.({ name: `KYC ${row.name.toLowerCase()}`, figure: {
+      label: "KYC status (my clients)",
+      value: String(row.value),
+      facts: [{ label: "KYC complete", value: `${data.kyc.completePercent}%` }, { label: "My clients", value: String(data.clients.total) }],
+      link: listLink,
+      more: <>{row.statuses.map((status) => (
+        <ClientsInKyc key={status} mine status={status} linkFor={clientLink}
+          title={`KYC ${status === "PENDING" ? "in review" : status.toLowerCase().replace("_", " ")}`} />
+      ))}</>,
+    } });
+  };
 
   const render: Record<CardId, ReactNode> = {
     clients: (
       <Panel icon={Users} title="My clients overview" to={goTo("/my-clients")}>
         {data ? (
           <div className="space-y-4">
-            <Breakdown centre={String(data.clients.total)} centreLabel="Clients"
+            <Breakdown centre={String(data.clients.total)} centreLabel="Clients" onPick={panel ? pickClients : undefined}
               rows={[
                 { name: "Active", value: data.clients.active, colour: "#16a34a" },
                 { name: "Onboarding", value: data.clients.onboarding, colour: "#8b5cf6" },
@@ -149,8 +212,15 @@ export function AdvisorDashboard() {
                 { name: "Deactivation", value: data.clients.deactivating, colour: "#0ea5e9", apart: true },
               ]} />
             <Strip figures={[
-              { label: "AUM (my clients)", value: money(data.clients.aum, cur), change: data.clients.aumChangePercent },
-              { label: "New clients", value: data.clients.newClients },
+              { label: "AUM (my clients)", value: money(data.clients.aum, cur), change: data.clients.aumChangePercent,
+                onClick: panel ? openAum : undefined },
+              { label: "New clients", value: data.clients.newClients,
+                onClick: panel ? () => {
+                  const from = new Date(Date.now() - days * 86_400_000).toISOString();
+                  openClients("New clients", String(data.clients.newClients),
+                    <ClientsInKyc mine registeredFrom={from} title="Clients who joined in the period" linkFor={clientLink} />,
+                    "Your clients registered in the period.");
+                } : undefined },
               { label: "Papers expiring", value: data.clients.papersExpiring, danger: data.clients.papersExpiring > 0,
                 to: goTo("/my-clients") },
             ]} />
@@ -166,7 +236,7 @@ export function AdvisorDashboard() {
     kyc: (
       <Panel icon={IdCard} title="KYC status (my clients)" to={goTo("/my-clients")}>
         {data ? (
-          <Breakdown centre={`${data.kyc.completePercent}%`} centreLabel="KYC complete"
+          <Breakdown centre={`${data.kyc.completePercent}%`} centreLabel="KYC complete" onPick={panel ? pickKyc : undefined}
             rows={[
               { name: "Approved", value: data.kyc.approved, colour: "#16a34a" },
               { name: "In review", value: data.kyc.inReview, colour: "#f59e0b" },
@@ -181,8 +251,21 @@ export function AdvisorDashboard() {
         {data ? (
           <div className="space-y-3">
             <Strip figures={[
-              { label: "AUM (my clients)", value: money(data.clients.aum, cur), change: data.clients.aumChangePercent },
-              { label: "With a portfolio", value: data.portfolios.withPortfolio },
+              { label: "AUM (my clients)", value: money(data.clients.aum, cur), change: data.clients.aumChangePercent,
+                onClick: panel ? openAum : undefined },
+              { label: "With a portfolio", value: data.portfolios.withPortfolio,
+                onClick: panel ? () => panel({ name: "With a portfolio", figure: {
+                  label: "Portfolio summary",
+                  value: String(data.portfolios.withPortfolio),
+                  note: "Your clients with a portfolio on a model, and how far each is from its plan.",
+                  facts: [
+                    { label: "Off plan (drift)", value: String(data.portfolios.offPlan) },
+                    { label: "Proposals in draft", value: String(data.portfolios.drafts) },
+                    { label: "Model switches waiting", value: String(data.portfolios.modelChanges) },
+                  ],
+                  link: listLink,
+                  more: <DriftClients linkFor={clientLink} />,
+                } }) : undefined },
             ]} />
             <Counts linkFor={linkFor} iconFor={ICON_FOR} rows={[
               { key: "off-plan", label: "Clients off plan (drift)", count: data.portfolios.offPlan },
@@ -198,7 +281,7 @@ export function AdvisorDashboard() {
         {data ? <Counts rows={data.chase} linkFor={linkFor} iconFor={ICON_FOR} /> : <Loading />}
       </Panel>
     ),
-    signatures: <Signatures to={goTo("/to-sign")} />,
+    signatures: <Signatures to={goTo("/to-sign")} clientLink={clientLink} />,
     links: (
       <Panel icon={Link2} title="Key links">
         <ul className="space-y-1.5">
@@ -264,11 +347,20 @@ export function AdvisorDashboard() {
 }
 
 /** Onboarding packs waiting on this manager's signature. */
-function Signatures({ to }: { to?: string }) {
+function Signatures({ to, clientLink }: { to?: string; clientLink: LineLink }) {
   const toSign = useListPacksToSign<SignaturePackPage, ApiError>({ size: 1 });
+  const panel = useBookPanel();
+  const open = panel && toSign.data ? () => panel({ name: "Waiting on your signature", figure: {
+    label: "Signatures",
+    value: String(toSign.data?.totalItems ?? 0),
+    facts: [{ label: "Packs", value: String(toSign.data?.totalItems ?? 0) }, { label: "Waiting on you", value: String(toSign.data?.waitingOnMe ?? 0) }],
+    more: <PacksToSign linkFor={clientLink} />,
+  } }) : undefined;
   return (
     <Panel icon={FileSignature} title="Waiting on your signature" to={to}>
-      <p className="text-sm text-ink-muted">
+      <p className={open ? "cursor-pointer text-sm text-ink-muted hover:text-primary-700" : "text-sm text-ink-muted"}
+        {...(open ? { role: "button", tabIndex: 0, onClick: open,
+          onKeyDown: (event: KeyboardEvent<HTMLParagraphElement>) => { if (event.key === "Enter") open(); } } : {})}>
         {toSign.isError ? "These couldn't be counted just now."
           : !toSign.data ? "Counting…"
             : toSign.data.totalItems === 0 ? "Nothing is waiting on your signature."

@@ -9,7 +9,9 @@ import { Alert, Badge, cn } from "@atomprive/ui";
 import { ChevronLeft } from "lucide-react";
 import { Fragment, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
+import { useBookPanel } from "../../components/book-panel";
 import { formatDate } from "../../lib/labels";
+import { opens } from "../portfolios/figure-opens";
 import { money, signed } from "./holdings-words";
 import { FileViewToggle, type FileView } from "../../components/converted-usd";
 
@@ -65,6 +67,44 @@ export function HoldingsCheckBody({ data }: { data: ClientHoldingsCheck }) {
   const shown = only === "differences" ? differences : only === "matching" ? lines.filter((line) => line.status === "MATCHES") : lines;
   // Shown in groups, as the file groups them; a group is named once, above its first line.
   const groups = [...new Set(shown.map((line) => line.group))];
+  const panel = useBookPanel();
+  const fileTotalShown = usd && usd(summary.fileTotal, summary.currency) != null
+    ? money(usd(summary.fileTotal, summary.currency)!, "USD") : money(summary.fileTotal, summary.currency);
+  // The facts open the lines behind them, read off the line table: the file's own lines, and every line by its status.
+  const openFile = () => {
+    const onFile = lines.filter((line) => line.fileValue != null);
+    panel?.({
+      name: "Firm's file",
+      figure: {
+        label: `Holdings check · ${summary.clientName}`,
+        value: fileTotalShown,
+        note: `The ${onFile.length} line${onFile.length === 1 ? "" : "s"} on the firm's file that were compared, by ISIN, in ${summary.currency}${summary.withoutIsin > 0 ? `; ${summary.withoutIsin} without an ISIN are in the total but not compared` : ""}.`,
+        table: {
+          columns: ["Holding", "ISIN", "Group", "File: units", `File: value (${summary.currency})`],
+          rows: onFile.map((line) => [line.name, line.isin ?? null, line.group, line.fileUnits ?? null, line.fileValue ?? null]),
+        },
+      },
+    });
+  };
+  const openLines = () => panel?.({
+    name: "Lines",
+    figure: {
+      label: `Holdings check · ${summary.clientName}`,
+      value: String(lines.length),
+      note: "Every line compared, and what it came to. A line matches when units are equal and value is within 0.5% or 100.",
+      facts: [
+        { label: "Match", value: String(summary.matching) },
+        { label: "Differ", value: String(summary.differing) },
+        { label: "Only at bank", value: String(summary.onlyAtBank) },
+        { label: "Not at bank", value: String(summary.notAtBank) },
+      ],
+      table: {
+        columns: ["Holding", "ISIN", "Status", "Units difference", "Value difference"],
+        rows: lines.map((line) => [line.name, line.isin ?? null, STATUS[line.status].label,
+          line.unitsDifference ?? null, line.status === "ONLY_AT_BANK" ? null : line.valueDifference]),
+      },
+    },
+  });
 
   return (
     <div className="space-y-5">
@@ -85,10 +125,10 @@ export function HoldingsCheckBody({ data }: { data: ClientHoldingsCheck }) {
 
       {/* No total of the bank's side: its holdings are each in their own currency, as the bank sent them. */}
       <dl className="grid gap-3 sm:grid-cols-2">
-        <Fact label="Firm's file">
-          {usd && usd(summary.fileTotal, summary.currency) != null ? money(usd(summary.fileTotal, summary.currency)!, "USD") : money(summary.fileTotal, summary.currency)}
+        <Fact label="Firm's file" onOpen={panel ? openFile : undefined}>
+          {fileTotalShown}
         </Fact>
-        <Fact label="Lines">
+        <Fact label="Lines" onOpen={panel ? openLines : undefined}>
           {[`${summary.matching} match`, summary.differing && `${summary.differing} differ`,
             summary.onlyAtBank && `${summary.onlyAtBank} only at bank`, summary.notAtBank && `${summary.notAtBank} not at bank`]
             .filter(Boolean).join(" · ")}
@@ -249,9 +289,10 @@ function figure(value: number | null | undefined, places = 0) {
   return value == null ? "—" : value.toLocaleString("en-US", { minimumFractionDigits: places, maximumFractionDigits: places || 2 });
 }
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+function Fact({ label, children, onOpen }: { label: string; children: ReactNode; onOpen?: () => void }) {
   return (
-    <div className="rounded-xl border border-line bg-white px-4 py-3">
+    <div {...(onOpen ? opens(onOpen) : {})}
+      className={cn("rounded-xl border border-line bg-white px-4 py-3", onOpen && "cursor-pointer hover:border-primary-200 hover:bg-canvas")}>
       <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
       <dd className="mt-1 font-semibold tabular-nums">{children}</dd>
     </div>

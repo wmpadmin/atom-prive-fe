@@ -70,6 +70,8 @@ import logoDark from "./assets/brand/atom-prive-logo-dark.png";
 import markLight from "./assets/brand/atom-prive-mark.png";
 import markDark from "./assets/brand/atom-prive-mark-dark.png";
 import { roleLabels, type StaffRole } from "./lib/labels";
+import { ScreenGate } from "./components/screen-gate";
+import { BookPanelHost } from "./components/book-panel";
 
 // Menu items appear as their screens are built; each is hidden from people the permission matrix doesn't allow (#75, #85).
 // A null authority is a screen everyone signed in can reach, such as their own declarations.
@@ -1096,7 +1098,11 @@ export function AppLayout() {
         </header>
         <WorkspaceStrip />
         <main className="flex-1 px-8 pb-10">
-          <Outlet />
+          <ScreenGate>
+            <BookPanelHost>
+              <Outlet />
+            </BookPanelHost>
+          </ScreenGate>
         </main>
       </div>
     </div>

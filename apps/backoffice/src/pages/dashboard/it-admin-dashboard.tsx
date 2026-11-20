@@ -26,6 +26,8 @@ import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatRelative } from "../../lib/labels";
 import { menuFor } from "../../menu";
+import { useBookPanel } from "../../components/book-panel";
+import type { FigureDetail } from "../client-workspace/figure-panel";
 import {
   AskTheAssistant,
   Breakdown,
@@ -39,6 +41,7 @@ import {
 } from "./dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
 import { sharesFigure, singleFigure } from "../layout/own-cards";
+import { AuditEventList, ClientSessionList, StaffSessionList, SyncRuns, TicketList } from "./dashboard-panel-lists";
 
 /**
  * The IT Admin's dashboard: support tickets, who is signed in and who was looked at as somebody else, whether the
@@ -129,6 +132,64 @@ export function ItAdminDashboard() {
   const data = figures.data;
   const stillOpen = data ? data.tickets.open + data.tickets.inProgress + data.tickets.waiting : 0;
   const active = data ? data.sessions.staff + data.sessions.clients + data.sessions.signedInAs : 0;
+  const panel = useBookPanel();
+  const open = (name: string, figure: FigureDetail) => panel?.({ name, figure });
+  const period = PERIODS.find((one) => one.days === days)?.label ?? `Last ${days} days`;
+  // The start of the period the dashboard counts over, read when a figure is opened.
+  const since = () => new Date(Date.now() - days * 86_400_000).toISOString();
+  const openTickets = (index: number) => {
+    if (!data) return;
+    const parts = [
+      { name: "Open", value: data.tickets.open, statuses: ["OPEN"] },
+      { name: "In progress", value: data.tickets.inProgress, statuses: ["IN_PROGRESS"] },
+      { name: "Waiting on the person", value: data.tickets.waiting, statuses: ["WAITING"] },
+    ];
+    const part = parts[index];
+    if (part) {
+      open(part.name, {
+        label: "Support tickets", value: String(part.value), note: "Tickets in this status now, from the support queue.",
+        facts: [{ label: "Open tickets in all", value: String(stillOpen) }],
+        link: goTo("/support") ? { to: "/support", label: "Open support" } : undefined,
+        more: <TicketList keep={(one) => part.statuses.includes(one.status)} title={`${part.name} tickets`} />,
+      });
+      return;
+    }
+    if (index === 3) openClosed();
+  };
+  const openClosed = () => {
+    if (!data) return;
+    const from = since();
+    open("Closed in the period", {
+      label: "Support tickets", value: String(data.tickets.closed),
+      note: `Resolved or closed in the ${period.toLowerCase()}. The list reads each ticket's last update, which can differ from when it was resolved.`,
+      facts: [{ label: "Period", value: period }],
+      link: goTo("/support") ? { to: "/support", label: "Open support" } : undefined,
+      more: <TicketList keep={(one) => ["RESOLVED", "CLOSED"].includes(one.status) && one.updatedAt >= from} title="Tickets closed" />,
+    });
+  };
+  const openSessions = (index: number) => {
+    if (!data) return;
+    if (index === 0) {
+      open("Staff sessions", {
+        label: "Access & sessions", value: String(data.sessions.staff), note: "Staff sessions not ended and not yet expired.",
+        facts: [{ label: "Signed in, all", value: String(active) }],
+        more: <StaffSessionList />,
+      });
+    } else if (index === 1) {
+      open("Client sessions", {
+        label: "Access & sessions", value: String(data.sessions.clients), note: "Client portal sessions not ended and not yet expired.",
+        facts: [{ label: "Signed in, all", value: String(active) }],
+        more: <ClientSessionList live />,
+      });
+    } else if (index === 2) {
+      open("Sign in as (running)", {
+        label: "Access & sessions", value: String(data.sessions.signedInAs),
+        note: "Sign-in-as sessions started within the time one lasts. A list of the running ones isn't available yet.",
+        link: goTo("/sign-in-as") ? { to: "/sign-in-as", label: "Open Sign in as" } : undefined,
+      });
+    }
+  };
+  const openHealth = (name: string, figure: Omit<FigureDetail, "label">) => open(name, { label: "System health", ...figure });
 
   const render: Record<CardId, ReactNode> = {
     tickets: (
@@ -141,11 +202,29 @@ export function ItAdminDashboard() {
                 { name: "In progress", value: data.tickets.inProgress, colour: "#1d6ee8" },
                 { name: "Waiting on the person", value: data.tickets.waiting, colour: "#f59e0b" },
                 { name: "Closed in the period", value: data.tickets.closed, colour: "#cbd5e1", apart: true },
-              ]} />
+              ]} onPick={openTickets} />
             <Strip figures={[
               { label: "Avg. resolution",
-                value: data.tickets.averageHoursToResolve == null ? "—" : `${data.tickets.averageHoursToResolve} hrs` },
-              { label: "Raised", value: data.tickets.raised },
+                value: data.tickets.averageHoursToResolve == null ? "—" : `${data.tickets.averageHoursToResolve} hrs`,
+                onClick: () => {
+                  const from = since();
+                  open("Average resolution", {
+                    label: "Support tickets",
+                    value: data.tickets.averageHoursToResolve == null ? "—" : `${data.tickets.averageHoursToResolve} hrs`,
+                    note: `From raised to resolved, over the tickets resolved in the ${period.toLowerCase()}. The list reads each ticket's last update, which can differ from when it was resolved.`,
+                    facts: [{ label: "Closed in the period", value: String(data.tickets.closed) }, { label: "Period", value: period }],
+                    more: <TicketList keep={(one) => ["RESOLVED", "CLOSED"].includes(one.status) && one.updatedAt >= from} title="Tickets closed" />,
+                  });
+                } },
+              { label: "Raised", value: data.tickets.raised,
+                onClick: () => {
+                  const from = since();
+                  open("Raised", {
+                    label: "Support tickets", value: String(data.tickets.raised), note: `Tickets raised in the ${period.toLowerCase()}.`,
+                    facts: [{ label: "Period", value: period }],
+                    more: <TicketList keep={(one) => one.createdAt >= from} title="Tickets raised" />,
+                  });
+                } },
               { label: "Untouched a day", value: data.tickets.overdue, danger: data.tickets.overdue > 0, to: goTo("/support") },
             ]} />
           </div>
@@ -161,9 +240,16 @@ export function ItAdminDashboard() {
                 { name: "Staff sessions", value: data.sessions.staff, colour: "#8b5cf6" },
                 { name: "Client sessions", value: data.sessions.clients, colour: "#16a34a" },
                 { name: "Sign in as (running)", value: data.sessions.signedInAs, colour: "#f59e0b" },
-              ]} />
+              ]} onPick={openSessions} />
             <Strip figures={[
-              { label: "Sign-ins", value: data.sessions.signInsInPeriod },
+              { label: "Sign-ins", value: data.sessions.signInsInPeriod,
+                onClick: () => open("Sign-ins", {
+                  label: "Access & sessions", value: String(data.sessions.signInsInPeriod),
+                  note: `Staff and client sign-ins that succeeded in the ${period.toLowerCase()}, from the audit log.`,
+                  facts: [{ label: "Period", value: period }],
+                  link: goTo("/audit-log") ? { to: "/audit-log", label: "Open the audit log" } : undefined,
+                  more: <AuditEventList actions={["staff.login.succeeded", "client.security.login_succeeded"]} from={since()} title="Sign-ins" />,
+                }) },
               { label: "Sign in as", value: data.sessions.signInsAsInPeriod, to: goTo("/sign-in-as") },
             ]} />
           </div>
@@ -184,11 +270,20 @@ export function ItAdminDashboard() {
               </div>
             </div>
             <dl className="divide-y divide-line text-sm">
-              <Row label="Database">
+              <Row label="Database" onClick={() => openHealth("Database", {
+                value: data.health.databaseUp ? "Up" : "Down", note: "Whether the database answered when the dashboard was last read. No history of past checks is kept yet.",
+              })}>
                 <Badge tone={data.health.databaseUp ? "success" : "danger"}>{data.health.databaseUp ? "Up" : "Down"}</Badge>
               </Row>
-              <Row label="API response">{data.health.apiLatencyMillis} ms</Row>
-              <Row label="Last bank sync">
+              <Row label="API response" onClick={() => openHealth("API response", {
+                value: `${data.health.apiLatencyMillis} ms`, note: "How long this dashboard's figures took to read, measured once. No history of response times is kept yet.",
+              })}>{data.health.apiLatencyMillis} ms</Row>
+              <Row label="Last bank sync" onClick={() => openHealth("Last bank sync", {
+                value: data.health.lastSyncRunAt ? formatRelative(data.health.lastSyncRunAt) : "None yet",
+                facts: data.health.lastSyncOutcome ? [{ label: "Outcome", value: data.health.lastSyncOutcome === "FAILED" ? "Failed" : data.health.lastSyncOutcome }] : undefined,
+                link: goTo("/ingestion") ? { to: "/ingestion", label: "Open bank feeds" } : undefined,
+                more: <SyncRuns title="Latest bank syncs" />,
+              })}>
                 {data.health.lastSyncRunAt ? (
                   <span className="flex items-center gap-2">
                     {formatRelative(data.health.lastSyncRunAt)}
@@ -196,8 +291,12 @@ export function ItAdminDashboard() {
                   </span>
                 ) : "None yet"}
               </Row>
-              <Row label="Background work queued">{data.health.pendingEvents}</Row>
-              <Row label="Emails that failed today">
+              <Row label="Background work queued" onClick={() => openHealth("Background work queued", {
+                value: String(data.health.pendingEvents), note: "Events published and not yet completed. A list of them isn't available yet.",
+              })}>{data.health.pendingEvents}</Row>
+              <Row label="Emails that failed today" onClick={() => openHealth("Emails that failed today", {
+                value: String(data.health.failedEmailsToday), note: "Emails that could not be delivered today. A list of them isn't available yet.",
+              })}>
                 <span className={cn(data.health.failedEmailsToday > 0 && "text-red-600")}>{data.health.failedEmailsToday}</span>
               </Row>
             </dl>
@@ -207,7 +306,14 @@ export function ItAdminDashboard() {
     ),
     users: (
       <Panel icon={UserCog} title="User management" to={goTo("/users")}>
-        {data ? <Counts rows={data.users} linkFor={linkFor} iconFor={ICON_FOR} /> : <Loading />}
+        {data ? <Counts rows={data.users} linkFor={linkFor} iconFor={ICON_FOR}
+          onPick={(row) => {
+            if (row.key !== "client-logins") return;
+            open(row.label, {
+              label: "User management", value: String(row.count), note: "Every client with a way into the portal.",
+              more: <ClientSessionList live={false} />,
+            });
+          }} /> : <Loading />}
       </Panel>
     ),
     security: (

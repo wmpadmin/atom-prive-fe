@@ -3,9 +3,13 @@ import {
   useGetClientWorkspacePrivateMarkets,
   type ClientPrivateMarkets,
   type IpsAllocationRow,
+  type PmFileCall,
+  type PmFileCommitment,
   type PmFund,
   type PmHedgeFund,
   type PmKpi,
+  type PmQuarter,
+  type PmYear,
   type WorkspaceConverted,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
@@ -13,7 +17,7 @@ import { ScatterChart } from "echarts/charts";
 import { MarkLineComponent } from "echarts/components";
 import * as echarts from "echarts/core";
 import { LabelLayout } from "echarts/features";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { FileViewToggle, inUsd, sumInUsd, type FileView } from "../../components/converted-usd";
 import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
@@ -27,6 +31,7 @@ import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
+import type { FigureDetail } from "./figure-panel";
 
 echarts.use([ScatterChart, MarkLineComponent, LabelLayout]);
 
@@ -130,12 +135,17 @@ function Kpis({ data }: { data: ClientPrivateMarkets }) {
   ];
   const kpis: (PmKpi | null)[] = data.bankFile ? fileKpis : data.kpis;
   const cur = conv ? conv.currency : data.currency;
+  const drill = useDrill();
+  const open = (one: PmKpi) => drill?.({ by: "figure", key: `private-markets.kpi.${one.key}`, name: one.label, figure: kpiFigure(data, one, cur) });
   return (
     <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
       {kpis.map((one, at) => rows ? (
-        <FigureRow key={one?.key ?? KPI_LABELS[at]} label={one?.label ?? KPI_LABELS[at]} value={!one ? <NotInFile /> : kpiValue(one, cur)} note={one?.detail && <>{one.detail}{one.extra && <> <span className={cn("font-semibold", one.extraTone === "UP" ? "text-emerald-700" : "text-red-700")}>{one.extra}</span></>}</>} />
+        <FigureRow key={one?.key ?? KPI_LABELS[at]} label={!one ? KPI_LABELS[at] : (
+          <button type="button" className="text-left hover:text-primary-700 hover:underline" onClick={() => open(one)}>{one.label}</button>
+        )} value={!one ? <NotInFile /> : kpiValue(one, cur)} note={one?.detail && <>{one.detail}{one.extra && <> <span className={cn("font-semibold", one.extraTone === "UP" ? "text-emerald-700" : "text-red-700")}>{one.extra}</span></>}</>} />
       ) : (
-        <div key={one?.key ?? KPI_LABELS[at]} className="rounded-2xl border border-line bg-white px-4 py-3.5">
+        <div key={one?.key ?? KPI_LABELS[at]} className={cn("rounded-2xl border border-line bg-white px-4 py-3.5", one && "cursor-pointer")}
+          {...(one ? { role: "button", tabIndex: 0, onClick: () => open(one), onKeyDown: (event: ReactKeyboardEvent) => { if (event.key === "Enter") open(one); } } : {})}>
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? KPI_LABELS[at]}</p>
           {!one ? <div className="mt-2"><NotInFile /></div> : (
             <>
@@ -158,10 +168,13 @@ const MULTIPLE_LABELS = ["TVPI", "DPI", "RVPI", "MOIC · gross", "Fee drag"];
 
 function Multiples({ data }: { data: ClientPrivateMarkets }) {
   const rows: (PmKpi | null)[] = data.bankFile || data.multiples.length === 0 ? MULTIPLE_LABELS.map(() => null) : data.multiples;
+  const drill = useDrill();
+  const open = (one: PmKpi) => drill?.({ by: "figure", key: `private-markets.multiple.${one.key}`, name: one.label, figure: kpiFigure(data, one, data.currency) });
   return (
     <div className="grid gap-x-6 gap-y-4 rounded-2xl border border-line bg-white px-5 py-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))]">
       {rows.map((one, at) => (
-        <div key={one?.key ?? MULTIPLE_LABELS[at]}>
+        <div key={one?.key ?? MULTIPLE_LABELS[at]} className={cn(one && "cursor-pointer")}
+          {...(one ? { role: "button", tabIndex: 0, onClick: () => open(one), onKeyDown: (event: ReactKeyboardEvent) => { if (event.key === "Enter") open(one); } } : {})}>
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? MULTIPLE_LABELS[at]}</p>
           {!one ? <div className="mt-2"><NotInFile /></div> : (
             <>
@@ -265,6 +278,8 @@ function SegmentLine({ row, scale, currency }: { row: IpsAllocationRow; scale: n
 /* ------------------------------------------------------------------------------------------------------------ */
 
 function JCurveCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardChart }) {
+  const drill = useDrill();
+  const open = (one: PmYear | undefined) => { if (one) drill?.({ by: "figure", key: `private-markets.year.${one.year}`, name: `Cash flows · ${one.year}`, figure: yearFigure(data, one) }); };
   const bars = useMemo(() => {
     const colours = ink();
     return {
@@ -306,15 +321,16 @@ function JCurveCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardCh
       picker={!data.bankFile && data.years.length > 0 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.years.length === 0 ? <Empty>No calls or distributions on file.</Empty> : (
         <>
-          {chart.own ? <Chart option={bars} height={230} label="Capital calls and distributions by year" /> : (
+          {chart.own ? <Chart option={bars} height={230} label="Capital calls and distributions by year" onPick={(_, at) => open(data.years[at])} /> : (
             <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={230} label="Capital calls and distributions by year"
               data={{ shape: "series", categories: data.years.map((one) => String(one.year)), series: [
                 { name: "Distributions", values: data.years.map((one) => one.distributions), colour: ink().primary },
                 { name: "Capital calls", values: data.years.map((one) => one.calls), colour: ink().danger },
-              ] }} />
+              ] }}
+              onPick={(at) => open(data.years[at])} />
           )}
           <p className="mt-4 text-3xs font-semibold tracking-wider text-ink-muted uppercase">Cumulative position</p>
-          <Chart option={lines} height={220} label="Cumulative net cash flow and value created by year" />
+          <Chart option={lines} height={220} label="Cumulative net cash flow and value created by year" onPick={(_, at) => open(data.years[at])} />
         </>
       )}
     </Card>
@@ -517,6 +533,8 @@ function FundLine({ row, currency }: { row: PmFund; currency: string }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 
 function ScorecardCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardChart }) {
+  const drill = useDrill();
+  const open = (name: string | undefined) => { if (name) drill?.({ by: "fund", key: name, name }); };
   const option = useMemo(() => {
     const colours = ink();
     const largest = Math.max(1, ...data.scorecard.map((one) => one.committed));
@@ -547,9 +565,10 @@ function ScorecardCard({ data, chart }: { data: ClientPrivateMarkets; chart: Car
       picker={!data.bankFile && data.scorecard.length > 0 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.scorecard.length === 0 ? <Empty>No fund has a meaningful IRR yet: under 3 years since vintage or under a year of own flows.</Empty> : (
         <>
-          {chart.own ? <Chart option={option} height={300} label="Each fund's TVPI against its net IRR" /> : (
+          {chart.own ? <Chart option={option} height={300} label="Each fund's TVPI against its net IRR" onPick={(name) => open(name)} /> : (
             <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={300} label="Each fund's TVPI against its net IRR"
-              data={{ shape: "points", xName: "Net IRR %", yName: "TVPI ×", sizeName: "Committed", items: data.scorecard.map((one) => ({ name: one.name, x: one.irr, y: one.tvpi, size: one.committed })) }} />
+              data={{ shape: "points", xName: "Net IRR %", yName: "TVPI ×", sizeName: "Committed", items: data.scorecard.map((one) => ({ name: one.name, x: one.irr, y: one.tvpi, size: one.committed })) }}
+              onPick={(at) => open(data.scorecard[at]?.name)} />
           )}
           {data.scorecardNote && <p className="mt-2 text-xs text-ink-muted">{data.scorecardNote}.</p>}
         </>
@@ -559,6 +578,8 @@ function ScorecardCard({ data, chart }: { data: ClientPrivateMarkets; chart: Car
 }
 
 function PacingCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardChart }) {
+  const drill = useDrill();
+  const open = (one: PmQuarter | undefined) => { if (one) drill?.({ by: "figure", key: `private-markets.pacing.${one.label}`, name: `Pacing · ${one.label}`, figure: quarterFigure(data, one) }); };
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -582,12 +603,13 @@ function PacingCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardCh
       picker={!data.bankFile && data.pacing.length > 0 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.pacing.length === 0 ? <Empty>No commitments to pace.</Empty> : (
         <>
-          {chart.own ? <Chart option={option} height={280} label="Projected calls and distributions by quarter" /> : (
+          {chart.own ? <Chart option={option} height={280} label="Projected calls and distributions by quarter" onPick={(_, at) => open(data.pacing[at])} /> : (
             <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={280} label="Projected calls and distributions by quarter"
               data={{ shape: "series", categories: data.pacing.map((one) => one.label), series: [
                 { name: "Projected distributions", values: data.pacing.map((one) => one.distributions), colour: ink().primary },
                 { name: "Projected calls", values: data.pacing.map((one) => one.calls), colour: ink().danger },
-              ] }} />
+              ] }}
+              onPick={(at) => open(data.pacing[at])} />
           )}
           <p className="mt-2 text-xs text-ink-muted">
             Takahashi-Alexander model · base case.{" "}
@@ -654,6 +676,8 @@ function NoticesCard({ data }: { data: ClientPrivateMarkets }) {
 
 function HedgeFundsCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardChart }) {
   const funds = data.hedgeFunds;
+  const drill = useDrill();
+  const open = (one: PmHedgeFund | undefined) => { if (one) drill?.({ by: "figure", key: `private-markets.hedge.${one.name}`, name: one.name, figure: hedgeFigure(data, one) }); };
   return (
     <Card title="Hedge Funds" lead={data.bankFile ? undefined : data.hedgeNote ?? undefined} flush picker={!data.bankFile && funds.length > 0 && chart.picker}>
       {data.bankFile ? <div className="px-5"><FileBlock /></div> : funds.length === 0 ? <Empty>No hedge funds in the client's alternatives lines.</Empty> : !chart.own ? (
@@ -663,10 +687,12 @@ function HedgeFundsCard({ data, chart }: { data: ClientPrivateMarkets; chart: Ca
               data={{ shape: "series", categories: funds.map((one) => one.name), series: [
                 { name: "YTD", values: funds.map((one) => one.ytd) },
                 { name: "3Y ann.", values: funds.map((one) => one.threeYear) },
-              ] }} />
+              ] }}
+              onPick={(at) => open(funds[at])} />
           ) : (
             <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={60 + funds.length * 28} label="What each hedge fund holds for the client"
-              data={{ shape: "shares", items: funds.map((one) => ({ name: one.name, value: one.value })) }} />
+              data={{ shape: "shares", items: funds.map((one) => ({ name: one.name, value: one.value })) }}
+              onPick={(at) => open(funds[at])} />
           )}
         </div>
       ) : (
@@ -684,8 +710,8 @@ function HedgeFundsCard({ data, chart }: { data: ClientPrivateMarkets; chart: Ca
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {data.hedgeFunds.map((one) => <HedgeLine key={one.name} row={one} currency={data.currency} />)}
-              {data.hedgeSleeve && <HedgeLine row={data.hedgeSleeve} currency={data.currency} sleeve />}
+              {data.hedgeFunds.map((one) => <HedgeLine key={one.name} row={one} currency={data.currency} onOpen={open} />)}
+              {data.hedgeSleeve && <HedgeLine row={data.hedgeSleeve} currency={data.currency} sleeve onOpen={open} />}
             </tbody>
           </table>
         </div>
@@ -694,11 +720,13 @@ function HedgeFundsCard({ data, chart }: { data: ClientPrivateMarkets; chart: Ca
   );
 }
 
-function HedgeLine({ row, currency, sleeve }: { row: PmHedgeFund; currency: string; sleeve?: boolean }) {
+function HedgeLine({ row, currency, sleeve, onOpen }: { row: PmHedgeFund; currency: string; sleeve?: boolean; onOpen: (row: PmHedgeFund) => void }) {
   const signed = (value: number | null) => (value == null ? <span className="text-ink-muted">—</span> : `${value > 0 ? "+" : ""}${value.toFixed(1)}%`);
   return (
-    <tr className={cn(sleeve && "bg-slate-50 font-semibold")}>
-      <th scope="row" className="py-2 pr-3 pl-5 text-left font-semibold whitespace-nowrap">{row.name}</th>
+    <tr className={cn("cursor-pointer hover:bg-canvas", sleeve && "bg-slate-50 font-semibold")} onClick={() => onOpen(row)}>
+      <th scope="row" className="py-2 pr-3 pl-5 text-left font-semibold whitespace-nowrap">
+        <button type="button" className="text-left hover:text-primary-700 hover:underline" onClick={(event) => { event.stopPropagation(); onOpen(row); }}>{row.name}</button>
+      </th>
       <td className="px-2 py-2 whitespace-nowrap">{row.strategy ?? ""}</td>
       <td className="px-2 py-2 text-right tabular-nums">{compact(row.value, currency)}</td>
       <td className="px-2 py-2 whitespace-nowrap">{row.liquidity ?? ""}</td>
@@ -715,6 +743,129 @@ function HedgeLine({ row, currency, sleeve }: { row: PmHedgeFund; currency: stri
 }
 
 /* ------------------------------------------------------------------------------------------------------------ */
+
+/** Each key figure or multiple as a fund line of the commitments table reads it. */
+const FUND_COLUMN: Record<string, [string, (fund: PmFund) => number | string | null, "money" | "multiple" | "percent"]> = {
+  COMMITMENTS: ["Commitment", (fund) => fund.committed, "money"],
+  PAID_IN: ["Paid-in", (fund) => fund.paidIn, "money"],
+  DISTRIBUTIONS: ["Distributed", (fund) => fund.distributed, "money"],
+  NAV: ["NAV", (fund) => fund.nav, "money"],
+  UNFUNDED: ["Unfunded", (fund) => fund.unfunded, "money"],
+  NET_IRR: ["Net IRR", (fund) => (fund.irr != null ? `${fund.irr > 0 ? "+" : ""}${fund.irr.toFixed(1)}%` : fund.irrText), "percent"],
+  TVPI: ["TVPI", (fund) => (fund.tvpi == null ? null : `${fund.tvpi.toFixed(2)}×`), "multiple"],
+  DPI: ["DPI", (fund) => (fund.dpi == null ? null : `${fund.dpi.toFixed(2)}×`), "multiple"],
+  RVPI: ["RVPI", (fund) => (fund.paidIn > 0 ? `${(fund.nav / fund.paidIn).toFixed(2)}×` : null), "multiple"],
+};
+
+/** A key figure or multiple: each fund's own figure beside its commitment and NAV, to the program's figure. */
+function kpiFigure(data: ClientPrivateMarkets, one: PmKpi, currency: string): FigureDetail {
+  const value = kpiValue(one, currency);
+  const note = [one.detail, one.extra].filter(Boolean).join(" · ") || undefined;
+  if (data.bankFile) {
+    return { label: "Private markets", value, note,
+      table: { title: "Commitments entered by staff", columns: ["Fund", "Currency", "Committed", "Called", "Unfunded"],
+        rows: data.fileCommitments.map((line) => [line.fund, line.currency, line.committed, line.called, line.unfunded]) } };
+  }
+  const column = FUND_COLUMN[one.key];
+  if (!column) return { label: "Private markets", value, note };
+  const [name, read, kind] = column;
+  const funds = data.funds.filter((fund) => !fund.total);
+  const all = data.totals.find((fund) => fund.tab === "ALL");
+  const money = kind === "money" && one.key !== "COMMITMENTS" && one.key !== "NAV";
+  return {
+    label: "Private markets",
+    value,
+    note: [note, one.key === "RVPI" ? "Each fund's NAV over its paid-in." : undefined].filter(Boolean).join(" · ") || undefined,
+    table: {
+      title: "By fund",
+      columns: money ? ["Fund", "Commitment", "NAV", name] : one.key === "COMMITMENTS" ? ["Fund", "Commitment", "NAV"] : one.key === "NAV" ? ["Fund", "Commitment", "NAV", "NAV date"] : ["Fund", "Commitment", "NAV", name],
+      rows: funds.map((fund) => one.key === "COMMITMENTS" ? [fund.name, fund.committed, fund.nav]
+        : one.key === "NAV" ? [fund.name, fund.committed, fund.nav, day(fund.navDate)] : [fund.name, fund.committed, fund.nav, read(fund)]),
+      total: one.key === "COMMITMENTS" ? ["Program", all?.committed ?? one.value, all?.nav ?? null]
+        : one.key === "NAV" ? ["Program", all?.committed ?? null, all?.nav ?? one.value, null] : ["Program", all?.committed ?? null, all?.nav ?? null, value],
+    },
+  };
+}
+
+/** One year of the program's cash flows, as the J-curve draws it. */
+function yearFigure(data: ClientPrivateMarkets, one: PmYear): FigureDetail {
+  const money = (value: number) => compact(value, data.currency);
+  return {
+    label: "J-curve & cash-flow history",
+    value: money(one.distributions + one.calls),
+    note: `Net cash flow in ${one.year}: distributions less capital calls, program level. Calls and distributions by fund for the year are not on this screen.`,
+    facts: [
+      { label: "Capital calls", value: money(one.calls) },
+      { label: "Distributions", value: money(one.distributions) },
+      { label: "Cumulative net", value: money(one.cumulativeNet) },
+      { label: "Value created", value: money(one.valueCreated) },
+    ],
+  };
+}
+
+/** One quarter of the pacing forecast. */
+function quarterFigure(data: ClientPrivateMarkets, one: PmQuarter): FigureDetail {
+  const money = (value: number) => compact(value, data.currency);
+  return {
+    label: "Pacing forecast",
+    value: money(one.distributions + one.calls),
+    note: `Expected net cash flow in ${one.label} on existing commitments: Takahashi-Alexander model, base case.`,
+    facts: [
+      { label: "Projected calls", value: money(one.calls) },
+      { label: "Projected distributions", value: money(one.distributions) },
+    ],
+  };
+}
+
+/** A hedge fund, or the sleeve, as its row reads. */
+function hedgeFigure(data: ClientPrivateMarkets, one: PmHedgeFund): FigureDetail {
+  const pc = (value: number | null) => (value == null ? "—" : `${value > 0 ? "+" : ""}${value.toFixed(1)}%`);
+  return {
+    label: "Hedge funds",
+    value: compact(one.value, data.currency),
+    note: data.hedgeNote ?? undefined,
+    facts: [
+      ...(one.strategy ? [{ label: "Strategy", value: one.strategy }] : []),
+      ...(one.liquidity ? [{ label: "Liquidity", value: one.liquidity }] : []),
+      ...(one.lockup ? [{ label: "Lock-up / gate", value: one.lockup }] : []),
+      { label: "YTD", value: pc(one.ytd) },
+      { label: "3Y ann.", value: pc(one.threeYear) },
+      { label: "Vol", value: one.volatility == null ? "—" : `${one.volatility.toFixed(1)}%` },
+      { label: "Sharpe", value: one.sharpe == null ? "—" : one.sharpe.toFixed(2) },
+      { label: "Corr. ACWI", value: one.correlation == null ? "—" : one.correlation.toFixed(2) },
+    ],
+  };
+}
+
+/** A bank-file client's commitment as staff entered it, in its own currency. */
+function fileCommitmentFigure(one: PmFileCommitment): FigureDetail {
+  return {
+    label: "Commitment · entered by staff",
+    value: exact(one.committed, one.currency),
+    note: "Entered by staff, not from the bank file. NAV, IRR and TVPI are not in the bank file.",
+    facts: [
+      { label: "Called", value: exact(one.called, one.currency) },
+      { label: "% called", value: one.committed > 0 ? `${((one.called / one.committed) * 100).toFixed(1)}%` : "—" },
+      { label: "Unfunded", value: exact(one.unfunded, one.currency) },
+      { label: "Currency", value: one.currency },
+    ],
+  };
+}
+
+/** A bank-file client's capital call as staff entered it, in its own currency. */
+function fileCallFigure(one: PmFileCall): FigureDetail {
+  return {
+    label: "Capital call · entered by staff",
+    value: `−${exact(one.amount, one.currency)}`,
+    note: "Entered by staff, not from the bank file.",
+    facts: [
+      { label: "Due", value: day(one.dueOn) },
+      { label: "Noticed", value: day(one.noticedOn) },
+      { label: "Status", value: one.status },
+      { label: "Currency", value: one.currency },
+    ],
+  };
+}
 
 /** What Private Markets offers for a card of the reader's own: its key figures, cash flows and commitments. */
 function privateFigures(data: ClientPrivateMarkets): Figures {
@@ -787,9 +938,11 @@ function NotInFile() {
  * distributions and multiples would mix what the bank's files state with what they do not.
  */
 function FileCommitments({ data, view }: { data: ClientPrivateMarkets; view: FileView }) {
+  const drill = useDrill();
   if (data.fileCommitments.length === 0) return <div className="px-5"><FileBlock /></div>;
   const conv = view === "converted" ? data.converted : null;
   const shown = (amount: number, currency: string) => <Both amount={amount} currency={currency} conv={conv} />;
+  const open = (one: PmFileCommitment) => drill?.({ by: "figure", key: `private-markets.file-commitment.${one.fund}.${one.currency}`, name: one.fund, figure: fileCommitmentFigure(one) });
   return (
     <>
       <div className="overflow-x-auto">
@@ -806,8 +959,10 @@ function FileCommitments({ data, view }: { data: ClientPrivateMarkets; view: Fil
           </thead>
           <tbody className="divide-y divide-line">
             {data.fileCommitments.map((one) => (
-              <tr key={`${one.fund}-${one.currency}`}>
-                <th scope="row" className="py-2 pr-3 pl-5 text-left font-semibold">{one.fund}</th>
+              <tr key={`${one.fund}-${one.currency}`} className="cursor-pointer hover:bg-canvas" onClick={() => open(one)}>
+                <th scope="row" className="py-2 pr-3 pl-5 text-left font-semibold">
+                  <button type="button" className="text-left hover:text-primary-700 hover:underline" onClick={(event) => { event.stopPropagation(); open(one); }}>{one.fund}</button>
+                </th>
                 <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{shown(one.committed, one.currency)}</td>
                 <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{shown(one.called, one.currency)}</td>
                 <td className="px-2 py-2 text-right tabular-nums">{one.committed > 0 ? `${((one.called / one.committed) * 100).toFixed(1)}%` : "—"}</td>
@@ -824,8 +979,10 @@ function FileCommitments({ data, view }: { data: ClientPrivateMarkets; view: Fil
 
 /** A bank-file client's capital calls as staff entered them, each in its own currency. */
 function FileCalls({ data, view }: { data: ClientPrivateMarkets; view: FileView }) {
+  const drill = useDrill();
   if (data.fileCalls.length === 0) return <div className="px-5"><FileBlock /></div>;
   const conv = view === "converted" ? data.converted : null;
+  const open = (one: PmFileCall, at: number) => drill?.({ by: "figure", key: `private-markets.file-call.${one.fund}.${one.dueOn}.${at}`, name: one.fund, figure: fileCallFigure(one) });
   return (
     <>
       <div className="overflow-x-auto">
@@ -841,8 +998,10 @@ function FileCalls({ data, view }: { data: ClientPrivateMarkets; view: FileView 
           </thead>
           <tbody className="divide-y divide-line">
             {data.fileCalls.map((one, at) => (
-              <tr key={`${one.fund}-${one.dueOn}-${at}`}>
-                <th scope="row" className="py-2 pr-3 pl-5 text-left font-semibold">{one.fund}</th>
+              <tr key={`${one.fund}-${one.dueOn}-${at}`} className="cursor-pointer hover:bg-canvas" onClick={() => open(one, at)}>
+                <th scope="row" className="py-2 pr-3 pl-5 text-left font-semibold">
+                  <button type="button" className="text-left hover:text-primary-700 hover:underline" onClick={(event) => { event.stopPropagation(); open(one, at); }}>{one.fund}</button>
+                </th>
                 <td className="px-2 py-2"><Pill tone="bg-red-50 text-red-700">Capital call</Pill></td>
                 <td className="px-2 py-2 whitespace-nowrap tabular-nums">{day(one.dueOn)}</td>
                 <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums text-red-700"><Both amount={one.amount} currency={one.currency} conv={conv} minus /></td>

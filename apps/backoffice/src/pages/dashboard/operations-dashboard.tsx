@@ -3,6 +3,7 @@ import {
   useGetOperationsDashboard,
   useListOnboardingCases,
   type CasePage,
+  type CaseSummary,
   type OperationsDashboard as Figures,
 } from "@atomprive/api-client/backoffice";
 import { Alert, SelectInput, cn } from "@atomprive/ui";
@@ -23,10 +24,11 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
-import { formatRelative } from "../../lib/labels";
+import { useBookPanel } from "../../components/book-panel";
+import { formatDate, formatRelative } from "../../lib/labels";
 import { menuFor } from "../../menu";
 import {
   AskTheAssistant,
@@ -41,6 +43,7 @@ import {
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
 import { sharesFigure, singleFigure } from "../layout/own-cards";
 import { KindChart, useCardChart } from "../layout/chart-kinds";
+import { Cases, FeedRuns, NoListYet, Prospects, type LineLink } from "./role-dashboard-lists";
 
 /**
  * Operations' dashboard: clients being taken on, the prospect pipeline, the bank feeds, the requests Operations
@@ -130,6 +133,70 @@ export function OperationsDashboard() {
   const linkFor = (key: string) => goTo(...(WORKED_FROM[key] ?? []));
   const data = figures.data;
   const period = PERIODS.find((one) => one.days === days)?.label.toLowerCase() ?? `last ${days} days`;
+  const panel = useBookPanel();
+  // The start of the period, worked out when a figure is opened rather than on every draw.
+  const since = () => new Date(Date.now() - days * 86_400_000).toISOString();
+  const caseLink: LineLink = (id) => (goTo("/clients") ? `/onboarding/${id}` : null);
+  const prospectLink: LineLink = (id) => (goTo("/prospective-clients") ? `/prospective-clients?open=${id}&from=overview` : null);
+  const bankLink: LineLink = (id) => (goTo("/ingestion") ? `/ingestion/${id}` : null);
+  const onboardingFacts = data ? [
+    { label: "Being filled in", value: String(data.onboarding.fillingIn) },
+    { label: "Waiting on the client", value: String(data.onboarding.awaitingClient) },
+    { label: "KYC with Compliance", value: String(data.onboarding.inReview) },
+    { label: `Activated, ${period}`, value: String(data.onboarding.activated) },
+  ] : [];
+  const openOnboarding = (name: string, value: string, more: ReactNode, note?: string) => panel?.({ name, figure: {
+    label: "Onboarding overview", value, note, facts: onboardingFacts,
+    link: goTo("/clients") ? { to: "/clients", label: "Open all clients" } : undefined, more,
+  } });
+  const pickOnboarding = (at: number) => {
+    if (!data) return;
+    if (at === 0) openOnboarding("Application being filled in", String(data.onboarding.fillingIn),
+      <Cases status="IN_PROCESS" keep={(one) => !one.submitted} title="Applications not yet submitted" linkFor={caseLink} />,
+      "Onboarding cases still in process and not yet submitted.");
+    if (at === 1) openOnboarding("Waiting on the client", String(data.onboarding.awaitingClient),
+      <NoListYet what="clients waiting on their own papers" />,
+      "Active clients with KYC not submitted or rejected, or with a paper sent back for re-upload.");
+    if (at === 2) openOnboarding("KYC with Compliance", String(data.onboarding.inReview),
+      <NoListYet what="clients whose KYC is with Compliance" />,
+      "Active clients whose KYC is in review, with no paper sent back.");
+    if (at === 3) openOnboarding(`Activated, ${period}`, String(data.onboarding.activated),
+      <NoListYet what="clients activated in the period" />, "Onboarding cases completed in the period.");
+  };
+  const stages = data ? [
+    { label: "New", value: data.pipeline.fresh, status: "NEW" as const },
+    { label: "In discussion", value: data.pipeline.inDiscussion, status: "IN_DISCUSSION" as const },
+    { label: "Follow-up", value: data.pipeline.followUp, status: "FOLLOW_UP" as const },
+    { label: "Qualified", value: data.pipeline.qualified, status: "QUALIFIED" as const },
+    { label: "Converted", value: data.pipeline.converted, status: "CONVERTED" as const, done: true },
+  ] : [];
+  const pipelineFacts = data ? [
+    { label: "Open prospects", value: String(data.pipeline.open) },
+    { label: "Converted", value: String(data.pipeline.converted) },
+    { label: "Conversion rate", value: data.pipeline.conversionPercent == null ? "—" : `${data.pipeline.conversionPercent}%` },
+    { label: "Stalled (>14 days)", value: String(data.pipeline.stalled) },
+  ] : [];
+  const pipelineLink = goTo("/prospective-clients") ? { to: "/prospective-clients", label: "Open prospective clients" } : undefined;
+  const pickStage = (at: number) => {
+    const stage = stages[at];
+    if (!stage) return;
+    panel?.({ name: `Prospects — ${stage.label}`, figure: {
+      label: "Prospects & pipeline", value: String(stage.value), facts: pipelineFacts, link: pipelineLink,
+      more: <Prospects status={stage.status} title={`Prospects at ${stage.label}`} linkFor={prospectLink} />,
+    } });
+  };
+  const feedFacts = data ? [
+    { label: "Succeeded", value: String(data.feeds.succeeded) },
+    { label: "Failed", value: String(data.feeds.failed) },
+    { label: "Running", value: String(data.feeds.running) },
+    { label: "Success rate", value: data.feeds.successPercent == null ? "—" : `${data.feeds.successPercent}%` },
+  ] : [];
+  const openFeeds = (name: string, value: string, outcome?: "SUCCEEDED" | "FAILED" | "RUNNING") => panel?.({ name, figure: {
+    label: "Bank feed health", value, note: `Bank feed runs started in the ${period}.`, facts: feedFacts,
+    link: goTo("/ingestion") ? { to: "/ingestion", label: "Open bank feeds" } : undefined,
+    more: <FeedRuns outcome={outcome} from={since()} title={outcome ? `Runs ${outcome.toLowerCase()}` : "Runs"} linkFor={bankLink} />,
+  } });
+  const feedRows = ["SUCCEEDED", "FAILED", "RUNNING"] as const;
 
   const render: Record<CardId, ReactNode> = {
     onboarding: (
@@ -138,7 +205,7 @@ export function OperationsDashboard() {
           <div className="space-y-4">
             <Breakdown
               centre={String(data.onboarding.fillingIn + data.onboarding.awaitingClient + data.onboarding.inReview)}
-              centreLabel="Onboarding"
+              centreLabel="Onboarding" onPick={panel ? pickOnboarding : undefined}
               rows={[
                 { name: "Application being filled in", value: data.onboarding.fillingIn, colour: "#1d6ee8" },
                 { name: "Waiting on the client", value: data.onboarding.awaitingClient, colour: "#f59e0b" },
@@ -146,10 +213,20 @@ export function OperationsDashboard() {
                 { name: `Activated, ${period}`, value: data.onboarding.activated, colour: "#16a34a", apart: true },
               ]} />
             <Strip figures={[
-              { label: "New intakes", value: data.onboarding.newIntakes, change: data.onboarding.newIntakesChangePercent },
-              { label: "Activated", value: data.onboarding.activated },
+              { label: "New intakes", value: data.onboarding.newIntakes, change: data.onboarding.newIntakesChangePercent,
+                onClick: panel ? () => {
+                  const from = since();
+                  openOnboarding(`New intakes, ${period}`, String(data.onboarding.newIntakes),
+                    <Cases keep={(one) => one.startedAt >= from} title="Cases started in the period" linkFor={caseLink} />,
+                    "Onboarding cases started in the period.");
+                } : undefined },
+              { label: "Activated", value: data.onboarding.activated, onClick: panel ? () => pickOnboarding(3) : undefined },
               { label: "Avg. time to activate",
-                value: data.onboarding.averageDaysToActivate == null ? "—" : `${Math.round(data.onboarding.averageDaysToActivate)} days` },
+                value: data.onboarding.averageDaysToActivate == null ? "—" : `${Math.round(data.onboarding.averageDaysToActivate)} days`,
+                onClick: panel ? () => openOnboarding("Average time to activate",
+                  data.onboarding.averageDaysToActivate == null ? "—" : `${Math.round(data.onboarding.averageDaysToActivate)} days`,
+                  <NoListYet what="cases completed in the period, with their days to activate" />,
+                  "Average days from a case starting to its completion, over cases completed in the period.") : undefined },
             ]} />
           </div>
         ) : <Loading />}
@@ -159,15 +236,16 @@ export function OperationsDashboard() {
       <Panel icon={Building2} title="Prospects & pipeline" to={goTo("/prospective-clients", "/client-management")}>
         {data ? (
           <div className="space-y-4">
-            <Funnel stages={[
-              { label: "New", value: data.pipeline.fresh },
-              { label: "In discussion", value: data.pipeline.inDiscussion },
-              { label: "Follow-up", value: data.pipeline.followUp },
-              { label: "Qualified", value: data.pipeline.qualified },
-              { label: "Converted", value: data.pipeline.converted, done: true },
-            ]} />
+            <Funnel stages={stages} onPick={panel ? pickStage : undefined} />
             <Strip figures={[
-              { label: "Conversion rate", value: data.pipeline.conversionPercent == null ? "—" : `${data.pipeline.conversionPercent}%` },
+              { label: "Conversion rate", value: data.pipeline.conversionPercent == null ? "—" : `${data.pipeline.conversionPercent}%`,
+                onClick: panel ? () => panel({ name: "Conversion rate", figure: {
+                  label: "Prospects & pipeline",
+                  value: data.pipeline.conversionPercent == null ? "—" : `${data.pipeline.conversionPercent}%`,
+                  note: "Converted prospects out of those decided, converted or lost.",
+                  facts: pipelineFacts, link: pipelineLink,
+                  more: <Prospects status="CONVERTED" title="Converted prospects" linkFor={prospectLink} />,
+                } }) : undefined },
               { label: "Open prospects", value: data.pipeline.open, to: goTo("/prospective-clients") },
               { label: "Stalled (>14 days)", value: data.pipeline.stalled, danger: data.pipeline.stalled > 0,
                 to: goTo("/prospective-clients") },
@@ -184,6 +262,10 @@ export function OperationsDashboard() {
               <p className="py-6 text-center text-sm text-ink-muted">No bank feed has run in the {period}.</p>
             ) : (
               <Breakdown centre={data.feeds.successPercent == null ? "—" : `${data.feeds.successPercent}%`} centreLabel="Success"
+                onPick={panel ? (at) => {
+                  const outcome = feedRows[at];
+                  if (outcome) openFeeds(["Succeeded", "Failed", "Running"][at]!, String([data.feeds.succeeded, data.feeds.failed, data.feeds.running][at]), outcome);
+                } : undefined}
                 rows={[
                   { name: "Succeeded", value: data.feeds.succeeded, colour: "#16a34a" },
                   { name: "Failed", value: data.feeds.failed, colour: "#dc2626" },
@@ -191,8 +273,10 @@ export function OperationsDashboard() {
                 ]} />
             )}
             <Strip figures={[
-              { label: "Runs", value: data.feeds.succeeded + data.feeds.failed + data.feeds.running },
-              { label: "Success rate", value: data.feeds.successPercent == null ? "—" : `${data.feeds.successPercent}%` },
+              { label: "Runs", value: data.feeds.succeeded + data.feeds.failed + data.feeds.running,
+                onClick: panel ? () => openFeeds("Runs", String(data.feeds.succeeded + data.feeds.failed + data.feeds.running)) : undefined },
+              { label: "Success rate", value: data.feeds.successPercent == null ? "—" : `${data.feeds.successPercent}%`,
+                onClick: panel ? () => openFeeds("Success rate", data.feeds.successPercent == null ? "—" : `${data.feeds.successPercent}%`) : undefined },
               { label: "Failed", value: data.feeds.failed, danger: data.feeds.failed > 0, to: goTo("/sync-errors", "/ingestion") },
             ]} />
           </div>
@@ -209,7 +293,7 @@ export function OperationsDashboard() {
         {data ? <Counts rows={data.toDo} linkFor={linkFor} iconFor={ICON_FOR} /> : <Loading />}
       </Panel>
     ),
-    applications: <Applications to={goTo("/clients")} />,
+    applications: <Applications to={goTo("/clients")} caseLink={caseLink} />,
     links: (
       <Panel icon={Link2} title="Key links">
         <ul className="space-y-1.5">
@@ -268,21 +352,29 @@ export function OperationsDashboard() {
 }
 
 /** The pipeline as one arrow of stages, the converted stage lit as the one that counts. */
-function Funnel({ stages }: { stages: { label: string; value: number; done?: boolean }[] }) {
+function Funnel({ stages, onPick }: {
+  stages: { label: string; value: number; done?: boolean }[];
+  /** Opens a stage's prospects, by its place. */
+  onPick?: (index: number) => void;
+}) {
   const chart = useCardChart();
   if (chart && !chart.own) {
     return (
       <KindChart kind={chart.kind!} height={220} label="Clients at each stage of the pipeline" format={(value) => String(Math.round(value))}
-        data={{ shape: "shares", items: stages.map((one) => ({ name: one.label, value: one.value })) }} />
+        data={{ shape: "shares", items: stages.map((one) => ({ name: one.label, value: one.value })) }} onPick={onPick} />
     );
   }
   return (
     <ol className="flex">
       {stages.map((one, index) => (
         <li key={one.label}
+          {...(onPick ? {
+            role: "button", tabIndex: 0, onClick: () => onPick(index),
+            onKeyDown: (event: KeyboardEvent<HTMLLIElement>) => { if (event.key === "Enter") onPick(index); },
+          } : {})}
           className={cn("relative min-w-0 flex-1 py-3 pr-3 pl-5 text-center",
             one.done ? "bg-emerald-600 text-white" : index % 2 === 0 ? "bg-primary-50" : "bg-primary-100/70",
-            index === 0 && "rounded-l-xl pl-3")}
+            index === 0 && "rounded-l-xl pl-3", onPick && "cursor-pointer hover:brightness-95")}
           style={{ clipPath: index === stages.length - 1
             ? "polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%)"
             : index === 0 ? "polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)"
@@ -296,8 +388,26 @@ function Funnel({ stages }: { stages: { label: string; value: number; done?: boo
 }
 
 /** Applications still being filled in, most recently touched first. */
-function Applications({ to }: { to?: string }) {
+function Applications({ to, caseLink }: { to?: string; caseLink: LineLink }) {
   const cases = useListOnboardingCases<CasePage, ApiError>({ status: "IN_PROCESS", page: 0, size: 5 });
+  const panel = useBookPanel();
+  const open = (one: CaseSummary) => {
+    const at = caseLink(one.id);
+    panel?.({ name: one.clientName, figure: {
+      label: "Application in progress",
+      value: one.currentStage,
+      facts: [
+        { label: "Steps done", value: `${one.completedSteps} of ${one.totalSteps}` },
+        { label: "Account holders", value: String(one.accountHolders) },
+        { label: "Started", value: formatDate(one.startedAt) },
+        { label: "Updated", value: formatRelative(one.updatedAt) },
+        { label: "Relationship manager", value: one.relationshipManager?.fullName ?? "—" },
+        { label: "Submitted", value: one.submitted ? "Yes" : "No" },
+        { label: "Papers", value: String(one.papers.length) },
+      ],
+      link: at ? { to: at, label: "Open the application" } : undefined,
+    } });
+  };
   const rows = cases.data?.items ?? [];
   return (
     <Panel icon={ClipboardList} title={`Applications in progress${cases.data ? ` (${cases.data.totalItems})` : ""}`} to={to}>
@@ -306,7 +416,12 @@ function Applications({ to }: { to?: string }) {
       ) : (
         <ul className="divide-y divide-line text-sm">
           {rows.map((one) => (
-            <li key={one.id} className="flex items-center justify-between gap-3 py-2">
+            <li key={one.id}
+              {...(panel ? {
+                role: "button", tabIndex: 0, onClick: () => open(one),
+                onKeyDown: (event: KeyboardEvent<HTMLLIElement>) => { if (event.key === "Enter") open(one); },
+              } : {})}
+              className={cn("flex items-center justify-between gap-3 py-2", panel && "cursor-pointer hover:bg-canvas")}>
               <span className="min-w-0 truncate font-medium">{one.clientName}</span>
               <span className="text-xs whitespace-nowrap text-ink-muted">updated {formatRelative(one.updatedAt)}</span>
             </li>

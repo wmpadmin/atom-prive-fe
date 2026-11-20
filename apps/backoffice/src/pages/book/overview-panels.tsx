@@ -13,9 +13,12 @@ import { cn } from "@atomprive/ui";
 import { keepPreviousData, useQueries } from "@tanstack/react-query";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight } from "lucide-react";
+import { useBookPanel } from "../../components/book-panel";
 import { formatDate } from "../../lib/labels";
+import type { FigureDetail } from "../client-workspace/figure-panel";
+import { opens } from "../portfolios/figure-opens";
 import { axisMoney, money, short, signedPercent } from "./book-figures";
-import { benchmarkLine, categories, figure, portfolioTree, positionsOf, rangeDates, series, type Sources, type TreeRow } from "./overview-data";
+import { benchmarkLine, categories, figure, portfolioTree, positionsOf, rangeDates, series, type Row, type Sources, type TreeRow } from "./overview-data";
 import { CategoryChart, TimeChart, type OtherLine } from "./overview-charts";
 import { column as col, row as exportRow, useExportSheet, type Part } from "./overview-export";
 import {
@@ -51,6 +54,74 @@ export type PanelContext = {
 
 const percent = (value: number) => `${value.toFixed(2)}%`;
 
+/** A figure's share of a whole, written as the panels write shares. */
+function shareOf(value: number, whole: number) {
+  return whole === 0 ? "—" : percent((value / whole) * 100);
+}
+
+/** What one of the figures across the top is made of, from the page's own sources. */
+function figureDetail(key: Figure, sources: Sources): FigureDetail {
+  const { overview } = sources;
+  const ccy = overview.currency;
+  const value = figure(key, sources);
+  const isReturn = key === "TWR_YTD" || key === "TWR_PERIOD";
+  const said = value === null ? undefined : isReturn ? signedPercent(value) : money(value);
+  const label = FIGURES[key](ccy);
+  const spread = { label: "Market value", value: money(overview.marketValue) };
+  const sides = [spread, { label: "Assets", value: money(overview.assets) }, { label: "Liabilities", value: money(overview.liabilities) }];
+  const byClass = (title: string) => ({
+    title,
+    columns: ["Asset class", `Value (${ccy})`, "Share"],
+    rows: overview.byAssetClass.map((one) => [one.name, money(one.value), shareOf(one.value, overview.marketValue)]),
+    total: ["Total", money(overview.marketValue), "100%"],
+  });
+  const holdingClasses = sources.holdings?.classes ?? [];
+  switch (key) {
+    case "MARKET_VALUE":
+    case "ASSETS":
+      return {
+        label, value: said, facts: sides,
+        note: key === "MARKET_VALUE" ? "What the client holds, less what is owed, by asset class." : "Everything the client holds, by asset class.",
+        chart: overview.byAssetClass.length ? { title: "By asset class", data: { shape: "shares", items: overview.byAssetClass.map((one) => ({ name: one.name, value: one.value })) }, kind: "donut", format: "money", currency: ccy } : undefined,
+        table: byClass("By asset class"),
+      };
+    case "LIABILITIES":
+      return {
+        label, value: said, facts: sides, note: "What the client owes, loan by loan.",
+        table: { columns: ["Loan", `Value (${ccy})`], rows: (sources.loans?.loans ?? []).map((one) => [one.description, money(one.valueAmount)]),
+          total: sources.loans ? ["Total", money(sources.loans.total)] : undefined },
+      };
+    case "TWR_YTD":
+    case "TWR_PERIOD":
+      return {
+        label, value: said,
+        note: key === "TWR_YTD" ? "Time-weighted return since the start of the year." : `Time-weighted return from ${formatDate(overview.from ?? sources.from)} to ${formatDate(overview.to ?? sources.to)}.`,
+        chart: overview.performance.length > 1 ? { title: "Return over the page's dates", data: { shape: "series", categories: overview.performance.map((one) => formatDate(one.on)), series: [{ name: "TWR", values: overview.performance.map((one) => one.value) }] }, kind: "line", format: "percent" } : undefined,
+      };
+    case "PORTFOLIO_VALUE":
+    case "CASH": {
+      const total = sources.holdings?.underManagement ?? 0;
+      return {
+        label, value: said,
+        note: key === "CASH" ? "The cash class against the rest of the managed portfolio." : "The managed portfolio, class by class.",
+        table: { columns: ["Asset class", `Value (${ccy})`, "Share"], rows: holdingClasses.map((one) => [one.assetClassName, money(one.valueAmount), shareOf(one.valueAmount, total)]),
+          total: ["Total", money(total), "100%"] },
+      };
+    }
+    case "NET_CASH_FLOW": {
+      const flows = (sources.cashflows?.items ?? []).filter((one) => one.happenedOn >= sources.from && one.happenedOn <= sources.to);
+      return {
+        label, value: said, note: `Money paid in less money taken out, ${formatDate(sources.from)} to ${formatDate(sources.to)}.`,
+        facts: [
+          { label: "Paid in", value: money(flows.filter((one) => one.amount > 0).reduce((sum, one) => sum + one.amount, 0)) },
+          { label: "Taken out", value: money(-flows.filter((one) => one.amount < 0).reduce((sum, one) => sum + one.amount, 0)) },
+        ],
+        table: { columns: ["Day", "Note", `Amount (${ccy})`], rows: flows.map((one) => [formatDate(one.happenedOn), one.note ?? (one.amount >= 0 ? "Paid in" : "Taken out"), money(one.amount)]) },
+      };
+    }
+  }
+}
+
 /** The figures across the top, in the order the PM has set them. */
 export function FiguresPanel({ cfg, context }: { cfg: PanelConfig | null | undefined; context: PanelContext }) {
   const chosen = (cfg?.figures?.length ? cfg.figures : ["MARKET_VALUE", "ASSETS", "LIABILITIES", "TWR_YTD"]) as Figure[];
@@ -63,13 +134,15 @@ export function FiguresPanel({ cfg, context }: { cfg: PanelConfig | null | undef
       return exportRow([FIGURES[key](ccy), isReturn ? null : value, isReturn ? value : null]);
     }),
   }));
+  const panel = useBookPanel();
   return (
     <div className="grid h-full grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] divide-x divide-line">
       {chosen.map((key) => {
         const value = figure(key, context.sources);
         const isReturn = key === "TWR_YTD" || key === "TWR_PERIOD";
         return (
-          <div key={key} className="flex min-w-0 flex-col justify-center px-4 text-center">
+          <div key={key} className={cn("flex min-w-0 flex-col justify-center px-4 text-center", panel && "cursor-pointer hover:bg-canvas")}
+            {...(panel ? opens(() => panel({ name: FIGURES[key](ccy), figure: figureDetail(key, context.sources) })) : {})}>
             <p className="truncate text-xs font-semibold text-ink-muted" title={FIGURES[key](ccy)}>{FIGURES[key](ccy)}</p>
             <p className={cn("mt-1 text-2xl font-bold tabular-nums",
               isReturn && value !== null ? (value < 0 ? "text-danger" : "text-emerald-600") : "text-ink")}>
@@ -112,6 +185,10 @@ export function PerformancePanel({ context }: { context: PanelContext }) {
   const { overview, settings } = context.sources;
   const benchmarks = useBenchmarkLines(settings.benchmarks?.map(String), overview.from ?? context.sources.from, overview.to ?? context.sources.to);
   const worth = useMemo(() => series("NET_WORTH", overview, context.sources), [overview, context.sources]);
+  const panel = useBookPanel();
+  const pickDay = (title: string, format: (value: number) => string, others: OtherLine[]) => panel
+    ? (point: { on: string; value: number }) => panel({ name: formatDate(point.on), figure: dayDetail(title, point, format, others) })
+    : undefined;
   useExportSheet(() => (line === "performance"
     ? timeSheet(overview.performance, col("TWR %", "PERCENT"), benchmarks)
     : timeSheet(worth, col(`Net worth (${overview.currency})`, "MONEY"), [])));
@@ -143,10 +220,10 @@ export function PerformancePanel({ context }: { context: PanelContext }) {
       <div className="mt-3 min-h-0 flex-1">
         {line === "performance" ? (
           <TimeChart key={`twr-${overview.from}-${overview.to}`} points={overview.performance} label="Time-weighted return"
-            axisTitle="TWR" format={percent} others={benchmarks} />
+            axisTitle="TWR" format={percent} others={benchmarks} onPick={pickDay("Time-weighted return", signedPercent, benchmarks)} />
         ) : (
           <TimeChart key={`worth-${overview.from}-${overview.to}`} points={worth} label="Net worth"
-            axisTitle={overview.currency} format={short} axisFormat={axisMoney} />
+            axisTitle={overview.currency} format={short} axisFormat={axisMoney} onPick={pickDay(`Net worth (${overview.currency})`, money, [])} />
         )}
       </div>
     </div>
@@ -171,6 +248,7 @@ export function ChartPanel({ cfg, context }: { cfg: PanelConfig; context: PanelC
   const benchmarks = useBenchmarkLines(attribute === "TWR" ? sources.settings.benchmarks?.map(String) : null,
     read?.from ?? dates.from, read?.to ?? dates.to);
   const isPercent = attribute === "MARKET_VALUE_WEIGHT" || attribute === "TWR" || attribute === "TWR_DAILY";
+  const panel = useBookPanel();
   useExportSheet(() => {
     if (!about || !read) return null;
     const value = isPercent ? col(`${about.label} %`, "PERCENT") : col(`${about.label} (${read.currency})`, "MONEY");
@@ -190,12 +268,16 @@ export function ChartPanel({ cfg, context }: { cfg: PanelConfig; context: PanelC
   if (about.shape === "time") {
     return (
       <TimeChart key={`${attribute}-${read.from}-${read.to}-${type}`} points={series(attribute, read, sources)} label={about.label}
-        axisTitle={isPercent ? "%" : read.currency} format={format} columns={type === "COLUMN"} others={benchmarks} />
+        axisTitle={isPercent ? "%" : read.currency} format={format} columns={type === "COLUMN"} others={benchmarks}
+        onPick={panel ? (point) => panel({ name: formatDate(point.on), figure: dayDetail(about.label, point, isPercent ? percent : money, benchmarks) }) : undefined} />
     );
   }
+  const grouping = (cfg.grouping ?? null) as Grouping | null;
+  const rows = categories(attribute, grouping, sources, read);
   return (
-    <CategoryChart rows={categories(attribute, (cfg.grouping ?? null) as Grouping | null, sources, read)} type={type}
-      format={isPercent ? percent : money} axisFormat={format} classes={context.classes} label={about.label} />
+    <CategoryChart rows={rows} type={type}
+      format={isPercent ? percent : money} axisFormat={format} classes={context.classes} label={about.label}
+      onPick={panel ? (picked) => panel({ name: picked.label, figure: sliceDetail(about.label, picked, rows, attribute, grouping, sources, isPercent) }) : undefined} />
   );
 }
 
@@ -504,6 +586,60 @@ export function PortfolioTablePanel({ cfg, context }: { cfg: PanelConfig | null 
       </p>
     </div>
   );
+}
+
+/** One day off a line: its figure, and any benchmark's on the same day. */
+function dayDetail(title: string, point: { on: string; value: number }, format: (value: number) => string, others: OtherLine[]): FigureDetail {
+  const beside = others.flatMap((other) => {
+    const found = other.points.find((one) => one.on === point.on);
+    return found ? [{ label: other.name, value: format(found.value) }] : [];
+  });
+  return { label: title, value: format(point.value), facts: [{ label: "Day", value: formatDate(point.on) }, ...beside] };
+}
+
+/** Where a holding line falls in a breakdown, matched as the breakdown groups it. */
+function inGroup(line: PositionRow, grouping: Grouping, key: string) {
+  switch (grouping) {
+    case "ASSET_CLASS": return line.assetClass === key;
+    case "SUB_CLASS": return (line.subClass ?? "—") === key;
+    case "SECTOR": return (line.sector ?? "—") === key;
+    case "COUNTRY": return (line.countryCode ?? "—") === key;
+    case "CREDIT_RATING": return (line.creditRating ?? "—") === key;
+  }
+}
+
+/** A slice, bar or line of a broken-down chart: its figure, its share, and the lines it is made of where they are on the page. */
+function sliceDetail(title: string, picked: Row, rows: Row[], attribute: Attribute, grouping: Grouping | null, sources: Sources, isPercent: boolean): FigureDetail {
+  const format = isPercent ? percent : money;
+  const whole = rows.reduce((sum, one) => sum + one.value, 0);
+  const ccy = sources.overview.currency;
+  const sorted = [...rows].filter((one) => one.value > 0).sort((a, b) => b.value - a.value);
+  if (picked.key === "OTHERS") {
+    const rest = sorted.slice(3);
+    return {
+      label: title, value: format(picked.value), note: "Everything after the three largest.",
+      table: { columns: ["Name", isPercent ? "%" : `Value (${ccy})`], rows: rest.map((one) => [one.label, format(one.value)]) },
+    };
+  }
+  const facts = [
+    ...(isPercent || attribute === "TOP_CASH_FLOWS" || attribute === "NET_GAIN_LOSS" ? [] : [{ label: "Share", value: shareOf(picked.value, whole) }]),
+    ...(picked.detail ? [{ label: attribute === "TOP_CASH_FLOWS" ? "Day" : "Detail", value: picked.detail }] : []),
+  ];
+  const groupedBy = grouping ?? "ASSET_CLASS";
+  const lines = attribute === "MARKET_VALUE" || attribute === "MARKET_VALUE_WEIGHT"
+    ? positionsOf(sources.holdings).filter((line) => inGroup(line, groupedBy, picked.key)).sort((a, b) => b.valueAmount - a.valueAmount)
+    : [];
+  return {
+    label: title,
+    value: format(picked.value),
+    facts: facts.length ? facts : undefined,
+    table: lines.length ? {
+      title: "Lines held",
+      columns: ["Holding", `Value (${ccy})`],
+      rows: lines.map((line) => [line.name, money(line.valueAmount)]),
+      total: ["Total", money(lines.reduce((sum, line) => sum + line.valueAmount, 0))],
+    } : undefined,
+  };
 }
 
 const TOTAL = "__total__";

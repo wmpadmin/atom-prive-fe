@@ -144,6 +144,7 @@ export function TimeChart({
   columns,
   others = [],
   axisFormat = format,
+  onPick,
 }: {
   points: LinePoint[];
   /** What the line is, for a reader who cannot see it. */
@@ -156,11 +157,18 @@ export function TimeChart({
   others?: OtherLine[];
   /** The value axis's labels, where they need finer steps than the figures the tooltip and the end show. */
   axisFormat?: (value: number) => string;
+  /** Called with the day clicked: the point of the main line the pointer is over, read as the tooltip reads it. */
+  onPick?: (point: LinePoint, index: number) => void;
 }) {
+  // The day under the pointer, kept by the tooltip as it moves, so a click anywhere over the plot picks that day: a
+  // line hides its points, and a time axis gives a bare click nothing to read.
+  const hovered = useRef<string | null>(null);
+  const picking = Boolean(onPick);
+  const hover = useMemo(() => (picking ? (day: string) => { hovered.current = day; } : undefined), [picking]);
   // Built once per set of points rather than on every render: a fresh option is a fresh chart, and the
   // slider would spring back to the whole period whenever anything else on the page drew again.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- format follows axisTitle, which is listed
-  const option = useMemo(() => timeOption(points, label, axisTitle, format, axisFormat, Boolean(columns), others), [points, axisTitle, columns, others]);
+  const option = useMemo(() => timeOption(points, label, axisTitle, format, axisFormat, Boolean(columns), others, hover), [points, axisTitle, columns, others, hover]);
   if (points.length < (columns ? 1 : 2) || !option) {
     return (
       <div className="grid h-full place-items-center text-sm text-ink-muted">
@@ -170,11 +178,25 @@ export function TimeChart({
   }
   const first = points[0]!;
   const last = points[points.length - 1]!;
-  return (
+  const chart = (
     <Chart
       option={option}
       label={`${label}: ${format(first.value)} on ${formatDate(first.on)}, ${format(last.value)} on ${formatDate(last.on)}`}
     />
+  );
+  if (!onPick) return chart;
+  return (
+    <div className="h-full w-full cursor-pointer" onMouseLeave={() => { hovered.current = null; }}
+      onClick={(event) => {
+        // The slider under the plot narrows the dates; a click on it picks nothing.
+        const box = event.currentTarget.getBoundingClientRect();
+        if (event.clientY > box.bottom - 30) return;
+        const day = hovered.current;
+        const index = day ? points.findIndex((one) => one.on === day) : -1;
+        if (index >= 0) onPick(points[index]!, index);
+      }}>
+      {chart}
+    </div>
   );
 }
 
@@ -191,7 +213,7 @@ export function LineChart(props: {
 }
 
 function timeOption(points: LinePoint[], label: string, axisTitle: string, format: (value: number) => string,
-  axisFormat: (value: number) => string, columns: boolean, others: OtherLine[]) {
+  axisFormat: (value: number) => string, columns: boolean, others: OtherLine[], onHover?: (day: string) => void) {
   if (points.length < (columns ? 1 : 2)) return null;
   const last = points[points.length - 1]!;
   const c = ink();
@@ -218,6 +240,7 @@ function timeOption(points: LinePoint[], label: string, axisTitle: string, forma
       formatter: (params: { seriesName: string; value: [string, number] }[]) => {
         const day = params[0]?.value?.[0];
         if (!day) return "";
+        onHover?.((params.find((one) => one.seriesName === label) ?? params[0]!).value[0]);
         const lines = params.map((one) => `${params.length > 1 ? `${one.seriesName}: ` : ""}<b>${format(one.value[1])}</b>`);
         return `${formatDate(day)}<br/>${lines.join("<br/>")}`;
       },
@@ -332,7 +355,7 @@ function colourFor(row: Row, index: number, classes: { code: string }[], c: Retu
  * <p>Every type carries the figures in words as well as in shape: the pie's legend, the list's amounts, the
  * bars' tooltips. A slice is never told apart by colour alone.
  */
-export function CategoryChart({ rows, type, format, axisFormat = format, classes, label, ring }: {
+export function CategoryChart({ rows, type, format, axisFormat = format, classes, label, ring, onPick }: {
   rows: Row[];
   type: ChartType;
   format: (value: number) => string;
@@ -342,18 +365,24 @@ export function CategoryChart({ rows, type, format, axisFormat = format, classes
   label: string;
   /** For a pie drawn larger: the total written in the ring, and each slice's amount beside its share. */
   ring?: { size: number; centre: string; amount: (value: number) => string };
+  /**
+   * Called with the slice, bar or line clicked. The pie's Others comes as one row keyed OTHERS, its value the rest
+   * added up; the caller reads which rows it stands for.
+   */
+  onPick?: (row: Row) => void;
 }) {
   const c = ink();
   if (rows.length === 0) {
     return <p className="grid h-full place-items-center py-6 text-center text-sm text-ink-muted">Nothing to show for these choices.</p>;
   }
-  if (type === "PIE") return <Pie rows={rows} format={format} classes={classes} label={label} ring={ring} />;
+  if (type === "PIE") return <Pie rows={rows} format={format} classes={classes} label={label} ring={ring} onPick={onPick} />;
   if (type === "LIST") {
     const largest = Math.max(...rows.map((one) => Math.abs(one.value)), 1);
     return (
       <ol className="flex h-full flex-col gap-4 overflow-y-auto">
         {rows.map((one, index) => (
-          <li key={one.key} className="grid grid-cols-[1.25rem_1fr_auto] items-center gap-x-2 gap-y-1.5 text-sm">
+          <li key={one.key} className={cn("grid grid-cols-[1.25rem_1fr_auto] items-center gap-x-2 gap-y-1.5 text-sm", onPick && "cursor-pointer hover:bg-canvas")}
+            {...(onPick ? picks(() => onPick(one)) : {})}>
             <span className="row-span-2 self-center text-ink-muted tabular-nums">{index + 1}</span>
             <span className="min-w-0 truncate font-medium text-ink" title={one.detail ? `${one.label} · ${one.detail}` : one.label}>{one.label}</span>
             <span className={cn("font-semibold tabular-nums", one.value < 0 ? "text-danger" : "text-ink")}>{format(one.value)}</span>
@@ -373,7 +402,8 @@ export function CategoryChart({ rows, type, format, axisFormat = format, classes
           <caption className="sr-only">{label}</caption>
           <tbody>
             {rows.map((one) => (
-              <tr key={one.key} className="border-b border-line last:border-b-0">
+              <tr key={one.key} className={cn("border-b border-line last:border-b-0", onPick && "cursor-pointer hover:bg-canvas")}
+                {...(onPick ? picks(() => onPick(one)) : {})}>
                 <th scope="row" className="py-2 pr-3 text-left font-medium">
                   {one.label}
                   {one.detail && <span className="block text-xs font-normal text-ink-muted">{one.detail}</span>}
@@ -425,16 +455,32 @@ export function CategoryChart({ rows, type, format, axisFormat = format, classes
       },
     ],
   };
-  return <Chart option={option} label={`${label}: ${rows.map((one) => `${one.label} ${format(one.value)}`).join(", ")}`} />;
+  return <Chart option={option} label={`${label}: ${rows.map((one) => `${one.label} ${format(one.value)}`).join(", ")}`}
+    onPick={onPick ? (_, index) => { const one = rows[index]; if (one) onPick(one); } : undefined} />;
+}
+
+/** A line of a list or table that opens what it is made of: a press or Enter. */
+function picks(open: () => void) {
+  return {
+    role: "button" as const,
+    tabIndex: 0,
+    onClick: open,
+    onKeyDown: (event: React.KeyboardEvent) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      open();
+    },
+  };
 }
 
 /** The three largest and everything else as Others, as a ring with its legend beside it. */
-function Pie({ rows, format, classes, label, ring }: {
+function Pie({ rows, format, classes, label, ring, onPick }: {
   rows: Row[];
   format: (value: number) => string;
   classes: { code: string }[];
   label: string;
   ring?: { size: number; centre: string; amount: (value: number) => string };
+  onPick?: (row: Row) => void;
 }) {
   const c = ink();
   const sorted = rows.filter((one) => one.value > 0);
@@ -444,6 +490,7 @@ function Pie({ rows, format, classes, label, ring }: {
       : [...sorted.slice(0, 3), { key: "OTHERS", label: "Others", value: sorted.slice(3).reduce((sum, one) => sum + one.value, 0) }];
   const total = shown.reduce((sum, one) => sum + one.value, 0) || 1;
   const colours = shown.map((one, index) => colourFor(one, index, classes, c));
+  const pickSlice = onPick ? (_: string, index: number) => { const one = shown[index]; if (one) onPick(one); } : undefined;
   const option: echarts.EChartsCoreOption = {
     animation: false,
     tooltip: {
@@ -475,20 +522,21 @@ function Pie({ rows, format, classes, label, ring }: {
     <div className={cn("flex gap-6", ring ? "flex-col items-center @md:flex-row" : "items-start")}>
       {ring ? (
         <div className="relative shrink-0" style={{ width: ring.size }}>
-          <Chart option={option} height={ring.size} label={`${label}: ${shown.map((one) => `${one.label} ${((one.value / total) * 100).toFixed(2)}%`).join(", ")}`} />
+          <Chart option={option} height={ring.size} label={`${label}: ${shown.map((one) => `${one.label} ${((one.value / total) * 100).toFixed(2)}%`).join(", ")}`} onPick={pickSlice} />
           <p className="pointer-events-none absolute inset-0 grid place-content-center text-center text-sm leading-tight font-bold text-ink">
             {ring.centre.split(" ").map((part) => <span key={part}>{part}</span>)}
           </p>
         </div>
       ) : (
         <div className="w-[38%] max-w-[128px] shrink-0">
-          <Chart option={option} height={128} label={`${label}: ${shown.map((one) => `${one.label} ${((one.value / total) * 100).toFixed(2)}%`).join(", ")}`} />
+          <Chart option={option} height={128} label={`${label}: ${shown.map((one) => `${one.label} ${((one.value / total) * 100).toFixed(2)}%`).join(", ")}`} onPick={pickSlice} />
         </div>
       )}
       <ul className={cn("flex min-w-0 flex-1 flex-col justify-around text-sm", ring ? "w-full divide-y divide-line @md:h-[var(--ring)]" : "h-[128px] max-w-72")}
         style={ring ? ({ "--ring": `${ring.size}px` } as React.CSSProperties) : undefined}>
         {shown.map((one, index) => (
-          <li key={one.key} className="flex items-center gap-2">
+          <li key={one.key} className={cn("flex items-center gap-2", onPick && "cursor-pointer hover:bg-canvas")}
+            {...(onPick ? picks(() => onPick(one)) : {})}>
             <span aria-hidden="true" className="size-3 shrink-0 rounded-sm" style={{ backgroundColor: colours[index] }} />
             <span className={cn("min-w-0 flex-1 text-ink-soft", ring && "truncate py-1.5")} title={one.label}>{one.label}</span>
             <span className="font-semibold text-ink tabular-nums" title={format(one.value)}>
@@ -510,7 +558,13 @@ export type Step = { label: string; value: number | null; total?: boolean };
  * stand on the floor and each step between them floats from where the one before it ended, all in one ink and
  * on an axis from nought. A step's figure is read by pointing at it; one we cannot say yet is not drawn.
  */
-export function WaterfallChart({ steps, format, label }: { steps: Step[]; format: (value: number) => string; label: string }) {
+export function WaterfallChart({ steps, format, label, onPick }: {
+  steps: Step[];
+  format: (value: number) => string;
+  label: string;
+  /** Called with the bar clicked: its step and its place among the steps. */
+  onPick?: (step: Step, index: number) => void;
+}) {
   const option = useMemo(() => {
     const c = ink();
     // Each step starts where the one before it ended; a total starts afresh from the floor.
@@ -566,7 +620,8 @@ export function WaterfallChart({ steps, format, label }: { steps: Step[]; format
     };
     return option;
   }, [steps, format]);
-  return <Chart option={option} label={`${label}: ${steps.map((step) => `${step.label} ${step.value === null ? "not on file" : format(step.value)}`).join(", ")}`} />;
+  return <Chart option={option} label={`${label}: ${steps.map((step) => `${step.label} ${step.value === null ? "not on file" : format(step.value)}`).join(", ")}`}
+    onPick={onPick ? (_, index) => { const step = steps[index]; if (step) onPick(step, index); } : undefined} />;
 }
 
 /** A theme colour with some transparency, for fills drawn over the page. */

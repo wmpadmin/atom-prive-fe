@@ -13,6 +13,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Copy } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
+import { useBookPanel } from "../../components/book-panel";
+import type { FigureDetail } from "../client-workspace/figure-panel";
 import { ColumnPicker } from "../../components/column-picker";
 import { ListPageHeader, RecordList } from "../../components/record-list";
 import { ViewTabs } from "../../components/view-tabs";
@@ -35,6 +37,52 @@ import {
   modelRiskLabel,
   riskProfileLabel,
 } from "./portfolio-labels";
+import { OPENS, opens } from "./figure-opens";
+import { ModelClientsMore } from "./portfolio-figures";
+
+/** The columns whose figure opens the model's breakdown. */
+const OPENS_FIGURE = new Set(["clients", "aum", "drift"]);
+
+/**
+ * A model as the side panel shows it: what it targets class by class, its clients, its money and its average
+ * drift, all read off the list's own row; its clients one by one are read when the panel opens.
+ */
+function modelFigure(model: ModelRow, names: Record<string, string>, codes: string[], focus: string): FigureDetail {
+  const targets = codes
+    .map((code) => ({ code, value: (model.targets as Record<string, number | undefined>)[code] ?? 0 }))
+    .filter((one) => one.value > 0);
+  const aum = model.aumTracked > 0 ? underManagementLabel(model.aumTracked, model.aumCurrency) : "—";
+  const drift = model.averageDrift == null ? "—" : averageDriftLabel(model.averageDrift);
+  const value = focus === "clients" ? String(model.clients) : focus === "aum" ? aum : focus === "drift" ? drift : undefined;
+  const note = focus === "clients"
+    ? "Clients measured against this plan."
+    : focus === "aum"
+      ? `What the clients on this plan hold, in ${model.aumCurrency}.${model.aumUnconverted > 0 ? ` ${model.aumUnconverted} held in a currency with no rate on file are not in it.` : ""}`
+      : focus === "drift"
+        ? `The average of its clients' drift, read against the ±${model.breachAt.toFixed(1)}% the plan allows.`
+        : "What the plan asks for, class by class.";
+  return {
+    label: "Model portfolio",
+    value,
+    note,
+    facts: [
+      { label: "Clients", value: String(model.clients) },
+      { label: "AUM tracked", value: aum },
+      { label: "Avg drift", value: drift },
+      { label: "Allowed", value: `±${model.breachAt.toFixed(1)}%` },
+    ],
+    chart: targets.length > 0
+      ? {
+          title: "Targets by class",
+          data: { shape: "shares", items: targets.map((one) => ({ name: names[one.code] ?? one.code, value: one.value })) },
+          kind: "donut",
+          format: "percent",
+        }
+      : undefined,
+    link: { to: `/model-portfolios/${model.id}`, label: "Open the model" },
+    more: <ModelClientsMore modelId={model.id} />,
+  };
+}
 
 /** One plan's row. The bar of its targets stays with the name, which is not a column a reader moves. */
 type Row = { model: ModelRow };
@@ -134,6 +182,7 @@ const MOVABLE: {
 
 export function ModelPortfoliosPage() {
   const navigate = useNavigate();
+  const panel = useBookPanel();
   const queryClient = useQueryClient();
   const models = useListModelPortfolios<ModelsPage, ApiError>();
   const { all, names } = useAssetClasses();
@@ -318,7 +367,11 @@ export function ModelPortfoliosPage() {
           >
             <td className="px-5 py-3">
               <p className="font-semibold text-ink">{model.name}</p>
-              <div className="mt-1.5 flex h-1.5 w-40 overflow-hidden rounded-full bg-slate-100">
+              <div
+                {...opens(() => panel?.({ name: model.name, figure: modelFigure(model, names, codes, "targets") }))}
+                aria-label={`What ${model.name} targets`}
+                className="mt-1.5 flex h-1.5 w-40 cursor-pointer overflow-hidden rounded-full bg-slate-100 hover:opacity-80"
+              >
                 {codes.filter((assetClass) => model.targets[assetClass]).map((assetClass) => (
                   <span
                     key={assetClass}
@@ -343,7 +396,14 @@ export function ModelPortfoliosPage() {
                   column.tone?.({ model }),
                 )}
               >
-                {column.cell({ model })}
+                {OPENS_FIGURE.has(column.id) ? (
+                  <span
+                    {...opens(() => panel?.({ name: model.name, figure: modelFigure(model, names, codes, column.id) }))}
+                    className={OPENS}
+                  >
+                    {column.cell({ model })}
+                  </span>
+                ) : column.cell({ model })}
               </td>
             ))}
             {/* Stops the row opening underneath it: the line is a way through to the plan, and a press

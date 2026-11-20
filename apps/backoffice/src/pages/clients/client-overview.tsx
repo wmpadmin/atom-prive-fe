@@ -45,6 +45,8 @@ import {
 } from "lucide-react";
 import { Children, isValidElement, useState, type ReactNode } from "react";
 import { useStaffUser } from "../../auth/session";
+import { useBookPanel } from "../../components/book-panel";
+import { opens } from "../portfolios/figure-opens";
 import { countryName } from "../../lib/countries";
 import { formatDate } from "../../lib/labels";
 import { formatMobileNumber } from "../../lib/mobile-numbers";
@@ -211,6 +213,108 @@ export function ClientOverviewTab({
     { from: startOf(range, today), to: isoDay(today) },
     { query: { retry: false } },
   );
+  const panel = useBookPanel();
+  const name = client.fullName;
+  const shareOf = (value: number) => (overview && overview.marketValue !== 0 ? `${((value / overview.marketValue) * 100).toFixed(2)}%` : "—");
+  const byClass = overview ? overview.byAssetClass : [];
+  const showValue = () =>
+    panel?.({
+      name,
+      figure: {
+        label: "Total portfolio value",
+        value: overview ? whole(ccy, overview.marketValue) : undefined,
+        note: "Today's value of the managed portfolio, by asset class.",
+        facts: attribution.data?.changeShare != null ? [{ label: "Change YTD", value: signedPercent(attribution.data.changeShare) }] : undefined,
+        chart: byClass.length ? { title: "By asset class", data: { shape: "shares", items: byClass.map((one) => ({ name: one.name, value: one.value })) }, kind: "donut", format: "money", currency: ccy || undefined } : undefined,
+        table: { columns: ["Asset class", "Value", "Share"], rows: byClass.map((one) => [one.name, whole(ccy, one.value), shareOf(one.value)]),
+          total: overview ? ["Total", whole(ccy, overview.marketValue), "100%"] : undefined },
+      },
+    });
+  const showReturn = () => {
+    const line = overview?.performance ?? [];
+    panel?.({
+      name,
+      figure: {
+        label: "Total return (YTD)",
+        value: overview?.twrYearToDate != null ? `${overview.twrYearToDate.toFixed(1)}%` : undefined,
+        note: "Time-weighted return since the start of the year, read off the daily valuations.",
+        chart: line.length > 1 ? { title: "Return so far this year", data: { shape: "series", categories: line.map((one) => formatDate(one.on)), series: [{ name: "TWR", values: line.map((one) => one.value) }] }, kind: "line", format: "percent" } : undefined,
+        table: { columns: ["Day", "Return"], rows: line.slice(-10).reverse().map((one) => [formatDate(one.on), signedPercent(one.value)]), title: "Latest days" },
+      },
+    });
+  };
+  const showGain = () => {
+    const a = attribution.data;
+    panel?.({
+      name,
+      figure: {
+        label: "Gain / loss (YTD)",
+        value: gained !== null ? whole(ccy, gained) : undefined,
+        note: "Attribution: the change in value, less what was paid in, plus what was taken out.",
+        facts: a ? [
+          { label: "Opening", value: whole(ccy, a.opening) },
+          { label: "Change", value: whole(ccy, a.change) },
+          { label: "Paid in", value: whole(ccy, a.paidIn) },
+          { label: "Taken out", value: whole(ccy, a.takenOut) },
+        ] : undefined,
+        table: a ? { columns: ["Step", "Amount"], rows: [
+          ["Opening", whole(ccy, a.opening)], ["Change", whole(ccy, a.change)], ["Less paid in", whole(ccy, -a.paidIn)], ["Plus taken out", whole(ccy, a.takenOut)],
+        ], total: ["Gain / loss", gained !== null ? whole(ccy, gained) : null] } : undefined,
+      },
+    });
+  };
+  const showAccounts = () =>
+    panel?.({
+      name,
+      figure: {
+        label: "No. of accounts",
+        value: String(client.linkedAccounts),
+        note: "The bank accounts linked to this client.",
+        table: { columns: ["Account", "No.", "Ccy", "Status"], rows: accounts.map((one) => [
+          one.nickname ?? `${one.bankName} ${accountTypeLabels[one.accountType]}`, `•••• ${one.lastFour}`, one.currency, bankAccountStatus(one.status).label,
+        ]) },
+      },
+    });
+  const showIncome = () =>
+    panel?.({ name, figure: { label: "Income (YTD)", value: "Not tracked yet", note: "Dividends, coupons and interest are not recorded yet, so income cannot be shown." } });
+  const showSince = () =>
+    panel?.({
+      name,
+      figure: {
+        label: "Relationship since",
+        value: formatDate(client.registeredAt),
+        note: "The day the client was registered with the firm.",
+        facts: [
+          { label: "Joined", value: formatDate(client.registeredAt) },
+          { label: "Length", value: since(client.registeredAt, today) },
+          { label: "Client type", value: clientTypeLabels[client.type] },
+          { label: "Client code", value: client.code },
+        ],
+      },
+    });
+  const showSlice = (key: string, label: string, value: number) => {
+    const rest = key === "OTHERS" ? [...byClass].sort((a, b) => b.value - a.value).slice(3) : [];
+    panel?.({
+      name,
+      figure: {
+        label: "Asset allocation",
+        value: whole(ccy, value),
+        note: `${label}: its share of today's managed portfolio.`,
+        facts: [{ label: "Share", value: shareOf(value) }, { label: "Amount", value: whole(ccy, value) }],
+        table: rest.length ? { columns: ["Asset class", "Value", "Share"], rows: rest.map((one) => [one.name, whole(ccy, one.value), shareOf(one.value)]) } : undefined,
+      },
+    });
+  };
+  const showDay = (on: string, value: number) =>
+    panel?.({
+      name,
+      figure: {
+        label: "Portfolio performance",
+        value: signedPercent(value),
+        note: `Time-weighted return from the start of the ${range} period to ${formatDate(on)}.`,
+        facts: [{ label: "Day", value: formatDate(on) }, { label: "Period", value: range }],
+      },
+    });
 
   return (
     <OverviewBoard extra={extra} arranging={arranging} onDone={onDoneArranging}>
@@ -220,26 +324,30 @@ export function ClientOverviewTab({
           <Kpi
             icon={UserRound}
             label="Total portfolio value"
+            onOpen={panel ? showValue : undefined}
             value={overview ? whole(ccy, overview.marketValue) : null}
             note={attribution.data?.changeShare != null ? <Change value={attribution.data.changeShare} after="YTD" /> : undefined}
           />
           <Kpi
             icon={BarChart3}
             label="Total return"
+            onOpen={panel ? showReturn : undefined}
             value={overview?.twrYearToDate != null ? `${overview.twrYearToDate.toFixed(1)}%` : null}
             note={<span className="text-ink-muted">YTD</span>}
           />
-          <Kpi icon={Coins} label="Income (YTD)" value={null} missing="Not tracked yet" />
+          <Kpi icon={Coins} label="Income (YTD)" value={null} missing="Not tracked yet" onOpen={panel ? showIncome : undefined} />
           <Kpi
             icon={ChartLine}
             label="Gain / loss (YTD)"
+            onOpen={panel ? showGain : undefined}
             value={gained !== null ? whole(ccy, gained) : null}
             note={gainedShare !== null ? <Change value={gainedShare} /> : undefined}
           />
-          <Kpi icon={Landmark} label="No. of accounts" value={String(client.linkedAccounts)} />
+          <Kpi icon={Landmark} label="No. of accounts" value={String(client.linkedAccounts)} onOpen={panel ? showAccounts : undefined} />
           <Kpi
             icon={CalendarDays}
             label="Relationship since"
+            onOpen={panel ? showSince : undefined}
             value={formatDate(client.registeredAt)}
             note={<span className="text-ink-muted">({since(client.registeredAt, today)})</span>}
           />
@@ -304,6 +412,7 @@ export function ClientOverviewTab({
                 format={(value) => whole(ccy, value)}
                 classes={[]}
                 label="Asset allocation"
+                onPick={panel ? (one) => showSlice(one.key, one.label, one.value) : undefined}
               />
             </div>
           </div>
@@ -340,6 +449,7 @@ export function ClientOverviewTab({
                 axisTitle="TWR %"
                 format={signedPercent}
                 axisFormat={(value) => `${value.toFixed(0)}%`}
+                onPick={panel ? (point) => showDay(point.on, point.value) : undefined}
               />
             ) : (
               <Empty>{ranged.isPending ? "Reading the returns…" : "Not enough history for this period."}</Empty>
@@ -574,15 +684,19 @@ function Kpi({
   value,
   note,
   missing = "Not on file",
+  onOpen,
 }: {
   icon: LucideIcon;
   label: string;
   value: string | null;
   note?: ReactNode;
   missing?: string;
+  /** Opens the side panel with what the figure is made of. */
+  onOpen?: () => void;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3.5">
+    <div className={cn("flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3.5", onOpen && "cursor-pointer hover:bg-canvas")}
+      {...(onOpen ? opens(onOpen) : {})}>
       <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-primary-50 text-primary-700">
         <Icon className="size-5" />
       </span>
