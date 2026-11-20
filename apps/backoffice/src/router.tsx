@@ -88,14 +88,13 @@ import { ModelPerformancePage } from "./pages/portfolios/model-performance-page"
 import { BulkRebalancingPage } from "./pages/portfolios/bulk-rebalancing-page";
 import { DriftBreachesPage } from "./pages/portfolios/drift-page";
 import { ModelPortfoliosPage } from "./pages/portfolios/model-portfolios-page";
-import { ClientListPage } from "./pages/book/book-page";
 import { LazyClientViewPage } from "./pages/book/client-view-lazy";
 import { BankCredentialsPage } from "./pages/config/bank-credentials-page";
 import { ClientPortfolioPage } from "./pages/portfolios/client-portfolio-page";
 import { DailyTrackerChangePage, DailyTrackerDayPage } from "./pages/portfolios/daily-tracker-day-page";
 import { ClientMovesPage } from "./pages/portfolios/client-moves-page";
 import { ApprovalsPage } from "./pages/portfolios/approvals-page";
-import { PortfolioClientsPage } from "./pages/portfolios/portfolio-clients-page";
+import { NetAumSetupPage } from "./pages/portfolios/net-aum-setup-page";
 import { RolesPage } from "./pages/roles/roles-page";
 import { UserDetailPage } from "./pages/users/user-detail-page";
 import { UsersPage } from "./pages/users/users-page";
@@ -400,7 +399,9 @@ export const router = createBrowserRouter([
             // different job, so it goes on the same permission.
             element: <RequireAuthority authority="VIEW_ALL_CLIENTS:VIEW" />,
             children: [
-              { path: "portfolio-clients", element: <PortfolioClientsPage /> },
+              // The Clients list was removed on 20 Nov 2026; an old link or a saved start screen lands on the Client
+              // Directory, the desk's one list of its clients, rather than on nothing.
+              { path: "portfolio-clients", element: <Navigate to="/client-directory" replace /> },
               // One client's portfolio, written down and read against its model. This is where a client
               // names arrives: the drift queue, the dashboard, the client file and the trading panel all
               // link to a client and expect to arrive at what they hold, not at a form.
@@ -412,10 +413,9 @@ export const router = createBrowserRouter([
                 path: "portfolio-clients/:customerId/days/:on/changes/:revision",
                 element: <DailyTrackerChangePage />,
               },
-              // Working their Net AUM out, which is a dialog over the list rather than a screen of its
-              // own. Its own address all the same, so a sitting can be left and come back to, and so the
-              // list can send somebody nobody has written an allocation down for straight into it.
-              { path: "portfolio-clients/:customerId/net-aum", element: <PortfolioClientsPage /> },
+              // Working their Net AUM out: its own address, so a sitting can be left and come back to. It was a
+              // dialog over the Clients list until that list was removed; it now opens on its own.
+              { path: "portfolio-clients/:customerId/net-aum", element: <NetAumSetupPage /> },
             ],
           },
           {
@@ -447,7 +447,8 @@ export const router = createBrowserRouter([
                   { path: "collectibles", element: <ClientCollectiblesPage /> },
                 ],
               },
-              { path: "book", element: <ClientListPage /> },
+              // The Client list was removed on 20 Nov 2026; its address lands on the Client Directory instead.
+              { path: "book", element: <Navigate to="/client-directory" replace /> },
               {
                 path: "book/:customerId",
                 element: <LazyClientViewPage />,
