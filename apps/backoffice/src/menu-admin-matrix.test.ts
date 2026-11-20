@@ -84,13 +84,12 @@ describe("the portfolio desk's sidebar", () => {
     "APPROVE_PORTFOLIO_CHANGES:VIEW", "APPROVE_PORTFOLIO_CHANGES:CHANGE",
   ] } as unknown as Parameters<typeof menuFor>[0];
 
-  it("leaves out Client list and Clients, though the menu still gives them for Settings", () => {
+  it("has the Client Directory as its one list of clients: Client list and Clients are gone", () => {
     const items = menuFor(aManager).map((item) => item.to);
-    expect(items).toEqual(expect.arrayContaining(["/book", "/portfolio-clients"]));
+    expect(items).not.toContain("/book");
+    expect(items).not.toContain("/portfolio-clients");
     const { list, footer } = arrangeMenu(menuFor(aManager), "PORTFOLIO_MANAGER");
     const drawn = [...list, ...footer].map((item) => item.to);
-    expect(drawn).not.toContain("/book");
-    expect(drawn).not.toContain("/portfolio-clients");
     expect(drawn.slice(0, 5)).toEqual(["/dashboard", "/approvals", "/assistant", "/book-overview", "/client-directory"]);
   });
 });
