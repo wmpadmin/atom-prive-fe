@@ -52,6 +52,7 @@ import {
 } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { useSession, useStaffUser } from "./auth/session";
+import { ANSWERS_MOVE_PLANS, APPROVES_PROPOSALS, hasAnyAuthority, READS_CLIENT_REQUESTS } from "./lib/permissions";
 import { currentSupportView } from "@atomprive/support/support-view";
 import { SupportViewBanner } from "@atomprive/support/support-view-banner";
 import { rememberPage } from "./lib/last-page";
@@ -190,20 +191,26 @@ function useWaitingOn(to: string) {
   // rather than one queue's share of it. A reader who sees 7 opens the screen and the tabs say where the
   // seven are; four separate numbers down the menu said the same thing and made them add it up.
   const queue = to === "/approvals";
+  // Each queue only for a desk the API lets read it: one it would refuse was asked for anyway, so every page
+  // filled the console with 403s for the Admin desk, which reads neither client requests nor proposals.
+  const user = useStaffUser();
+  const movesMoney = queue && hasAnyAuthority(user, ...ANSWERS_MOVE_PLANS);
+  const readsRequests = queue && hasAnyAuthority(user, ...READS_CLIENT_REQUESTS);
+  const answersProposals = queue && hasAnyAuthority(user, ...APPROVES_PROPOSALS);
   const restores = useListRestores<RestoreQueue, ApiError>({
-    query: { enabled: queue, refetchOnWindowFocus: true },
+    query: { enabled: movesMoney, refetchOnWindowFocus: true },
   });
   const figures = useListAllocationChanges<AllocationChangeQueue, ApiError>({
-    query: { enabled: queue, refetchOnWindowFocus: true },
+    query: { enabled: movesMoney, refetchOnWindowFocus: true },
   });
   // The other three queues on that screen. They were left out when the entries were merged, so the
   // number beside it counted four of seven — a reader could open it on the strength of a 2 and find a
   // third thing they had not been counted.
   const clientRequests = useListClientRequests<MovePlanQueue, ApiError>({
-    query: { enabled: queue, refetchOnWindowFocus: true },
+    query: { enabled: readsRequests, refetchOnWindowFocus: true },
   });
   const proposals = useListProposalsAwaitingMyAnswer<ProposalPage, ApiError>({ page: 0, size: 1 },
-    { query: { enabled: queue, refetchOnWindowFocus: true } });
+    { query: { enabled: answersProposals, refetchOnWindowFocus: true } });
   const modelChanges = useListModelChanges<ModelChangePage, ApiError>({ status: "PENDING", page: 0, size: 1 },
     { query: { enabled: queue, refetchOnWindowFocus: true } });
   if (!queue) {
