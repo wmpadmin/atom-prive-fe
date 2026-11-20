@@ -10,12 +10,14 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, SelectInput, cn } from "@atomprive/ui";
 import { ChevronDown, ChevronRight, Columns3, PanelRightOpen } from "lucide-react";
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
+import { HoldingsTree } from "../../components/holdings-tree";
 import { formatDate } from "../../lib/labels";
 import { HoldingsCheckBody } from "../bank-syncs/holdings-check-client-page";
 import { INK } from "../portfolios/asset-classes";
-import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { CardColumnsContext, CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
 import { ReportButton } from "../layout/report";
 import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
@@ -73,6 +75,15 @@ export function ClientHoldingsPage() {
         custodian: <CustodianCard data={data} chart={cardChart(view, "custodian")} />,
         currency: <CurrencyCard data={data} chart={cardChart(view, "currency")} />,
         pnl: <PnlCard data={data} chart={cardChart(view, "pnl")} />,
+        tree: <Card title="Holdings by class" lead="Click a row to open it · double-click a holding for its history">
+          <HoldingsTree note={data.bankFile ? "Each line as the bank's files state it, in its own currency" : undefined}
+            lines={data.positions.map((one) => ({
+              key: one.id, customerId, name: one.name, isin: one.identifier, positionId: data.bankFile ? null : one.id,
+              levels: [one.assetClassName || one.assetClass, one.subClass].filter((level): level is string => Boolean(level)),
+              units: one.quantity,
+              amounts: [{ currency: one.currency ?? data.currency, value: one.value }],
+            }))} />
+        </Card>,
         lines: <Tabs data={data} reconciliation={reconciliation} tab={tab} onTab={setTab} picked={picked} onPick={(one) => setPickedId(one.id)} />,
         lots: <LotsCard data={data} picked={tab === "positions" ? picked : null} />,
         recent: <RecentCard data={data} onFullLedger={fullLedger} />,
@@ -87,7 +98,7 @@ export function ClientHoldingsPage() {
   );
 }
 
-type HoldingsCard = "kpis" | "custodian" | "currency" | "pnl" | "lines" | "lots" | "recent";
+type HoldingsCard = "kpis" | "custodian" | "currency" | "pnl" | "tree" | "lines" | "lots" | "recent";
 
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<HoldingsCard, LayoutMeta> = {
@@ -95,6 +106,7 @@ const CARDS: Record<HoldingsCard, LayoutMeta> = {
   custodian: { title: "By Custodian", group: "Breakdowns", charts: ["horizontal-bar", "donut", "mindmap", "table"] },
   currency: { title: "By Currency", group: "Breakdowns", charts: ["stacked-bar", "donut", "horizontal-bar", "mindmap", "table"] },
   pnl: { title: "Unrealised P&L by Asset Class", group: "Breakdowns", charts: ["horizontal-bar", "bar", "waterfall", "table"] },
+  tree: { title: "Holdings by class", group: "Lines", wide: true },
   lines: { title: "Positions, lots, transactions & reconciliation", group: "Lines", wide: true },
   lots: { title: "Tax Lots of the selected line", group: "Lines", wide: true },
   recent: { title: "Recent Transactions", group: "Lines", wide: true },
@@ -337,6 +349,7 @@ function Tabs({ data, reconciliation, tab, onTab, picked, onPick }: {
   picked: HoldingsPosition | null;
   onPick: (one: HoldingsPosition) => void;
 }) {
+  const body = useRef<HTMLDivElement>(null);
   return (
     <section id="holdings-lines" className="scroll-mt-4 rounded-2xl border border-line bg-white p-5">
       <div className="-mx-5 mb-4 flex items-end gap-2 border-b border-line px-5">
@@ -349,8 +362,10 @@ function Tabs({ data, reconciliation, tab, onTab, picked, onPick }: {
             </button>
           ))}
         </div>
-        <div className="pb-1.5"><CardMenu /></div>
+        {/* Positions has its own Columns, with the filters; every other tab's table takes this one. */}
+        <div className="flex items-center gap-2 pb-1.5">{tab !== "positions" && <TableColumns scope={body} />}<CardMenu /></div>
       </div>
+      <div ref={body} className="contents">
       {tab === "positions" && <Positions data={data} onPick={onPick} picked={picked} />}
       {tab === "lots" && (data.bankFile ? <FileNote what="Tax lots" /> : <LotsTable data={data} position={null} />)}
       {tab === "transactions" && <Ledger data={data} limit={null} />}
@@ -359,6 +374,7 @@ function Tabs({ data, reconciliation, tab, onTab, picked, onPick }: {
         reconciliation.kind === "data" ? <HoldingsCheckBody data={reconciliation.data} />
           : reconciliation.kind === "none" ? <Empty>{reconciliation.message}</Empty> : <Empty>Comparing holdings…</Empty>
       )}
+      </div>
     </section>
   );
 }
@@ -410,6 +426,9 @@ const COLUMNS = [
 
 type Column = (typeof COLUMNS)[number][0];
 
+/** The Positions table's columns, as saved with the layout. */
+const POSITIONS = "positions:";
+
 /** How many lines a group shows before the rest fold into "Other … (n)". */
 const SHOWN_PER_GROUP = 8;
 
@@ -425,7 +444,18 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [opened, setOpened] = useState<Set<string>>(new Set());
-  const [hidden, setHidden] = useState<Set<Column>>(new Set(["accrued", "bankCostPrice", "bankCostTotal"]));
+  // The columns are saved with the reader's layout of the screen, under "positions:"; the firm's choice until they change it.
+  const saved = useContext(CardColumnsContext);
+  const [mine, setMine] = useState<Set<Column> | null>(null);
+  const kept = saved?.hidden.filter((one) => one.startsWith(POSITIONS)) ?? [];
+  const hidden: Set<Column> = mine ?? (kept.length > 0
+    ? new Set(kept.map((one) => one.slice(POSITIONS.length)).filter((id): id is Column => COLUMNS.some(([known]) => known === id)))
+    : new Set<Column>(["accrued", "bankCostPrice", "bankCostTotal"]));
+  const setHidden = (next: Set<Column>) => {
+    if (!saved) return setMine(next);
+    // The tag alone marks that the reader chose, so taking every column back is kept as a choice, not the firm's.
+    saved.change([...saved.hidden.filter((one) => !one.startsWith(POSITIONS)), POSITIONS, ...[...next].map((id) => POSITIONS + id)]);
+  };
   const on = (column: Column) => !hidden.has(column);
 
   const options = useMemo(() => ({
@@ -465,7 +495,7 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
         <ColumnsMenu hidden={hidden} onChange={setHidden} />
       </div>
       <div className="-mx-5 mt-3 overflow-x-auto">
-        <table className="min-w-full text-sm">
+        <table data-own-columns className="min-w-full text-sm">
           <thead>
             <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
               <th scope="col" className="py-2 pr-3 pl-5">Position</th>
@@ -882,6 +912,7 @@ function toggled<T>(set: Set<T>, value: T) {
 function Card({ title, lead, action, picker, children }: { title: string; lead?: string; action?: ReactNode; picker?: ReactNode; children: ReactNode }) {
   // The reader's own name and line for the card, where they set them through Add card.
   const label = useCardLabel(title, lead);
+  const body = useRef<HTMLDivElement>(null);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
@@ -889,9 +920,9 @@ function Card({ title, lead, action, picker, children }: { title: string; lead?:
           <h2 className="text-lg font-bold">{label.title}</h2>
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>
       </div>
-      {children}
+      <div ref={body} className="contents">{children}</div>
     </section>
   );
 }

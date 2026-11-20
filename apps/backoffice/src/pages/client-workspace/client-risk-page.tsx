@@ -2,7 +2,8 @@ import { ApiError } from "@atomprive/api-client";
 import { useGetClientRisk, type ClientRisk } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { SlidersHorizontal } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useRef, type ReactNode } from "react";
+import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
@@ -671,6 +672,7 @@ function Card({ title, lead, foot, flush, picker, children }: {
 }) {
   // The reader's own name and line for the card, where they set them through Add card.
   const label = useCardLabel(title, lead);
+  const body = useRef<HTMLDivElement>(null);
   return (
     <section className={cn("flex min-w-0 flex-col rounded-2xl border border-line bg-white", flush ? "py-5" : "p-5")}>
       <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", flush && "px-5")}>
@@ -678,9 +680,9 @@ function Card({ title, lead, foot, flush, picker, children }: {
           <h2 className="text-lg font-bold">{label.title}</h2>
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">{picker}<CardMenu /></div>
+        <div className="flex flex-wrap items-center gap-2">{picker}<TableColumns scope={body} /><CardMenu /></div>
       </div>
-      <div className="flex-1">{children}</div>
+      <div ref={body} className="flex-1">{children}</div>
       {foot && <div className={cn("mt-3 border-t border-line pt-3 text-xs text-ink-muted", flush && "px-5")}>{foot}</div>}
     </section>
   );

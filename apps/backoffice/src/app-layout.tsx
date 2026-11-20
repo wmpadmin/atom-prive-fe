@@ -5,10 +5,12 @@ import {
   useGetRecentClientWorkspaces,
   useListClientRequests,
   useListModelChanges,
+  useListNewHoldings,
   useListProposalsAwaitingMyAnswer,
   useListAllocationChanges,
   useListRestores,
   type ModelChangePage,
+  type NewHoldingQueue,
   type MovePlanQueue,
   type ProposalPage,
   type AllocationChangeQueue,
@@ -38,11 +40,14 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  Search,
+  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   Fragment,
@@ -213,6 +218,9 @@ function useWaitingOn(to: string) {
     { query: { enabled: answersProposals, refetchOnWindowFocus: true } });
   const modelChanges = useListModelChanges<ModelChangePage, ApiError>({ status: "PENDING", page: 0, size: 1 },
     { query: { enabled: queue, refetchOnWindowFocus: true } });
+  const newHoldings = useListNewHoldings<NewHoldingQueue, ApiError>({
+    query: { enabled: movesMoney, refetchOnWindowFocus: true },
+  });
   if (!queue) {
     return 0;
   }
@@ -224,7 +232,8 @@ function useWaitingOn(to: string) {
     + (proposals.data?.totalItems ?? 0)
     // Waiting on this reader, not visible to them: a bell that counts somebody else's work sends
     // people to a queue with nothing in it for them.
-    + (modelChanges.data?.waitingOnYou ?? 0);
+    + (modelChanges.data?.waitingOnYou ?? 0)
+    + (newHoldings.data?.waiting ?? 0);
 }
 
 /** Yours rather than a desk's: owed once by the person, so only in the workspace they call home. */
@@ -791,6 +800,88 @@ function SidebarEdge({
   );
 }
 
+/** One place the sidebar search can open: a screen on the menu, or one of the open client's screens. */
+type Found = { to: string; label: string; icon: LucideIcon; under: string | null };
+
+/** Everything on this person's menu, nested entries and the open client's screens included, in the menu's order. */
+function searchable(entries: Entry[], client: { id: string } | null): Found[] {
+  const out: Found[] = [];
+  for (const entry of entries) {
+    out.push({ to: entry.to, label: entry.label, icon: entry.icon, under: null });
+    for (const under of entry.below) out.push({ to: under.to, label: under.label, icon: under.icon, under: entry.label });
+  }
+  if (client) {
+    for (const each of WORKSPACE_SCREENS) {
+      out.push({ to: workspaceOf(client.id, each.path), label: each.label, icon: each.icon, under: "This client" });
+    }
+  }
+  return out;
+}
+
+/** Each word typed found somewhere in the name, or in the entry it sits under: "kyc q" finds the KYC queue. */
+function matches(one: Found, query: string) {
+  const text = `${one.label} ${one.under ?? ""}`.toLowerCase();
+  return query.toLowerCase().split(/\s+/).filter(Boolean).every((word) => text.includes(word));
+}
+
+/**
+ * The sidebar's own search: finds a screen on this person's menu by its name. It looks only at the menu — the top
+ * bar's search, behind ⌘K, finds clients.
+ */
+function SidebarSearch({ query, onQuery, inputRef }: {
+  query: string;
+  onQuery: (query: string) => void;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  return (
+    <div className="relative mt-4 shrink-0">
+      <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
+      <input ref={inputRef} id="sidebar-search" type="search" value={query} onChange={(event) => onQuery(event.target.value)}
+        placeholder="Search menu" aria-label="Search the menu" autoComplete="off"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") onQuery("");
+        }}
+        className="h-9 w-full rounded-lg border border-line bg-white pr-8 pl-8 text-sm text-ink placeholder:text-ink-muted focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none [&::-webkit-search-cancel-button]:hidden" />
+      {query && (
+        <button type="button" aria-label="Clear the search" onClick={() => { onQuery(""); inputRef.current?.focus(); }}
+          className="absolute top-1/2 right-1.5 grid size-6 -translate-y-1/2 place-items-center rounded-md text-ink-muted hover:bg-slate-100 hover:text-ink">
+          <X className="size-3.5" aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** What the sidebar search found, in place of the menu while something is typed. */
+function SearchResults({ found, pathname, search, onOpen }: {
+  found: Found[];
+  pathname: string;
+  search: string;
+  onOpen: () => void;
+}) {
+  if (found.length === 0) return <p className="px-3 py-6 text-center text-sm text-ink-muted">No screen on your menu is called that.</p>;
+  return (
+    <ul className="space-y-0.5">
+      {found.map((one) => {
+        const here = isHere(one, pathname, search);
+        return (
+          <li key={`${one.under ?? ""}${one.to}`}>
+            <Link to={one.to} onClick={onOpen} aria-current={here ? "page" : undefined}
+              className={cn("flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors", FOCUS_CLASS,
+                here ? HERE_CLASS : IDLE_CLASS)}>
+              <one.icon className="size-4 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{one.label}</span>
+                {one.under && <span className="block truncate text-2xs text-ink-muted">{one.under}</span>}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function AppLayout() {
   const user = useStaffUser();
   const { pathname, search } = useLocation();
@@ -859,6 +950,8 @@ export function AppLayout() {
   }, []);
 
   const navRef = useRef<HTMLElement>(null);
+  const [menuQuery, setMenuQuery] = useState("");
+  const menuSearch = useRef<HTMLInputElement>(null);
   // A sidebar link that was pressed keeps focus after the screen changes, and a press made by key leaves its ring
   // on the entry that is now selected. Selected is the fill alone, so the focus is let go once the screen has moved.
   useEffect(() => {
@@ -899,6 +992,13 @@ export function AppLayout() {
   }, [openClient]);
 
   const view = currentSupportView();
+  const found = useMemo(() => {
+    const query = menuQuery.trim();
+    if (!query) return [];
+    const all = searchable([...list, ...footer], workspace ? { id: workspace.id } : null);
+    return all.filter((one) => matches(one, query));
+  }, [menuQuery, list, footer, workspace]);
+  const searching = !rail && menuQuery.trim() !== "";
 
   return (
     <>
@@ -921,12 +1021,26 @@ export function AppLayout() {
             desk's list runs, both the desk you are at and the way to every other one stay on screen. Only the
             screens between them scroll. Somebody holding one role has no headings at all, and on the rail the
             mark opens the workspaces instead. */}
-        {sections && <div className="mt-4 shrink-0"><RoleHeader role={user.activeRole as StaffRole} here enter={enter} /></div>}
+        {rail ? (
+          // On the rail, the search opens the sidebar and puts the cursor in it.
+          <RailTip label="Search menu" show>
+            <button type="button" aria-label="Search the menu"
+              onClick={() => {
+                change("sidebarAway", false);
+                requestAnimationFrame(() => menuSearch.current?.focus());
+              }}
+              className={cn("mx-auto mt-4 grid size-10 shrink-0 place-items-center rounded-xl transition-colors", FOCUS_CLASS, IDLE_CLASS)}>
+              <Search className="size-4.5" aria-hidden="true" />
+            </button>
+          </RailTip>
+        ) : <SidebarSearch query={menuQuery} onQuery={setMenuQuery} inputRef={menuSearch} />}
+        {sections && !searching && <div className="mt-4 shrink-0"><RoleHeader role={user.activeRole as StaffRole} here enter={enter} /></div>}
         <nav aria-label="Back-office" ref={navRef}
           // The only part of the sidebar that scrolls: the headings and footer around it are pinned, and on a short
           // window it gives way down to about 96px rather than push them out of view.
           className={cn("min-h-24 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain",
-            sections ? "mt-1 ml-[1.0625rem] border-l border-line pl-2" : "mt-4")}>
+            sections && !searching ? "mt-1 ml-[1.0625rem] border-l border-line pl-2" : "mt-4")}>
+          {searching ? <SearchResults found={found} pathname={pathname} search={search} onOpen={() => setMenuQuery("")} /> : <>
           {/* The portfolio desk's recent clients sit right under Book Overview, so all four are in view without
               scrolling. */}
           <MenuList items={list} rail={rail} pathname={pathname} search={search} open={workspace && clientHome ? clientHome : undefined}
@@ -942,6 +1056,7 @@ export function AppLayout() {
               <ClientMenu key={workspace.id} customerId={workspace.id} screen={workspace.screen} rail={rail} />
             </ul>
           )}
+          </>}
         </nav>
         {sections && (
           // Pinned with the footer: every other workspace's heading is always in full view, and never scrolls.

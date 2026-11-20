@@ -12,6 +12,7 @@ import { Alert, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Car, FileText, Frame, Gem, ImagePlus, MapPin, RefreshCw, Sailboat, Watch, Wine, X, type LucideIcon } from "lucide-react";
 import { createElement, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { openApiFile } from "../../lib/download";
@@ -683,6 +684,7 @@ function collectiblesFigures(data: ClientCollectibles): Figures {
 function Card({ title, lead, flush, picker, children }: { title: string; lead?: string; flush?: boolean; picker?: ReactNode; children: ReactNode }) {
   // The reader's own name and line for the card, where they set them through Add card.
   const label = useCardLabel(title, lead);
+  const body = useRef<HTMLDivElement>(null);
   return (
     <section className={cn("flex min-w-0 flex-col rounded-2xl border border-line bg-white", flush ? "py-5" : "p-5")}>
       <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", flush && "px-5")}>
@@ -690,9 +692,9 @@ function Card({ title, lead, flush, picker, children }: { title: string; lead?: 
           <h2 className="text-lg font-bold">{label.title}</h2>
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">{picker}<CardMenu /></div>
+        <div className="flex flex-wrap items-center gap-2">{picker}<TableColumns scope={body} /><CardMenu /></div>
       </div>
-      {children}
+      <div ref={body} className="contents">{children}</div>
     </section>
   );
 }

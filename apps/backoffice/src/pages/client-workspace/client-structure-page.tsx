@@ -8,7 +8,8 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { FileText } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { INK } from "../portfolios/asset-classes";
@@ -536,36 +537,76 @@ function GovernanceCard({ data }: { data: ClientStructure }) {
       action={data.bankFile && staffEntered(data) && <StaffEntered />}>
       {data.bankFile && data.governance.length === 0 && data.documents.length === 0 ? <FileBlock /> : (<>
       {data.governance.length === 0 ? <Empty>Nothing is on the governance calendar.</Empty> : (
-        <ul className="divide-y divide-line">
-          {data.governance.map((one, at) => (
-            <li key={`${one.dueOn}-${at}`} className="flex items-center gap-4 py-2.5">
-              <span className="w-24 shrink-0 text-xs text-ink-muted">{formatDate(one.dueOn)}</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">{one.entity ?? "Client"}</p>
-                <p className="text-xs text-ink-muted">{one.title}</p>
-              </div>
-              <span className={cn("rounded-md px-2 py-0.5 text-2xs font-semibold",
-                one.status === "DUE" ? "bg-amber-50 text-amber-700" : one.status === "DONE" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-ink-soft")}>
-                {one.status === "DUE" ? "Due" : one.status === "DONE" ? "Done" : "Scheduled"}
-              </span>
-            </li>
-          ))}
-        </ul>
+        // Fixed widths, the same on every row, so the entity, the task and its status line up in columns.
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[40rem] table-fixed text-sm">
+            <colgroup>
+              <col className="w-32" />
+              <col className="w-[30%]" />
+              <col />
+              <col className="w-28" />
+            </colgroup>
+            <thead>
+              <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                <th scope="col" className="py-2 pr-3">Due</th>
+                <th scope="col" className="py-2 pr-3">Entity</th>
+                <th scope="col" className="py-2 pr-3">What</th>
+                <th scope="col" className="py-2">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {data.governance.map((one, at) => (
+                <tr key={`${one.dueOn}-${at}`}>
+                  <td className="py-2.5 pr-3 whitespace-nowrap text-ink-muted tabular-nums">{formatDate(one.dueOn)}</td>
+                  <td className="py-2.5 pr-3 font-semibold break-words">{one.entity ?? "Client"}</td>
+                  <td className="py-2.5 pr-3 break-words text-ink-soft">{one.title}</td>
+                  <td className="py-2.5">
+                    <span className={cn("inline-block rounded-md px-2 py-0.5 text-2xs font-semibold",
+                      one.status === "DUE" ? "bg-amber-50 text-amber-700" : one.status === "DONE" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-ink-soft")}>
+                      {one.status === "DUE" ? "Due" : one.status === "DONE" ? "Done" : "Scheduled"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-      <p className="mt-4 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Constitutional documents</p>
+      <p className="mt-5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Constitutional documents</p>
       {data.documents.length === 0 ? <Empty>No constitutional document is recorded.</Empty> : (
-        <ul className="mt-1 divide-y divide-line">
-          {data.documents.map((one, at) => (
-            <li key={`${one.title}-${at}`} className="flex items-center gap-3 py-2 text-sm">
-              <FileText className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
-              <span className="min-w-0 flex-1 truncate">{one.title}</span>
-              <span className="text-xs text-ink-muted">
-                {[one.executedOn && `Executed ${year(one.executedOn)}`, one.amendedOn && `updated ${formatDate(one.amendedOn)}`, one.note]
-                  .filter(Boolean).join(" · ")}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-x-auto">
+          <table className="mt-1 w-full min-w-[40rem] table-fixed text-sm">
+            <colgroup>
+              <col className="w-[40%]" />
+              <col className="w-28" />
+              <col className="w-32" />
+              <col />
+            </colgroup>
+            <thead>
+              <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                <th scope="col" className="py-2 pr-3">Document</th>
+                <th scope="col" className="py-2 pr-3">Executed</th>
+                <th scope="col" className="py-2 pr-3">Updated</th>
+                <th scope="col" className="py-2">Note</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {data.documents.map((one, at) => (
+                <tr key={`${one.title}-${at}`}>
+                  <td className="py-2 pr-3">
+                    <span className="flex items-center gap-2">
+                      <FileText className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
+                      <span className="min-w-0 break-words">{one.title}</span>
+                    </span>
+                  </td>
+                  <td className="py-2 pr-3 text-ink-muted tabular-nums">{one.executedOn ? year(one.executedOn) : "—"}</td>
+                  <td className="py-2 pr-3 whitespace-nowrap text-ink-muted tabular-nums">{one.amendedOn ? formatDate(one.amendedOn) : "—"}</td>
+                  <td className="py-2 break-words text-ink-muted">{one.note ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       <p className="mt-2 text-3xs text-ink-muted italic">Dates and status only; the papers themselves are kept with the client's documents.</p>
       </>)}
@@ -689,6 +730,7 @@ function structureFigures(data: ClientStructure): Figures {
 function Card({ title, lead, action, picker, children }: { title: string; lead?: string; action?: ReactNode; picker?: ReactNode; children: ReactNode }) {
   // The reader's own name and line for the card, where they set them through Add card.
   const label = useCardLabel(title, lead);
+  const body = useRef<HTMLDivElement>(null);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
@@ -696,9 +738,9 @@ function Card({ title, lead, action, picker, children }: { title: string; lead?:
           <h2 className="text-lg font-bold">{label.title}</h2>
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>
       </div>
-      {children}
+      <div ref={body} className="contents">{children}</div>
     </section>
   );
 }

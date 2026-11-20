@@ -8,6 +8,7 @@ import {
   useListModelPortfolios,
   useSetClientModelPortfolio,
   type ClientHoldings,
+  type SubClassGroup,
   type CustomerDetail,
   type ModelsPage,
   type PortfolioStanding,
@@ -27,6 +28,7 @@ import { useAssetClasses } from "./asset-classes";
 import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
 import { AnalyticsPanel } from "./analytics-panel";
+import { HoldingsTree, type TreeLine } from "../../components/holdings-tree";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
 import { ExcludedHoldingsCard } from "./excluded-holdings-card";
 import { ClientReturnPanel } from "./client-return-panel";
@@ -496,6 +498,12 @@ export function ClientPortfolioPage() {
         </fieldset>
       </section>
 
+      {/* Every line the client holds, opened a level at a time, and any one of them read back day by day. */}
+      <section className="rounded-2xl border border-line bg-white p-5">
+        <h2 className="mb-3 text-lg font-bold">Holdings</h2>
+        <HoldingsTree lines={treeLinesOf(customerId, lines.data)} />
+      </section>
+
       {worksTheDesk && <>
       <ValuationHistoryPanel customerId={customerId} />
 
@@ -607,4 +615,20 @@ function RiskMatchNote({ match }: { match: RiskMatch | null }) {
       </Alert>
     </div>
   );
+}
+
+/** The client's lines for the holdings tree: class, then sub-class, then sub-sub-class, each in the portfolio's currency. */
+function treeLinesOf(customerId: string, held: ClientHoldings | undefined): TreeLine[] {
+  if (!held) return [];
+  const out: TreeLine[] = [];
+  const walk = (groups: SubClassGroup[]) => groups.forEach((group) => {
+    group.positions.filter((one) => !out.some((already) => already.key === one.id)).forEach((one) => out.push({
+      key: one.id, customerId, name: one.name, isin: one.identifier, positionId: one.id,
+      levels: [one.assetClassName || one.assetClass, one.subClass, one.subSubClass].filter((level): level is string => Boolean(level)),
+      amounts: [{ currency: held.currency, value: one.valueAmount }],
+    }));
+    walk(group.inside);
+  });
+  held.classes.forEach((klass) => walk(klass.subClasses));
+  return out;
 }
