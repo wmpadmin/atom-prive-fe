@@ -249,8 +249,8 @@ export function ClientViewPage() {
 
   return (
     <div className="space-y-5">
-      <Link to="/book" className="inline-flex items-center gap-1 text-sm font-semibold text-ink-muted hover:text-ink">
-        <ChevronLeft aria-hidden="true" className="size-4" /> Client list
+      <Link to="/client-directory" className="inline-flex items-center gap-1 text-sm font-semibold text-ink-muted hover:text-ink">
+        <ChevronLeft aria-hidden="true" className="size-4" /> Client Directory
       </Link>
 
       <div className="flex flex-wrap items-center gap-3">

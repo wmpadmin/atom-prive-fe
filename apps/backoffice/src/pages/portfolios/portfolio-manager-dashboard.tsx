@@ -23,6 +23,7 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { hasAuthority } from "../../lib/permissions";
 import { menuFor } from "../../menu";
 import {
   AskTheAssistant,
@@ -121,11 +122,13 @@ export function PortfolioManagerDashboard() {
   const linkFor = (key: string) => goTo(...(WORKED_FROM[key] ?? []));
   const data = figures.data;
   const cur = data?.currency ?? currency;
-  const clientLink = (customerId: string) => (reachable.has("/portfolio-clients") ? `/portfolio-clients/${customerId}` : undefined);
+  // A client's own portfolio, for whoever the route lets open one: it went by the Clients list's menu entry,
+  // which was removed on 20 Nov 2026 while the portfolio page itself stayed.
+  const clientLink = (customerId: string) => (hasAuthority(user, "VIEW_ALL_CLIENTS:VIEW") ? `/portfolio-clients/${customerId}` : undefined);
 
   const render: Record<CardId, ReactNode> = {
     overview: (
-      <Panel icon={Layers} title="AUM & portfolio overview" to={goTo("/portfolio-clients", "/book")}>
+      <Panel icon={Layers} title="AUM & portfolio overview" to={goTo("/client-directory")}>
         {data ? (
           <div className="space-y-4">
             {data.byAssetClass.length === 0 ? (
@@ -135,7 +138,7 @@ export function PortfolioManagerDashboard() {
                 rows={data.byAssetClass.map((one) => ({ name: one.name, value: one.amount, share: one.sharePercent }))} />
             )}
             <Strip figures={[
-              { label: "Assigned clients", value: data.book.clients, to: goTo("/portfolio-clients") },
+              { label: "Assigned clients", value: data.book.clients, to: goTo("/client-directory") },
               { label: "Portfolios", value: data.book.portfolios },
               { label: `AUM vs ${days} days ago`, value: money(data.book.aum, cur), change: data.book.aumChangePercent },
             ]} />
