@@ -7,6 +7,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import { FileViewToggle, type FileView } from "../../components/converted-usd";
 import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { formatDate, formatDateTime } from "../../lib/labels";
@@ -54,7 +55,7 @@ export function ClientIpsPage() {
       <Monitoring data={data} view={view} />
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+          {data.converted ? `Values in ${data.converted.currency} at FX rates${data.converted.ratesOn ? ` of ${formatDate(data.converted.ratesOn)}` : ""}; the allocation table offers the bank's own view` : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>
       </footer>
@@ -189,7 +190,8 @@ function Scorecard({ data, chart }: { data: ClientIps; chart: CardChart }) {
   return (
     <Card title="Compliance Scorecard"
       lead={data.bankFile
-        ? (data.checks.length === 0 ? undefined : `${s.rules} of ${data.checks.length} rules read against a measure on file · the rest need his holdings, not in the bank file`)
+        ? (data.checks.length === 0 && data.allocation.length === 0 ? undefined
+          : `${s.rules} rules monitored · bands and ${data.converted ? "the cash, currency and single-line limits from his bank lines in USD" : "recorded measures"}${s.notMeasured > 0 ? ` · ${s.notMeasured} not measured: the bank file has nothing for them` : ""}`)
         : `${s.rules} rules monitored${s.notMeasured > 0 ? ` · ${s.notMeasured} could not be measured` : ""}`}
       picker={!data.bankFile && s.rules > 0 && chart.picker}
       action={data.bankFile && data.checks.length > 0 && <StaffEntered />}>
@@ -273,21 +275,29 @@ function AllocationCard({ data, chart }: { data: ClientIps; chart: CardChart }) 
   const drill = useDrill();
   const [expanded, setExpanded] = useState(true);
   const [basis, setBasis] = useState<"investable" | "total">("investable");
-  const rows = data.allocation.filter((one) => expanded || one.assetClass);
-  const scale = Math.max(10, ...data.allocation.filter((one) => one.assetClass).map((one) => Math.max(one.max ?? 0, one.actual))) * 1.05;
+  // A bank-file client's lines either in dollars against his model's bands, or as the bank's files state them: the
+  // same rows and columns both ways, each house class with the bank's lines in it, so switching moves only figures.
+  const [fileView, setFileView] = useState<FileView>("converted");
+  const toggle = data.bankFile && <FileViewToggle value={fileView} onChange={setFileView} />;
+  const allRows: ShownRow[] = data.bankFile && data.converted ? fileRows(data, fileView) : data.allocation;
+  const rows = allRows.filter((one) => expanded || one.assetClass);
+  const scale = Math.max(10, ...allRows.filter((one) => one.assetClass).map((one) => Math.max(one.max ?? 0, one.actual ?? 0))) * 1.05;
   const classes = data.allocation.filter((one) => one.assetClass).length;
   const total = (data.investable ?? 0) + (data.ownedOutright ?? 0);
-  if (data.bankFile) return <FileAllocation data={data} />;
+  if (data.bankFile && !data.converted) return <FileAllocation data={data} toggle={toggle} />;
   return (
     <Card title="Strategic Asset Allocation · Target vs Actual"
-      lead={`${classes} asset classes · ${data.allocation.length - classes} sub-classes · deviation shown in percentage points and ${data.currency}`}
+      lead={data.bankFile
+        ? `EFG's classes read as the house's · the bank's lines in ${data.currency} at FX rates${data.converted?.ratesOn ? ` of ${formatDate(data.converted.ratesOn)}` : ""} · % of his holdings`
+        : `${classes} asset classes · ${data.allocation.length - classes} sub-classes · deviation shown in percentage points and ${data.currency}`}
       picker={data.allocation.length > 0 && chart.picker}
       action={
         <div className="flex flex-wrap gap-2">
+          {toggle}
           <Toggle label="Rows shown" value={expanded ? "all" : "classes"} onChange={(next) => setExpanded(next === "all")}
             options={[["all", "Expand all"], ["classes", "Asset classes only"]]} />
-          <Toggle label="Measured against" value={basis} onChange={setBasis}
-            options={[["investable", "Investable"], ["total", "Total incl. owned outright"]]} />
+          {!data.bankFile && <Toggle label="Measured against" value={basis} onChange={setBasis}
+            options={[["investable", "Investable"], ["total", "Total incl. owned outright"]]} />}
         </div>
       }>
       {data.allocation.length === 0 ? <Empty>No model to measure against yet.</Empty> : !chart.own ? (
@@ -319,7 +329,7 @@ function AllocationCard({ data, chart }: { data: ClientIps; chart: CardChart }) 
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {rows.map((one) => <AllocationLine key={one.key} row={one} basis={basis} scale={scale} currency={data.currency} />)}
+              {rows.map((one) => <AllocationLine key={one.key} row={one} basis={basis} scale={scale} currency={data.currency} file={data.bankFile} />)}
               {basis === "total" && (data.ownedOutright ?? 0) > 0 && (
                 <tr className="bg-slate-50 font-semibold">
                   <th scope="row" className="py-2 pr-3 pl-5 text-left">Owned outright</th>
@@ -344,7 +354,49 @@ function AllocationCard({ data, chart }: { data: ClientIps; chart: CardChart }) 
   );
 }
 
-function AllocationLine({ row, basis, scale, currency }: { row: IpsAllocationRow; basis: "investable" | "total"; scale: number; currency: string }) {
+/** A row of the allocation table; a bank-file client's may hold no figure where the bank's own view is shown. */
+type ShownRow = Omit<IpsAllocationRow, "actual" | "actualOfTotal" | "value"> & {
+  actual: number | null;
+  actualOfTotal: number | null;
+  value: number | null;
+  /** The amounts as the bank sent them: beneath the dollar figure, or in its place in the bank's own view. */
+  asSent?: string[];
+};
+
+/**
+ * A bank-file client's allocation rows: each house class as IPS measures it, then the bank's lines read as that class.
+ * Converted, in dollars against the bands; the bank's own view, the same rows with each amount as sent.
+ */
+function fileRows(data: ClientIps, view: FileView): ShownRow[] {
+  const conv = data.converted!;
+  const houseOf = (bankClass: string | null | undefined) => (conv.houseClasses as Record<string, string>)[(bankClass ?? "").trim().toUpperCase()];
+  const sent = (amount: number, currency: string) => `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const whole = Math.abs(conv.total);
+  return data.allocation.flatMap((cls): ShownRow[] => {
+    const unmapped = cls.key.startsWith("BANK/") ? cls.key.slice(5) : null;
+    const belongs = (bankClass: string | null | undefined) => (unmapped ? (bankClass ?? "Class not in bank file") === unmapped : houseOf(bankClass) === cls.key);
+    const line = (key: string, name: string, extra: Partial<ShownRow>): ShownRow => ({
+      key: `${cls.key}/${key}`, name, assetClass: false, parent: cls.key, min: null, target: null, max: null, actual: null,
+      actualOfTotal: null, value: null, deviationPoints: null, deviationValue: null, status: "NOT_SET", ...extra,
+    });
+    if (view === "converted") {
+      return [cls, ...conv.lines.filter((one) => belongs(one.assetClass)).map((one, at) => line(`${at}`, one.name, {
+        actual: whole === 0 ? null : (one.usd / whole) * 100, actualOfTotal: whole === 0 ? null : (one.usd / whole) * 100, value: one.usd,
+        asSent: one.currency === conv.currency ? undefined : [sent(one.asSent, one.currency)],
+      }))];
+    }
+    const groups = data.fileLines.filter((group) => belongs(group.assetClass));
+    const sums = new Map<string, number>();
+    groups.forEach((group) => sums.set(group.currency, (sums.get(group.currency) ?? 0) + group.total));
+    return [
+      { ...cls, actual: null, actualOfTotal: null, value: null, deviationPoints: null, deviationValue: null, status: "NOT_SET",
+        asSent: [...sums.entries()].map(([currency, amount]) => sent(amount, currency)) },
+      ...groups.flatMap((group) => group.lines.map((one, at) => line(`${group.currency}/${at}`, one.name, { asSent: [sent(one.value, group.currency)] }))),
+    ];
+  });
+}
+
+function AllocationLine({ row, basis, scale, currency, file }: { row: ShownRow; basis: "investable" | "total"; scale: number; currency: string; file?: boolean }) {
   const drill = useDrill();
   const investable = basis === "investable";
   const actual = investable ? row.actual : row.actualOfTotal;
@@ -353,7 +405,7 @@ function AllocationLine({ row, basis, scale, currency }: { row: IpsAllocationRow
   return (
     <tr className={cn(row.assetClass && "bg-slate-50 font-semibold")}>
       <th scope="row" className={cn("py-2 pr-3 text-left", row.assetClass ? "pl-5" : "pl-9 font-normal")}>
-        {row.key === "OWNED_OUTRIGHT" ? row.name : (
+        {row.key === "OWNED_OUTRIGHT" || (file && !row.assetClass) ? row.name : (
           <button type="button" className="text-left hover:text-primary-700 hover:underline"
             onClick={() => drill?.(row.assetClass ? { by: "class", key: row.key, name: row.name } : { by: "subClass", key: row.name, name: row.name })}>
             {row.name}
@@ -364,7 +416,11 @@ function AllocationLine({ row, basis, scale, currency }: { row: IpsAllocationRow
       <td className="px-2 py-2 text-right tabular-nums">{investable ? pct(row.target) : "—"}</td>
       <td className="px-2 py-2 text-right tabular-nums">{investable ? pct(row.max) : "—"}</td>
       <td className="px-2 py-2 text-right tabular-nums">{pct(actual)}</td>
-      <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{compact(row.value, currency)}</td>
+      <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
+        {row.value != null && (row.assetClass ? compact(row.value, currency) : `${currency} ${row.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)}
+        {row.asSent?.map((one) => <span key={one} className={cn("block", row.value != null && "text-2xs font-normal text-ink-muted")}>{one}</span>)}
+        {row.value == null && !row.asSent?.length && "—"}
+      </td>
       <td className={cn("px-2 py-2 text-right whitespace-nowrap tabular-nums", row.status === "DEVIATION" && "text-red-700")}>
         {investable && row.deviationPoints != null ? `${row.deviationPoints > 0 ? "+" : ""}${row.deviationPoints.toFixed(2)} pp` : "—"}
       </td>
@@ -372,13 +428,13 @@ function AllocationLine({ row, basis, scale, currency }: { row: IpsAllocationRow
         {investable && row.deviationValue != null ? signedCompact(row.deviationValue, currency) : "—"}
       </td>
       <td className="px-2 py-2">
-        {investable && row.min != null && row.max != null && row.target != null ? (
+        {investable && row.min != null && row.max != null && row.target != null && actual != null ? (
           <span className="relative block h-3" aria-hidden="true" title={`${STATUS[row.status]?.[0] ?? row.status} · band ${pct(row.min)} – ${pct(row.max)}`}>
             <span className="absolute top-0 h-3 rounded-sm bg-slate-100" style={{ left: at(row.min), width: `calc(${at(row.max)} - ${at(row.min)})` }} />
             <span className={cn("absolute top-1 left-0 h-1 rounded-full", tone)} style={{ width: at(actual) }} />
             <span className="absolute -top-0.5 h-4 w-0.5 bg-ink" style={{ left: at(row.target) }} />
           </span>
-        ) : <span className="text-xs text-ink-muted">{investable ? "Not set by the model" : ""}</span>}
+        ) : <span className="text-xs text-ink-muted">{investable && row.assetClass && row.target == null ? "Not set by the model" : ""}</span>}
       </td>
       <td className="py-2 pr-5 pl-2 whitespace-nowrap">
         {row.status === "NOT_SET" ? <span className="text-xs text-ink-muted">—</span>
@@ -681,9 +737,10 @@ function LogCard({ data }: { data: ClientIps }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 
 /** His bank's lines, by the bank's own class within each currency, with the value as sent and nothing else. */
-function FileAllocation({ data }: { data: ClientIps }) {
+function FileAllocation({ data, toggle }: { data: ClientIps; toggle?: ReactNode }) {
   return (
-    <Card title="Strategic Asset Allocation · Target vs Actual" lead="His lines by the bank's own class within each currency, as the bank's files state them">
+    <Card title="Strategic Asset Allocation · Target vs Actual" lead="His lines by the bank's own class within each currency, as the bank's files state them"
+      action={toggle}>
       {data.fileLines.length === 0 ? <FileBlock /> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">

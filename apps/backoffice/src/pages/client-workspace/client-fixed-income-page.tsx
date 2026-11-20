@@ -8,6 +8,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import { FileViewToggle, inUsd, sumInUsd, type FileView } from "../../components/converted-usd";
 import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
@@ -89,7 +90,7 @@ export function ClientFixedIncomePage() {
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {file ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {day(data.asOf)} close.
+          {file && data.converted ? `Values in ${data.converted.currency} at FX rates${data.converted.ratesOn ? ` of ${day(data.converted.ratesOn)}` : ""}; tables offer the bank's own view` : `Values in ${data.currency} unless stated`}; market data as of {day(data.asOf)} close.
           {!file && data.note && ` ${data.note}`}
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>
@@ -105,18 +106,26 @@ const KPI_LABELS = ["Yield to maturity", "Yield to worst", "Modified duration", 
 
 function Kpis({ data }: { data: ClientFixedIncome }) {
   const rows = useFiguresAsTable();
-  const kpis: (FiKpi | null)[] = data.bankFile ? KPI_LABELS.map(() => null) : data.kpis;
+  // A bank-file client's bond lines added up in dollars at the latest FX rates; the analytics are not in his file.
+  const conv = data.bankFile ? data.converted : null;
+  const sleeve = conv ? sumInUsd(data.fileLines.map((one) => ({ amount: one.value, currency: one.currency })), conv) : null;
+  const sleeveKpi: FiKpi | null = conv && sleeve && data.fileLines.length > 0 ? {
+    key: "FILE_SLEEVE", label: "Bond lines · market value", value: sleeve.total, text: null, unit: "MONEY", delta: null,
+    deltaUnit: "NONE", note: `${data.fileLines.length} line${data.fileLines.length === 1 ? "" : "s"} · ${conv.currency} at FX rates${conv.ratesOn ? ` of ${day(conv.ratesOn)}` : ""}${sleeve.missing.length ? ` · ${sleeve.missing.join(", ")} left out: no rate` : ""}`,
+  } : null;
+  const kpis: (FiKpi | null)[] = data.bankFile ? [...(sleeveKpi ? [sleeveKpi] : []), ...KPI_LABELS.map(() => null)] : data.kpis;
+  const cur = conv ? conv.currency : data.currency;
   return (
     <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
       {kpis.map((one, at) => rows ? (
-        <FigureRow key={one?.key ?? KPI_LABELS[at]} label={one?.label ?? KPI_LABELS[at]} value={!one ? <NotInFile /> : <>{kpiValue(one, data.currency)}{one.delta != null && one.deltaUnit !== "NONE" && <span className={cn("ml-2 rounded-md px-1.5 py-0.5 text-2xs font-semibold", kpiTone(one))}>{kpiDelta(one)}</span>}</>} note={one?.note} />
+        <FigureRow key={one?.key ?? KPI_LABELS[sleeveKpi ? at - 1 : at]} label={one?.label ?? KPI_LABELS[sleeveKpi ? at - 1 : at]} value={!one ? <NotInFile /> : <>{kpiValue(one, cur)}{one.delta != null && one.deltaUnit !== "NONE" && <span className={cn("ml-2 rounded-md px-1.5 py-0.5 text-2xs font-semibold", kpiTone(one))}>{kpiDelta(one)}</span>}</>} note={one?.note} />
       ) : (
-        <div key={one?.key ?? KPI_LABELS[at]} className="rounded-2xl border border-line bg-white px-4 py-3.5">
-          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? KPI_LABELS[at]}</p>
+        <div key={one?.key ?? KPI_LABELS[sleeveKpi ? at - 1 : at]} className="rounded-2xl border border-line bg-white px-4 py-3.5">
+          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? KPI_LABELS[sleeveKpi ? at - 1 : at]}</p>
           {!one ? <div className="mt-2"><NotInFile /></div> : (
             <>
               <div className="mt-1.5 flex flex-wrap items-baseline gap-2">
-                <span className="text-2xl font-bold tabular-nums">{kpiValue(one, data.currency)}</span>
+                <span className="text-2xl font-bold tabular-nums">{kpiValue(one, cur)}</span>
                 {one.delta != null && one.deltaUnit !== "NONE" && (
                   <span className={cn("rounded-md px-1.5 py-0.5 text-2xs font-semibold tabular-nums", kpiTone(one))}>{kpiDelta(one)}</span>
                 )}
@@ -417,6 +426,7 @@ function SectorCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart
 function Holdings({ data }: { data: ClientFixedIncome }) {
   const drill = useDrill();
   const [tab, setTab] = useState<"analytics" | "cashflows">("analytics");
+  const [fileView, setFileView] = useState<FileView>("converted");
   const cur = data.currency;
   const rows = [...data.holdings, ...(data.total ? [data.total] : [])];
   const date = day;
@@ -442,7 +452,7 @@ function Holdings({ data }: { data: ClientFixedIncome }) {
   ];
   return (
     <Card title="Bond & Fund Holdings" lead="Clean prices · yields in local currency · DV01 per 1 bp · demo security data, not a market-data feed" flush
-      action={
+      action={data.bankFile ? <FileViewToggle value={fileView} onChange={setFileView} /> :
         <div role="tablist" aria-label="Columns shown" className="flex rounded-lg border border-line p-0.5">
           {([["analytics", "Analytics"], ["cashflows", "Cash flows"]] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
@@ -452,7 +462,7 @@ function Holdings({ data }: { data: ClientFixedIncome }) {
           ))}
         </div>
       }>
-      {data.bankFile ? <FileLines data={data} /> : (
+      {data.bankFile ? <FileLines data={data} view={fileView} /> : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -505,8 +515,9 @@ function RatingTag({ rating }: { rating: string }) {
   );
 }
 
-function FileLines({ data }: { data: ClientFixedIncome }) {
+function FileLines({ data, view }: { data: ClientFixedIncome; view: FileView }) {
   if (data.fileLines.length === 0) return <div className="px-5"><FileBlock /></div>;
+  const conv = view === "converted" ? data.converted : null;
   const others = ["Rating", "Ccy", "Coupon", "Maturity", "YTM", "Mod. dur.", "DV01"];
   return (
     <div className="overflow-x-auto">
@@ -515,7 +526,7 @@ function FileLines({ data }: { data: ClientFixedIncome }) {
           <tr className="border-y border-line text-left text-2xs font-semibold tracking-wide whitespace-nowrap text-ink-muted uppercase">
             <th scope="col" className="py-2 pr-2 pl-5">Security</th>
             <th scope="col" className="px-1.5 py-2">Sector</th>
-            <th scope="col" className="px-1.5 py-2 text-right">Mkt value</th>
+            <th scope="col" className="px-1.5 py-2 text-right">Mkt value{conv ? ` · ${conv.currency}` : ""}</th>
             {others.map((one) => <th key={one} scope="col" className="px-1.5 py-2 text-right">{one}</th>)}
           </tr>
         </thead>
@@ -527,13 +538,21 @@ function FileLines({ data }: { data: ClientFixedIncome }) {
                 {one.identifier && <span className="block text-2xs font-normal text-ink-muted">{one.identifier}</span>}
               </th>
               <td className="px-1.5 py-2"><NotInFile tight /></td>
-              <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">{exact(one.value, one.currency)}</td>
+              <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">
+                {!conv ? exact(one.value, one.currency) : inUsd(one.value, one.currency, conv) == null ? "no FX rate" : (
+                  <>{exact(inUsd(one.value, one.currency, conv)!, conv.currency)}
+                    {one.currency !== conv.currency && <span className="block text-2xs text-ink-muted">{exact(one.value, one.currency)}</span>}</>
+                )}
+              </td>
               {others.map((cell) => <td key={cell} className="px-1.5 py-2 text-right"><NotInFile tight /></td>)}
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="mt-2 px-5 text-3xs text-ink-muted italic">His file's bond lines as the bank states them, by the bank's own class.</p>
+      <p className="mt-2 px-5 text-3xs text-ink-muted italic">
+        {conv ? `His file's bond lines in ${conv.currency} at FX rates${conv.ratesOn ? ` of ${day(conv.ratesOn)}` : ""}, the bank's own amount beneath.`
+          : "His file's bond lines as the bank states them, by the bank's own class."}
+      </p>
     </div>
   );
 }

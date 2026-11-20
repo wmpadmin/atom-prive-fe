@@ -2,7 +2,8 @@ import { ApiError } from "@atomprive/api-client";
 import { useGetClientRisk, type ClientRisk } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { SlidersHorizontal } from "lucide-react";
-import { useMemo, useRef, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { FileViewToggle, type FileView } from "../../components/converted-usd";
 import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
@@ -97,7 +98,7 @@ export function ClientRiskPage() {
         ladder: <Ladder data={data} chart={cardChart(view, "ladder")} />,
       }} />
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
-        <span>Values in {data.bankFile ? "the bank's own currencies" : data.currency} unless stated; market data as of {formatDate(data.asOf)} close.</span>
+        <span>Values in {data.converted ? `${data.converted.currency} at FX rates of the latest day on file, or as the bank sent them where a table says so` : data.currency} unless stated; market data as of {formatDate(data.asOf)} close.</span>
         <span>atom privé · Portfolio Management · Internal use only</span>
       </footer>
     </div>
@@ -246,13 +247,21 @@ function Geography({ data, chart }: { data: ClientRisk; chart: CardChart }) {
 function Currencies({ data, chart }: { data: ClientRisk; chart: CardChart }) {
   const file = data.bankFile;
   const drill = useDrill();
-  const rows = file
+  // A bank-file client's currencies either in dollars at the latest FX rates, or summed as the bank sent them.
+  const [fileView, setFileView] = useState<FileView>("converted");
+  const conv = file && fileView === "converted" ? data.converted ?? null : null;
+  const rows = conv
+    ? conv.currencies.map((one) => ({ currency: one.currency, gross: one.usd, hedged: null, net: null,
+      netPercent: conv.total === 0 ? null : (one.usd / Math.abs(conv.total)) * 100 }))
+    : file
     ? data.fileCurrencies.map((one) => ({ currency: one.currency, gross: one.amount, hedged: null, net: null, netPercent: null }))
     : data.currencies;
   const total = data.currencyTotal;
   return (
     <Card title="Currency Exposure" lead="Hedge overlays via share-class and forwards (reported by custodians)"
-      foot={file ? "Summed per currency from the bank's file lines, as sent and unconverted." : null} flush
+      foot={conv ? `Each currency of the bank's lines in ${conv.currency} at FX rates${conv.ratesOn ? ` of ${formatDate(conv.ratesOn)}` : ""} · % of his holdings; no hedge is in the file.`
+        : file ? "Summed per currency from the bank's file lines, as sent and unconverted." : null} flush
+      action={file && <FileViewToggle value={fileView} onChange={setFileView} />}
       picker={!file && rows.length > 0 && chart.picker}>
       {rows.length === 0 ? <Empty>{file ? "No lines in the bank's file." : "No lines to read."}</Empty> : !file && !chart.own ? (
         <div className="px-5">
@@ -288,7 +297,13 @@ function Currencies({ data, chart }: { data: ClientRisk; chart: CardChart }) {
                         onClick={() => drill?.({ by: "currency", key: one.currency, name: one.currency })}>{one.currency}</button>
                     )}
                   </th>
-                  <td className="px-2 py-2 text-right tabular-nums">{file ? plain(one.gross) : money(one.gross, data.currency)}</td>
+                  <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
+                    {conv ? money(one.gross, conv.currency) : file ? exactly(one.gross, one.currency) : money(one.gross, data.currency)}
+                    {conv && one.currency !== conv.currency && (() => {
+                      const sent = data.fileCurrencies.find((each) => each.currency === one.currency);
+                      return sent ? <span className="block text-2xs text-ink-muted">{exactly(sent.amount, one.currency)}</span> : null;
+                    })()}
+                  </td>
                   <td className={cn("px-2 py-2 text-right tabular-nums", one.hedged != null && one.hedged < 0 && "text-red-700")}>
                     {one.hedged == null ? <NotInFile /> : one.hedged === 0 ? "—" : money(one.hedged, data.currency)}
                   </td>
@@ -304,6 +319,17 @@ function Currencies({ data, chart }: { data: ClientRisk; chart: CardChart }) {
                 </tr>
               ))}
             </tbody>
+            {file && (
+              <tfoot>
+                <tr className="border-t border-line font-bold">
+                  <th scope="row" className="py-2 pr-3 pl-5 text-left">Total</th>
+                  <td className="px-2 py-2 text-right tabular-nums">
+                    {conv ? money(conv.total, conv.currency) : <span className="text-xs font-normal text-ink-muted">per currency, not added together</span>}
+                  </td>
+                  <td colSpan={4} />
+                </tr>
+              </tfoot>
+            )}
             {!file && total && (
               <tfoot>
                 <tr className="border-t border-line font-bold">
@@ -662,9 +688,10 @@ function riskFigures(data: ClientRisk): Figures {
 }
 
 /** @param picker the chart type switcher, beside the title, for a card that draws a chart */
-function Card({ title, lead, foot, flush, picker, children }: {
+function Card({ title, lead, foot, flush, picker, action, children }: {
   title: string;
   lead?: string;
+  action?: ReactNode;
   foot?: ReactNode;
   flush?: boolean;
   picker?: ReactNode;
@@ -680,7 +707,7 @@ function Card({ title, lead, foot, flush, picker, children }: {
           <h2 className="text-lg font-bold">{label.title}</h2>
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">{picker}<TableColumns scope={body} /><CardMenu /></div>
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>
       </div>
       <div ref={body} className="flex-1">{children}</div>
       {foot && <div className={cn("mt-3 border-t border-line pt-3 text-xs text-ink-muted", flush && "px-5")}>{foot}</div>}
@@ -756,6 +783,11 @@ function money(amount: number, currency: string) {
   } catch {
     return plain(amount);
   }
+}
+
+/** An amount as the bank sent it, to the cent, with its currency. */
+function exactly(amount: number, currency: string) {
+  return `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function plain(amount: number) {

@@ -35,6 +35,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Link, useLocation } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { HoldingTrail } from "../../components/holding-trail";
+import { FileViewToggle, inUsd, type FileView } from "../../components/converted-usd";
 import { Chart, ink } from "../book/overview-charts";
 
 /**
@@ -332,13 +333,8 @@ function DrillBody({ customerId, trail, wide, onDeeper, onClose }: {
   // structure, a sector of the equity sleeve) is how the panel got here, not a filter on the lines.
   const narrowing = trail.filter((step) => BOOK_FIELDS.has(step.by));
   const positions = book.data.positions.filter((one) => narrowing.every((step) => matches(step, one))).sort((a, b) => b.value - a.value);
-  if (book.data.bankFile || positions.length === 0) {
-    return (
-      <p className="py-12 text-center text-sm text-ink-muted">
-        {book.data.bankFile ? "This client's holdings come from the bank's file, which is shown on the Consolidated Holdings screen as it was sent." : "No holdings in this slice."}
-      </p>
-    );
-  }
+  if (book.data.bankFile) return <FileDrill book={book.data} target={target} />;
+  if (positions.length === 0) return <p className="py-12 text-center text-sm text-ink-muted">No holdings in this slice.</p>;
 
   const value = positions.reduce((sum, one) => sum + one.value, 0);
   const cost = positions.every((one) => one.cost != null) ? positions.reduce((sum, one) => sum + (one.cost ?? 0), 0) : null;
@@ -1755,6 +1751,61 @@ function Positions({ positions, currency, total, onDeeper }: {
       </div>
       {positions.length === 1 && <PositionFacts one={positions[0]!} currency={currency} />}
     </section>
+  );
+}
+
+/**
+ * A bank-file client's lines in the slice clicked: a house class (his bank's classes read as the house's), one of the
+ * bank's own classes, or a currency. In dollars at the screen's FX rates, or as the bank sent them.
+ */
+function FileDrill({ book, target }: { book: ClientHoldingsBook; target: DrillTarget }) {
+  const [view, setView] = useState<FileView>("converted");
+  const conv = book.converted?.file ?? null;
+  const houseOf = (bankClass: string) => (conv?.houseClasses as Record<string, string> | undefined)?.[bankClass.trim().toUpperCase()];
+  const lines = book.positions.filter((one) => target.by === "class" ? (houseOf(one.assetClassName) === target.key || one.assetClassName === target.name)
+    : target.by === "currency" ? one.currency === target.key : true);
+  if (lines.length === 0) return <p className="py-12 text-center text-sm text-ink-muted">No line of his bank's file is in this slice.</p>;
+  const usd = (one: HoldingsPosition) => (conv ? inUsd(one.value, one.currency, conv) : null);
+  const total = lines.reduce((sum, one) => sum + (usd(one) ?? 0), 0);
+  const shown = view === "converted" && conv;
+  const exactly = (amount: number, currency: string) => `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-ink-muted">{lines.length} line{lines.length === 1 ? "" : "s"} of his bank's file{conv ? ` · ${exactly(total, conv.currency)} at FX rates${conv.ratesOn ? ` of ${formatDate(conv.ratesOn)}` : ""}` : ""}</p>
+        <FileViewToggle value={view} onChange={setView} />
+      </div>
+      <table className="w-full table-fixed text-sm">
+        <colgroup><col /><col className="w-36" /><col className="w-40" /><col className="w-20" /></colgroup>
+        <thead>
+          <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            <th scope="col" className="py-1.5 pr-2">Position</th>
+            <th scope="col" className="py-1.5 pr-2">Bank's class</th>
+            <th scope="col" className="py-1.5 pr-2 text-right">Value{shown ? ` · ${conv.currency}` : ""}</th>
+            <th scope="col" className="py-1.5 text-right">Weight</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {lines.map((one) => (
+            <tr key={one.id}>
+              <td className="py-1.5 pr-2 break-words">
+                <span className="font-medium">{one.name}</span>
+                {one.identifier && <span className="block font-mono text-2xs text-ink-muted">{one.identifier}</span>}
+              </td>
+              <td className="py-1.5 pr-2 text-xs break-words">{one.assetClassName}</td>
+              <td className="py-1.5 pr-2 text-right font-semibold whitespace-nowrap tabular-nums">
+                {!shown ? exactly(one.value, one.currency ?? "") : usd(one) == null ? <span className="text-xs font-normal text-amber-700">no FX rate</span> : (
+                  <>{exactly(usd(one)!, conv.currency)}
+                    {one.currency !== conv.currency && <span className="block text-2xs font-normal text-ink-muted">{exactly(one.value, one.currency ?? "")}</span>}</>
+                )}
+              </td>
+              <td className="py-1.5 text-right tabular-nums">{shown && usd(one) != null && total !== 0 ? `${((usd(one)! / Math.abs(total)) * 100).toFixed(1)}%` : "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-2xs text-ink-muted italic">From his bank's latest file; EFG's classes are read as the house's, as the bands are.</p>
+    </div>
   );
 }
 
