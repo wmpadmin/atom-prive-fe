@@ -34,6 +34,7 @@ import { ArrowLeft, Download, Maximize2, Minimize2, X } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { formatDate } from "../../lib/labels";
+import { HoldingTrail } from "../../components/holding-trail";
 import { Chart, ink } from "../book/overview-charts";
 
 /**
@@ -399,6 +400,10 @@ function DrillBody({ customerId, trail, wide, onDeeper, onClose }: {
         {dimensions.length > 0 && positions.length > 1 && <Breakdown positions={positions} dimensions={dimensions} currency={currency} total={value} onDeeper={onDeeper} />}
         <Positions positions={positions} currency={currency} total={value} onDeeper={positions.length === 1 ? undefined : onDeeper} />
       </div>
+      {/* Down to one holding: its whole trail, every day and everything done to it. */}
+      {positions.length === 1 && (
+        <HoldingTrail customerId={customerId} isin={positions[0]!.identifier} name={positions[0]!.name} positionId={positions[0]!.id} />
+      )}
       <p className="text-2xs text-ink-muted italic">Figures as of {formatDate(book.data.asOf)}, in {currency}, from the client's holdings book.</p>
     </div>
   );

@@ -53,14 +53,14 @@ export function ReportButton() {
 
   return (
     <ReportMenu ref={box} size="sm" busy={busy} problem={problem} onPick={(kind) => void run(kind)}
-      excel="One sheet per card, figures as numbers" note="The cards on your screen, as you have them. Recorded in the audit log." />
+      excel="One sheet per card, figures as numbers" />
   );
 }
 
 /** The Report button and its menu — PDF or Excel — shared by screens and lists; what each makes is the caller's. */
 export function ReportMenu({ ref, busy, problem, onPick, excel, note, size }: {
   ref?: Ref<HTMLDivElement>; size?: "sm"; busy: "pdf" | "excel" | null; problem: string | null;
-  onPick: (kind: "pdf" | "excel") => void; excel: string; note: string;
+  onPick: (kind: "pdf" | "excel") => void; excel: string; note?: string;
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -96,7 +96,7 @@ export function ReportMenu({ ref, busy, problem, onPick, excel, note, size }: {
         <div role="menu" aria-label="Report" className="absolute top-full right-0 z-30 mt-1.5 w-64 rounded-xl border border-line bg-white p-1.5 shadow-xl">
           <ReportItem icon={FileText} tone="text-red-600" label="Download PDF" lead="On the firm's letterhead, ready to print" onClick={() => pick("pdf")} />
           <ReportItem icon={FileSpreadsheet} tone="text-emerald-600" label="Download Excel" lead={excel} onClick={() => pick("excel")} />
-          <p className="px-2.5 pt-1.5 pb-1 text-2xs text-ink-muted">{note}</p>
+          {note && <p className="px-2.5 pt-1.5 pb-1 text-2xs text-ink-muted">{note}</p>}
         </div>
       )}
       {problem && <p role="alert" className="absolute top-full right-0 z-30 mt-1.5 w-64 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-800">{problem}</p>}
