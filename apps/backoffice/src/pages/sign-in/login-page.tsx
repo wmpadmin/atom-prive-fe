@@ -7,7 +7,7 @@ import {
   type SignInOptions,
   type SignInResponse,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, Field, HumanCheck, TextInput, useHumanCheck } from "@atomprive/ui";
+import { Alert, Button, Field, HumanCheck, PasswordInput, TextInput, useHumanCheck } from "@atomprive/ui";
 import { useCallback, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useSession } from "../../auth/session";
@@ -135,7 +135,7 @@ export function LoginPage() {
             <TextInput id="email" name="email" type="email" autoComplete="username" required autoFocus />
           </Field>
           <Field id="password" label="Password">
-            <TextInput id="password" name="password" type="password" autoComplete="current-password" required />
+            <PasswordInput id="password" name="password" autoComplete="current-password" required />
           </Field>
           {options.data?.passwordReset && (
             <Link to="/forgot-password" className="-mt-2 block text-sm font-medium text-primary-600 hover:text-primary-700">
