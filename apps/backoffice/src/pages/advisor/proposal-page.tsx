@@ -1,6 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   getPrintProposalUrl,
+  getProposalAsExcelUrl,
   useCreateProposal,
   useGetCustomer,
   useGetProposal,
@@ -95,7 +96,7 @@ export function ProposalPage() {
   // Which client the legs are picked from, held rather than read off the form at save time: the pickers
   // list that client's own allocation, so they have to change the moment the choice does.
   const [chosenClient, setChosenClient] = useState<string | null>(startedFor);
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
 
   /**
    * What Export means above an open proposal: that proposal, on paper.
@@ -104,13 +105,15 @@ export function ProposalPage() {
    * strange thing to be handed by a button sitting over one open document. Somebody reading PR-2026-0003
    * and pressing Export wants PR-2026-0003.
    */
-  async function printThisOne() {
+  async function printThisOne(kind: "pdf" | "excel") {
     if (proposalId === undefined || !detail.data) return;
-    setExporting(true);
+    setExporting(kind);
     try {
-      await saveApiFile(getPrintProposalUrl(proposalId), `${detail.data.summary.reference}.pdf`);
+      // On the letterhead, or the same tables as an Excel workbook, a sheet each.
+      await saveApiFile(kind === "pdf" ? getPrintProposalUrl(proposalId) : getProposalAsExcelUrl(proposalId),
+        `${detail.data.summary.reference}.${kind === "pdf" ? "pdf" : "xlsx"}`);
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   }
   const user = useStaffUser();
@@ -338,7 +341,7 @@ export function ProposalPage() {
 
       {/* The screen is the list; a proposal is read within it, so the way back is never off the page. */}
       {!writing && (
-        <ProposalsHeader onExport={() => void printThisOne()} exporting={exporting} />
+        <ProposalsHeader onExport={(kind) => void printThisOne(kind)} exporting={exporting} />
       )}
 
       {/* Back a screen, not back to a place. Somebody who opened this from Trade logs, or from a search,
