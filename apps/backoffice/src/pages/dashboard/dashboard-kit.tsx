@@ -6,7 +6,7 @@ import {
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as KeyPress, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { Chart, ink } from "../book/overview-charts";
 import { CardMenu, useViewLayout } from "../layout/custom-view";
@@ -125,11 +125,13 @@ export function ComingSoon({ children }: { children: ReactNode }) {
 export const SLICE_COLOURS = ["#1d6ee8", "#0f9d8a", "#f2a01c", "#8b5cf6", "#e5484d", "#64748b", "#0ea5e9", "#a3a3a3"];
 
 /** A ring of what makes up a whole, with each part listed beside it. */
-export function Breakdown({ rows, centre, centreLabel, currency }: {
+export function Breakdown({ rows, centre, centreLabel, currency, onPick }: {
   rows: { name: string; value: number; share?: number; apart?: boolean; colour?: string }[];
   centre: string;
   centreLabel: string;
   currency?: string;
+  /** Opens what a part is made of, by its place in rows: a slice of the ring, or its line beside it. */
+  onPick?: (index: number) => void;
 }) {
   const ringed = rows.filter((one) => !one.apart);
   const chart = useCardChart();
@@ -153,14 +155,16 @@ export function Breakdown({ rows, centre, centreLabel, currency }: {
     return (
       <KindChart kind={chart.kind!} height={220} label={centreLabel}
         format={(value) => (currency ? money(value, currency) : String(Math.round(value)))}
-        data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: Number(one.value) })) }} />
+        data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: Number(one.value) })) }}
+        onPick={onPick} />
     );
   }
   return (
     // The ring on the left and what makes it up beside it; one above the other when narrow.
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
       <div className="relative mx-auto w-40 shrink-0 sm:mx-0">
-        <Chart option={option} height={160} label={`${centreLabel}: ${ringed.map((one) => `${one.name} ${one.value}`).join(", ")}`} />
+        <Chart option={option} height={160} label={`${centreLabel}: ${ringed.map((one) => `${one.name} ${one.value}`).join(", ")}`}
+          onPick={onPick ? (name) => { const at = rows.findIndex((one) => one.name === name); if (at >= 0) onPick(at); } : undefined} />
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
           <span>
             <span className="block text-2xs text-ink-muted">{centreLabel}</span>
@@ -170,7 +174,12 @@ export function Breakdown({ rows, centre, centreLabel, currency }: {
       </div>
       <ul className="min-w-0 flex-1 space-y-2 text-sm">
         {rows.map((one, index) => (
-          <li key={one.name} className={cn("flex items-center gap-2", one.apart && "mt-2 border-t border-line pt-2")}>
+          <li key={one.name} className={cn("flex items-center gap-2", one.apart && "mt-2 border-t border-line pt-2",
+            onPick && "cursor-pointer hover:text-primary-700")}
+            {...(onPick ? {
+              role: "button", tabIndex: 0, onClick: () => onPick(index),
+              onKeyDown: (event: KeyPress<HTMLLIElement>) => { if (event.key === "Enter") onPick(index); },
+            } : {})}>
             <span className="size-2.5 shrink-0 rounded-full"
               style={{ background: one.apart ? "var(--color-slate-300)" : one.colour ?? SLICE_COLOURS[index % SLICE_COLOURS.length] }} />
             <span className="min-w-0 flex-1 leading-tight">{one.name}</span>
@@ -186,8 +195,10 @@ export function Breakdown({ rows, centre, centreLabel, currency }: {
 }
 
 
-export function Counts({ rows, linkFor, iconFor = {}, countFirst = false, limit, more }: {
+export function Counts({ rows, linkFor, iconFor = {}, countFirst = false, limit, more, onPick }: {
   rows: Waiting[];
+  /** Opens a line that has no screen of its own in the side panel; a line with a link keeps it. */
+  onPick?: (row: Waiting) => void;
   /** The icon each line is drawn with, by its key; a line not named gets a plain document. */
   iconFor?: Record<string, LucideIcon>;
   linkFor: (key: string) => string | undefined;
@@ -210,7 +221,12 @@ export function Counts({ rows, linkFor, iconFor = {}, countFirst = false, limit,
       <KindChart kind={chart.kind!} height={Math.max(180, 40 + waiting.length * 28)} label="What is waiting, counted"
         format={(value) => String(Math.round(value))}
         data={{ shape: "shares", items: waiting.map((one) => ({ name: one.label, value: one.count })) }}
-        onPick={(at) => { const to = waiting[at] && linkFor(waiting[at].key); if (to) navigate(to); }} />
+        onPick={(at) => {
+          const one = waiting[at];
+          const to = one && linkFor(one.key);
+          if (to) navigate(to);
+          else if (one && onPick) onPick(one);
+        }} />
     );
   }
   const shown = limit === undefined ? ordered : ordered.slice(0, limit);
@@ -236,7 +252,11 @@ export function Counts({ rows, linkFor, iconFor = {}, countFirst = false, limit,
         return (
           <li key={one.label}>
             {to ? <Link to={to} className="flex items-center gap-3 py-2 hover:text-primary-700">{inner}</Link>
-              : <div className="flex items-center gap-3 py-2">{inner}</div>}
+              : onPick ? (
+                <div role="button" tabIndex={0} onClick={() => onPick(one)}
+                  onKeyDown={(event) => { if (event.key === "Enter") onPick(one); }}
+                  className="flex cursor-pointer items-center gap-3 py-2 hover:text-primary-700">{inner}</div>
+              ) : <div className="flex items-center gap-3 py-2">{inner}</div>}
           </li>
         );
       })}
@@ -254,9 +274,18 @@ export function Counts({ rows, linkFor, iconFor = {}, countFirst = false, limit,
 }
 
 
-export function Row({ label, children }: { label: string; children: ReactNode }) {
+export function Row({ label, children, onClick }: {
+  label: string;
+  children: ReactNode;
+  /** Opens what the line is made of in the side panel. */
+  onClick?: () => void;
+}) {
   return (
-    <div className="flex items-center justify-between gap-3 py-2.5">
+    <div className={cn("flex items-center justify-between gap-3 py-2.5", onClick && "cursor-pointer hover:bg-canvas")}
+      {...(onClick ? {
+        role: "button", tabIndex: 0, onClick,
+        onKeyDown: (event: KeyPress<HTMLDivElement>) => { if (event.key === "Enter") onClick(); },
+      } : {})}>
       <dt className="text-ink-muted">{label}</dt>
       <dd className="font-semibold">{children}</dd>
     </div>
@@ -325,7 +354,8 @@ export function AskTheAssistant({ questions, blurb }: { questions: string[]; blu
 
 /** A row of figures under a ring, each opening the screen it was counted from. */
 export function Strip({ figures }: {
-  figures: { label: string; value: ReactNode; change?: number | null; danger?: boolean; to?: string }[];
+  /** onClick opens the figure in the side panel, for a figure with no screen of its own to open. */
+  figures: { label: string; value: ReactNode; change?: number | null; danger?: boolean; to?: string; onClick?: () => void }[];
 }) {
   return (
     <dl className="grid auto-cols-fr grid-flow-col divide-x divide-line rounded-xl bg-slate-50 px-1 py-2.5">
@@ -345,6 +375,10 @@ export function Strip({ figures }: {
         );
         return one.to ? (
           <Link key={one.label} to={one.to} className="px-3 hover:[&_dd]:text-primary-700">{body}</Link>
+        ) : one.onClick ? (
+          <div key={one.label} role="button" tabIndex={0} onClick={one.onClick}
+            onKeyDown={(event) => { if (event.key === "Enter") one.onClick?.(); }}
+            className="cursor-pointer px-3 hover:[&_dd]:text-primary-700">{body}</div>
         ) : (
           <div key={one.label} className="px-3">{body}</div>
         );

@@ -9,8 +9,10 @@ import {
   type ValuationHistory,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, DateInput, Field, FilterMenu, cn } from "@atomprive/ui";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useBookPanel } from "../../components/book-panel";
 import { INK, inkFor, nameOf, useAssetClasses } from "./asset-classes";
+import { valuationDayFigure } from "./valuation-day-figure";
 
 function money(amount: number) {
   return amount.toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -171,6 +173,25 @@ function AverageMix({ mix, modelName, ink }: {
   // A class the client held nothing in and the plan asked nothing of is not a row: a line of noughts is a
   // line to read past.
   const rows = mix.filter((row) => row.held > 0 || row.target > 0);
+  const panel = useBookPanel();
+  const showRow = (row: (typeof rows)[number]) => {
+    const gap = row.held - row.target;
+    panel?.({
+      name: row.name,
+      figure: {
+        label: `Average mix under ${modelName ?? "this plan"}`,
+        value: `${row.held.toFixed(1)}%`,
+        note: "What the client held in this class on average while the plan was in force, against what it asks for.",
+        facts: [
+          { label: "Held on average", value: `${row.held.toFixed(1)}%` },
+          { label: "Target", value: `${row.target.toFixed(1)}%` },
+          { label: "Gap", value: `${gap > 0 ? "+" : ""}${gap.toFixed(1)} pts` },
+          { label: "Days past its band", value: String(row.breachedOn) },
+          ...(row.worstDrift == null ? [] : [{ label: "Furthest from target", value: `${row.worstDrift > 0 ? "+" : ""}${row.worstDrift.toFixed(1)} pts` }]),
+        ],
+      },
+    });
+  };
   // Every one of them, never a page: these are the parts of one portfolio, not a list somebody browses,
   // and they are counted on to add up to it in front of whoever is reading.
 
@@ -180,7 +201,18 @@ function AverageMix({ mix, modelName, ink }: {
         <caption className="sr-only">Average mix under {modelName}</caption>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.assetClass}>
+            <tr key={row.assetClass}
+              {...(panel ? {
+                className: "cursor-pointer hover:bg-canvas",
+                role: "button",
+                tabIndex: 0,
+                onClick: () => showRow(row),
+                onKeyDown: (event: KeyboardEvent) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  showRow(row);
+                },
+              } : {})}>
               <td className="w-40 truncate py-1 pr-3 text-ink">{row.name}</td>
               <td className="py-1">
                 {/* Held drawn against the plan's own mark, so a class running over its target
@@ -308,6 +340,7 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
   const { from, to } = inForce;
   /** The one class a reader has asked to follow through all four charts, or null for all of them. */
   const [only, setOnly] = useState<string | null>(null);
+  const panel = useBookPanel();
 
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
@@ -315,6 +348,10 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
 
   const currency = history.data?.currency ?? "";
   const every = history.data?.points ?? [];
+  const onDay = panel
+    ? (point: ValuationHistory["points"][number], label?: string) =>
+      panel({ name: longDay(point.valuedOn), figure: valuationDayFigure(point, currency, classes.names, label) })
+    : undefined;
   // Either end on its own works — from a date to the end of what there is, or the start of it to a date.
   // Neither is everything, which is what the panel opens on.
   const points = every.filter((point) =>
@@ -374,6 +411,7 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
           setInForce({ from: "", to: "" });
         }}
         bounds={bounds}
+        onDay={onDay}
       />
 
       {/* What the money did under each plan the client has been held to. Read before the charts, because
@@ -397,7 +435,7 @@ export function AnalyticsPanel({ customerId }: { customerId: string }) {
       <MadeOf byClass={byClass} order={order} names={classes.names} currency={currency}
         asAt={asAt?.valuedOn ?? null} narrowed={narrowed} only={only} setOnly={setOnly} />
       <HowTheMixMoved points={points} order={order} names={classes.names} narrowed={narrowed}
-        only={only} setOnly={setOnly} currency={currency} />
+        only={only} setOnly={setOnly} currency={currency} onDay={onDay} />
 
       {/* What a class holds against what the plan asks is read on the portfolio screen, where the
           bands, the suggestion and the button that acts on it already live. Drawn here as well it was
@@ -454,7 +492,7 @@ function useWidth() {
 
 /** What the book has been worth, as a line with the ground under it filled in. */
 function WorthOverTime({ points, everyCount, currency, pending, picked, setPicked, inForce, apply,
-    clear, bounds }: {
+    clear, bounds, onDay }: {
   points: ValuationHistory["points"];
   everyCount: number;
   currency: string;
@@ -467,6 +505,8 @@ function WorthOverTime({ points, everyCount, currency, pending, picked, setPicke
   apply: () => void;
   clear: () => void;
   bounds: { first: string; last: string } | null;
+  /** Opens the side panel with the day the pointer is over. */
+  onDay?: (point: ValuationHistory["points"][number], label?: string) => void;
 }) {
   const { from, to } = inForce;
   const [box, width] = useWidth();
@@ -629,7 +669,8 @@ function WorthOverTime({ points, everyCount, currency, pending, picked, setPicke
             viewBox={`0 0 ${width} ${HEIGHT}`}
             role="img"
             aria-label={`What the portfolio was worth on each of ${points.length} days, in ${currency}`}
-            className="w-full text-primary-600"
+            className={cn("w-full text-primary-600", onDay && "cursor-pointer")}
+            onClick={onDay ? () => { if (over !== null && points[over]) onDay(points[over]!, "What it was worth"); } : undefined}
             onMouseLeave={() => setOver(null)}
             onMouseMove={(event) => {
               const seen = event.currentTarget.getBoundingClientRect();
@@ -983,7 +1024,7 @@ function Ring({ title, slices, middle, under, only, setOnly, names }: {
  * scales the drawing to it — a class worth a fortieth of the book is a flat line against the book's own
  * range, and whether that fortieth doubled is exactly what somebody picking it wants to know.
  */
-function HowTheMixMoved({ points, order, names, narrowed, only, setOnly, currency }: {
+function HowTheMixMoved({ points, order, names, narrowed, only, setOnly, currency, onDay }: {
   points: ValuationHistory["points"];
   order: { code: string }[];
   names: Record<string, string>;
@@ -991,6 +1032,8 @@ function HowTheMixMoved({ points, order, names, narrowed, only, setOnly, currenc
   only: string | null;
   setOnly: (code: string | null) => void;
   currency: string;
+  /** Opens the side panel with the day the pointer is over. */
+  onDay?: (point: ValuationHistory["points"][number], label?: string) => void;
 }) {
   const [box, width] = useWidth();
   const [over, setOver] = useState<number | null>(null);
@@ -1076,7 +1119,8 @@ function HowTheMixMoved({ points, order, names, narrowed, only, setOnly, currenc
             <svg
               width={width} height={HEIGHT} viewBox={`0 0 ${width} ${HEIGHT}`} role="img"
               aria-label={`What each asset class was worth on each of ${points.length} days, in ${currency}`}
-              className="w-full"
+              className={cn("w-full", onDay && "cursor-pointer")}
+              onClick={onDay ? () => { if (over !== null && points[over]) onDay(points[over]!, "What each class was worth"); } : undefined}
               onMouseLeave={() => setOver(null)}
               onMouseMove={(event) => {
                 const seen = event.currentTarget.getBoundingClientRect();

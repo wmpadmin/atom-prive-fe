@@ -15,6 +15,7 @@ import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { Play, RotateCcw } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useStaffUser } from "../../auth/session";
+import { useBookPanel } from "../../components/book-panel";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
@@ -24,6 +25,9 @@ import { ListReportButton, saidFilters } from "../layout/list-report";
 import { everyPage, toCsv } from "../layout/list-rows";
 import { formatDateTime } from "../../lib/labels";
 import { useTableView } from "../../lib/table-view";
+import { opens } from "../portfolios/figure-opens";
+import { RunsMore } from "./runs-more";
+import { aDayAgo } from "./runs-window";
 
 const outcomeLabels: Record<ListSyncRunsOutcome, string> = {
   RUNNING: "Running",
@@ -145,6 +149,7 @@ export function SyncRunsPage() {
   const user = useStaffUser();
   const canRun = hasAuthority(user, "MANAGE_BANK_FEEDS:CHANGE");
   const queryClient = useQueryClient();
+  const panel = useBookPanel();
   const again = () => void queryClient.invalidateQueries({ queryKey: getListSyncRunsQueryKey() });
   const start = useStartSyncNow<ApiError>({ mutation: { onSuccess: again } });
   const retry = useRetrySyncRun<ApiError>({ mutation: { onSuccess: again } });
@@ -163,6 +168,30 @@ export function SyncRunsPage() {
   const counts = runs.data?.counts;
   const refused = start.error ?? retry.error;
   const failing = runs.data?.failing ?? [];
+
+  // A count opens the runs behind it, read from the log when the panel opens; banks connected are the page's own.
+  const openRuns = (label: string, value: number | undefined, params: ListSyncRunsParams, note: string) => panel?.({
+    name: label,
+    figure: {
+      label: "Ingestion log",
+      value: value == null ? "—" : String(value),
+      note,
+      more: <RunsMore params={params} title={label} />,
+    },
+  });
+  const openBanks = () => panel?.({
+    name: "Banks connected",
+    figure: {
+      label: "Ingestion log",
+      value: counts ? String(counts.banksConnected) : "—",
+      note: "Every bank the feeds cover, as the log lists them.",
+      table: {
+        columns: ["Bank", "Switched on", "Delivery"],
+        rows: banks.map((bank) => [bank.name, bank.enabled ? "Yes" : "No", bank.uploadOnly ? "By upload" : "Pulled"]),
+        links: banks.map((bank) => `/ingestion/${bank.id}`),
+      },
+    },
+  });
 
   return (
     <div className="space-y-6">
@@ -211,10 +240,13 @@ export function SyncRunsPage() {
 
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Count label="Runs in 24 hours" value={counts?.runsToday} />
-        <Count label="Failed in 24 hours" value={counts?.failedToday} danger={(counts?.failedToday ?? 0) > 0} />
-        <Count label="Running now" value={counts?.runningNow} />
-        <Count label="Banks connected" value={counts?.banksConnected} />
+        <Count label="Runs in 24 hours" value={counts?.runsToday}
+          onOpen={panel && counts ? () => openRuns("Runs in 24 hours", counts.runsToday, { from: aDayAgo() }, "Every run started in the last 24 hours, newest first.") : undefined} />
+        <Count label="Failed in 24 hours" value={counts?.failedToday} danger={(counts?.failedToday ?? 0) > 0}
+          onOpen={panel && counts ? () => openRuns("Failed in 24 hours", counts.failedToday, { outcome: "FAILED", from: aDayAgo() }, "The runs that failed in the last 24 hours, newest first.") : undefined} />
+        <Count label="Running now" value={counts?.runningNow}
+          onOpen={panel && counts ? () => openRuns("Running now", counts.runningNow, { outcome: "RUNNING" }, "The runs still going.") : undefined} />
+        <Count label="Banks connected" value={counts?.banksConnected} onOpen={panel && counts ? openBanks : undefined} />
       </div>
 
       {/* Above the table: which of their arrangements a reader is in is read before anything in it. */}
@@ -484,9 +516,10 @@ function RunNow({
   );
 }
 
-function Count({ label, value, danger }: { label: string; value: number | undefined; danger?: boolean }) {
+function Count({ label, value, danger, onOpen }: { label: string; value: number | undefined; danger?: boolean; onOpen?: () => void }) {
   return (
-    <div className="rounded-2xl border border-line bg-white px-5 py-4">
+    <div {...(onOpen ? opens(onOpen) : {})}
+      className={cn("rounded-2xl border border-line bg-white px-5 py-4", onOpen && "cursor-pointer hover:border-primary-200 hover:bg-canvas")}>
       <p className="text-xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
       <p className={`mt-1 text-3xl font-bold tabular-nums ${danger ? "text-red-600" : ""}`}>{value ?? "—"}</p>
     </div>

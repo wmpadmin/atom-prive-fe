@@ -2,7 +2,9 @@ import { ApiError } from "@atomprive/api-client";
 import { useGetClientRisk, type ClientRisk } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { SlidersHorizontal } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { FileViewToggle, type FileView } from "../../components/converted-usd";
+import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
@@ -14,6 +16,7 @@ import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
+import type { FigureDetail } from "./figure-panel";
 
 /**
  * A client's Risk & Exposure, laid out section by section as the firm's 10 Nov design draws it. Every figure is worked
@@ -96,7 +99,7 @@ export function ClientRiskPage() {
         ladder: <Ladder data={data} chart={cardChart(view, "ladder")} />,
       }} />
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
-        <span>Values in {data.bankFile ? "the bank's own currencies" : data.currency} unless stated; market data as of {formatDate(data.asOf)} close.</span>
+        <span>Values in {data.converted ? `${data.converted.currency} at FX rates of the latest day on file, or as the bank sent them where a table says so` : data.currency} unless stated; market data as of {formatDate(data.asOf)} close.</span>
         <span>atom privé · Portfolio Management · Internal use only</span>
       </footer>
     </div>
@@ -109,26 +112,70 @@ function Kpis({ data }: { data: ClientRisk }) {
   const k = data.kpis;
   const file = data.bankFile;
   const window = k.window ?? "";
+  const drill = useDrill();
+  // A figure opens what the screen holds behind it; a bank-file client's figures are not in his file, so none opens.
+  const open = drill && !file ? (key: string, name: string, figure: FigureDetail) => () => drill({ by: "figure", key, name, figure }) : undefined;
+  const pc = (value: number | null | undefined) => (value == null ? "—" : `${value.toFixed(1)}%`);
+  const history = varChart(data);
+  const classes = classTable(data);
   return (
     <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
-      <Kpi label="VaR · 95% · 1 month" value={k.var95Amount == null ? "—" : money(k.var95Amount, data.currency)}
+      <Kpi label="VaR · 95% · 1 month" onPick={open?.("var", "Value at risk · 95% · 1 month", {
+        label: "Risk measure", value: k.var95Amount == null ? "—" : money(k.var95Amount, data.currency),
+        note: k.var95 == null ? (k.whyNot ?? undefined) : "The loss a month should not exceed in 19 months out of 20, as a share of investable assets.",
+        facts: [{ label: "% of investable", value: pc(k.var95) }, { label: "IPS limit", value: k.varLimit == null ? "No limit set" : pc(k.varLimit) },
+          { label: "Expected shortfall", value: pc(k.es975) }, { label: "Window", value: window || "—" }],
+        chart: history, table: classes, link: { to: "risk", label: "Risk & Exposure" } })}
+        value={k.var95Amount == null ? "—" : money(k.var95Amount, data.currency)}
         note={file ? <NotInFile /> : k.var95 == null ? (k.whyNot ?? "—")
           : `${k.var95.toFixed(1)}% of investable · ${k.varLimit == null ? "no limit set" : `limit ${k.varLimit.toFixed(1)}%`}`} />
-      <Kpi label="Expected shortfall · 97.5%" value={k.es975Amount == null ? "—" : money(k.es975Amount, data.currency)}
+      <Kpi label="Expected shortfall · 97.5%" onPick={open?.("es", "Expected shortfall · 97.5%", {
+        label: "Risk measure", value: k.es975Amount == null ? "—" : money(k.es975Amount, data.currency),
+        note: k.es975 == null ? (k.whyNot ?? undefined) : "The average loss in the worst 2.5% of months · parametric, monthly.",
+        facts: [{ label: "% of investable", value: pc(k.es975) }, { label: "VaR · 95%", value: pc(k.var95) },
+          { label: "VaR amount", value: k.var95Amount == null ? "—" : money(k.var95Amount, data.currency) }, { label: "Window", value: window || "—" }],
+        chart: history, table: classes, link: { to: "risk", label: "Risk & Exposure" } })}
+        value={k.es975Amount == null ? "—" : money(k.es975Amount, data.currency)}
         note={file ? <NotInFile /> : k.es975 == null ? (k.whyNot ?? "—") : `${k.es975.toFixed(1)}% · parametric, monthly`} />
-      <Kpi label="Volatility · ex-ante" value={k.exAnteVolatility == null ? "—" : `${k.exAnteVolatility.toFixed(1)}%`}
+      <Kpi label="Volatility · ex-ante" onPick={open?.("volatility", "Volatility · ex-ante", {
+        label: "Risk measure", value: pc(k.exAnteVolatility),
+        note: "Annualised volatility expected from today's holdings; ex-post is measured on the portfolio's own monthly returns.",
+        facts: [{ label: "Ex-post", value: k.exPostVolatility == null ? "Not measured" : `${pc(k.exPostVolatility)}${window ? ` · ${window}` : ""}` },
+          { label: "Budget", value: k.volatilityBudget == null ? "No budget set" : pc(k.volatilityBudget) },
+          { label: "Diversification ratio", value: k.diversificationRatio == null ? "—" : k.diversificationRatio.toFixed(2) }],
+        table: classes, link: { to: "risk", label: "Risk & Exposure" } })}
+        value={k.exAnteVolatility == null ? "—" : `${k.exAnteVolatility.toFixed(1)}%`}
         note={file ? <NotInFile /> : <>
           {k.exAnteVolatility == null && "Not recorded · "}
           {k.exPostVolatility == null ? "Ex-post not measured" : `Ex-post ${window} ${k.exPostVolatility.toFixed(1)}%`}
           {` · ${k.volatilityBudget == null ? "no budget set" : `budget ${k.volatilityBudget.toFixed(1)}%`}`}
         </>} />
-      <Kpi label="Beta to mandate benchmark" value={k.beta == null ? "—" : k.beta.toFixed(2)}
+      <Kpi label="Beta to mandate benchmark" onPick={open?.("beta", "Beta to mandate benchmark", {
+        label: "Risk measure", value: k.beta == null ? "—" : k.beta.toFixed(2),
+        note: k.beta == null ? (k.betaWhyNot ?? undefined) : `How far the portfolio moves for each move of ${k.benchmark ?? "the benchmark"}, from ${window || "its"} monthly returns.`,
+        facts: [{ label: "Correlation", value: k.correlation == null ? "—" : k.correlation.toFixed(2) }, { label: "Benchmark", value: k.benchmark ?? "—" },
+          { label: "Window", value: window || "—" }],
+        link: { to: "risk", label: "Risk & Exposure" } })}
+        value={k.beta == null ? "—" : k.beta.toFixed(2)}
         note={file ? <NotInFile /> : k.beta == null ? (k.betaWhyNot ?? "—")
           : `Correlation ${k.correlation == null ? "—" : k.correlation.toFixed(2)} · ${k.benchmark ?? "benchmark"} · ${window} monthly`} />
-      <Kpi label={`Worst stress${k.worstScenario ? ` · ${k.worstScenario}` : ""}`}
+      <Kpi onPick={k.worstPercent == null ? undefined : open?.("worst-stress", `Worst stress${k.worstScenario ? ` · ${k.worstScenario}` : ""}`, {
+        label: "Stress test", value: signed(k.worstPercent),
+        note: data.stressNote ?? undefined,
+        facts: [{ label: "Scenario", value: k.worstScenario ?? "—" }, { label: "On total net worth", value: k.worstAmount == null ? "—" : signedMoney(k.worstAmount, data.currency) },
+          { label: "Tolerance", value: data.stressTolerance == null ? "None set" : signed(data.stressTolerance, false) }],
+        chart: data.stress.length > 0 ? { title: "Impact by scenario", kind: "horizontal-bar", format: "percent",
+          data: { shape: "series", categories: data.stress.map((one) => one.name), series: [{ name: "Impact %", values: data.stress.map((one) => one.impactPercent) }] } } : undefined,
+        table: stressTable(data), link: { to: "risk", label: "Risk & Exposure" } })}
+        label={`Worst stress${k.worstScenario ? ` · ${k.worstScenario}` : ""}`}
         value={k.worstPercent == null ? "—" : signed(k.worstPercent)} tone={toneOf(k.worstPercent)}
         note={file ? <NotInFile /> : k.worstAmount == null ? "No scenario run" : `${signedMoney(k.worstAmount, data.currency)} on total net worth`} />
-      <Kpi label="Diversification ratio" value={k.diversificationRatio == null ? "—" : k.diversificationRatio.toFixed(2)}
+      <Kpi label="Diversification ratio" onPick={open?.("diversification", "Diversification ratio", {
+        label: "Risk measure", value: k.diversificationRatio == null ? "—" : k.diversificationRatio.toFixed(2),
+        note: k.diversificationRatio == null ? k.diversification.reason : "Weighted class volatilities over the portfolio's own · demo class returns.",
+        facts: [{ label: "Volatility · ex-ante", value: pc(k.exAnteVolatility) }, { label: "Classes", value: String(data.classRisk.length) }],
+        table: classes, link: { to: "risk", label: "Risk & Exposure" } })}
+        value={k.diversificationRatio == null ? "—" : k.diversificationRatio.toFixed(2)}
         note={file ? <NotInFile /> : k.diversificationRatio == null ? <NotMeasuredTag title={k.diversification.reason} />
           : "Weighted class volatilities over the portfolio's · demo class returns"} />
     </FigureStrip>
@@ -139,13 +186,23 @@ function Stress({ data, chart }: { data: ClientRisk; chart: CardChart }) {
   const rows = data.stress;
   const tolerance = data.stressTolerance;
   const largest = Math.max(1, ...rows.map((one) => Math.abs(one.impactPercent)));
+  const drill = useDrill();
+  // A scenario opens its own figures; the screen holds no impact by class or line behind it.
+  const pick = drill ? (one: (typeof rows)[number]) => drill({ by: "figure", key: `stress:${one.name}`, name: one.name, figure: {
+    label: "Stress scenario", value: signed(one.impactPercent), note: data.stressNote ?? undefined,
+    facts: [{ label: "Impact", value: signedMoney(one.impactAmount, data.currency) },
+      { label: "Tolerance", value: tolerance == null ? "None set" : signed(tolerance, false) },
+      { label: "Standing", value: one.standing ? (STANDING[one.standing]?.[0] ?? one.standing) : "No tolerance set" }],
+    table: stressTable(data), link: { to: "risk", label: "Risk & Exposure" },
+  } }) : undefined;
   return (
     <Card title="Stress Tests & Scenarios" lead="Full revaluation on current holdings · private assets with lagged beta"
       foot={data.bankFile || rows.length === 0 ? null : data.stressNote} flush picker={!data.bankFile && rows.length > 0 && chart.picker}>
       {data.bankFile ? <div className="px-5"><Missing data={data} reason="" /></div> : rows.length === 0 ? <Empty>{data.stressNote}</Empty> : !chart.own ? (
         <div className="px-5">
           <KindChart kind={chart.kind!} format={(value) => signed(value)} height={60 + rows.length * 30} label="What each scenario would do to the portfolio"
-            data={{ shape: "series", categories: rows.map((one) => one.name), series: [{ name: "Impact %", values: rows.map((one) => one.impactPercent) }] }} />
+            data={{ shape: "series", categories: rows.map((one) => one.name), series: [{ name: "Impact %", values: rows.map((one) => one.impactPercent) }] }}
+            onPick={pick ? (at) => { const one = rows[at]; if (one) pick(one); } : undefined} />
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -161,8 +218,13 @@ function Stress({ data, chart }: { data: ClientRisk; chart: CardChart }) {
             </thead>
             <tbody className="divide-y divide-line">
               {rows.map((one) => (
-                <tr key={one.name}>
-                  <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-normal">{one.name}</th>
+                <tr key={one.name} className={cn(pick && "cursor-pointer hover:bg-canvas")} onClick={pick ? () => pick(one) : undefined}>
+                  <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-normal">
+                    {pick ? (
+                      <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                        onClick={(event) => { event.stopPropagation(); pick(one); }}>{one.name}</button>
+                    ) : one.name}
+                  </th>
                   <td className={cn("px-2 py-2.5 text-right font-semibold tabular-nums", toneOf(one.impactPercent))}>{signed(one.impactPercent)}</td>
                   <td className={cn("px-2 py-2.5 text-right font-semibold tabular-nums", toneOf(one.impactAmount))}>{signedMoney(one.impactAmount, data.currency)}</td>
                   <td className="px-2 py-2.5">
@@ -184,17 +246,22 @@ function Stress({ data, chart }: { data: ClientRisk; chart: CardChart }) {
 
 /** The look-through by sector, across equity, credit and private assets. */
 function Sectors({ data, chart }: { data: ClientRisk; chart: CardChart }) {
+  const drill = useDrill();
   return (
     <Card title="Sector Look-through" lead="Across equity, credit, private assets" foot={data.bankFile ? null : data.sectorNote}
       picker={!data.bankFile && data.sectors.length > 0 && chart.picker}>
       {data.bankFile ? <Missing data={data} reason="" /> : data.sectors.length === 0 ? <Empty>No lines to look through.</Empty> : !chart.own ? (
         <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={260} label="Holdings by sector, looked through"
-          data={{ shape: "shares", items: data.sectors.map((one) => ({ name: one.name, value: one.sharePercent })) }} />
+          data={{ shape: "shares", items: data.sectors.map((one) => ({ name: one.name, value: one.sharePercent })) }}
+          onPick={(at) => { const one = data.sectors[at]; if (one) drill?.({ by: "sector", key: one.key, name: one.name }); }} />
       ) : (
         <ul className="space-y-2">
           {data.sectors.map((one, at) => (
             <li key={one.key} className="grid grid-cols-[minmax(0,10rem)_1fr_3.5rem] items-center gap-3 text-sm">
-              <span className="leading-snug break-words">{one.name}</span>
+              <span className="leading-snug break-words">
+                <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                  onClick={() => drill?.({ by: "sector", key: one.key, name: one.name })}>{one.name}</button>
+              </span>
               <span className="block h-2 rounded-full bg-slate-100" aria-hidden="true">
                 <span className={cn("block h-full rounded-full", at < 3 ? "bg-primary-600" : "bg-amber-600")}
                   style={{ width: `${Math.min(100, (one.sharePercent / Math.max(20, data.sectors[0].sharePercent)) * 100)}%` }} />
@@ -211,12 +278,23 @@ function Sectors({ data, chart }: { data: ClientRisk; chart: CardChart }) {
 function Geography({ data, chart }: { data: ClientRisk; chart: CardChart }) {
   const rows = data.geography;
   const empty = rows.every((one) => one.value === 0);
+  const drill = useDrill();
+  // A country opens its share; the screen holds no lines per country behind it.
+  const pick = drill ? (one: (typeof rows)[number]) => drill({ by: "figure", key: `country:${one.key}`, name: one.name, figure: {
+    label: "Country of risk", value: money(one.value, data.currency), note: data.geographyNote ?? "All asset classes by country of risk, funds looked through.",
+    facts: [{ label: "Share of the book", value: `${one.sharePercent.toFixed(1)}%` }],
+    table: { title: "Every country", columns: ["Country", "Value", "Share"],
+      rows: rows.map((each) => [each.name, money(each.value, data.currency), `${each.sharePercent.toFixed(1)}%`]) },
+    link: { to: "risk", label: "Risk & Exposure" },
+  } }) : undefined;
+  const charted = rows.filter((one) => one.value > 0);
   return (
     <Card title="Geographic Look-through" lead="All asset classes by country of risk · funds looked through" foot={data.bankFile ? null : data.geographyNote}
       picker={!data.bankFile && !empty && chart.picker}>
       {data.bankFile ? <Missing data={data} reason="" /> : empty ? <Empty>No lines to look through.</Empty> : !chart.own ? (
         <KindChart kind={chart.kind!} format={(value) => money(value, data.currency)} height={240} label="Holdings by country of risk, looked through"
-          data={{ shape: "shares", items: rows.filter((one) => one.value > 0).map((one) => ({ name: one.name, value: one.value })) }} />
+          data={{ shape: "shares", items: charted.map((one) => ({ name: one.name, value: one.value })) }}
+          onPick={pick ? (at) => { const one = charted[at]; if (one) pick(one); } : undefined} />
       ) : (
         <>
           <span className="flex h-3 overflow-hidden rounded-xs bg-slate-100" aria-hidden="true">
@@ -226,10 +304,14 @@ function Geography({ data, chart }: { data: ClientRisk; chart: CardChart }) {
           </span>
           <ul className="mt-3 grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
             {rows.map((one, at) => (
-              <li key={one.key} className="rounded-lg border border-line px-3 py-2">
+              <li key={one.key} className={cn("rounded-lg border border-line px-3 py-2", pick && "cursor-pointer hover:bg-canvas")}
+                onClick={pick ? () => pick(one) : undefined}>
                 <p className="flex items-center gap-1.5 text-xs font-semibold">
                   <span className="size-2 rounded-xs" style={{ background: INK[at % INK.length] }} aria-hidden="true" />
-                  {one.name}
+                  {pick ? (
+                    <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                      onClick={(event) => { event.stopPropagation(); pick(one); }}>{one.name}</button>
+                  ) : one.name}
                 </p>
                 <p className="text-lg font-bold tabular-nums">{one.sharePercent.toFixed(1)}%</p>
                 <p className="text-2xs text-ink-muted tabular-nums">{money(one.value, data.currency)}</p>
@@ -245,13 +327,21 @@ function Geography({ data, chart }: { data: ClientRisk; chart: CardChart }) {
 function Currencies({ data, chart }: { data: ClientRisk; chart: CardChart }) {
   const file = data.bankFile;
   const drill = useDrill();
-  const rows = file
+  // A bank-file client's currencies either in dollars at the latest FX rates, or summed as the bank sent them.
+  const [fileView, setFileView] = useState<FileView>("converted");
+  const conv = file && fileView === "converted" ? data.converted ?? null : null;
+  const rows = conv
+    ? conv.currencies.map((one) => ({ currency: one.currency, gross: one.usd, hedged: null, net: null,
+      netPercent: conv.total === 0 ? null : (one.usd / Math.abs(conv.total)) * 100 }))
+    : file
     ? data.fileCurrencies.map((one) => ({ currency: one.currency, gross: one.amount, hedged: null, net: null, netPercent: null }))
     : data.currencies;
   const total = data.currencyTotal;
   return (
     <Card title="Currency Exposure" lead="Hedge overlays via share-class and forwards (reported by custodians)"
-      foot={file ? "Summed per currency from the bank's file lines, as sent and unconverted." : null} flush
+      foot={conv ? `Each currency of the bank's lines in ${conv.currency} at FX rates${conv.ratesOn ? ` of ${formatDate(conv.ratesOn)}` : ""} · % of his holdings; no hedge is in the file.`
+        : file ? "Summed per currency from the bank's file lines, as sent and unconverted." : null} flush
+      action={file && <FileViewToggle value={fileView} onChange={setFileView} />}
       picker={!file && rows.length > 0 && chart.picker}>
       {rows.length === 0 ? <Empty>{file ? "No lines in the bank's file." : "No lines to read."}</Empty> : !file && !chart.own ? (
         <div className="px-5">
@@ -287,7 +377,13 @@ function Currencies({ data, chart }: { data: ClientRisk; chart: CardChart }) {
                         onClick={() => drill?.({ by: "currency", key: one.currency, name: one.currency })}>{one.currency}</button>
                     )}
                   </th>
-                  <td className="px-2 py-2 text-right tabular-nums">{file ? plain(one.gross) : money(one.gross, data.currency)}</td>
+                  <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
+                    {conv ? money(one.gross, conv.currency) : file ? exactly(one.gross, one.currency) : money(one.gross, data.currency)}
+                    {conv && one.currency !== conv.currency && (() => {
+                      const sent = data.fileCurrencies.find((each) => each.currency === one.currency);
+                      return sent ? <span className="block text-2xs text-ink-muted">{exactly(sent.amount, one.currency)}</span> : null;
+                    })()}
+                  </td>
                   <td className={cn("px-2 py-2 text-right tabular-nums", one.hedged != null && one.hedged < 0 && "text-red-700")}>
                     {one.hedged == null ? <NotInFile /> : one.hedged === 0 ? "—" : money(one.hedged, data.currency)}
                   </td>
@@ -303,6 +399,17 @@ function Currencies({ data, chart }: { data: ClientRisk; chart: CardChart }) {
                 </tr>
               ))}
             </tbody>
+            {file && (
+              <tfoot>
+                <tr className="border-t border-line font-bold">
+                  <th scope="row" className="py-2 pr-3 pl-5 text-left">Total</th>
+                  <td className="px-2 py-2 text-right tabular-nums">
+                    {conv ? money(conv.total, conv.currency) : <span className="text-xs font-normal text-ink-muted">per currency, not added together</span>}
+                  </td>
+                  <td colSpan={4} />
+                </tr>
+              </tfoot>
+            )}
             {!file && total && (
               <tfoot>
                 <tr className="border-t border-line font-bold">
@@ -323,6 +430,19 @@ function Currencies({ data, chart }: { data: ClientRisk; chart: CardChart }) {
 }
 
 function Issuers({ data, chart }: { data: ClientRisk; chart: CardChart }) {
+  const drill = useDrill();
+  const cash = (value: number | null) => (value == null ? "—" : money(value, data.currency));
+  // An issuer opens its exposure, instrument by instrument, as the row shows it.
+  const pick = drill ? (one: (typeof data.issuers)[number]) => drill({ by: "figure", key: `issuer:${one.issuer}`, name: one.issuer, figure: {
+    label: "Issuer look-through", value: money(one.total, data.currency),
+    note: data.issuerNote ?? "Combined exposure to one obligor across instruments.",
+    facts: [{ label: "% of net worth", value: `${one.sharePercent.toFixed(1)}%` }, { label: "Direct equity", value: cash(one.equity) },
+      { label: "Bonds", value: cash(one.bonds) }, { label: "Via ETFs & funds", value: cash(one.viaFunds) }],
+    chart: { title: "By instrument", kind: "donut", format: "money", currency: data.currency, data: { shape: "shares", items: [
+      { name: "Direct equity", value: one.equity ?? 0 }, { name: "Bonds", value: one.bonds ?? 0 }, { name: "Via ETFs & funds", value: one.viaFunds ?? 0 },
+    ].filter((each) => each.value !== 0) } },
+    link: { to: "risk", label: "Risk & Exposure" },
+  } }) : undefined;
   return (
     <Card title="Issuer Look-through · Top 8" lead="Combined exposure to one obligor across instruments"
       foot={data.bankFile ? null : (
@@ -340,7 +460,8 @@ function Issuers({ data, chart }: { data: ClientRisk; chart: CardChart }) {
                   { name: "Bonds", values: data.issuers.map((one) => one.bonds) },
                   { name: "Via ETFs & funds", values: data.issuers.map((one) => one.viaFunds) },
                 ] }
-              : { shape: "shares", items: data.issuers.map((one) => ({ name: one.issuer, value: one.total })) }} />
+              : { shape: "shares", items: data.issuers.map((one) => ({ name: one.issuer, value: one.total })) }}
+            onPick={pick ? (at) => { const one = data.issuers[at]; if (one) pick(one); } : undefined} />
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -358,8 +479,13 @@ function Issuers({ data, chart }: { data: ClientRisk; chart: CardChart }) {
             </thead>
             <tbody className="divide-y divide-line">
               {data.issuers.map((one) => (
-                <tr key={one.issuer}>
-                  <th scope="row" className="py-2 pr-3 pl-5 text-left font-bold">{one.issuer}</th>
+                <tr key={one.issuer} className={cn(pick && "cursor-pointer hover:bg-canvas")} onClick={pick ? () => pick(one) : undefined}>
+                  <th scope="row" className="py-2 pr-3 pl-5 text-left font-bold">
+                    {pick ? (
+                      <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                        onClick={(event) => { event.stopPropagation(); pick(one); }}>{one.issuer}</button>
+                    ) : one.issuer}
+                  </th>
                   <td className="px-2 py-2 text-right tabular-nums">{one.equity == null ? "—" : money(one.equity, data.currency)}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{one.bonds == null ? "—" : money(one.bonds, data.currency)}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{one.viaFunds == null ? "—" : money(one.viaFunds, data.currency)}</td>
@@ -404,6 +530,22 @@ function VarHistory({ data, chart }: { data: ClientRisk; chart: CardChart }) {
       ],
     };
   }, [points, limit]);
+  const drill = useDrill();
+  // A month opens its reading beside the limit and the month before.
+  const pick = drill ? (at: number) => {
+    const one = points[at];
+    if (!one) return;
+    const before = points[at - 1];
+    drill({ by: "figure", key: `var:${one.on}`, name: `VaR · ${monthLabel(one.on)}`, figure: {
+      label: "Value at risk · 95% · 1 month", value: `${one.var95.toFixed(1)}%`,
+      note: `Month-end reading as a share of investable assets, as of ${formatDate(one.on)}.`,
+      facts: [{ label: "IPS limit", value: limit == null ? "No limit set" : `${limit.toFixed(1)}%` },
+        { label: "Headroom", value: limit == null ? "—" : `${(limit - one.var95).toFixed(1)} pp` },
+        { label: "Month before", value: before ? `${before.var95.toFixed(1)}%` : "—" },
+        { label: "Change", value: before ? `${one.var95 - before.var95 > 0 ? "+" : ""}${(one.var95 - before.var95).toFixed(1)} pp` : "—" }],
+      chart: varChart(data), link: { to: "risk", label: "Risk & Exposure" },
+    } });
+  } : undefined;
   return (
     <Card title="VaR History · 24 Months" picker={!data.bankFile && points.length > 1 && chart.picker}
       foot={data.bankFile ? null : (
@@ -414,12 +556,14 @@ function VarHistory({ data, chart }: { data: ClientRisk; chart: CardChart }) {
       )}>
       {data.bankFile ? <Missing data={data} reason="" /> : points.length === 0 ? <Empty>{data.varHistoryNote ?? "Not enough months to draw."}</Empty> : (
         <>
-          {chart.own ? <Chart option={option} height={190} label="Value at risk at each month end over the trailing twelve months" /> : (
+          {chart.own ? <Chart option={option} height={190} label="Value at risk at each month end over the trailing twelve months"
+            onPick={pick ? (_, index) => pick(index) : undefined} /> : (
             <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={190} label="Value at risk at each month end over the trailing twelve months"
               data={{ shape: "series", categories: points.map((one) => monthLabel(one.on)), series: [
                 { name: "95% 1M VaR", values: points.map((one) => one.var95) },
                 ...(limit == null ? [] : [{ name: "IPS risk limit", values: points.map(() => limit), colour: ink().danger }]),
-              ] }} />
+              ] }}
+              onPick={pick} />
           )}
           {points.length === 1 && <p className="mt-1 text-3xs text-ink-muted italic">One reading on file so far: it is marked as a point, and the line starts with the next.</p>}
         </>
@@ -543,6 +687,17 @@ function ClassRisk({ data, chart }: { data: ClientRisk; chart: CardChart }) {
 
 /** Each factor's loading, the client's beside the policy benchmark's, about a centred zero line. */
 function Factors({ data, chart }: { data: ClientRisk; chart: CardChart }) {
+  const drill = useDrill();
+  const loading = (value: number | null) => (value == null ? "—" : `${value > 0 ? "+" : ""}${value.toFixed(2)}`);
+  // A factor opens its loading beside the benchmark's.
+  const pick = drill ? (one: (typeof data.factors)[number]) => drill({ by: "figure", key: `factor:${one.key}`, name: one.label, figure: {
+    label: "Factor exposure", value: loading(one.loading), note: data.factorExposures.reason,
+    facts: [{ label: "Policy benchmark", value: loading(one.benchmarkLoading) },
+      { label: "Active", value: one.benchmarkLoading == null ? "—" : loading(one.loading - one.benchmarkLoading) }],
+    table: { title: "Every factor", columns: ["Factor", "Portfolio", "Benchmark"],
+      rows: data.factors.map((each) => [each.label, loading(each.loading), loading(each.benchmarkLoading)]) },
+    link: { to: "risk", label: "Risk & Exposure" },
+  } }) : undefined;
   const largest = Math.max(0.1, ...data.factors.flatMap((one) => [Math.abs(one.loading), Math.abs(one.benchmarkLoading ?? 0)]));
   const bar = (value: number, tone: string) => (
     <span className="relative block h-2" aria-hidden="true">
@@ -557,7 +712,8 @@ function Factors({ data, chart }: { data: ClientRisk; chart: CardChart }) {
         data={{ shape: "series", categories: data.factors.map((one) => one.label), series: [
           { name: "Portfolio", values: data.factors.map((one) => one.loading), colour: ink().primary },
           { name: "Policy benchmark", values: data.factors.map((one) => one.benchmarkLoading), colour: ink().neutral },
-        ] }} />
+        ] }}
+        onPick={pick ? (at) => { const one = data.factors[at]; if (one) pick(one); } : undefined} />
       <p className="mt-1 text-3xs text-ink-muted italic">{data.factorExposures.reason}</p>
     </>
   );
@@ -565,8 +721,14 @@ function Factors({ data, chart }: { data: ClientRisk; chart: CardChart }) {
     <>
       <ul className="divide-y divide-line">
         {data.factors.map((one) => (
-          <li key={one.key} className="grid grid-cols-[minmax(0,10rem)_1fr_6.5rem] items-center gap-3 py-2 text-sm">
-            <span className="leading-snug break-words">{one.label}</span>
+          <li key={one.key} className={cn("grid grid-cols-[minmax(0,10rem)_1fr_6.5rem] items-center gap-3 py-2 text-sm", pick && "cursor-pointer hover:bg-canvas")}
+            onClick={pick ? () => pick(one) : undefined}>
+            <span className="leading-snug break-words">
+              {pick ? (
+                <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                  onClick={(event) => { event.stopPropagation(); pick(one); }}>{one.label}</button>
+              ) : one.label}
+            </span>
             <span className="space-y-1">
               {bar(one.loading, "bg-primary-600")}
               {one.benchmarkLoading != null && bar(one.benchmarkLoading, "bg-slate-400")}
@@ -590,10 +752,39 @@ function Factors({ data, chart }: { data: ClientRisk; chart: CardChart }) {
 /** Class by class, a soft tint for how closely each pair moves: blue together, red apart. */
 function Correlation({ data, chart }: { data: ClientRisk; chart: CardChart }) {
   const matrix = data.correlationMatrix;
+  const drill = useDrill();
   if (!matrix) return null;
+  // A class's capital, risk and volatility, where the Risk Contribution card has it under the same name.
+  const classOf = (name: string) => data.classRisk.find((one) => one.name === name);
+  const facts = (name: string) => {
+    const one = classOf(name);
+    return one ? [{ label: `${name} · capital`, value: `${one.capitalPercent.toFixed(1)}%` }, { label: `${name} · volatility`, value: `${one.volatilityPercent.toFixed(1)}%` }] : [];
+  };
+  const note = `${matrix.months} monthly class returns · ${data.correlation.reason}`;
+  // A cell opens the pair; a class on the chart opens its row against every other.
+  const pickPair = drill ? (row: number, col: number) => {
+    const a = matrix.names[row];
+    const b = matrix.names[col];
+    const value = matrix.values[row]?.[col];
+    if (!a || !b || value == null) return;
+    drill({ by: "figure", key: `correlation:${a}:${b}`, name: `${a} · ${b}`, figure: {
+      label: "Correlation", value: value.toFixed(2), note, facts: row === col ? facts(a) : [...facts(a), ...facts(b)],
+      link: { to: "risk", label: "Risk & Exposure" },
+    } });
+  } : undefined;
+  const pickRow = drill ? (row: number) => {
+    const a = matrix.names[row];
+    if (!a) return;
+    drill({ by: "figure", key: `correlation:${a}`, name: a, figure: {
+      label: "Correlation", note, facts: facts(a),
+      table: { title: `${a} against every class`, columns: ["Class", "Correlation"], rows: matrix.names.map((name, col) => [name, (matrix.values[row]?.[col] ?? 0).toFixed(2)]) },
+      link: { to: "risk", label: "Risk & Exposure" },
+    } });
+  } : undefined;
   if (!chart.own) return (
     <KindChart kind={chart.kind!} format={(value) => value.toFixed(2)} label="How closely each pair of classes moves together"
-      data={{ shape: "series", categories: matrix.names, series: matrix.values.map((row, at) => ({ name: matrix.names[at]!, values: row })) }} />
+      data={{ shape: "series", categories: matrix.names, series: matrix.values.map((row, at) => ({ name: matrix.names[at]!, values: row })) }}
+      onPick={pickRow} />
   );
   return (
     <>
@@ -610,8 +801,8 @@ function Correlation({ data, chart }: { data: ClientRisk; chart: CardChart }) {
               <tr key={matrix.names[at]}>
                 <th scope="row" className="py-1 pr-2 pl-5 text-left font-medium whitespace-nowrap">{matrix.names[at]}</th>
                 {row.map((value, col) => (
-                  <td key={col} className="px-0.5 py-0.5">
-                    <span className="block rounded-md px-1.5 py-2 text-center text-ink tabular-nums"
+                  <td key={col} className={cn("px-0.5 py-0.5", pickPair && "cursor-pointer")} onClick={pickPair ? () => pickPair(at, col) : undefined}>
+                    <span className={cn("block rounded-md px-1.5 py-2 text-center text-ink tabular-nums", pickPair && "hover:ring-1 hover:ring-primary-400")}
                       style={{ background: `color-mix(in srgb, var(${value >= 0 ? "--color-primary-600" : "--color-red-500"}) ${Math.round(Math.abs(value) * (at === col ? 30 : 55))}%, transparent)` }}>
                       {value.toFixed(2)}
                     </span>
@@ -625,6 +816,30 @@ function Correlation({ data, chart }: { data: ClientRisk; chart: CardChart }) {
       <p className="mt-2 text-3xs text-ink-muted italic">{matrix.months} monthly class returns · {data.correlation.reason}</p>
     </>
   );
+}
+
+/** The VaR history as the breakdown panel draws it, where there are months to draw. */
+function varChart(data: ClientRisk): FigureDetail["chart"] {
+  if (data.varHistory.length < 2) return undefined;
+  return { title: "VaR history · 95% 1M, % of investable", kind: "line", format: "percent",
+    data: { shape: "series", categories: data.varHistory.map((one) => monthLabel(one.on)), series: [
+      { name: "95% 1M VaR", values: data.varHistory.map((one) => one.var95) },
+      ...(data.varLimit == null ? [] : [{ name: "IPS risk limit", values: data.varHistory.map(() => data.varLimit) }]),
+    ] } };
+}
+
+/** Each class's share of capital, of risk and its volatility, as the Risk Contribution card shows them. */
+function classTable(data: ClientRisk): FigureDetail["table"] {
+  if (data.classRisk.length === 0) return undefined;
+  return { title: "Risk contribution by class", columns: ["Class", "Capital", "Risk", "Volatility"],
+    rows: data.classRisk.map((one) => [one.name, `${one.capitalPercent.toFixed(1)}%`, `${one.riskPercent.toFixed(1)}%`, `${one.volatilityPercent.toFixed(1)}%`]) };
+}
+
+/** Every scenario as the Stress Tests card lists it. */
+function stressTable(data: ClientRisk): FigureDetail["table"] {
+  if (data.stress.length === 0) return undefined;
+  return { title: "Every scenario", columns: ["Scenario", "Impact %", "Impact", "vs tolerance"],
+    rows: data.stress.map((one) => [one.name, signed(one.impactPercent), signedMoney(one.impactAmount, data.currency), one.standing ? (STANDING[one.standing]?.[0] ?? one.standing) : "—"]) };
 }
 
 /** What Risk & Exposure offers for a card of the reader's own: its risk figures, scenarios and look-throughs. */
@@ -661,9 +876,10 @@ function riskFigures(data: ClientRisk): Figures {
 }
 
 /** @param picker the chart type switcher, beside the title, for a card that draws a chart */
-function Card({ title, lead, foot, flush, picker, children }: {
+function Card({ title, lead, foot, flush, picker, action, children }: {
   title: string;
   lead?: string;
+  action?: ReactNode;
   foot?: ReactNode;
   flush?: boolean;
   picker?: ReactNode;
@@ -671,6 +887,7 @@ function Card({ title, lead, foot, flush, picker, children }: {
 }) {
   // The reader's own name and line for the card, where they set them through Add card.
   const label = useCardLabel(title, lead);
+  const body = useRef<HTMLDivElement>(null);
   return (
     <section className={cn("flex min-w-0 flex-col rounded-2xl border border-line bg-white", flush ? "py-5" : "p-5")}>
       <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", flush && "px-5")}>
@@ -678,18 +895,20 @@ function Card({ title, lead, foot, flush, picker, children }: {
           <h2 className="text-lg font-bold">{label.title}</h2>
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">{picker}<CardMenu /></div>
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>
       </div>
-      <div className="flex-1">{children}</div>
+      <div ref={body} className="flex-1">{children}</div>
       {foot && <div className={cn("mt-3 border-t border-line pt-3 text-xs text-ink-muted", flush && "px-5")}>{foot}</div>}
     </section>
   );
 }
 
-function Kpi({ label, value, note, tone }: { label: string; value: string; note: ReactNode; tone?: string }) {
+function Kpi({ label, value, note, tone, onPick }: { label: string; value: string; note: ReactNode; tone?: string; onPick?: () => void }) {
   if (useFigureRow()) return <FigureRow label={label} value={value} note={note} tone={tone} />;
   return (
-    <div className="rounded-2xl border border-line bg-white px-4 py-3.5">
+    <div className={cn("rounded-2xl border border-line bg-white px-4 py-3.5", onPick && "cursor-pointer hover:bg-canvas")}
+      {...(onPick ? { role: "button", tabIndex: 0, title: "Open its breakdown", onClick: onPick,
+        onKeyDown: (event: KeyboardEvent) => { if (event.key === "Enter") onPick(); } } : {})}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
       <p className={cn("mt-1.5 text-2xl font-bold tabular-nums", tone)}>{value}</p>
       <div className="mt-1 text-xs text-ink-muted">{note}</div>
@@ -754,6 +973,11 @@ function money(amount: number, currency: string) {
   } catch {
     return plain(amount);
   }
+}
+
+/** An amount as the bank sent it, to the cent, with its currency. */
+function exactly(amount: number, currency: string) {
+  return `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function plain(amount: number) {

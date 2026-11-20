@@ -2,6 +2,7 @@ import type { ExportRow } from "@atomprive/api-client/backoffice";
 import { cn } from "@atomprive/ui";
 import { ChartColumnIncreasing, ChevronDown, Info } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useBookPanel } from "../../components/book-panel";
 import { formatDate } from "../../lib/labels";
 import { INK } from "../portfolios/asset-classes";
 import { money } from "./book-figures";
@@ -92,6 +93,7 @@ export function ExplainerTab({ context }: { context: PanelContext }) {
   const { sources } = context;
   const { overview } = sources;
   const [by, setBy] = useState<"METRIC" | "CLASS">("METRIC");
+  const panel = useBookPanel();
 
   const read = useMemo(() => {
     const worth = series("NET_WORTH", overview, sources);
@@ -232,11 +234,36 @@ export function ExplainerTab({ context }: { context: PanelContext }) {
   ];
 
   const columns = columnsOf(by, read);
+  const said = (value: number | null) => (value === null ? "Not on file yet" : `${value > 0 ? "+" : ""}${money(value)}`);
+  const showStep = (step: Step) => {
+    if (step.total) {
+      const day = step.label === "Starting value" ? read.first.on : read.last.on;
+      panel?.({ name: step.label, figure: { label: "Explainer", value: step.value === null ? undefined : money(step.value),
+        note: `The portfolio's net worth on ${formatDate(day)}.`, facts: [{ label: "Day", value: formatDate(day) }] } });
+      return;
+    }
+    const column = columns.find((one) => one.title === step.label);
+    const rows: (string | null)[][] = [];
+    const add = (line: Line, depth: number) => {
+      rows.push([`${"\u00a0\u00a0".repeat(depth)}${line.label}`, line.value === null ? line.why ?? null : said(line.value)]);
+      line.inside?.forEach((one) => add(one, depth + 1));
+    };
+    column?.lines.forEach((line) => add(line, 0));
+    panel?.({
+      name: step.label,
+      figure: {
+        label: "Explainer",
+        value: said(step.value),
+        note: `Between ${formatDate(read.first.on)} and ${formatDate(read.last.on)}, ${by === "METRIC" ? "by sub-metric" : "by asset class"}.`,
+        table: rows.length ? { columns: ["Line", "Amount"], rows } : undefined,
+      },
+    });
+  };
 
   return (
     <div className="space-y-4">
       <section aria-label="Starting to ending value" className="h-80 rounded-2xl border border-line bg-white px-5 py-4">
-        <WaterfallChart steps={steps} format={money} label="Starting to ending value" />
+        <WaterfallChart steps={steps} format={money} label="Starting to ending value" onPick={panel ? showStep : undefined} />
       </section>
 
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">

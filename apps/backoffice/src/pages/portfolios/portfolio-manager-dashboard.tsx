@@ -23,6 +23,7 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { useBookPanel } from "../../components/book-panel";
 import { hasAuthority } from "../../lib/permissions";
 import { menuFor } from "../../menu";
 import {
@@ -38,6 +39,7 @@ import {
 } from "../dashboard/dashboard-kit";
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
 import { sharesFigure, singleFigure } from "../layout/own-cards";
+import { BookClients, ClassClients, DriftClients, ModelClients } from "./book-panel-lists";
 
 /**
  * A portfolio manager's dashboard: the clients assigned to them — what they hold, how far each sits from plan,
@@ -125,6 +127,68 @@ export function PortfolioManagerDashboard() {
   // A client's own portfolio, for whoever the route lets open one: it went by the Clients list's menu entry,
   // which was removed on 20 Nov 2026 while the portfolio page itself stayed.
   const clientLink = (customerId: string) => (hasAuthority(user, "VIEW_ALL_CLIENTS:VIEW") ? `/portfolio-clients/${customerId}` : undefined);
+  // The same destination in the side panel's lists, where a line the reader may not open opens nothing.
+  const panelLink = (customerId: string) => clientLink(customerId) ?? null;
+  const panel = useBookPanel();
+  const classShares = data ? data.byAssetClass.map((one) => ({ name: one.name, value: Number(one.amount) })) : [];
+
+  // One asset class of the book: what it comes to, its share, and who holds it.
+  const openClass = (at: number) => {
+    const one = data?.byAssetClass[at];
+    if (!data || !one) return;
+    panel?.({ name: one.name, figure: {
+      label: "Asset class",
+      value: money(one.amount, cur),
+      note: `${one.sharePercent}% of the ${money(data.book.aum, cur)} you manage across your assigned clients, in ${cur}.`,
+      facts: [
+        { label: "Share of AUM", value: `${one.sharePercent}%` },
+        { label: "AUM I manage", value: money(data.book.aum, cur) },
+        { label: "Assigned clients", value: String(data.book.clients) },
+      ],
+      chart: { title: "AUM by asset class", data: { shape: "shares", items: classShares }, kind: "donut", format: "money", currency: cur },
+      more: <ClassClients code={one.code} name={one.name} currency={cur} linkFor={panelLink} />,
+    } });
+  };
+
+  // One model the reader's clients are on, with those clients read when the panel opens.
+  const openModel = (one: Figures["models"][number]) => panel?.({ name: one.name, figure: {
+    label: "Model portfolio",
+    value: money(one.aum, cur),
+    note: `The AUM of your clients on ${one.name}, in ${cur}; drift is the average across them.`,
+    facts: [
+      { label: "Clients", value: String(one.clients) },
+      { label: "Average drift", value: points(one.averageDrift) },
+    ],
+    link: { to: `/model-portfolios/${one.modelId}`, label: "Open the model" },
+    more: <ModelClients modelId={one.modelId} linkFor={panelLink} />,
+  } });
+
+  // One part of the health ring: on plan, off plan, or on no model.
+  const openHealth = (at: number) => {
+    if (!data) return;
+    const health = data.health;
+    const parts = [
+      { name: "On plan", count: health.onPlan, note: "Portfolios on a model with every asset class inside its band." },
+      { name: "Off plan", count: health.offPlan, note: "Portfolios on a model with at least one asset class past its band." },
+      { name: "No model", count: health.noModel, note: "Portfolios measured against no model, so nothing can drift. The drift list does not name them." },
+    ];
+    const part = parts[at];
+    if (!part) return;
+    panel?.({ name: part.name, figure: {
+      label: "Portfolio health",
+      value: String(part.count),
+      note: part.note,
+      facts: [
+        { label: "On plan", value: `${health.onPlan} (${health.onPlanPercent}%)` },
+        { label: "Off plan", value: String(health.offPlan) },
+        { label: "No model", value: String(health.noModel) },
+        { label: "Model drift (avg.)", value: points(health.averageDrift) },
+      ],
+      chart: { title: "Portfolios on and off plan", kind: "donut", format: "number", data: { shape: "shares", items: parts.map((one) => ({ name: one.name, value: one.count })) } },
+      link: goTo("/drift") ? { to: "/drift", label: "Open Drift & deviations" } : undefined,
+      more: at === 2 ? undefined : <DriftClients standing={at === 0 ? "WITHIN_BAND" : "BREACHED"} linkFor={panelLink} />,
+    } });
+  };
 
   const render: Record<CardId, ReactNode> = {
     overview: (
@@ -134,13 +198,36 @@ export function PortfolioManagerDashboard() {
             {data.byAssetClass.length === 0 ? (
               <p className="py-6 text-center text-sm text-ink-muted">None of your clients holds anything yet.</p>
             ) : (
-              <Breakdown currency={cur} centre={money(data.book.aum, cur)} centreLabel={`${cur} AUM`}
+              <Breakdown currency={cur} centre={money(data.book.aum, cur)} centreLabel={`${cur} AUM`} onPick={panel ? openClass : undefined}
                 rows={data.byAssetClass.map((one) => ({ name: one.name, value: one.amount, share: one.sharePercent }))} />
             )}
             <Strip figures={[
               { label: "Assigned clients", value: data.book.clients, to: goTo("/client-directory") },
-              { label: "Portfolios", value: data.book.portfolios },
-              { label: `AUM vs ${days} days ago`, value: money(data.book.aum, cur), change: data.book.aumChangePercent },
+              { label: "Portfolios", value: data.book.portfolios, onClick: panel ? () => panel({ name: "Portfolios", figure: {
+                label: "Book",
+                value: String(data.book.portfolios),
+                note: "The portfolios held by your assigned clients.",
+                facts: [
+                  { label: "Assigned clients", value: String(data.book.clients) },
+                  { label: "On plan", value: String(data.health.onPlan) },
+                  { label: "Off plan", value: String(data.health.offPlan) },
+                  { label: "No model", value: String(data.health.noModel) },
+                ],
+                more: <BookClients currency={cur} linkFor={panelLink} />,
+              } }) : undefined },
+              { label: `AUM vs ${days} days ago`, value: money(data.book.aum, cur), change: data.book.aumChangePercent,
+                onClick: panel ? () => panel({ name: "AUM I manage", figure: {
+                  label: "Book",
+                  value: money(data.book.aum, cur),
+                  note: `The value of every portfolio of your assigned clients, in ${cur}, with its change over the last ${days} days.`,
+                  facts: [
+                    { label: `Change vs ${days} days ago`, value: data.book.aumChangePercent == null ? "—" : `${data.book.aumChangePercent > 0 ? "+" : ""}${data.book.aumChangePercent}%` },
+                    { label: "Assigned clients", value: String(data.book.clients) },
+                    { label: "Portfolios", value: String(data.book.portfolios) },
+                  ],
+                  chart: classShares.length > 0 ? { title: "AUM by asset class", data: { shape: "shares", items: classShares }, kind: "donut", format: "money", currency: cur } : undefined,
+                  more: <BookClients currency={cur} linkFor={panelLink} />,
+                } }) : undefined },
             ]} />
           </div>
         ) : <Loading />}
@@ -151,13 +238,25 @@ export function PortfolioManagerDashboard() {
         {data ? (
           <div className="space-y-4">
             <Breakdown centre={`${data.health.onPlanPercent}%`} centreLabel="On plan"
+              onPick={panel ? openHealth : undefined}
               rows={[
                 { name: "On plan", value: data.health.onPlan, colour: "#16a34a" },
                 { name: "Off plan", value: data.health.offPlan, colour: "#dc2626" },
                 { name: "No model", value: data.health.noModel, colour: "#cbd5e1" },
               ]} />
             <Strip figures={[
-              { label: "Model drift (avg.)", value: points(data.health.averageDrift) },
+              { label: "Model drift (avg.)", value: points(data.health.averageDrift), onClick: panel ? () => panel({ name: "Model drift (avg.)", figure: {
+                label: "Portfolio health",
+                value: points(data.health.averageDrift),
+                note: "The average drift from model across your clients' portfolios, as the server reports it. Each portfolio's drift is its furthest asset class from target.",
+                facts: [
+                  { label: "On plan", value: String(data.health.onPlan) },
+                  { label: "Off plan", value: String(data.health.offPlan) },
+                  { label: "No model", value: String(data.health.noModel) },
+                ],
+                link: goTo("/drift") ? { to: "/drift", label: "Open Drift & deviations" } : undefined,
+                more: <DriftClients linkFor={panelLink} />,
+              } }) : undefined },
               { label: "Off plan", value: data.health.offPlan, danger: data.health.offPlan > 0, to: goTo("/drift") },
               { label: "Model switches", value: data.health.switchesWaiting, to: goTo("/approvals?queue=model-changes") },
             ]} />
@@ -186,7 +285,10 @@ export function PortfolioManagerDashboard() {
             </thead>
             <tbody className="divide-y divide-line">
               {data.models.map((one) => (
-                <tr key={one.modelId}>
+                <tr key={one.modelId} className={panel ? "cursor-pointer hover:bg-canvas" : undefined}
+                  onClick={panel ? () => openModel(one) : undefined}
+                  onKeyDown={panel ? (event) => { if (event.key === "Enter") openModel(one); } : undefined}
+                  tabIndex={panel ? 0 : undefined}>
                   <td className="py-2 font-medium">{one.name}</td>
                   <td className="py-2 text-right tabular-nums">{money(one.aum, cur).replace(`${cur} `, "")}</td>
                   <td className="py-2 text-right tabular-nums">{one.clients}</td>

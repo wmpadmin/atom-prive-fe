@@ -17,7 +17,7 @@ export type MenuEntry = ReturnType<typeof menuFor>[number];
  */
 const HEADINGS: Partial<Record<StaffRole, { key: string; routes: string[] }[]>> = {
   PORTFOLIO_MANAGER: [
-    { key: "clients", routes: ["/book-overview", "/client-directory"] },
+    { key: "clients", routes: ["/book-overview", "/client-directory", "/bank-holdings"] },
     { key: "portfolios", routes: ["/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing"] },
     { key: "reports", routes: ["/mis", "/reports", "/trade-logs"] },
   ],
@@ -39,7 +39,7 @@ const HEADINGS: Partial<Record<StaffRole, { key: string; routes: string[] }[]>> 
     { key: "staff", routes: ["/users", "/roles", "/staff-tracker", "/staff-declarations"] },
     { key: "clients",
       routes: ["/client-management", "/prospective-clients", "/clients", "/deactivation-requests", "/archived-clients"] },
-    { key: "platform", routes: ["/config", "/ingestion", "/holdings-check"] },
+    { key: "platform", routes: ["/config", "/ingestion", "/holdings-check", "/bank-holdings"] },
     { key: "oversight", routes: ["/reports", "/family-access-trail", "/audit-log"] },
   ],
   IT_ADMIN: [

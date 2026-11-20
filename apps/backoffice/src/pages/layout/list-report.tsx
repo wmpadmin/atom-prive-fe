@@ -78,7 +78,7 @@ export function ListReportButton({ list, load, filters, columns }: {
 
   return (
     <ReportMenu busy={busy} problem={problem} onPick={(kind) => void run(kind)}
-      excel="Every column, figures as numbers" note="The whole list, every page, as filtered. Recorded in the audit log." />
+      excel="Every column, figures as numbers" />
   );
 }
 

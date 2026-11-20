@@ -1,6 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   useListAmlRatedClients,
+  type RatedClientRow,
   type RatedClientsPage,
   type RatingRow,
 } from "@atomprive/api-client/backoffice";
@@ -9,6 +10,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { ShieldAlert } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
+import { useBookPanel } from "../../components/book-panel";
 import { ColumnPicker } from "../../components/column-picker";
 import { ListPageHeader } from "../../components/record-list";
 import { ViewTabs } from "../../components/view-tabs";
@@ -16,6 +18,7 @@ import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
 import { formatDate } from "../../lib/labels";
 import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
+import { opens } from "../portfolios/figure-opens";
 import { bandTone } from "./aml-labels";
 
 /**
@@ -101,6 +104,7 @@ const MOVABLE: {
  */
 export function AmlRiskPage() {
   const navigate = useNavigate();
+  const panel = useBookPanel();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(defaultPageSize);
@@ -124,6 +128,29 @@ export function AmlRiskPage() {
   const byId = new Map(MOVABLE.map((one) => [one.id, one]));
   const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
 
+  // A count opens the clients behind it from the rows this page has loaded: the list cannot yet be asked for a
+  // band or for the overdue alone, so the panel says it is this page only, beside the firm-wide figure.
+  const onPage = `From the ${rows.length} client${rows.length === 1 ? "" : "s"} on this page only (page ${page + 1}); the list cannot yet be filtered by band or review date.`;
+  const openClients = (name: string, figure: string, some: RatedClientRow[]) => panel?.({
+    name,
+    figure: {
+      label: "AML risk",
+      value: figure,
+      note: onPage,
+      table: {
+        columns: ["Client", "Code", "Score", "Band", "Due again"],
+        rows: some.map((row) => [
+          row.clientName,
+          row.clientCode,
+          row.standing?.score ?? null,
+          row.standing ? row.standing.bandName : "Never rated",
+          row.standing ? `${formatDate(row.standing.nextReviewOn)}${row.standing.overdue ? " · waiting" : ""}` : null,
+        ]),
+        links: some.map((row) => `/aml-risk/clients/${row.customerId}`),
+      },
+    },
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -136,13 +163,15 @@ export function AmlRiskPage() {
       {counts && (
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {/* First, and in red when there are any: nobody scored is not the same as scored low. */}
-          <Fact label="Never rated" tone={counts.neverRated > 0 ? "danger" : undefined}>
+          <Fact label="Never rated" tone={counts.neverRated > 0 ? "danger" : undefined}
+            onOpen={panel ? () => openClients("Never rated", String(counts.neverRated), rows.filter((row) => !row.standing)) : undefined}>
             {counts.neverRated}
           </Fact>
-          <Fact label="Due to be rated again" tone={counts.overdue > 0 ? "warning" : undefined}>
+          <Fact label="Due to be rated again" tone={counts.overdue > 0 ? "warning" : undefined}
+            onOpen={panel ? () => openClients("Due to be rated again", String(counts.overdue), rows.filter((row) => row.standing?.overdue)) : undefined}>
             {counts.overdue}
           </Fact>
-          <Fact label="Clients">{counts.all}</Fact>
+          <Fact label="Clients" onOpen={panel ? () => openClients("Clients", String(counts.all), rows) : undefined}>{counts.all}</Fact>
           <div className="rounded-xl border border-line bg-white px-4 py-3">
             <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">By band</dt>
             <dd className="mt-1 flex flex-wrap gap-1.5">
@@ -150,9 +179,12 @@ export function AmlRiskPage() {
                 <span className="text-sm text-ink-muted">Nothing rated yet</span>
               ) : (
                 Object.entries(counts.byBand).map(([band, howMany]) => (
-                  <Badge key={band} tone="neutral">
-                    {band} {howMany}
-                  </Badge>
+                  <span key={band} {...(panel ? opens(() => openClients(`Band ${band}`, String(howMany), rows.filter((row) => row.standing?.bandName === band))) : {})}
+                    className={panel ? "cursor-pointer rounded-full hover:opacity-80" : undefined}>
+                    <Badge tone="neutral">
+                      {band} {howMany}
+                    </Badge>
+                  </span>
                 ))
               )}
             </dd>
@@ -320,9 +352,12 @@ export function AmlRiskPage() {
   );
 }
 
-function Fact({ label, children, tone }: { label: string; children: React.ReactNode; tone?: "danger" | "warning" }) {
+function Fact({ label, children, tone, onOpen }: {
+  label: string; children: React.ReactNode; tone?: "danger" | "warning"; onOpen?: () => void;
+}) {
   return (
-    <div className="rounded-xl border border-line bg-white px-4 py-3">
+    <div {...(onOpen ? opens(onOpen) : {})}
+      className={cn("rounded-xl border border-line bg-white px-4 py-3", onOpen && "cursor-pointer hover:border-primary-200 hover:bg-canvas")}>
       <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
       <dd
         className={cn(
