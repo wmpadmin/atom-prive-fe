@@ -3,12 +3,15 @@ import {
   useGetClientEquity,
   type ClientEquity,
   type EquityHolding,
+  type EquityActive,
   type EquityKpi,
+  type EquityPePoint,
+  type EquityStyleCell,
   type IpsAllocationRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { FileViewToggle, inUsd, sumInUsd, type FileView } from "../../components/converted-usd";
 import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
@@ -24,6 +27,7 @@ import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
+import type { FigureDetail } from "./figure-panel";
 
 // Names that would land on one another are left to the tooltip.
 echarts.use([ScatterChart, LabelLayout]);
@@ -112,23 +116,26 @@ function Strip({ data, view, setView }: { data: ClientEquity; view: string; setV
   const file = data.bankFile;
   // A bank-file client's equity lines added up in dollars at the latest FX rates.
   const sleeve = file && data.converted ? sumInUsd(s.fileValues, data.converted) : null;
+  const drill = useDrill();
+  const tile = "flex items-baseline gap-2 text-left hover:text-primary-700";
+  const open = () => drill?.({ by: "class", key: "EQUITIES", name: "Equities" });
   return (
     <section className="rounded-2xl border border-line bg-white px-5 py-3.5">
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-sm">
-        <span className="flex items-baseline gap-2">
+        <button type="button" className={tile} onClick={open}>
           <span className="text-xs text-ink-muted">Equity sleeve</span>
           {file ? (
             s.fileValues.length === 0 ? <NotInFile /> : !sleeve ? s.fileValues.map((one) => (
               <b key={one.currency} className="tabular-nums">{exact(one.amount, one.currency)}</b>
             )) : <b className="text-lg tabular-nums">{compact(sleeve.total, data.converted!.currency)}</b>
           ) : <b className="text-lg tabular-nums">{s.value == null ? "—" : compact(s.value, data.currency)}</b>}
-        </span>
-        <span className="flex items-baseline gap-2">
+        </button>
+        <button type="button" className={tile} onClick={open}>
           <span className="text-xs text-ink-muted">{file ? "% of his holdings" : "% of net worth"}</span>
           {file ? (sleeve && data.converted!.total !== 0 ? <b className="tabular-nums">{((sleeve.total / Math.abs(data.converted!.total)) * 100).toFixed(1)}%</b> : <NotInFile />)
             : <b className="tabular-nums">{s.netWorthPercent == null ? "—" : `${s.netWorthPercent.toFixed(1)}%`}</b>}
-        </span>
-        <span className="flex items-baseline gap-2">
+        </button>
+        <button type="button" className={tile} onClick={open}>
           <span className="text-xs text-ink-muted">YTD</span>
           {file ? <NotInFile /> : (
             <>
@@ -136,11 +143,11 @@ function Strip({ data, view, setView }: { data: ClientEquity; view: string; setV
               <span className="text-xs text-ink-muted">vs {signed(s.benchmarkYtd)}</span>
             </>
           )}
-        </span>
-        <span className="flex items-baseline gap-2">
+        </button>
+        <button type="button" className={tile} onClick={open}>
           <span className="text-xs text-ink-muted">Positions</span>
           <b className="tabular-nums">{s.positions}</b>
-        </span>
+        </button>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {!file && (
@@ -166,12 +173,17 @@ function Kpis({ data }: { data: ClientEquity }) {
   const labels = ["P/E · trailing", "P/E · forward 12M", "Price / Book", "Return on equity", "Dividend yield", "EPS growth · 3Y CAGR",
     "Net debt / EBITDA", "Beta (vs ACWI)", "Wtd. avg. market cap", "Active share", "Tracking error · ex-ante", "Holdings · coverage"];
   const kpis: (EquityKpi | null)[] = data.bankFile ? labels.map(() => null) : data.kpis;
+  const drill = useDrill();
+  const open = (one: EquityKpi) => drill?.({ by: "figure", key: `equity.kpi.${one.key}`, name: one.label, figure: kpiFigure(data, one) });
   return (
     <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
       {kpis.map((one, at) => rows ? (
-        <FigureRow key={one?.key ?? labels[at]} label={one?.label ?? labels[at]} value={!one ? <NotInFile /> : <>{one.value == null ? "—" : figure(one.value, one.unit)}{one.delta != null && one.deltaUnit !== "NONE" && <span className={cn("ml-2 rounded-md px-1.5 py-0.5 text-2xs font-semibold", deltaTone(one))}>{delta(one)}</span>}</>} note={!one ? null : one.reason && one.value == null ? <NotMeasured title={one.reason} /> : <>MSCI ACWI {one.benchmark == null ? "—" : figure(one.benchmark, one.unit)}</>} />
+        <FigureRow key={one?.key ?? labels[at]} label={!one ? labels[at] : (
+          <button type="button" className="text-left hover:text-primary-700 hover:underline" onClick={() => open(one)}>{one.label}</button>
+        )} value={!one ? <NotInFile /> : <>{one.value == null ? "—" : figure(one.value, one.unit)}{one.delta != null && one.deltaUnit !== "NONE" && <span className={cn("ml-2 rounded-md px-1.5 py-0.5 text-2xs font-semibold", deltaTone(one))}>{delta(one)}</span>}</>} note={!one ? null : one.reason && one.value == null ? <NotMeasured title={one.reason} /> : <>MSCI ACWI {one.benchmark == null ? "—" : figure(one.benchmark, one.unit)}</>} />
       ) : (
-        <div key={one?.key ?? labels[at]} className="rounded-2xl border border-line bg-white px-4 py-3.5">
+        <div key={one?.key ?? labels[at]} className={cn("rounded-2xl border border-line bg-white px-4 py-3.5", one && "cursor-pointer")}
+          {...(one ? { role: "button", tabIndex: 0, onClick: () => open(one), onKeyDown: (event: ReactKeyboardEvent) => { if (event.key === "Enter") open(one); } } : {})}>
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? labels[at]}</p>
           {!one ? <div className="mt-2"><NotInFile /></div> : (
             <>
@@ -336,6 +348,9 @@ function Sectors({ data, chart }: { data: ClientEquity; chart: CardChart }) {
 
 function RegionStyle({ data, chart }: { data: ClientEquity; chart: CardChart }) {
   const cells = data.styleBox;
+  const drill = useDrill();
+  const openRegion = (one: EquityActive | undefined) => { if (one) drill?.({ by: "figure", key: `equity.region.${one.key}`, name: one.name, figure: regionFigure(data, one) }); };
+  const openCell = (size: string, style: string) => drill?.({ by: "figure", key: `equity.style.${size}.${style}`, name: `${size} · ${style}`, figure: styleFigure(cells.find((one) => one.size === size && one.style === style), size, style) });
   const deepest = Math.max(1, ...cells.map((one) => one.portfolio));
   return (
     <Card title="Region & Style" lead="Domicile of risk · style by valuation & growth" flush picker={!data.bankFile && chart.picker}>
@@ -347,7 +362,8 @@ function RegionStyle({ data, chart }: { data: ClientEquity; chart: CardChart }) 
               : { shape: "series", categories: data.regions.map((one) => one.name), series: [
                   { name: "Portfolio", values: data.regions.map((one) => one.portfolio), colour: ink().primary },
                   { name: "Benchmark", values: data.regions.map((one) => one.benchmark), colour: ink().neutral },
-                ] }} />
+                ] }}
+            onPick={(at) => openRegion(chart.kind === "donut" ? data.regions.filter((one) => one.portfolio > 0)[at] : data.regions[at])} />
         </div>
       ) : (
         <>
@@ -363,8 +379,10 @@ function RegionStyle({ data, chart }: { data: ClientEquity; chart: CardChart }) 
             </thead>
             <tbody className="divide-y divide-line">
               {data.regions.map((one) => (
-                <tr key={one.key}>
-                  <th scope="row" className="py-1.5 pr-3 pl-5 text-left font-normal">{one.name}</th>
+                <tr key={one.key} className="cursor-pointer hover:bg-canvas" onClick={() => openRegion(one)}>
+                  <th scope="row" className="py-1.5 pr-3 pl-5 text-left font-normal">
+                    <button type="button" className="text-left hover:text-primary-700 hover:underline" onClick={(event) => { event.stopPropagation(); openRegion(one); }}>{one.name}</button>
+                  </th>
                   <td className="px-2 py-1.5 text-right tabular-nums">{one.portfolio.toFixed(1)}%</td>
                   <td className="px-2 py-1.5 text-right tabular-nums text-ink-soft">{one.benchmark == null ? "—" : `${one.benchmark.toFixed(1)}%`}</td>
                   <td className={cn("px-2 py-1.5 text-right tabular-nums", toneOf(one.active))}>{one.active == null ? "—" : `${one.active > 0 ? "+" : ""}${one.active.toFixed(1)}`}</td>
@@ -388,7 +406,8 @@ function RegionStyle({ data, chart }: { data: ClientEquity; chart: CardChart }) 
                   return (
                     // A tint of the app's blue graded by weight, under the page's own ink: readable on both themes,
                     // where the old dark-slate fill left near-black text on a dark tile.
-                    <div key={style} className="rounded-sm py-3 text-center text-ink"
+                    <div key={style} className="cursor-pointer rounded-sm py-3 text-center text-ink" role="button" tabIndex={0}
+                      onClick={() => openCell(size, style)} onKeyDown={(event) => { if (event.key === "Enter") openCell(size, style); }}
                       style={{ background: depth > 0 ? `color-mix(in srgb, var(--color-primary-600) ${Math.round(8 + 32 * depth)}%, transparent)` : "var(--color-slate-50)" }}>
                       <p className="text-base font-bold tabular-nums">{cell?.portfolio ?? 0}%</p>
                       <p className="text-3xs text-ink-muted">bm {cell?.benchmark ?? "—"}%</p>
@@ -546,6 +565,12 @@ function FileLines({ data, view }: { data: ClientEquity; view: FileView }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 
 function Scatter({ data, chart }: { data: ClientEquity; chart: CardChart }) {
+  const drill = useDrill();
+  // A company opens as a company; a fund, as the holdings table opens it.
+  const pick = (name: string | undefined) => {
+    const one = data.holdings.find((line) => line.name === name);
+    if (one) drill?.(one.kind === "COMPANY" ? { by: "company", key: one.name, name: one.name } : { by: "subClass", key: one.name, name: one.name });
+  };
   const option = useMemo(() => {
     const colours = ink();
     const groups: [string, string, string][] = [["IT", "Info. Tech.", colours.primary], ["FINANCIALS", "Financials", "#a16207"], ["OTHER", "Other sectors", "#d6c7a6"]];
@@ -554,9 +579,9 @@ function Scatter({ data, chart }: { data: ClientEquity; chart: CardChart }) {
       textStyle: { fontFamily: colours.font },
       grid: { left: 8, right: 16, top: 16, bottom: 40, containLabel: true },
       legend: { bottom: 0, data: ["Info. Tech.", "Financials", "Other sectors", "Benchmark"], textStyle: { color: colours.muted, fontSize: 11 } },
-      tooltip: { trigger: "item", formatter: (point: { data: [number, number, number, string, boolean] }) => point.data[4]
-        ? `${point.data[3]}<br/>Fwd P/E ${point.data[0]}× · ROE above 78%, drawn at the cap`
-        : `${point.data[3]}<br/>Fwd P/E ${point.data[0]}× · ROE ${point.data[1]}%` },
+      tooltip: { trigger: "item", formatter: (point: { value: [number, number, number, string, boolean] }) => point.value[4]
+        ? `${point.value[3]}<br/>Fwd P/E ${point.value[0]}× · ROE above 78%, drawn at the cap`
+        : `${point.value[3]}<br/>Fwd P/E ${point.value[0]}× · ROE ${point.value[1]}%` },
       xAxis: { type: "value", name: "Forward P/E", nameLocation: "middle", nameGap: 24, nameTextStyle: { color: colours.muted, fontSize: 10 }, scale: true,
         axisLabel: { color: colours.muted, formatter: "{value}×" }, splitLine: { lineStyle: { color: colours.line } } },
       // Room above the 78% cap: capped bubbles and their arrows sit inside the plot with space above them.
@@ -568,9 +593,10 @@ function Scatter({ data, chart }: { data: ClientEquity; chart: CardChart }) {
           // A capped point carries only a small ↑ above it, its name in the tooltip; the rest are named beside them,
           // and a name that would land on another is left to the tooltip too.
           label: { show: true, position: "right", fontSize: 9, color: colours.muted,
-            formatter: (point: { data: [number, number, number, string, boolean] }) => point.data[4] ? "" : point.data[3] },
+            formatter: (point: { value: [number, number, number, string, boolean] }) => point.value[4] ? "" : point.value[3] },
           labelLayout: { hideOverlap: true },
-          data: data.scatter.filter((one) => one.group === id).map((one) => [one.forwardPe, one.roe, one.weight, one.label, one.capped]),
+          // Each point named by its holding, so a click finds it.
+          data: data.scatter.filter((one) => one.group === id).map((one) => ({ name: one.name, value: [one.forwardPe, one.roe, one.weight, one.label, one.capped] })),
         })),
         {
           type: "scatter", name: "Capped", silent: true, symbolSize: 1, itemStyle: { color: "transparent" }, z: 3, legendHoverLink: false,
@@ -593,17 +619,22 @@ function Scatter({ data, chart }: { data: ClientEquity; chart: CardChart }) {
     <Card title="Valuation vs Quality" lead="Forward P/E against ROE · bubble = position weight · ROE above 78% capped"
       picker={!data.bankFile && data.scatter.length > 0 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.scatter.length === 0 ? <Empty>No holding has fundamentals on file.</Empty> : chart.own ? (
-        <Chart option={option} height={300} label="Each holding's forward P/E against its return on equity" />
+        <Chart option={option} height={300} label="Each holding's forward P/E against its return on equity" onPick={(name) => pick(name)} />
       ) : (
         <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(2)}%`} height={300} label="Each holding's forward P/E against its return on equity"
-          data={{ shape: "points", xName: "Forward P/E", yName: "ROE %", sizeName: "Weight", items: data.scatter.map((one) => ({ name: one.name, x: one.forwardPe, y: one.roe, size: one.weight })) }} />
+          data={{ shape: "points", xName: "Forward P/E", yName: "ROE %", sizeName: "Weight", items: data.scatter.map((one) => ({ name: one.name, x: one.forwardPe, y: one.roe, size: one.weight })) }}
+          onPick={(at) => pick(data.scatter[at]?.name)} />
       )}
     </Card>
   );
 }
 
 function Contributions({ data, chart }: { data: ClientEquity; chart: CardChart }) {
+  const drill = useDrill();
   const largest = Math.max(1, ...data.contributions.map((one) => Math.abs(one.basisPoints)));
+  // A row is written by its ticker where it has one: the company behind it, when it is a company.
+  const companyOf = (label: string | undefined) => data.holdings.find((line) => line.kind === "COMPANY" && (line.ticker ?? line.name) === label)?.name;
+  const open = (label: string | undefined) => { const name = companyOf(label); if (name) drill?.({ by: "company", key: name, name }); };
   return (
     <Card title="Contribution to Return · YTD"
       lead={data.bankFile ? undefined : `Basis points of equity sleeve return (${signed(data.strip.ytd)})`}
@@ -611,12 +642,15 @@ function Contributions({ data, chart }: { data: ClientEquity; chart: CardChart }
       {data.bankFile ? <FileBlock /> : data.contributions.length === 0 ? <Empty>No return on file to attribute.</Empty> : !chart.own ? (
         <KindChart kind={chart.kind!} format={(value) => `${value > 0 ? "+" : ""}${Math.round(value)} bp`} height={260}
           label={chart.kind === "waterfall" ? "Each holding's contribution, walked to the sleeve's return" : "What each holding added to or took from the return"}
-          data={{ shape: "series", categories: data.contributions.map((one) => one.label), series: [{ name: "Contribution", values: data.contributions.map((one) => one.basisPoints) }] }} />
+          data={{ shape: "series", categories: data.contributions.map((one) => one.label), series: [{ name: "Contribution", values: data.contributions.map((one) => one.basisPoints) }] }}
+          onPick={(at) => open(data.contributions[at]?.label)} />
       ) : (
         <ul className="divide-y divide-line">
           {data.contributions.map((one) => (
             <li key={one.label} className="grid min-h-9 grid-cols-[minmax(0,9.5rem)_1fr_4.5rem] items-center gap-2 py-1.5 text-xs">
-              <span className="leading-snug">{one.label}</span>
+              {companyOf(one.label) ? (
+                <button type="button" className="text-left leading-snug hover:text-primary-700 hover:underline" onClick={() => open(one.label)}>{one.label}</button>
+              ) : <span className="leading-snug">{one.label}</span>}
               <span className="relative block h-3" aria-hidden="true">
                 <span className="absolute top-0 left-1/2 h-3 w-px bg-line" />
                 <span className={cn("absolute top-0 h-3 rounded-xs", one.basisPoints >= 0 ? "left-1/2 bg-emerald-500" : "right-1/2 bg-red-500")}
@@ -632,6 +666,8 @@ function Contributions({ data, chart }: { data: ClientEquity; chart: CardChart }
 }
 
 function CapCard({ data, chart }: { data: ClientEquity; chart: CardChart }) {
+  const drill = useDrill();
+  const open = (one: EquityActive | undefined) => { if (one) drill?.({ by: "figure", key: `equity.cap.${one.key}`, name: one.name, figure: capFigure(data, one) }); };
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -652,12 +688,13 @@ function CapCard({ data, chart }: { data: ClientEquity; chart: CardChart }) {
   }, [data.capBuckets]);
   return (
     <Card title="Market-cap Distribution" lead="% of equity sleeve" picker={!data.bankFile && chart.picker}>
-      {data.bankFile ? <FileBlock /> : chart.own ? <Chart option={option} height={210} label="The equity sleeve by company size against MSCI ACWI" /> : (
+      {data.bankFile ? <FileBlock /> : chart.own ? <Chart option={option} height={210} label="The equity sleeve by company size against MSCI ACWI" onPick={(_, at) => open(data.capBuckets[at])} /> : (
         <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={210} label="The equity sleeve by company size against MSCI ACWI"
           data={{ shape: "series", categories: data.capBuckets.map((one) => one.name), series: [
             { name: "Portfolio", values: data.capBuckets.map((one) => one.portfolio), colour: ink().primary },
             { name: "MSCI ACWI", values: data.capBuckets.map((one) => one.benchmark), colour: ink().neutral },
-          ] }} />
+          ] }}
+          onPick={(at) => open(data.capBuckets[at])} />
       )}
     </Card>
   );
@@ -665,6 +702,11 @@ function CapCard({ data, chart }: { data: ClientEquity; chart: CardChart }) {
 
 function ConcentrationCard({ data, chart }: { data: ClientEquity; chart: CardChart }) {
   const c = data.concentration;
+  const drill = useDrill();
+  // The largest is written by its ticker where it has one: the company behind it, when it is a company.
+  const largest = c ? data.holdings.find((line) => line.kind === "COMPANY" && (line.ticker ?? line.name) === c.largest)?.name : undefined;
+  // A fund as the largest opens as the holdings table opens a fund.
+  const largestFund = c && !largest ? data.holdings.find((line) => line.kind === "FUND" && line.name === c.largest)?.name : undefined;
   const option = useMemo(() => {
     const colours = ink();
     const points = c?.cumulative ?? [];
@@ -695,7 +737,9 @@ function ConcentrationCard({ data, chart }: { data: ClientEquity; chart: CardCha
           <dl className="mt-2 grid grid-cols-4 gap-2 text-xs">
             <Stat label="Top 10 weight" value={`${c.topTen.toFixed(1)}%`} />
             <Stat label="Effective # names" value={c.effectiveNames.toFixed(1)} />
-            <Stat label="Largest" value={`${c.largest} ${c.largestWeight.toFixed(1)}%`} />
+            <Stat label="Largest" value={`${c.largest} ${c.largestWeight.toFixed(1)}%`}
+              onClick={largest ? () => drill?.({ by: "company", key: largest, name: largest })
+                : largestFund ? () => drill?.({ by: "subClass", key: largestFund, name: largestFund }) : undefined} />
             <Stat label="HHI" value={c.hhi.toFixed(3)} />
           </dl>
         </>
@@ -705,6 +749,8 @@ function ConcentrationCard({ data, chart }: { data: ClientEquity; chart: CardCha
 }
 
 function HistoryCard({ data, chart }: { data: ClientEquity; chart: CardChart }) {
+  const drill = useDrill();
+  const open = (one: EquityPePoint | undefined) => { if (one) drill?.({ by: "figure", key: `equity.pe.${one.on}`, name: `P/E · ${formatDate(one.on)}`, figure: peFigure(data, one) }); };
   const option = useMemo(() => {
     const colours = ink();
     const points = data.valuationHistory;
@@ -725,12 +771,13 @@ function HistoryCard({ data, chart }: { data: ClientEquity; chart: CardChart }) 
     <Card title="Valuation History · P/E" lead="Trailing 12M, quarterly" picker={!data.bankFile && data.valuationHistory.length > 1 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.valuationHistory.length === 0 ? <Empty>No history on file.</Empty> : (
         <>
-          {chart.own ? <Chart option={option} height={180} label="The equity sleeve's trailing P/E each quarter, at today's weights, against MSCI ACWI" /> : (
+          {chart.own ? <Chart option={option} height={180} label="The equity sleeve's trailing P/E each quarter, at today's weights, against MSCI ACWI" onPick={(_, at) => open(data.valuationHistory[at])} /> : (
             <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}×`} height={180} label="The equity sleeve's trailing P/E each quarter, at today's weights, against MSCI ACWI"
               data={{ shape: "series", categories: data.valuationHistory.map((one) => one.on.slice(0, 7)), series: [
                 { name: "Portfolio", values: data.valuationHistory.map((one) => one.portfolio) },
                 { name: "MSCI ACWI", values: data.valuationHistory.map((one) => one.benchmark), colour: ink().danger },
-              ] }} />
+              ] }}
+              onPick={(at) => open(data.valuationHistory[at])} />
           )}
           {data.valuationHistory.length === 1 && <p className="mt-1 text-3xs text-ink-muted italic">One reading on file so far: it is marked as a point, and the line starts with the next.</p>}
           <p className="mt-2 text-xs text-ink-muted">
@@ -743,6 +790,101 @@ function HistoryCard({ data, chart }: { data: ClientEquity; chart: CardChart }) 
 }
 
 /* ------------------------------------------------------------------------------------------------------------ */
+
+/** Each fundamental's own column in the holdings table, and whether the server takes its harmonic mean (a price ratio). */
+const KPI_FIELD: Record<string, [keyof EquityHolding, boolean]> = {
+  PE: ["pe", true], FORWARD_PE: ["forwardPe", true], PB: ["pb", true], ROE: ["roe", false], DIVIDEND_YIELD: ["dividendYield", false],
+  EPS_GROWTH: ["epsGrowth", false], NET_DEBT_EBITDA: ["netDebtEbitda", false], BETA: ["beta", false], MARKET_CAP: ["marketCap", false],
+};
+
+/** A fundamentals tile: each holding row's weight and figure, read from the holdings table, to the server's weighted figure. */
+function kpiFigure(data: ClientEquity, one: EquityKpi): FigureDetail {
+  const facts = [
+    ...(one.benchmark != null ? [{ label: data.benchmark, value: figure(one.benchmark, one.unit) }] : []),
+    ...(one.delta != null && one.deltaUnit !== "NONE" ? [{ label: "Against benchmark", value: delta(one) }] : []),
+  ];
+  const field = KPI_FIELD[one.key];
+  const base: FigureDetail = { label: "Fundamentals", value: one.value == null ? "—" : figure(one.value, one.unit), facts };
+  if (!field) return { ...base, note: one.reason ?? (one.key === "COVERAGE" ? `Holdings in the equity sleeve${one.benchmark != null ? `, against ${data.benchmark}'s constituents` : ""}.` : undefined) };
+  const [key, harmonic] = field;
+  const read = (line: EquityHolding) => line[key] as number | null;
+  const rows = data.holdings.map((line) => {
+    const value = read(line);
+    return harmonic ? [line.name, line.weight, value == null ? null : figure(value, one.unit)]
+      : [line.name, line.weight, value == null ? null : figure(value, one.unit), line.weight == null || value == null ? null : Number(((line.weight * value) / 100).toFixed(2))];
+  });
+  return {
+    ...base,
+    note: one.reason ?? (harmonic
+      ? "Weighted by value as a harmonic mean, as price ratios are: each holding's figure below, with its weight in the sleeve."
+      : "Weighted by value: each holding's figure below, its weight in the sleeve, and weight × figure."),
+    table: {
+      title: "By holding",
+      columns: harmonic ? ["Holding", "Weight %", one.label] : ["Holding", "Weight %", one.label, "Weight × figure"],
+      rows,
+      total: harmonic ? ["Portfolio", data.portfolio?.weight ?? null, base.value ?? null]
+        : ["Portfolio", data.portfolio?.weight ?? null, base.value ?? null, null],
+    },
+  };
+}
+
+/** A region: its weight against the benchmark's, as the card shows it. */
+function regionFigure(data: ClientEquity, one: EquityActive): FigureDetail {
+  return {
+    label: "Region",
+    value: `${one.portfolio.toFixed(1)}%`,
+    note: `Share of the equity sleeve whose risk is domiciled in ${one.name}${data.view === "LOOK_THROUGH" ? ", funds looked through" : ", lines as held"}. The holdings table names each company's country, not its region, so the lines behind it are not listed here.`,
+    facts: [
+      { label: "Benchmark", value: one.benchmark == null ? "—" : `${one.benchmark.toFixed(1)}%` },
+      { label: "Active", value: one.active == null ? "—" : `${one.active > 0 ? "+" : ""}${one.active.toFixed(1)} pp` },
+    ],
+  };
+}
+
+/** A style-box cell: its weight against the benchmark's. */
+function styleFigure(cell: EquityStyleCell | undefined, size: string, style: string): FigureDetail {
+  return {
+    label: "Morningstar-style box",
+    value: `${cell?.portfolio ?? 0}%`,
+    note: `Share of the equity that states both a size and a style, ${size.toLowerCase()} and ${style.toLowerCase()}. The holdings table does not carry each company's size and style, so the companies in this cell are not listed here.`,
+    facts: [{ label: "Benchmark", value: cell?.benchmark == null ? "—" : `${cell.benchmark}%` }],
+  };
+}
+
+/** The bounds each market-cap bucket's name states, in $ billions. */
+const CAP_RANGE: Record<string, [number, number]> = { Mega: [200, Infinity], Large: [10, 200], Mid: [2, 10], Small: [0, 2] };
+
+/** A market-cap bucket: its weight against the benchmark's, and the companies the holdings table names within its range. */
+function capFigure(data: ClientEquity, one: EquityActive): FigureDetail {
+  const range = CAP_RANGE[one.key];
+  const lines = !range ? [] : data.holdings.filter((line) => line.kind === "COMPANY" && line.marketCap != null
+    && (one.key === "Mega" ? line.marketCap > range[0] : line.marketCap >= range[0] && line.marketCap < range[1]));
+  return {
+    label: "Market-cap distribution",
+    value: `${one.portfolio.toFixed(0)}%`,
+    note: `Share of the equity sleeve in ${one.name}. The companies the holdings table names in that range are below; companies folded into Other positions and funds' holdings count in the bucket but are not listed.`,
+    facts: [
+      { label: "MSCI ACWI", value: one.benchmark == null ? "—" : `${one.benchmark.toFixed(0)}%` },
+      { label: "Active", value: one.active == null ? "—" : `${one.active > 0 ? "+" : ""}${one.active.toFixed(0)} pp` },
+    ],
+    table: { title: "Companies named", columns: ["Company", "Mkt cap $B", "Weight %"],
+      rows: lines.map((line) => [line.name, line.marketCap == null ? null : Math.round(line.marketCap), line.weight]) },
+  };
+}
+
+/** One reading of the sleeve's trailing P/E. */
+function peFigure(data: ClientEquity, one: EquityPePoint): FigureDetail {
+  return {
+    label: "Valuation history · P/E",
+    value: one.portfolio == null ? "—" : `${one.portfolio.toFixed(1)}×`,
+    note: `The equity sleeve's trailing 12M P/E on ${formatDate(one.on)}, at today's weights.`,
+    facts: [{ label: "MSCI ACWI", value: one.benchmark == null ? "—" : `${one.benchmark.toFixed(1)}×` }, { label: "Read on", value: formatDate(one.on) }],
+    chart: { title: "Trailing P/E over time", kind: "line", format: "number", data: { shape: "series", categories: data.valuationHistory.map((point) => point.on.slice(0, 7)), series: [
+      { name: "Portfolio", values: data.valuationHistory.map((point) => point.portfolio) },
+      { name: "MSCI ACWI", values: data.valuationHistory.map((point) => point.benchmark) },
+    ] } },
+  };
+}
 
 /** What Equity Analytics offers for a card of the reader's own: its fundamentals, allocations and history. */
 function equityFigures(data: ClientEquity): Figures {
@@ -799,11 +941,13 @@ function Card({ title, lead, action, flush, picker, children }: {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, onClick }: { label: string; value: string; onClick?: () => void }) {
   return (
     <div>
       <dt className="text-3xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
-      <dd className="font-bold tabular-nums">{value}</dd>
+      <dd className="font-bold tabular-nums">
+        {onClick ? <button type="button" className="text-left hover:text-primary-700 hover:underline" onClick={onClick}>{value}</button> : value}
+      </dd>
     </div>
   );
 }

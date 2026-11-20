@@ -1,7 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import { useGetHoldingHistory, type HoldingHistory } from "@atomprive/api-client/backoffice";
 import { Dialog, cn } from "@atomprive/ui";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, PanelRightOpen } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { formatDate } from "../lib/labels";
 
@@ -25,17 +25,17 @@ export type TreeLine = {
   trailing?: ReactNode;
 };
 
-type Node = { label: string; path: string; children: Node[]; lines: TreeLine[] };
+type Node = { label: string; path: string; levels: string[]; children: Node[]; lines: TreeLine[] };
 
 function build(lines: TreeLine[]): Node {
-  const root: Node = { label: "", path: "", children: [], lines: [] };
+  const root: Node = { label: "", path: "", levels: [], children: [], lines: [] };
   for (const line of lines) {
     let at = root;
     for (const level of line.levels) {
       const path = `${at.path}/${level}`;
       let next = at.children.find((one) => one.label === level);
       if (!next) {
-        next = { label: level, path, children: [], lines: [] };
+        next = { label: level, path, levels: [...at.levels, level], children: [], lines: [] };
         at.children.push(next);
       }
       at = next;
@@ -43,6 +43,11 @@ function build(lines: TreeLine[]): Node {
     at.lines.push(line);
   }
   return root;
+}
+
+/** The first holding under a node, so a screen can tell which class or sub-class the node is. */
+function firstLine(node: Node): TreeLine | undefined {
+  return node.lines[0] ?? node.children.map(firstLine).find(Boolean);
 }
 
 /** Everything under a node, added up currency by currency: a bank's lines are not converted to be summed. */
@@ -68,10 +73,12 @@ export function money(amount: TreeAmount) {
  * Holdings as a tree that opens a level at a click: asset class, then sub-class, then sub-sub-class, then the
  * holdings themselves. A double-click on a holding opens its history, every day on file.
  */
-export function HoldingsTree({ lines, empty = "No holdings on file yet.", note }: {
+export function HoldingsTree({ lines, empty = "No holdings on file yet.", note, onGroup }: {
   lines: TreeLine[];
   empty?: string;
   note?: ReactNode;
+  /** Where given, a class or sub-class row offers its breakdown: the levels down to it, and a holding under it. */
+  onGroup?: (levels: string[], first: TreeLine) => void;
 }) {
   const root = useMemo(() => build(lines), [lines]);
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -103,7 +110,15 @@ export function HoldingsTree({ lines, empty = "No holdings on file yet.", note }
           <td className="py-2 pr-4 pl-3 text-right whitespace-nowrap tabular-nums">
             {totals(child).map((amount) => <span key={amount.currency} className="block">{money(amount)}</span>)}
           </td>
-          <td className="py-2 pr-4" />
+          <td className="py-2 pr-4 text-right">
+            {onGroup && firstLine(child) && (
+              <button type="button" title="Open its breakdown"
+                onClick={(event) => { event.stopPropagation(); onGroup(child.levels, firstLine(child)!); }}
+                className="inline-flex items-center gap-1 text-2xs font-semibold text-primary-700 hover:underline">
+                <PanelRightOpen className="size-3" aria-hidden="true" /> Breakdown
+              </button>
+            )}
+          </td>
         </tr>,
       );
       if (isOpen) walk(child, depth + 1);

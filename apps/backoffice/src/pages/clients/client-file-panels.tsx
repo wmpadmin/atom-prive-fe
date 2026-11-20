@@ -9,6 +9,7 @@ import {
   useRemoveFamilyMember,
   useResendFamilyInvitation,
   useSendFamilyInviteAsk,
+  type ClassStanding,
   type ClientEvent,
   type CustomerDetail,
   type FamilyGroupSummary,
@@ -25,6 +26,7 @@ import { FileSignature, Landmark, Plus, ReceiptText, ScrollText, Wallet } from "
 import { useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { useBookPanel } from "../../components/book-panel";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
@@ -100,6 +102,36 @@ export function HoldingsPanel({ onSeeThePortfolio }: { onSeeThePortfolio: () => 
  */
 export function AgainstTheModelPanel({ clientId }: { clientId: string }) {
   const standing = useGetClientPortfolio<PortfolioStanding, ApiError>(clientId);
+  const panel = useBookPanel();
+  const showClass = (row: ClassStanding) => {
+    const currency = standing.data?.currency ?? "";
+    const money = (value: number) => `${currency} ${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const points = (value: number) => `${value > 0 ? "+" : ""}${value.toFixed(2)} pts`;
+    panel?.({
+      name: row.assetClassName || row.assetClass,
+      figure: {
+        label: "Against the model",
+        value: `${row.actualShare.toFixed(2)}%`,
+        note: standing.data?.modelName
+          ? `What is held in this class against what ${standing.data.modelName} asks for.`
+          : "What is held in this class against what the plan asks for.",
+        facts: [
+          { label: "Target", value: `${row.targetShare.toFixed(2)}%` },
+          { label: "Actual", value: `${row.actualShare.toFixed(2)}%` },
+          { label: "Drift", value: points(row.drift) },
+          { label: "Band", value: `±${row.band.breachAt}` },
+        ],
+        table: {
+          columns: ["", "Amount"],
+          rows: [
+            ["Target allocation", money(row.targetValue)],
+            ["Actual allocation", money(row.actualValue)],
+            [row.suggestion > 0 ? "Buy" : row.suggestion < 0 ? "Sell" : "Hold", money(Math.abs(row.suggestion))],
+          ],
+        },
+      },
+    });
+  };
 
   return (
     <section className="rounded-2xl border border-line bg-white px-6 py-5">
@@ -129,6 +161,7 @@ export function AgainstTheModelPanel({ clientId }: { clientId: string }) {
             currency={standing.data.currency}
             suggestions={!standing.data.customModel}
             underManagement={standing.data.underManagement}
+            onRow={panel ? showClass : undefined}
           />
         )}
       </div>
@@ -441,7 +474,7 @@ export function FamilyPanel({
     <div className="space-y-5">
       {invite}
       {takeOut}
-      <FamilyTiles clientId={client.id} group={group} family={family} mayEdit={mayAdd} />
+      <FamilyTiles clientId={client.id} group={group} family={family} mayEdit={mayAdd} openTheir={openTheir} />
 
       <FamilyStructure
         tree={<FamilyTree roots={roots} currency={values.wealth?.currency ?? null} valueOf={values.valueOf} openTheir={openTheir} clientId={client.id} />}

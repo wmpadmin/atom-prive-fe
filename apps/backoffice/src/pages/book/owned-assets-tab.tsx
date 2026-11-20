@@ -16,7 +16,10 @@ import { Alert, Button, Dialog, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileText, ImagePlus, Paperclip, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useBookPanel } from "../../components/book-panel";
 import { formatDate } from "../../lib/labels";
+import type { FigureDetail } from "../client-workspace/figure-panel";
+import { opens } from "../portfolios/figure-opens";
 import { openApiFile } from "../../lib/download";
 import { money } from "./book-figures";
 import { CategoryChart, TimeChart } from "./overview-charts";
@@ -52,6 +55,7 @@ export function OwnedAssetsTab({ context, people }: { context: PanelContext; peo
   const [openId, setOpenId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
+  const panel = useBookPanel();
 
   const data = listed.data;
   const shown = overview.currency;
@@ -95,6 +99,39 @@ export function OwnedAssetsTab({ context, people }: { context: PanelContext; peo
   // Gain counts only the items with a cost on file: one without a cost has not gained its whole value.
   const costed = items.filter((one) => one.cost !== null);
   const gain = costed.length ? costed.reduce((sum, one) => sum + one.value, 0) - data.cost : null;
+  const signed = (value: number) => `${value > 0 ? "+" : ""}${money(value)}`;
+  // What each card is made of, item by item, in the card's order.
+  const cardTables: NonNullable<FigureDetail["table"]>[] = [
+    { columns: ["Item", "Category", `Current value (${shown})`], rows: items.map((one) => [one.name, one.category ?? "No category", money(now(one.value))]),
+      total: ["Total", "", money(now(data.value))] },
+    { columns: ["Item", `Cost (${shown})`], rows: costed.map((one) => [one.name, money(now(one.cost!))]),
+      total: costed.length ? ["Total", money(now(data.cost))] : undefined },
+    { columns: ["Item", `Cost (${shown})`, `Current value (${shown})`, `Gain (${shown})`],
+      rows: costed.map((one) => [one.name, money(now(one.cost!)), money(now(one.value)), signed(now(one.value - one.cost!))]),
+      total: gain === null ? undefined : ["Total", money(now(data.cost)), money(now(costed.reduce((sum, one) => sum + one.value, 0))), signed(now(gain))] },
+    { columns: ["Item", `Insured for (${shown})`], rows: items.map((one) => [one.name, one.insured === null ? null : money(now(one.insured))]),
+      total: ["Total", money(now(data.insured))] },
+  ];
+  const cardNotes = [
+    "What everything owned outside the portfolio is worth today.",
+    costed.length < items.length ? `Only the ${costed.length} of ${items.length} items with a cost on file.` : "What each item cost.",
+    "Current value less cost, for the items with a cost on file.",
+    "What each item is insured for.",
+  ];
+  const showCategory = (key: string, label: string, value: number) => {
+    const rest = key === "OTHERS" ? new Set(byCategory.filter((one) => one.value > 0).slice(3).map((one) => one.key)) : null;
+    const inside = items.filter((one) => (rest ? rest.has(one.category ?? "No category") : (one.category ?? "No category") === key));
+    const total = byCategory.reduce((sum, one) => sum + one.value, 0) || 1;
+    panel?.({
+      name: label,
+      figure: {
+        label: "Owned assets by category",
+        value: money(value),
+        facts: [{ label: "Share", value: `${((value / total) * 100).toFixed(2)}%` }, { label: "Items", value: String(inside.length) }],
+        table: { columns: ["Item", "Category", `Current value (${shown})`], rows: inside.map((one) => [one.name, one.category ?? "No category", money(now(one.value))]) },
+      },
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -105,8 +142,9 @@ export function OwnedAssetsTab({ context, people }: { context: PanelContext; peo
           [`Gain since bought (${shown})`, gain === null ? "—" : `${gain > 0 ? "+" : ""}${money(now(gain))}`,
             gain === null ? "text-ink-muted/70" : gain < 0 ? "text-danger" : gain > 0 ? "text-emerald-700" : "text-ink"],
           [`Insured for (${shown})`, money(now(data.insured)), "text-ink"],
-        ].map(([label, figure, tone]) => (
-          <div key={label} className="px-4 py-4 text-center">
+        ].map(([label, figure, tone], at) => (
+          <div key={label} className={cn("px-4 py-4 text-center", panel && "cursor-pointer hover:bg-canvas")}
+            {...(panel ? opens(() => panel({ name: label!, figure: { label: "Owned assets", value: figure, note: cardNotes[at], table: cardTables[at] } })) : {})}>
             <p className="text-xs font-semibold text-ink-muted">{label}</p>
             <p className={cn("mt-1 text-xl font-bold tabular-nums", tone)}>{figure}</p>
           </div>
@@ -194,7 +232,8 @@ export function OwnedAssetsTab({ context, people }: { context: PanelContext; peo
         <section aria-label="By category" className="h-72 rounded-2xl border border-line bg-white px-5 py-4">
           <h2 className="mb-2 text-base font-bold">By category</h2>
           {byCategory.length === 0 ? <p className="text-sm text-ink-muted">Nothing to show yet.</p>
-            : <CategoryChart rows={byCategory} type="PIE" format={money} classes={[]} label="Owned assets by category" />}
+            : <CategoryChart rows={byCategory} type="PIE" format={money} classes={[]} label="Owned assets by category"
+              onPick={panel ? (one) => showCategory(one.key, one.label, one.value) : undefined} />}
         </section>
       </div>
       <p className="text-xs text-ink-muted">

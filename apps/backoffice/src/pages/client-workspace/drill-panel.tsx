@@ -37,14 +37,16 @@ import { formatDate } from "../../lib/labels";
 import { HoldingTrail } from "../../components/holding-trail";
 import { FileViewToggle, inUsd, type FileView } from "../../components/converted-usd";
 import { Chart, ink } from "../book/overview-charts";
+import { FigureBody, type FigureDetail } from "./figure-panel";
 
 /**
  * What a click on a PPM screen opens: one slice of the client's holdings — an asset class, a sub-class, a currency,
  * a custodian, an entity or one position — broken down in a panel on the right, with the screen left behind it.
  * Every figure is the holdings book's or the performance screen's own; the panel only filters and adds them up.
  */
-export type DrillBy = "class" | "subClass" | "entity" | "currency" | "custodian" | "account" | "liquidity" | "position" | "sector" | "company" | "maturity" | "rating" | "bond" | "strategy" | "vintage" | "fund" | "category" | "location" | "item" | "rule" | "legalEntity" | "beneficiary" | "month" | "flowType" | "period" | "effect";
-export type DrillTarget = { by: DrillBy; key: string; name: string };
+export type DrillBy = "figure" | "class" | "subClass" | "entity" | "currency" | "custodian" | "account" | "liquidity" | "position" | "sector" | "company" | "maturity" | "rating" | "bond" | "strategy" | "vintage" | "fund" | "category" | "location" | "item" | "rule" | "legalEntity" | "beneficiary" | "month" | "flowType" | "period" | "effect";
+/** {@code figure} carries what a figure that is no slice of the holdings is made of (by "figure"); see FigureBody. */
+export type DrillTarget = { by: DrillBy; key: string; name: string; figure?: FigureDetail };
 
 const Opener = createContext<((target: DrillTarget) => void) | null>(null);
 
@@ -54,6 +56,7 @@ export function useDrill() {
 }
 
 const BY_LABEL: Record<DrillBy, string> = {
+  figure: "Figure",
   class: "Asset class",
   subClass: "Sub-class",
   entity: "Entity",
@@ -204,7 +207,7 @@ function DrillPanel({ customerId, target, trail, onDeeper, onBack, onClose }: {
                 <ArrowLeft className="size-3" aria-hidden="true" /> {parent.name}
               </button>
             ) : (
-              <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{BY_LABEL[target.by]}</p>
+              <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{target.figure?.label ?? BY_LABEL[target.by]}</p>
             )}
             <h2 className="mt-1 truncate text-xl font-bold">{target.name}</h2>
           </div>
@@ -221,7 +224,9 @@ function DrillPanel({ customerId, target, trail, onDeeper, onBack, onClose }: {
         </header>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          {target.by === "sector" || target.by === "company"
+          {target.by === "figure" && target.figure
+            ? <FigureBody customerId={customerId} figure={target.figure} wide={width >= 900} />
+            : target.by === "sector" || target.by === "company"
             ? <EquityBody customerId={customerId} target={target} wide={width >= 900} onDeeper={onDeeper} />
             : target.by === "maturity" || target.by === "rating" || target.by === "bond"
             ? <BondBody customerId={customerId} target={target} wide={width >= 900} onDeeper={onDeeper} />

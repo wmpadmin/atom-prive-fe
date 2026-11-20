@@ -10,8 +10,10 @@ import { Alert, Badge, cn, SelectInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import { useBookPanel } from "../../components/book-panel";
 import { formatDate } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
+import { opens } from "../portfolios/figure-opens";
 import { BankUse } from "./bank-use";
 import { money } from "./holdings-words";
 
@@ -34,9 +36,35 @@ export function HoldingsCheckPage() {
   const differing = all.filter(hasDifferences);
   const rows = only === "differences" ? differing : only === "matching" ? all.filter((row) => !hasDifferences(row)) : all;
   const paged = usePagedRows(rows);
+  const panel = useBookPanel();
 
   if (check.isError) return <Alert tone="danger">{check.error.message}</Alert>;
   const data = check.data;
+
+  // A card opens the clients behind it, from the rows this check came back with; each opens their holdings check.
+  type Kind = "matching" | "differing" | "onlyAtBank" | "notAtBank";
+  const openClients = (label: string, value: number | undefined, kind: Kind | null) => {
+    if (!panel || !data) return undefined;
+    return () => {
+      const some = kind ? all.filter((row) => row[kind] > 0) : all;
+      panel({
+        name: label,
+        figure: {
+          label: "Holdings check",
+          value: value == null ? "—" : String(value),
+          note: kind ? `The ${some.length} client${some.length === 1 ? "" : "s"} with at least one such line, and how many each has.`
+            : `Every client compared${bankId ? " at this bank" : ""}.`,
+          table: {
+            columns: kind ? ["Client", "Bank", "Lines"] : ["Client", "Bank", "Match", "Differ", "Only at bank", "Not at bank"],
+            rows: some.map((row) => kind
+              ? [row.clientName, row.banks.join(", "), row[kind]]
+              : [row.clientName, row.banks.join(", "), row.matching, row.differing, row.onlyAtBank, row.notAtBank]),
+            links: some.map((row) => `/holdings-check/${row.customerId}`),
+          },
+        },
+      });
+    };
+  };
 
   return (
     <div className="space-y-6">
@@ -50,12 +78,17 @@ export function HoldingsCheckPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Card label="Clients checked" value={data?.clients}
-          note={data ? `at ${data.banks} bank${data.banks === 1 ? "" : "s"}${data.asOf ? ` · as of ${formatDate(data.asOf)}` : ""}` : ""} />
+          note={data ? `at ${data.banks} bank${data.banks === 1 ? "" : "s"}${data.asOf ? ` · as of ${formatDate(data.asOf)}` : ""}` : ""}
+          onOpen={openClients("Clients checked", data?.clients, null)} />
         <Card label="Lines matching" value={data?.linesMatching}
-          note={data && data.linesCompared > 0 ? `${Math.round((100 * data.linesMatching) / data.linesCompared)}% of ${data.linesCompared}` : "Nothing compared yet"} />
-        <Card label="Differ" value={data?.linesDiffering} tone="danger" note="units, or value beyond 0.5% or 100" />
-        <Card label="Only at the bank" value={data?.onlyAtBank} tone="warning" note="not on the firm's file" />
-        <Card label="Not at the bank" value={data?.notAtBank} tone="warning" note="on file with an ISIN, no bank has it" />
+          note={data && data.linesCompared > 0 ? `${Math.round((100 * data.linesMatching) / data.linesCompared)}% of ${data.linesCompared}` : "Nothing compared yet"}
+          onOpen={openClients("Lines matching", data?.linesMatching, "matching")} />
+        <Card label="Differ" value={data?.linesDiffering} tone="danger" note="units, or value beyond 0.5% or 100"
+          onOpen={openClients("Differ", data?.linesDiffering, "differing")} />
+        <Card label="Only at the bank" value={data?.onlyAtBank} tone="warning" note="not on the firm's file"
+          onOpen={openClients("Only at the bank", data?.onlyAtBank, "onlyAtBank")} />
+        <Card label="Not at the bank" value={data?.notAtBank} tone="warning" note="on file with an ISIN, no bank has it"
+          onOpen={openClients("Not at the bank", data?.notAtBank, "notAtBank")} />
       </div>
 
       {bankId ? (
@@ -178,9 +211,12 @@ export function LineCounts({ row }: { row: ClientComparison }) {
   );
 }
 
-function Card({ label, value, note, tone }: { label: string; value: number | undefined; note: string; tone?: "danger" | "warning" }) {
+function Card({ label, value, note, tone, onOpen }: {
+  label: string; value: number | undefined; note: string; tone?: "danger" | "warning"; onOpen?: () => void;
+}) {
   return (
-    <div className="rounded-2xl border border-line bg-white px-5 py-4">
+    <div {...(onOpen ? opens(onOpen) : {})}
+      className={cn("rounded-2xl border border-line bg-white px-5 py-4", onOpen && "cursor-pointer hover:border-primary-200 hover:bg-canvas")}>
       <p className="text-xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
       <p className={cn("mt-1 text-3xl font-bold tabular-nums", tone === "danger" && value ? "text-red-600" : tone === "warning" && value ? "text-amber-600" : "")}>
         {value ?? "—"}

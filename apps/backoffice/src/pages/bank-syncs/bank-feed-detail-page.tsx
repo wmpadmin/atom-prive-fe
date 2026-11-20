@@ -9,7 +9,9 @@ import { Alert, Badge, cn, SelectInput, TextInput } from "@atomprive/ui";
 import { ArrowLeft, Search } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
+import { useBookPanel } from "../../components/book-panel";
 import { formatDate, formatDateTime } from "../../lib/labels";
+import { opens } from "../portfolios/figure-opens";
 import { connectionLabels, feedStanding, scheduleLabels } from "./feed-labels";
 
 /**
@@ -21,11 +23,80 @@ export function BankFeedDetailPage() {
   const { bankId = "" } = useParams();
   const detail = useGetBankFeedDetail<BankFeedDetail, ApiError>(bankId, { query: { enabled: bankId !== "" } });
   const [tab, setTab] = useState<"accounts" | "holdings">("accounts");
+  const panel = useBookPanel();
 
   if (detail.isError) return <Alert tone="danger">{detail.error.message}</Alert>;
   const data = detail.data;
   const feed = data?.feed;
   const standing = feed ? feedStanding(feed) : null;
+
+  // Each figure opens what it is made of, from what this page has read: the accounts, the clients holding them,
+  // the latest file's lines, and each account's newest file. Values stay in the currency the bank sent.
+  const label = `Bank feed · ${feed?.name ?? ""}`;
+  const openAccounts = data && panel ? () => panel({
+    name: "Accounts",
+    figure: {
+      label,
+      value: data.accounts.length.toLocaleString(),
+      note: feed ? `${feed.liveAccounts} live${feed.takenOffAccounts > 0 ? `, ${feed.takenOffAccounts} taken off` : ""}.` : undefined,
+      table: {
+        columns: ["Client", "Account", "Currency", "Type", "Status", "Added on"],
+        rows: data.accounts.map((one) => [one.clientName, one.maskedNumber, one.currency, titleCase(one.accountType), titleCase(one.status), formatDate(one.addedOn)]),
+        links: data.accounts.map((one) => `/client-workspace/${one.clientId}`),
+      },
+    },
+  }) : undefined;
+  const byClient = data ? [...data.accounts.reduce((map, one) => {
+    const held = map.get(one.clientId);
+    map.set(one.clientId, { name: one.clientName, code: one.clientCode, accounts: (held?.accounts ?? 0) + 1 });
+    return map;
+  }, new Map<string, { name: string; code: string; accounts: number }>()).entries()] : [];
+  const openClients = data && panel ? () => panel({
+    name: "Clients",
+    figure: {
+      label,
+      value: data.clients.toLocaleString(),
+      note: "Holding an account here, from the accounts this page lists.",
+      table: {
+        columns: ["Client", "Code", "Accounts"],
+        rows: byClient.map(([, one]) => [one.name, one.code, one.accounts]),
+        links: byClient.map(([id]) => `/client-workspace/${id}`),
+      },
+    },
+  }) : undefined;
+  const openLines = data && panel ? () => panel({
+    name: "Holding lines (latest file)",
+    figure: {
+      label,
+      value: data.lines.length.toLocaleString(),
+      note: `Each account's latest file, exactly as sent. ${data.holdingsFromBank.toLocaleString()} on file from this bank in all.`,
+      facts: data.totals.map((one) => ({ label: `Total ${one.currency}`, value: number(one.amount, 2) })),
+      table: {
+        columns: ["Instrument", "ISIN", "Account", "Currency", "Value", "As of"],
+        rows: data.lines.map((one) => [one.instrument ?? "Not named in the file", one.isin ?? null, one.maskedAccount, one.currency, one.value, formatDate(one.asOf)]),
+      },
+    },
+  }) : undefined;
+  const byAccount = data ? [...data.lines.reduce((map, one) => {
+    const held = map.get(one.maskedAccount);
+    map.set(one.maskedAccount, {
+      asOf: held && held.asOf > one.asOf ? held.asOf : one.asOf,
+      lines: (held?.lines ?? 0) + 1,
+    });
+    return map;
+  }, new Map<string, { asOf: string; lines: number }>()).entries()].sort((a, b) => b[1].asOf.localeCompare(a[1].asOf)) : [];
+  const openLatest = data && panel ? () => panel({
+    name: "Latest file dated",
+    figure: {
+      label,
+      value: data.latestFileOn ? formatDate(data.latestFileOn) : "No file yet",
+      note: "The newest as-of date of each account's latest file, newest first.",
+      table: {
+        columns: ["Account", "As of", "Lines"],
+        rows: byAccount.map(([account, one]) => [account, formatDate(one.asOf), one.lines]),
+      },
+    },
+  }) : undefined;
 
   return (
     <div className="space-y-6">
@@ -50,12 +121,13 @@ export function BankFeedDetailPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="Accounts" value={data ? data.accounts.length.toLocaleString() : undefined}
-          note={feed ? `${feed.liveAccounts} live${feed.takenOffAccounts > 0 ? ` · ${feed.takenOffAccounts} taken off` : ""}` : ""} />
-        <Kpi label="Clients" value={data?.clients.toLocaleString()} note="holding an account here" />
+          note={feed ? `${feed.liveAccounts} live${feed.takenOffAccounts > 0 ? ` · ${feed.takenOffAccounts} taken off` : ""}` : ""}
+          onOpen={openAccounts} />
+        <Kpi label="Clients" value={data?.clients.toLocaleString()} note="holding an account here" onOpen={openClients} />
         <Kpi label="Holding lines (latest file)" value={data?.lines.length.toLocaleString()}
-          note={data ? `${data.holdingsFromBank.toLocaleString()} on file from this bank in all` : ""} />
+          note={data ? `${data.holdingsFromBank.toLocaleString()} on file from this bank in all` : ""} onOpen={openLines} />
         <Kpi label="Latest file dated" value={data ? (data.latestFileOn ? formatDate(data.latestFileOn) : "No file yet") : undefined}
-          note="the newest as-of date any account was sent" />
+          note="the newest as-of date any account was sent" onOpen={openLatest} />
       </div>
 
       <section className="rounded-2xl border border-line bg-white">
@@ -213,9 +285,10 @@ function LineRow({ line }: { line: BankFeedLine }) {
   );
 }
 
-function Kpi({ label, value, note }: { label: string; value: string | undefined; note: string }) {
+function Kpi({ label, value, note, onOpen }: { label: string; value: string | undefined; note: string; onOpen?: () => void }) {
   return (
-    <div className="rounded-2xl border border-line bg-white px-5 py-4">
+    <div {...(onOpen ? opens(onOpen) : {})}
+      className={cn("rounded-2xl border border-line bg-white px-5 py-4", onOpen && "cursor-pointer hover:border-primary-200 hover:bg-canvas")}>
       <p className="text-xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
       <p className="mt-1 text-2xl font-bold tabular-nums">{value ?? "—"}</p>
       <p className="mt-0.5 text-xs text-ink-muted">{note}</p>

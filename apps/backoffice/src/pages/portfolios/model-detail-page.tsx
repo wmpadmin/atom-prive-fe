@@ -17,10 +17,16 @@ import { useStaffUser } from "../../auth/session";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { formatDate } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
+import { useBookPanel } from "../../components/book-panel";
+import type { FigureDetail } from "../client-workspace/figure-panel";
 import { ModelDialog } from "./model-dialog";
+import { opens } from "./figure-opens";
+import { ModelClassMore } from "./portfolio-figures";
 import { barFor, useAssetClasses } from "./asset-classes";
 import {
+  driftLabel,
   modelStatusLabels,
+  standingLabels,
   type ModelStatus,
 } from "./portfolio-labels";
 
@@ -34,6 +40,7 @@ export function ModelDetailPage() {
   const queryClient = useQueryClient();
   const detail = useGetModelPortfolio<ModelDetail, ApiError>(modelId);
   const assetClasses = useAssetClasses();
+  const panel = useBookPanel();
   // Changing a plan and deleting one are done on the plan, where whoever is doing it can see what they are
   // changing. The list only lists.
   const canChange = hasAuthority(useStaffUser(), "SEND_PROPOSALS:CHANGE");
@@ -68,6 +75,14 @@ export function ModelDetailPage() {
     return <p className="py-10 text-center text-sm text-ink-muted">Reading the plan…</p>;
   }
   const { summary, composition, revisions, assignedPortfolios, allocations } = detail.data;
+  /** Opens one line of the plan — a class, or a line inside one — with what it is made of. */
+  const openLine = (row: AllocationRow) => panel?.({ name: row.label, figure: lineFigure(modelId, row, allocations) });
+  /** A slice of the composition opens its class's line of the plan, the same figure the table opens. */
+  const openSlice = (assetClass: string, label: string, target: number) => {
+    const row = allocations.find((one) => one.assetClass === assetClass && one.depth === 0);
+    if (row) openLine(row);
+    else panel?.({ name: label, figure: { label: "Target allocation", value: percent(target), note: `What ${summary.name} asks for in ${label}.` } });
+  };
 
   return (
     <div className="space-y-6">
@@ -136,7 +151,7 @@ export function ModelDetailPage() {
                   </tr>
                 )}
                 {allocations.map((row) => (
-                  <Row key={`${row.assetClass}-${row.subClass ?? ""}`} row={row} />
+                  <Row key={`${row.assetClass}-${row.subClass ?? ""}`} row={row} onOpen={() => openLine(row)} />
                 ))}
               </tbody>
             </table>
@@ -151,14 +166,17 @@ export function ModelDetailPage() {
               {composition.map((slice) => (
                 <span
                   key={slice.assetClass}
-                  className={cn("h-full", barFor(slice.assetClass, assetClasses.all))}
+                  {...opens(() => openSlice(slice.assetClass, slice.label, slice.target))}
+                  aria-label={`${slice.label}, ${percent(slice.target)}`}
+                  className={cn("h-full cursor-pointer hover:opacity-80", barFor(slice.assetClass, assetClasses.all))}
                   style={{ width: `${Math.min(slice.target, 100)}%` }}
                 />
               ))}
             </div>
             <dl className="mt-4 space-y-2">
               {composition.map((slice) => (
-                <div key={slice.assetClass} className="flex items-center gap-3 text-sm">
+                <div key={slice.assetClass} {...opens(() => openSlice(slice.assetClass, slice.label, slice.target))}
+                  className="flex cursor-pointer items-center gap-3 text-sm hover:underline hover:decoration-dotted hover:underline-offset-2">
                   <span
                     aria-hidden="true"
                     className={cn("size-2.5 shrink-0 rounded-sm", barFor(slice.assetClass, assetClasses.all))}
@@ -235,10 +253,51 @@ export function ModelDetailPage() {
   );
 }
 
-function Row({ row }: { row: AllocationRow }) {
+/**
+ * One line of the plan as the side panel shows it: its target and band, the clients' average and deviation where
+ * the plan carries them, the lines inside it, and — read when the panel opens — each client's standing in its class.
+ */
+function lineFigure(modelId: string, row: AllocationRow, allocations: AllocationRow[]): FigureDetail {
+  const parent = allocations.find((one) => one.assetClass === row.assetClass && one.depth === 0);
+  const className = parent?.label ?? row.label;
+  const parts = row.depth === 0
+    ? allocations.filter((one) => one.assetClass === row.assetClass && one.depth > 0 && one.target > 0)
+    : [];
+  const facts = [
+    { label: "Target", value: percent(row.target) },
+    { label: "Band", value: `±${percent(row.band.breachAt)}` },
+  ];
+  if (row.actualAverage != null) facts.push({ label: "Clients' average", value: percent(row.actualAverage) });
+  if (row.deviation != null) facts.push({ label: "Deviation", value: driftLabel(row.deviation) });
+  if (row.standing) facts.push({ label: "Standing", value: standingLabels[row.standing] });
+  return {
+    label: row.depth === 0 ? "Target allocation" : `Line inside ${className}`,
+    value: percent(row.target),
+    note: row.depth === 0
+      ? `What the plan asks for in ${row.label}, and how far a client may wander from it before it is a deviation.`
+      : `What the plan asks for in ${row.label}, inside ${className}. The band is the class's: tolerance is set per class.`,
+    facts,
+    chart: parts.length > 0
+      ? {
+          title: `Lines inside ${row.label}`,
+          data: { shape: "shares", items: parts.map((one) => ({ name: one.label, value: one.target })) },
+          kind: "donut",
+          format: "percent",
+        }
+      : undefined,
+    more: <ModelClassMore modelId={modelId} assetClass={row.assetClass} className={className} />,
+  };
+}
+
+function Row({ row, onOpen }: { row: AllocationRow; onOpen: () => void }) {
   const inside = row.depth > 0;
   return (
-    <tr className={cn(inside ? "bg-white" : "bg-white font-semibold")}>
+    <tr
+      {...opens(onOpen)}
+      // Kept a row to the reader's screen reader: it opens on a press or Enter, but it is still a line of a table.
+      role={undefined}
+      className={cn(inside ? "bg-white" : "bg-white font-semibold", "cursor-pointer hover:bg-slate-50/60")}
+    >
       <th
         scope="row"
         className={cn("py-3 pr-4 text-left", inside ? "pl-12 font-normal text-ink-soft" : "pl-6 text-ink")}

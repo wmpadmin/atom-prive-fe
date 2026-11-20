@@ -6,7 +6,7 @@ import {
   type IpsCheck,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { FileViewToggle, type FileView } from "../../components/converted-usd";
 import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
@@ -18,7 +18,8 @@ import { ReportButton } from "../layout/report";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
-import { useDrill } from "./drill-panel";
+import { periodName, useDrill } from "./drill-panel";
+import type { FigureDetail } from "./figure-panel";
 
 /**
  * A client's IPS Monitoring, laid out the way the firm's own design draws it: the policy's terms, a scorecard of its
@@ -167,6 +168,7 @@ const STATUS: Record<string, [string, string, string]> = {
 };
 
 function Scorecard({ data, chart }: { data: ClientIps; chart: CardChart }) {
+  const drill = useDrill();
   const s = data.scorecard;
   const rows = useMemo<[string, number][]>(
     () => [["COMPLIANT", s.compliant], ["NEAR_LIMIT", s.nearLimit], ["WARNING", s.warning], ["DEVIATION", s.deviation]],
@@ -187,6 +189,8 @@ function Scorecard({ data, chart }: { data: ClientIps; chart: CardChart }) {
       }],
     };
   }, [rows]);
+  const openStatus = (key: string | undefined) => { if (key && drill) drill(statusTarget(data, key)); };
+  const byName = (name: string) => rows.find(([key]) => STATUS[key]![0] === name)?.[0];
   return (
     <Card title="Compliance Scorecard"
       lead={data.bankFile
@@ -199,13 +203,14 @@ function Scorecard({ data, chart }: { data: ClientIps; chart: CardChart }) {
         <KindChart kind={chart.kind!} format={(value) => String(Math.round(value))} height={220} label="Rules by status"
           data={chart.kind === "gauge"
             ? { shape: "gauge", name: "Rules passing", value: s.compliant + s.nearLimit, max: s.rules, target: s.rules }
-            : { shape: "shares", items: rows.map(([key, count]) => ({ name: STATUS[key]![0], value: count, colour: STATUS[key]![2] })) }} />
+            : { shape: "shares", items: rows.map(([key, count]) => ({ name: STATUS[key]![0], value: count, colour: STATUS[key]![2] })) }}
+          onPick={drill && chart.kind !== "gauge" ? (at) => openStatus(rows[at]?.[0]) : undefined} />
       ) : (<>
       <div className="flex flex-wrap items-center gap-5">
         {/* A square box in pixels, the chart exactly its size: the ring was drawn 160 high in a box 120 high, so it
             spilled over the footer's rule. */}
         <div className="relative shrink-0" style={{ width: 132, height: 132 }}>
-          <Chart option={option} height={132} label="Rules by status" />
+          <Chart option={option} height={132} label="Rules by status" onPick={drill ? (name) => openStatus(byName(name)) : undefined} />
           <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
             <div>
               <p className="text-xl font-bold tabular-nums">{s.compliant + s.nearLimit}/{s.rules}</p>
@@ -215,10 +220,13 @@ function Scorecard({ data, chart }: { data: ClientIps; chart: CardChart }) {
         </div>
         <ul className="min-w-40 flex-1 divide-y divide-line text-sm">
           {rows.map(([key, count]) => (
-            <li key={key} className="flex items-center justify-between py-1.5">
+            <li key={key} className={cn("flex items-center justify-between py-1.5", drill && "cursor-pointer hover:bg-canvas")} onClick={drill ? () => openStatus(key) : undefined}>
               <span className="flex items-center gap-2">
                 <span className="size-2.5 rounded-xs" style={{ background: STATUS[key]![2] }} aria-hidden="true" />
-                {STATUS[key]![0]}
+                {drill ? (
+                  <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                    onClick={(event) => { event.stopPropagation(); openStatus(key); }}>{STATUS[key]![0]}</button>
+                ) : STATUS[key]![0]}
               </span>
               <span className="font-semibold tabular-nums">{count}</span>
             </li>
@@ -234,29 +242,33 @@ function Scorecard({ data, chart }: { data: ClientIps; chart: CardChart }) {
 }
 
 function Budget({ data, chart }: { data: ClientIps; chart: CardChart }) {
+  const drill = useDrill();
   return (
     <Card title="Risk & Liquidity Budget" lead="Utilisation of IPS limits" picker={!data.bankFile && data.gauges.length > 0 && chart.picker}
       action={data.bankFile && data.gauges.length > 0 && <StaffEntered />}>
       {data.bankFile && data.gauges.length === 0 ? <FileBlock /> : data.gauges.length === 0 ? <Empty>No budget limit is recorded.</Empty> : !chart.own && !data.bankFile ? (
         <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(0)}%`} height={60 + data.gauges.length * 34} label="How much of each IPS limit is used"
-          data={{ shape: "series", categories: data.gauges.map((one) => one.label), series: [{ name: "% of limit used", values: data.gauges.map((one) => one.usedPercent) }] }} />
+          data={{ shape: "series", categories: data.gauges.map((one) => one.label), series: [{ name: "% of limit used", values: data.gauges.map((one) => one.usedPercent) }] }}
+          onPick={(at) => { const one = data.gauges[at]; if (one) drill?.({ by: "rule", key: one.key, name: one.label }); }} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-3">
-          {data.gauges.map((one) => <Gauge key={one.key} check={one} />)}
+          {data.gauges.map((one) => <Gauge key={one.key} check={one} onOpen={drill ? () => drill({ by: "rule", key: one.key, name: one.label }) : undefined} />)}
         </div>
       )}
     </Card>
   );
 }
 
-function Gauge({ check }: { check: IpsCheck }) {
+function Gauge({ check, onOpen }: { check: IpsCheck; onOpen?: () => void }) {
   const used = Math.min(100, check.usedPercent ?? 0);
   const colour = STATUS[check.status]?.[2] ?? "#94a3b8";
   const angle = Math.PI * (1 - used / 100);
   const x = 60 + 48 * Math.cos(angle);
   const y = 60 - 48 * Math.sin(angle);
   return (
-    <div className="text-center">
+    <div className={cn("text-center", onOpen && "cursor-pointer rounded-lg hover:bg-slate-50")}
+      {...(onOpen ? { role: "button", tabIndex: 0, title: `Open ${check.label}`, onClick: onOpen,
+        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => { if (event.key === "Enter") onOpen(); } } : {})}>
       <svg viewBox="0 0 120 70" className="mx-auto w-36" aria-hidden="true">
         <path d="M12 60 A48 48 0 0 1 108 60" fill="none" stroke="currentColor" strokeWidth="10" className="text-slate-100" />
         {used > 0 && <path d={`M12 60 A48 48 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)}`} fill="none" stroke={colour} strokeWidth="10" />}
@@ -309,7 +321,8 @@ function AllocationCard({ data, chart }: { data: ClientIps; chart: CardChart }) 
           ] }}
           onPick={(at) => {
             const row = rows[at];
-            if (row && row.key !== "OWNED_OUTRIGHT") drill?.(row.assetClass ? { by: "class", key: row.key, name: row.name } : { by: "subClass", key: row.name, name: row.name });
+            if (row?.key === "OWNED_OUTRIGHT") drill?.({ by: "figure", key: "OWNED_OUTRIGHT", name: row.name, figure: ownedFigure(data, total) });
+            else if (row) drill?.(row.assetClass ? { by: "class", key: row.key, name: row.name } : { by: "subClass", key: row.name, name: row.name });
           }} />
       ) : (
         <div className="-mx-5 overflow-x-auto">
@@ -329,10 +342,16 @@ function AllocationCard({ data, chart }: { data: ClientIps; chart: CardChart }) 
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {rows.map((one) => <AllocationLine key={one.key} row={one} basis={basis} scale={scale} currency={data.currency} file={data.bankFile} />)}
+              {rows.map((one) => <AllocationLine key={one.key} row={one} basis={basis} scale={scale} currency={data.currency} file={data.bankFile}
+                onOwned={drill ? () => drill({ by: "figure", key: "OWNED_OUTRIGHT", name: one.name, figure: ownedFigure(data, total) }) : undefined} />)}
               {basis === "total" && (data.ownedOutright ?? 0) > 0 && (
                 <tr className="bg-slate-50 font-semibold">
-                  <th scope="row" className="py-2 pr-3 pl-5 text-left">Owned outright</th>
+                  <th scope="row" className="py-2 pr-3 pl-5 text-left">
+                    {drill ? (
+                      <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                        onClick={() => drill({ by: "figure", key: "OWNED_OUTRIGHT", name: "Owned outright", figure: ownedFigure(data, total) })}>Owned outright</button>
+                    ) : "Owned outright"}
+                  </th>
                   <td colSpan={3} className="px-2 py-2 text-right text-xs font-normal text-ink-muted">outside the policy's scope</td>
                   <td className="px-2 py-2 text-right tabular-nums">{pct(((data.ownedOutright ?? 0) * 100) / (total || 1))}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{compact(data.ownedOutright ?? 0, data.currency)}</td>
@@ -396,7 +415,9 @@ function fileRows(data: ClientIps, view: FileView): ShownRow[] {
   });
 }
 
-function AllocationLine({ row, basis, scale, currency, file }: { row: ShownRow; basis: "investable" | "total"; scale: number; currency: string; file?: boolean }) {
+function AllocationLine({ row, basis, scale, currency, file, onOwned }: {
+  row: ShownRow; basis: "investable" | "total"; scale: number; currency: string; file?: boolean; onOwned?: () => void;
+}) {
   const drill = useDrill();
   const investable = basis === "investable";
   const actual = investable ? row.actual : row.actualOfTotal;
@@ -405,7 +426,9 @@ function AllocationLine({ row, basis, scale, currency, file }: { row: ShownRow; 
   return (
     <tr className={cn(row.assetClass && "bg-slate-50 font-semibold")}>
       <th scope="row" className={cn("py-2 pr-3 text-left", row.assetClass ? "pl-5" : "pl-9 font-normal")}>
-        {row.key === "OWNED_OUTRIGHT" || (file && !row.assetClass) ? row.name : (
+        {row.key === "OWNED_OUTRIGHT" && onOwned ? (
+          <button type="button" className="text-left hover:text-primary-700 hover:underline" onClick={onOwned}>{row.name}</button>
+        ) : row.key === "OWNED_OUTRIGHT" || (file && !row.assetClass) ? row.name : (
           <button type="button" className="text-left hover:text-primary-700 hover:underline"
             onClick={() => drill?.(row.assetClass ? { by: "class", key: row.key, name: row.name } : { by: "subClass", key: row.name, name: row.name })}>
             {row.name}
@@ -482,6 +505,7 @@ function SubDeviations({ data, chart }: { data: ClientIps; chart: CardChart }) {
 }
 
 function HistoryCard({ data, chart }: { data: ClientIps; chart: CardChart }) {
+  const drill = useDrill();
   const series = data.history;
   const option = useMemo(() => {
     const colours = ink();
@@ -530,6 +554,7 @@ function HistoryCard({ data, chart }: { data: ClientIps; chart: CardChart }) {
   const single = !series.some((one) => one.points.length > 1);
   const equityRow = series.find((one) => one.assetClass === "EQUITIES") ?? series[0];
   const bandLabel = equityRow && (equityRow.band ?? 0) > 0 ? `${equityRow.name} band ±${equityRow.band} pp` : null;
+  const openMonth = (day: string | undefined) => { if (day && drill) drill({ by: "figure", key: day, name: `Deviation · ${formatDate(day)}`, figure: monthFigure(data, day) }); };
   return (
     <Card title="Deviation from Target · 12 Months" lead="Percentage points vs strategic target · month-end" picker={!data.bankFile && hasPoints && chart.picker}>
       {data.bankFile ? <FileBlock /> : !hasPoints ? <Empty>Not enough month-end valuations to draw yet.</Empty> : !chart.own ? (
@@ -538,19 +563,24 @@ function HistoryCard({ data, chart }: { data: ClientIps; chart: CardChart }) {
           data={{ shape: "series", categories: days.map((day) => monthLabel(day)), series: series.map((one) => {
             const byDay = new Map(one.points.map((point) => [point.on, point.deviation]));
             return { name: one.name, values: days.map((day) => byDay.get(day) ?? null) };
-          }) }} />
+          }) }}
+          onPick={drill ? (at) => openMonth(days[at]) : undefined} />
       ) : (
         <>
-          <Chart option={option} height={220} label="Each class's distance from target at each month end" />
+          <Chart option={option} height={220} label="Each class's distance from target at each month end"
+            onPick={drill ? (_, index) => openMonth(days[index]) : undefined} />
           {single && <p className="mt-1 text-3xs text-ink-muted italic">One reading on file so far: it is marked as a point, and the line starts with the next.</p>}
           <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
             {series.map((one, at) => (
-              <li key={one.name} className="flex items-center gap-1.5">
-                <span className="relative inline-block h-2 w-4" aria-hidden="true">
-                  <span className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full" style={{ background: INK[at % INK.length] }} />
-                  <span className="absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: INK[at % INK.length] }} />
-                </span>
-                {one.name}
+              <li key={one.name}>
+                <button type="button" className="flex items-center gap-1.5 text-left hover:text-primary-700 hover:underline"
+                  onClick={() => drill?.({ by: "class", key: one.assetClass, name: one.name })}>
+                  <span className="relative inline-block h-2 w-4" aria-hidden="true">
+                    <span className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full" style={{ background: INK[at % INK.length] }} />
+                    <span className="absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: INK[at % INK.length] }} />
+                  </span>
+                  {one.name}
+                </button>
               </li>
             ))}
             {bandLabel && (
@@ -567,7 +597,12 @@ function HistoryCard({ data, chart }: { data: ClientIps; chart: CardChart }) {
 }
 
 function ObjectiveCard({ data, chart }: { data: ClientIps; chart: CardChart }) {
+  const drill = useDrill();
   const o = data.objective;
+  const openQuarter = (on: string | undefined) => { if (on) drill?.({ by: "period", key: on.slice(0, 7), name: periodName(on) }); };
+  const openObjective = (key: "return" | "objective" | "status") => {
+    if (o && drill) drill({ by: "figure", key: `objective.${key}`, name: "Objective Tracking", figure: objectiveFigure(o, key) });
+  };
   const option = useMemo(() => {
     const colours = ink();
     const points = o?.rolling ?? [];
@@ -592,19 +627,19 @@ function ObjectiveCard({ data, chart }: { data: ClientIps; chart: CardChart }) {
       {data.bankFile ? <FileBlock /> : !o ? <Empty>No objective is recorded.</Empty> : (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div {...tileProps(drill ? () => openObjective("return") : undefined, "Open the annualised return")}>
               <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 {o.rollingWindow == null || o.rollingWindow === "5Y" ? "5Y" : "Since inception"} ann. return
               </p>
               <p className="text-2xl font-bold tabular-nums">{o.windowAnnualised == null ? "—" : `${o.windowAnnualised}%`}</p>
               {o.rollingWindow && o.rollingWindow !== "5Y" && <p className="text-xs text-ink-muted">{o.rollingWindow}</p>}
             </div>
-            <div>
+            <div {...tileProps(drill ? () => openObjective("objective") : undefined, "Open the objective")}>
               <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Objective{o.objective && ` ${o.objective}`}</p>
               <p className="text-2xl font-bold tabular-nums">{o.objectivePercent == null ? "—" : `${o.objectivePercent}%`}</p>
             </div>
           </div>
-          <div>
+          <div {...tileProps(drill ? () => openObjective("status") : undefined, "Open the objective's status")}>
             <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Status</p>
             {o.windowAnnualised == null || o.margin == null ? (
               <p className="mt-1 text-sm">
@@ -620,7 +655,8 @@ function ObjectiveCard({ data, chart }: { data: ClientIps; chart: CardChart }) {
           {o.rolling.length < 2 ? (
             <Empty>{o.rollingWindow == null ? "Not measured: fewer than twelve monthly returns on file." : "Not enough quarter ends to draw yet."}</Empty>
           ) : chart.own ? (
-            <Chart option={option} height={180} label="Rolling annualised return at each quarter end, against the policy's objective" />
+            <Chart option={option} height={180} label="Rolling annualised return at each quarter end, against the policy's objective"
+              onPick={drill ? (_, index) => openQuarter(o.rolling[index]?.on) : undefined} />
           ) : chart.kind === "gauge" ? (
             <KindChart kind="gauge" format={(value) => `${value.toFixed(1)}%`} height={200} label="The annualised return against the policy's objective"
               data={{ shape: "gauge", name: "Annualised return", value: o.windowAnnualised ?? o.rolling[o.rolling.length - 1]!.annualised,
@@ -630,7 +666,8 @@ function ObjectiveCard({ data, chart }: { data: ClientIps; chart: CardChart }) {
               data={{ shape: "series", categories: o.rolling.map((one) => quarterLabel(one.on)), series: [
                 { name: `Rolling ${o.rollingWindow ?? "5Y"} annualised`, values: o.rolling.map((one) => one.annualised) },
                 ...(o.objectivePercent == null ? [] : [{ name: "Objective", values: o.rolling.map(() => o.objectivePercent), colour: ink().danger }]),
-              ] }} />
+              ] }}
+              onPick={drill ? (index) => openQuarter(o.rolling[index]?.on) : undefined} />
           )}
         </div>
       )}
@@ -738,6 +775,7 @@ function LogCard({ data }: { data: ClientIps }) {
 
 /** His bank's lines, by the bank's own class within each currency, with the value as sent and nothing else. */
 function FileAllocation({ data, toggle }: { data: ClientIps; toggle?: ReactNode }) {
+  const drill = useDrill();
   return (
     <Card title="Strategic Asset Allocation · Target vs Actual" lead="His lines by the bank's own class within each currency, as the bank's files state them"
       action={toggle}>
@@ -760,7 +798,10 @@ function FileAllocation({ data, toggle }: { data: ClientIps; toggle?: ReactNode 
             {data.fileLines.map((group) => (
               <tbody key={`${group.currency}-${group.assetClass}`} className="divide-y divide-line">
                 <tr className="bg-slate-50 font-semibold">
-                  <th scope="row" className="py-2 pr-3 pl-5 text-left">{group.assetClass} · {group.currency}</th>
+                  <th scope="row" className="py-2 pr-3 pl-5 text-left">
+                    <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                      onClick={() => drill?.({ by: "class", key: group.assetClass, name: group.assetClass })}>{group.assetClass} · {group.currency}</button>
+                  </th>
                   <td colSpan={4} className="px-2 py-2 text-right"><NotInFile /></td>
                   <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{exact(group.total, group.currency)}</td>
                   <td colSpan={3} className="py-2 pr-5 pl-2"><NotInFile /></td>
@@ -802,6 +843,110 @@ function StaffEntered() {
 /** A card his bank's files hold nothing for: it stays in its place and says so. */
 function FileBlock() {
   return <p className="rounded-xl border border-dashed border-line px-4 py-8 text-center"><NotInFile /></p>;
+}
+
+/** A tile that opens its figure in the breakdown panel: clicked, or Enter on it. */
+function tileProps(onOpen: (() => void) | undefined, title: string) {
+  if (!onOpen) return {};
+  return { role: "button", tabIndex: 0, title, onClick: onOpen, className: "cursor-pointer rounded-lg hover:bg-slate-50",
+    onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => { if (event.key === "Enter") onOpen(); } };
+}
+
+/**
+ * The rules the scorecard counts in one status, as the server counted them: every constraint check in it, and each
+ * asset class whose band status the server set (near edge counts as near limit; any other measured band as compliant).
+ */
+function statusTarget(data: ClientIps, key: string) {
+  const s = data.scorecard;
+  const count = key === "COMPLIANT" ? s.compliant : key === "NEAR_LIMIT" ? s.nearLimit : key === "WARNING" ? s.warning : s.deviation;
+  const bandStatus = (status: string) => (status === "NOT_SET" ? null : status === "DEVIATION" ? "DEVIATION" : status === "NEAR_EDGE" ? "NEAR_LIMIT"
+    : data.bankFile ? (status === "WITHIN" ? "COMPLIANT" : null) : "COMPLIANT");
+  const checks = data.checks.filter((one) => one.status === key);
+  const bands = data.allocation.filter((one) => one.assetClass && bandStatus(one.status) === key);
+  const figure: FigureDetail = {
+    label: "Compliance",
+    value: `${count} of ${s.rules} rules`,
+    note: `The rules ${STATUS[key]![0].toLowerCase()} at the last check, ${formatDateTime(data.checkedAt)} IST: the policy's constraint checks and each asset class's band, as the server measured them.`,
+    facts: [
+      { label: "Rules monitored", value: String(s.rules) },
+      { label: STATUS[key]![0], value: String(count) },
+      { label: "Constraint checks", value: String(checks.length) },
+      { label: "Asset-class bands", value: String(bands.length) },
+      ...(s.notMeasured > 0 ? [{ label: "Not measured", value: String(s.notMeasured) }] : []),
+    ],
+    table: checks.length + bands.length === 0 ? undefined : {
+      title: `Rules ${STATUS[key]![0].toLowerCase()}`,
+      columns: ["Rule", "Limit", "Current", "Utilisation"],
+      rows: [
+        ...checks.map((one) => [one.label, one.limit,
+          one.currentText ?? (one.current == null ? null : one.key === "EXCLUSIONS" ? `${one.current} holdings` : `${one.current}%`),
+          one.usedPercent == null ? null : `${one.usedPercent}%`]),
+        ...bands.map((one) => [`${one.name} band`, one.min == null || one.max == null ? null : `${pct(one.min)} – ${pct(one.max)}`, pct(one.actual),
+          one.deviationPoints == null ? null : `${one.deviationPoints > 0 ? "+" : ""}${one.deviationPoints.toFixed(2)} pp`]),
+      ],
+    },
+  };
+  return { by: "figure" as const, key: `status.${key}`, name: STATUS[key]![0], figure };
+}
+
+/** What is held outright: outside the policy, so off every band. */
+function ownedFigure(data: ClientIps, total: number): FigureDetail {
+  const owned = data.ownedOutright ?? 0;
+  return {
+    label: "Outside the policy",
+    value: compact(owned, data.currency),
+    note: "Held outright and outside the policy's scope: excluded from the investable portfolio and from every band and limit the IPS measures.",
+    facts: [
+      { label: "Share of total", value: pct((owned * 100) / (total || 1)) },
+      ...(data.investable != null ? [{ label: "Investable", value: compact(data.investable, data.currency) }] : []),
+      { label: "Total incl. owned outright", value: compact(total, data.currency) },
+    ],
+    link: { to: "collectibles", label: "Open Collectibles" },
+  };
+}
+
+/** Every class's distance from its target at one month end, as the twelve-month history holds it. */
+function monthFigure(data: ClientIps, day: string): FigureDetail {
+  const rows = data.history.flatMap((one) => {
+    const point = one.points.find((each) => each.on === day);
+    return point ? [{ name: one.name, band: one.band, point }] : [];
+  });
+  const outside = rows.filter((one) => one.point.outside).length;
+  return {
+    label: "Deviation from target",
+    value: `${outside} of ${rows.length} outside band`,
+    note: `Each asset class's weight against its strategic target at the month end of ${formatDate(day)}, in percentage points.`,
+    chart: rows.length === 0 ? undefined : { title: "Deviation by class, pp", kind: "horizontal-bar", format: "number",
+      data: { shape: "series", categories: rows.map((one) => one.name), series: [{ name: "Deviation (pp)", values: rows.map((one) => one.point.deviation) }] } },
+    table: rows.length === 0 ? undefined : {
+      columns: ["Asset class", "Deviation", "Band", "Outside band"],
+      rows: rows.map((one) => [one.name, `${one.point.deviation > 0 ? "+" : ""}${one.point.deviation.toFixed(2)} pp`, one.band > 0 ? `±${one.band} pp` : null, one.point.outside ? "Yes" : "No"]),
+    },
+  };
+}
+
+/** The return objective: what was achieved against the policy's target, with the rolling series behind it. */
+function objectiveFigure(o: NonNullable<ClientIps["objective"]>, key: "return" | "objective" | "status"): FigureDetail {
+  const window = o.rollingWindow == null || o.rollingWindow === "5Y" ? "5Y" : "Since inception";
+  const value = key === "objective" ? (o.objectivePercent == null ? undefined : `${o.objectivePercent}%`)
+    : key === "status" ? (o.margin == null ? "Not enough history" : `${o.margin >= 0 ? "On track" : "Behind"} · ${o.margin > 0 ? "+" : ""}${o.margin} pp`)
+    : (o.windowAnnualised == null ? undefined : `${o.windowAnnualised}%`);
+  return {
+    label: key === "objective" ? `Objective${o.objective ? ` ${o.objective}` : ""}` : key === "status" ? "Objective status" : `${window} annualised return`,
+    value,
+    note: `The ${window === "5Y" ? "five-year" : "since-inception"} annualised return against the policy's return objective; the margin is the one less the other, in percentage points.`,
+    facts: [
+      { label: `${window} ann. return`, value: o.windowAnnualised == null ? "—" : `${o.windowAnnualised}%` },
+      { label: "Objective", value: o.objectivePercent == null ? "—" : `${o.objectivePercent}%` },
+      { label: "Margin", value: o.margin == null ? "—" : `${o.margin > 0 ? "+" : ""}${o.margin} pp` },
+      ...(o.firstClose ? [{ label: "Measured since", value: formatDate(o.firstClose) }] : []),
+    ],
+    chart: o.rolling.length < 2 ? undefined : { title: `Rolling ${o.rollingWindow ?? "5Y"} annualised return by quarter`, kind: "line", format: "percent",
+      data: { shape: "series", categories: o.rolling.map((one) => quarterLabel(one.on)), series: [
+        { name: `Rolling ${o.rollingWindow ?? "5Y"} annualised`, values: o.rolling.map((one) => one.annualised) },
+        ...(o.objectivePercent == null ? [] : [{ name: "Objective", values: o.rolling.map(() => o.objectivePercent) }]),
+      ] } },
+  };
 }
 
 /** The design's gauge captions: the share of a budget or a ceiling, and the status once it is near the limit. */

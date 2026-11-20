@@ -15,6 +15,7 @@ import { Play, Upload } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { useBookPanel } from "../../components/book-panel";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
@@ -23,6 +24,9 @@ import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { hasAuthority } from "../../lib/permissions";
 import { useTableView } from "../../lib/table-view";
 import { connectionLabels, feedStanding, scheduleLabels } from "./feed-labels";
+import { opens } from "../portfolios/figure-opens";
+import { RunsMore } from "./runs-more";
+import { startOfToday } from "./runs-window";
 import { UploadStatementDialog } from "./upload-statement-dialog";
 
 type Only = "all" | "failed" | "off";
@@ -104,6 +108,7 @@ export function IngestionMonitoringPage() {
   const canRun = hasAuthority(user, "MANAGE_BANK_FEEDS:CHANGE");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const panel = useBookPanel();
   /** The bank whose statement is being uploaded, while the dialog is open. */
   const [uploading, setUploading] = useState<BankFeed | null>(null);
   const start = useStartSyncNow<ApiError>({
@@ -134,6 +139,48 @@ export function IngestionMonitoringPage() {
   }
   const byId = new Map(MOVABLE.map((one) => [one.id, one]));
   const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
+  const data = summary.data;
+
+  // The cards open what is behind them: the feeds from the list this screen reads, and today's runs from the log.
+  const openFeeds = () => panel?.({
+    name: "Feeds",
+    figure: {
+      label: "Ingestion monitoring",
+      value: data ? `${data.enabled} / ${data.feeds}` : undefined,
+      note: data ? `${data.enabled} switched on of ${data.feeds}.` : undefined,
+      table: {
+        columns: ["Bank", "Method", "Scheduled", "Accounts", "Last sync", "Status"],
+        rows: all.map((feed) => [feed.name, connectionLabels[feed.connectionType] ?? feed.connectionType,
+          scheduleLabels[feed.schedule] ?? feed.schedule, feed.liveAccounts,
+          feed.lastRunAt ? formatDateTime(feed.lastRunAt) : null, feedStanding(feed).label]),
+        links: all.map((feed) => `/ingestion/${feed.id}`),
+      },
+    },
+  });
+  const openRecords = () => panel?.({
+    name: "Records today",
+    figure: {
+      label: "Ingestion monitoring",
+      value: data?.recordsToday.toLocaleString(),
+      note: data ? `Across ${data.accounts.toLocaleString()} accounts.` : undefined,
+      table: {
+        title: "By bank",
+        columns: ["Bank", "Records today"],
+        rows: all.map((feed) => [feed.name, feed.recordsToday]),
+        links: all.map((feed) => `/ingestion/${feed.id}`),
+      },
+      more: <RunsMore params={{ from: startOfToday() }} title="Today's runs" />,
+    },
+  });
+  const openManual = () => panel?.({
+    name: "Asked for by hand",
+    figure: {
+      label: "Ingestion monitoring",
+      value: data?.manualToday.toLocaleString(),
+      note: "Runs asked for today rather than brought round by the schedule. The log cannot yet be asked for these alone, so the runs below are all of today's, by hand or by schedule.",
+      more: <RunsMore params={{ from: startOfToday() }} title="Today's runs, by hand or by schedule" />,
+    },
+  });
 
   return (
     <div className="space-y-6">
@@ -153,16 +200,19 @@ export function IngestionMonitoringPage() {
           label="Feeds"
           value={summary.data ? `${summary.data.enabled} / ${summary.data.feeds}` : undefined}
           note={summary.data ? `${summary.data.feeds - summary.data.enabled} switched off` : ""}
+          onOpen={panel && feeds.data ? openFeeds : undefined}
         />
         <Card
           label="Records today"
           value={summary.data?.recordsToday.toLocaleString()}
           note={summary.data ? `across ${summary.data.accounts.toLocaleString()} accounts` : ""}
+          onOpen={panel && summary.data ? openRecords : undefined}
         />
         <Card
           label="Asked for by hand"
           value={summary.data?.manualToday.toLocaleString()}
           note="today, rather than by the schedule"
+          onOpen={panel && summary.data ? openManual : undefined}
         />
       </div>
 
@@ -340,9 +390,10 @@ export function IngestionMonitoringPage() {
   );
 }
 
-function Card({ label, value, note }: { label: string; value: string | undefined; note: string }) {
+function Card({ label, value, note, onOpen }: { label: string; value: string | undefined; note: string; onOpen?: () => void }) {
   return (
-    <div className="rounded-2xl border border-line bg-white px-5 py-4">
+    <div {...(onOpen ? opens(onOpen) : {})}
+      className={cn("rounded-2xl border border-line bg-white px-5 py-4", onOpen && "cursor-pointer hover:border-primary-200 hover:bg-canvas")}>
       <p className="text-xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
       <p className="mt-1 text-3xl font-bold tabular-nums">{value ?? "—"}</p>
       <p className="mt-0.5 text-xs text-ink-muted">{note}</p>

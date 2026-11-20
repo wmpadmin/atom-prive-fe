@@ -13,7 +13,7 @@ import { ConvertedNote, FileViewToggle, MissingRates, type FileView } from "../.
 import { Alert, Button, TextArea, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { TableColumns } from "../../components/table-columns";
 import { Link, useNavigate, useParams } from "react-router";
 import { formatDate, formatDateTime } from "../../lib/labels";
@@ -25,7 +25,8 @@ import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow, useFiguresAsTable }
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/chart-kinds";
 import type { Figures } from "../layout/own-cards";
-import { useDrill } from "./drill-panel";
+import { periodName, useDrill } from "./drill-panel";
+import type { FigureDetail } from "./figure-panel";
 
 /**
  * A client's Overview, laid out the way the firm's own design draws it: what they are worth, the facts of their
@@ -183,21 +184,66 @@ function Headline({ data }: { data: ClientWorkspace }) {
   const ytd = data.performance?.periods.find((one) => one.key === "YTD");
   const mtd = data.performance?.periods.find((one) => one.key === "MTD");
   const rows = useFiguresAsTable();
+  const drill = useDrill();
+  // A return opens its period: this month, or this year, of the performance screen's own months.
+  const month = data.asOf.slice(0, 7);
+  const year = data.asOf.slice(0, 4);
+  // A key figure opens what this page holds behind it; a bank-file client's file holds none of them.
+  const open = drill && !file ? (key: string, name: string, figure: FigureDetail) => () => drill({ by: "figure", key, name, figure }) : undefined;
+  const buckets = (data.liquidity?.buckets ?? []).filter((one) => one.key === "DAYS_3" || one.key === "DAYS_30");
+  const calls = data.cashFlows.filter((one) => one.kind === "CAPITAL_CALL");
+  const income = data.cashFlows.filter((one) => INCOME_KINDS.has(one.kind));
+  const pickNetWorth = open?.("net-worth", "Total net worth", {
+    label: "Net worth", value: h.netWorth == null ? "—" : compact(h.netWorth, cur),
+    note: "Investable assets and what is owned outright, less liabilities, consolidated across every entity.",
+    facts: [{ label: "Investable", value: money(h.investable, cur) }, { label: "Owned outright", value: money(h.ownedOutright, cur) },
+      { label: "Liabilities", value: money(h.liabilities, cur) }, { label: "Change YTD (investable)", value: h.investableChangeYearToDate == null ? "—" : signedCompact(h.investableChangeYearToDate, cur) },
+      { label: "Entities", value: String(data.entityCount) }, { label: "Accounts", value: String(h.accounts) }, { label: "Custodians", value: String(h.custodians) }],
+    chart: data.worth.length > 1 ? { title: "Investable assets over time", kind: "line", format: "money", currency: cur,
+      data: { shape: "series", categories: data.worth.map((one) => monthYear(one.on)), series: [{ name: "Investable assets", values: data.worth.map((one) => one.amount) }] } } : undefined,
+  });
   const stats = (
     <>
       <Stat label="MTD" file={!!file}
+        onPick={drill && !file && mtd?.portfolio != null ? () => drill({ by: "period", key: month, name: periodName(month) }) : undefined}
         value={mtd?.portfolio == null ? null : signedPercent(mtd.portfolio)}
         note={mtd?.benchmark == null ? null : `Bench ${signedPercent(mtd.benchmark)}`} />
       <Stat label="YTD (TWR)" file={!!file}
+        onPick={drill && !file && ytd?.portfolio != null ? () => drill({ by: "period", key: year, name: periodName(year) }) : undefined}
         value={ytd?.portfolio == null ? null : signedPercent(ytd.portfolio)}
         note={ytd?.benchmark == null ? null : `Bench ${signedPercent(ytd.benchmark)}${ytd.excess == null ? "" : ` · ${signedPoints(ytd.excess)}`}`} />
       <Stat label="Liquid ≤ 30 days" file={!!file}
+        onPick={h.liquidWithin30Days == null ? undefined : open?.("liquid-30", "Liquid ≤ 30 days", {
+          label: "Liquidity", value: compact(h.liquidWithin30Days, cur), note: "Holdings stated as turning into cash at fair value within thirty days.",
+          facts: [{ label: "% of net worth", value: h.liquidShareOfNetWorth == null ? "—" : `${h.liquidShareOfNetWorth.toFixed(1)}%` },
+            { label: "Cash buffer", value: data.liquidity?.buffer == null ? "—" : `${data.liquidity.buffer.toFixed(1)}%` },
+            { label: "Liquidity floor", value: data.liquidity?.floor == null ? "—" : `${data.liquidity.floor.toFixed(1)}%` }],
+          table: buckets.length === 0 ? undefined : { title: "By time to cash", columns: ["Bucket", "Amount", "Share of holdings"],
+            rows: buckets.map((one) => [one.name, compact(one.amount, cur), `${one.sharePercent.toFixed(1)}%`]),
+            total: ["Total", compact(h.liquidWithin30Days, cur), null] },
+        })}
         value={h.liquidWithin30Days == null ? null : compact(h.liquidWithin30Days, cur)}
         note={h.liquidShareOfNetWorth == null ? null : `${h.liquidShareOfNetWorth.toFixed(1)}% of net worth`} />
       <Stat label="Unfunded commitments" file={!!file}
+        onPick={open?.("unfunded", "Unfunded commitments", {
+          label: "Private markets", value: compact(h.unfunded ?? 0, cur),
+          note: "Committed to private funds and not yet called. The Overview holds the total only; each fund's commitment is on Private Markets.",
+          facts: [{ label: "Vehicles", value: String(h.vehicles) }, { label: "Liquid cover", value: h.liquidCover == null ? "—" : `${h.liquidCover}×` }],
+          table: calls.length === 0 ? undefined : { title: "Capital calls expected in the next 12 months", columns: ["Due", "Fund", "Amount"],
+            rows: calls.map((one) => [formatDate(one.on), one.detail ?? one.title, signedCompact(one.amount, one.currency)]) },
+          link: { to: "private-markets", label: "Private Markets" },
+        })}
         value={h.unfunded == null ? (file ? null : compact(0, cur)) : compact(h.unfunded, cur)}
         note={h.unfunded == null ? "Nothing committed and uncalled" : `${h.vehicles} vehicle${h.vehicles === 1 ? "" : "s"}${h.liquidCover == null ? "" : ` · ${h.liquidCover}× liquid cover`}`} />
       <Stat label="Income · next 12M" file={!!file}
+        onPick={h.incomeNext12Months == null ? undefined : open?.("income-12m", "Income · next 12 months", {
+          label: "Cash flows", value: compact(h.incomeNext12Months, cur), note: "Coupons, dividends and distributions expected over the next twelve months.",
+          facts: [{ label: "Expected payments", value: String(income.length) }],
+          chart: data.cashFlowMonths.length === 0 ? undefined : { title: "Expected inflows by month", kind: "bar", format: "money", currency: cur,
+            data: { shape: "series", categories: data.cashFlowMonths.map((one) => monthLabel(one.month)), series: [{ name: "Inflows", values: data.cashFlowMonths.map((one) => one.inflows) }] } },
+          table: income.length === 0 ? undefined : { title: "Income expected", columns: ["Date", "Payment", "Amount"],
+            rows: income.map((one) => [formatDate(one.on), `${one.title}${one.detail ? ` · ${one.detail}` : ""}`, signedCompact(one.amount, one.currency)]) },
+        })}
         value={h.incomeNext12Months == null ? null : compact(h.incomeNext12Months, cur)}
         note="Coupons, dividends, distributions" />
     </>
@@ -215,7 +261,8 @@ function Headline({ data }: { data: ClientWorkspace }) {
   return (
     <section className="rounded-2xl border border-line bg-white p-5">
       {/* Net worth and the lines under it are one figure in a report. */}
-      <div data-figure>
+      <div data-figure {...(pickNetWorth ? { role: "button", tabIndex: 0, title: "Open its breakdown", className: "-m-1 cursor-pointer rounded-md p-1 hover:bg-canvas",
+        onClick: pickNetWorth, onKeyDown: (event: KeyboardEvent) => { if (event.key === "Enter") pickNetWorth(); } } : {})}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Total net worth · consolidated</p>
       <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         {file ? (
@@ -259,10 +306,11 @@ function Headline({ data }: { data: ClientWorkspace }) {
   );
 }
 
-function Stat({ label, value, note, file }: { label: string; value: string | null; note: ReactNode; file: boolean }) {
+function Stat({ label, value, note, file, onPick }: { label: string; value: string | null; note: ReactNode; file: boolean; onPick?: () => void }) {
   if (useFigureRow()) return <FigureRow label={label} value={value ?? (file ? <NotInFile /> : "—")} note={file ? null : note} />;
   return (
-    <div>
+    <div {...(onPick ? { role: "button", tabIndex: 0, title: "Open its breakdown", className: "-m-1 cursor-pointer rounded-md p-1 hover:bg-canvas",
+      onClick: onPick, onKeyDown: (event: KeyboardEvent) => { if (event.key === "Enter") onPick(); } } : {})}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
       <p className="mt-0.5 text-xl font-bold tabular-nums">{value ?? (file ? <NotInFile /> : <Muted>—</Muted>)}</p>
       {!file && note && <p className="text-xs text-ink-muted">{note}</p>}
@@ -388,6 +436,12 @@ function WorthCard({ data, chart }: { data: ClientWorkspace; chart: CardChart })
     };
   }, [worth, bench, total]);
   const format = useMemo(() => (value: number) => compact(value, cur), [cur]);
+  const drill = useDrill();
+  // A point opens its month on the performance screen; a bank-file client's worth has no performance behind it.
+  const pickPoint = drill && !conv ? (index: number) => {
+    const point = worth[index];
+    if (point) drill({ by: "period", key: point.on.slice(0, 7), name: periodName(point.on) });
+  } : undefined;
   return (
     <Card title="Net Worth Evaluation" picker={(!data.bankFile || conv) && chart.picker}
       lead={conv ? `Bank holdings in ${cur} · each day the bank's files state, at today's FX rates` : data.bankFile ? undefined
@@ -396,9 +450,11 @@ function WorthCard({ data, chart }: { data: ClientWorkspace; chart: CardChart })
       {data.bankFile && !conv ? <FileBlock /> : (
         <>
           {worth.length === 0 ? <Empty>There is no valuation history to draw yet.</Empty> : chart.own ? (
-            <Chart option={option} height={260} label="The portfolio's worth at each quarter end, beside its benchmark-equivalent" />
+            <Chart option={option} height={260} label="The portfolio's worth at each quarter end, beside its benchmark-equivalent"
+              onPick={pickPoint ? (_, index) => pickPoint(index) : undefined} />
           ) : (
-            <KindChart data={figures} kind={chart.kind!} format={format} height={260} label="The portfolio's worth at each quarter end, beside its benchmark-equivalent" />
+            <KindChart data={figures} kind={chart.kind!} format={format} height={260} label="The portfolio's worth at each quarter end, beside its benchmark-equivalent"
+              onPick={pickPoint} />
           )}
           {conv && <ConvertedNote converted={conv} />}
           {!conv && <p className="mt-2 text-3xs text-ink-muted italic">
@@ -447,8 +503,16 @@ function AllocationCard({ data, chart }: { data: ClientWorkspace; chart: CardCha
             <table className="w-full text-sm">
               <tbody className="divide-y divide-line">
                 {file.holdings.map((one) => (
-                  <tr key={one.currency}>
-                    <td className="py-1.5 font-semibold">{one.currency}</td>
+                  <tr key={one.currency} className={cn(drill && "cursor-pointer hover:bg-canvas")}
+                    onClick={drill ? () => drill({ by: "currency", key: one.currency, name: one.currency }) : undefined}>
+                    <td className="py-1.5 font-semibold">
+                      {drill ? (
+                        <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                          onClick={(event) => { event.stopPropagation(); drill({ by: "currency", key: one.currency, name: one.currency }); }}>
+                          {one.currency}
+                        </button>
+                      ) : one.currency}
+                    </td>
                     <td className="py-1.5 text-right font-semibold tabular-nums">{compact(one.amount, one.currency)}</td>
                   </tr>
                 ))}
@@ -538,6 +602,9 @@ function BandsCard({ data, chart }: { data: ClientWorkspace; chart: CardChart })
   // A share below nothing (a class a loan outweighs) is drawn at the axis, never off the left of it.
   const at = (value: number) => `${Math.max(0, Math.min(100, (value / scale) * 100))}%`;
   const conv = data.bankFile?.converted ?? null;
+  const drill = useDrill();
+  // A class opens its breakdown; a bank-file client's classes are EFG's read as the house's, so they are not opened.
+  const pick = drill && !data.bankFile ? (one: (typeof bands)[number]) => drill({ by: "class", key: one.assetClass, name: one.name }) : undefined;
   return (
     <Card title="Target vs Actual Allocation" picker={(!data.bankFile || bands.length > 0) && chart.picker}
       lead={data.bankFile
@@ -553,7 +620,8 @@ function BandsCard({ data, chart }: { data: ClientWorkspace; chart: CardChart })
           data={{ shape: "series", categories: bands.map((one) => one.name), series: [
             { name: "Actual", values: bands.map((one) => one.actual) },
             { name: "Target", values: bands.map((one) => one.target) },
-          ] }} />
+          ] }}
+          onPick={pick ? (index) => { const one = bands[index]; if (one) pick(one); } : undefined} />
       ) : (
         <>
           <div className="-mx-5 overflow-x-auto">
@@ -569,8 +637,15 @@ function BandsCard({ data, chart }: { data: ClientWorkspace; chart: CardChart })
               </thead>
               <tbody className="divide-y divide-line">
                 {bands.map((one) => (
-                  <tr key={one.assetClass}>
-                    <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-medium">{one.name}</th>
+                  <tr key={one.assetClass} className={cn(pick && "cursor-pointer hover:bg-canvas")} onClick={pick ? () => pick(one) : undefined}>
+                    <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-medium">
+                      {pick ? (
+                        <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                          onClick={(event) => { event.stopPropagation(); pick(one); }}>
+                          {one.name}
+                        </button>
+                      ) : one.name}
+                    </th>
                     <td className="px-3 py-2.5">
                       <span className="relative block h-3" aria-hidden="true"
                         title={`Band ${one.lower.toFixed(1)}% – ${one.upper.toFixed(1)}%`}>
@@ -612,6 +687,30 @@ function PerformanceCard({ data, chart }: { data: ClientWorkspace; chart: CardCh
   const measured = periods.filter((one) => one.portfolio != null);
   const label = (one: (typeof periods)[number]) => (one.key === "ITD" ? "ITD ann." : one.name);
   const widest = Math.max(0.1, ...periods.map((one) => Math.abs(one.excess ?? 0)));
+  const drill = useDrill();
+  // This month and this year open their period; the longer ones are not one period the panel reads.
+  const periodKey = (one: (typeof periods)[number]) =>
+    one.key === "MTD" ? data.asOf.slice(0, 7) : one.key === "YTD" ? data.asOf.slice(0, 4) : null;
+  // The longer windows open their own figures: the portfolio against the benchmark over that window.
+  const figureOf = (one: (typeof periods)[number]): FigureDetail => ({
+    label: "Performance", value: one.portfolio == null ? "—" : signedPercent(one.portfolio),
+    note: `Time-weighted return, net of fees, over ${one.key === "ITD" ? `the life of the portfolio${data.performance?.since ? ` since ${monthYear(data.performance.since)}` : ""}, annualised` : `the last ${one.name}`}.`,
+    facts: [{ label: "Portfolio", value: one.portfolio == null ? "—" : signedPercent(one.portfolio) },
+      { label: "Benchmark", value: one.benchmark == null ? "—" : signedPercent(one.benchmark) },
+      { label: "Excess", value: one.excess == null ? "—" : signedPoints(one.excess) }],
+    chart: measured.length === 0 ? undefined : { title: "Every period against the benchmark", kind: "grouped-bar", format: "percent",
+      data: { shape: "series", categories: measured.map(label), series: [
+        { name: "Portfolio", values: measured.map((each) => each.portfolio) }, { name: "Benchmark", values: measured.map((each) => each.benchmark) },
+      ] } },
+    link: { to: "performance", label: "Performance" },
+  });
+  const pick = (one: (typeof periods)[number] | undefined) => {
+    if (!one || one.portfolio == null || !drill) return;
+    const key = periodKey(one);
+    if (key) drill({ by: "period", key, name: periodName(key) });
+    else drill({ by: "figure", key: `performance:${one.key}`, name: one.key === "ITD" ? "ITD ann." : one.name, figure: figureOf(one) });
+  };
+  const canPick = (one: (typeof periods)[number]) => !!drill && one.portfolio != null;
   return (
     <Card title="Performance" lead="Time-weighted, net of fees" picker={!data.bankFile && chart.picker}
       action={<Link to={`/client-workspace/${data.customerId}/performance`} className="text-xs font-semibold text-primary-700 hover:underline">Attribution</Link>}>
@@ -620,7 +719,8 @@ function PerformanceCard({ data, chart }: { data: ClientWorkspace; chart: CardCh
           label={chart.kind === "bar" ? "Excess return over the benchmark for each period" : "The portfolio's return against the benchmark for each period"}
           data={{ shape: "series", categories: measured.map(label), series: chart.kind === "bar"
             ? [{ name: "Excess", values: measured.map((one) => one.excess) }]
-            : [{ name: "Portfolio", values: measured.map((one) => one.portfolio) }, { name: "Benchmark", values: measured.map((one) => one.benchmark) }] }} />
+            : [{ name: "Portfolio", values: measured.map((one) => one.portfolio) }, { name: "Benchmark", values: measured.map((one) => one.benchmark) }] }}
+          onPick={drill ? (index) => pick(measured[index]) : undefined} />
       ) : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -635,9 +735,14 @@ function PerformanceCard({ data, chart }: { data: ClientWorkspace; chart: CardCh
             </thead>
             <tbody className="divide-y divide-line">
               {periods.map((one) => (
-                <tr key={one.key}>
+                <tr key={one.key} className={cn(canPick(one) && "cursor-pointer hover:bg-canvas")} onClick={canPick(one) ? () => pick(one) : undefined}>
                   <th scope="row" className="py-2 pr-3 pl-5 text-left font-medium whitespace-nowrap">
-                    {one.key === "ITD" && data.performance?.since ? `ITD ann. (${monthYear(data.performance.since)})` : one.name}
+                    {canPick(one) ? (
+                      <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                        onClick={(event) => { event.stopPropagation(); pick(one); }}>
+                        {one.key === "ITD" && data.performance?.since ? `ITD ann. (${monthYear(data.performance.since)})` : one.name}
+                      </button>
+                    ) : one.key === "ITD" && data.performance?.since ? `ITD ann. (${monthYear(data.performance.since)})` : one.name}
                   </th>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {one.portfolio == null ? <Muted>{one.key === "ITD" ? "under a year" : "not enough history"}</Muted> : <Signed value={one.portfolio} unit="%" />}
@@ -668,22 +773,33 @@ function PerformanceCard({ data, chart }: { data: ClientWorkspace; chart: CardCh
 function LiquidityCard({ data, chart }: { data: ClientWorkspace; chart: CardChart }) {
   const liquidity = data.liquidity;
   const largest = Math.max(1, ...(liquidity?.buckets ?? []).map((one) => one.amount));
+  const drill = useDrill();
+  // A rung opens the lines stated in it, read by the rung's name as the holdings book writes it; none stated, by nothing.
+  const pick = drill ? (one: WorkspaceSlice) => drill({ by: "liquidity", key: one.key ? one.name : "", name: one.name }) : undefined;
   return (
     <Card title="Liquidity Profile" lead="Time to convert to cash at fair value" picker={!data.bankFile && chart.picker}>
       {data.bankFile ? <FileBlock /> : !liquidity ? <Empty>No holdings written down yet.</Empty> : !chart.own ? (
         <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={240} label="Holdings by how quickly they turn to cash"
-          data={{ shape: "shares", items: liquidity.buckets.map((one) => ({ name: one.name, value: one.amount })) }} />
+          data={{ shape: "shares", items: liquidity.buckets.map((one) => ({ name: one.name, value: one.amount })) }}
+          onPick={pick ? (index) => { const one = liquidity.buckets[index]; if (one) pick(one); } : undefined} />
       ) : (
         <>
           <div className="flex h-3 w-full overflow-hidden rounded-sm" aria-hidden="true">
             {liquidity.buckets.map((one, at) => (
-              <span key={one.key || "none"} style={{ width: `${one.sharePercent}%`, background: INK[at % INK.length] }} />
+              <span key={one.key || "none"} className={cn(pick && "cursor-pointer")} onClick={pick ? () => pick(one) : undefined}
+                style={{ width: `${one.sharePercent}%`, background: INK[at % INK.length] }} />
             ))}
           </div>
           <ul className="mt-3 space-y-2">
             {liquidity.buckets.map((one, at) => (
-              <li key={one.key || "none"} className="grid grid-cols-[8rem_1fr_5rem] items-center gap-3 text-sm">
-                <span>{one.name}</span>
+              <li key={one.key || "none"} className={cn("grid grid-cols-[8rem_1fr_5rem] items-center gap-3 text-sm", pick && "cursor-pointer rounded-md hover:bg-canvas")}
+                onClick={pick ? () => pick(one) : undefined}>
+                {pick ? (
+                  <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                    onClick={(event) => { event.stopPropagation(); pick(one); }}>
+                    {one.name}
+                  </button>
+                ) : <span>{one.name}</span>}
                 <span className="block h-2 rounded-full bg-slate-100" aria-hidden="true">
                   <span className="block h-full rounded-full" style={{ width: `${(one.amount / largest) * 100}%`, background: INK[at % INK.length] }} />
                 </span>
@@ -780,6 +896,9 @@ function TopPositionsCard({ data, chart }: { data: ClientWorkspace; chart: CardC
   );
 }
 
+/** The kinds of expected flow the server adds up as income for the next twelve months. */
+const INCOME_KINDS = new Set(["COUPON", "DIVIDEND", "DISTRIBUTION"]);
+
 /** How many expected flows the card lists before the rest are asked for. */
 const FLOWS_SHOWN = 8;
 
@@ -872,9 +991,15 @@ function HoldingEntitiesCard({ data, chart }: { data: ClientWorkspace; chart: Ca
       ) : (
         <ul className="divide-y divide-line">
           {data.holdingEntities.map((one) => (
-            <li key={one.id} className="grid grid-cols-[1fr_6rem_5rem] items-center gap-3 py-2.5">
+            <li key={one.id} className={cn("grid grid-cols-[1fr_6rem_5rem] items-center gap-3 py-2.5", drill && "cursor-pointer hover:bg-canvas")}
+              onClick={drill ? () => drill({ by: "legalEntity", key: one.id, name: one.name }) : undefined}>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{one.name}</p>
+                {drill ? (
+                  <button type="button" className="block max-w-full truncate text-left text-sm font-semibold hover:text-primary-700 hover:underline"
+                    onClick={(event) => { event.stopPropagation(); drill({ by: "legalEntity", key: one.id, name: one.name }); }}>
+                    {one.name}
+                  </button>
+                ) : <p className="truncate text-sm font-semibold">{one.name}</p>}
                 <p className="truncate text-xs text-ink-muted">{one.jurisdiction}{one.description && ` · ${one.description}`}</p>
               </div>
               <span className="block h-1.5 rounded-full bg-slate-100" aria-hidden="true">
@@ -891,26 +1016,35 @@ function HoldingEntitiesCard({ data, chart }: { data: ClientWorkspace; chart: Ca
 
 function LookThroughCard({ data, chart }: { data: ClientWorkspace; chart: CardChart }) {
   const people = data.beneficialLookThrough;
+  const drill = useDrill();
+  const pick = drill ? (one: (typeof people)[number]) => drill({ by: "beneficiary", key: one.id, name: one.name }) : undefined;
   return (
     <Card title="Beneficial Look-through" lead="Economic interest after trust and entity look-through" picker={!data.bankFile && chart.picker}>
       {data.bankFile ? <FileBlock /> : people.length === 0 ? <Empty>No beneficiary is on file for this client yet.</Empty> : !chart.own ? (
         <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={240} label="Each beneficiary's economic interest"
-          data={{ shape: "shares", items: people.map((one) => ({ name: one.name, value: one.sharePercent })) }} />
+          data={{ shape: "shares", items: people.map((one) => ({ name: one.name, value: one.sharePercent })) }}
+          onPick={pick ? (index) => { const one = people[index]; if (one) pick(one); } : undefined} />
       ) : (
         <>
           <div className="flex h-3 w-full overflow-hidden rounded-sm bg-slate-100" aria-hidden="true">
             {people.map((one, at) => (
-              <span key={one.id} style={{ width: `${one.sharePercent}%`, background: INK[at % INK.length] }} />
+              <span key={one.id} className={cn(pick && "cursor-pointer")} onClick={pick ? () => pick(one) : undefined}
+                style={{ width: `${one.sharePercent}%`, background: INK[at % INK.length] }} />
             ))}
           </div>
           <ul className="mt-3 divide-y divide-line">
             {people.map((one) => (
-              <li key={one.id} className="flex items-center gap-3 py-2">
+              <li key={one.id} className={cn("flex items-center gap-3 py-2", pick && "cursor-pointer hover:bg-canvas")} onClick={pick ? () => pick(one) : undefined}>
                 <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary-50 text-sm font-bold text-primary-700" aria-hidden="true">
                   {one.name.charAt(0)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{one.name}</p>
+                  {pick ? (
+                    <button type="button" className="block max-w-full truncate text-left text-sm font-semibold hover:text-primary-700 hover:underline"
+                      onClick={(event) => { event.stopPropagation(); pick(one); }}>
+                      {one.name}
+                    </button>
+                  ) : <p className="truncate text-sm font-semibold">{one.name}</p>}
                   <p className="text-xs text-ink-muted">{one.generation ?? (one.kind === "CHARITY" ? "Charitable" : "—")}</p>
                 </div>
                 <div className="text-right">
@@ -1263,11 +1397,15 @@ function axisMoney(values: number[], currency: string) {
   const finite = values.filter((one) => Number.isFinite(one));
   const largest = Math.max(1, ...finite.map((one) => Math.abs(one)));
   const spread = finite.length === 0 ? largest : Math.max(...finite) - Math.min(...finite);
-  const ratio = spread / largest;
+  // One figure, or several equal ones, has no spread to tell apart: the chart draws its own ticks around it, and one
+  // decimal reads them. Three decimals there made labels such as "-$600.000K", too wide for the axis, which cut the
+  // minus off.
+  const ratio = spread === 0 ? 1 : spread / largest;
   const digits = ratio < 0.02 ? 3 : ratio < 0.2 ? 2 : 1;
   return (value: number) => {
     try {
-      return new Intl.NumberFormat("en-US", { style: "currency", currency, notation: "compact", minimumFractionDigits: value === 0 ? 0 : digits,
+      // Only the decimals a tick needs: -$1.2M, not -$1.200M.
+      return new Intl.NumberFormat("en-US", { style: "currency", currency, notation: "compact", minimumFractionDigits: 0,
         maximumFractionDigits: digits }).format(value);
     } catch {
       return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: digits }).format(value);

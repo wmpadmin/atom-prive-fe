@@ -7,11 +7,12 @@ import {
   type ClientCollectibles,
   type CoItem,
   type CoKpi,
+  type CoObligation,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Car, FileText, Frame, Gem, ImagePlus, MapPin, RefreshCw, Sailboat, Watch, Wine, X, type LucideIcon } from "lucide-react";
-import { createElement, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createElement, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -26,6 +27,7 @@ import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
+import type { FigureDetail } from "./figure-panel";
 
 /**
  * A client's Collectibles & Real Assets register, laid out section by section as the firm's 10 Nov design draws it.
@@ -119,12 +121,17 @@ const KPI_LABELS = ["Register value", "Items", "Insured value", "Appraisals due 
 function Kpis({ data }: { data: ClientCollectibles }) {
   const rows = useFiguresAsTable();
   const kpis: (CoKpi | null)[] = data.bankFile ? KPI_LABELS.map(() => null) : data.kpis;
+  const drill = useDrill();
+  const open = (one: CoKpi) => drill?.({ by: "figure", key: `collectibles.kpi.${one.key}`, name: one.label, figure: kpiFigure(data, one) });
   return (
     <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
       {kpis.map((one, at) => rows ? (
-        <FigureRow key={one?.key ?? KPI_LABELS[at]} label={one?.label ?? KPI_LABELS[at]} value={!one ? <NotInFile /> : kpiValue(one, data.currency)} note={one?.detail && <>{one.detail}{one.extra && <> <span className={cn("font-semibold", one.extraTone === "UP" ? "text-emerald-700" : "text-red-700")}>{one.extra}</span></>}{one.after && <> {one.after}</>}</>} />
+        <FigureRow key={one?.key ?? KPI_LABELS[at]} label={!one ? KPI_LABELS[at] : (
+          <button type="button" className="text-left hover:text-primary-700 hover:underline" onClick={() => open(one)}>{one.label}</button>
+        )} value={!one ? <NotInFile /> : kpiValue(one, data.currency)} note={one?.detail && <>{one.detail}{one.extra && <> <span className={cn("font-semibold", one.extraTone === "UP" ? "text-emerald-700" : "text-red-700")}>{one.extra}</span></>}{one.after && <> {one.after}</>}</>} />
       ) : (
-        <div key={one?.key ?? KPI_LABELS[at]} className="rounded-2xl border border-line bg-white px-4 py-3.5">
+        <div key={one?.key ?? KPI_LABELS[at]} className={cn("rounded-2xl border border-line bg-white px-4 py-3.5", one && "cursor-pointer")}
+          {...(one ? { role: "button", tabIndex: 0, onClick: () => open(one), onKeyDown: (event: ReactKeyboardEvent) => { if (event.key === "Enter") open(one); } } : {})}>
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? KPI_LABELS[at]}</p>
           {!one ? <div className="mt-2"><NotInFile /></div> : (
             <>
@@ -146,13 +153,20 @@ function Kpis({ data }: { data: ClientCollectibles }) {
 
 function Tiles({ data, filter, onFilter, chart }: { data: ClientCollectibles; filter: string; onFilter: (key: string) => void; chart: CardChart }) {
   const held = data.categories.filter((one) => one.count > 0);
+  const drill = useDrill();
+  // Picking a category filters the register and opens its breakdown; picking it again clears the filter.
+  const pick = (key: string, label: string) => {
+    if (filter === key) return onFilter("ALL");
+    onFilter(key);
+    drill?.({ by: "category", key, name: label });
+  };
   // Drawn as another kind, the categories sit in a card of their own; a click filters the register as a tile does.
   if (!data.bankFile && !chart.own && held.length > 0) {
     return (
       <Card title="Categories" lead="Appraised value by category" picker={chart.picker}>
         <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={260} label="Appraised value by category"
           data={{ shape: "shares", items: held.map((one) => ({ name: one.label, value: one.value })) }}
-          onPick={(at) => { const one = held[at]; if (one) onFilter(filter === one.key ? "ALL" : one.key); }} />
+          onPick={(at) => { const one = held[at]; if (one) pick(one.key, one.label); }} />
       </Card>
     );
   }
@@ -166,7 +180,7 @@ function Tiles({ data, filter, onFilter, chart }: { data: ClientCollectibles; fi
         const selected = filter === category.key;
         return (
           <button key={category.key} type="button" disabled={data.bankFile || !one || one.count === 0}
-            onClick={() => onFilter(selected ? "ALL" : category.key)} aria-pressed={selected}
+            onClick={() => pick(category.key, category.label)} aria-pressed={selected}
             className={cn("rounded-2xl border bg-white px-4 py-3 text-left disabled:cursor-default",
               selected ? "border-ink ring-1 ring-ink" : "border-line hover:border-ink-muted")}>
             <span className="flex items-start justify-between">
@@ -379,6 +393,8 @@ function fillsOf(text: string) {
 
 function ValueCard({ data, chart }: { data: ClientCollectibles; chart: CardChart }) {
   const fills = fillsOf(ink().text);
+  const drill = useDrill();
+  const openYear = (one: ClientCollectibles["years"][number] | undefined) => { if (one) drill?.({ by: "figure", key: `collectibles.year.${one.year}`, name: `Register value · ${one.year}`, figure: yearFigure(data, one) }); };
   const option = useMemo(() => {
     const colours = ink();
     const series = fillsOf(colours.text);
@@ -398,20 +414,24 @@ function ValueCard({ data, chart }: { data: ClientCollectibles; chart: CardChart
       picker={!data.bankFile && data.years.length > 0 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.years.length === 0 ? <Empty>Nothing on the register.</Empty> : !chart.own ? (
         <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={280} label="Register value at each year end by category"
-          data={{ shape: "series", categories: data.years.map((one) => one.year), series: SERIES.map(([key, name]) => ({ name, values: data.years.map((one) => one[key]) })) }} />
+          data={{ shape: "series", categories: data.years.map((one) => one.year), series: SERIES.map(([key, name]) => ({ name, values: data.years.map((one) => one[key]) })) }}
+          onPick={(at) => openYear(data.years[at])} />
       ) : (
         <>
           {/* As tall as the obligations beside it: no blank space under the key. */}
           <div className="relative min-h-[260px] flex-1">
             <div className="absolute inset-0">
-              <Chart option={option} label="Register value at each year end by category" />
+              <Chart option={option} label="Register value at each year end by category" onPick={(_, at) => openYear(data.years[at])} />
             </div>
           </div>
           {/* The key is the page's own list rather than the chart's, so however narrow the card it wraps below the axis. */}
           <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
             {SERIES.map(([key, name], at) => (
-              <li key={key} className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-xs border border-line" style={{ background: fills[at] }} aria-hidden="true" />{name}
+              <li key={key}>
+                <button type="button" className="flex items-center gap-1.5 hover:text-primary-700 hover:underline"
+                  onClick={() => drill?.({ by: "category", key: key.toUpperCase(), name })}>
+                  <span className="size-2.5 rounded-xs border border-line" style={{ background: fills[at] }} aria-hidden="true" />{name}
+                </button>
               </li>
             ))}
           </ul>
@@ -433,7 +453,8 @@ function InsuranceCard({ data, chart }: { data: ClientCollectibles; chart: CardC
           {chart.kind === "gauge" ? (
             // The whole register's cover against full cover; past 100% is drawn at the end of the dial.
             <KindChart kind="gauge" format={(value) => `${value.toFixed(0)}%`} height={240} label="Insured value as a share of appraised value"
-              data={{ shape: "gauge", name: "Insured of appraised", value: total?.coverPercent ?? 0, max: Math.max(120, total?.coverPercent ?? 0), target: 100 }} />
+              data={{ shape: "gauge", name: "Insured of appraised", value: total?.coverPercent ?? 0, max: Math.max(120, total?.coverPercent ?? 0), target: 100 }}
+              onPick={() => drill?.({ by: "figure", key: "collectibles.cover", name: "Insurance coverage", figure: coverFigure(data) })} />
           ) : (
             <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={240} label="Appraised and insured value by category"
               data={{ shape: "series", categories: data.insurance.map((one) => one.label), series: [
@@ -514,15 +535,18 @@ function LocationsCard({ data, chart }: { data: ClientCollectibles; chart: CardC
 }
 
 function ObligationsCard({ data }: { data: ClientCollectibles }) {
+  const drill = useDrill();
+  const open = (one: CoObligation, at: number) => drill?.({ by: "figure", key: `collectibles.obligation.${one.on}.${at}`, name: one.title, figure: obligationFigure(one) });
   return (
     <Card title="Upcoming Obligations" lead={data.bankFile ? undefined : "Appraisals, services, surveys and policy renewals · next 12 months"}>
       {data.bankFile ? <FileBlock /> : data.obligations.length === 0 ? <Empty>Nothing falls due in the next 12 months.</Empty> : (
         <ul className="divide-y divide-line">
           {data.obligations.map((one, at) => (
-            <li key={`${one.on}-${at}`} className="flex gap-4 py-2.5">
+            <li key={`${one.on}-${at}`} className="flex cursor-pointer gap-4 py-2.5 hover:bg-canvas" onClick={() => open(one, at)}>
               <span className="w-20 shrink-0 text-xs text-ink-muted tabular-nums">{month(one.on)}</span>
               <span className="min-w-0">
-                <span className="block text-sm font-semibold">{one.title}</span>
+                <button type="button" className="block text-left text-sm font-semibold hover:text-primary-700 hover:underline"
+                  onClick={(event) => { event.stopPropagation(); open(one, at); }}>{one.title}</button>
                 <span className="mt-1 inline-block"><Pill tone="bg-amber-50 text-amber-800">{one.tag}</Pill></span>
               </span>
             </li>
@@ -658,6 +682,78 @@ function Field({ label, value }: { label: string; value: string | null | undefin
       <dd className="font-medium break-words">{value ?? "—"}</dd>
     </div>
   );
+}
+
+/** A key figure: the register items behind its count or amount, read from the register on this screen. */
+function kpiFigure(data: ClientCollectibles, one: CoKpi): FigureDetail {
+  const value = kpiValue(one, data.currency);
+  const note = [one.detail, one.extra, one.after].filter(Boolean).join(" ") || undefined;
+  const items = data.items;
+  const base: FigureDetail = { label: "Collectibles", value, note };
+  switch (one.key) {
+    case "REGISTER_VALUE":
+      return { ...base, table: { title: "By item", columns: ["Item", "Category", "Value", "Cost"],
+        rows: items.map((item) => [item.name, item.categoryLabel, item.value, item.cost]), total: ["Register", null, one.value, null] } };
+    case "ITEMS":
+      return { ...base, table: { title: "Items on the register", columns: ["Item", "Category", "Location", "Owner"],
+        rows: items.map((item) => [item.name, item.categoryLabel, item.location, item.owner]) } };
+    case "INSURED_VALUE":
+      return { ...base, table: { title: "By item", columns: ["Item", "Value", "Insured", "Cover %"],
+        rows: items.map((item) => [item.name, item.value, item.insured, item.coveragePercent == null ? null : Math.round(item.coveragePercent)]),
+        total: ["Register", null, one.value, null] } };
+    case "APPRAISALS_DUE": {
+      // The server counts the items whose next appraisal falls in its window; they are the earliest-dated ones.
+      const due = items.filter((item) => item.nextAppraisal).sort((a, b) => a.nextAppraisal!.localeCompare(b.nextAppraisal!)).slice(0, one.value ?? 0);
+      return { ...base, table: { title: "Appraisals falling due", columns: ["Item", "Category", "Next appraisal", "Last appraisal"],
+        rows: due.map((item) => [item.name, item.categoryLabel, day(item.nextAppraisal), day(item.lastAppraisal)]) } };
+    }
+    case "CARRYING_COST":
+      return { ...base, note: [note, "Each item's insurance premium is below; its other carrying costs (storage, crew, servicing) are not on this screen."].filter(Boolean).join(" · "),
+        table: { title: "Premiums by item", columns: ["Item", "Category", "Annual premium"],
+          rows: items.filter((item) => item.premium != null).map((item) => [item.name, item.categoryLabel, item.premium]) } };
+    case "DOCUMENTATION":
+      return { ...base, table: { title: "Documents by item", columns: ["Item", "On file", "Expected"],
+        rows: items.map((item) => [item.name, item.documents.length, item.documentsExpected]) } };
+    default:
+      return base;
+  }
+}
+
+/** The register's cover: insured against appraised value by category. */
+function coverFigure(data: ClientCollectibles): FigureDetail {
+  const total = data.insuranceTotal;
+  return {
+    label: "Insurance coverage",
+    value: total?.coverPercent == null ? "—" : `${total.coverPercent.toFixed(0)}%`,
+    note: "Insured value as a share of the latest appraisals, by category.",
+    facts: total ? [{ label: "Appraised", value: compact(total.market, data.currency) }, { label: "Insured", value: compact(total.insured, data.currency) }] : [],
+    chart: { title: "Appraised and insured by category", kind: "grouped-bar", format: "money", currency: data.currency, data: { shape: "series",
+      categories: data.insurance.map((one) => one.label), series: [
+        { name: "Appraised", values: data.insurance.map((one) => one.market) }, { name: "Insured", values: data.insurance.map((one) => one.insured) },
+      ] } },
+    table: { columns: ["Category", "Appraised", "Insured", "Cover %", "Policy", "Renewal"],
+      rows: data.insurance.map((one) => [one.label, one.market, one.insured, one.coverPercent == null ? null : Math.round(one.coverPercent), one.policy, one.renewal ? day(one.renewal) : null]),
+      total: total ? [total.label, total.market, total.insured, total.coverPercent == null ? null : Math.round(total.coverPercent), null, null] : undefined },
+  };
+}
+
+/** An obligation falling due, as its row reads. */
+function obligationFigure(one: CoObligation): FigureDetail {
+  return { label: "Upcoming obligation", value: day(one.on), note: one.title, facts: [{ label: "Due", value: month(one.on) }, { label: "Kind", value: one.tag }] };
+}
+
+/** One year end of the register's value, category by category. */
+function yearFigure(data: ClientCollectibles, one: ClientCollectibles["years"][number]): FigureDetail {
+  const parts = SERIES.map(([key, name]) => ({ name, value: one[key] }));
+  const sum = parts.reduce((all, part) => all + part.value, 0);
+  return {
+    label: "Register value over time",
+    value: compact(sum, data.currency),
+    note: `Year-end appraised values in ${one.year}, by category · demo series.`,
+    chart: { title: `By category, ${one.year}`, kind: "donut", format: "money", currency: data.currency,
+      data: { shape: "shares", items: parts.filter((part) => part.value > 0) } },
+    table: { columns: ["Category", "Value"], rows: parts.map((part) => [part.name, part.value]), total: ["Register", sum] },
+  };
 }
 
 /** What Collectibles & Real Assets offers for a card of the reader's own: its register, values, cover and places. */
