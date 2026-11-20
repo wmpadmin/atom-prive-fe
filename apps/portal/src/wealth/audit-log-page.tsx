@@ -167,7 +167,7 @@ export function AuditLogPage() {
             <input id="audit-to" type="date" value={to} min={from || undefined} onChange={(event) => { setTo(event.target.value); reset(); }} className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-white px-3 text-sm text-ink sm:flex-none" />
           </label>
           <div className="ml-auto">
-            <ExportMenu onPick={(format) => void exportAs(format)} busy={exporting} formats={["csv", "pdf"]} />
+            <ExportMenu onPick={(format) => void exportAs(format)} busy={exporting} formats={["xlsx", "csv", "pdf"]} />
           </div>
         </div>
         {problem && <p className="mb-3 text-sm text-access-none-ink">{problem}</p>}
