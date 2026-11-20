@@ -398,7 +398,7 @@ function FundsCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardCha
           ))}
         </div>
       )}>
-      {data.bankFile ? <div className="px-5"><FileBlock /></div> : rows.length === 0 ? <Empty>No funds in this group.</Empty> : !chart.own ? (
+      {data.bankFile ? <FileCommitments data={data} /> : rows.length === 0 ? <Empty>No funds in this group.</Empty> : !chart.own ? (
         <div className="px-5">
           <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={60 + rows.length * 26} label="Each fund's value: what it has paid back and what it holds"
             data={chart.kind === "stacked-bar"
@@ -592,7 +592,7 @@ function NoticesCard({ data }: { data: ClientPrivateMarkets }) {
   const drill = useDrill();
   return (
     <Card title="Notices & Cash Events" lead={data.bankFile ? undefined : "From the capital calls and distributions on file"} flush>
-      {data.bankFile ? <div className="px-5"><FileBlock /></div> : data.notices.length === 0 ? <Empty>No calls or distributions from 60 days back to 90 days ahead.</Empty> : (
+      {data.bankFile ? <FileCalls data={data} /> : data.notices.length === 0 ? <Empty>No calls or distributions from 60 days back to 90 days ahead.</Empty> : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -756,6 +756,97 @@ function NotInFile() {
       not in bank file
     </span>
   );
+}
+
+/**
+ * A bank-file client's commitments as staff entered them, each in its own currency. Nothing is valued: NAV,
+ * distributions and multiples would mix what the bank's files state with what they do not.
+ */
+function FileCommitments({ data }: { data: ClientPrivateMarkets }) {
+  if (data.fileCommitments.length === 0) return <div className="px-5"><FileBlock /></div>;
+  return (
+    <>
+      <div className="px-5 pb-2"><StaffEntered /></div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
+              <th scope="col" className="py-2 pr-3 pl-5">Fund</th>
+              <th scope="col" className="px-2 py-2 text-right">Committed</th>
+              <th scope="col" className="px-2 py-2 text-right">Called</th>
+              <th scope="col" className="px-2 py-2 text-right">% called</th>
+              <th scope="col" className="px-2 py-2 text-right">Unfunded</th>
+              <th scope="col" className="py-2 pr-5 pl-2">NAV · IRR · TVPI</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {data.fileCommitments.map((one) => (
+              <tr key={`${one.fund}-${one.currency}`}>
+                <th scope="row" className="py-2 pr-3 pl-5 text-left font-semibold">{one.fund}</th>
+                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{exact(one.committed, one.currency)}</td>
+                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{exact(one.called, one.currency)}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{one.committed > 0 ? `${((one.called / one.committed) * 100).toFixed(1)}%` : "—"}</td>
+                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{exact(one.unfunded, one.currency)}</td>
+                <td className="py-2 pr-5 pl-2"><NotInFile /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+/** A bank-file client's capital calls as staff entered them, each in its own currency. */
+function FileCalls({ data }: { data: ClientPrivateMarkets }) {
+  if (data.fileCalls.length === 0) return <div className="px-5"><FileBlock /></div>;
+  return (
+    <>
+      <div className="px-5 pb-2"><StaffEntered /></div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
+              <th scope="col" className="py-2 pr-3 pl-5">Fund</th>
+              <th scope="col" className="px-2 py-2">Type</th>
+              <th scope="col" className="px-2 py-2">Due</th>
+              <th scope="col" className="px-2 py-2 text-right">Amount</th>
+              <th scope="col" className="py-2 pr-5 pl-4">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {data.fileCalls.map((one, at) => (
+              <tr key={`${one.fund}-${one.dueOn}-${at}`}>
+                <th scope="row" className="py-2 pr-3 pl-5 text-left font-semibold">{one.fund}</th>
+                <td className="px-2 py-2"><Pill tone="bg-red-50 text-red-700">Capital call</Pill></td>
+                <td className="px-2 py-2 whitespace-nowrap tabular-nums">{day(one.dueOn)}</td>
+                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums text-red-700">−{exact(one.amount, one.currency)}</td>
+                <td className="py-2 pr-5 pl-4"><Pill tone={NOTICE_TONE[one.status] ?? "bg-slate-100 text-ink-soft"}>{one.status}</Pill></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+/** Says a bank-file client's card is the firm's own record, so nobody reads it as something the bank sent. */
+function StaffEntered() {
+  return (
+    <span className="inline-block w-fit rounded-sm border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-3xs font-semibold whitespace-nowrap text-amber-800">
+      Entered by staff · not from the bank file
+    </span>
+  );
+}
+
+/** An amount in full, in the currency it was entered in. */
+function exact(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 }).format(amount);
+  } catch {
+    return `${currency} ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(amount)}`;
+  }
 }
 
 function FileBlock() {

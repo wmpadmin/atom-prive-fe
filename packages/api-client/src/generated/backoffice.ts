@@ -9519,6 +9519,24 @@ export interface PmHedgeFund {
   correlation: number | null;
 }
 
+export interface PmFileCommitment {
+  fund: string;
+  currency: string;
+  committed: number;
+  called: number;
+  unfunded: number;
+}
+
+export interface PmFileCall {
+  fund: string;
+  currency: string;
+  amount: number;
+  /** @nullable */
+  noticedOn: string | null;
+  dueOn: string;
+  status: string;
+}
+
 export interface ClientPrivateMarkets {
   customerId: string;
   name: string;
@@ -9563,6 +9581,8 @@ export interface ClientPrivateMarkets {
   unattributedNote: string | null;
   /** @nullable */
   note: string | null;
+  fileCommitments: PmFileCommitment[];
+  fileCalls: PmFileCall[];
 }
 
 export interface AttributionRow {
