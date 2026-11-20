@@ -230,7 +230,7 @@ export function clientFileHref(user: { activeRole?: string | null }, clientId: s
  */
 export function clientListHref(user: { activeRole?: string | null }, query?: string) {
   const where = user.activeRole === "ADVISOR" ? "/my-clients"
-    : user.activeRole === "PORTFOLIO_MANAGER" ? "/portfolio-clients"
+    : user.activeRole === "PORTFOLIO_MANAGER" ? "/client-directory"
     : "/clients";
   return query ? `${where}?q=${encodeURIComponent(query)}` : where;
 }

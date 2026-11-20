@@ -234,8 +234,8 @@ const allNavigation: {
   },
   {
     // The same clients as the Book Overview, one by one: a card or a row each, with filters, and the book broken
-    // down by segment, region, mandate and relationship manager. Its own name, because "Clients" is already
-    // the portfolio desk's list of portfolios further down.
+    // down by segment, region, mandate and relationship manager. The desk's one list of its clients since the
+    // Client list (/book) and Clients (/portfolio-clients) screens were removed on 20 Nov 2026.
     to: "/client-directory",
     label: "Client Directory",
     icon: BookUser,
@@ -243,26 +243,6 @@ const allNavigation: {
     onlyFor: ["PORTFOLIO_MANAGER"],
     // A client's workspace is opened from here, and from the Book Overview beside it.
     at: (path) => path === "/client-directory" || path.startsWith("/client-workspace/"),
-  },
-  {
-    // The portfolio manager's own clients, starred first, each opening on an overview of their money.
-    to: "/book",
-    label: "Client list",
-    icon: UsersRound,
-    authority: READS_CLIENT_PORTFOLIOS,
-    onlyFor: ["PORTFOLIO_MANAGER"],
-    at: (path) => path === "/book" || path.startsWith("/book/"),
-  },
-  {
-    // The same clients, set out for portfolio work rather than for servicing the account.
-    to: "/portfolio-clients",
-    label: "Clients",
-    icon: Contact,
-    authority: "VIEW_ALL_CLIENTS:VIEW",
-    onlyFor: ["PORTFOLIO_MANAGER"],
-    // A portfolio opened from a queue belongs to that queue's menu, not to this one.
-    at: (path, search) =>
-      path === "/portfolio-clients" || livesHere(path, search, A_PORTFOLIO, ["drift", "dashboard"]),
   },
   {
     to: "/model-portfolios",

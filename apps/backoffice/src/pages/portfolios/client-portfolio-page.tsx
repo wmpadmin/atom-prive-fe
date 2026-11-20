@@ -59,7 +59,7 @@ const CAME_FROM: Record<string, { to: string; label: string }> = {
   restores: { to: "/approvals?queue=restores", label: "Back to restores to approve" },
 };
 
-const FROM_THE_LIST = { to: "/portfolio-clients", label: "Back to the clients" };
+const FROM_THE_LIST = { to: "/client-directory", label: "Back to the Client Directory" };
 
 /** The questions this screen answers, in the order somebody asks them. */
 type Tab = "performance" | "daily" | "return" | "analytics";
