@@ -17,7 +17,6 @@ import { Link, Navigate, useLocation, useNavigate, useParams } from "react-route
 import { useStaffUser } from "../../auth/session";
 import { formatDate } from "../../lib/labels";
 import { hasAnyAuthority, hasAuthority, NAMES_ANY_RELATIONSHIP_MANAGER, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
-import { TemporaryPassword } from "../clients/temporary-password";
 import { newApplication, toForm } from "./application";
 import { ApplicationSummary } from "./application-summary";
 import type { SentForSignOff } from "@atomprive/api-client/backoffice";
@@ -115,12 +114,10 @@ export function OnboardingCasePage() {
 }
 
 /**
- * Offering the new clients a way into the portal, at the only moment it is easy to hand one over.
+ * Offering the new clients a way into the portal, at the moment they become clients.
  *
- * <p>Here because this is where the desk is standing when the client becomes a client: they have just
- * finished typing their details and are usually still on the telephone to them. A password handed over
- * then is read out and used; the same password found on a list a fortnight later is a password nobody
- * remembers asking for.
+ * <p>Each is emailed a one-time link to choose their own password, so nobody at the firm ever knows it and
+ * nothing has to be read out over the telephone.
  *
  * <p>Offered rather than done. Not every firm gives every client a login on day one, and a platform that
  * minted one regardless would be making that decision for them.
@@ -130,21 +127,21 @@ function PortalAccessOffer({ caseId }: { caseId: string }) {
   const give = useGivePortalAccess<ApiError>({ mutation: { onSuccess: (done) => setGiven(done.given) } });
 
   if (given) {
-    const setUp = given.filter((one) => one.temporaryPassword);
+    const setUp = given.filter((one) => one.linkEmailed);
     return (
       <section className="space-y-4 rounded-2xl border border-line bg-white px-5 py-5">
         <h2 className="text-sm font-bold">
-          {setUp.length === 0 ? "Nobody could be set up" : "Read these out before you close this page"}
+          {setUp.length === 0 ? "Nobody could be set up" : "Set-up links sent"}
         </h2>
         {given.map((one) => (
           <div key={one.customerId}>
             <p className="text-xs font-semibold text-ink-soft">{one.fullName}</p>
-            {one.temporaryPassword && one.email ? (
-              <div className="mt-1.5">
-                <TemporaryPassword password={one.temporaryPassword} />
-              </div>
+            {one.linkEmailed && one.email ? (
+              <p className="mt-1 text-xs text-ink-muted">
+                Emailed a link to {one.email} to choose their own password. It works for 24 hours.
+              </p>
             ) : (
-              <p className="mt-1 text-xs text-ink-muted">{one.why ?? "No password was made."}</p>
+              <p className="mt-1 text-xs text-ink-muted">{one.why ?? "No link was sent."}</p>
             )}
           </div>
         ))}
@@ -157,13 +154,13 @@ function PortalAccessOffer({ caseId }: { caseId: string }) {
       <div>
         <h2 className="text-sm font-bold">Give them a way into the client portal?</h2>
         <p className="mt-0.5 max-w-[70ch] text-xs text-ink-muted">
-          Each client on this application gets a temporary password, shown once on this page, which they
-          replace the first time they sign in. You can also do this later from their file.
+          Each client on this application is emailed a link to choose their own password. Nobody at the firm
+          sees it. The link works for 24 hours. You can also do this later from their file.
         </p>
         {give.isError && <p className="mt-1 text-xs text-red-600">{give.error.message}</p>}
       </div>
       <Button disabled={give.isPending} onClick={() => give.mutate({ id: caseId })}>
-        {give.isPending ? "Setting them up…" : "Create temporary passwords"}
+        {give.isPending ? "Sending…" : "Email them a set-up link"}
       </Button>
     </section>
   );

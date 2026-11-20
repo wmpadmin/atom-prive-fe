@@ -1158,6 +1158,14 @@ export interface SignedIn {
   next: string | null;
 }
 
+export interface PasswordLinkRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  token: string;
+}
+
 export interface NewPasswordRequest {
   /** @minLength 1 */
   challengeToken: string;
@@ -5994,6 +6002,88 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRefreshMutationOptions(options), queryClient);
+    }
+
+export const getFollowPasswordLinkUrl = () => {
+
+
+
+
+  return `/api/portal/auth/password-link`
+}
+
+export const followPasswordLink = async (passwordLinkRequest: PasswordLinkRequest, options?: Parameters<typeof http>[1]): Promise<SignedIn> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<SignedIn>(getFollowPasswordLinkUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(passwordLinkRequest)
+  }
+);}
+
+
+
+
+
+export const getFollowPasswordLinkMutationKey = () => ['followPasswordLink'] as const;
+
+export const getFollowPasswordLinkMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof followPasswordLink>>, TError,FollowPasswordLinkMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof followPasswordLink>>, TError,FollowPasswordLinkMutationVariables, TContext> => {
+
+const mutationKey = getFollowPasswordLinkMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof followPasswordLink>>, FollowPasswordLinkMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  followPasswordLink(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FollowPasswordLinkMutationResult = NonNullable<Awaited<ReturnType<typeof followPasswordLink>>>
+    export type FollowPasswordLinkMutationBody = PasswordLinkRequest
+    export type FollowPasswordLinkMutationError = unknown
+    export type FollowPasswordLinkMutationVariables = {data: PasswordLinkRequest}
+
+    export const useFollowPasswordLink = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof followPasswordLink>>, TError,FollowPasswordLinkMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof followPasswordLink>>,
+        TError,
+        FollowPasswordLinkMutationVariables,
+        TContext
+      > => {
+      return useMutation(getFollowPasswordLinkMutationOptions(options), queryClient);
     }
 
 export const getChoosePasswordUrl = () => {
