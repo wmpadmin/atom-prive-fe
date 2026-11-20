@@ -48,7 +48,7 @@ export function ClientPerformancePage() {
         </div>
         <div className="flex items-start gap-2"><ReportButton />{!data.bankFile && <CustomizeButton view={view} />}</div>
       </header>
-      {data.bankFile ? <FileClient /> : <Board data={data} view={view} />}
+      {data.bankFile ? <FileClient data={data} /> : <Board data={data} view={view} />}
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
           {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
@@ -60,7 +60,7 @@ export function ClientPerformancePage() {
 }
 
 /** Every card in the design's place, each saying the bank's files hold no returns, statistics or fees. */
-function FileClient() {
+function FileClient({ data }: { data: ClientPerformance }) {
   const kpis = ["Return · YTD (TWR)", "Money-weighted · YTD", "Annualised · ITD", "Sharpe ratio · 3Y", "Information ratio · 3Y",
     "Max drawdown", "Up / down capture", "Value added · ITD"];
   return (
@@ -82,9 +82,42 @@ function FileClient() {
       <Card title="Monthly Returns"><FileBlock /></Card>
       <div className="grid gap-4 xl:grid-cols-2">
         <Card title="Risk-adjusted Statistics"><FileBlock /></Card>
-        <Card title="Fee Impact · YTD" lead="Return drag by fee type"><FileBlock /></Card>
+        {data.fees ? <FileFees fees={data.fees} /> : <Card title="Fee Impact · YTD" lead="Return drag by fee type"><FileBlock /></Card>}
       </div>
     </>
+  );
+}
+
+/**
+ * A bank-file client's fees as staff agreed them: the annual rate of each. What they come to this year would be read
+ * from a value the bank's files state in several currencies, so the drag and the amount stay out.
+ */
+function FileFees({ fees }: { fees: NonNullable<ClientPerformance["fees"]> }) {
+  return (
+    <Card title="Fee Impact · YTD" lead="Agreed annual rate by fee type" action={<StaffEntered />}>
+      <ul className="divide-y divide-line">
+        {fees.byType.map((one) => (
+          <li key={one.type} className="flex items-center justify-between gap-3 py-1.5 text-sm">
+            <span>{one.label}</span>
+            <span className="tabular-nums">{one.annualBp} bp a year</span>
+          </li>
+        ))}
+        <li className="flex items-center justify-between gap-3 py-1.5 text-sm font-semibold">
+          <span>Total, a year</span>
+          <span className="tabular-nums">{fees.annualPercent.toFixed(2)}%</span>
+        </li>
+      </ul>
+      <p className="mt-3 text-xs text-ink-muted">Return drag and cost this year: <NotInFile /></p>
+    </Card>
+  );
+}
+
+/** Says a bank-file client's card is the firm's own record, so nobody reads it as something the bank sent. */
+function StaffEntered() {
+  return (
+    <span className="inline-block w-fit rounded-sm border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-3xs font-semibold whitespace-nowrap text-amber-800">
+      Entered by staff · not from the bank file
+    </span>
   );
 }
 
