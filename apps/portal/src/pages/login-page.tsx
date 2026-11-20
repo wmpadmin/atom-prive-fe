@@ -1,8 +1,8 @@
 import { ApiError } from "@atomprive/api-client";
-import { useLogin, type SignedIn } from "@atomprive/api-client/portal";
+import { useFollowPasswordLink, useLogin, type SignedIn } from "@atomprive/api-client/portal";
 import { Alert, Button, Field, HumanCheck, TextInput, useHumanCheck } from "@atomprive/ui";
-import { useCallback, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { useSession } from "../auth/session-context";
 import { AuthLayout } from "./auth-layout";
 import { PasswordInput } from "./password-input";
@@ -70,6 +70,31 @@ export function LoginPage() {
       },
     },
   });
+
+  // A client given portal access is emailed a one-time link to choose their own password: it lands here, and
+  // leads into the same steps as a first sign-in (authenticator, then their own password).
+  const [params, setParams] = useSearchParams();
+  const linkToken = params.get("password-link");
+  const followLink = useFollowPasswordLink<ApiError>({
+    mutation: {
+      onSuccess: (answer: SignedIn) => {
+        setOver(undefined);
+        follow(answer);
+      },
+      onError: (error) =>
+        setOver(error.status === 410
+          ? "This link has expired or has already been used. Ask your relationship manager to send you a new one."
+          : "This link can't be used. Ask your relationship manager to send you a new one."),
+    },
+  });
+  const followed = useRef(false);
+  useEffect(() => {
+    if (!linkToken || followed.current) return;
+    followed.current = true;
+    // Taken off the address straight away, so it is not left in the browser's history or a shared screen.
+    setParams({}, { replace: true });
+    followLink.mutate({ data: { token: linkToken } });
+  }, [linkToken, followLink, setParams]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
