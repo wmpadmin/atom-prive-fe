@@ -1976,13 +1976,14 @@ export const JsonNodeNodeType = {
 } as const;
 
 export interface JsonNode {
+  number?: boolean;
   container?: boolean;
   floatingPointNumber?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
+  missingNode?: boolean;
+  valueNode?: boolean;
   pojo?: boolean;
   short?: boolean;
   int?: boolean;
@@ -1994,7 +1995,6 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
-  number?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -2027,6 +2027,20 @@ export interface MyDeclaration {
   /** @nullable */
   signedOn: string | null;
   complete: boolean;
+}
+
+export interface BankClassMappingRequest {
+  /** @minLength 1 */
+  bankClass: string;
+  /** @minLength 1 */
+  assetClass: string;
+}
+
+export interface BankClassMapping {
+  bankClass: string;
+  assetClass: string;
+  setBy: string;
+  setAt: string;
 }
 
 export type SaveFormRequestAnswers = {[key: string]: unknown};
@@ -4906,8 +4920,7 @@ export interface Given {
   fullName: string;
   /** @nullable */
   email: string | null;
-  /** @nullable */
-  temporaryPassword: string | null;
+  linkEmailed: boolean;
   /** @nullable */
   why: string | null;
 }
@@ -10983,6 +10996,10 @@ export type ListClientHoldingsParams = {
 against?: string;
 };
 
+export type UnmapBankClassParams = {
+bankClass: string;
+};
+
 export type UploadStatementsBody = {
   files: (Blob | File)[];
 };
@@ -15692,6 +15709,261 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSaveMineMutationOptions(options), queryClient);
+    }
+
+export const getListBankClassMappingsUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/holdings-check/banks/${bankId}/classes`
+}
+
+export const listBankClassMappings = async (bankId: string, options?: Parameters<typeof http>[1]): Promise<BankClassMapping[]> => {
+
+  return http<BankClassMapping[]>(getListBankClassMappingsUrl(bankId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBankClassMappingsQueryKey = (bankId: string,) => {
+    return [
+    `/api/backoffice/holdings-check/banks/${bankId}/classes`
+    ] as const;
+    }
+
+
+export const getListBankClassMappingsQueryOptions = <TData = Awaited<ReturnType<typeof listBankClassMappings>>, TError = unknown>(bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBankClassMappings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBankClassMappingsQueryKey(bankId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBankClassMappings>>> = ({ signal }) => listBankClassMappings(bankId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bankId !== null && bankId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBankClassMappings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListBankClassMappingsQueryResult = NonNullable<Awaited<ReturnType<typeof listBankClassMappings>>>
+export type ListBankClassMappingsQueryError = unknown
+
+
+export function useListBankClassMappings<TData = Awaited<ReturnType<typeof listBankClassMappings>>, TError = unknown>(
+ bankId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBankClassMappings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBankClassMappings>>,
+          TError,
+          Awaited<ReturnType<typeof listBankClassMappings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBankClassMappings<TData = Awaited<ReturnType<typeof listBankClassMappings>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBankClassMappings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBankClassMappings>>,
+          TError,
+          Awaited<ReturnType<typeof listBankClassMappings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBankClassMappings<TData = Awaited<ReturnType<typeof listBankClassMappings>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBankClassMappings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListBankClassMappings<TData = Awaited<ReturnType<typeof listBankClassMappings>>, TError = unknown>(
+ bankId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBankClassMappings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListBankClassMappingsQueryOptions(bankId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMapBankClassUrl = (bankId: string,) => {
+
+
+
+
+  return `/api/backoffice/holdings-check/banks/${bankId}/classes`
+}
+
+export const mapBankClass = async (bankId: string,
+    bankClassMappingRequest: BankClassMappingRequest, options?: Parameters<typeof http>[1]): Promise<BankClassMapping[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<BankClassMapping[]>(getMapBankClassUrl(bankId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bankClassMappingRequest)
+  }
+);}
+
+
+
+
+
+export const getMapBankClassMutationKey = () => ['mapBankClass'] as const;
+
+export const getMapBankClassMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mapBankClass>>, TError,MapBankClassMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof mapBankClass>>, TError,MapBankClassMutationVariables, TContext> => {
+
+const mutationKey = getMapBankClassMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mapBankClass>>, MapBankClassMutationVariables> = (props) => {
+          const {bankId,data} = props ?? {};
+
+          return  mapBankClass(bankId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MapBankClassMutationResult = NonNullable<Awaited<ReturnType<typeof mapBankClass>>>
+    export type MapBankClassMutationBody = BankClassMappingRequest
+    export type MapBankClassMutationError = unknown
+    export type MapBankClassMutationVariables = {bankId: string;data: BankClassMappingRequest}
+
+    export const useMapBankClass = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mapBankClass>>, TError,MapBankClassMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof mapBankClass>>,
+        TError,
+        MapBankClassMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMapBankClassMutationOptions(options), queryClient);
+    }
+
+export const getUnmapBankClassUrl = (bankId: string,
+    params: UnmapBankClassParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/holdings-check/banks/${bankId}/classes?${stringifiedParams}` : `/api/backoffice/holdings-check/banks/${bankId}/classes`
+}
+
+export const unmapBankClass = async (bankId: string,
+    params: UnmapBankClassParams, options?: Parameters<typeof http>[1]): Promise<BankClassMapping[]> => {
+
+  return http<BankClassMapping[]>(getUnmapBankClassUrl(bankId,params),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getUnmapBankClassMutationKey = () => ['unmapBankClass'] as const;
+
+export const getUnmapBankClassMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unmapBankClass>>, TError,UnmapBankClassMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof unmapBankClass>>, TError,UnmapBankClassMutationVariables, TContext> => {
+
+const mutationKey = getUnmapBankClassMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unmapBankClass>>, UnmapBankClassMutationVariables> = (props) => {
+          const {bankId,params} = props ?? {};
+
+          return  unmapBankClass(bankId,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnmapBankClassMutationResult = NonNullable<Awaited<ReturnType<typeof unmapBankClass>>>
+
+    export type UnmapBankClassMutationError = unknown
+    export type UnmapBankClassMutationVariables = {bankId: string;params: UnmapBankClassParams}
+
+    export const useUnmapBankClass = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unmapBankClass>>, TError,UnmapBankClassMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof unmapBankClass>>,
+        TError,
+        UnmapBankClassMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUnmapBankClassMutationOptions(options), queryClient);
     }
 
 export const getGetFormUrl = (id: string,) => {
