@@ -163,6 +163,12 @@ export const READS_AML_RISK: Authority[] = ["RATE_AML_RISK:VIEW", ...RATES_AML_R
 export const APPROVES_PROPOSALS: Authority[] = ["APPROVE_PROPOSALS:CHANGE", "APPROVE_PROPOSALS:OWN_CLIENTS"];
 
 /**
+ * Who reads and uploads the banks' holdings files (Bank holdings): the Admin and the portfolio manager, as the
+ * server's own route says.
+ */
+export const READS_BANK_HOLDINGS: Authority[] = ["MANAGE_CONFIGURATION:CHANGE", "APPROVE_PORTFOLIO_CHANGES:CHANGE"];
+
+/**
  * Whoever answers a plan to move a client's money.
  *
  * <p>Both authorities, always, and the same constant in the route, the menu and the page. A relationship manager

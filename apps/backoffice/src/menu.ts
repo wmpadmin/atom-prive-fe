@@ -46,6 +46,7 @@ import {
   ONBOARDS_EVERY_CLIENT,
   READS_AML_MATRIX,
   READS_AML_RISK,
+  READS_BANK_HOLDINGS,
   READS_CLIENT_PORTFOLIOS,
   READS_PROPOSALS,
   UPLOADS_CLIENT_DOCUMENTS,
@@ -151,6 +152,8 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   { to: "/config" },
   { to: "/ingestion", label: "Bank feeds" },
   { to: "/holdings-check" },
+  // The banks' holdings files, which the Admin uploads as well as the portfolio desk.
+  { to: "/bank-holdings" },
   // Reading back: the reports, then the narrower trail before the wider one - family access is one question
   // asked of the trail, and the audit log is every question at once.
   { to: "/reports" },
@@ -243,6 +246,14 @@ const allNavigation: {
     onlyFor: ["PORTFOLIO_MANAGER"],
     // A client's workspace is opened from here, and from the Book Overview beside it.
     at: (path) => path === "/client-directory" || path.startsWith("/client-workspace/"),
+  },
+  {
+    // Each of the client's banks' holdings Excel, as the bank sent it; uploaded here by the desk or the Admin.
+    to: "/bank-holdings",
+    label: "Bank holdings",
+    icon: Landmark,
+    authority: READS_BANK_HOLDINGS,
+    onlyFor: ["PORTFOLIO_MANAGER", "ADMIN"],
   },
   {
     to: "/model-portfolios",
@@ -525,6 +536,16 @@ const allNavigation: {
  * as the first, or a reader lands on a screen their role is then bounced off, straight back to a home
  * screen that sends them to it again.
  */
+/**
+ * What a screen's own menu entry asks of the role's permissions, as an Admin needs to know on the permission
+ * matrix's Screens tab: a screen switched on there still opens only where these allow. Null where it asks nothing.
+ */
+export function screenNeeds(to: string): Authority[] | null {
+  const item = allNavigation.find((one) => one.to === to);
+  if (!item || item.authority === null) return null;
+  return Array.isArray(item.authority) ? item.authority : [item.authority];
+}
+
 export function menuFor(user: StaffProfile) {
   const permitted = (item: (typeof allNavigation)[number]) =>
     item.authority === null ||
@@ -532,18 +553,25 @@ export function menuFor(user: StaffProfile) {
   // An Admin's menu is written out by hand rather than filtered down, which means it is already in
   // the firm's own order — and must not be sorted again below.
   const admin = user.activeRole === "ADMIN";
+  // Which screens the role may open, as the permission matrix's Screens tab sets them. A screen it names is on the
+  // menu unless it is at No access, whichever desk it was first built for; one it does not name (or a profile from
+  // before the tab) falls back to the desk rules below. The role's permissions still have to allow it.
+  const screens: Record<string, string> = (user as { screens?: Record<string, string> }).screens ?? {};
+  const listed = (to: string) => Object.prototype.hasOwnProperty.call(screens, to);
+  const opens = (to: string) => screens[to] !== "NONE";
+  const byDesk = (item: (typeof allNavigation)[number]) =>
+    !(user.activeRole && item.notFor?.includes(user.activeRole)) &&
+    (!item.onlyFor || (user.activeRole != null && item.onlyFor.includes(user.activeRole)));
+  const adminsOwn = ADMINS_MENU.flatMap((entry) =>
+    allNavigation
+      .filter((item) => item.to === entry.to && permitted(item) && opens(item.to))
+      .map((item) => ({ ...item, label: entry.label ?? item.label, under: entry.under })),
+  );
   const navigation = admin
-      ? ADMINS_MENU.flatMap((entry) =>
-          allNavigation
-            .filter((item) => item.to === entry.to && permitted(item))
-            .map((item) => ({ ...item, label: entry.label ?? item.label, under: entry.under })),
-        )
-      : allNavigation.filter(
-          (item) =>
-            !(user.activeRole && item.notFor?.includes(user.activeRole)) &&
-            (!item.onlyFor || (user.activeRole != null && item.onlyFor.includes(user.activeRole))) &&
-            permitted(item),
-        );
+      // The Admin's own list in its own order, then any screen the matrix has opened to the Admin beyond it.
+      ? [...adminsOwn, ...allNavigation.filter((item) =>
+          listed(item.to) && opens(item.to) && permitted(item) && !adminsOwn.some((own) => own.to === item.to))]
+      : allNavigation.filter((item) => (listed(item.to) ? opens(item.to) : byDesk(item)) && permitted(item));
 
   // An entry and whatever sits under it, so the menu is drawn as the sections it actually has. An entry
   // whose section this reader does not have stays at the top level rather than disappearing with it.
