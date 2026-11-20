@@ -9,8 +9,9 @@ import {
 import { ProposalLegs, ProposalMoves } from "@atomprive/support/proposal-legs";
 import { Alert, Button, Dialog, Field, RequiredMark, TextArea } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Download } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { ExportMenu } from "./holdings-page";
 import { Link, useParams } from "react-router";
 import { compact, day, whole } from "./figures";
 import { StatusPill } from "./proposals-page";
@@ -84,18 +85,23 @@ function Proposal({ detail, onAnswer }: { detail: ClientProposalDetail; onAnswer
     ? `${row.answeredByName} on your instruction, ${HOW[row.clientInstruction]}`
     : "you";
 
-  const download = async () => {
+  const [downloading, setDownloading] = useState(false);
+  // The proposal on the firm's letterhead, or the same figures as an Excel workbook, a sheet for each table.
+  const download = async (format: "pdf" | "xlsx") => {
     setProblem(null);
+    setDownloading(true);
     try {
-      const blob = await httpFile(`/api/portal/proposals/${row.id}/pdf`);
+      const blob = await httpFile(`/api/portal/proposals/${row.id}/${format}`);
       const href = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = href;
-      link.download = `${row.reference}.pdf`;
+      link.download = `${row.reference}.${format}`;
       link.click();
       URL.revokeObjectURL(href);
     } catch (caught) {
       setProblem(caught instanceof ApiError ? caught.message : "The proposal could not be downloaded.");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -110,10 +116,7 @@ function Proposal({ detail, onAnswer }: { detail: ClientProposalDetail; onAnswer
   return (
     <>
       <div className="-mt-11 flex justify-end">
-        <Button variant="secondary" onClick={() => void download()}>
-          <Download aria-hidden="true" />
-          Download PDF
-        </Button>
+        <ExportMenu formats={["pdf", "xlsx"]} busy={downloading} onPick={(format) => void download(format as "pdf" | "xlsx")} />
       </div>
       {problem && <Alert tone="danger">{problem}</Alert>}
 

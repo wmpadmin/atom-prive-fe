@@ -7591,6 +7591,101 @@ export function useMyProposal<TData = Awaited<ReturnType<typeof myProposal>>, TE
 
 
 
+export const getMyProposalAsExcelUrl = (id: string,) => {
+
+
+
+
+  return `/api/portal/proposals/${id}/xlsx`
+}
+
+export const myProposalAsExcel = async (id: string, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getMyProposalAsExcelUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMyProposalAsExcelQueryKey = (id: string,) => {
+    return [
+    `/api/portal/proposals/${id}/xlsx`
+    ] as const;
+    }
+
+
+export const getMyProposalAsExcelQueryOptions = <TData = Awaited<ReturnType<typeof myProposalAsExcel>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposalAsExcel>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMyProposalAsExcelQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof myProposalAsExcel>>> = ({ signal }) => myProposalAsExcel(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof myProposalAsExcel>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MyProposalAsExcelQueryResult = NonNullable<Awaited<ReturnType<typeof myProposalAsExcel>>>
+export type MyProposalAsExcelQueryError = unknown
+
+
+export function useMyProposalAsExcel<TData = Awaited<ReturnType<typeof myProposalAsExcel>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposalAsExcel>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myProposalAsExcel>>,
+          TError,
+          Awaited<ReturnType<typeof myProposalAsExcel>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyProposalAsExcel<TData = Awaited<ReturnType<typeof myProposalAsExcel>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposalAsExcel>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof myProposalAsExcel>>,
+          TError,
+          Awaited<ReturnType<typeof myProposalAsExcel>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMyProposalAsExcel<TData = Awaited<ReturnType<typeof myProposalAsExcel>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposalAsExcel>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useMyProposalAsExcel<TData = Awaited<ReturnType<typeof myProposalAsExcel>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof myProposalAsExcel>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMyProposalAsExcelQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getPrintMyProposalUrl = (id: string,) => {
 
 
