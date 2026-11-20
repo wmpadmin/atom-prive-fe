@@ -238,6 +238,7 @@ function Headline({ data }: { data: ClientWorkspace }) {
         {file ? (
           <>
             Investable <NotInFile /> · Owned outright <NotInFile /> · Liabilities <NotInFile />
+            {data.entityCount > 0 && <>{" · "}{data.entityCount} {data.entityCount === 1 ? "entity" : "entities"} (entered by staff)</>}
             {" · "}{h.accounts} accounts · {h.custodians} custodian{h.custodians === 1 ? "" : "s"} · as of {file.asOf ? formatDate(file.asOf) : "—"}
           </>
         ) : (
@@ -273,6 +274,14 @@ function Facts({ data }: { data: ClientWorkspace }) {
   const fromFile = (value: ReactNode | null | undefined) => value ?? (file ? <NotInFile /> : <Muted>—</Muted>);
   return (
     <section className="grid gap-4 rounded-2xl border border-line bg-white p-5 sm:grid-cols-2 lg:grid-cols-4">
+      {/* A bank-file client's mandate and policy dates are what staff set for him, never what the bank sent. */}
+      {file && (f.mandate || f.lastReview || f.nextReview) && (
+        <div className="sm:col-span-2 lg:col-span-4">
+          <span className="inline-block w-fit rounded-sm border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-3xs font-semibold whitespace-nowrap text-amber-800">
+            Mandate and review dates entered by staff · not from the bank file
+          </span>
+        </div>
+      )}
       <Fact label="Relationship lead" value={f.relationshipManager ?? <Muted>Not recorded</Muted>} />
       <Fact label="Mandate" value={fromFile(f.mandate)} />
       {/* Which model the client is measured against, by the model's name alone: the blended benchmark's long name and
