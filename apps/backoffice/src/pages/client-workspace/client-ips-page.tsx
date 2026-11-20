@@ -102,7 +102,7 @@ function Monitoring({ data, view }: { data: ClientIps; view: ViewLayoutState<Ips
 
 function Summary({ data }: { data: ClientIps }) {
   const s = data.summary;
-  if (data.bankFile) {
+  if (data.bankFile && !s) {
     return (
       <section className="rounded-2xl border border-line bg-white p-5">
         <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Investment policy statement</p>
@@ -127,6 +127,7 @@ function Summary({ data }: { data: ClientIps }) {
           {s.nextReview && <Pill tone="bg-amber-50 text-amber-700">Next review {formatDate(s.nextReview)}</Pill>}
           {s.riskProfile && <Pill tone="bg-slate-100 text-ink-soft">Risk profile {titleCase(s.riskProfile)}</Pill>}
           {s.discretion && <Pill tone="bg-slate-100 text-ink-soft">{titleCase(s.discretion)} · monitored</Pill>}
+          {data.bankFile && <StaffEntered />}
         </div>
       </div>
       <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -185,9 +186,13 @@ function Scorecard({ data, chart }: { data: ClientIps; chart: CardChart }) {
     };
   }, [rows]);
   return (
-    <Card title="Compliance Scorecard" lead={data.bankFile ? undefined : `${s.rules} rules monitored${s.notMeasured > 0 ? ` · ${s.notMeasured} could not be measured` : ""}`}
-      picker={!data.bankFile && s.rules > 0 && chart.picker}>
-      {data.bankFile ? <FileBlock /> : !chart.own ? (
+    <Card title="Compliance Scorecard"
+      lead={data.bankFile
+        ? (data.checks.length === 0 ? undefined : `${s.rules} of ${data.checks.length} rules read against a measure on file · the rest need his holdings, not in the bank file`)
+        : `${s.rules} rules monitored${s.notMeasured > 0 ? ` · ${s.notMeasured} could not be measured` : ""}`}
+      picker={!data.bankFile && s.rules > 0 && chart.picker}
+      action={data.bankFile && data.checks.length > 0 && <StaffEntered />}>
+      {data.bankFile && data.checks.length === 0 ? <FileBlock /> : !chart.own && !data.bankFile ? (
         <KindChart kind={chart.kind!} format={(value) => String(Math.round(value))} height={220} label="Rules by status"
           data={chart.kind === "gauge"
             ? { shape: "gauge", name: "Rules passing", value: s.compliant + s.nearLimit, max: s.rules, target: s.rules }
@@ -227,8 +232,9 @@ function Scorecard({ data, chart }: { data: ClientIps; chart: CardChart }) {
 
 function Budget({ data, chart }: { data: ClientIps; chart: CardChart }) {
   return (
-    <Card title="Risk & Liquidity Budget" lead="Utilisation of IPS limits" picker={!data.bankFile && data.gauges.length > 0 && chart.picker}>
-      {data.bankFile ? <FileBlock /> : data.gauges.length === 0 ? <Empty>No budget limit is recorded.</Empty> : !chart.own ? (
+    <Card title="Risk & Liquidity Budget" lead="Utilisation of IPS limits" picker={!data.bankFile && data.gauges.length > 0 && chart.picker}
+      action={data.bankFile && data.gauges.length > 0 && <StaffEntered />}>
+      {data.bankFile && data.gauges.length === 0 ? <FileBlock /> : data.gauges.length === 0 ? <Empty>No budget limit is recorded.</Empty> : !chart.own && !data.bankFile ? (
         <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(0)}%`} height={60 + data.gauges.length * 34} label="How much of each IPS limit is used"
           data={{ shape: "series", categories: data.gauges.map((one) => one.label), series: [{ name: "% of limit used", values: data.gauges.map((one) => one.usedPercent) }] }} />
       ) : (
@@ -581,8 +587,8 @@ function ChecksCard({ data }: { data: ClientIps }) {
   const shown = data.checks.filter((one) => only === "all" || ["NEAR_LIMIT", "WARNING", "DEVIATION"].includes(one.status));
   return (
     <Card title="Constraint Checks" lead={`${shown.length} of ${data.checks.length} rules shown`}
-      action={<Toggle label="Rules shown" value={only} onChange={setOnly} options={[["all", "All"], ["exceptions", "Exceptions"]]} />}>
-      {data.bankFile ? <FileBlock /> : shown.length === 0 ? <Empty>{data.checks.length === 0 ? "No constraint is recorded in the policy." : "Every rule is compliant."}</Empty> : (
+      action={<>{data.bankFile && data.checks.length > 0 && <StaffEntered />}<Toggle label="Rules shown" value={only} onChange={setOnly} options={[["all", "All"], ["exceptions", "Exceptions"]]} /></>}>
+      {data.bankFile && data.checks.length === 0 ? <FileBlock /> : shown.length === 0 ? <Empty>{data.checks.length === 0 ? "No constraint is recorded in the policy." : "Every rule is compliant."}</Empty> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -720,6 +726,18 @@ function FileAllocation({ data }: { data: ClientIps }) {
         </div>
       )}
     </Card>
+  );
+}
+
+/**
+ * Says a bank-file client's card is the firm's own record (the policy staff put on file and the measures recorded
+ * against it), so nobody reads it as something the bank sent.
+ */
+function StaffEntered() {
+  return (
+    <span className="inline-block w-fit rounded-sm border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-3xs font-semibold whitespace-nowrap text-amber-800">
+      Entered by staff · not from the bank file
+    </span>
   );
 }
 
